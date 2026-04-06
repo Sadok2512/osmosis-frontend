@@ -395,7 +395,17 @@ const KpiCatalogView: React.FC = () => {
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tCfg.bg} ${tCfg.text}`}>{row.technology}</span>
                         </td>
                         <td className="px-3 py-3 hidden xl:table-cell">
-                          <span className="text-xs text-foreground">{row.vendor === 'ALL' ? '—' : row.vendor}</span>
+                          {row.vendor && row.vendor !== 'ALL' ? (() => {
+                            const vBadge = VENDOR_COLORS[row.vendor] || VENDOR_COLORS[row.vendor.toUpperCase()];
+                            return vBadge
+                              ? <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vBadge.bg} ${vBadge.text}`}>{row.vendor}</span>
+                              : <span className="text-xs text-foreground">{row.vendor}</span>;
+                          })() : <span className="text-[10px] text-muted-foreground">—</span>}
+                        </td>
+                        <td className="px-3 py-3 hidden lg:table-cell">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.is_normalized ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
+                            {row.is_normalized ? 'Yes' : 'No'}
+                          </span>
                         </td>
                         <td className="px-3 py-3 hidden lg:table-cell">
                           <div className="flex items-center gap-1.5">
