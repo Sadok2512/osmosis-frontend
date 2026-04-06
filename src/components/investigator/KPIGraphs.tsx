@@ -187,48 +187,175 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 
   const counters = [...new Set(tsData.map(d => d.counter))];
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
-  // Build a reverse map: display_name → counter_id from response data
   const displayLabel = (c: string) => {
-    // If nameMap has a mapping for any counterName that maps to c, show "display (ID)"
     const id = Object.entries(nameMap).find(([, name]) => name === c)?.[0];
     return id ? `${c} (${id})` : c;
   };
 
+  // Weekend highlighting
+  const weekendAreas: { xAxis: string }[][] = [];
+  let inWeekend = false;
+  for (let ti = 0; ti < timestamps.length; ti++) {
+    const day = new Date(timestamps[ti]).getDay();
+    const isWE = day === 0 || day === 6;
+    if (isWE && !inWeekend) {
+      weekendAreas.push([{ xAxis: timestamps[ti] }, { xAxis: timestamps[ti] }]);
+      inWeekend = true;
+    } else if (isWE && inWeekend) {
+      weekendAreas[weekendAreas.length - 1][1] = { xAxis: timestamps[ti] };
+    } else {
+      inWeekend = false;
+    }
+  }
+  const markAreaData = weekendAreas.map(([start, end]) => [{
+    xAxis: start.xAxis,
+    itemStyle: { color: 'rgba(148,163,184,0.12)' },
+  }, { xAxis: end.xAxis }]);
+
+  // Auto Y-axis range
+  const allVals = tsData.map(d => d.value).filter(v => v != null && !isNaN(v));
+  const rawMin = allVals.length ? Math.min(...allVals) : 0;
+  const rawMax = allVals.length ? Math.max(...allVals) : 100;
+  const range = rawMax - rawMin;
+  const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
+  const yMin = parseFloat((rawMin - padding).toFixed(4));
+  const yMax = parseFloat((rawMax + padding).toFixed(4));
+
+  // Smart x-axis interval
+  const totalPts = timestamps.length;
+  const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
+
+  const legendRows = counters.length > 4 ? 78 : counters.length > 2 ? 66 : 54;
+  const sliderHeight = 22;
+
   const option = {
+    animation: false,
+    backgroundColor: '#f8fafc',
+    grid: {
+      top: 32,
+      right: 28,
+      bottom: legendRows + sliderHeight + 10,
+      left: 62,
+      containLabel: false,
+    },
+    dataZoom: [
+      { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+      {
+        type: 'slider' as const,
+        xAxisIndex: 0,
+        height: sliderHeight,
+        bottom: legendRows - 12,
+        filterMode: 'none' as const,
+        borderColor: 'rgba(128,128,128,0.2)',
+        backgroundColor: 'rgba(128,128,128,0.06)',
+        fillerColor: 'rgba(99,102,241,0.15)',
+        handleSize: '120%',
+        handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
+        moveHandleSize: 6,
+        textStyle: { fontSize: 9, color: '#a1a1aa' },
+        dataBackground: {
+          lineStyle: { color: 'rgba(99,102,241,0.3)' },
+          areaStyle: { color: 'rgba(99,102,241,0.08)' },
+        },
+        selectedDataBackground: {
+          lineStyle: { color: 'rgba(99,102,241,0.5)' },
+          areaStyle: { color: 'rgba(99,102,241,0.15)' },
+        },
+        brushSelect: false,
+      },
+    ],
+    legend: {
+      show: true,
+      bottom: 4,
+      icon: 'roundRect',
+      itemWidth: 20,
+      itemHeight: 5,
+      itemGap: 18,
+      type: 'scroll' as any,
+      pageIconSize: 12,
+      textStyle: { fontSize: 11, fontWeight: 500, color: '#4b5563', padding: [0, 0, 0, 4] },
+      tooltip: { show: true },
+    },
     tooltip: {
       trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'rgba(255,255,255,0.08)',
-      textStyle: { color: '#f8fafc', fontSize: 10 },
+      backgroundColor: 'rgba(15,23,42,0.96)',
+      borderColor: 'rgba(255,255,255,0.06)',
+      borderRadius: 8,
+      padding: [10, 14],
+      textStyle: { color: '#f1f5f9', fontSize: 11.5 },
+      axisPointer: {
+        type: 'line' as const,
+        lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const },
+      },
+      formatter: (params: any) => {
+        const items = Array.isArray(params) ? params : [params];
+        if (items.length === 0) return '';
+        const dt = new Date(items[0].axisValue);
+        const dayName = dt.toLocaleDateString('fr-FR', { weekday: 'short' });
+        const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
+        const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        const isWE = dt.getDay() === 0 || dt.getDay() === 6;
+        const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
+        const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
+        const rows = items.map((p: any) => {
+          const val = p.value != null ? p.value.toFixed(2) : '—';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val}</b></div>`;
+        }).join('');
+        return header + rows;
+      },
     },
-    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters.map(c => displayLabel(c)) },
-    grid: { left: 60, right: 20, top: 10, bottom: 40 },
     xAxis: {
       type: 'category' as const,
-      data: timestamps.map(t => t.slice(0, 10)),
-      axisLabel: { color: '#6b7280', fontSize: 9 },
-      axisLine: { lineStyle: { color: '#374151' } },
+      data: timestamps,
+      axisLabel: {
+        formatter: (v: string) => formatAxisLabel(v, state.granularity),
+        fontSize: 10.5,
+        color: '#a1a1aa',
+        margin: 14,
+        rotate: 0,
+        interval: xInterval,
+      },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
+      axisTick: { show: false },
+      splitLine: { show: false },
     },
     yAxis: {
       type: 'value' as const,
-      axisLabel: { color: '#6b7280', fontSize: 9, formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString() },
-      splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
+      min: yMin,
+      max: yMax,
+      axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 14 },
+      splitLine: { show: true, lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const } },
+      axisLine: { show: false },
+      axisTick: { show: false },
     },
-    series: counters.map((counter, i) => ({
-      name: displayLabel(counter),
-      type: 'line' as const,
-      smooth: true,
-      data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : 0; }),
-      lineStyle: { width: 2, color: SERIES_COLORS[i % SERIES_COLORS.length] },
-      itemStyle: { color: SERIES_COLORS[i % SERIES_COLORS.length] },
-      symbolSize: 4,
-      areaStyle: {
-        color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [
-          { offset: 0, color: SERIES_COLORS[i % SERIES_COLORS.length] + '25' },
-          { offset: 1, color: SERIES_COLORS[i % SERIES_COLORS.length] + '05' },
-        ]},
-      },
-    })),
+    series: counters.map((counter, i) => {
+      const color = SERIES_COLORS[i % SERIES_COLORS.length];
+      return {
+        name: displayLabel(counter),
+        type: 'line' as const,
+        smooth: true,
+        connectNulls: true,
+        data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : null; }),
+        lineStyle: { width: 2.5, color },
+        itemStyle: { color },
+        symbol: 'none',
+        symbolSize: 5,
+        emphasis: {
+          focus: 'series' as const,
+          blurScope: 'coordinateSystem' as const,
+          lineStyle: { width: 4 },
+        },
+        areaStyle: {
+          color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [
+            { offset: 0, color: color + '20' },
+            { offset: 1, color: color + '02' },
+          ]},
+        },
+        ...(i === 0 ? {
+          markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
+        } : {}),
+      };
+    }),
   };
 
   return <ReactECharts option={option} notMerge style={{ height }} />;
