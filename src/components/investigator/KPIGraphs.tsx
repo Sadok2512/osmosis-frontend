@@ -242,8 +242,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   const yMax = parseFloat((rawMax + padding).toFixed(4));
 
   // Smart x-axis interval
-  const totalPts = timestamps.length;
-  const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
+  const xInterval = smartXInterval(timestamps.length);
 
   const legendRows = counters.length > 4 ? 78 : counters.length > 2 ? 66 : 54;
   const sliderHeight = 22;
