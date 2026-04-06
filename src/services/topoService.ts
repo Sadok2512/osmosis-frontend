@@ -590,34 +590,13 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   };
 }
 
-// LRU bbox+filters cache (keeps last N entries for back-and-forth navigation)
-const BBOX_LRU_SIZE = 8;
-const bboxLruCache: { key: string; sites: SiteSummary[]; total: number; ts: number }[] = [];
+// Simple bbox+filters cache
+let bboxCache: { key: string; sites: SiteSummary[]; total: number } | null = null;
 
 function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
   const b = `${bbox.minLng.toFixed(4)},${bbox.minLat.toFixed(4)},${bbox.maxLng.toFixed(4)},${bbox.maxLat.toFixed(4)}`;
   const f = filters ? Object.entries(filters).filter(([,v]) => v && v !== 'ALL').map(([k,v]) => `${k}=${v}`).join('&') : '';
   return `${b}|${f}`;
-}
-
-function bboxCacheGet(key: string): { sites: SiteSummary[]; total: number } | null {
-  const idx = bboxLruCache.findIndex(e => e.key === key);
-  if (idx < 0) return null;
-  // Move to front (most recent)
-  const [entry] = bboxLruCache.splice(idx, 1);
-  entry.ts = Date.now();
-  bboxLruCache.unshift(entry);
-  return { sites: entry.sites, total: entry.total };
-}
-
-function bboxCacheSet(key: string, sites: SiteSummary[], total: number) {
-  // Remove existing entry if present
-  const idx = bboxLruCache.findIndex(e => e.key === key);
-  if (idx >= 0) bboxLruCache.splice(idx, 1);
-  // Add to front
-  bboxLruCache.unshift({ key, sites, total, ts: Date.now() });
-  // Evict oldest if over capacity
-  while (bboxLruCache.length > BBOX_LRU_SIZE) bboxLruCache.pop();
 }
 
 /**
@@ -630,8 +609,9 @@ export async function fetchSitesByBbox(
   signal?: AbortSignal,
 ): Promise<{ sites: SiteSummary[]; total: number }> {
   const key = bboxCacheKey(bbox, filters);
-  const cached = bboxCacheGet(key);
-  if (cached) return cached;
+  if (bboxCache && bboxCache.key === key) {
+    return { sites: bboxCache.sites, total: bboxCache.total };
+  }
 
   try {
     const [resp, qoeData] = await Promise.all([
@@ -653,15 +633,15 @@ export async function fetchSitesByBbox(
     }
 
     const filtered4G5G = filterSites4G5G(sites);
-    bboxCacheSet(key, filtered4G5G, filtered4G5G.length);
+    bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
     const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
     return { sites: filtered4G5G, total: filtered4G5G.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
-    console.warn('[TopoService] BBOX fetch failed — keeping previous data', err);
-    // No full fallback — return empty so caller can keep previous data
-    return { sites: [], total: 0 };
+    console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
+    const allSites = await fetchTopoSites();
+    return { sites: allSites, total: allSites.length };
   }
 }
 
@@ -701,7 +681,7 @@ export async function fetchCellsByBbox(
 }
 
 export function invalidateBboxCache() {
-  bboxLruCache.length = 0;
+  bboxCache = null;
 }
 
 export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {

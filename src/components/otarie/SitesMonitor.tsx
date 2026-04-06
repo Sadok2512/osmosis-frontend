@@ -4339,13 +4339,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
-      // If fetch returned empty (server error, no fallback), keep previous data
-      if (!newSites || newSites.length === 0) {
-        setBboxLoading(false);
-        setLoading(false);
-        return;
-      }
-
       // Preserve already loaded cells when fresh BBOX results only contain lightweight site summaries
       setSites(prev => {
         const prevById = new Map(prev.map(site => [site.site_id, site]));
@@ -4484,10 +4477,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setSearchModeSites(summaries);
         if (summaries.length > 0) setInventoryTab('tagged');
 
-        // Don't auto-fly on typing — user must click a result to navigate
-        // if (summaries.length > 0) {
-        //   setFlyTarget(summaries[0].coordinates);
-        // }
+        // Auto-fly to first result
+        if (summaries.length > 0) {
+          setFlyTarget(summaries[0].coordinates);
+        }
       } catch (err: any) {
         if (err?.name !== 'AbortError') {
           console.warn('[SitesMonitor] Debounced search failed', err);
@@ -5316,7 +5309,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-
+    // Don't fetch sites without an active dashboard
+    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -5326,12 +5320,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-
-    // ── Viewport-driven data refresh (debounced, skips during flyTo) ──
-    if (dashboardActive && !isFlyingRef.current && v.bounds) {
-      handleViewportForFetch(v);
-    }
-  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked, handleViewportForFetch]);
+  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -5571,21 +5560,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusCellId(null);
   };
 
-  // ── Unified loading indicator — single clean overlay ──
-  const loadingMessage = useMemo(() => {
-    if (cellsLoadingCount > 0) return `Chargement secteurs… (${cellsLoadingCount})`;
-    if (bboxLoading && sites.length > 0) return `Mise à jour… ${sites.length.toLocaleString()} sites`;
-    if (loading || bboxLoading) return 'Chargement des sites…';
-    if (kpiLoading) return 'Chargement KPI…';
-    return null;
-  }, [loading, bboxLoading, cellsLoadingCount, kpiLoading, sites.length]);
-
-  const loadingOverlay = loadingMessage ? (
+  // Non-blocking loading banner — map stays interactive
+  const loadingOverlay = (loading || bboxLoading) ? (
     <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
       <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
         <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          {loadingMessage}
+          {sites.length > 0
+            ? `Chargement… ${sites.length.toLocaleString()} sites`
+            : 'Chargement des sites…'}
         </p>
       </div>
     </div>
@@ -5599,15 +5582,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {/* Empty state — no dashboard, modal closed */}
+      {/* Empty overlay removed — message now in sidebar */}
+      {/* Bbox loading indicator */}
+      {bboxLoading && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
+          <RefreshCw size={12} className="text-primary animate-spin" />
+          <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
+        </div>
+      )}
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
-        zoomSnap={0.5}
+        zoomSnap={1}
         zoomDelta={1}
-        wheelPxPerZoomLevel={120}
         closePopupOnClick={true}
       >
         <MapVisibilitySync active={isVisible} />
@@ -6103,33 +6094,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {/* At low zoom with many sites → cluster markers for performance */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && viewport.zoom < 7 && renderSites.length > 100 && (
-          <MarkerClusterGroup
-            chunkedLoading
-            maxClusterRadius={60}
-            disableClusteringAtZoom={8}
-            spiderfyOnMaxZoom={false}
-            showCoverageOnHover={false}
-            iconCreateFunction={createClusterCustomIcon}
-          >
-            {renderSites.map(site => {
-              const { has5G } = inferSiteTechState(site);
-              const color = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
-              return (
-                <Marker
-                  key={`cl_${site.site_id}`}
-                  position={site.coordinates}
-                  icon={createSiteIcon(getColorViewFill(site) || color)}
-                  eventHandlers={{
-                    click: () => handleSiteClick(site),
-                  }}
-                />
-              );
-            })}
-          </MarkerClusterGroup>
-        )}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && !(viewport.zoom < 7 && renderSites.length > 100) && (() => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
