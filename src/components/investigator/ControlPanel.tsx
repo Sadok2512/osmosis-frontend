@@ -200,6 +200,7 @@ const AddFilterDropdown: React.FC<{
 }> = ({ existingKeys, onAdd, filterDimensions }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState<string[]>([]);
 
   const available = filterDimensions.filter(d => !existingKeys.includes(d));
   const filtered = search
@@ -209,57 +210,107 @@ const AddFilterDropdown: React.FC<{
       })
     : available;
 
+  const toggle = (dim: string) => {
+    setSelected(prev => prev.includes(dim) ? prev.filter(d => d !== dim) : [...prev, dim]);
+  };
+
+  const handleConfirm = () => {
+    selected.forEach(dim => onAdd(dim));
+    setSelected([]);
+    setSearch('');
+    setOpen(false);
+  };
+
   return (
-    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setSearch(''); setSelected([]); } }}>
       <PopoverTrigger asChild>
         <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors">
           <Plus className="w-3 h-3" /> Ajouter filtre
         </button>
       </PopoverTrigger>
-      <PopoverContent className="min-w-[240px] p-0 rounded-xl border border-border/60 shadow-xl bg-card/95 backdrop-blur-md" align="start" sideOffset={6}>
-        <div className="px-3 pt-3 pb-2">
+      <PopoverContent className="w-[280px] p-0 rounded-xl border border-border/60 shadow-xl bg-card" align="start" sideOffset={6}>
+        {/* Header */}
+        <div className="px-4 pt-3 pb-2 border-b border-border/40">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            Sélectionner — Dimensions
+          </div>
           <div className="relative">
-            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/60" />
+            <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher dimension..."
-              className="w-full pl-8 pr-3 py-2 rounded-lg border border-border/50 bg-muted/30 text-xs outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-muted-foreground/50 transition-all"
+              placeholder="Rechercher..."
+              className="w-full pl-8 pr-3 py-2 rounded-lg border border-border/50 bg-muted/20 text-xs outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-muted-foreground/40 transition-all"
               autoFocus
             />
           </div>
         </div>
-        <div className="max-h-[280px] overflow-y-auto px-1.5 pb-2">
+
+        {/* Selection count */}
+        {selected.length > 0 && (
+          <div className="px-4 py-1.5 text-[10px] font-semibold text-primary border-b border-border/20">
+            {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
+          </div>
+        )}
+
+        {/* List */}
+        <div className="max-h-[260px] overflow-y-auto py-1">
           {filtered.length === 0 && (
-            <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">
+            <div className="px-4 py-6 text-[10px] text-muted-foreground text-center">
               {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
             </div>
           )}
-          {filtered.map((dim, idx) => {
+          {filtered.map(dim => {
             const isPm = PM_DIMENSION_TYPES.has(dim);
             const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+            const isChecked = selected.includes(dim);
             return (
               <button
                 key={dim}
-                onClick={() => { onAdd(dim); setOpen(false); setSearch(''); }}
+                onClick={() => toggle(dim)}
                 className={cn(
-                  "w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2 group",
-                  isPm
-                    ? "text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
-                    : "text-foreground hover:bg-primary/5"
+                  "w-full text-left px-4 py-2.5 text-xs font-medium transition-all flex items-center gap-3",
+                  isChecked ? "text-primary" : "text-foreground",
+                  "hover:bg-muted/40"
                 )}
               >
                 <span className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  isPm ? "bg-amber-500" : "bg-primary/40 group-hover:bg-primary"
-                )} />
-                <span className="flex-1">{label}</span>
+                  "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+                  isChecked
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border/60 bg-background"
+                )}>
+                  {isChecked && <Check className="w-3 h-3" />}
+                </span>
+                <span className={cn("flex-1", isChecked && "font-bold")}>{label}</span>
                 {isPm && (
                   <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">PM</span>
                 )}
               </button>
             );
           })}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/40 bg-muted/20 rounded-b-xl">
+          <button
+            onClick={() => setSelected([])}
+            className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={selected.length === 0}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+              selected.length > 0
+                ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            )}
+          >
+            <Check className="w-3 h-3" /> Confirm
+          </button>
         </div>
       </PopoverContent>
     </Popover>
