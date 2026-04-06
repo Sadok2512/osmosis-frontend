@@ -1275,61 +1275,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-3 space-y-2" align="start">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {editingJalon ? 'Modifier le jalon' : 'Ajouter un jalon'}
-                </div>
-                <JalonForm
-                  onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))}
-                  editJalon={editingJalon}
-                  onUpdate={(j) => {
-                    setState(prev => ({ ...prev, jalons: prev.jalons.map(jj => jj.id === j.id ? j : jj) }));
-                    setEditingJalon(null);
-                  }}
-                  onCancelEdit={() => setEditingJalon(null)}
+              <PopoverContent className="w-[320px] p-3" align="start">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Gestion des jalons</div>
+                <JalonsManagerPopup
+                  jalons={state.jalons}
+                  onUpdate={(jalons) => setState(prev => ({ ...prev, jalons }))}
                 />
-                {state.jalons.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-border/40 max-h-[200px] overflow-y-auto">
-                    {state.jalons.map(j => (
-                      <div key={j.id} className={cn("flex items-center gap-1.5 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-foreground truncate block">{j.label}</span>
-                          <span className="text-muted-foreground text-[9px]">
-                            {j.date?.replace('T', ' ')}{j.endDate && j.endDate !== j.date ? ` → ${j.endDate.replace('T', ' ')}` : ''}
-                          </span>
-                        </div>
-                        {j.visibility && j.visibility !== 'all' && (
-                          <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                            {j.visibility === 'team' ? 'Équipe' : 'Perso'}
-                          </span>
-                        )}
-                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary shrink-0">
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive shrink-0">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </PopoverContent>
             </Popover>
-
-            {/* Jalon chips inline */}
-            {state.jalons.map(j => (
-              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border border-border/30 bg-card text-foreground">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: j.color }} />
-                {j.label}
-                <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="hover:text-destructive ml-0.5">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-
-            {/* Spacer */}
-            <div className="flex-1" />
 
             {/* Apply button */}
             <Button
