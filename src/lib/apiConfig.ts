@@ -85,26 +85,34 @@ export function getVpsProxyUrl(
   path: string,
   extraParams?: Record<string, string>,
 ): string {
+  // Separate query params embedded in path to avoid BOOT_ERROR in edge functions
+  let cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const mergedExtra: Record<string, string> = { ...(extraParams || {}) };
+  const qIdx = cleanPath.indexOf('?');
+  if (qIdx >= 0) {
+    new URLSearchParams(cleanPath.slice(qIdx + 1)).forEach((v, k) => {
+      if (!mergedExtra[k]) mergedExtra[k] = v;
+    });
+    cleanPath = cleanPath.slice(0, qIdx);
+  }
+
   // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
   const onDirect = typeof window !== 'undefined' && (
     window.location.hostname === VPS_HOST ||
     window.location.hostname.endsWith('.qoebit.net')
   );
   if (onDirect) {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`;
     const ep = VPS_ENDPOINTS[service];
-    const params = new URLSearchParams(extraParams || {});
+    const params = new URLSearchParams(mergedExtra);
     const qs = params.toString();
-    return `${ep}${cleanPath}${qs ? (cleanPath.includes('?') ? '&' : '?') + qs : ''}`;
+    return `${ep}${cleanPath}${qs ? '?' + qs : ''}`;
   }
   const base = `https://${SUPABASE_PROJECT_ID}.supabase.co/functions/v1/vps-proxy`;
   const params = new URLSearchParams();
   params.set('service', service);
-  params.set('path', path.startsWith('/') ? path : `/${path}`);
-  if (extraParams) {
-    for (const [k, v] of Object.entries(extraParams)) {
-      params.set(k, v);
-    }
+  params.set('path', cleanPath);
+  for (const [k, v] of Object.entries(mergedExtra)) {
+    params.set(k, v);
   }
   return `${base}?${params}`;
 }
