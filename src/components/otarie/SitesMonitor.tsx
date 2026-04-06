@@ -5688,6 +5688,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Polyline>
         )}
 
+        {/* ── Profile tool line ── */}
+        {activeMapTool === 'profile' && profileTarget && selectedSiteSnapshot && (() => {
+          const siteCoords = selectedSiteSnapshot.coordinates;
+          const dist = haversineDistance({ lat: siteCoords[0], lng: siteCoords[1] }, { lat: profileTarget[0], lng: profileTarget[1] });
+          const fmtDist = dist >= 1000 ? `${(dist / 1000).toFixed(2)} km` : `${Math.round(dist)} m`;
+          return (
+            <>
+              <Polyline
+                positions={[siteCoords, profileTarget]}
+                pathOptions={{ color: 'hsl(280, 70%, 60%)', weight: 2.5, opacity: 0.85, dashArray: '8 4' }}
+              >
+                <Tooltip direction="center" permanent className="profile-distance-tooltip">
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(280, 70%, 60%)', textShadow: '0 0 4px #fff, 0 0 8px #fff' }}>
+                    {fmtDist}
+                  </span>
+                </Tooltip>
+              </Polyline>
+              <CircleMarker center={profileTarget} radius={5} pathOptions={{ fillColor: 'hsl(280, 70%, 60%)', fillOpacity: 1, color: '#fff', weight: 2 }} />
+            </>
+          );
+        })()}
+
         {/* ── Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (() => {
           const currentRadius = radiusConfirmed ? radiusConfirmedMeters : radiusLiveMeters;
