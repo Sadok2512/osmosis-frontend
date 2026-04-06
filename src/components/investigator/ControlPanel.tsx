@@ -1001,8 +1001,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           </button>
                         </button>
                       </PopoverTrigger>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
