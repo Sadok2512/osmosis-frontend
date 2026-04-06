@@ -3555,7 +3555,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const linkFresnel = useFresnel(linkProfilePoints, linkProfileAnalysis, linkTotalDistance, 1.8, linkEnableFresnel);
 
-  const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+  // ── Cell Profile Tool (terrain profile from cell to clicked point) ──
+  const { loading: cellProfileLoading, profilePoints: cellProfilePoints, analysis: cellProfileAnalysis, computeProfile: cellProfileCompute } = useTerrainProfile();
+  const cellProfileFresnel = useFresnel(cellProfilePoints, cellProfileAnalysis, (() => {
+    if (!profileTarget || !selectedSiteSnapshot) return 0;
+    const coords = selectedSiteSnapshot.coordinates;
+    return haversineDistance({ lat: coords[0], lng: coords[1] }, { lat: profileTarget[0], lng: profileTarget[1] });
+  })(), 1.8, true);
+
+  // Auto-compute profile when target is set
+  useEffect(() => {
+    if (!profileTarget || !focusCellId) return;
+    const site = siteDetail || selectedSiteSnapshot;
+    if (!site) return;
+    const cell = site.cells.find((c: CellProperties) => c.cell_id === focusCellId);
+    const coords = site.coordinates;
+    const hba = cell?.hba ?? 30;
+    const az = cell?.azimut ?? 0;
+    cellProfileCompute(
+      { lat: coords[0], lng: coords[1] },
+      { lat: profileTarget[0], lng: profileTarget[1] },
+      { hba, mechTilt: 0, elecTilt: 0, totalTilt: (cell as any)?.tilt ?? 0, azimuth: az, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: hba },
+      true
+    );
+  }, [profileTarget, focusCellId, siteDetail, selectedSiteSnapshot, cellProfileCompute]);
+
     const fromLL = { lat: coords.from[0], lng: coords.from[1] };
     const toLL = { lat: coords.to[0], lng: coords.to[1] };
     // Compute actual bearing so azimuth analysis is correct for point-to-point links
