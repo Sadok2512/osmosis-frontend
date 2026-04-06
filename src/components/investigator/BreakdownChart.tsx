@@ -161,10 +161,10 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
           data: timestamps,
           axisLabel: {
             formatter: (v: string) => formatAxisLabel(v, granularity),
-            fontSize: 9.5, color: '#a1a1aa', margin: 12,
+            fontSize: 11, color: '#6b7280', margin: 16, lineHeight: 16,
           },
-          axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-          axisTick: { show: false },
+          axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+          axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
         },
         yAxis: {
           type: 'value' as const,
