@@ -866,9 +866,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
           const vals: number[] = [];
           seriesArr.forEach(s => {
-            const sKpiId = s._kpiId || kpiIds[0];
-            const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
-            if (assignedAxis !== axisIdx) return;
+            // Counter series have explicit yAxisIndex
+            if (s.yAxisIndex != null) {
+              if (s.yAxisIndex !== axisIdx) return;
+            } else {
+              const sKpiId = s._kpiId || kpiIds[0];
+              const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
+              if (assignedAxis !== axisIdx) return;
+            }
             (s.data || []).forEach((v: any) => {
               if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
             });
