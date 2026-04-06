@@ -83,30 +83,34 @@ async function fetchKpiComputeOnTheFly(
       }
     }
 
-    // Split by PM dimension: call compute for each dimension value
+    // Split by PM dimension: single query with GROUP BY dimension_key
     if (splitByPmDim && !body.dimension_filter) {
       console.log('[KpiCompute] Split by PM dimension:', splitByPmDim);
       try {
-        const dimRes = await fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=20`), { headers: getApiHeaders() });
+        // Fetch dimension labels for display
+        const dimRes = await fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=50`), { headers: getApiHeaders() });
+        const labelMap: Record<string, string> = {};
         if (dimRes.ok) {
           const dimData = await dimRes.json();
-          const dimValues = (dimData.labeled_values || dimData.values || []).slice(0, 10);
-          const allData: DataPoint[] = [];
-          for (const dv of dimValues) {
-            const dimVal = typeof dv === 'string' ? dv : dv.value;
-            const dimLabel = typeof dv === 'string' ? dv : dv.label;
-            const splitBody = { ...body, dimension_filter: dimVal };
-            const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
-            if (splitRes.ok) {
-              const splitResult = await splitRes.json();
-              if (!splitResult.error) {
-                for (const s of (splitResult.series || [])) {
-                  allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
-                }
-              }
-            }
+          for (const dv of (dimData.labeled_values || [])) {
+            if (typeof dv === 'object') labelMap[dv.value] = dv.label;
           }
-          if (allData.length > 0) return { data: allData, isComputed: true };
+        }
+
+        // Single request with split_by_dimension=true
+        const splitBody = { ...body, split_by_dimension: true };
+        const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+        if (splitRes.ok) {
+          const splitResult = await splitRes.json();
+          if (!splitResult.error && splitResult.series?.length > 0) {
+            const allData: DataPoint[] = [];
+            for (const s of splitResult.series) {
+              const dimKey = s.dimension_key || '';
+              const dimLabel = labelMap[dimKey] || dimKey;
+              allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
+            }
+            if (allData.length > 0) return { data: allData, isComputed: true };
+          }
         }
       } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
     }
