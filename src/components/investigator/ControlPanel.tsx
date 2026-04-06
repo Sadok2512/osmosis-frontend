@@ -1282,13 +1282,33 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       <div className="bg-card border-b border-border/40">
         <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
 
-          {/* ── ROW 1: Standard Filters (non-PM dimensions) ── */}
+          {/* ── ROW 1: Standard Filters (non-PM dimensions, excluding dims already shown as split badges) ── */}
+          {(() => {
+            // Collect dimensions already used as splits in the active slot's KPIs
+            const activeSlot = state.graphSlots.find(s => s.id === activeSlotId);
+            const activeSplitDims = new Set<string>();
+            if (activeSlot?.config) {
+              const cfg = activeSlot.config;
+              for (const kpiId of activeSlot.kpiIds) {
+                const s1 = cfg.splitByPerKpi?.[kpiId];
+                if (s1 && s1 !== 'None') activeSplitDims.add(s1);
+                const s2 = cfg.splitByPerKpi2?.[kpiId];
+                if (s2 && s2 !== 'None') activeSplitDims.add(s2);
+              }
+            }
+            // Also add the global splitBy
+            if (activeSlot?.splitBy && activeSlot.splitBy !== 'None') activeSplitDims.add(activeSlot.splitBy);
+            
+            const visibleFilterDims = activeFilterDims.filter(dim => 
+              !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim) && !activeSplitDims.has(dim)
+            );
+            return (
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <Filter className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).map(dim => (
+            {visibleFilterDims.map(dim => (
               <FilterChip
                 key={dim}
                 dim={dim}
@@ -1304,13 +1324,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               onAdd={addFilterDimension}
               filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
             />
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).length > 0 && (
+            {visibleFilterDims.length > 0 && (
               <button
                 onClick={() => {
-                  const stdDims = activeFilterDims.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d));
                   setState(prev => {
                     const nf = { ...prev.filters };
-                    stdDims.forEach(d => delete nf[d]);
+                    visibleFilterDims.forEach(d => delete nf[d]);
                     return { ...prev, filters: nf };
                   });
                 }}
@@ -1320,6 +1339,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </button>
             )}
           </div>
+            );
+          })()}
 
           {/* ── ROW 2: KPIs + Counters ── */}
           <div className="flex items-center gap-2 flex-wrap">
