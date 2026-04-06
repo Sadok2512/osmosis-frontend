@@ -537,16 +537,12 @@ const KpiWidgetCard: React.FC<Props> = ({
             <Loader2 className="w-5 h-5 animate-spin text-primary/50" />
           </div>
         ) : config.kpis.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2">
-            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-muted-foreground/30" />
-            </div>
-            <span className="text-[10px] text-muted-foreground/50">Sélectionnez un KPI</span>
+          <div className="flex items-center justify-center h-full">
             <button
               onClick={e => { e.stopPropagation(); setConfigExpanded(true); }}
-              className="text-[9px] font-medium text-primary hover:underline"
+              className="text-[10px] font-medium text-muted-foreground/50 hover:text-primary transition-colors"
             >
-              + Configurer ce widget
+              + Ajouter un KPI
             </button>
           </div>
         ) : chartOption ? (
