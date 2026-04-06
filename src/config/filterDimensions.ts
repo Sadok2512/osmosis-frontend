@@ -157,8 +157,54 @@ export function normalizeValue(s: string | null | undefined): string | null {
   return ALIASES[v] ?? v;
 }
 
+// ── Contextual filter cache ──
+// When parent filters change, we fetch narrowed values from backend
+// Key = serialized context params, Value = { dimId → values[] }
+const _contextCache = new Map<string, Record<string, string[]>>();
+const _contextPending = new Map<string, Promise<void>>();
+
+function buildContextKey(activeFilters: ActiveFilter[]): string {
+  const relevant = activeFilters
+    .filter(f => f.values.length > 0 && ['dor', 'constructeur', 'techno', 'bande'].includes(f.dimension))
+    .sort((a, b) => a.dimension.localeCompare(b.dimension));
+  if (relevant.length === 0) return '';
+  return relevant.map(f => `${f.dimension}=${f.values.join(',')}`).join('&');
+}
+
+/**
+ * Trigger a contextual fetch for filtered values.
+ * Call this from React components — it returns true when data is ready.
+ */
+export function loadContextFilters(activeFilters: ActiveFilter[]): boolean {
+  const key = buildContextKey(activeFilters);
+  if (key === '') return true; // no context → use base cache
+  if (_contextCache.has(key)) return true;
+  if (!_contextPending.has(key)) {
+    const promise = topoApi.filters(key)
+      .then(resp => {
+        const map: Record<string, string[]> = {};
+        for (const f of resp.filters ?? []) {
+          map[f.id] = f.values ?? [];
+        }
+        _contextCache.set(key, map);
+      })
+      .catch(err => {
+        console.warn('[filterDimensions] Context filter fetch failed', err);
+      })
+      .finally(() => _contextPending.delete(key));
+    _contextPending.set(key, promise);
+  }
+  return false;
+}
+
+function getContextValues(dimensionKey: string, activeFilters: ActiveFilter[]): string[] | null {
+  const key = buildContextKey(activeFilters);
+  if (key === '') return null; // no context
+  return _contextCache.get(key)?.[dimensionKey] ?? null;
+}
+
 // ── Dependency resolver ──
-// Uses backend cache when available, falls back to static refs
+// Uses contextual backend cache > base backend cache > static refs
 export function resolveAvailableValues(
   dimensionKey: string,
   activeFilters: ActiveFilter[]
@@ -166,83 +212,27 @@ export function resolveAvailableValues(
   const dim = FILTER_DIMENSIONS.find(d => d.key === dimensionKey);
   if (!dim) return [];
 
-  // If backend cache is loaded, use it directly for flat dimensions
-  const backendVals = getBackendFilterValues(dimensionKey);
+  const baseVals = getBackendFilterValues(dimensionKey);
+  const contextVals = getContextValues(dimensionKey, activeFilters);
 
-  const getFilterValues = (key: string): string[] | null => {
-    const f = activeFilters.find(af => af.dimension === key);
-    return f && f.values.length > 0 ? f.values : null;
-  };
+  // For dimensions with parent context, prefer contextual values
+  const backendVals = contextVals ?? baseVals;
 
   switch (dimensionKey) {
     case 'dor':
       return backendVals ?? REF_DOR_TREE.dors;
 
-    case 'constructeur': {
-      // Backend has full list; filter by selected DOR if active
-      if (backendVals) {
-        const dorVals = getFilterValues('dor');
-        if (!dorVals) return backendVals;
-        // With DOR filter active, narrow via static tree if possible
-        const constructeurs = new Set<string>();
-        for (const dor of dorVals) {
-          const byDor = REF_DOR_TREE.tree[dor];
-          if (byDor) Object.keys(byDor).forEach(c => constructeurs.add(c));
-        }
-        // Return intersection with backend values (handles casing)
-        const treeSet = constructeurs;
-        return treeSet.size > 0
-          ? backendVals.filter(v => treeSet.has(v) || treeSet.has(v.toLowerCase()))
-          : backendVals;
-      }
-      // Static fallback
-      const dorVals = getFilterValues('dor');
-      const dors = dorVals || REF_DOR_TREE.dors;
-      const constructeurs = new Set<string>();
-      for (const dor of dors) {
-        const byDor = REF_DOR_TREE.tree[dor];
-        if (byDor) Object.keys(byDor).forEach(c => constructeurs.add(c));
-      }
-      return Array.from(constructeurs).sort();
-    }
+    case 'constructeur':
+      return backendVals ?? Array.from(
+        new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor => Object.keys(byDor)))
+      ).sort();
 
-    case 'plaque': {
-      if (backendVals) {
-        const dorVals = getFilterValues('dor');
-        const consVals = getFilterValues('constructeur');
-        if (!dorVals && !consVals) return backendVals;
-        // Narrow via static tree
-        const dors = dorVals || REF_DOR_TREE.dors;
-        const plaques = new Set<string>();
-        for (const dor of dors) {
-          const byDor = REF_DOR_TREE.tree[dor];
-          if (!byDor) continue;
-          const constructeurs = consVals || Object.keys(byDor);
-          for (const cons of constructeurs) {
-            const ps = byDor[cons];
-            if (ps) ps.forEach(p => plaques.add(p));
-          }
-        }
-        return plaques.size > 0
-          ? backendVals.filter(v => plaques.has(v))
-          : backendVals;
-      }
-      // Static fallback
-      const dorVals = getFilterValues('dor');
-      const consVals = getFilterValues('constructeur');
-      const dors = dorVals || REF_DOR_TREE.dors;
-      const plaques = new Set<string>();
-      for (const dor of dors) {
-        const byDor = REF_DOR_TREE.tree[dor];
-        if (!byDor) continue;
-        const constructeurs = consVals || Object.keys(byDor);
-        for (const cons of constructeurs) {
-          const ps = byDor[cons];
-          if (ps) ps.forEach(p => plaques.add(p));
-        }
-      }
-      return Array.from(plaques).sort();
-    }
+    case 'plaque':
+      return backendVals ?? Array.from(
+        new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor =>
+          Object.values(byDor).flat()
+        ))
+      ).sort();
 
     case 'zone_arcep':
       return backendVals ?? [];
@@ -250,18 +240,8 @@ export function resolveAvailableValues(
     case 'techno':
       return backendVals ?? Object.keys(REF_TECHNO_BANDE);
 
-    case 'bande': {
-      const allBands = backendVals ?? Object.values(REF_TECHNO_BANDE).flat();
-      const technoVals = getFilterValues('techno');
-      if (!technoVals) return allBands.sort();
-      // Narrow by selected techno
-      const bands = new Set<string>();
-      for (const t of technoVals) {
-        const bs = REF_TECHNO_BANDE[t] || REF_TECHNO_BANDE[t.toLowerCase()];
-        if (bs) bs.forEach(b => bands.add(b));
-      }
-      return bands.size > 0 ? allBands.filter(b => bands.has(b)) : allBands;
-    }
+    case 'bande':
+      return backendVals ?? Object.values(REF_TECHNO_BANDE).flat().sort();
 
     case 'vendor':
       return backendVals ?? [];

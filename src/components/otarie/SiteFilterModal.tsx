@@ -155,7 +155,6 @@ const MultiSelectDropdown: React.FC<{
 };
 
 const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onApply, initialFilters }) => {
-  useFilterCache(); // triggers fetch + re-render when backend filters are loaded
   const [filters, setFilters] = useState<DashboardSiteFilters>(initialFilters || {});
 
   const activeFilters = useMemo((): ActiveFilter[] => {
@@ -163,6 +162,8 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
       .filter(([, vals]) => vals && vals.length > 0)
       .map(([key, vals]) => ({ id: key, dimension: key, op: 'IN' as const, values: vals! }));
   }, [filters]);
+
+  useFilterCache(activeFilters); // loads base + context-filtered values
 
   const setDimValues = useCallback((dimKey: string, vals: string[]) => {
     setFilters(prev => ({ ...prev, [dimKey]: vals.length > 0 ? vals : undefined }));

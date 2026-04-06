@@ -254,11 +254,11 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   editMode, onToggleEditMode,
   seriesInfo, onApplyConfig,
 }) => {
-  useFilterCache();
+  const gf = useGlobalFilterStore();
+  useFilterCache(gf.globalFilters);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const gf = useGlobalFilterStore();
   const store = useKpiMonitorStore();
   const dashSettings = useDashboardSettingsStore();
   const currentSettings = dashSettings.getSettings(dm.activeTabId, dm.activeTab?.name);

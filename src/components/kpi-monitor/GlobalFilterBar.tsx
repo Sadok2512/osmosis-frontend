@@ -345,8 +345,8 @@ const AddFilterButton: React.FC = () => {
 
 // ── Main Filter Bar ──
 const GlobalFilterBar: React.FC = () => {
-  useFilterCache(); // triggers fetch + re-render when backend filters are loaded
   const { globalFilters, clearGlobalFilters, crossFilter, setCrossFilter } = useGlobalFilterStore();
+  useFilterCache(globalFilters); // loads base cache + context-filtered values when parent filters change
 
   const hasActiveFilters = globalFilters.some((f) => f.values.length > 0) || crossFilter !== null;
 

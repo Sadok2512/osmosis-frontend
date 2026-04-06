@@ -656,12 +656,13 @@ export const topoApi = {
     }
   },
 
-  /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters */
-  filters: async (): Promise<{ filters: { id: string; label: string; values: string[] }[] }> => {
+  /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters?dor=X&constructeur=Y */
+  filters: async (contextParams?: string): Promise<{ filters: { id: string; label: string; values: string[] }[] }> => {
+    const suffix = contextParams ? `?${contextParams}` : '';
     if (isLocalExpress()) {
-      return fetchJson<any>(localUrl('topo/filters'));
+      return fetchJson<any>(localUrl(`topo/filters${suffix}`));
     }
-    return fetchJson<any>(parserUrl('/topo/filters'));
+    return fetchJson<any>(parserUrl(`/topo/filters${suffix}`));
   },
 
   /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y */
