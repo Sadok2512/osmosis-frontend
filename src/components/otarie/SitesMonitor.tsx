@@ -176,7 +176,8 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
     const siteKey = String(
       row?.code_nidt ?? row?.nom_site ?? row?.site_name ?? row?.site_id ?? row?.site ?? `site-${index}`,
     );
-    const band = String(row?.bande ?? row?.band ?? 'Unknown');
+    const rawBand = String(row?.bande ?? row?.band ?? 'Unknown');
+    const band = normalizeBandKey(rawBand, techno) || rawBand;
     const vendor = String(row?.constructeur ?? row?.vendor ?? row?.vendor_name ?? 'Unknown');
 
     const siteEntry = siteTechMap.get(siteKey) ?? { has4G: false, has5G: false };
