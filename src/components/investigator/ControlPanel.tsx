@@ -951,6 +951,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   // Auto-remove PM dimension filters when KPIs are deselected (no auto-add — user must add manually)
   const prevPmDimsRef = useRef<Set<string>>(new Set());
+  const pendingAxisRef = useRef<Record<string, 'left' | 'right'> | null>(null);
   useEffect(() => {
     const prev = prevPmDimsRef.current;
     const current = activePmDimensions;
