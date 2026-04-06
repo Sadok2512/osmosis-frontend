@@ -3343,8 +3343,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
   }, [bandColors]);
 
-  const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
-  const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+  const NR_BANDS = ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'];
+  const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'];
 
   const updateBandColor = useCallback((band: string, color: string) => {
     setBandColors(prev => {
@@ -4861,7 +4861,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const toggleAllBands = useCallback((group: 'NR' | 'LTE') => {
-    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100'] : ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] : ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'];
     setEnabledBands(prev => {
       const next = new Set(prev);
       const allOn = bands.every(b => next.has(b));
