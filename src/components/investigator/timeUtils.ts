@@ -43,6 +43,8 @@ export function buildTimeline(startDate: string, endDate: string, gran: Granular
   return points;
 }
 
+const MONTH_NAMES = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+
 /** Format datetime for display on X-axis based on granularity */
 export function formatAxisLabel(ts: string, gran: Granularity | string): string {
   const g = normalizeGranularity(gran);
@@ -50,13 +52,27 @@ export function formatAxisLabel(ts: string, gran: Granularity | string): string 
   try {
     const d = new Date(ts);
     if (g === '15min' || g === '1h') {
-      return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;
+      const dd = d.getDate().toString().padStart(2, '0');
+      const mon = MONTH_NAMES[d.getMonth()];
+      const hh = d.getHours().toString().padStart(2, '0');
+      const mm = d.getMinutes().toString().padStart(2, '0');
+      return `${dd} ${mon}\n${hh}:${mm}`;
     }
     if (g === '1w') {
-      return `S${getWeekNumber(d)} ${d.getFullYear()}`;
+      return `S${getWeekNumber(d)}\n${d.getFullYear()}`;
     }
-    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}`;
+    const dd = d.getDate().toString().padStart(2, '0');
+    const mon = MONTH_NAMES[d.getMonth()];
+    return `${dd}\n${mon}`;
   } catch { return ts.slice(0, 10); }
+}
+
+/** Compute smart x-axis interval based on point count and available width */
+export function smartXInterval(totalPts: number, chartWidthPx: number = 800): number {
+  if (totalPts <= 0) return 0;
+  const maxLabels = Math.max(4, Math.floor(chartWidthPx / 90));
+  if (totalPts <= maxLabels) return 0;
+  return Math.ceil(totalPts / maxLabels) - 1;
 }
 
 function getWeekNumber(d: Date): number {
