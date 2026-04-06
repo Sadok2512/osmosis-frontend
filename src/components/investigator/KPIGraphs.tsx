@@ -716,7 +716,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           // No split — one series per KPI (original logic)
           series = kpiIds.map((kpiId, i) => {
             const def = defs[i];
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => matchesKpi(d.kpi, kpiId));
             const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
