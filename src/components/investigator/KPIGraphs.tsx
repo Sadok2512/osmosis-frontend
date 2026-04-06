@@ -10,6 +10,7 @@ import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
 import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
+import BreakdownChart from './BreakdownChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
