@@ -4477,10 +4477,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setSearchModeSites(summaries);
         if (summaries.length > 0) setInventoryTab('tagged');
 
-        // Auto-fly to first result
-        if (summaries.length > 0) {
-          setFlyTarget(summaries[0].coordinates);
-        }
+        // Don't auto-fly on typing — user must click a result to navigate
+        // if (summaries.length > 0) {
+        //   setFlyTarget(summaries[0].coordinates);
+        // }
       } catch (err: any) {
         if (err?.name !== 'AbortError') {
           console.warn('[SitesMonitor] Debounced search failed', err);
