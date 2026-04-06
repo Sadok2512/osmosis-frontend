@@ -1232,7 +1232,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Filter className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).map(dim => (
+            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).map(dim => (
               <FilterChip
                 key={dim}
                 dim={dim}
