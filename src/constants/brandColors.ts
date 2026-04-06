@@ -54,12 +54,12 @@ export const TECH_HSL: Record<string, string> = {
 
 // ── Tailwind badge classes (bg + text) ──
 export const VENDOR_BADGE: Record<string, { bg: string; text: string }> = {
-  Ericsson: { bg: 'bg-blue-600/15',  text: 'text-blue-600' },
-  Nokia:    { bg: 'bg-green-600/15', text: 'text-green-600' },
+  Ericsson: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
+  Nokia:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
   Huawei:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
   Samsung:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
-  ERICSSON: { bg: 'bg-blue-600/15',  text: 'text-blue-600' },
-  NOKIA:    { bg: 'bg-green-600/15', text: 'text-green-600' },
+  ERICSSON: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
+  NOKIA:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
   HUAWEI:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
   SAMSUNG:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
 };
