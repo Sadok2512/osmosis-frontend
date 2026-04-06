@@ -1028,6 +1028,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 if (k.maxVal > threshold) yAxisAssignments[k.kpiId] = 0; // large → left
                 else yAxisAssignments[k.kpiId] = 1; // small → right
               });
+              // Persist auto-detected assignments so the KPI selector shows them
+              // and user can modify from the correct baseline
+              onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...yAxisAssignments } });
             }
           }
         }
