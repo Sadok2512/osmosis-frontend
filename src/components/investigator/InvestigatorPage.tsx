@@ -9,12 +9,13 @@ import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
+import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu, Layers, Table2, Download,
+  Settings2, Bell, Cpu, Layers, Table2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -530,209 +531,10 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {analysisTab === 'table_data' && (
-          <div className="rounded-lg border border-border/40 bg-card overflow-hidden">
-            <div className="px-3 py-2 bg-muted/30 border-b border-border/40 flex items-center gap-2">
-              <Table2 className="w-4 h-4 text-blue-500" />
-              <span className="text-[11px] font-bold text-foreground">Table Data</span>
-              <span className="text-[9px] text-muted-foreground ml-auto">{tsData.length} points</span>
-              {tsData.length > 0 && (() => {
-                const hasSplits = tsData.some(d => d.splitValue);
-                const hasSplit2 = tsData.some(d => d.splitValue2);
-                return (
-                <button
-                  onClick={() => {
-                    const kpis = [...new Set(tsData.map(d => d.kpi))];
-                    if (hasSplits) {
-                      const extraCols = [
-                        ...(hasSplits ? ['Split'] : []),
-                        ...(hasSplit2 ? ['Split2'] : []),
-                        'NE',
-                      ];
-                      const header = ['Timestamp', ...extraCols, 'KPI', 'Value'].join(',');
-                      const rows = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map(d => {
-                        const ts = d.timestamp.length > 10 ? d.timestamp.slice(0, 16).replace('T', ' ') : d.timestamp;
-                        const extra = [
-                          ...(hasSplits ? [d.splitValue || ''] : []),
-                          ...(hasSplit2 ? [d.splitValue2 || ''] : []),
-                          d.networkElement || 'N/A',
-                        ];
-                        return [ts, ...extra, d.kpi, d.value].join(',');
-                      });
-                      const csv = [header, ...rows].join('\n');
-                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url; a.download = 'table_data.csv'; a.click();
-                      URL.revokeObjectURL(url);
-                    } else {
-                      const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
-                      const lookup: Record<string, Record<string, number>> = {};
-                      kpis.forEach(k => { lookup[k] = {}; });
-                      tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-                      const neLookup: Record<string, string> = {};
-                      tsData.forEach(p => { if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement; });
-                      const header = ['Timestamp', 'NE', ...kpis].join(',');
-                      const rows = timestamps.map(t => {
-                        const vals = kpis.map(k => lookup[k]?.[t] ?? '');
-                        return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, neLookup[t] || 'N/A', ...vals].join(',');
-                      });
-                      const csv = [header, ...rows].join('\n');
-                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url; a.download = 'table_data.csv'; a.click();
-                      URL.revokeObjectURL(url);
-                    }
-                  }}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
-                >
-                  <Download className="w-3 h-3" />
-                  CSV
-                </button>
-                );
-              })()}
-            </div>
-            <div className="overflow-auto" style={{ maxHeight: 500 }}>
-              {tsData.length > 0 ? (() => {
-                const hasSplits = tsData.some(d => d.splitValue);
-                const hasSplit2 = tsData.some(d => d.splitValue2);
-                const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
-
-                if (hasSplits) {
-                  const sorted = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp) || (a.splitValue || '').localeCompare(b.splitValue || ''));
-                  const seriesKeys = [...new Set(tsData.map(d => `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`))];
-                  const colorMap: Record<string, string> = {};
-                  seriesKeys.forEach((k, i) => { colorMap[k] = COLORS[i % COLORS.length]; });
-
-                  const activeSlot = state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0];
-                  const split1Label = activeSlot?.splitBy?.replace('PM_DIM:', '') || 'Split';
-                  const split2Label = activeSlot?.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
-
-                  const colCount = 4 + (hasSplit2 ? 1 : 0);
-                  const isCompact = colCount <= 4;
-
-                  return (
-                    <div className={cn(isCompact && 'max-w-2xl mx-auto')}>
-                    <table className="w-full border-collapse text-[10px] font-mono">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-muted/70 backdrop-blur-sm">
-                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">Timestamp</th>
-                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">{split1Label}</th>
-                          {hasSplit2 && (
-                            <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">{split2Label}</th>
-                          )}
-                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">NE</th>
-                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">KPI</th>
-                          <th className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-border/40 whitespace-nowrap">Value</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {sorted.map((d, ti) => {
-                          const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
-                          const color = colorMap[seriesKey] || COLORS[0];
-                          return (
-                            <tr
-                              key={ti}
-                              className={cn(
-                                'border-b border-border/20 hover:bg-primary/5 transition-colors',
-                                ti % 2 === 0 ? 'bg-background' : 'bg-muted/10'
-                              )}
-                            >
-                              <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
-                                {d.timestamp.length > 10 ? d.timestamp.slice(0, 16).replace('T', ' ') : d.timestamp}
-                              </td>
-                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap">
-                                <span className="inline-flex items-center gap-1">
-                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                                  {d.splitValue || '—'}
-                                </span>
-                              </td>
-                              {hasSplit2 && (
-                                <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap">{d.splitValue2 || '—'}</td>
-                              )}
-                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">{d.networkElement || 'N/A'}</td>
-                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap truncate max-w-[160px]">{d.kpi}</td>
-                              <td className="px-2.5 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">
-                                {d.value != null ? Number(d.value).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    </div>
-                  );
-                }
-
-                // Non-split: pivot layout with NE column always visible
-                const kpis = [...new Set(tsData.map(d => d.kpi))];
-                const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
-                const lookup: Record<string, Record<string, number>> = {};
-                kpis.forEach(k => { lookup[k] = {}; });
-                tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-                const neLookup: Record<string, string> = {};
-                tsData.forEach(p => { if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement; });
-
-                const totalCols = 2 + kpis.length;
-                const isCompact = totalCols <= 3;
-
-                return (
-                  <div className={cn(isCompact && 'max-w-2xl mx-auto')}>
-                  <table className="w-full border-collapse text-[10px] font-mono">
-                    <thead className="sticky top-0 z-10">
-                      <tr className="bg-muted/70 backdrop-blur-sm">
-                        <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[100px]">
-                          Timestamp
-                        </th>
-                        <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[80px]">
-                          NE
-                        </th>
-                        {kpis.map((k, i) => (
-                          <th key={k} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
-                            <div className="flex items-center justify-end gap-1">
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                              <span className="truncate max-w-[120px]">{k}</span>
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {timestamps.map((ts, ti) => (
-                        <tr
-                          key={ti}
-                          className={cn(
-                            'border-b border-border/20 hover:bg-primary/5 transition-colors',
-                            ti % 2 === 0 ? 'bg-background' : 'bg-muted/10'
-                          )}
-                        >
-                          <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
-                            {ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts}
-                          </td>
-                          <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">
-                            {neLookup[ts] || 'N/A'}
-                          </td>
-                          {kpis.map((k, ki) => {
-                            const val = lookup[k]?.[ts];
-                            return (
-                              <td key={ki} className="px-2.5 py-1.5 text-right text-foreground border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums">
-                                {val != null ? Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  </div>
-                );
-              })() : (
-                <div className="flex items-center justify-center h-32 text-muted-foreground text-[10px]">
-                  Aucune donnée — cliquez sur Appliquer
-                </div>
-              )}
-            </div>
-          </div>
+          <InvestigatorDataTable
+            tsData={tsData}
+            activeSlot={state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0] || null}
+          />
         )}
 
         {!['breakdown', 'table_data'].includes(analysisTab) && (
