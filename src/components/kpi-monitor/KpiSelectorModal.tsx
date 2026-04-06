@@ -465,14 +465,16 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             <p className="text-[9px] text-muted-foreground truncate">{k.description || k.kpi_key}</p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            {k.vendor && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">{k.vendor}</span>
-                            )}
-                            {k.techno && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{k.techno}</span>
-                            )}
+                            {k.vendor && (() => {
+                              const vb = vendorBadge(k.vendor);
+                              return <span className={cn('text-[8px] px-1.5 py-0.5 rounded font-bold', vb.bg, vb.text)}>{k.vendor}</span>;
+                            })()}
+                            {k.techno && (() => {
+                              const tb = techBadge(k.techno);
+                              return <span className={cn('text-[8px] px-1.5 py-0.5 rounded font-bold', tb.bg, tb.text)}>{k.techno}</span>;
+                            })()}
                             {(k as any).dimension_type && (
-                              <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{DIMENSION_LABELS[(k as any).dimension_type] || (k as any).dimension_type}</span>
+                              <span className="text-[8px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 font-bold">{DIMENSION_LABELS[(k as any).dimension_type] || (k as any).dimension_type}</span>
                             )}
                             <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
                           </div>
