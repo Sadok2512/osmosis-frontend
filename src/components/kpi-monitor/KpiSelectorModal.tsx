@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { KpiCatalogEntry, AxisSide } from './types';
@@ -92,6 +92,7 @@ const DIMENSION_LABELS: Record<string, string> = {
 const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm, axisAssignments: extAxisAssignments, onAxisAssignmentsChange }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
+  const axisMapRef = useRef<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -103,6 +104,10 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterDimension, setFilterDimension] = useState('');
+
+  React.useEffect(() => {
+    axisMapRef.current = axisMap;
+  }, [axisMap]);
 
   // Load favorites from DB on open
   React.useEffect(() => {
@@ -116,8 +121,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setFilterDimension('');
       setShowFavOnly(false);
-      setAxisMap(extAxisAssignments || {});
-      // Async load favorites from DB
+      const nextAxisMap = extAxisAssignments || {};
+      axisMapRef.current = nextAxisMap;
+      setAxisMap(nextAxisMap);
       loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
@@ -126,6 +132,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     setAxisMap(prev => {
       const current = prev[key] || 'left';
       const next = { ...prev, [key]: (current === 'left' ? 'right' : 'left') as AxisSide };
+      axisMapRef.current = next;
       onAxisAssignmentsChange?.(next);
       return next;
     });
@@ -234,8 +241,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   };
 
   const handleConfirm = () => {
-    // Fire axis assignments BEFORE onConfirm so consumers can capture them
-    onAxisAssignmentsChange?.(axisMap);
+    onAxisAssignmentsChange?.(axisMapRef.current);
     onConfirm(Array.from(selected));
     onClose();
   };
