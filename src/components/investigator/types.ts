@@ -14,7 +14,7 @@ export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'C
 export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
 
 export type ChartType = 'line' | 'line_straight' | 'line_points' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
-export type WidgetType = 'timeseries' | 'histogram' | 'kpi_card' | 'counter' | 'neighbors';
+export type WidgetType = 'timeseries' | 'histogram' | 'kpi_card' | 'neighbors';
 
 export interface YAxisConfig {
   mode: 'auto' | 'manual';
@@ -53,6 +53,8 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
 export interface GraphSlot {
   id: string;
   kpiIds: string[];
+  /** PM counter IDs to overlay on the same timeseries chart */
+  counterIds?: string[];
   /** @deprecated use kpiIds */
   kpiId?: string;
   name: string;

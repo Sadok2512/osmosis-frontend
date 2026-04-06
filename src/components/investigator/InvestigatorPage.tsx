@@ -22,10 +22,9 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
-  timeseries: 'Graph',
+  timeseries: 'Timeseries',
   histogram: 'Histogram',
   kpi_card: 'KPI Card',
-  counter: 'Counter',
   neighbors: 'Neighbors',
 };
 
@@ -384,6 +383,10 @@ const InvestigatorPage: React.FC = () => {
               onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
                 ...prev,
                 graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
+              }))}
+              onSetSlotCounterIds={(slotId, cIds) => setState(prev => ({
+                ...prev,
+                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, counterIds: cIds } : s),
               }))}
               onRemoveSlot={(slotId) => setState(prev => ({
                 ...prev,

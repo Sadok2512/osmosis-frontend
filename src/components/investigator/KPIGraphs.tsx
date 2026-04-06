@@ -17,9 +17,8 @@ import { Button } from '@/components/ui/button';
 import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
-  { value: 'timeseries', label: 'Graph', icon: TrendingUp, color: 'text-blue-500' },
+  { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
   { value: 'kpi_card', label: 'KPI Card', icon: Activity, color: 'text-emerald-500' },
-  { value: 'counter', label: 'Counter', icon: Hash, color: 'text-amber-500' },
   { value: 'histogram', label: 'Histogram', icon: BarChart3, color: 'text-purple-500' },
   { value: 'neighbors', label: 'Neighbors Flux', icon: GitBranch, color: 'text-cyan-500' },
 ];
@@ -369,6 +368,7 @@ interface Props {
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onSetSlotKpiIds: (slotId: string, kpiIds: string[]) => void;
+  onSetSlotCounterIds: (slotId: string, counterIds: string[]) => void;
   onRemoveSlot: (slotId: string) => void;
   onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
@@ -378,13 +378,18 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
+  // Counter data per slot: { [slotId]: { series, nameMap } }
+  const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
+
+  const { state: investigatorState } = useInvestigatorStore();
+  const siteName = investigatorState.filters?.['Site']?.[0] || investigatorState.filters?.['SITE']?.[0] || null;
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -405,6 +410,35 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
       .catch(() => {});
   }, []);
 
+  // Fetch counter timeseries for all slots that have counterIds
+  useEffect(() => {
+    const slotsWithCounters = graphSlots.filter(s => s.counterIds && s.counterIds.length > 0);
+    if (slotsWithCounters.length === 0) return;
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const dateFrom = investigatorState.startDate?.split('T')[0] || thirtyDaysAgo;
+    const dateTo = investigatorState.endDate?.split('T')[0] || today;
+
+    slotsWithCounters.forEach(slot => {
+      const cIds = slot.counterIds!;
+      const body: any = { counter_names: cIds, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(investigatorState.granularity), split_by_dimension: false };
+      if (siteName) body.site_name = siteName;
+      fetch(getApiUrl('pm/counters/timeseries'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify(body),
+      })
+        .then(r => r.ok ? r.json() : { series: [], meta: {} })
+        .then(data => {
+          setCounterDataMap(prev => ({
+            ...prev,
+            [slot.id]: { series: data.series || [], nameMap: data.meta?.name_map || {} },
+          }));
+        })
+        .catch(() => {});
+    });
+  }, [graphSlots.map(s => (s.counterIds || []).join(',')).join('|'), investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, siteName]);
+
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 
   return (
@@ -412,13 +446,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
       <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1 max-w-[1400px]' : 'grid-cols-1 md:grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const kpiIds = slot.kpiIds || [];
-        const isEmpty = kpiIds.length === 0;
+        const counterIds = slot.counterIds || [];
+        const isEmpty = kpiIds.length === 0 && counterIds.length === 0;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
         const isActive = activeSlotId === slot.id;
         const wType = slot.widgetType || 'timeseries';
         const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
 
-        // Empty slot — no KPI assigned yet
+        // Empty slot — no KPI or counter assigned yet
         if (isEmpty) {
           return (
             <div
@@ -454,14 +489,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   <wtDef.icon className="w-8 h-8" />
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
+                  Aucun KPI / Compteur sélectionné
                 </p>
-                <button
-                  onClick={(e) => { e.stopPropagation(); wType === 'counter' ? setCounterSelectorSlotId(slot.id) : onOpenKpiSelector(slot.id); }}
-                  className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                >
-                  {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                    className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                  >
+                    + KPI
+                  </button>
+                  {wType === 'timeseries' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }}
+                      className="px-3 py-1 rounded-md text-[10px] font-semibold text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                    >
+                      + Counter
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -505,37 +550,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           );
         }
 
-        if (wType === 'counter') {
-          return (
-            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
-              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
-              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
-            )}>
-              <div className="flex items-center gap-2 mb-3 relative z-10">
-                <Hash className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-bold text-foreground">{slot.name}</span>
-                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Counter</span>
-                <span className="ml-auto" />
-                <button onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter compteurs"><Plus className="w-3.5 h-3.5" /></button>
-                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
-              </div>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {kpiIds.map((cId, i) => {
-                    const cDef = counterCatalog.find(c => c.counter_name === cId);
-                    return (
-                      <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
-                        {cDef?.display_name ? `${cDef.display_name} (${cId})` : cId}
-                      </span>
-                    );
-                  })}
-                </div>
-                <CounterTimeseriesWidget counterNames={kpiIds} height={chartHeight - 60} />
-              </div>
-            </div>
-          );
-        }
+
 
         if (wType === 'neighbors') {
           return (
@@ -731,7 +746,58 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           });
         }
 
-        // Build markLine data for jalons — normalize dates to match timeline format
+        // ── Merge counter series into the chart ──
+        const slotCounterData = counterDataMap[slot.id];
+        if (counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0) {
+          const cSeries = slotCounterData.series;
+          const cNameMap = slotCounterData.nameMap;
+          const cCounters = [...new Set(cSeries.map(d => d.counter))];
+          // Add counter timestamps to allTimestamps
+          const cTimestamps = [...new Set(cSeries.map(d => d.ts))].sort();
+          const tsSet = new Set(allTimestamps);
+          for (const ts of cTimestamps) {
+            if (!tsSet.has(ts)) { allTimestamps.push(ts); tsSet.add(ts); }
+          }
+          allTimestamps.sort();
+
+          cCounters.forEach((counter, ci) => {
+            const color = SERIES_COLORS[(kpiIds.length + ci) % SERIES_COLORS.length];
+            const idFromName = Object.entries(cNameMap).find(([, name]) => name === counter)?.[0];
+            const displayName = idFromName ? `${counter} (${idFromName})` : counter;
+            const cDef = counterCatalog.find(c => c.counter_name === counter);
+            const label = cDef?.display_name ? `${cDef.display_name} (${counter})` : displayName;
+
+            series.push({
+              name: label,
+              _kpiId: `counter_${counter}`,
+              connectNulls: true,
+              type: 'line' as any,
+              data: allTimestamps.map(ts => {
+                const p = cSeries.find(d => d.ts === ts && d.counter === counter);
+                return p ? p.value : null;
+              }),
+              smooth: true,
+              symbol: 'none',
+              symbolSize: 5,
+              lineStyle: { width: 2.5, color, type: 'dashed' as const },
+              itemStyle: { color },
+              areaStyle: {
+                color: {
+                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${color}15` },
+                    { offset: 1, color: `${color}02` },
+                  ],
+                },
+              },
+              // Put counters on right Y-axis by default
+              yAxisIndex: 1,
+            });
+          });
+        }
+        // Force right Y-axis if counters are present
+        const hasCounterSeries = counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0;
+
         const markLineData = jalons.map(j => {
           // Normalize jalon date to match allTimestamps format
           const normDate = normalizeTimestamp(j.date, state.granularity);
@@ -794,15 +860,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Determine if we need a right Y-axis
         const yAxisAssignments = cfg.yAxisAssignments || {};
-        const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+        const hasRightAxis = Object.values(yAxisAssignments).includes(1) || !!hasCounterSeries;
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
           const vals: number[] = [];
           seriesArr.forEach(s => {
-            const sKpiId = s._kpiId || kpiIds[0];
-            const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
-            if (assignedAxis !== axisIdx) return;
+            // Counter series have explicit yAxisIndex
+            if (s.yAxisIndex != null) {
+              if (s.yAxisIndex !== axisIdx) return;
+            } else {
+              const sKpiId = s._kpiId || kpiIds[0];
+              const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
+              if (assignedAxis !== axisIdx) return;
+            }
             (s.data || []).forEach((v: any) => {
               if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
             });
@@ -967,8 +1038,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             return {
               ...s,
-              _kpiId: undefined, // don't pass internal prop to ECharts
-              yAxisIndex: hasRightAxis ? getYAxisIndex(seriesKpiId) : 0,
+              _kpiId: undefined,
+              // Counter series already have yAxisIndex set; for KPIs, use assignment logic
+              yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
                 focus: 'series' as const,
@@ -1024,6 +1096,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 title="Ajouter un KPI"
               >
                 <Plus className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Add Counter to this graph */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }}
+                className="p-1 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 transition-colors"
+                title="Ajouter un Compteur"
+              >
+                <Hash className="w-3.5 h-3.5" />
               </button>
 
               {/* Remove button */}
@@ -1125,9 +1206,40 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     </Button>
                   </div>
 
-                  <div className="h-px bg-border/60" />
+                  {/* Counters list */}
+                  {counterIds.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Counters ({counterIds.length})</span>
+                      {counterIds.map((cId, ci) => {
+                        const cDef = counterCatalog.find(c => c.counter_name === cId);
+                        const cColor = SERIES_COLORS[(kpiIds.length + ci) % SERIES_COLORS.length];
+                        return (
+                          <div key={cId} className="flex items-center justify-between gap-1 py-1 border-b border-border/20 last:border-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cColor }} />
+                              <span className="text-[10px] font-medium text-foreground truncate max-w-[120px]">{cDef?.display_name || cId}</span>
+                            </div>
+                            <button
+                              onClick={() => onSetSlotCounterIds(slot.id, counterIds.filter(c => c !== cId))}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] px-2 w-full"
+                    onClick={() => setCounterSelectorSlotId(slot.id)}
+                  >
+                    <Hash className="w-3 h-3 mr-1" /> Ajouter Counter
+                  </Button>
 
-                  {/* Chart Type */}
+                  <div className="h-px bg-border/60" />
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type (tous)</span>
                     <div className="flex flex-wrap gap-1">
@@ -1294,10 +1406,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         open={!!counterSelectorSlotId}
         onClose={() => setCounterSelectorSlotId(null)}
         catalog={counterCatalog}
-        selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.kpiIds || []) : []}
+        selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.counterIds || []) : []}
         onConfirm={(keys) => {
           if (counterSelectorSlotId) {
-            onSetSlotKpiIds(counterSelectorSlotId, keys);
+            onSetSlotCounterIds(counterSelectorSlotId, keys);
           }
           setCounterSelectorSlotId(null);
         }}
