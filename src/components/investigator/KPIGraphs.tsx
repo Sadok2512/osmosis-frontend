@@ -253,7 +253,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     grid: {
       top: 32,
       right: 28,
-      bottom: legendRows + sliderHeight + 10,
+      bottom: legendRows + sliderHeight + 20,
       left: 62,
       containLabel: false,
     },
