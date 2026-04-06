@@ -516,37 +516,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           );
         }
 
-        if (wType === 'counter') {
-          return (
-            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
-              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
-              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
-            )}>
-              <div className="flex items-center gap-2 mb-3 relative z-10">
-                <Hash className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-bold text-foreground">{slot.name}</span>
-                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500">Counter</span>
-                <span className="ml-auto" />
-                <button onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter compteurs"><Plus className="w-3.5 h-3.5" /></button>
-                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
-              </div>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {kpiIds.map((cId, i) => {
-                    const cDef = counterCatalog.find(c => c.counter_name === cId);
-                    return (
-                      <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
-                        {cDef?.display_name ? `${cDef.display_name} (${cId})` : cId}
-                      </span>
-                    );
-                  })}
-                </div>
-                <CounterTimeseriesWidget counterNames={kpiIds} height={chartHeight - 60} />
-              </div>
-            </div>
-          );
-        }
+
 
         if (wType === 'neighbors') {
           return (
