@@ -11,6 +11,7 @@ interface Props {
   layout: 1 | 2 | 4;
   dateFrom?: string;
   dateTo?: string;
+  splitBy?: string;
 }
 
 interface KpiExplain {
