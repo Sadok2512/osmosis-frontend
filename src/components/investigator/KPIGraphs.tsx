@@ -860,7 +860,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Determine if we need a right Y-axis
         const yAxisAssignments = cfg.yAxisAssignments || {};
-        const hasRightAxis = Object.values(yAxisAssignments).includes(1);
+        const hasRightAxis = Object.values(yAxisAssignments).includes(1) || !!hasCounterSeries;
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
