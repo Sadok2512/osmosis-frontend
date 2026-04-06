@@ -13,6 +13,11 @@ export const VENDOR = {
   NOKIA:    '#16a34a',   // green-600
   HUAWEI:   '#dc2626',   // red-600
   SAMSUNG:  '#7c3aed',   // violet-600
+  NSN:      '#16a34a',   // green-600 (Nokia Siemens)
+  ALCATEL:  '#f97316',   // orange-500
+  ALU:      '#f97316',   // orange-500
+  INDEFINI: '#64748b',   // slate-500
+  UNKNOWN:  '#64748b',   // slate-500
 } as const;
 
 export const TECH = {
