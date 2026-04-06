@@ -1455,6 +1455,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               </Popover>
             </div>
             <SlotChart
+              ref={(el) => { chartRefsMap.current[slot.id] = el; }}
               key={`${slot.id}-${cfg.chartType}`}
               option={option}
               height={chartHeight}
