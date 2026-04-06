@@ -418,6 +418,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
+  const chartRefsMap = useRef<Record<string, ReactECharts | null>>({});
   // Counter data per slot: { [slotId]: { series, nameMap } }
   const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
 
