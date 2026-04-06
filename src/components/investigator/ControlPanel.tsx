@@ -1120,29 +1120,48 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
-            {/* Period shortcuts */}
-            <div className="flex items-center bg-card p-0.5 rounded-lg border border-border/40 shrink-0">
-              {PERIODS.map(p => (
-                <button key={p.label} onClick={() => applyPeriod(p.days)}
-                  className="px-2.5 py-1 rounded-md text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-all">
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            {/* Period shortcuts — compact dropdown */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
+                  <CalendarIcon className="w-3 h-3 text-muted-foreground" />
+                  Période
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[140px] p-1" align="start">
+                {PERIODS.map(p => (
+                  <button key={p.label} onClick={() => applyPeriod(p.days)}
+                    className="w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold text-foreground hover:bg-muted/60 transition-all">
+                    {p.label}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
 
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
-            {/* Granularity */}
-            <div className="flex items-center bg-card p-0.5 rounded-lg border border-border/40 shrink-0">
-              {GRANULARITIES.map(g => (
-                <button key={g.value} onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
-                  className={cn('px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all',
-                    state.granularity === g.value ? 'bg-primary/10 text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
+            {/* Granularity — compact dropdown */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
+                  <span className="text-muted-foreground">Grain:</span>
+                  <span className="font-bold text-primary">{GRANULARITIES.find(g => g.value === state.granularity)?.label || state.granularity}</span>
+                  <ChevronDown className="w-3 h-3 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[140px] p-1" align="start">
+                {GRANULARITIES.map(g => (
+                  <button key={g.value} onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
+                    className={cn('w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all',
+                      state.granularity === g.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60')}>
+                    {g.label}
+                    {state.granularity === g.value && <Check className="w-3 h-3 inline ml-2" />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
 
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
