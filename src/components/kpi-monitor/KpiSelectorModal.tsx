@@ -92,6 +92,7 @@ const DIMENSION_LABELS: Record<string, string> = {
 const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm, axisAssignments: extAxisAssignments, onAxisAssignmentsChange }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
+  const axisMapRef = useRef<Record<string, AxisSide>>({});
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -103,6 +104,10 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterDimension, setFilterDimension] = useState('');
+
+  React.useEffect(() => {
+    axisMapRef.current = axisMap;
+  }, [axisMap]);
 
   // Load favorites from DB on open
   React.useEffect(() => {
@@ -116,8 +121,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setFilterDimension('');
       setShowFavOnly(false);
-      setAxisMap(extAxisAssignments || {});
-      // Async load favorites from DB
+      const nextAxisMap = extAxisAssignments || {};
+      axisMapRef.current = nextAxisMap;
+      setAxisMap(nextAxisMap);
       loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
