@@ -407,8 +407,9 @@ export async function fetchTimeSeriesForSlot(
   // Detect PM dimension split (global fallback)
   const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
   // Non-PM splits (CELL, VENDOR, BAND...) are only handled by KPI Engine, not compute
-  const hasNonPmSplit = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
-  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
+  const hasNonPmSplit = (ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None')
+    || (ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None');
+  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit:', hasNonPmSplit, 'splitBy2:', ctx.splitBy2);
 
   // Step 1: Try /kpi/compute FIRST — but ONLY when there's no non-PM split
   // (compute endpoint can't split by CELL/VENDOR/BAND, only KPI Engine can)
