@@ -562,6 +562,26 @@ export async function fetchTimeSeriesForSlot(
   const missingKpis = computeFailed.filter(k => !kpisWithData.has(k.toLowerCase()));
   let hasUnfilteredFallback = false;
 
+  // If splits were requested but KPI Engine returned data without splits,
+  // prefer counter fallback which can do proper PM dimension + cell splits
+  const splitRequested = !!(computePmDim || computeSplitByField || (ctx.splitBy && ctx.splitBy !== 'None'));
+  if (splitRequested && kpiResults.length > 0 && !kpiResults.some(d => d.splitValue)) {
+    // KPI Engine returned aggregated data without splits — try counter fallback instead
+    const unsplitKpis = computeFailed.filter(k => kpisWithData.has(k.toLowerCase()));
+    if (unsplitKpis.length > 0) {
+      console.log('[Investigator] KPI Engine returned data without splits, trying counter fallback for:', unsplitKpis);
+      const fallback = await fetchCounterTimeSeriesFallback(
+        unsplitKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
+        ctx.splitBy, ctx.filters, computeSplitByField,
+      );
+      if (fallback.data.length > 0 && fallback.data.some(d => d.splitValue)) {
+        // Counter fallback has proper split data — use it instead of KPI Engine
+        kpiResults = kpiResults.filter(d => !unsplitKpis.some(k => d.kpi.toLowerCase().startsWith(k.toLowerCase())));
+        kpiResults.push(...fallback.data);
+      }
+    }
+  }
+
   // For KPIs that failed both compute AND KPI Engine, try raw counter fallback
   if (missingKpis.length > 0) {
     const fallback = await fetchCounterTimeSeriesFallback(
