@@ -1619,11 +1619,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   onRemove={() => removeFilterDimension(dim)}
                 />
               ))}
-              <AddFilterDropdown
-                existingKeys={activeFilterDims}
-                onAdd={addFilterDimension}
-                filterDimensions={allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d))}
-              />
             </div>
           )}
 
