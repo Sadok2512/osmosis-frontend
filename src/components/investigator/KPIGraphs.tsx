@@ -962,8 +962,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const sliderBottomMargin = 30;
         const legendRows = series.length > 4 ? 78 : series.length > 2 ? 66 : 54;
 
-        const option = {
+        const option: any = {
           animation: false,
+          toolbox: {
+            show: true,
+            right: hasRightAxis ? 68 : 34,
+            top: 4,
+            itemSize: 13,
+            iconStyle: { borderColor: '#a1a1aa', borderWidth: 1 },
+            emphasis: { iconStyle: { borderColor: '#6366f1' } },
+            feature: {
+              dataView: { show: cfg.showDataTable, readOnly: true, title: 'Table', lang: ['Table View', 'Close', 'Refresh'], buttonColor: '#6366f1' },
+              saveAsImage: { show: false },
+            },
+          },
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
@@ -1253,6 +1265,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
                     <div className="h-px bg-border/40" />
 
+                    {/* ── Display ── */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Display</span>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-foreground">Table View</span>
+                          <Switch checked={cfg.showDataTable} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showDataTable: v })} className="scale-[0.65]" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-foreground">Breakdown</span>
+                          <Switch checked={cfg.showBreakdown} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showBreakdown: v })} className="scale-[0.65]" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border/40" />
+
                     {/* ── Chart Type ── */}
                     <div className="space-y-1.5">
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
@@ -1392,6 +1421,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
                     <button
                       onClick={(e) => {
+                        // If breakdown is enabled, auto-set split for all KPIs
+                        if (cfg.showBreakdown && splitOptions.length > 0) {
+                          const firstSplit = splitOptions[0].key;
+                          const currentSplit = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                          if (currentSplit.length === 0) {
+                            const allSplits: Record<string, string> = {};
+                            kpiIds.forEach(kid => { allSplits[kid] = firstSplit; });
+                            onUpdateSlotConfig(slot.id, { splitByPerKpi: allSplits });
+                          }
+                        } else if (!cfg.showBreakdown) {
+                          // Clear splits when breakdown is disabled
+                          const currentSplit = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
+                          if (currentSplit.length > 0) {
+                            onUpdateSlotConfig(slot.id, { splitByPerKpi: {} });
+                          }
+                        }
+                        // Close popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
                         );
