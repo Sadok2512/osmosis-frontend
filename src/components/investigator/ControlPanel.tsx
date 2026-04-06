@@ -58,7 +58,9 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: '1d', label: 'Jour' },
   { value: '1w', label: 'Semaine' },
 ];
-// FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
+// Dimensions already handled by the Scope (Périmètre) popover — hide from filter row
+const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology']);
+
 
 // PM dimension types that use /counters/dimension-values API
 const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
@@ -1230,7 +1232,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Filter className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).map(dim => (
+            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).map(dim => (
               <FilterChip
                 key={dim}
                 dim={dim}
@@ -1244,12 +1246,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <AddFilterDropdown
               existingKeys={activeFilterDims}
               onAdd={addFilterDimension}
-              filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d))}
+              filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
             />
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).length > 0 && (
+            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).length > 0 && (
               <button
                 onClick={() => {
-                  const stdDims = activeFilterDims.filter(d => !PM_DIMENSION_TYPES.has(d));
+                  const stdDims = activeFilterDims.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d));
                   setState(prev => {
                     const nf = { ...prev.filters };
                     stdDims.forEach(d => delete nf[d]);
