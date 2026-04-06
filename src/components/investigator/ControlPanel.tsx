@@ -1157,7 +1157,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         Appliquer
                       </button>
                     </PopoverContent>
-                  </Popover>
+                    </Popover>
+                    {/* PM_DIM split chip shown separately */}
+                    {hasSplit && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                        + {splitLabel}
+                        <button
+                          onClick={() => {
+                            const newPerKpi = { ...(cfg.splitByPerKpi || {}) };
+                            delete newPerKpi[kpiIdItem];
+                            setState(prev => ({
+                              ...prev,
+                              graphSlots: prev.graphSlots.map(s =>
+                                s.id === slot.id ? { ...s, config: { ...cfg, splitByPerKpi: newPerKpi } } : s
+                              ),
+                            }));
+                          }}
+                          className="hover:text-destructive ml-0.5"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    )}
+                  </React.Fragment>
                 );
               });
             })}
