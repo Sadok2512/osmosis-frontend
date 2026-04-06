@@ -5594,8 +5594,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoom={FRANCE_DEFAULT_ZOOM}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
-        zoomSnap={1}
+        zoomSnap={0.5}
         zoomDelta={1}
+        wheelPxPerZoomLevel={120}
         closePopupOnClick={true}
       >
         <MapVisibilitySync active={isVisible} />
