@@ -919,6 +919,16 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       <div className="bg-secondary/50 border-b border-border/50">
         <div className="max-w-[1600px] mx-auto px-6 py-2">
           <div className="flex items-center gap-3">
+            {/* Scope filter (Vendor + Tech) — first position */}
+            <ScopeFilterPopover
+              filters={state.filters}
+              onToggle={(dim, val) => toggleFilterValue(dim, val)}
+              onClear={(dim) => clearFilterValues(dim)}
+            />
+
+            {/* Separator */}
+            <div className="h-6 w-px bg-border/60 shrink-0" />
+
             {/* Date range */}
             <div className="flex items-center gap-1.5 shrink-0">
               {/* ── Start Date+Time ── */}
