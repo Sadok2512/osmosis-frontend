@@ -478,7 +478,38 @@ const InvestigatorPage: React.FC = () => {
 
         </section>
 
-        {/* ═══ Analysis Tabs — hidden for now, focus on top graphs ═══ */}
+        {/* ═══ Analysis Navigation Tabs ═══ */}
+        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
+          <div className="flex items-center gap-0.5 px-1 py-1">
+            {([
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
+              { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500' },
+              { key: 'histograms' as const, icon: BarChart3, label: 'Histogrammes', color: 'text-cyan-500' },
+              { key: 'slicing' as const, icon: Layers, label: 'QoS / Slicing', color: 'text-purple-500' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500' },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setAnalysisTab(tab.key)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                  analysisTab === tab.key
+                    ? 'bg-card text-foreground shadow-sm border border-border/60'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                )}
+              >
+                <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab content — placeholder, à implémenter */}
+        <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
+          <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
+        </div>
       </main>
     </div>
 
