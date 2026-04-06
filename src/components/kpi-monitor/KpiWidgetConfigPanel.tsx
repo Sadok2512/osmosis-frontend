@@ -14,6 +14,7 @@ import {
   FILTER_DIMENSIONS,
   resolveAvailableValues,
 } from '@/config/filterDimensions';
+import { useFilterCache } from '@/hooks/useFilterCache';
 import { fetchDimensionValues } from './api/kpiMonitorApi';
 
 const PERIOD_PRESETS = [
@@ -56,6 +57,7 @@ interface Props {
 }
 
 const KpiWidgetConfigPanel: React.FC<Props> = ({ config, catalog, catalogMap, onUpdate, onClose }) => {
+  useFilterCache();
   const [kpiSearch, setKpiSearch] = useState('');
 
   const filteredCatalog = useMemo(() => {

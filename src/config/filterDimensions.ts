@@ -1,5 +1,7 @@
 // ── Filter Dimensions Configuration ─────────────────────────────────
-// Generated from the optimized JSON specification v1.0
+// Fetches real values from /api/v1/topo/filters, falls back to static refs
+
+import { topoApi } from '@/lib/localDb';
 
 export type FilterOp = 'IN' | 'NOT_IN' | 'EQ';
 
@@ -22,6 +24,45 @@ export interface ActiveFilter {
 
 export interface FilterWhereClause {
   and: { dimension: string; op: FilterOp; values: string[] }[];
+}
+
+// ── Backend filter cache ──
+// Maps dimension id → string[] of values from /api/v1/topo/filters
+let _backendCache: Record<string, string[]> | null = null;
+let _fetchPromise: Promise<void> | null = null;
+let _listeners: Array<() => void> = [];
+
+export function onFilterCacheReady(cb: () => void) {
+  if (_backendCache) { cb(); return; }
+  _listeners.push(cb);
+}
+
+export function getBackendFilterValues(dimId: string): string[] | null {
+  return _backendCache?.[dimId] ?? null;
+}
+
+export function isFilterCacheLoaded(): boolean {
+  return _backendCache !== null;
+}
+
+export function loadFilterCache(): Promise<void> {
+  if (_backendCache) return Promise.resolve();
+  if (_fetchPromise) return _fetchPromise;
+  _fetchPromise = topoApi.filters()
+    .then(resp => {
+      const map: Record<string, string[]> = {};
+      for (const f of resp.filters ?? []) {
+        map[f.id] = f.values ?? [];
+      }
+      _backendCache = map;
+      _listeners.forEach(cb => cb());
+      _listeners = [];
+    })
+    .catch(err => {
+      console.warn('[filterDimensions] Backend filters unavailable, using static fallback', err);
+      _fetchPromise = null; // allow retry
+    });
+  return _fetchPromise;
 }
 
 // ── Dimension definitions ──
@@ -117,7 +158,7 @@ export function normalizeValue(s: string | null | undefined): string | null {
 }
 
 // ── Dependency resolver ──
-// Given the current active filters, resolve available values for a dimension
+// Uses backend cache when available, falls back to static refs
 export function resolveAvailableValues(
   dimensionKey: string,
   activeFilters: ActiveFilter[]
@@ -125,10 +166,8 @@ export function resolveAvailableValues(
   const dim = FILTER_DIMENSIONS.find(d => d.key === dimensionKey);
   if (!dim) return [];
 
-  // Static values with no dependencies
-  if (dim.values && dim.depends_on.length === 0) {
-    return dim.values;
-  }
+  // If backend cache is loaded, use it directly for flat dimensions
+  const backendVals = getBackendFilterValues(dimensionKey);
 
   const getFilterValues = (key: string): string[] | null => {
     const f = activeFilters.find(af => af.dimension === key);
@@ -137,9 +176,26 @@ export function resolveAvailableValues(
 
   switch (dimensionKey) {
     case 'dor':
-      return REF_DOR_TREE.dors;
+      return backendVals ?? REF_DOR_TREE.dors;
 
     case 'constructeur': {
+      // Backend has full list; filter by selected DOR if active
+      if (backendVals) {
+        const dorVals = getFilterValues('dor');
+        if (!dorVals) return backendVals;
+        // With DOR filter active, narrow via static tree if possible
+        const constructeurs = new Set<string>();
+        for (const dor of dorVals) {
+          const byDor = REF_DOR_TREE.tree[dor];
+          if (byDor) Object.keys(byDor).forEach(c => constructeurs.add(c));
+        }
+        // Return intersection with backend values (handles casing)
+        const treeSet = constructeurs;
+        return treeSet.size > 0
+          ? backendVals.filter(v => treeSet.has(v) || treeSet.has(v.toLowerCase()))
+          : backendVals;
+      }
+      // Static fallback
       const dorVals = getFilterValues('dor');
       const dors = dorVals || REF_DOR_TREE.dors;
       const constructeurs = new Set<string>();
@@ -151,6 +207,27 @@ export function resolveAvailableValues(
     }
 
     case 'plaque': {
+      if (backendVals) {
+        const dorVals = getFilterValues('dor');
+        const consVals = getFilterValues('constructeur');
+        if (!dorVals && !consVals) return backendVals;
+        // Narrow via static tree
+        const dors = dorVals || REF_DOR_TREE.dors;
+        const plaques = new Set<string>();
+        for (const dor of dors) {
+          const byDor = REF_DOR_TREE.tree[dor];
+          if (!byDor) continue;
+          const constructeurs = consVals || Object.keys(byDor);
+          for (const cons of constructeurs) {
+            const ps = byDor[cons];
+            if (ps) ps.forEach(p => plaques.add(p));
+          }
+        }
+        return plaques.size > 0
+          ? backendVals.filter(v => plaques.has(v))
+          : backendVals;
+      }
+      // Static fallback
       const dorVals = getFilterValues('dor');
       const consVals = getFilterValues('constructeur');
       const dors = dorVals || REF_DOR_TREE.dors;
@@ -167,19 +244,30 @@ export function resolveAvailableValues(
       return Array.from(plaques).sort();
     }
 
+    case 'zone_arcep':
+      return backendVals ?? [];
+
+    case 'techno':
+      return backendVals ?? Object.keys(REF_TECHNO_BANDE);
+
     case 'bande': {
+      const allBands = backendVals ?? Object.values(REF_TECHNO_BANDE).flat();
       const technoVals = getFilterValues('techno');
-      const technos = technoVals || Object.keys(REF_TECHNO_BANDE);
+      if (!technoVals) return allBands.sort();
+      // Narrow by selected techno
       const bands = new Set<string>();
-      for (const t of technos) {
-        const bs = REF_TECHNO_BANDE[t];
+      for (const t of technoVals) {
+        const bs = REF_TECHNO_BANDE[t] || REF_TECHNO_BANDE[t.toLowerCase()];
         if (bs) bs.forEach(b => bands.add(b));
       }
-      return Array.from(bands).sort();
+      return bands.size > 0 ? allBands.filter(b => bands.has(b)) : allBands;
     }
 
+    case 'vendor':
+      return backendVals ?? [];
+
     default:
-      return dim.values || [];
+      return backendVals ?? dim.values ?? [];
   }
 }
 

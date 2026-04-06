@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { X, RotateCcw, Check, Filter, ChevronDown, Search } from 'lucide-react';
 import { FILTER_DIMENSIONS, resolveAvailableValues, ActiveFilter } from '@/config/filterDimensions';
+import { useFilterCache } from '@/hooks/useFilterCache';
 import { cn } from '@/lib/utils';
 
 export interface DashboardSiteFilters {
@@ -154,6 +155,7 @@ const MultiSelectDropdown: React.FC<{
 };
 
 const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onApply, initialFilters }) => {
+  useFilterCache(); // triggers fetch + re-render when backend filters are loaded
   const [filters, setFilters] = useState<DashboardSiteFilters>(initialFilters || {});
 
   const activeFilters = useMemo((): ActiveFilter[] => {

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Plus, X, Search, ChevronDown, Check, Filter, Save, Trash2 } from 'lucide-react';
+import { getBackendFilterValues } from '@/config/filterDimensions';
 
 // ── Types ──
 export interface ViewFilterCondition {
@@ -102,11 +103,15 @@ export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
   const [dimSearch, setDimSearch] = useState('');
   const [editingConditionId, setEditingConditionId] = useState<string | null>(null);
 
-  // Merged dimension values (backend + static fallback)
+  // Merged dimension values (backend cache → prop → static fallback)
   const getDimensionValues = useCallback((dimKey: string): string[] => {
+    // 1. Global backend cache (from /topo/filters)
+    const cached = getBackendFilterValues(dimKey);
+    if (cached && cached.length > 0) return cached;
+    // 2. Props from parent
     const backendDef = backendFilterDefs.find(d => d.id === dimKey);
     if (backendDef && backendDef.values.length > 0) return backendDef.values;
-    // Static fallbacks
+    // 3. Static fallbacks
     const STATIC: Record<string, string[]> = {
       constructeur: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung', 'Alcatel'],
       bande: ['LTE700', 'LTE800', 'LTE1800', 'LTE2100', 'LTE2600', 'LTE900', 'NR_700', 'NR_2100', 'NR_3500', 'NR_1800', 'NR_1400', 'NR_2600'],

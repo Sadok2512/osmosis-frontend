@@ -8,6 +8,7 @@ import {
   ActiveFilter,
   FilterOp,
 } from '@/config/filterDimensions';
+import { useFilterCache } from '@/hooks/useFilterCache';
 import {
   Plus, Save, FileDown, Copy, FolderOpen, Eye, Globe, Lock,
   MoreHorizontal, Sparkles, FileSpreadsheet, BarChart3, Map as MapIcon,
@@ -232,6 +233,7 @@ const DashboardTopBar: React.FC<DashboardTopBarProps> = ({
   editMode, onToggleEditMode,
   seriesInfo, onApplyConfig,
 }) => {
+  useFilterCache();
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
   const [showSettings, setShowSettings] = useState(false);

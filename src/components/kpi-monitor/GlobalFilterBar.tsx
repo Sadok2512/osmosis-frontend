@@ -6,6 +6,7 @@ import {
   ActiveFilter,
   FilterOp,
 } from '@/config/filterDimensions';
+import { useFilterCache } from '@/hooks/useFilterCache';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -187,6 +188,7 @@ const AddFilterButton: React.FC = () => {
 
 // ── Main Filter Bar ──
 const GlobalFilterBar: React.FC = () => {
+  useFilterCache(); // triggers fetch + re-render when backend filters are loaded
   const { globalFilters, clearGlobalFilters, crossFilter, setCrossFilter } = useGlobalFilterStore();
 
   const hasActiveFilters = globalFilters.some((f) => f.values.length > 0) || crossFilter !== null;
