@@ -1798,6 +1798,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 axisAssign[k] = v === 'right' ? 1 : 0;
               }
             }
+            console.log('[ControlPanel] onConfirm pendingAxis=', JSON.stringify(pendingAxisRef.current), 'axisAssign=', JSON.stringify(axisAssign), 'mode=', selectorOpen);
             const hasAxisConfig = Object.keys(axisAssign).length > 0;
             if (selectorOpen === 'new') {
               const newId = `slot-${Date.now()}`;
