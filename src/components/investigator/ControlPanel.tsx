@@ -6,7 +6,7 @@ import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -426,17 +426,39 @@ const FilterChip: React.FC<{
 
 const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-/* ── Jalon Form ── */
-const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
-  const [date, setDate] = useState('');
-  const [label, setLabel] = useState('');
-  const [color, setColor] = useState(JALON_COLORS[0]);
+/* ── Jalon Form (add + edit) ── */
+const JalonForm: React.FC<{
+  onAdd: (j: Jalon) => void;
+  editJalon?: Jalon | null;
+  onUpdate?: (j: Jalon) => void;
+  onCancelEdit?: () => void;
+}> = ({ onAdd, editJalon, onUpdate, onCancelEdit }) => {
+  const [date, setDate] = useState(editJalon?.date || '');
+  const [label, setLabel] = useState(editJalon?.label || '');
+  const [color, setColor] = useState(editJalon?.color || JALON_COLORS[0]);
 
-  const handleAdd = () => {
+  useEffect(() => {
+    if (editJalon) {
+      setDate(editJalon.date);
+      setLabel(editJalon.label);
+      setColor(editJalon.color);
+    } else {
+      setDate('');
+      setLabel('');
+      setColor(JALON_COLORS[0]);
+    }
+  }, [editJalon]);
+
+  const handleSubmit = () => {
     if (!date || !label) return;
-    onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+    if (editJalon && onUpdate) {
+      onUpdate({ ...editJalon, date, label, color });
+    } else {
+      onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+    }
     setDate('');
     setLabel('');
+    setColor(JALON_COLORS[0]);
   };
 
   return (
@@ -462,9 +484,20 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
             style={{ backgroundColor: c }}
           />
         ))}
-        <Button size="sm" className="h-6 text-[10px] px-3 ml-auto" onClick={handleAdd} disabled={!date || !label}>
-          <Plus className="w-3 h-3 mr-1" /> Ajouter
-        </Button>
+        <div className="ml-auto flex items-center gap-1">
+          {editJalon && onCancelEdit && (
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={onCancelEdit}>
+              Annuler
+            </Button>
+          )}
+          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!date || !label}>
+            {editJalon ? (
+              <><Check className="w-3 h-3 mr-1" /> Modifier</>
+            ) : (
+              <><Plus className="w-3 h-3 mr-1" /> Ajouter</>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -484,6 +517,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
+  const [editingJalon, setEditingJalon] = useState<Jalon | null>(null);
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
@@ -810,17 +844,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-3 space-y-2" align="start">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Ajouter un jalon</div>
-                <JalonForm onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))} />
+              <PopoverContent className="w-[300px] p-3 space-y-2" align="start">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  {editingJalon ? 'Modifier le jalon' : 'Ajouter un jalon'}
+                </div>
+                <JalonForm
+                  onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))}
+                  editJalon={editingJalon}
+                  onUpdate={(j) => {
+                    setState(prev => ({ ...prev, jalons: prev.jalons.map(jj => jj.id === j.id ? j : jj) }));
+                    setEditingJalon(null);
+                  }}
+                  onCancelEdit={() => setEditingJalon(null)}
+                />
                 {state.jalons.length > 0 && (
                   <div className="space-y-1 pt-2 border-t border-border/40">
                     {state.jalons.map(j => (
-                      <div key={j.id} className="flex items-center gap-2 text-[10px]">
+                      <div key={j.id} className={cn("flex items-center gap-2 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
                         <span className="font-medium text-foreground truncate flex-1">{j.label}</span>
                         <span className="text-muted-foreground">{j.date}</span>
-                        <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="text-muted-foreground hover:text-destructive">
+                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary">
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
