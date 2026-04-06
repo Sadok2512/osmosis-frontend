@@ -1525,7 +1525,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       </div>
                       {/* Split 2 (cross-tabulation) */}
                       <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2 <span className="text-[8px] font-normal normal-case">(cross-tab)</span></span>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
                         <select
                           value={(() => {
                             const vals = Object.values(cfg.splitByPerKpi2 || {}).filter(v => v && v !== 'None');
