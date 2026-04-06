@@ -4339,6 +4339,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (controller.signal.aborted) return;
 
+      // If fetch returned empty (server error, no fallback), keep previous data
+      if (!newSites || newSites.length === 0) {
+        setBboxLoading(false);
+        setLoading(false);
+        return;
+      }
+
       // Preserve already loaded cells when fresh BBOX results only contain lightweight site summaries
       setSites(prev => {
         const prevById = new Map(prev.map(site => [site.site_id, site]));
