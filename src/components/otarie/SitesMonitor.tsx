@@ -3152,30 +3152,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setActiveMapTool(prev => (prev === tool ? null : tool));
   }, []);
 
-  const handleProfileClick = useCallback(async (latlng: LatLng) => {
-    if (!focusCellId || !siteDetail) return;
-    const cell = siteDetail.cells.find(c => c.cell_id === focusCellId);
-    if (!cell) return;
-    const lat = cell.latitude ?? siteDetail.latitude;
-    const lng = cell.longitude ?? siteDetail.longitude;
-    if (!lat || !lng) return;
-    const target: [number, number] = [latlng.lat, latlng.lng];
-    setProfileTarget(target);
-    setProfileLoading(true);
-    setProfileData(null);
-    try {
-      const start = { lat, lng };
-      const end = { lat: latlng.lat, lng: latlng.lng };
-      const hba = cell.hba ?? 30;
-      const tilt = (cell as any).tilt ?? 0;
-      const { profilePoints, analysis } = await (async () => {
-        const hook = computeProfile;
-        await hook(start, end, { hba, tilt, siteAltitude: 0, antennaAMSL: hba }, true, 4/3);
-        return { profilePoints: [] as any[], analysis: null as any };
-      })();
-    } catch {}
-    setProfileLoading(false);
-  }, [focusCellId, siteDetail]);
+  const handleProfileClick = useCallback((latlng: LatLng) => {
+    setProfileTarget([latlng.lat, latlng.lng]);
+  }, []);
 
   const handleRadiusSetCenter = useCallback((latlng: LatLng) => {
     setRadiusCenter([latlng.lat, latlng.lng]);
