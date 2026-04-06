@@ -291,19 +291,21 @@ export function resolveSlotContext(
   const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
   const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
 
-  // Split: per-KPI PM_DIM split takes priority, then slot-level, then global
+  // Split: per-KPI split takes ABSOLUTE priority, then slot-level, then global
+  // Per-KPI splits are the source of truth — global splitBy should NOT override them
   let splitValue: string | undefined;
-  // Check per-KPI split first (PM dimension splits MUST take priority)
   const perKpi = slot.config?.splitByPerKpi || {};
-  const activePmSplit = Object.values(perKpi).find(v => v && v !== 'None' && v.startsWith('PM_DIM:'));
-  const activePerKpiSplit = Object.values(perKpi).find(v => v && v !== 'None');
-  if (activePmSplit) {
-    splitValue = activePmSplit;
+  const perKpiValues = Object.values(perKpi).filter(v => v && v !== 'None');
+  const hasPerKpiSplits = Object.keys(perKpi).length > 0;
+
+  if (perKpiValues.length > 0) {
+    // Use the first active per-KPI split (PM_DIM splits get priority)
+    const activePmSplit = perKpiValues.find(v => v!.startsWith('PM_DIM:'));
+    splitValue = activePmSplit || perKpiValues[0]!;
   } else if (slot.splitBy && slot.splitBy !== 'None') {
     splitValue = slot.splitBy;
-  } else if (activePerKpiSplit) {
-    splitValue = activePerKpiSplit;
-  } else if (globalState.splitBy && globalState.splitBy !== 'None') {
+  } else if (!hasPerKpiSplits && globalState.splitBy && globalState.splitBy !== 'None') {
+    // Only use global fallback if NO per-KPI splits are configured at all
     splitValue = globalState.splitBy;
   }
 
