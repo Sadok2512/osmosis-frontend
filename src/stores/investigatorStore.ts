@@ -138,13 +138,21 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 4,  // v4: new default graph config (markers ON, area OFF, white bg)
+      version: 5,  // v5: clear auto-assigned splits (Cell badge bug)
       migrate: (persisted: any, version: number) => {
         if (version < 4 && persisted?.state?.graphSlots) {
-          // Reset all slot configs to pick up new defaults
           persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
             ...s,
             config: undefined,
+          }));
+        }
+        if (version < 5 && persisted?.state?.graphSlots) {
+          // Clear stale auto-assigned splitByPerKpi from all slots
+          persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
+            ...s,
+            splitBy: 'None',
+            splitBy2: 'None',
+            config: s.config ? { ...s.config, splitByPerKpi: {}, splitByPerKpi2: {} } : s.config,
           }));
         }
         return persisted;
