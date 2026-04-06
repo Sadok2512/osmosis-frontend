@@ -176,7 +176,8 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
     const siteKey = String(
       row?.code_nidt ?? row?.nom_site ?? row?.site_name ?? row?.site_id ?? row?.site ?? `site-${index}`,
     );
-    const band = String(row?.bande ?? row?.band ?? 'Unknown');
+    const rawBand = String(row?.bande ?? row?.band ?? 'Unknown');
+    const band = normalizeBandKey(rawBand, techno) || rawBand;
     const vendor = String(row?.constructeur ?? row?.vendor ?? row?.vendor_name ?? 'Unknown');
 
     const siteEntry = siteTechMap.get(siteKey) ?? { has4G: false, has5G: false };
@@ -3293,9 +3294,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         for (const b of (stats.by_band || [])) {
-          const band = b.band || 'Unknown';
-          if (/^NR|^5G/i.test(band)) result.bandMap5G[band] = b.cells || 0;
-          else result.bandMap4G[band] = b.cells || 0;
+          const rawBand = b.band || 'Unknown';
+          const is5GBand = /^NR|^5G/i.test(rawBand);
+          const normalizedBand = normalizeBandKey(rawBand, is5GBand ? '5G' : '4G') || rawBand;
+          if (is5GBand) result.bandMap5G[normalizedBand] = (result.bandMap5G[normalizedBand] || 0) + (b.cells || 0);
+          else result.bandMap4G[normalizedBand] = (result.bandMap4G[normalizedBand] || 0) + (b.cells || 0);
         }
 
         for (const v of (stats.by_vendor || [])) {
