@@ -1552,8 +1552,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       </button>
                     </PopoverContent>
                     </Popover>
-                    {/* Split chip */}
-                    {hasSplit && (
+                    {/* Split chip — only for non-PM splits (PM splits are already shown as badge on the KPI chip) */}
+                    {hasSplit && !isPmSplit && (
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                         + {splitLabel}
                         <button
