@@ -2271,7 +2271,7 @@ SEULS les blocs \`\`\`chart, \`\`\`map, \`\`\`kpi sont autorisés pour les visua
 Toute donnée comparative ou distribution DOIT utiliser un bloc \`\`\`chart JSON, JAMAIS du texte ASCII.
 
 VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
-- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#2563eb","#ea580c"]}
+- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#60a5fa","#ea580c"]}
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
