@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useDashboardManager } from '../bi/DashboardManager';
 import { useGlobalFilterStore } from '@/stores/globalFilterStore';
 import { useKpiMonitorStore } from '@/stores/kpiMonitorStore';
 import {
   FILTER_DIMENSIONS,
   resolveAvailableValues,
+  isSearchDimension,
+  searchDimensionValues,
   ActiveFilter,
   FilterOp,
 } from '@/config/filterDimensions';
@@ -14,7 +16,7 @@ import {
   MoreHorizontal, Sparkles, FileSpreadsheet, BarChart3, Map as MapIcon,
   Table2, Type, ImageIcon, Grid3X3, Move, ChevronDown, X, Filter,
   RotateCcw, Search, Check, Pencil, EyeIcon, Settings, Calendar,
-  Activity,
+  Activity, Loader2,
 } from 'lucide-react';
 import DashboardSettingsPopup from './DashboardSettingsPopup';
 import { useDashboardSettingsStore } from '@/stores/dashboardSettingsStore';
@@ -32,23 +34,36 @@ import { cn } from '@/lib/utils';
 const FilterChipPopoverContent: React.FC<{ filter: ActiveFilter; allFilters: ActiveFilter[] }> = ({ filter, allFilters }) => {
   const { updateGlobalFilter, setGlobalFilterValues } = useGlobalFilterStore();
   const dim = FILTER_DIMENSIONS.find(d => d.key === filter.dimension);
-  const staticValues = useMemo(() => resolveAvailableValues(filter.dimension, allFilters), [filter.dimension, allFilters]);
+  const isSearch = isSearchDimension(filter.dimension);
+  const staticValues = useMemo(() => isSearch ? [] : resolveAvailableValues(filter.dimension, allFilters), [filter.dimension, allFilters, isSearch]);
 
-  const [backendValues, setBackendValues] = useState<string[]>([]);
-  React.useEffect(() => {
-    const dimMap: Record<string, string> = {
-      dor: 'DOR', constructeur: 'Vendor', plaque: 'Plaque', site: 'Site', cell: 'Cell',
-      zone_arcep: 'ARCEP', techno: 'TECHNO', vendor: 'Vendor', bande: 'BAND',
-    };
-    const dimKey = dimMap[filter.dimension] || filter.dimension;
-    import('./api/kpiMonitorApi').then(mod => {
-      mod.fetchDimensionValues(dimKey).then(d => { if (d.values) setBackendValues(d.values); }).catch(() => {});
-    });
-  }, [filter.dimension]);
-
-  const availableValues = backendValues.length > 0 ? backendValues : staticValues;
   const [search, setSearch] = useState('');
-  const filtered = availableValues.filter(v => v.toLowerCase().includes(search.toLowerCase()));
+  const [searchResults, setSearchResults] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Live search for site/cell
+  useEffect(() => {
+    if (!isSearch) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (search.length < 2) { setSearchResults([]); return; }
+    setLoading(true);
+    debounceRef.current = setTimeout(() => {
+      searchDimensionValues(filter.dimension, search, allFilters)
+        .then(vals => setSearchResults(vals))
+        .catch(() => setSearchResults([]))
+        .finally(() => setLoading(false));
+    }, 300);
+  }, [search, filter.dimension, allFilters, isSearch]);
+
+  const availableValues = isSearch
+    ? Array.from(new Set([...filter.values, ...searchResults])).sort()
+    : staticValues;
+
+  const filtered = isSearch
+    ? availableValues
+    : availableValues.filter(v => v.toLowerCase().includes(search.toLowerCase()));
+
   const toggleValue = (val: string) => {
     const next = filter.values.includes(val) ? filter.values.filter(v => v !== val) : [...filter.values, val];
     setGlobalFilterValues(filter.id, next);
@@ -69,28 +84,34 @@ const FilterChipPopoverContent: React.FC<{ filter: ActiveFilter; allFilters: Act
           </div>
         </div>
         <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
-          {filter.values.length}/{availableValues.length}
+          {filter.values.length}{isSearch ? '' : `/${availableValues.length}`}
         </span>
       </div>
       <div className="p-2.5 space-y-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher..." autoFocus
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border/60 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder={isSearch ? "Tapez 2+ lettres..." : "Rechercher..."} autoFocus
+            className="w-full pl-8 pr-8 py-1.5 rounded-lg border border-border/60 bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40" />
+          {loading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => setGlobalFilterValues(filter.id, [...availableValues])}
-            className="px-2 py-0.5 rounded-md text-[10px] font-medium text-primary bg-primary/5 hover:bg-primary/10 transition-colors">
-            Tout sélectionner
-          </button>
+          {!isSearch && (
+            <button onClick={() => setGlobalFilterValues(filter.id, [...availableValues])}
+              className="px-2 py-0.5 rounded-md text-[10px] font-medium text-primary bg-primary/5 hover:bg-primary/10 transition-colors">
+              Tout sélectionner
+            </button>
+          )}
           <button onClick={() => setGlobalFilterValues(filter.id, [])}
             className="px-2 py-0.5 rounded-md text-[10px] font-medium text-muted-foreground hover:bg-muted transition-colors">
             Effacer
           </button>
         </div>
         <div className="max-h-52 overflow-y-auto space-y-0.5 rounded-lg border border-border/40 bg-muted/10 p-1">
-          {filtered.length === 0 ? (
-            <p className="text-[10px] text-muted-foreground/50 text-center py-4 italic">Aucun résultat</p>
+          {isSearch && search.length < 2 && filter.values.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground/50 text-center py-4 italic">Tapez au moins 2 caractères</p>
+          ) : filtered.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground/50 text-center py-4 italic">{loading ? 'Recherche...' : 'Aucun résultat'}</p>
           ) : filtered.map(val => {
             const selected = filter.values.includes(val);
             return (

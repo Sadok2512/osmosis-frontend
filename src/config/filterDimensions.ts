@@ -271,6 +271,43 @@ export function resolveAvailableValues(
   }
 }
 
+// ── Search-based dimension helpers (site, cell) ──
+// These dimensions have too many values for a static dropdown.
+// They use /topo/sites?search=X and /topo/cells?search=X with context filters.
+
+export function isSearchDimension(key: string): boolean {
+  return key === 'site' || key === 'cell';
+}
+
+export async function searchDimensionValues(
+  dimensionKey: string,
+  search: string,
+  contextFilters: ActiveFilter[],
+): Promise<string[]> {
+  if (!search || search.length < 2) return [];
+  const qs = new URLSearchParams();
+  qs.set('search', search);
+  qs.set('limit', '50');
+  // Pass parent filters as context
+  for (const f of contextFilters) {
+    if (f.values.length > 0 && f.dimension !== dimensionKey) {
+      qs.set(f.dimension, f.values.join(','));
+    }
+  }
+
+  if (dimensionKey === 'site') {
+    const rows = await topoApi.filteredSites(qs.toString());
+    return (Array.isArray(rows) ? rows : []).map((r: any) => r.site_name).filter(Boolean);
+  }
+  if (dimensionKey === 'cell') {
+    const rows = await topoApi.filteredSites(qs.toString());
+    return (Array.isArray(rows) ? rows : [])
+      .flatMap((r: any) => r.cell_name ? [r.cell_name] : [])
+      .filter(Boolean);
+  }
+  return [];
+}
+
 // ── Build backend payload ──
 export function buildWhereClause(filters: ActiveFilter[]): FilterWhereClause {
   return {
