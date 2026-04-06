@@ -503,6 +503,72 @@ const JalonForm: React.FC<{
   );
 };
 
+/* ── Quick Dimension Selector (Vendor / Tech toggle pills) ── */
+const VENDOR_COLORS: Record<string, string> = {
+  ERICSSON: 'hsl(210, 70%, 50%)',
+  HUAWEI: 'hsl(0, 70%, 50%)',
+  NOKIA: 'hsl(220, 60%, 45%)',
+  SAMSUNG: 'hsl(250, 50%, 50%)',
+};
+const TECH_COLORS: Record<string, string> = {
+  '4G': 'hsl(30, 85%, 55%)',
+  '5G': 'hsl(145, 60%, 42%)',
+  LTE: 'hsl(30, 85%, 55%)',
+  NR: 'hsl(145, 60%, 42%)',
+  '3G': 'hsl(200, 50%, 50%)',
+  '2G': 'hsl(280, 40%, 50%)',
+};
+
+const QuickDimSelector: React.FC<{
+  label: string;
+  dimension: string;
+  filters: Record<string, string[]>;
+  onToggle: (val: string) => void;
+  onClear: () => void;
+}> = ({ label, dimension, filters, onToggle, onClear }) => {
+  const allValues = useBackendFilterValues(dimension);
+  const selected = filters[dimension] || [];
+  const colorMap = dimension === 'Vendor' ? VENDOR_COLORS : TECH_COLORS;
+
+  if (allValues.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 shrink-0">
+      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mr-0.5">{label}</span>
+      <div className="flex items-center bg-card rounded-lg border border-border/40 p-0.5 gap-0.5">
+        {allValues.map(val => {
+          const isActive = selected.includes(val);
+          const accent = colorMap[val.toUpperCase()] || 'hsl(var(--primary))';
+          return (
+            <button
+              key={val}
+              onClick={() => onToggle(val)}
+              className={cn(
+                'px-2 py-1 rounded-md text-[10px] font-semibold transition-all relative',
+                isActive
+                  ? 'text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+              )}
+              style={isActive ? { backgroundColor: accent } : undefined}
+            >
+              {val}
+            </button>
+          );
+        })}
+        {selected.length > 0 && (
+          <button
+            onClick={onClear}
+            className="ml-0.5 p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+            title="Effacer"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /* ── Main Control Panel ── */
 const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelectorSlot, onExternalSelectorClose, activeSlotId, onSlotClick, isApplying, showAIPanel, onToggleAIPanel, selectedCounters: externalSelectedCounters, onSelectedCountersChange }) => {
   const [catalog, setCatalog] = useState<KpiCatalogEntry[]>([]);
