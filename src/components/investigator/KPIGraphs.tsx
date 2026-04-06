@@ -1314,6 +1314,22 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }}
             />
 
+            {/* KPI Breakdown — raw counters composing the KPI */}
+            {cfg.showBreakdown && kpiIds.length > 0 && (
+              <BreakdownChart
+                kpiIds={kpiIds}
+                dateFrom={slot.startDate || investigatorState.startDate}
+                dateTo={slot.endDate || investigatorState.endDate}
+                granularity={normalizeGranularity(slot.granularity || investigatorState.granularity)}
+                siteName={siteName}
+                smooth={cfg.smooth}
+                showSymbols={cfg.showSymbols}
+                showGrid={cfg.showGrid}
+                lineWidth={cfg.lineWidth}
+                height={layout === 1 ? 300 : 220}
+              />
+            )}
+
           </div>
         );
       })}
