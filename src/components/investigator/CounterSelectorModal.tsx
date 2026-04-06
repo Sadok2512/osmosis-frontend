@@ -464,8 +464,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               <div className="w-[22px] shrink-0" /> {/* star */}
               <div className="w-[18px] shrink-0" /> {/* checkbox */}
               <span className="flex-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 min-w-0">Counter</span>
-              <div className="flex items-center shrink-0" style={{ width: '280px' }}>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[32px] text-center">KPI</span>
+              <div className="flex items-center shrink-0" style={{ width: '248px' }}>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[58px] text-center">Dim</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[60px] text-center">Vendor</span>
                 <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 w-[50px] text-center">Tech</span>
@@ -535,13 +534,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                           </div>
 
                           {/* Badges — fixed-width container for alignment */}
-                          <div className="flex items-center shrink-0" style={{ width: '280px' }}>
-                            {/* KPI badge */}
-                            <div className="w-[32px] flex justify-center">
-                              {c.is_in_kpi && (
-                                <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold bg-cyan-500/10 text-cyan-500" title={`Used in ${c.kpi_usage_count || 0} KPIs`}>KPI</span>
-                              )}
-                            </div>
+                          <div className="flex items-center shrink-0" style={{ width: '248px' }}>
                             {/* Dimension badge */}
                             <div className="w-[58px] flex justify-center">
                               {c.dimension_type ? (
