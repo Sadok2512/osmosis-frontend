@@ -77,8 +77,15 @@ export const TECH_BADGE: Record<string, { bg: string; text: string }> = {
 // ── Helper functions ──
 
 /** Get vendor hex color (case-insensitive) */
-export const vendorHex = (v: string | null | undefined): string =>
-  VENDOR[(v || '').toUpperCase() as keyof typeof VENDOR] || '#64748b';
+export const vendorHex = (v: string | null | undefined): string => {
+  const key = (v || '').toUpperCase().trim();
+  if (key.includes('ERICSSON')) return VENDOR.ERICSSON;
+  if (key.includes('NOKIA') || key === 'NSN') return VENDOR.NOKIA;
+  if (key.includes('HUAWEI')) return VENDOR.HUAWEI;
+  if (key.includes('SAMSUNG')) return VENDOR.SAMSUNG;
+  if (key.includes('ALCATEL') || key === 'ALU') return VENDOR.ALCATEL;
+  return VENDOR[key as keyof typeof VENDOR] || '#64748b';
+};
 
 /** Get tech hex color (case-insensitive) */
 export const techHex = (t: string | null | undefined): string => {
