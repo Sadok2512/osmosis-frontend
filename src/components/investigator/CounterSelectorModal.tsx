@@ -550,7 +550,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {/* Vendor badge */}
                             <div className="w-[60px] flex justify-center">
                               {c.vendor ? (
-                                <Badge className={c.vendor === 'Ericsson' ? 'bg-blue-500/10 text-blue-500' : 'bg-orange-500/10 text-orange-500'}>
+                                <Badge className={cn(vendorBadge(c.vendor).bg, vendorBadge(c.vendor).text)}>
                                   {c.vendor}
                                 </Badge>
                               ) : <span className="text-[9px] text-muted-foreground/30">—</span>}

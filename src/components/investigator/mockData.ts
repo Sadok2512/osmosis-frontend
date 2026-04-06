@@ -91,6 +91,6 @@ export function generateBreakdownData(kpiId: string) {
   return categories.map(cat => ({
     name: cat,
     value: +(def.higherIsBetter ? 92 + Math.random() * 7 : 0.2 + Math.random() * 1.2).toFixed(2),
-    color: cat === 'Ericsson' ? '#3b82f6' : cat === 'Nokia' ? '#10b981' : '#f59e0b',
+    color: vendorHex(cat),
   }));
 }

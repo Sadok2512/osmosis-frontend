@@ -504,20 +504,8 @@ const JalonForm: React.FC<{
 };
 
 /* ── Quick Scope Filter Popover (Vendor + Tech in one button) ── */
-const VENDOR_COLORS: Record<string, string> = {
-  ERICSSON: 'hsl(210, 70%, 50%)',
-  HUAWEI: 'hsl(0, 70%, 50%)',
-  NOKIA: 'hsl(220, 60%, 45%)',
-  SAMSUNG: 'hsl(250, 50%, 50%)',
-};
-const TECH_COLORS: Record<string, string> = {
-  '4G': 'hsl(30, 85%, 55%)',
-  '5G': 'hsl(145, 60%, 42%)',
-  LTE: 'hsl(30, 85%, 55%)',
-  NR: 'hsl(145, 60%, 42%)',
-  '3G': 'hsl(200, 50%, 50%)',
-  '2G': 'hsl(280, 40%, 50%)',
-};
+const VENDOR_COLORS = VENDOR_HSL;
+const TECH_COLORS = TECH_HSL;
 
 const ScopeFilterPopover: React.FC<{
   filters: Record<string, string[]>;

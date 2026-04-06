@@ -96,6 +96,6 @@ export const getTechDotColor = (techno: string | null | undefined): string => {
 /** Get filter chip colors for 5G/4G tech labels */
 export const getTechChipClasses = (tech: string): string => {
   return tech === '5G'
-    ? 'bg-green-500/15 text-green-600'
-    : 'bg-orange-500/15 text-orange-600';
+    ? 'bg-green-500/15 text-green-500'
+    : 'bg-orange-500/15 text-orange-500';
 };
