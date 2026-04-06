@@ -1729,8 +1729,27 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </button>
           </div>
 
-          {/* ── ROW 3: PM Dimension Levels (PMQAP, FLEX, etc.) — only when relevant ── */}
-          {activeFilterDims.some(dim => PM_DIMENSION_TYPES.has(dim)) && (
+          {/* ── ROW 3: PM Dimension Levels (PMQAP, FLEX, etc.) — only when active slot has relevant KPIs ── */}
+          {(() => {
+            const aSlot = state.graphSlots.find(s => s.id === activeSlotId);
+            if (!aSlot || aSlot.kpiIds.length === 0) return false;
+            // Check if any KPI in the active slot requires a PM dimension
+            const slotPmDims = new Set<string>();
+            for (const kpiId of aSlot.kpiIds) {
+              const def = kpiDefs.find(k => k.id === kpiId);
+              if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
+                slotPmDims.add(def.dimension_type);
+              }
+            }
+            // Also check counters assigned to this slot
+            for (const cId of (aSlot.counterIds || [])) {
+              const cDef = counterCatalog.find(c => c.counter_name === cId);
+              if (cDef?.dimension_type && PM_DIMENSION_TYPES.has(cDef.dimension_type)) {
+                slotPmDims.add(cDef.dimension_type);
+              }
+            }
+            return slotPmDims.size > 0 && activeFilterDims.some(dim => PM_DIMENSION_TYPES.has(dim));
+          })() && (
             <div className="flex items-center gap-2 flex-wrap pt-0.5">
               <div className="flex items-center gap-1 shrink-0">
                 <Layers className="w-3 h-3 text-amber-500" />
