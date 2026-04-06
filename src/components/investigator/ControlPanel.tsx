@@ -703,6 +703,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     disabled={(date) => !!startDate && date < startDate}
                     onSelect={(d) => d && setState(prev => ({ ...prev, endDate: format(d, 'yyyy-MM-dd') }))}
                     today={undefined}
+                    modifiers={startDate ? { rangeStart: startDate } : undefined}
+                    modifiersStyles={{ rangeStart: { border: '2px solid hsl(var(--primary))', borderRadius: '6px', fontWeight: 700 } }}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
