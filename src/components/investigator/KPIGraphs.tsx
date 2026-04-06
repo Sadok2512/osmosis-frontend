@@ -979,7 +979,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendRows + sliderHeight + 10,
+            bottom: legendRows + sliderHeight + 20,
             left: 62,
             containLabel: false,
           },
