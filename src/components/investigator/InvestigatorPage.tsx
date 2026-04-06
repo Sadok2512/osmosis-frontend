@@ -14,7 +14,7 @@ import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetai
 import {
   LayoutGrid, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
-  Settings2, Bell, Cpu, Layers, Table2,
+  Settings2, Bell, Cpu, Layers, Table2, Download,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -518,6 +518,34 @@ const InvestigatorPage: React.FC = () => {
               <Table2 className="w-4 h-4 text-blue-500" />
               <span className="text-[11px] font-bold text-foreground">Table Data</span>
               <span className="text-[9px] text-muted-foreground ml-auto">{tsData.length} points</span>
+              {tsData.length > 0 && (
+                <button
+                  onClick={() => {
+                    const kpis = [...new Set(tsData.map(d => d.kpi))];
+                    const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
+                    const lookup: Record<string, Record<string, number>> = {};
+                    kpis.forEach(k => { lookup[k] = {}; });
+                    tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
+                    const header = ['Timestamp', ...kpis].join(',');
+                    const rows = timestamps.map(t => {
+                      const vals = kpis.map(k => lookup[k]?.[t] ?? '');
+                      return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, ...vals].join(',');
+                    });
+                    const csv = [header, ...rows].join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'table_data.csv';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+                >
+                  <Download className="w-3 h-3" />
+                  CSV
+                </button>
+              )}
             </div>
             <div className="overflow-auto" style={{ maxHeight: 500 }}>
               {tsData.length > 0 ? (() => {
