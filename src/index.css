@@ -246,6 +246,24 @@ All colors MUST be HSL.
   cursor: grabbing !important;
 }
 
+/* Hide react-grid-layout default resize handle icon */
+.react-resizable-handle::after {
+  display: none !important;
+}
+.react-resizable-handle {
+  background: none !important;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.react-grid-item:hover .react-resizable-handle {
+  opacity: 0.3;
+  border-right: 2px solid hsl(var(--muted-foreground));
+  border-bottom: 2px solid hsl(var(--muted-foreground));
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 0 0 4px 0;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
