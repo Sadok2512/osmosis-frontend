@@ -156,9 +156,8 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   const [loading, setLoading] = React.useState(false);
   const [nameMap, setNameMap] = React.useState<Record<string, string>>({});
 
-  // Extract site filter from global filters
-  const siteFilter = state.filters?.find((f: any) => f.dimension === 'Site' || f.dimension === 'SITE');
-  const siteName = siteFilter?.values?.[0] || null;
+  // Extract site filter from global filters (Record<string, string[]>)
+  const siteName = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || null;
 
   React.useEffect(() => {
     if (counterNames.length === 0) { setTsData([]); return; }
