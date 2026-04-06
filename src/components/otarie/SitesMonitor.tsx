@@ -5579,6 +5579,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       </div>
     </div>
   ) : null;
+
+  // Detail loading is now handled inline — no full-screen takeover
+
+  // No early return for siteDetail — rendered as right panel inside the main view
+
+  // Main view — full screen map with clustering
+  return (
+    <div className="absolute inset-0 bg-background overflow-hidden">
+      {loadingOverlay}
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
