@@ -86,6 +86,7 @@ export interface Jalon {
   endDate?: string;
   label: string;
   color: string;
+  opacity?: number;
   visibility?: JalonVisibility;
 }
 

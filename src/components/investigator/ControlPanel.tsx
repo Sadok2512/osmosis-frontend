@@ -501,126 +501,177 @@ const VISIBILITY_OPTIONS: { value: JalonVisibility; label: string }[] = [
   { value: 'personal', label: 'Personnel' },
 ];
 
-/* ── Jalon Form (add + edit) ── */
-const JalonForm: React.FC<{
-  onAdd: (j: Jalon) => void;
-  editJalon?: Jalon | null;
-  onUpdate?: (j: Jalon) => void;
-  onCancelEdit?: () => void;
-}> = ({ onAdd, editJalon, onUpdate, onCancelEdit }) => {
-  const [startDate, setStartDate] = useState(editJalon?.date || '');
-  const [endDate, setEndDate] = useState(editJalon?.endDate || editJalon?.date || '');
-  const [label, setLabel] = useState(editJalon?.label || '');
-  const [color, setColor] = useState(editJalon?.color || JALON_COLORS[0]);
-  const [visibility, setVisibility] = useState<JalonVisibility>(editJalon?.visibility || 'all');
+/* ── Jalons Manager Popup ── */
+const JalonsManagerPopup: React.FC<{
+  jalons: Jalon[];
+  onUpdate: (jalons: Jalon[]) => void;
+}> = ({ jalons, onUpdate }) => {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+
+  // New jalon form state
+  const [label, setLabel] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [color, setColor] = useState(JALON_COLORS[0]);
+  const [opacity, setOpacity] = useState(80);
+  const [visibility, setVisibility] = useState<JalonVisibility>('all');
   const [endDateTouched, setEndDateTouched] = useState(false);
 
   useEffect(() => {
-    if (editJalon) {
-      setStartDate(editJalon.date);
-      setEndDate(editJalon.endDate || editJalon.date);
-      setLabel(editJalon.label);
-      setColor(editJalon.color);
-      setVisibility(editJalon.visibility || 'all');
-      setEndDateTouched(!!editJalon.endDate && editJalon.endDate !== editJalon.date);
-    } else {
-      setStartDate('');
-      setEndDate('');
-      setLabel('');
-      setColor(JALON_COLORS[0]);
-      setVisibility('all');
-      setEndDateTouched(false);
-    }
-  }, [editJalon]);
-
-  // Sync endDate to startDate when not manually edited
-  useEffect(() => {
-    if (!endDateTouched && startDate) {
-      setEndDate(startDate);
-    }
+    if (!endDateTouched && startDate) setEndDate(startDate);
   }, [startDate, endDateTouched]);
 
-  const handleSubmit = () => {
-    if (!startDate || !label) return;
-    const finalEndDate = endDate || startDate;
-    if (editJalon && onUpdate) {
-      onUpdate({ ...editJalon, date: startDate, endDate: finalEndDate, label, color, visibility });
-    } else {
-      onAdd({ id: `jalon-${Date.now()}`, date: startDate, endDate: finalEndDate, label, color, visibility });
-    }
-    setStartDate('');
-    setEndDate('');
-    setLabel('');
-    setColor(JALON_COLORS[0]);
-    setVisibility('all');
-    setEndDateTouched(false);
+  const resetForm = () => {
+    setLabel(''); setStartDate(''); setEndDate(''); setColor(JALON_COLORS[0]);
+    setOpacity(80); setVisibility('all'); setEndDateTouched(false);
   };
+
+  const handleAdd = () => {
+    if (!startDate || !label) return;
+    const newJ: Jalon = { id: `jalon-${Date.now()}`, date: startDate, endDate: endDate || startDate, label, color, opacity: opacity / 100, visibility };
+    onUpdate([...jalons, newJ]);
+    resetForm();
+    setShowForm(false);
+  };
+
+  const updateJalon = (id: string, patch: Partial<Jalon>) => {
+    onUpdate(jalons.map(j => j.id === id ? { ...j, ...patch } : j));
+  };
+
+  const removeJalon = (id: string) => {
+    onUpdate(jalons.filter(j => j.id !== id));
+    if (editingId === id) setEditingId(null);
+  };
+
+  const fmtDt = (dt: string) => dt?.replace('T', ' ').slice(0, 16) || '';
 
   return (
     <div className="space-y-2">
-      <input
-        value={label}
-        onChange={e => setLabel(e.target.value)}
-        placeholder="Nom du jalon..."
-        className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-      />
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Début</label>
-          <input
-            type="datetime-local"
-            value={startDate}
-            onChange={e => setStartDate(e.target.value)}
-            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-          />
+      {/* List of existing jalons */}
+      {jalons.length > 0 && (
+        <div className="space-y-1 max-h-[280px] overflow-y-auto">
+          {jalons.map(j => {
+            const isEditing = editingId === j.id;
+            return (
+              <div key={j.id} className={cn("rounded-lg border transition-all", isEditing ? "border-primary/40 bg-primary/5 p-2" : "border-border/30 bg-card p-1.5")}>
+                {isEditing ? (
+                  /* ── Inline edit form ── */
+                  <div className="space-y-1.5">
+                    <input value={j.label} onChange={e => updateJalon(j.id, { label: e.target.value })}
+                      className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <label className="text-[8px] text-muted-foreground uppercase">Début</label>
+                        <input type="datetime-local" value={j.date} onChange={e => updateJalon(j.id, { date: e.target.value })}
+                          className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+                      </div>
+                      <div>
+                        <label className="text-[8px] text-muted-foreground uppercase">Fin</label>
+                        <input type="datetime-local" value={j.endDate || j.date} onChange={e => updateJalon(j.id, { endDate: e.target.value })} min={j.date}
+                          className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <select value={j.visibility || 'all'} onChange={e => updateJalon(j.id, { visibility: e.target.value as JalonVisibility })}
+                        className="flex-1 px-1.5 py-0.5 rounded-md border border-border bg-background text-[10px] text-foreground outline-none">
+                        {VISIBILITY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
+                      <Slider value={[Math.round((j.opacity ?? 0.8) * 100)]} min={10} max={100} step={5}
+                        onValueChange={([v]) => updateJalon(j.id, { opacity: v / 100 })}
+                        className="flex-1" />
+                      <span className="text-[9px] text-muted-foreground w-6 text-right">{Math.round((j.opacity ?? 0.8) * 100)}%</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {JALON_COLORS.map(c => (
+                        <button key={c} onClick={() => updateJalon(j.id, { color: c })}
+                          className={cn('w-4 h-4 rounded-full border-2 transition-all', j.color === c ? 'border-foreground scale-110' : 'border-transparent')}
+                          style={{ backgroundColor: c }} />
+                      ))}
+                      <Button size="sm" variant="ghost" className="h-5 text-[9px] px-2 ml-auto" onClick={() => setEditingId(null)}>
+                        <Check className="w-3 h-3 mr-0.5" /> OK
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── Compact row ── */
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: j.color, opacity: j.opacity ?? 0.8 }} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-medium text-foreground truncate block">{j.label}</span>
+                      <span className="text-[8px] text-muted-foreground">{fmtDt(j.date)}{j.endDate && j.endDate !== j.date ? ` → ${fmtDt(j.endDate)}` : ''}</span>
+                    </div>
+                    {j.visibility && j.visibility !== 'all' && (
+                      <span className="text-[7px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{j.visibility === 'team' ? 'Éq.' : 'Perso'}</span>
+                    )}
+                    <button onClick={() => setEditingId(j.id)} className="text-muted-foreground hover:text-primary shrink-0"><Edit2 className="w-3 h-3" /></button>
+                    <button onClick={() => removeJalon(j.id)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div>
-          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Fin</label>
-          <input
-            type="datetime-local"
-            value={endDate}
-            onChange={e => { setEndDate(e.target.value); setEndDateTouched(true); }}
-            min={startDate}
-            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-          />
+      )}
+
+      {jalons.length === 0 && !showForm && (
+        <div className="text-[10px] text-muted-foreground/50 text-center py-3 italic">Aucun jalon créé</div>
+      )}
+
+      {/* Add new form */}
+      {showForm ? (
+        <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2 space-y-1.5">
+          <div className="text-[9px] font-bold text-primary uppercase tracking-wider">Nouveau jalon</div>
+          <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Nom du jalon..."
+            className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+          <div className="grid grid-cols-2 gap-1.5">
+            <div>
+              <label className="text-[8px] text-muted-foreground uppercase">Début</label>
+              <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
+                className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+            </div>
+            <div>
+              <label className="text-[8px] text-muted-foreground uppercase">Fin</label>
+              <input type="datetime-local" value={endDate} onChange={e => { setEndDate(e.target.value); setEndDateTouched(true); }} min={startDate}
+                className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+            <select value={visibility} onChange={e => setVisibility(e.target.value as JalonVisibility)}
+              className="flex-1 px-1.5 py-0.5 rounded-md border border-border bg-background text-[10px] text-foreground outline-none">
+              {VISIBILITY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
+            <Slider value={[opacity]} min={10} max={100} step={5} onValueChange={([v]) => setOpacity(v)} className="flex-1" />
+            <span className="text-[9px] text-muted-foreground w-6 text-right">{opacity}%</span>
+          </div>
+          <div className="flex items-center gap-1">
+            {JALON_COLORS.map(c => (
+              <button key={c} onClick={() => setColor(c)}
+                className={cn('w-4 h-4 rounded-full border-2 transition-all', color === c ? 'border-foreground scale-110' : 'border-transparent')}
+                style={{ backgroundColor: c }} />
+            ))}
+            <div className="ml-auto flex items-center gap-1">
+              <Button size="sm" variant="ghost" className="h-5 text-[9px] px-2" onClick={() => { resetForm(); setShowForm(false); }}>Annuler</Button>
+              <Button size="sm" className="h-5 text-[9px] px-2" onClick={handleAdd} disabled={!startDate || !label}>
+                <Plus className="w-3 h-3 mr-0.5" /> Ajouter
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
-        <select
-          value={visibility}
-          onChange={e => setVisibility(e.target.value as JalonVisibility)}
-          className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-        >
-          {VISIBILITY_OPTIONS.map(v => (
-            <option key={v.value} value={v.value}>{v.label}</option>
-          ))}
-        </select>
-      </div>
-      <div className="flex items-center gap-1.5">
-        {JALON_COLORS.map(c => (
-          <button
-            key={c}
-            onClick={() => setColor(c)}
-            className={cn('w-5 h-5 rounded-full border-2 transition-all', color === c ? 'border-foreground scale-110' : 'border-transparent')}
-            style={{ backgroundColor: c }}
-          />
-        ))}
-        <div className="ml-auto flex items-center gap-1">
-          {editJalon && onCancelEdit && (
-            <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={onCancelEdit}>
-              Annuler
-            </Button>
-          )}
-          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!startDate || !label}>
-            {editJalon ? (
-              <><Check className="w-3 h-3 mr-1" /> Modifier</>
-            ) : (
-              <><Plus className="w-3 h-3 mr-1" /> Ajouter</>
-            )}
-          </Button>
-        </div>
-      </div>
+      ) : (
+        <button onClick={() => setShowForm(true)}
+          className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors">
+          <Plus className="w-3 h-3" /> Ajouter un jalon
+        </button>
+      )}
     </div>
   );
 };
@@ -784,7 +835,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
-  const [editingJalon, setEditingJalon] = useState<Jalon | null>(null);
+  // editingJalon state removed — managed inside JalonsManagerPopup
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
@@ -1224,58 +1275,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[300px] p-3 space-y-2" align="start">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  {editingJalon ? 'Modifier le jalon' : 'Ajouter un jalon'}
-                </div>
-                <JalonForm
-                  onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))}
-                  editJalon={editingJalon}
-                  onUpdate={(j) => {
-                    setState(prev => ({ ...prev, jalons: prev.jalons.map(jj => jj.id === j.id ? j : jj) }));
-                    setEditingJalon(null);
-                  }}
-                  onCancelEdit={() => setEditingJalon(null)}
+              <PopoverContent className="w-[320px] p-3" align="start">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Gestion des jalons</div>
+                <JalonsManagerPopup
+                  jalons={state.jalons}
+                  onUpdate={(jalons) => setState(prev => ({ ...prev, jalons }))}
                 />
-                {state.jalons.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-border/40 max-h-[200px] overflow-y-auto">
-                    {state.jalons.map(j => (
-                      <div key={j.id} className={cn("flex items-center gap-1.5 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
-                        <div className="flex-1 min-w-0">
-                          <span className="font-medium text-foreground truncate block">{j.label}</span>
-                          <span className="text-muted-foreground text-[9px]">
-                            {j.date?.replace('T', ' ')}{j.endDate && j.endDate !== j.date ? ` → ${j.endDate.replace('T', ' ')}` : ''}
-                          </span>
-                        </div>
-                        {j.visibility && j.visibility !== 'all' && (
-                          <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
-                            {j.visibility === 'team' ? 'Équipe' : 'Perso'}
-                          </span>
-                        )}
-                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary shrink-0">
-                          <Edit2 className="w-3 h-3" />
-                        </button>
-                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive shrink-0">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </PopoverContent>
             </Popover>
-
-            {/* Jalon chips inline */}
-            {state.jalons.map(j => (
-              <span key={j.id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold border border-border/30 bg-card text-foreground">
-                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: j.color }} />
-                {j.label}
-                <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="hover:text-destructive ml-0.5">
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
 
             {/* Spacer */}
             <div className="flex-1" />
