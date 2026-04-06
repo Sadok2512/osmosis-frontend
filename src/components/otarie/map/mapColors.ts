@@ -17,12 +17,16 @@ export const DEFAULT_BAND_COLORS: Record<string, string> = {
   NR3500: '#22c55e',
   NR700:  '#16a34a',
   NR2100: '#15803d',
+  NR1800: '#166534',
+  NR2600: '#059669',
+  NR1400: '#047857',
   // LTE (4G) — orange tones
   L2600:  '#f97316',
   L2100:  '#fb923c',
   L1800:  '#ea580c',
   L800:   '#fdba74',
   L700:   '#c2410c',
+  L900:   '#d97706',
   // Group header colors
   '5G_GROUP': '#22c55e',
   '4G_GROUP': '#f97316',
