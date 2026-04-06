@@ -138,7 +138,17 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 3,  // bumped to clear stale 'Hourly'/'Daily' granularity from old sessions
+      version: 4,  // v4: new default graph config (markers ON, area OFF, white bg)
+      migrate: (persisted: any, version: number) => {
+        if (version < 4 && persisted?.state?.graphSlots) {
+          // Reset all slot configs to pick up new defaults
+          persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
+            ...s,
+            config: undefined,
+          }));
+        }
+        return persisted;
+      },
       partialize: (s) => ({
         // Only persist config — NOT runtime API data
         state: s.state,
