@@ -152,8 +152,13 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
 const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
   const { state } = useInvestigatorStore();
-  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; value: number }[]>([]);
+  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; counter_id?: string; value: number }[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [nameMap, setNameMap] = React.useState<Record<string, string>>({});
+
+  // Extract site filter from global filters
+  const siteFilter = state.filters?.find((f: any) => f.dimension === 'Site' || f.dimension === 'SITE');
+  const siteName = siteFilter?.values?.[0] || null;
 
   React.useEffect(() => {
     if (counterNames.length === 0) { setTsData([]); return; }
@@ -162,15 +167,21 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
     const dateTo = state.endDate?.split('T')[0] || today;
+    const body: any = { counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false };
+    if (siteName) body.site_name = siteName;
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false }),
+      body: JSON.stringify(body),
     })
-      .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setTsData(data.series || []); setLoading(false); })
+      .then(r => r.ok ? r.json() : { series: [], meta: {} })
+      .then(data => {
+        setTsData(data.series || []);
+        if (data.meta?.name_map) setNameMap(data.meta.name_map);
+        setLoading(false);
+      })
       .catch(() => { setTsData([]); setLoading(false); });
-  }, [counterNames.join(','), state.startDate, state.endDate]);
+  }, [counterNames.join(','), state.startDate, state.endDate, state.granularity, siteName]);
 
   if (loading) return <div className="flex items-center justify-center text-muted-foreground text-[10px] gap-1.5" style={{ height }}><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading...</div>;
   if (tsData.length === 0) return <div className="flex items-center justify-center text-muted-foreground text-[10px]" style={{ height }}>No data available</div>;
