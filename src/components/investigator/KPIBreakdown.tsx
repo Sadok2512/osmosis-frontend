@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { fetchBreakdownData, fetchTimeSeriesData } from './investigatorApi';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { DataPoint } from './types';
-import { BarChart3, TrendingUp, Calculator, Table2 } from 'lucide-react';
+import { BarChart3, TrendingUp, Calculator, Table2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
