@@ -61,8 +61,9 @@ const ALL_COLORS = [...NUM_COLORS, ...DEN_COLORS, '#f59e0b', '#8b5cf6', '#06b6d4
 
 const extractCounters = (formula: string): string[] => {
   if (!formula) return [];
-  const matches = formula.match(/`([^`]+)`/g) || [];
-  return matches.map(m => m.replace(/`/g, ''));
+  // Match both backtick `M8009C6` and curly-brace {M8009C6} formats
+  const matches = formula.match(/[`{]([A-Za-z0-9_]+)[}`]/g) || [];
+  return [...new Set(matches.map(m => m.replace(/[`{}]/g, '')))];
 };
 
 /* ──────────────────── Sub-components ──────────────────── */
@@ -294,13 +295,54 @@ const KPIBreakdown: React.FC<Props> = ({
     }
   }, [uniqueKpiIds, selectedKpiTab]);
 
-  // Fetch explain data for all KPIs
+  // Fetch explain data for all KPIs (use parser endpoint, fallback to KPI Engine)
   useEffect(() => {
     uniqueKpiIds.forEach(kpiId => {
       if (explainData[kpiId]) return;
-      fetchExplain(kpiId).then((data: any) => {
-        setExplainData(prev => ({ ...prev, [kpiId]: data }));
-      }).catch(() => {});
+      // Try parser /pm/kpi/explain first (has formula from kpi_definition)
+      fetch(getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`), { headers: getApiHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && !data.error && data.numerator) {
+            // Map parser response to KpiExplain format
+            setExplainData(prev => ({
+              ...prev,
+              [kpiId]: {
+                kpi_key: data.kpi_key,
+                display_name: data.display_name,
+                description: data.description || '',
+                category: data.category || '',
+                unit: data.unit || '',
+                formula_type: data.formula_type || 'ratio',
+                numerator: data.numerator,
+                denominator: data.denominator,
+                techno: data.techno || '',
+                vendor: data.vendor || '',
+              },
+            }));
+            // Also set counter infos directly from backend response
+            if (data.counters?.length > 0) {
+              setCounterInfos(data.counters.map((c: any) => ({
+                name: c.name,
+                tag: c.tag as 'NUM' | 'DEN',
+                description: c.description,
+                source: c.source,
+                aggregation: c.aggregation,
+              })));
+            }
+            return;
+          }
+          // Fallback to KPI Engine
+          return fetchExplain(kpiId).then((fallback: any) => {
+            setExplainData(prev => ({ ...prev, [kpiId]: fallback }));
+          });
+        })
+        .catch(() => {
+          // Final fallback
+          fetchExplain(kpiId).then((data: any) => {
+            setExplainData(prev => ({ ...prev, [kpiId]: data }));
+          }).catch(() => {});
+        });
     });
   }, [uniqueKpiIds]);
 
