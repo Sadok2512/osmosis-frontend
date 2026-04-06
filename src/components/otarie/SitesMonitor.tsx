@@ -5605,6 +5605,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
         <RadiusClickHandler active={activeMapTool === 'radius'} center={radiusCenter} confirmed={radiusConfirmed} onSetCenter={handleRadiusSetCenter} onConfirm={handleRadiusConfirm} onPreview={handleRadiusPreview} />
         <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
+        <DistanceMeasureClickHandler active={activeMapTool === 'profile'} onPick={handleProfileClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
