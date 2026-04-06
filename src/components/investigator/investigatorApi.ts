@@ -312,8 +312,11 @@ export function resolveSlotContext(
     splitValue = activePmSplit || perKpiValues[0]!;
   } else if (slot.splitBy && slot.splitBy !== 'None' && !isPerimeterDim(slot.splitBy)) {
     splitValue = slot.splitBy;
+  } else if (slot.splitBy === 'None') {
+    // Slot explicitly set to "None" → no split, do NOT fall back to global
+    splitValue = undefined;
   } else if (!hasPerKpiSplits && globalState.splitBy && globalState.splitBy !== 'None' && !isPerimeterDim(globalState.splitBy)) {
-    // Only use global fallback if NOT a perimeter dimension and NO per-KPI splits configured
+    // Only use global fallback if slot has NO explicit split choice and NO per-KPI splits configured
     splitValue = globalState.splitBy;
   }
 
