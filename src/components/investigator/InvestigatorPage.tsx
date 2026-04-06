@@ -106,16 +106,23 @@ const InvestigatorPage: React.FC = () => {
     if (!hasFilters) return;
 
     // Require at least one KPI in a graph slot
-      // Only query the active slot (avoid redundant requests for inactive slots)
-      const activeSlot = activeSlotId
-        ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
-        : slotsWithKpis[0];
+    const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
 
-      if (!activeSlot) {
-        setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
-        return;
-      }
+    // Only query the active slot (avoid redundant requests for inactive slots)
+    const activeSlot = activeSlotId
+      ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
+      : slotsWithKpis[0];
 
+    if (!activeSlot) {
+      setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
+      return;
+    }
+
+    setApplyError(null);
+    setIsApplying(true);
+    setTsData([]);
+    setHasUnfilteredFallback(false);
+    try {
       const slotContexts = [{
         slot: activeSlot,
         ctx: resolveSlotContext(activeSlot, state),
