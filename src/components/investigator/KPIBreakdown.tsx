@@ -229,7 +229,7 @@ const KPIBreakdown: React.FC<Props> = ({
 
   const breakdownDim = splitBy && splitBy !== 'None'
     ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
-    : 'vendor';
+    : undefined;
 
   const toggleSeries = (kpiId: string, seriesName: string) => {
     setSelectedSeries(prev => {
@@ -242,10 +242,12 @@ const KPIBreakdown: React.FC<Props> = ({
 
   React.useEffect(() => {
     uniqueKpiIds.forEach(kpiId => {
-      const currentBreakdownDim = splitBy && splitBy !== 'None' ? splitBy : 'vendor';
-      fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
-        setBreakData(prev => ({ ...prev, [kpiId]: slices }));
-      }).catch(() => {});
+      const currentBreakdownDim = splitBy && splitBy !== 'None' ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy) : undefined;
+      if (currentBreakdownDim) {
+        fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
+          setBreakData(prev => ({ ...prev, [kpiId]: slices }));
+        }).catch(() => {});
+      }
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
