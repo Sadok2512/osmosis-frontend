@@ -126,6 +126,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     setAxisMap(prev => {
       const current = prev[key] || 'left';
       const next = { ...prev, [key]: (current === 'left' ? 'right' : 'left') as AxisSide };
+      axisMapRef.current = next;
       onAxisAssignmentsChange?.(next);
       return next;
     });
