@@ -2271,13 +2271,13 @@ SEULS les blocs \`\`\`chart, \`\`\`map, \`\`\`kpi sont autorisés pour les visua
 Toute donnée comparative ou distribution DOIT utiliser un bloc \`\`\`chart JSON, JAMAIS du texte ASCII.
 
 VISUALISATIONS : Tu peux intégrer des blocs \`\`\`chart, \`\`\`map, \`\`\`kpi.
-- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#2563eb","#ea580c"]}
+- chart: {"type":"bar","title":"...","xKey":"...","yKeys":[...],"data":[...],"colors":["#0d9488","#60a5fa","#ea580c"]}
 - map: {"title":"...","markers":[{"lat":...,"lng":...,"label":"...","value":...}]}
 - kpi: {"title":"...","cards":[{"label":"...","value":"...","unit":"...","trend":"up/down/stable","status":"good/warning/critical"}]}
 Le JSON doit être sur UNE SEULE LIGNE.
 
 CHARTS GROUPÉS : Pour comparer par Vendor ET Bande, crée un chart avec xKey par catégorie et un yKey par série.
-Exemple : {"type":"bar","title":"Cellules par Bande et Vendor","xKey":"Bande","yKeys":["Ericsson","Nokia","Huawei"],"data":[{"Bande":"LTE800","Ericsson":48045,"Nokia":37188,"Huawei":0},{"Bande":"LTE1800","Ericsson":45951,"Nokia":32788,"Huawei":0}],"colors":["#2563eb","#16a34a","#dc2626"]}
+Exemple : {"type":"bar","title":"Cellules par Bande et Vendor","xKey":"Bande","yKeys":["Ericsson","Nokia","Huawei"],"data":[{"Bande":"LTE800","Ericsson":48045,"Nokia":37188,"Huawei":0},{"Bande":"LTE1800","Ericsson":45951,"Nokia":32788,"Huawei":0}],"colors":["#60a5fa","#1e40af","#dc2626"]}
 
 ⚠️ IMPORTANT: Si un bloc \`\`\`chart est déjà inclus dans le contexte fourni, RECOPIE-LE EXACTEMENT. Ne modifie PAS les données.
 
@@ -2429,7 +2429,7 @@ const TOPO_PROMPT = `Tu es **TOPO** 🗼, agent spécialisé en topologie résea
 
 ## COULEURS CHARTS
 Quand tu génères un chart bar, utilise des couleurs distinctes par catégorie :
-- colors: ["#0d9488","#2563eb","#9333ea","#ea580c","#16a34a","#be185d","#ca8a04","#0891b2"]
+- colors: ["#0d9488","#60a5fa","#9333ea","#ea580c","#1e40af","#be185d","#ca8a04","#0891b2"]
 
 ## RÈGLES DE RÉPONSE
 - Pour les inventaires : présente un tableau Markdown avec les totaux + un chart bar
