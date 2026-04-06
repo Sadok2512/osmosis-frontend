@@ -79,6 +79,7 @@ import {
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
+import { vendorHex } from '@/constants/brandColors';
 
 interface SitesMonitorProps {
   filters: Filters;
