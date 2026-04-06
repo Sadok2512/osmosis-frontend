@@ -1069,7 +1069,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             type: 'category' as const,
             data: allTimestamps,
             axisLabel: {
-              formatter: (v: string) => formatAxisLabel(v, state.granularity),
+              formatter: (v: string) => formatAxisLabel(v, slotGranularity),
               fontSize: 11,
               color: '#6b7280',
               margin: 16,
