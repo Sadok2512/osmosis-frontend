@@ -57,6 +57,8 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showThresholds: true,
   showGrid: true,
   showArea: false,
+  showDataTable: false,
+  showBreakdown: false,
 };
 
 export interface GraphSlot {
