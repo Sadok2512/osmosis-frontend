@@ -1035,22 +1035,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
-            {/* Quick Vendor selector */}
-            <QuickDimSelector
-              label="Vendor"
-              dimension="Vendor"
+            {/* Scope filter (Vendor + Tech) */}
+            <ScopeFilterPopover
               filters={state.filters}
-              onToggle={(val) => toggleFilterValue('Vendor', val)}
-              onClear={() => clearFilterValues('Vendor')}
-            />
-
-            {/* Quick Tech selector */}
-            <QuickDimSelector
-              label="Tech"
-              dimension="Technology"
-              filters={state.filters}
-              onToggle={(val) => toggleFilterValue('Technology', val)}
-              onClear={() => clearFilterValues('Technology')}
+              onToggle={(dim, val) => toggleFilterValue(dim, val)}
+              onClear={(dim) => clearFilterValues(dim)}
             />
 
             {/* Separator */}
