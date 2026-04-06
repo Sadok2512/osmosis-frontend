@@ -313,7 +313,7 @@ const FilterChip: React.FC<{
   siteFilter?: string;
 }> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter }) => {
   const [open, setOpen] = useState(false);
-  const backendValues = useBackendFilterValues(dim, siteFilter);
+  const backendValues = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const isPm = PM_DIMENSION_TYPES.has(dim);
