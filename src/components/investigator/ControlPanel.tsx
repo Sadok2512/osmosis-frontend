@@ -1238,16 +1238,25 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   onCancelEdit={() => setEditingJalon(null)}
                 />
                 {state.jalons.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-border/40">
+                  <div className="space-y-1 pt-2 border-t border-border/40 max-h-[200px] overflow-y-auto">
                     {state.jalons.map(j => (
-                      <div key={j.id} className={cn("flex items-center gap-2 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
+                      <div key={j.id} className={cn("flex items-center gap-1.5 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
-                        <span className="font-medium text-foreground truncate flex-1">{j.label}</span>
-                        <span className="text-muted-foreground">{j.date}</span>
-                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-foreground truncate block">{j.label}</span>
+                          <span className="text-muted-foreground text-[9px]">
+                            {j.date?.replace('T', ' ')}{j.endDate && j.endDate !== j.date ? ` → ${j.endDate.replace('T', ' ')}` : ''}
+                          </span>
+                        </div>
+                        {j.visibility && j.visibility !== 'all' && (
+                          <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                            {j.visibility === 'team' ? 'Équipe' : 'Perso'}
+                          </span>
+                        )}
+                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary shrink-0">
                           <Edit2 className="w-3 h-3" />
                         </button>
-                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive">
+                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
