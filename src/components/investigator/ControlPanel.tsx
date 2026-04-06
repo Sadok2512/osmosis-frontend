@@ -375,9 +375,9 @@ const FilterChip: React.FC<{
           <button
             className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-l-lg text-[10px] font-semibold border border-r-0 transition-all cursor-pointer",
-              isPm
-                ? values.length > 0 ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" : "bg-amber-500/5 text-amber-600 border-amber-500/20"
-                : values.length > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" : "bg-muted/50 text-muted-foreground border-border/40"
+              values.length > 0
+                ? `${getDimensionColor(dim).bgActive} ${getDimensionColor(dim).textActive} ${getDimensionColor(dim).textDark} ${getDimensionColor(dim).border}`
+                : `${getDimensionColor(dim).bg} ${getDimensionColor(dim).text} ${getDimensionColor(dim).border}`
             )}
           >
             <span className="text-muted-foreground font-normal">{label}:</span>
