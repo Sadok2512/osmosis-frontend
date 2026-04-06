@@ -596,23 +596,23 @@ const InvestigatorPage: React.FC = () => {
               {tsData.length > 0 ? (() => {
                 const hasSplits = tsData.some(d => d.splitValue);
                 const hasSplit2 = tsData.some(d => d.splitValue2);
-                const hasNE = true; // Always show NE column when splits are active
                 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
                 if (hasSplits) {
-                  // Structured table: rows = sorted data points with split/NE columns
                   const sorted = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp) || (a.splitValue || '').localeCompare(b.splitValue || ''));
-                  // Build a color map per unique series key
                   const seriesKeys = [...new Set(tsData.map(d => `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`))];
                   const colorMap: Record<string, string> = {};
                   seriesKeys.forEach((k, i) => { colorMap[k] = COLORS[i % COLORS.length]; });
 
-                  // Derive split labels from slot config
                   const activeSlot = state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0];
                   const split1Label = activeSlot?.splitBy?.replace('PM_DIM:', '') || 'Split';
                   const split2Label = activeSlot?.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
 
+                  const colCount = 4 + (hasSplit2 ? 1 : 0);
+                  const isCompact = colCount <= 4;
+
                   return (
+                    <div className={cn(isCompact && 'max-w-2xl mx-auto')}>
                     <table className="w-full border-collapse text-[10px] font-mono">
                       <thead className="sticky top-0 z-10">
                         <tr className="bg-muted/70 backdrop-blur-sm">
@@ -621,9 +621,7 @@ const InvestigatorPage: React.FC = () => {
                           {hasSplit2 && (
                             <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">{split2Label}</th>
                           )}
-                          {hasNE && (
-                            <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">NE</th>
-                          )}
+                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">NE</th>
                           <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">KPI</th>
                           <th className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-border/40 whitespace-nowrap">Value</th>
                         </tr>
@@ -652,9 +650,7 @@ const InvestigatorPage: React.FC = () => {
                               {hasSplit2 && (
                                 <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap">{d.splitValue2 || '—'}</td>
                               )}
-                              {hasNE && (
-                                <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">{d.networkElement || 'N/A'}</td>
-                              )}
+                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">{d.networkElement || 'N/A'}</td>
                               <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap truncate max-w-[160px]">{d.kpi}</td>
                               <td className="px-2.5 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">
                                 {d.value != null ? Number(d.value).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
@@ -664,22 +660,32 @@ const InvestigatorPage: React.FC = () => {
                         })}
                       </tbody>
                     </table>
+                    </div>
                   );
                 }
 
-                // Non-split: original pivot layout
+                // Non-split: pivot layout with NE column always visible
                 const kpis = [...new Set(tsData.map(d => d.kpi))];
                 const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
                 const lookup: Record<string, Record<string, number>> = {};
                 kpis.forEach(k => { lookup[k] = {}; });
                 tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
+                const neLookup: Record<string, string> = {};
+                tsData.forEach(p => { if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement; });
+
+                const totalCols = 2 + kpis.length;
+                const isCompact = totalCols <= 3;
 
                 return (
+                  <div className={cn(isCompact && 'max-w-2xl mx-auto')}>
                   <table className="w-full border-collapse text-[10px] font-mono">
                     <thead className="sticky top-0 z-10">
                       <tr className="bg-muted/70 backdrop-blur-sm">
                         <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[100px]">
                           Timestamp
+                        </th>
+                        <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[80px]">
+                          NE
                         </th>
                         {kpis.map((k, i) => (
                           <th key={k} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
@@ -703,6 +709,9 @@ const InvestigatorPage: React.FC = () => {
                           <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
                             {ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts}
                           </td>
+                          <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">
+                            {neLookup[ts] || 'N/A'}
+                          </td>
                           {kpis.map((k, ki) => {
                             const val = lookup[k]?.[ts];
                             return (
@@ -715,6 +724,7 @@ const InvestigatorPage: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 );
               })() : (
                 <div className="flex items-center justify-center h-32 text-muted-foreground text-[10px]">
