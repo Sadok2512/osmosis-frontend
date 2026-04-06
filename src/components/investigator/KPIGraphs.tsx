@@ -582,8 +582,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
-        // Filter data to only this slot's KPIs
-        const slotData = data.filter(d => kpiIds.includes(d.kpi));
+        // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel")
+        const slotData = data.filter(d => kpiIds.includes(d.kpi) || kpiIds.some(id => d.kpi.startsWith(id + '@')));
 
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
