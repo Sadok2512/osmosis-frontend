@@ -3,6 +3,7 @@ import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDo
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { KpiCatalogEntry, AxisSide } from './types';
 import { cn } from '@/lib/utils';
+import { vendorBadge, techBadge } from '@/constants/brandColors';
 
 interface KpiSelectorModalProps {
   open: boolean;
