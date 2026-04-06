@@ -624,7 +624,7 @@ const ScopeFilterPopover: React.FC<{
           <div className="border-t border-border/60 px-4 py-2.5 flex items-center justify-between bg-muted/30">
             <div className="flex items-center gap-1.5 flex-wrap">
               {vendorSelected.map(v => (
-                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: vendorHsl(v) }}>
                   {v}
                   <button onClick={() => onToggle('Vendor', v)} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
                 </span>
