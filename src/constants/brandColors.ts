@@ -1,7 +1,7 @@
 /**
  * Single source of truth for Vendor & Technology colors across the ENTIRE app.
  *
- * ERICSSON = blue,  NOKIA = green,  4G/LTE = orange,  5G/NR = green
+ * ERICSSON = bleu clair,  NOKIA = bleu foncé,  4G/LTE = orange,  5G/NR = green
  *
  * Usage:
  *   import { VENDOR, TECH, vendorHex, techHex, vendorBadge, techBadge } from '@/constants/brandColors';
