@@ -1343,7 +1343,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const name = catalogEntry?.display_name || defEntry?.label || kpiIdItem;
                 const color = catalogEntry?.color || defEntry?.color || '#6366f1';
                 const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
-                const hasSplit = splitVal && splitVal !== 'None';
+                const hasSplit = splitVal && splitVal !== 'None' && splitVal !== 'CELL' && splitVal !== 'Cell';
                 const isPmSplit = hasSplit && splitVal.startsWith('PM_DIM:');
                 const splitLabel = hasSplit ? (isPmSplit ? splitVal : (splitOptions.find(s => s.key === splitVal)?.label || splitVal)) : null;
                 const splitVal2 = cfg.splitByPerKpi2?.[kpiIdItem];
