@@ -190,11 +190,21 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
       siteEntry.has4G = true;
     }
 
-    if (!stats.vendorMap[vendor]) {
-      stats.vendorMap[vendor] = { '4G': 0, '5G': 0 };
+    const normalizedVendor = (() => {
+      const v = vendor.trim().toUpperCase();
+      if (v.includes('ERICSSON')) return 'Ericsson';
+      if (v.includes('NOKIA') || v === 'NSN') return 'Nokia';
+      if (v.includes('HUAWEI')) return 'Huawei';
+      if (v.includes('SAMSUNG')) return 'Samsung';
+      if (v.includes('ALCATEL') || v.includes('ALU')) return 'Alcatel';
+      if (v === 'UNKNOWN' || v === 'INDEFINI' || v === 'INDÉFINI' || !v) return 'Indéfini';
+      return vendor.charAt(0).toUpperCase() + vendor.slice(1).toLowerCase();
+    })();
+    if (!stats.vendorMap[normalizedVendor]) {
+      stats.vendorMap[normalizedVendor] = { '4G': 0, '5G': 0 };
     }
-    if (is5G) stats.vendorMap[vendor]['5G'] += 1;
-    if (is4G) stats.vendorMap[vendor]['4G'] += 1;
+    if (is5G) stats.vendorMap[normalizedVendor]['5G'] += 1;
+    if (is4G) stats.vendorMap[normalizedVendor]['4G'] += 1;
 
     siteTechMap.set(siteKey, siteEntry);
   });
