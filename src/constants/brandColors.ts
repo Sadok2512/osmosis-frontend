@@ -30,6 +30,12 @@ export const VENDOR_HSL: Record<string, string> = {
   NOKIA:    'hsl(142, 72%, 40%)',
   HUAWEI:   'hsl(0, 72%, 51%)',
   SAMSUNG:  'hsl(263, 70%, 50%)',
+  NSN:      'hsl(142, 72%, 40%)',
+  ALCATEL:  'hsl(25, 95%, 53%)',
+  ALU:      'hsl(25, 95%, 53%)',
+  INDEFINI: 'hsl(215, 14%, 50%)',
+  INDÉFINI: 'hsl(215, 14%, 50%)',
+  UNKNOWN:  'hsl(215, 14%, 50%)',
 };
 
 export const TECH_HSL: Record<string, string> = {
