@@ -291,19 +291,21 @@ export function resolveSlotContext(
   const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
   const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
 
-  // Split: per-KPI PM_DIM split takes priority, then slot-level, then global
+  // Split: per-KPI split takes ABSOLUTE priority, then slot-level, then global
+  // Per-KPI splits are the source of truth — global splitBy should NOT override them
   let splitValue: string | undefined;
-  // Check per-KPI split first (PM dimension splits MUST take priority)
   const perKpi = slot.config?.splitByPerKpi || {};
-  const activePmSplit = Object.values(perKpi).find(v => v && v !== 'None' && v.startsWith('PM_DIM:'));
-  const activePerKpiSplit = Object.values(perKpi).find(v => v && v !== 'None');
-  if (activePmSplit) {
-    splitValue = activePmSplit;
+  const perKpiValues = Object.values(perKpi).filter(v => v && v !== 'None');
+  const hasPerKpiSplits = Object.keys(perKpi).length > 0;
+
+  if (perKpiValues.length > 0) {
+    // Use the first active per-KPI split (PM_DIM splits get priority)
+    const activePmSplit = perKpiValues.find(v => v!.startsWith('PM_DIM:'));
+    splitValue = activePmSplit || perKpiValues[0]!;
   } else if (slot.splitBy && slot.splitBy !== 'None') {
     splitValue = slot.splitBy;
-  } else if (activePerKpiSplit) {
-    splitValue = activePerKpiSplit;
-  } else if (globalState.splitBy && globalState.splitBy !== 'None') {
+  } else if (!hasPerKpiSplits && globalState.splitBy && globalState.splitBy !== 'None') {
+    // Only use global fallback if NO per-KPI splits are configured at all
     splitValue = globalState.splitBy;
   }
 
@@ -357,37 +359,44 @@ export async function fetchTimeSeriesForSlot(
 
   console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
 
-  // Detect PM dimension split
+  // Detect PM dimension split (strip PM_DIM: prefix for compute endpoint)
   const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
-  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit);
+  // Non-PM splits (CELL, VENDOR, BAND...) are only handled by KPI Engine, not compute
+  const hasNonPmSplit = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
+  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
 
-  // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
+  // Step 1: Try /kpi/compute FIRST — but ONLY when there's no non-PM split
+  // (compute endpoint can't split by CELL/VENDOR/BAND, only KPI Engine can)
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
-  for (const kpiId of ctx.kpiIds) {
-    const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
+  if (!hasNonPmSplit) {
+    for (const kpiId of ctx.kpiIds) {
+      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
 
-    if (!_computeCache.has(cacheKey)) {
-      _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
-        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
-      ));
-      // Clear cache after 30s
-      setTimeout(() => _computeCache.delete(cacheKey), 30000);
+      if (!_computeCache.has(cacheKey)) {
+        _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+        ));
+        setTimeout(() => _computeCache.delete(cacheKey), 30000);
+      }
+
+      const computed = await _computeCache.get(cacheKey)!;
+      if (computed.isComputed) {
+        computeResults.push(...computed.data);
+      } else {
+        computeFailed.push(kpiId);
+      }
     }
 
-    const computed = await _computeCache.get(cacheKey)!;
-    if (computed.isComputed) {
-      computeResults.push(...computed.data);
-    } else {
-      computeFailed.push(kpiId);
+    // If all KPIs computed successfully, return directly (skip KPI Engine)
+    if (computeFailed.length === 0 && computeResults.length > 0) {
+      console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+      return { data: computeResults, hasUnfilteredFallback: false };
     }
-  }
-
-  // If all KPIs computed successfully, return directly (skip KPI Engine)
-  if (computeFailed.length === 0 && computeResults.length > 0) {
-    console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
-    return { data: computeResults, hasUnfilteredFallback: false };
+  } else {
+    // Non-PM split: all KPIs must go through KPI Engine
+    computeFailed.push(...ctx.kpiIds);
   }
 
   // Step 2: Fall back to KPI Engine for KPIs that failed compute
@@ -406,14 +415,18 @@ export async function fetchTimeSeriesForSlot(
     if (ctx.neighborType) allFilters.push({ dimension: 'NEIGHBOR_TYPE', op: 'IN', values: [ctx.neighborType] });
   }
 
+  // Strip PM_DIM: prefix for KPI Engine — it expects raw dimension names
+  const engineSplitBy = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : (ctx.splitBy || null);
+  const engineSplitBy2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : (ctx.splitBy2 || null);
+
   const body: Record<string, any> = {
     date_from: ctx.dateFrom,
     date_to: ctx.dateTo,
     granularity: ctx.granularity,
     selections: ctx.kpiIds.map(k => ({ kpi_key: k })),
     filters: allFilters,
-    split_by: ctx.splitBy || null,
-    split_by_2: ctx.splitBy2 || null,
+    split_by: engineSplitBy,
+    split_by_2: engineSplitBy2,
     top_n: 10,
     kpi_level: ctx.kpiLevel || 'CELL',
   };
