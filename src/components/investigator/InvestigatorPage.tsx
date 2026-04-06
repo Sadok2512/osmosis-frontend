@@ -56,7 +56,7 @@ const InvestigatorPage: React.FC = () => {
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'cm_history'>('breakdown');
+  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'cm_history'>('breakdown');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -485,7 +485,7 @@ const InvestigatorPage: React.FC = () => {
             {([
               { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500' },
+              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
               <button
@@ -534,7 +534,19 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {!['breakdown', 'table_data'].includes(analysisTab) && (
+        {analysisTab === 'top_worst' && (
+          <WorstElementsTable
+            elements={worstElements}
+            limit={state.topLimit}
+            onLimitChange={(limit) => setState(prev => ({ ...prev, topLimit: limit }))}
+            onRowClick={(id) => {
+              const filters = { ...state.filters, Cell: [id] };
+              setState(prev => ({ ...prev, filters }));
+            }}
+          />
+        )}
+
+        {!['breakdown', 'table_data', 'top_worst'].includes(analysisTab) && (
           <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
             <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
           </div>
