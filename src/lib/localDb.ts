@@ -16,15 +16,30 @@ import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './ap
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
-/** Build a VPS proxy URL for Parser :8000 */
+/** Build a VPS proxy URL for Parser :8000 — extracts query params from path to avoid BOOT_ERROR */
 function parserUrl(path: string) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return getVpsProxyUrl('parser', `/api/v1${cleanPath}`);
+  const fullPath = `/api/v1${cleanPath}`;
+  const qIdx = fullPath.indexOf('?');
+  if (qIdx >= 0) {
+    const basePath = fullPath.slice(0, qIdx);
+    const extra: Record<string, string> = {};
+    new URLSearchParams(fullPath.slice(qIdx + 1)).forEach((v, k) => { extra[k] = v; });
+    return getVpsProxyUrl('parser', basePath, extra);
+  }
+  return getVpsProxyUrl('parser', fullPath);
 }
 
-/** Build a VPS proxy URL for KPI Engine :8001 */
+/** Build a VPS proxy URL for KPI Engine :8001 — extracts query params from path */
 function kpiUrl(path: string) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  const qIdx = cleanPath.indexOf('?');
+  if (qIdx >= 0) {
+    const basePath = cleanPath.slice(0, qIdx);
+    const extra: Record<string, string> = {};
+    new URLSearchParams(cleanPath.slice(qIdx + 1)).forEach((v, k) => { extra[k] = v; });
+    return getVpsProxyUrl('kpi', basePath, extra);
+  }
   return getVpsProxyUrl('kpi', cleanPath);
 }
 
