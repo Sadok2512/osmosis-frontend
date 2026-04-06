@@ -489,15 +489,16 @@ export async function fetchTimeSeriesForSlot(
       let kpiKey = s.kpi_key;
       if (sv1) kpiKey += `@${sv1}`;
       if (sv2) kpiKey += `@${sv2}`;
-      // Detect network element from split values
-      const ne = detectNetworkElement(sv1, sv2, ctx.splitBy, ctx.splitBy2);
+      // Detect network element from split values or backend fields
+      const ne = detectNetworkElement(sv1, sv2, ctx.splitBy, ctx.splitBy2)
+        || s.cell_name || s.network_element || s.site_name || s.ne || undefined;
       return {
         timestamp: s.ts,
         kpi: kpiKey,
         value: s.value,
         splitValue: sv1,
         splitValue2: sv2,
-        networkElement: ne || (s.cell_name || s.network_element || undefined),
+        networkElement: ne,
       };
     });
   } else {
