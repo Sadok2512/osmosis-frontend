@@ -495,6 +495,11 @@ const FilterChip: React.FC<{
 };
 
 const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+const VISIBILITY_OPTIONS: { value: JalonVisibility; label: string }[] = [
+  { value: 'all', label: 'Tout le monde' },
+  { value: 'team', label: 'Équipe' },
+  { value: 'personal', label: 'Personnel' },
+];
 
 /* ── Jalon Form (add + edit) ── */
 const JalonForm: React.FC<{
@@ -503,48 +508,95 @@ const JalonForm: React.FC<{
   onUpdate?: (j: Jalon) => void;
   onCancelEdit?: () => void;
 }> = ({ onAdd, editJalon, onUpdate, onCancelEdit }) => {
-  const [date, setDate] = useState(editJalon?.date || '');
+  const [startDate, setStartDate] = useState(editJalon?.date || '');
+  const [endDate, setEndDate] = useState(editJalon?.endDate || editJalon?.date || '');
   const [label, setLabel] = useState(editJalon?.label || '');
   const [color, setColor] = useState(editJalon?.color || JALON_COLORS[0]);
+  const [visibility, setVisibility] = useState<JalonVisibility>(editJalon?.visibility || 'all');
+  const [endDateTouched, setEndDateTouched] = useState(false);
 
   useEffect(() => {
     if (editJalon) {
-      setDate(editJalon.date);
+      setStartDate(editJalon.date);
+      setEndDate(editJalon.endDate || editJalon.date);
       setLabel(editJalon.label);
       setColor(editJalon.color);
+      setVisibility(editJalon.visibility || 'all');
+      setEndDateTouched(!!editJalon.endDate && editJalon.endDate !== editJalon.date);
     } else {
-      setDate('');
+      setStartDate('');
+      setEndDate('');
       setLabel('');
       setColor(JALON_COLORS[0]);
+      setVisibility('all');
+      setEndDateTouched(false);
     }
   }, [editJalon]);
 
-  const handleSubmit = () => {
-    if (!date || !label) return;
-    if (editJalon && onUpdate) {
-      onUpdate({ ...editJalon, date, label, color });
-    } else {
-      onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+  // Sync endDate to startDate when not manually edited
+  useEffect(() => {
+    if (!endDateTouched && startDate) {
+      setEndDate(startDate);
     }
-    setDate('');
+  }, [startDate, endDateTouched]);
+
+  const handleSubmit = () => {
+    if (!startDate || !label) return;
+    const finalEndDate = endDate || startDate;
+    if (editJalon && onUpdate) {
+      onUpdate({ ...editJalon, date: startDate, endDate: finalEndDate, label, color, visibility });
+    } else {
+      onAdd({ id: `jalon-${Date.now()}`, date: startDate, endDate: finalEndDate, label, color, visibility });
+    }
+    setStartDate('');
+    setEndDate('');
     setLabel('');
     setColor(JALON_COLORS[0]);
+    setVisibility('all');
+    setEndDateTouched(false);
   };
 
   return (
     <div className="space-y-2">
-      <input
-        type="date"
-        value={date}
-        onChange={e => setDate(e.target.value)}
-        className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-      />
       <input
         value={label}
         onChange={e => setLabel(e.target.value)}
         placeholder="Nom du jalon..."
         className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
       />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Début</label>
+          <input
+            type="datetime-local"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+        <div>
+          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Fin</label>
+          <input
+            type="datetime-local"
+            value={endDate}
+            onChange={e => { setEndDate(e.target.value); setEndDateTouched(true); }}
+            min={startDate}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+        <select
+          value={visibility}
+          onChange={e => setVisibility(e.target.value as JalonVisibility)}
+          className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+        >
+          {VISIBILITY_OPTIONS.map(v => (
+            <option key={v.value} value={v.value}>{v.label}</option>
+          ))}
+        </select>
+      </div>
       <div className="flex items-center gap-1.5">
         {JALON_COLORS.map(c => (
           <button
@@ -560,7 +612,7 @@ const JalonForm: React.FC<{
               Annuler
             </Button>
           )}
-          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!date || !label}>
+          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!startDate || !label}>
             {editJalon ? (
               <><Check className="w-3 h-3 mr-1" /> Modifier</>
             ) : (
