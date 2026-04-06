@@ -359,9 +359,11 @@ export async function fetchTimeSeriesForSlot(
 
   console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
 
-  // Detect PM dimension split
+  // Detect PM dimension split (strip PM_DIM: prefix for compute endpoint)
   const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
-  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit);
+  // Non-PM splits (CELL, VENDOR, BAND...) are only handled by KPI Engine, not compute
+  const hasNonPmSplit = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
+  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
 
   // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
   const computeResults: DataPoint[] = [];
