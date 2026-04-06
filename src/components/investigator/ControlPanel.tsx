@@ -1034,16 +1034,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
-
-            {/* Scope filter (Vendor + Tech) */}
-            <ScopeFilterPopover
-              filters={state.filters}
-              onToggle={(dim, val) => toggleFilterValue(dim, val)}
-              onClear={(dim) => clearFilterValues(dim)}
-            />
-
-            {/* Separator */}
-            <div className="h-6 w-px bg-border/60 shrink-0" />
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
