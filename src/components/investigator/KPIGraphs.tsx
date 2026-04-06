@@ -644,7 +644,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => matchesKpi(d.kpi, kpiId));
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
