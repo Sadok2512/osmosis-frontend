@@ -894,7 +894,26 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
-            {/* Jalons */}
+            {/* Quick Vendor selector */}
+            <QuickDimSelector
+              label="Vendor"
+              dimension="Vendor"
+              filters={state.filters}
+              onToggle={(val) => toggleFilterValue('Vendor', val)}
+              onClear={() => clearFilterValues('Vendor')}
+            />
+
+            {/* Quick Tech selector */}
+            <QuickDimSelector
+              label="Tech"
+              dimension="Technology"
+              filters={state.filters}
+              onToggle={(val) => toggleFilterValue('Technology', val)}
+              onClear={() => clearFilterValues('Technology')}
+            />
+
+            {/* Separator */}
+            <div className="h-6 w-px bg-border/60 shrink-0" />
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
