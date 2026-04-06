@@ -1210,11 +1210,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                       <span className="text-[9px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/40">White</span>
                     </div>
 
-                    {/* Table View */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Table View</span>
-                      <Switch checked={cfg.showDataTable} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showDataTable: v })} className="scale-[0.65]" />
-                    </div>
 
                     {/* KPI Breakdown */}
                     <div className="flex items-center justify-between">
