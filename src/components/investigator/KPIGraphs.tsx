@@ -385,6 +385,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
+  // Counter data per slot: { [slotId]: { series, nameMap } }
+  const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
+
+  const { state: investigatorState } = useInvestigatorStore();
+  const siteName = investigatorState.filters?.['Site']?.[0] || investigatorState.filters?.['SITE']?.[0] || null;
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -404,6 +409,35 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
       .then(data => setCounterCatalog(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  // Fetch counter timeseries for all slots that have counterIds
+  useEffect(() => {
+    const slotsWithCounters = graphSlots.filter(s => s.counterIds && s.counterIds.length > 0);
+    if (slotsWithCounters.length === 0) return;
+    const today = new Date().toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+    const dateFrom = investigatorState.startDate?.split('T')[0] || thirtyDaysAgo;
+    const dateTo = investigatorState.endDate?.split('T')[0] || today;
+
+    slotsWithCounters.forEach(slot => {
+      const cIds = slot.counterIds!;
+      const body: any = { counter_names: cIds, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(investigatorState.granularity), split_by_dimension: false };
+      if (siteName) body.site_name = siteName;
+      fetch(getApiUrl('pm/counters/timeseries'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify(body),
+      })
+        .then(r => r.ok ? r.json() : { series: [], meta: {} })
+        .then(data => {
+          setCounterDataMap(prev => ({
+            ...prev,
+            [slot.id]: { series: data.series || [], nameMap: data.meta?.name_map || {} },
+          }));
+        })
+        .catch(() => {});
+    });
+  }, [graphSlots.map(s => (s.counterIds || []).join(',')).join('|'), investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, siteName]);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 
