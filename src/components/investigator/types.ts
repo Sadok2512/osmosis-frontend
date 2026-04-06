@@ -30,6 +30,8 @@ export interface GraphConfig {
   showThresholds: boolean;
   showGrid: boolean;
   showArea: boolean;
+  showDataTable: boolean;
+  showBreakdown: boolean;
   yAxis?: YAxisConfig;
   yAxisRight?: YAxisConfig;
   /** Maps kpiId → 0 (left) or 1 (right). Default is 0. */
