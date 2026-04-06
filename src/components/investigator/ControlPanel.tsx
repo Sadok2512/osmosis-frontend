@@ -597,7 +597,7 @@ const ScopeFilterPopover: React.FC<{
             <div className="flex flex-wrap gap-1.5">
               {techValues.map(val => {
                 const isActive = techSelected.includes(val);
-                const accent = TECH_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                const accent = techHsl(val);
                 return (
                   <button
                     key={val}
