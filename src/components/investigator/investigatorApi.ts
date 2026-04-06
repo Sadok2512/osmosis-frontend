@@ -408,14 +408,18 @@ export async function fetchTimeSeriesForSlot(
     if (ctx.neighborType) allFilters.push({ dimension: 'NEIGHBOR_TYPE', op: 'IN', values: [ctx.neighborType] });
   }
 
+  // Strip PM_DIM: prefix for KPI Engine — it expects raw dimension names
+  const engineSplitBy = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : (ctx.splitBy || null);
+  const engineSplitBy2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : (ctx.splitBy2 || null);
+
   const body: Record<string, any> = {
     date_from: ctx.dateFrom,
     date_to: ctx.dateTo,
     granularity: ctx.granularity,
     selections: ctx.kpiIds.map(k => ({ kpi_key: k })),
     filters: allFilters,
-    split_by: ctx.splitBy || null,
-    split_by_2: ctx.splitBy2 || null,
+    split_by: engineSplitBy,
+    split_by_2: engineSplitBy2,
     top_n: 10,
     kpi_level: ctx.kpiLevel || 'CELL',
   };
