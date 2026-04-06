@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { VENDOR_HSL, TECH_HSL, vendorHsl, techHsl } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
-import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
+import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, JalonVisibility, KpiLevel } from './types';
 import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2 } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -495,6 +495,11 @@ const FilterChip: React.FC<{
 };
 
 const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+const VISIBILITY_OPTIONS: { value: JalonVisibility; label: string }[] = [
+  { value: 'all', label: 'Tout le monde' },
+  { value: 'team', label: 'Équipe' },
+  { value: 'personal', label: 'Personnel' },
+];
 
 /* ── Jalon Form (add + edit) ── */
 const JalonForm: React.FC<{
@@ -503,48 +508,95 @@ const JalonForm: React.FC<{
   onUpdate?: (j: Jalon) => void;
   onCancelEdit?: () => void;
 }> = ({ onAdd, editJalon, onUpdate, onCancelEdit }) => {
-  const [date, setDate] = useState(editJalon?.date || '');
+  const [startDate, setStartDate] = useState(editJalon?.date || '');
+  const [endDate, setEndDate] = useState(editJalon?.endDate || editJalon?.date || '');
   const [label, setLabel] = useState(editJalon?.label || '');
   const [color, setColor] = useState(editJalon?.color || JALON_COLORS[0]);
+  const [visibility, setVisibility] = useState<JalonVisibility>(editJalon?.visibility || 'all');
+  const [endDateTouched, setEndDateTouched] = useState(false);
 
   useEffect(() => {
     if (editJalon) {
-      setDate(editJalon.date);
+      setStartDate(editJalon.date);
+      setEndDate(editJalon.endDate || editJalon.date);
       setLabel(editJalon.label);
       setColor(editJalon.color);
+      setVisibility(editJalon.visibility || 'all');
+      setEndDateTouched(!!editJalon.endDate && editJalon.endDate !== editJalon.date);
     } else {
-      setDate('');
+      setStartDate('');
+      setEndDate('');
       setLabel('');
       setColor(JALON_COLORS[0]);
+      setVisibility('all');
+      setEndDateTouched(false);
     }
   }, [editJalon]);
 
-  const handleSubmit = () => {
-    if (!date || !label) return;
-    if (editJalon && onUpdate) {
-      onUpdate({ ...editJalon, date, label, color });
-    } else {
-      onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+  // Sync endDate to startDate when not manually edited
+  useEffect(() => {
+    if (!endDateTouched && startDate) {
+      setEndDate(startDate);
     }
-    setDate('');
+  }, [startDate, endDateTouched]);
+
+  const handleSubmit = () => {
+    if (!startDate || !label) return;
+    const finalEndDate = endDate || startDate;
+    if (editJalon && onUpdate) {
+      onUpdate({ ...editJalon, date: startDate, endDate: finalEndDate, label, color, visibility });
+    } else {
+      onAdd({ id: `jalon-${Date.now()}`, date: startDate, endDate: finalEndDate, label, color, visibility });
+    }
+    setStartDate('');
+    setEndDate('');
     setLabel('');
     setColor(JALON_COLORS[0]);
+    setVisibility('all');
+    setEndDateTouched(false);
   };
 
   return (
     <div className="space-y-2">
-      <input
-        type="date"
-        value={date}
-        onChange={e => setDate(e.target.value)}
-        className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
-      />
       <input
         value={label}
         onChange={e => setLabel(e.target.value)}
         placeholder="Nom du jalon..."
         className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
       />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Début</label>
+          <input
+            type="datetime-local"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+        <div>
+          <label className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider">Fin</label>
+          <input
+            type="datetime-local"
+            value={endDate}
+            onChange={e => { setEndDate(e.target.value); setEndDateTouched(true); }}
+            min={startDate}
+            className="w-full px-2 py-1.5 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
+        <select
+          value={visibility}
+          onChange={e => setVisibility(e.target.value as JalonVisibility)}
+          className="flex-1 px-2 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+        >
+          {VISIBILITY_OPTIONS.map(v => (
+            <option key={v.value} value={v.value}>{v.label}</option>
+          ))}
+        </select>
+      </div>
       <div className="flex items-center gap-1.5">
         {JALON_COLORS.map(c => (
           <button
@@ -560,7 +612,7 @@ const JalonForm: React.FC<{
               Annuler
             </Button>
           )}
-          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!date || !label}>
+          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!startDate || !label}>
             {editJalon ? (
               <><Check className="w-3 h-3 mr-1" /> Modifier</>
             ) : (
@@ -1186,16 +1238,25 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   onCancelEdit={() => setEditingJalon(null)}
                 />
                 {state.jalons.length > 0 && (
-                  <div className="space-y-1 pt-2 border-t border-border/40">
+                  <div className="space-y-1 pt-2 border-t border-border/40 max-h-[200px] overflow-y-auto">
                     {state.jalons.map(j => (
-                      <div key={j.id} className={cn("flex items-center gap-2 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
+                      <div key={j.id} className={cn("flex items-center gap-1.5 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
-                        <span className="font-medium text-foreground truncate flex-1">{j.label}</span>
-                        <span className="text-muted-foreground">{j.date}</span>
-                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary">
+                        <div className="flex-1 min-w-0">
+                          <span className="font-medium text-foreground truncate block">{j.label}</span>
+                          <span className="text-muted-foreground text-[9px]">
+                            {j.date?.replace('T', ' ')}{j.endDate && j.endDate !== j.date ? ` → ${j.endDate.replace('T', ' ')}` : ''}
+                          </span>
+                        </div>
+                        {j.visibility && j.visibility !== 'all' && (
+                          <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                            {j.visibility === 'team' ? 'Équipe' : 'Perso'}
+                          </span>
+                        )}
+                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary shrink-0">
                           <Edit2 className="w-3 h-3" />
                         </button>
-                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive">
+                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive shrink-0">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
