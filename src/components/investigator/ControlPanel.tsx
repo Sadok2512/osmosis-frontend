@@ -1482,9 +1482,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           );
                         })()}
                       </div>
-                      {/* Split By */}
+                      {/* Split 1 */}
                       <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split By</span>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
                         <select
                           value={(() => {
                             const vals = Object.values(cfg.splitByPerKpi || {}).filter(v => v && v !== 'None');
@@ -1518,6 +1518,53 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             <optgroup label="── PM Dimensions ──">
                               {Array.from(activePmDimensions).map(d => (
                                 <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
+                              ))}
+                            </optgroup>
+                          )}
+                        </select>
+                      </div>
+                      {/* Split 2 (cross-tabulation) */}
+                      <div className="space-y-1">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2 <span className="text-[8px] font-normal normal-case">(cross-tab)</span></span>
+                        <select
+                          value={(() => {
+                            const vals = Object.values(cfg.splitByPerKpi2 || {}).filter(v => v && v !== 'None');
+                            return vals.length > 0 ? vals[0] : 'None';
+                          })()}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val === 'None') {
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s
+                                ),
+                              }));
+                            } else {
+                              const allSplits2: Record<string, string> = {};
+                              slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
+                              setState(prev => ({
+                                ...prev,
+                                graphSlots: prev.graphSlots.map(s =>
+                                  s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s
+                                ),
+                              }));
+                            }
+                          }}
+                          className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                          disabled={!Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None')}
+                        >
+                          <option value="None">Aucun</option>
+                          {splitOptions
+                            .filter(s => {
+                              const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
+                              return s.key !== split1Val;
+                            })
+                            .map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          {activePmDimensions.size > 0 && (
+                            <optgroup label="── PM Dimensions ──">
+                              {Array.from(activePmDimensions).map(d => (
+                                <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
                               ))}
                             </optgroup>
                           )}

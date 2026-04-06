@@ -258,6 +258,7 @@ interface SlotRequestContext {
   dateTo: string;
   granularity: string;
   splitBy?: string;
+  splitBy2?: string;
   filters: { dimension: string; values: string[] }[];
   kpiLevel: string;
   profileQci?: number | null;
@@ -306,6 +307,16 @@ export function resolveSlotContext(
     splitValue = globalState.splitBy;
   }
 
+  // Split 2 (cross-tabulation)
+  let splitValue2: string | undefined;
+  const perKpi2 = slot.config?.splitByPerKpi2 || {};
+  const activeSplit2 = Object.values(perKpi2).find(v => v && v !== 'None');
+  if (activeSplit2) {
+    splitValue2 = activeSplit2;
+  } else if (slot.splitBy2 && slot.splitBy2 !== 'None') {
+    splitValue2 = slot.splitBy2;
+  }
+
   // Merge slot filters with global filters (slot overrides global for same dimension)
   const mergedFilters: Record<string, string[]> = { ...globalState.filters };
   if (slot.filters) {
@@ -317,7 +328,7 @@ export function resolveSlotContext(
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
 
-  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, filters: activeFilters, globalFilters: globalState.filters, slotFilters: slot.filters });
+  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, splitBy2: splitValue2, filters: activeFilters });
 
   return {
     kpiIds: slot.kpiIds,
@@ -325,6 +336,7 @@ export function resolveSlotContext(
     dateTo,
     granularity: gran,
     splitBy: splitValue,
+    splitBy2: splitValue2,
     filters: activeFilters,
     kpiLevel: globalState.kpiLevel,
     profileQci: globalState.profileQci,
@@ -394,13 +406,14 @@ export async function fetchTimeSeriesForSlot(
     if (ctx.neighborType) allFilters.push({ dimension: 'NEIGHBOR_TYPE', op: 'IN', values: [ctx.neighborType] });
   }
 
-  const body = {
+  const body: Record<string, any> = {
     date_from: ctx.dateFrom,
     date_to: ctx.dateTo,
     granularity: ctx.granularity,
     selections: ctx.kpiIds.map(k => ({ kpi_key: k })),
     filters: allFilters,
     split_by: ctx.splitBy || null,
+    split_by_2: ctx.splitBy2 || null,
     top_n: 10,
     kpi_level: ctx.kpiLevel || 'CELL',
   };
