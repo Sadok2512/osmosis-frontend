@@ -1301,6 +1301,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="truncate max-w-[140px]">{name}</span>
+                          {hasSplit && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-600 dark:text-violet-400 text-[8px] font-bold uppercase tracking-wider border border-violet-500/20">
+                              <GitBranch className="w-2.5 h-2.5" />
+                              {splitLabel}
+                            </span>
+                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
