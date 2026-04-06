@@ -31,11 +31,11 @@ export const TECH = {
 
 // ── HSL equivalents (for inline style / popover use) ──
 export const VENDOR_HSL: Record<string, string> = {
-  ERICSSON: 'hsl(217, 91%, 53%)',
-  NOKIA:    'hsl(142, 72%, 40%)',
+  ERICSSON: 'hsl(213, 94%, 68%)',
+  NOKIA:    'hsl(224, 76%, 40%)',
   HUAWEI:   'hsl(0, 72%, 51%)',
   SAMSUNG:  'hsl(263, 70%, 50%)',
-  NSN:      'hsl(142, 72%, 40%)',
+  NSN:      'hsl(224, 76%, 40%)',
   ALCATEL:  'hsl(25, 95%, 53%)',
   ALU:      'hsl(25, 95%, 53%)',
   INDEFINI: 'hsl(215, 14%, 50%)',
