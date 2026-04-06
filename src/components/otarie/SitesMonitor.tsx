@@ -9825,15 +9825,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {Object.keys(displayStats.vendorMap).length > 0 && (
                       <div className="px-5 py-4">
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
-                        {Object.entries(displayStats.vendorMap).sort((a, b) => (b[1]['4G'] + b[1]['5G']) - (a[1]['4G'] + a[1]['5G'])).map(([vendor, counts]) => (
-                          <div key={vendor} className="flex items-center gap-2 py-1.5">
-                            <span className="text-[11px] font-bold text-foreground flex-1">{vendor}</span>
-                            <span className="text-[9px] text-muted-foreground">4G</span>
-                            <span className="text-[10px] font-black text-foreground">{counts['4G']}</span>
-                            <span className="text-[9px] text-muted-foreground">5G</span>
-                            <span className="text-[10px] font-black text-primary">{counts['5G']}</span>
-                          </div>
-                        ))}
+                        {(() => {
+                          const entries = Object.entries(displayStats.vendorMap)
+                            .map(([v, c]) => ({ vendor: v, total: c['4G'] + c['5G'], c4g: c['4G'], c5g: c['5G'] }))
+                            .filter(e => e.total > 0)
+                            .sort((a, b) => b.total - a.total);
+                          const maxTotal = Math.max(...entries.map(e => e.total), 1);
+                          return entries.map(({ vendor, total, c4g, c5g }) => (
+                            <div key={vendor} className="flex items-center gap-2 py-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: vendorHex(vendor) }} />
+                              <span className="text-[10px] font-bold text-foreground w-20 shrink-0 truncate">{vendor}</span>
+                              <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${(total / maxTotal) * 100}%`, background: vendorHex(vendor), opacity: 0.7 }} />
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">4G </span><span className="font-black text-foreground">{c4g.toLocaleString('fr-FR')}</span></span>
+                                <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">5G </span><span className="font-black" style={{ color: '#22c55e' }}>{c5g.toLocaleString('fr-FR')}</span></span>
+                              </div>
+                            </div>
+                          ));
+                        })()}
                       </div>
                     )}
                   </>
