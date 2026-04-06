@@ -3113,6 +3113,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (activeMapTool !== 'radius') {
       setRadiusCenter(null);
     }
+    if (activeMapTool !== 'profile') {
+      setProfileTarget(null);
+      setProfileData(null);
+    }
   }, [activeMapTool, distanceMeasurePoints.length]);
 
   const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
