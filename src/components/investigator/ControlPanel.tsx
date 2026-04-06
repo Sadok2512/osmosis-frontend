@@ -1125,17 +1125,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         </div>
       </div>
 
-      {/* ═══ LAYER 3: KPI / FILTERS — Niveau, KPIs, Filters ═══ */}
+      {/* ═══ LAYER 3: FILTERS / KPIs / DIMENSIONS — 3 distinct rows ═══ */}
       <div className="bg-card border-b border-border/40">
-        <div className="max-w-[1600px] mx-auto px-6 py-3 space-y-2.5">
+        <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
 
-          {/* Row B: Filters — 2-step: add dimension, then select values */}
+          {/* ── ROW 1: Standard Filters (non-PM dimensions) ── */}
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 text-muted-foreground shrink-0">
               <Filter className="w-3 h-3" />
               <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
             </div>
-            {activeFilterDims.map(dim => (
+            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).map(dim => (
               <FilterChip
                 key={dim}
                 dim={dim}
@@ -1145,20 +1145,34 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 onRemove={() => removeFilterDimension(dim)}
               />
             ))}
-            <AddFilterDropdown existingKeys={activeFilterDims} onAdd={addFilterDimension} filterDimensions={allFilterDimensions} />
-            {activeFilterDims.length > 0 && (
+            <AddFilterDropdown
+              existingKeys={activeFilterDims}
+              onAdd={addFilterDimension}
+              filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d))}
+            />
+            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim)).length > 0 && (
               <button
-                onClick={() => setState(prev => ({ ...prev, filters: {} }))}
+                onClick={() => {
+                  const stdDims = activeFilterDims.filter(d => !PM_DIMENSION_TYPES.has(d));
+                  setState(prev => {
+                    const nf = { ...prev.filters };
+                    stdDims.forEach(d => delete nf[d]);
+                    return { ...prev, filters: nf };
+                  });
+                }}
                 className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"
               >
-                <X className="w-2.5 h-2.5" /> Tout effacer
+                <X className="w-2.5 h-2.5" /> Effacer filtres
               </button>
             )}
           </div>
 
-          {/* Row C: KPI chips */}
+          {/* ── ROW 2: KPIs + Counters ── */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">KPIs</span>
+            <div className="flex items-center gap-1 shrink-0">
+              <TrendingUp className="w-3 h-3 text-primary" />
+              <span className="text-[10px] font-bold text-primary uppercase tracking-wider">KPIs</span>
+            </div>
             {state.graphSlots.filter(slot => slot.kpiIds.length > 0 && slot.id === activeSlotId).flatMap((slot) => {
               const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
               const setSlotConfig = (updates: Partial<GraphConfig>) => {
@@ -1176,7 +1190,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const color = catalogEntry?.color || defEntry?.color || '#6366f1';
                 const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
                 const hasSplit = splitVal && splitVal !== 'None';
-                const kpiDimType = defEntry?.dimension_type;
                 const isPmSplit = hasSplit && splitVal.startsWith('PM_DIM:');
                 const splitLabel = hasSplit ? (isPmSplit ? splitVal : (splitOptions.find(s => s.key === splitVal)?.label || splitVal)) : null;
                 return (
@@ -1192,11 +1205,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="truncate max-w-[140px]">{name}</span>
-                          {kpiDimType && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-amber-500/15 text-amber-600 border border-amber-500/25">
-                              {kpiDimType}
-                            </span>
-                          )}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1369,7 +1377,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       </button>
                     </PopoverContent>
                     </Popover>
-                    {/* PM_DIM split chip shown separately */}
+                    {/* Split chip */}
                     {hasSplit && (
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
                         + {splitLabel}
@@ -1402,12 +1410,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               Add KPI
             </button>
 
+            {/* Separator before counters */}
+            {selectedCounters.length > 0 && <div className="h-4 w-px bg-border/60 shrink-0 mx-1" />}
+
             {/* Counter chips */}
             {selectedCounters.map((c: any, i: number) => (
               <span key={c.counter_name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
                 <span className="w-2 h-2 rounded-full" style={{backgroundColor: ['#10b981','#06b6d4','#f59e0b','#8b5cf6','#ec4899'][i%5]}} />
                 {c.display_name || c.counter_name}
-                {c.dimension_type && <span className="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-600">{c.dimension_type}</span>}
                 <button onClick={() => setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
               </span>
             ))}
@@ -1417,6 +1427,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </button>
           </div>
 
+          {/* ── ROW 3: PM Dimension Levels (PMQAP, FLEX, etc.) — only when relevant ── */}
+          {activeFilterDims.some(dim => PM_DIMENSION_TYPES.has(dim)) && (
+            <div className="flex items-center gap-2 flex-wrap pt-0.5">
+              <div className="flex items-center gap-1 shrink-0">
+                <Layers className="w-3 h-3 text-amber-500" />
+                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimensions</span>
+              </div>
+              {activeFilterDims.filter(dim => PM_DIMENSION_TYPES.has(dim)).map(dim => (
+                <FilterChip
+                  key={dim}
+                  dim={dim}
+                  values={state.filters[dim] || []}
+                  onToggleValue={(val) => toggleFilterValue(dim, val)}
+                  onClear={() => clearFilterValues(dim)}
+                  onRemove={() => removeFilterDimension(dim)}
+                />
+              ))}
+              <AddFilterDropdown
+                existingKeys={activeFilterDims}
+                onAdd={addFilterDimension}
+                filterDimensions={allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d))}
+              />
+            </div>
+          )}
 
         </div>
       </div>
