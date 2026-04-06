@@ -895,14 +895,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     const dims = new Set<string>();
     for (const slot of state.graphSlots) {
       for (const kpiId of slot.kpiIds) {
+        // Check KPI definitions (from KPI Engine)
         const def = kpiDefs.find(k => k.id === kpiId);
         if (def?.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) {
           dims.add(def.dimension_type);
         }
+        // Fallback: check counter catalog for counters whose name matches a KPI pattern
+        // KPIs like Flex_ERAB_ADD_INIT_SETUP_ATT use PROFILE counters (M8048Cxx) with dimension_type
+        if (counterCatalog.length > 0 && dims.size === 0) {
+          for (const c of counterCatalog) {
+            if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type) && c.is_in_kpi) {
+              // Check if the counter display_name contains parts of the KPI name (loose match)
+              const kpiUpper = kpiId.toUpperCase().replace(/^FLEX_/, '');
+              const cName = (c.display_name || '').toUpperCase();
+              if (kpiUpper.includes(cName.replace(/_PROFILE$/, '')) || cName.includes(kpiUpper.split('_').slice(0, 3).join('_'))) {
+                dims.add(c.dimension_type);
+              }
+            }
+          }
+        }
       }
     }
     return dims;
-  }, [state.graphSlots, kpiDefs]);
+  }, [state.graphSlots, kpiDefs, counterCatalog]);
 
   // Load PM dimension values based on selected KPIs' dimension types
   const primaryKpiDimType = useMemo(() => {
