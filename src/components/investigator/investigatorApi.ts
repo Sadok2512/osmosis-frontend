@@ -488,7 +488,9 @@ export async function fetchTimeSeriesForSlot(
 
   // Fast path: detect raw PM counters and route directly to counter fallback
   // (avoids 3-4 wasted HTTP calls through KPI compute + KPI Engine)
-  const RAW_COUNTER_RE = /^(M\d|pm[A-Z]|Flex_|flex_)/;
+  // Note: Flex_ prefix is used by Nokia KPI definitions (e.g. Flex_ERAB_ADD_INIT_SETUP_ATT)
+  // so we do NOT include Flex_ here — those need /kpi/compute for formula resolution
+  const RAW_COUNTER_RE = /^(M\d{2,}C\d|pm[A-Z])/;
   const rawCounterIds = ctx.kpiIds.filter(id => RAW_COUNTER_RE.test(id));
   const kpiOnlyIds = ctx.kpiIds.filter(id => !RAW_COUNTER_RE.test(id));
 
