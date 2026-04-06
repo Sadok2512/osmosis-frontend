@@ -689,8 +689,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     const d = new Date(dateOnly + 'T12:00:00');
     return isNaN(d.getTime()) ? undefined : d;
   };
+  const parseTime = (raw: string | undefined | null): string => {
+    if (!raw) return '00:00';
+    const tPart = raw.split('T')[1];
+    if (!tPart) return '00:00';
+    return tPart.slice(0, 5) || '00:00';
+  };
   const startDate = parseSafeDate(state.startDate);
   const endDate = parseSafeDate(state.endDate);
+  const startTime = parseTime(state.startDate);
+  const endTime = parseTime(state.endDate);
+  const showTimePickers = state.granularity === '15min' || state.granularity === '1h';
+
+  const setStartTime = (time: string) => {
+    setState(prev => {
+      const dateOnly = (prev.startDate || '').split('T')[0];
+      return { ...prev, startDate: `${dateOnly}T${time}` };
+    });
+  };
+  const setEndTime = (time: string) => {
+    setState(prev => {
+      const dateOnly = (prev.endDate || '').split('T')[0];
+      return { ...prev, endDate: `${dateOnly}T${time}` };
+    });
+  };
 
   const addFilterDimension = (dim: string) => {
     setState(prev => {
