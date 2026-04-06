@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { VENDOR_HSL, TECH_HSL } from '@/constants/brandColors';
+import { VENDOR_HSL, TECH_HSL, vendorHsl, techHsl } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
@@ -530,7 +530,7 @@ const ScopeFilterPopover: React.FC<{
             <span className="flex items-center gap-1 truncate">
               <span className="shrink-0">Périmètre</span>
               {vendorSelected.map(v => (
-                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: vendorHsl(v) }}>
                   {v}
                 </span>
               ))}
@@ -563,7 +563,7 @@ const ScopeFilterPopover: React.FC<{
             <div className="flex flex-wrap gap-1.5">
               {vendorValues.map(val => {
                 const isActive = vendorSelected.includes(val);
-                const accent = VENDOR_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                const accent = vendorHsl(val);
                 return (
                   <button
                     key={val}
@@ -597,7 +597,7 @@ const ScopeFilterPopover: React.FC<{
             <div className="flex flex-wrap gap-1.5">
               {techValues.map(val => {
                 const isActive = techSelected.includes(val);
-                const accent = TECH_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                const accent = techHsl(val);
                 return (
                   <button
                     key={val}
@@ -624,7 +624,7 @@ const ScopeFilterPopover: React.FC<{
           <div className="border-t border-border/60 px-4 py-2.5 flex items-center justify-between bg-muted/30">
             <div className="flex items-center gap-1.5 flex-wrap">
               {vendorSelected.map(v => (
-                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: vendorHsl(v) }}>
                   {v}
                   <button onClick={() => onToggle('Vendor', v)} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
                 </span>
