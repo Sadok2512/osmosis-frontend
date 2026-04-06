@@ -143,7 +143,8 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
     <div className="grid grid-cols-2 gap-3">
       {kpiIds.map(kpiId => {
         const def = KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId);
-        const points = data.filter(d => d.kpi === kpiId);
+        // Fix #4: Match both plain and split keys (e.g. kpiId@dimLabel)
+        const points = data.filter(d => d.kpi === kpiId || d.kpi.startsWith(kpiId + '@'));
         const lastVal = points.length > 0 ? points[points.length - 1].value : null;
         const prevVal = points.length > 1 ? points[points.length - 2].value : null;
         const delta = lastVal !== null && prevVal !== null && prevVal !== 0 ? ((lastVal - prevVal) / prevVal * 100) : null;
