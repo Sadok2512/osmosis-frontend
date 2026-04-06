@@ -572,13 +572,6 @@ const JalonsManagerPopup: React.FC<{
                           className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
-                      <select value={j.visibility || 'all'} onChange={e => updateJalon(j.id, { visibility: e.target.value as JalonVisibility })}
-                        className="flex-1 px-1.5 py-0.5 rounded-md border border-border bg-background text-[10px] text-foreground outline-none">
-                        {VISIBILITY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-                      </select>
-                    </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
                       <Slider value={[Math.round((j.opacity ?? 0.8) * 100)]} min={10} max={100} step={5}
@@ -605,9 +598,6 @@ const JalonsManagerPopup: React.FC<{
                       <span className="text-[10px] font-medium text-foreground truncate block">{j.label}</span>
                       <span className="text-[8px] text-muted-foreground">{fmtDt(j.date)}{j.endDate && j.endDate !== j.date ? ` → ${fmtDt(j.endDate)}` : ''}</span>
                     </div>
-                    {j.visibility && j.visibility !== 'all' && (
-                      <span className="text-[7px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{j.visibility === 'team' ? 'Éq.' : 'Perso'}</span>
-                    )}
                     <button onClick={() => setEditingId(j.id)} className="text-muted-foreground hover:text-primary shrink-0"><Edit2 className="w-3 h-3" /></button>
                     <button onClick={() => removeJalon(j.id)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
                   </div>
@@ -640,12 +630,6 @@ const JalonsManagerPopup: React.FC<{
                 className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
             </div>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Eye className="w-3 h-3 text-muted-foreground shrink-0" />
-            <select value={visibility} onChange={e => setVisibility(e.target.value as JalonVisibility)}
-              className="flex-1 px-1.5 py-0.5 rounded-md border border-border bg-background text-[10px] text-foreground outline-none">
-              {VISIBILITY_OPTIONS.map(v => <option key={v.value} value={v.value}>{v.label}</option>)}
-            </select>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
