@@ -3,7 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import { fetchBreakdownData, fetchTimeSeriesData } from './investigatorApi';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { DataPoint } from './types';
-import { BarChart3, TrendingUp, Calculator, Table2 } from 'lucide-react';
+import { BarChart3, TrendingUp, Calculator, Table2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -60,6 +60,22 @@ const CounterTable: React.FC<{
 
   const hasSelection = selectedSeries.size > 0;
 
+  const downloadCSV = () => {
+    const header = ['Date', ...kpis].join(',');
+    const rows = timestamps.map(t => {
+      const vals = kpis.map(k => lookup[k]?.[t] ?? '');
+      return [t.length > 10 ? t.slice(0, 10) : t, ...vals].join(',');
+    });
+    const csv = [header, ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${kpiLabel.replace(/\s+/g, '_')}_counters.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="rounded-xl border border-border/50 overflow-hidden h-full flex flex-col bg-card shadow-sm">
       {/* Header */}
@@ -68,7 +84,16 @@ const CounterTable: React.FC<{
           <Table2 className="w-4 h-4 text-primary" />
           <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Raw Counters</span>
         </div>
-        <span className="text-[10px] text-muted-foreground font-medium">{timestamps.length} rows × {kpis.length} cols</span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-muted-foreground font-medium">{timestamps.length} rows × {kpis.length} cols</span>
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+          >
+            <Download className="w-3 h-3" />
+            CSV
+          </button>
+        </div>
       </div>
 
       {/* Clickable column legend */}
