@@ -536,14 +536,13 @@ const InvestigatorPage: React.FC = () => {
 
         {analysisTab === 'top_worst' && (
           <WorstElementsTable
-            worstByDOR={worstByDOR}
-            selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)}
-            kpiMetaMap={kpiMetaMap}
-            filters={worstFilters}
-            onFiltersChange={setWorstFilters}
-            filterOptions={worstFilterOptions}
-            isLoading={isLoadingWorst}
-            hasUnfilteredFallback={hasUnfilteredFallback}
+            elements={worstElements}
+            limit={state.topLimit}
+            onLimitChange={(limit) => setState(prev => ({ ...prev, topLimit: limit }))}
+            onRowClick={(id) => {
+              const filters = { ...state.filters, Cell: [id] };
+              setState(prev => ({ ...prev, filters }));
+            }}
           />
         )}
 
