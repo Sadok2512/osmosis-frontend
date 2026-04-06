@@ -7084,39 +7084,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating status bar — minimal GIS style, centered on map */}
       <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
-        <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-4 py-1.5 flex items-center gap-1">
+        <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-6 py-3 flex items-center gap-2">
           {paramMode ? (
             <>
-              <div className="flex items-center gap-1.5 px-2">
-                <span className="text-[10px] font-medium text-muted-foreground">Param</span>
-                <span className="text-xs font-bold text-primary">{paramConfirmed}</span>
+              <div className="flex items-center gap-2 px-3">
+                <span className="text-sm font-medium text-muted-foreground">Param</span>
+                <span className="text-base font-bold text-primary">{paramConfirmed}</span>
               </div>
-              <span className="w-px h-3.5 bg-border/60" />
-              <div className="flex items-center gap-1.5 px-2">
-                <span className="text-[10px] font-medium text-muted-foreground">Points</span>
-                <span className="text-xs font-bold text-foreground">{paramPoints.length}</span>
+              <span className="w-px h-6 bg-border/60" />
+              <div className="flex items-center gap-2 px-3">
+                <span className="text-sm font-medium text-muted-foreground">Points</span>
+                <span className="text-base font-bold text-foreground">{paramPoints.length}</span>
               </div>
             </>
           ) : (
             <>
               {/* Left: Info */}
-              <div className="flex items-center gap-1.5 px-2">
-                <span className="text-xs font-bold text-foreground">{filteredSites.length.toLocaleString()}</span>
-                <span className="text-[10px] font-medium text-muted-foreground">Sites</span>
+              <div className="flex items-center gap-2 px-3">
+                <span className="text-base font-bold text-foreground">{filteredSites.length.toLocaleString()}</span>
+                <span className="text-sm font-medium text-muted-foreground">Sites</span>
               </div>
-              <span className="w-px h-3.5 bg-border/60" />
-              <div className="flex items-center gap-1.5 px-1.5">
-                <span className="text-[10px] font-medium text-muted-foreground">Z</span>
-                <span className="text-xs font-bold text-foreground">{viewport.zoom}</span>
+              <span className="w-px h-6 bg-border/60" />
+              <div className="flex items-center gap-2 px-2">
+                <span className="text-sm font-medium text-muted-foreground">Z</span>
+                <span className="text-base font-bold text-foreground">{viewport.zoom}</span>
               </div>
 
-              <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+              <span className="w-px h-6 bg-border/60 mx-1" />
 
               {/* Center: Toggles */}
               <button
                 onClick={() => setShowSiteLabels(v => !v)}
                 title="Afficher les noms de sites"
-                className={`px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
                   showSiteLabels
                     ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -7127,7 +7127,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={() => setShowBeamSectors(v => !v)}
                 title="Afficher les faisceaux sectoriels"
-                className={`px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
                   showBeamSectors
                     ? 'bg-primary/15 text-primary shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -7136,7 +7136,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Beams
               </button>
 
-              <span className="w-px h-3.5 bg-border/60 mx-0.5" />
+              <span className="w-px h-6 bg-border/60 mx-1" />
 
               {/* Right: Drawing tools */}
               {([
@@ -7150,13 +7150,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     key={tool.key}
                     onClick={() => handleMapToolToggle(tool.key)}
                     title={tool.tip}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider transition-all duration-200 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-md'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                     }`}
                   >
-                    <tool.icon size={11} strokeWidth={isActive ? 2.5 : 2} />
+                    <tool.icon size={16} strokeWidth={isActive ? 2.5 : 2} />
                     <span className="hidden sm:inline">{tool.label}</span>
                   </button>
                 );
