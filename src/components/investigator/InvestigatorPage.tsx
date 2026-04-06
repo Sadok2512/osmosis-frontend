@@ -500,10 +500,90 @@ const InvestigatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab content — placeholder, à implémenter */}
-        <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
-          <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
-        </div>
+        {/* Tab content */}
+        {analysisTab === 'breakdown' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* KPI Breakdown (left) */}
+            <KPIBreakdown
+              selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)}
+              layout={state.graphLayout}
+              splitBy={state.splitBy}
+              dateFrom={state.startDate}
+              dateTo={state.endDate}
+            />
+
+            {/* Table Data (right) — shows the timeseries data from the active graphs */}
+            <div className="rounded-lg border border-border/40 bg-card overflow-hidden flex flex-col">
+              <div className="px-3 py-2 bg-muted/30 border-b border-border/40 flex items-center gap-2 shrink-0">
+                <span className="text-[11px] font-bold text-foreground">Table Data</span>
+                <span className="text-[9px] text-muted-foreground ml-auto">{tsData.length} points</span>
+              </div>
+              <div className="overflow-auto flex-1" style={{ maxHeight: 400 }}>
+                {tsData.length > 0 ? (() => {
+                  const kpis = [...new Set(tsData.map(d => d.kpi))];
+                  const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
+                  const lookup: Record<string, Record<string, number>> = {};
+                  kpis.forEach(k => { lookup[k] = {}; });
+                  tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
+                  const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+
+                  return (
+                    <table className="w-full border-collapse text-[10px] font-mono">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-muted/70 backdrop-blur-sm">
+                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[100px]">
+                            Timestamp
+                          </th>
+                          {kpis.map((k, i) => (
+                            <th key={k} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
+                              <div className="flex items-center justify-end gap-1">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                                <span className="truncate max-w-[120px]">{k}</span>
+                              </div>
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {timestamps.map((ts, ti) => (
+                          <tr
+                            key={ti}
+                            className={cn(
+                              'border-b border-border/20 hover:bg-primary/5 transition-colors',
+                              ti % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                            )}
+                          >
+                            <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
+                              {ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts}
+                            </td>
+                            {kpis.map((k, ki) => {
+                              const val = lookup[k]?.[ts];
+                              return (
+                                <td key={ki} className="px-2.5 py-1.5 text-right text-foreground border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums">
+                                  {val != null ? Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })() : (
+                  <div className="flex items-center justify-center h-32 text-muted-foreground text-[10px]">
+                    Aucune donnée — cliquez sur Appliquer
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {analysisTab !== 'breakdown' && (
+          <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
+            <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
+          </div>
+        )}
       </main>
     </div>
 

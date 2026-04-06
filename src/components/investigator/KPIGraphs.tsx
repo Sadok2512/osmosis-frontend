@@ -1314,80 +1314,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }}
             />
 
-            {/* Bottom section: KPI Breakdown + Table Data side by side */}
-            {(cfg.showBreakdown || cfg.showDataTable) && kpiIds.length > 0 && (
-              <div className={cn(
-                'mt-3 grid gap-3',
-                cfg.showBreakdown && cfg.showDataTable ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
-              )}>
-                {/* KPI Breakdown (left) */}
-                {cfg.showBreakdown && (
-                  <BreakdownChart
-                    kpiIds={kpiIds}
-                    dateFrom={slot.startDate || investigatorState.startDate}
-                    dateTo={slot.endDate || investigatorState.endDate}
-                    granularity={normalizeGranularity(slot.granularity || investigatorState.granularity)}
-                    siteName={siteName}
-                    smooth={cfg.smooth}
-                    showSymbols={cfg.showSymbols}
-                    showGrid={cfg.showGrid}
-                    lineWidth={cfg.lineWidth}
-                    height={layout === 1 ? 280 : 200}
-                  />
-                )}
-
-                {/* Table Data (right) */}
-                {cfg.showDataTable && allTimestamps.length > 0 && series.length > 0 && (
-                  <div className="rounded-lg border border-border/40 bg-card overflow-hidden flex flex-col">
-                    <div className="px-3 py-2 bg-muted/30 border-b border-border/40 flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-bold text-foreground">Table Data</span>
-                      <span className="text-[9px] text-muted-foreground ml-auto">{allTimestamps.length} rows × {series.length} cols</span>
-                    </div>
-                    <div className="overflow-auto flex-1" style={{ maxHeight: layout === 1 ? 320 : 240 }}>
-                      <table className="w-full border-collapse text-[10px] font-mono">
-                        <thead className="sticky top-0 z-10">
-                          <tr className="bg-muted/70 backdrop-blur-sm">
-                            <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[100px]">
-                              Timestamp
-                            </th>
-                            {series.map((s: any, si: number) => (
-                              <th key={si} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
-                                <div className="flex items-center justify-end gap-1">
-                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.itemStyle?.color || SERIES_COLORS[si % SERIES_COLORS.length] }} />
-                                  <span className="truncate max-w-[120px]">{s.name}</span>
-                                </div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allTimestamps.map((ts, ti) => (
-                            <tr
-                              key={ti}
-                              className={cn(
-                                'border-b border-border/20 hover:bg-primary/5 transition-colors',
-                                ti % 2 === 0 ? 'bg-background' : 'bg-muted/10'
-                              )}
-                            >
-                              <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
-                                {formatAxisLabel(ts, investigatorState.granularity)}
-                              </td>
-                              {series.map((s: any, si: number) => {
-                                const val = s.data?.[ti];
-                                return (
-                                  <td key={si} className="px-2.5 py-1.5 text-right text-foreground border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums">
-                                    {val != null ? Number(val).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* KPI Breakdown — raw counters composing the KPI */}
+            {cfg.showBreakdown && kpiIds.length > 0 && (
+              <BreakdownChart
+                kpiIds={kpiIds}
+                dateFrom={slot.startDate || investigatorState.startDate}
+                dateTo={slot.endDate || investigatorState.endDate}
+                granularity={normalizeGranularity(slot.granularity || investigatorState.granularity)}
+                siteName={siteName}
+                smooth={cfg.smooth}
+                showSymbols={cfg.showSymbols}
+                showGrid={cfg.showGrid}
+                lineWidth={cfg.lineWidth}
+                height={layout === 1 ? 280 : 200}
+              />
             )}
 
           </div>
