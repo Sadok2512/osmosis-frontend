@@ -13,6 +13,11 @@ export const VENDOR = {
   NOKIA:    '#16a34a',   // green-600
   HUAWEI:   '#dc2626',   // red-600
   SAMSUNG:  '#7c3aed',   // violet-600
+  NSN:      '#16a34a',   // green-600 (Nokia Siemens)
+  ALCATEL:  '#f97316',   // orange-500
+  ALU:      '#f97316',   // orange-500
+  INDEFINI: '#64748b',   // slate-500
+  UNKNOWN:  '#64748b',   // slate-500
 } as const;
 
 export const TECH = {
@@ -30,6 +35,12 @@ export const VENDOR_HSL: Record<string, string> = {
   NOKIA:    'hsl(142, 72%, 40%)',
   HUAWEI:   'hsl(0, 72%, 51%)',
   SAMSUNG:  'hsl(263, 70%, 50%)',
+  NSN:      'hsl(142, 72%, 40%)',
+  ALCATEL:  'hsl(25, 95%, 53%)',
+  ALU:      'hsl(25, 95%, 53%)',
+  INDEFINI: 'hsl(215, 14%, 50%)',
+  INDÉFINI: 'hsl(215, 14%, 50%)',
+  UNKNOWN:  'hsl(215, 14%, 50%)',
 };
 
 export const TECH_HSL: Record<string, string> = {
