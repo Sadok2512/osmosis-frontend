@@ -443,6 +443,8 @@ export async function fetchTimeSeriesForSlot(
     // If all KPIs computed successfully, return directly (skip KPI Engine)
     if (computeFailed.length === 0 && computeResults.length > 0) {
       console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+      // Inject NE from filters if not already set
+      if (neFromFilters) computeResults.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
       return { data: computeResults, hasUnfilteredFallback: false };
     }
   } else {
