@@ -152,8 +152,12 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
 const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
   const { state } = useInvestigatorStore();
-  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; value: number }[]>([]);
+  const [tsData, setTsData] = React.useState<{ ts: string; counter: string; counter_id?: string; value: number }[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [nameMap, setNameMap] = React.useState<Record<string, string>>({});
+
+  // Extract site filter from global filters (Record<string, string[]>)
+  const siteName = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || null;
 
   React.useEffect(() => {
     if (counterNames.length === 0) { setTsData([]); return; }
@@ -162,21 +166,33 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
     const dateTo = state.endDate?.split('T')[0] || today;
+    const body: any = { counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false };
+    if (siteName) body.site_name = siteName;
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false }),
+      body: JSON.stringify(body),
     })
-      .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setTsData(data.series || []); setLoading(false); })
+      .then(r => r.ok ? r.json() : { series: [], meta: {} })
+      .then(data => {
+        setTsData(data.series || []);
+        if (data.meta?.name_map) setNameMap(data.meta.name_map);
+        setLoading(false);
+      })
       .catch(() => { setTsData([]); setLoading(false); });
-  }, [counterNames.join(','), state.startDate, state.endDate]);
+  }, [counterNames.join(','), state.startDate, state.endDate, state.granularity, siteName]);
 
   if (loading) return <div className="flex items-center justify-center text-muted-foreground text-[10px] gap-1.5" style={{ height }}><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Loading...</div>;
   if (tsData.length === 0) return <div className="flex items-center justify-center text-muted-foreground text-[10px]" style={{ height }}>No data available</div>;
 
   const counters = [...new Set(tsData.map(d => d.counter))];
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+  // Build a reverse map: display_name → counter_id from response data
+  const displayLabel = (c: string) => {
+    // If nameMap has a mapping for any counterName that maps to c, show "display (ID)"
+    const id = Object.entries(nameMap).find(([, name]) => name === c)?.[0];
+    return id ? `${c} (${id})` : c;
+  };
 
   const option = {
     tooltip: {
@@ -185,7 +201,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       borderColor: 'rgba(255,255,255,0.08)',
       textStyle: { color: '#f8fafc', fontSize: 10 },
     },
-    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters },
+    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters.map(c => displayLabel(c)) },
     grid: { left: 60, right: 20, top: 10, bottom: 40 },
     xAxis: {
       type: 'category' as const,
@@ -199,7 +215,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
     },
     series: counters.map((counter, i) => ({
-      name: counter,
+      name: displayLabel(counter),
       type: 'line' as const,
       smooth: true,
       data: timestamps.map(ts => { const p = tsData.find(d => d.ts === ts && d.counter === counter); return p ? p.value : 0; }),
@@ -383,7 +399,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     return (
                       <span key={cId} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-bold border border-border/50 bg-muted/30">
                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stableColorForKpi(cId) }} />
-                        {cDef?.display_name || cId}
+                        {cDef?.display_name ? `${cDef.display_name} (${cId})` : cId}
                       </span>
                     );
                   })}
