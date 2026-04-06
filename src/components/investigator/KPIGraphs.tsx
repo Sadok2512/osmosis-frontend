@@ -412,13 +412,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
       <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1 max-w-[1400px]' : 'grid-cols-1 md:grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const kpiIds = slot.kpiIds || [];
-        const isEmpty = kpiIds.length === 0;
+        const counterIds = slot.counterIds || [];
+        const isEmpty = kpiIds.length === 0 && counterIds.length === 0;
         const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
         const isActive = activeSlotId === slot.id;
         const wType = slot.widgetType || 'timeseries';
         const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
 
-        // Empty slot — no KPI assigned yet
+        // Empty slot — no KPI or counter assigned yet
         if (isEmpty) {
           return (
             <div
@@ -454,14 +455,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                   <wtDef.icon className="w-8 h-8" />
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  {wType === 'counter' ? 'Aucun compteur sélectionné' : 'Aucun KPI sélectionné'}
+                  Aucun KPI / Compteur sélectionné
                 </p>
-                <button
-                  onClick={(e) => { e.stopPropagation(); wType === 'counter' ? setCounterSelectorSlotId(slot.id) : onOpenKpiSelector(slot.id); }}
-                  className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
-                >
-                  {wType === 'counter' ? 'Choisir un Compteur' : 'Choisir un KPI'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }}
+                    className="px-3 py-1 rounded-md text-[10px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                  >
+                    + KPI
+                  </button>
+                  {wType === 'timeseries' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }}
+                      className="px-3 py-1 rounded-md text-[10px] font-semibold text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                    >
+                      + Counter
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );
