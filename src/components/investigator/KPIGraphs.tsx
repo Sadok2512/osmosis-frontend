@@ -1007,9 +1007,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Auto dual-axis: when multiple KPIs have very different scales (>10x),
         // auto-assign the smaller-scale group to the right axis.
-        // Skip if user has made ANY explicit axis assignments (even all-left).
-        const userHasExplicitAssignments = cfg.yAxisAssignments && Object.keys(cfg.yAxisAssignments).length > 0;
-        if (!userHasExplicitAssignments && series.length >= 2) {
+        // Skip only if existing assignments already cover the current KPI set exactly.
+        const existingKeys = cfg.yAxisAssignments ? Object.keys(cfg.yAxisAssignments) : [];
+        const currentKpiSeriesIds = series.filter(s => s.yAxisIndex == null).map(s => s._kpiId || '').filter(Boolean);
+        const uniqueCurrentIds = [...new Set(currentKpiSeriesIds)];
+        const assignmentsCoverCurrent = existingKeys.length > 0 && uniqueCurrentIds.length > 0 &&
+          uniqueCurrentIds.every(id => id in (cfg.yAxisAssignments || {}));
+        if (!assignmentsCoverCurrent && series.length >= 2) {
           const kpiMaxes: { kpiId: string; maxVal: number }[] = [];
           series.forEach(s => {
             if (s.yAxisIndex != null) return; // skip counter series
