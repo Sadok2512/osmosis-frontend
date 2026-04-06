@@ -1345,6 +1345,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const hasSplit = splitVal && splitVal !== 'None';
                 const isPmSplit = hasSplit && splitVal.startsWith('PM_DIM:');
                 const splitLabel = hasSplit ? (isPmSplit ? splitVal : (splitOptions.find(s => s.key === splitVal)?.label || splitVal)) : null;
+                const splitVal2 = cfg.splitByPerKpi2?.[kpiIdItem];
+                const hasSplit2 = splitVal2 && splitVal2 !== 'None';
+                const isPmSplit2 = hasSplit2 && splitVal2.startsWith('PM_DIM:');
+                const splitLabel2 = hasSplit2 ? (isPmSplit2 ? splitVal2 : (splitOptions.find(s => s.key === splitVal2)?.label || splitVal2)) : null;
                 return (
                   <React.Fragment key={`${slot.id}-${kpiIdItem}`}>
                     <Popover>
@@ -1362,6 +1366,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[8px] font-bold uppercase tracking-wider border border-amber-500/20">
                               <GitBranch className="w-2.5 h-2.5" />
                               {splitLabel}
+                            </span>
+                          )}
+                          {hasSplit2 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 text-[8px] font-bold uppercase tracking-wider border border-sky-500/20">
+                              <GitBranch className="w-2.5 h-2.5" />
+                              {splitLabel2}
                             </span>
                           )}
                           <button
