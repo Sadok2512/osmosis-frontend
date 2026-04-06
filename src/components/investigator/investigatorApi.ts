@@ -294,7 +294,7 @@ async function fetchCounterTimeSeriesFallback(
     return {
       data: rawSeries.map((s: any) => ({
         timestamp: s.ts || s.timestamp || s.date,
-        kpi: s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
+        kpi: (s.dimension_key ? s.counter_id : undefined) || s.counter_id || s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
         value: s.value ?? s.kpi_value ?? s.val,
         splitValue: s.dimension_key || s.split_value || undefined,
         splitValue2: s.split_field || undefined,

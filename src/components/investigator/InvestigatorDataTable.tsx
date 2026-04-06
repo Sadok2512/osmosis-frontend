@@ -53,7 +53,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     if (tsData.some(d => d.splitValue && /^(PMQAP|QCI|5QI|ARP)/i.test(d.splitValue))) return 'PMQAP';
     return 'Split';
   }, [activeSlot, tsData]);
-  const split2Label = activeSlot?.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
+  const split2Label = useMemo(() => {
+    const raw = activeSlot?.splitBy2 || activeSlot?.config?.splitByPerKpi2 && Object.values(activeSlot.config.splitByPerKpi2).find(v => v && v !== 'None');
+    if (!raw || raw === 'None') return 'Split 2';
+    const clean = (raw as string).replace('PM_DIM:', '');
+    // Friendly labels for common split dimensions
+    if (/^cell$/i.test(clean)) return 'Cell Name';
+    if (/^site$/i.test(clean)) return 'Site Name';
+    return clean;
+  }, [activeSlot]);
 
   // ── Build rows ──
   const { rows, columns } = useMemo(() => {
@@ -71,10 +79,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
       const cols = [
         'Timestamp',
-        'Network Element',
+        'Site',
         split1Label,
         ...(hasSplit2 ? [split2Label] : []),
-        'KPI Metric',
+        'KPI',
         'Value',
       ];
 
@@ -109,7 +117,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
       if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement;
     });
 
-    const cols = ['Timestamp', 'Network Element', ...kpis];
+    const cols = ['Timestamp', 'Site', ...kpis];
     const builtRows = timestamps.map((ts) => ({
       timestamp: fmt(ts),
       ne: neLookup[ts] || 'N/A',
