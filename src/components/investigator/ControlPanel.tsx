@@ -1324,13 +1324,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               onAdd={addFilterDimension}
               filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
             />
-            {activeFilterDims.filter(dim => !PM_DIMENSION_TYPES.has(dim) && !SCOPE_DIMENSIONS.has(dim)).length > 0 && (
+            {visibleFilterDims.length > 0 && (
               <button
                 onClick={() => {
-                  const stdDims = activeFilterDims.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d));
                   setState(prev => {
                     const nf = { ...prev.filters };
-                    stdDims.forEach(d => delete nf[d]);
+                    visibleFilterDims.forEach(d => delete nf[d]);
                     return { ...prev, filters: nf };
                   });
                 }}
@@ -1340,6 +1339,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </button>
             )}
           </div>
+            );
+          })()}
 
           {/* ── ROW 2: KPIs + Counters ── */}
           <div className="flex items-center gap-2 flex-wrap">
