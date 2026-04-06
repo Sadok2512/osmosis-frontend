@@ -1265,6 +1265,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
                     <div className="h-px bg-border/40" />
 
+                    {/* ── Display ── */}
+                    <div className="space-y-1.5">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Display</span>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-foreground">Table View</span>
+                          <Switch checked={cfg.showDataTable} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showDataTable: v })} className="scale-[0.65]" />
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-foreground">Breakdown</span>
+                          <Switch checked={cfg.showBreakdown} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showBreakdown: v })} className="scale-[0.65]" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border/40" />
+
                     {/* ── Chart Type ── */}
                     <div className="space-y-1.5">
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
