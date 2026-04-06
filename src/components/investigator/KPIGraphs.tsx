@@ -1038,8 +1038,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             return {
               ...s,
-              _kpiId: undefined, // don't pass internal prop to ECharts
-              yAxisIndex: hasRightAxis ? getYAxisIndex(seriesKpiId) : 0,
+              _kpiId: undefined,
+              // Counter series already have yAxisIndex set; for KPIs, use assignment logic
+              yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
                 focus: 'series' as const,
