@@ -235,8 +235,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   };
 
   const handleConfirm = () => {
-    // Fire axis assignments BEFORE onConfirm so consumers can capture them
-    onAxisAssignmentsChange?.(axisMap);
+    onAxisAssignmentsChange?.(axisMapRef.current);
     onConfirm(Array.from(selected));
     onClose();
   };
