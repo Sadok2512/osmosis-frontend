@@ -503,7 +503,7 @@ const JalonForm: React.FC<{
   );
 };
 
-/* ── Quick Dimension Selector (Vendor / Tech toggle pills) ── */
+/* ── Quick Scope Filter Popover (Vendor + Tech in one button) ── */
 const VENDOR_COLORS: Record<string, string> = {
   ERICSSON: 'hsl(210, 70%, 50%)',
   HUAWEI: 'hsl(0, 70%, 50%)',
@@ -519,53 +519,128 @@ const TECH_COLORS: Record<string, string> = {
   '2G': 'hsl(280, 40%, 50%)',
 };
 
-const QuickDimSelector: React.FC<{
-  label: string;
-  dimension: string;
+const ScopeFilterPopover: React.FC<{
   filters: Record<string, string[]>;
-  onToggle: (val: string) => void;
-  onClear: () => void;
-}> = ({ label, dimension, filters, onToggle, onClear }) => {
-  const allValues = useBackendFilterValues(dimension);
-  const selected = filters[dimension] || [];
-  const colorMap = dimension === 'Vendor' ? VENDOR_COLORS : TECH_COLORS;
-
-  if (allValues.length === 0) return null;
+  onToggle: (dim: string, val: string) => void;
+  onClear: (dim: string) => void;
+}> = ({ filters, onToggle, onClear }) => {
+  const vendorValues = useBackendFilterValues('Vendor');
+  const techValues = useBackendFilterValues('Technology');
+  const vendorSelected = filters['Vendor'] || [];
+  const techSelected = filters['Technology'] || [];
+  const totalActive = vendorSelected.length + techSelected.length;
 
   return (
-    <div className="flex items-center gap-1 shrink-0">
-      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mr-0.5">{label}</span>
-      <div className="flex items-center bg-card rounded-lg border border-border/40 p-0.5 gap-0.5">
-        {allValues.map(val => {
-          const isActive = selected.includes(val);
-          const accent = colorMap[val.toUpperCase()] || 'hsl(var(--primary))';
-          return (
-            <button
-              key={val}
-              onClick={() => onToggle(val)}
-              className={cn(
-                'px-2 py-1 rounded-md text-[10px] font-semibold transition-all relative',
-                isActive
-                  ? 'text-white shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
+          <Filter className="w-3 h-3 text-muted-foreground" />
+          Périmètre
+          {totalActive > 0 && (
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{totalActive}</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[300px] p-0" align="start">
+        <div className="px-4 pt-4 pb-2">
+          <div className="text-sm font-semibold text-foreground">Filtres de périmètre</div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Sélectionnez les critères pour affiner l'analyse</p>
+        </div>
+        <div className="px-4 pb-4 space-y-4">
+          {/* Vendor */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Vendor</span>
+              {vendorSelected.length > 0 && (
+                <button onClick={() => onClear('Vendor')} className="text-[9px] text-muted-foreground hover:text-destructive transition-colors">Effacer</button>
               )}
-              style={isActive ? { backgroundColor: accent } : undefined}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {vendorValues.map(val => {
+                const isActive = vendorSelected.includes(val);
+                const accent = VENDOR_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                return (
+                  <button
+                    key={val}
+                    onClick={() => onToggle('Vendor', val)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border',
+                      isActive
+                        ? 'text-white border-transparent shadow-sm'
+                        : 'text-foreground border-border bg-card hover:bg-accent/50'
+                    )}
+                    style={isActive ? { backgroundColor: accent, borderColor: accent } : undefined}
+                  >
+                    {val}
+                  </button>
+                );
+              })}
+              {vendorValues.length === 0 && <span className="text-[10px] text-muted-foreground italic">Chargement...</span>}
+            </div>
+          </div>
+
+          <div className="h-px bg-border/60" />
+
+          {/* Technology */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Technologie</span>
+              {techSelected.length > 0 && (
+                <button onClick={() => onClear('Technology')} className="text-[9px] text-muted-foreground hover:text-destructive transition-colors">Effacer</button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {techValues.map(val => {
+                const isActive = techSelected.includes(val);
+                const accent = TECH_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                return (
+                  <button
+                    key={val}
+                    onClick={() => onToggle('Technology', val)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border',
+                      isActive
+                        ? 'text-white border-transparent shadow-sm'
+                        : 'text-foreground border-border bg-card hover:bg-accent/50'
+                    )}
+                    style={isActive ? { backgroundColor: accent, borderColor: accent } : undefined}
+                  >
+                    {val}
+                  </button>
+                );
+              })}
+              {techValues.length === 0 && <span className="text-[10px] text-muted-foreground italic">Chargement...</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Active summary */}
+        {totalActive > 0 && (
+          <div className="border-t border-border/60 px-4 py-2.5 flex items-center justify-between bg-muted/30">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {vendorSelected.map(v => (
+                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                  {v}
+                  <button onClick={() => onToggle('Vendor', v)} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+              {techSelected.map(v => (
+                <span key={v} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold text-white" style={{ backgroundColor: TECH_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                  {v}
+                  <button onClick={() => onToggle('Technology', v)} className="hover:opacity-70"><X className="w-2.5 h-2.5" /></button>
+                </span>
+              ))}
+            </div>
+            <button
+              onClick={() => { onClear('Vendor'); onClear('Technology'); }}
+              className="text-[9px] text-muted-foreground hover:text-destructive transition-colors shrink-0 ml-2"
             >
-              {val}
+              Tout effacer
             </button>
-          );
-        })}
-        {selected.length > 0 && (
-          <button
-            onClick={onClear}
-            className="ml-0.5 p-0.5 rounded text-muted-foreground hover:text-destructive transition-colors"
-            title="Effacer"
-          >
-            <X className="w-3 h-3" />
-          </button>
+          </div>
         )}
-      </div>
-    </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
@@ -960,22 +1035,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Separator */}
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
-            {/* Quick Vendor selector */}
-            <QuickDimSelector
-              label="Vendor"
-              dimension="Vendor"
+            {/* Scope filter (Vendor + Tech) */}
+            <ScopeFilterPopover
               filters={state.filters}
-              onToggle={(val) => toggleFilterValue('Vendor', val)}
-              onClear={() => clearFilterValues('Vendor')}
-            />
-
-            {/* Quick Tech selector */}
-            <QuickDimSelector
-              label="Tech"
-              dimension="Technology"
-              filters={state.filters}
-              onToggle={(val) => toggleFilterValue('Technology', val)}
-              onClear={() => clearFilterValues('Technology')}
+              onToggle={(dim, val) => toggleFilterValue(dim, val)}
+              onClear={(dim) => clearFilterValues(dim)}
             />
 
             {/* Separator */}
