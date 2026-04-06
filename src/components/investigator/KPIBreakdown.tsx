@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import { fetchBreakdownData, fetchTimeSeriesData } from './investigatorApi';
+import { fetchBreakdownData } from './investigatorApi';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { DataPoint } from './types';
 import { BarChart3, TrendingUp, Calculator, Table2, Download } from 'lucide-react';
@@ -13,6 +13,7 @@ interface Props {
   dateTo?: string;
   filters?: { dimension: string; values: string[] }[];
   splitBy?: string;
+  timeSeriesData?: DataPoint[];
 }
 
 interface KpiExplain {
@@ -79,7 +80,6 @@ const CounterTable: React.FC<{
 
   return (
     <div className="rounded-xl border border-border/50 overflow-hidden h-full flex flex-col bg-card shadow-sm">
-      {/* Header */}
       <div className="px-4 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <Table2 className="w-4 h-4 text-primary" />
@@ -97,7 +97,6 @@ const CounterTable: React.FC<{
         </div>
       </div>
 
-      {/* Clickable column legend */}
       <div className="px-4 py-2 border-b border-border/30 bg-muted/10 flex flex-wrap gap-1.5 shrink-0">
         {kpis.map((k, i) => {
           const isSelected = selectedSeries.has(k);
@@ -126,7 +125,6 @@ const CounterTable: React.FC<{
         })}
       </div>
 
-      {/* Table */}
       <div className="overflow-auto flex-1">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
@@ -203,13 +201,31 @@ const CounterTable: React.FC<{
   );
 };
 
-const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0], filters = [], splitBy }) => {
+const KPIBreakdown: React.FC<Props> = ({
+  selectedKpis,
+  layout,
+  dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+  dateTo = new Date().toISOString().split('T')[0],
+  filters = [],
+  splitBy,
+  timeSeriesData = [],
+}) => {
   const cols = layout === 1 ? 1 : 2;
   const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
   const [explainData, setExplainData] = React.useState<Record<string, KpiExplain>>({});
-  const [counterTs, setCounterTs] = React.useState<Record<string, DataPoint[]>>({});
   const [activeView, setActiveView] = React.useState<Record<string, 'chart' | 'formula' | 'breakdown'>>({});
   const [selectedSeries, setSelectedSeries] = React.useState<Record<string, Set<string>>>({});
+
+  const uniqueKpiIds = React.useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
+  const counterTs = React.useMemo(
+    () => Object.fromEntries(
+      uniqueKpiIds.map((kpiId) => [
+        kpiId,
+        timeSeriesData.filter((point) => point.kpi === kpiId || point.kpi.startsWith(`${kpiId}@`)),
+      ])
+    ) as Record<string, DataPoint[]>,
+    [uniqueKpiIds, timeSeriesData]
+  );
 
   const breakdownDim = splitBy && splitBy !== 'None'
     ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
@@ -225,27 +241,21 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Da
   };
 
   React.useEffect(() => {
-    selectedKpis.forEach(kpiId => {
-      // Fetch breakdown (pie) — use active split or default to vendor
-      const breakdownDim = (splitBy && splitBy !== 'None') ? splitBy : 'vendor';
-      fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim, filters).then(slices => {
+    uniqueKpiIds.forEach(kpiId => {
+      const currentBreakdownDim = splitBy && splitBy !== 'None' ? splitBy : 'vendor';
+      fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
-
-      // Fetch timeseries for this KPI (daily) — forward filters + split
-      fetchTimeSeriesData([kpiId], dateFrom, dateTo, '1d', splitBy, filters).then(ts => {
-        setCounterTs(prev => ({ ...prev, [kpiId]: ts }));
-      }).catch(() => {});
       setActiveView(prev => ({ ...prev, [kpiId]: prev[kpiId] || 'chart' }));
     });
-  }, [selectedKpis, dateFrom, dateTo, filters, splitBy]);
+  }, [uniqueKpiIds, dateFrom, dateTo, filters, splitBy]);
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
-      {selectedKpis.filter(Boolean).map((kpiId, idx) => {
+      {uniqueKpiIds.map((kpiId, idx) => {
         const explain = explainData[kpiId];
         const slices = breakData[kpiId] || [];
         const ts = counterTs[kpiId] || [];
@@ -312,7 +322,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Da
 
         return (
           <div key={kpiId} className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-            {/* Header */}
             <div className="px-5 py-3.5 border-b border-border/40 bg-muted/15">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -351,7 +360,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Da
               )}
             </div>
 
-            {/* Content */}
             <div className="p-5" style={{ backgroundColor: '#ffffff' }}>
               {view === 'chart' && (
                 <div>
@@ -415,7 +423,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Da
 
               {view === 'breakdown' && (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5" style={{ minHeight: layout === 1 ? 340 : 260 }}>
-                  {/* Left: Breakdown graph */}
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2 mb-3">
                       <BarChart3 className="w-4 h-4 text-primary" />
@@ -432,7 +439,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Da
                     )}
                   </div>
 
-                  {/* Right: Interactive Excel-like table */}
                   <CounterTable
                     ts={ts}
                     kpiLabel={explain?.display_name || kpiId}
