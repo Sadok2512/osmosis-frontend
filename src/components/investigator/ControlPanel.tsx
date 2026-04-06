@@ -835,7 +835,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
-  const [editingJalon, setEditingJalon] = useState<Jalon | null>(null);
+  // editingJalon state removed — managed inside JalonsManagerPopup
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
