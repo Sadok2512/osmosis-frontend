@@ -738,6 +738,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               return [{
                 name: def.label,
                 _kpiId: kpiId,
+                _splitValue: undefined,
+                _splitValue2: undefined,
+                _networkElement: undefined,
                 connectNulls: true,
                 type: sp.seriesType as any,
                 data: values,
@@ -760,7 +763,58 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }];
             }
 
-            // Split KPI: one series per split value — stable colors per dimension value
+            // Detect double split data for this KPI
+            const hasDouble = kpiData.some(d => d.splitValue2);
+
+            if (hasDouble) {
+              // Double split: one series per (splitValue, splitValue2) combination
+              const combos = new Map<string, { sv1: string; sv2: string }>();
+              for (const d of kpiData) {
+                const sv1 = d.splitValue || 'N/A';
+                const sv2 = d.splitValue2 || 'N/A';
+                const key = `${sv1}@${sv2}`;
+                if (!combos.has(key)) combos.set(key, { sv1, sv2 });
+              }
+              return Array.from(combos.entries()).map(([comboKey, { sv1, sv2 }]) => {
+                const color = stableColorForSplit(comboKey);
+                const comboData = kpiData.filter(d => (d.splitValue || 'N/A') === sv1 && (d.splitValue2 || 'N/A') === sv2);
+                const dataMap = new Map(comboData.map(d => [d.timestamp, d.value]));
+                const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+                const seriesName = kpiIds.length > 1
+                  ? `${def.label} — ${sv1} / ${sv2}`
+                  : `${sv1} / ${sv2}`;
+                const ne = comboData.find(d => d.networkElement)?.networkElement;
+                const sp = getSeriesProps(kpiId);
+                return {
+                  name: seriesName,
+                  _kpiId: kpiId,
+                  _splitValue: sv1,
+                  _splitValue2: sv2,
+                  _networkElement: ne,
+                  connectNulls: true,
+                  type: sp.seriesType as any,
+                  data: values,
+                  smooth: sp.isSmooth,
+                  symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                  symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                  lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                  itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                  barMaxWidth: 20,
+                  stack: sp.isStacked ? 'total' : undefined,
+                  areaStyle: sp.showArea ? {
+                    color: {
+                      type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                      colorStops: [
+                        { offset: 0, color: `${color}20` },
+                        { offset: 1, color: `${color}02` },
+                      ],
+                    },
+                  } : undefined,
+                };
+              });
+            }
+
+            // Single split KPI: one series per split value — stable colors per dimension value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))].sort();
             return splitValues.map((sv) => {
               const color = stableColorForSplit(sv, kpiId);
@@ -768,11 +822,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
+              const ne = svData.find(d => d.networkElement)?.networkElement;
 
               const sp = getSeriesProps(kpiId);
               return {
                 name: seriesName,
                 _kpiId: kpiId,
+                _splitValue: sv,
+                _splitValue2: undefined,
+                _networkElement: ne,
                 connectNulls: true,
                 type: sp.seriesType as any,
                 data: values,
@@ -807,6 +865,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             return {
               name: def.label,
               _kpiId: kpiId,
+              _splitValue: undefined,
+              _splitValue2: undefined,
+              _networkElement: undefined,
               connectNulls: true,
               type: sp.seriesType as any,
               data: values,
