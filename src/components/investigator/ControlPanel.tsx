@@ -426,17 +426,39 @@ const FilterChip: React.FC<{
 
 const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-/* ── Jalon Form ── */
-const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
-  const [date, setDate] = useState('');
-  const [label, setLabel] = useState('');
-  const [color, setColor] = useState(JALON_COLORS[0]);
+/* ── Jalon Form (add + edit) ── */
+const JalonForm: React.FC<{
+  onAdd: (j: Jalon) => void;
+  editJalon?: Jalon | null;
+  onUpdate?: (j: Jalon) => void;
+  onCancelEdit?: () => void;
+}> = ({ onAdd, editJalon, onUpdate, onCancelEdit }) => {
+  const [date, setDate] = useState(editJalon?.date || '');
+  const [label, setLabel] = useState(editJalon?.label || '');
+  const [color, setColor] = useState(editJalon?.color || JALON_COLORS[0]);
 
-  const handleAdd = () => {
+  useEffect(() => {
+    if (editJalon) {
+      setDate(editJalon.date);
+      setLabel(editJalon.label);
+      setColor(editJalon.color);
+    } else {
+      setDate('');
+      setLabel('');
+      setColor(JALON_COLORS[0]);
+    }
+  }, [editJalon]);
+
+  const handleSubmit = () => {
     if (!date || !label) return;
-    onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+    if (editJalon && onUpdate) {
+      onUpdate({ ...editJalon, date, label, color });
+    } else {
+      onAdd({ id: `jalon-${Date.now()}`, date, label, color });
+    }
     setDate('');
     setLabel('');
+    setColor(JALON_COLORS[0]);
   };
 
   return (
@@ -462,9 +484,20 @@ const JalonForm: React.FC<{ onAdd: (j: Jalon) => void }> = ({ onAdd }) => {
             style={{ backgroundColor: c }}
           />
         ))}
-        <Button size="sm" className="h-6 text-[10px] px-3 ml-auto" onClick={handleAdd} disabled={!date || !label}>
-          <Plus className="w-3 h-3 mr-1" /> Ajouter
-        </Button>
+        <div className="ml-auto flex items-center gap-1">
+          {editJalon && onCancelEdit && (
+            <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={onCancelEdit}>
+              Annuler
+            </Button>
+          )}
+          <Button size="sm" className="h-6 text-[10px] px-3" onClick={handleSubmit} disabled={!date || !label}>
+            {editJalon ? (
+              <><Check className="w-3 h-3 mr-1" /> Modifier</>
+            ) : (
+              <><Plus className="w-3 h-3 mr-1" /> Ajouter</>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
