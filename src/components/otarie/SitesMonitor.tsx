@@ -6091,7 +6091,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
+        {/* At low zoom with many sites → cluster markers for performance */}
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && viewport.zoom < 7 && renderSites.length > 100 && (
+          <MarkerClusterGroup
+            chunkedLoading
+            maxClusterRadius={60}
+            disableClusteringAtZoom={8}
+            spiderfyOnMaxZoom={false}
+            showCoverageOnHover={false}
+            iconCreateFunction={createClusterCustomIcon}
+          >
+            {renderSites.map(site => {
+              const { has5G } = inferSiteTechState(site);
+              const color = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
+              return (
+                <Marker
+                  key={`cl_${site.site_id}`}
+                  position={site.coordinates}
+                  icon={createSiteIcon(getColorViewFill(site) || color)}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                  }}
+                />
+              );
+            })}
+          </MarkerClusterGroup>
+        )}
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && !(viewport.zoom < 7 && renderSites.length > 100) && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
