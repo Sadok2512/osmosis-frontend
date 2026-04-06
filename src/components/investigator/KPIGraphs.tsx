@@ -648,7 +648,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
-        // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel")
+        // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel" or "kpi@split1@split2")
         // and keep slot isolation when Apply fetched multiple slots at once.
         const slotData = data.filter((d: any) => {
           const matchesSlot = d._slotId == null || d._slotId === slot.id;
@@ -658,12 +658,19 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
+        const splitByPerKpi2 = cfg.splitByPerKpi2 || {};
         const slotSplit = slot.splitBy && slot.splitBy !== 'None';
+        const slotSplit2 = slot.splitBy2 && slot.splitBy2 !== 'None';
         const hasPerKpiSplit = kpiIds.some(id => {
           const p = splitByPerKpi[id];
           return p && p !== 'None';
         });
+        const hasPerKpiSplit2 = kpiIds.some(id => {
+          const p = splitByPerKpi2[id];
+          return p && p !== 'None';
+        });
         const hasSplit = slotSplit || hasPerKpiSplit;
+        const hasDoubleSplit = (slotSplit && slotSplit2) || (hasPerKpiSplit && hasPerKpiSplit2);
         const getKpiHasSplit = (kpiId: string) => {
           if (slotSplit) return true;
           const perKpi = splitByPerKpi[kpiId];
@@ -671,12 +678,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         };
 
         // Filter data: if no split configured, aggregate (ignore splitValue)
-        // If split is configured but no data has splitValue (backend returned non-split fallback),
-        // fall back to non-split display instead of showing empty graph
         const hasSplitData = hasSplit && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        const hasDoubleSplitData = hasDoubleSplit && slotData.some(d => d.splitValue2);
         const effectiveData = hasSplitData
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
-          : slotData.map(d => ({ ...d, splitValue: undefined }));
+          : slotData.map(d => ({ ...d, splitValue: undefined, splitValue2: undefined }));
 
         // Fix #3: Use slot's effective context (dates/granularity) instead of global state
         const globalState = useInvestigatorStore.getState().state;
@@ -732,6 +738,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               return [{
                 name: def.label,
                 _kpiId: kpiId,
+                _splitValue: undefined,
+                _splitValue2: undefined,
+                _networkElement: undefined,
                 connectNulls: true,
                 type: sp.seriesType as any,
                 data: values,
@@ -754,7 +763,58 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }];
             }
 
-            // Split KPI: one series per split value — stable colors per dimension value
+            // Detect double split data for this KPI
+            const hasDouble = kpiData.some(d => d.splitValue2);
+
+            if (hasDouble) {
+              // Double split: one series per (splitValue, splitValue2) combination
+              const combos = new Map<string, { sv1: string; sv2: string }>();
+              for (const d of kpiData) {
+                const sv1 = d.splitValue || 'N/A';
+                const sv2 = d.splitValue2 || 'N/A';
+                const key = `${sv1}@${sv2}`;
+                if (!combos.has(key)) combos.set(key, { sv1, sv2 });
+              }
+              return Array.from(combos.entries()).map(([comboKey, { sv1, sv2 }]) => {
+                const color = stableColorForSplit(comboKey);
+                const comboData = kpiData.filter(d => (d.splitValue || 'N/A') === sv1 && (d.splitValue2 || 'N/A') === sv2);
+                const dataMap = new Map(comboData.map(d => [d.timestamp, d.value]));
+                const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
+                const seriesName = kpiIds.length > 1
+                  ? `${def.label} — ${sv1} / ${sv2}`
+                  : `${sv1} / ${sv2}`;
+                const ne = comboData.find(d => d.networkElement)?.networkElement;
+                const sp = getSeriesProps(kpiId);
+                return {
+                  name: seriesName,
+                  _kpiId: kpiId,
+                  _splitValue: sv1,
+                  _splitValue2: sv2,
+                  _networkElement: ne,
+                  connectNulls: true,
+                  type: sp.seriesType as any,
+                  data: values,
+                  smooth: sp.isSmooth,
+                  symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
+                  symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                  lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
+                  itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+                  barMaxWidth: 20,
+                  stack: sp.isStacked ? 'total' : undefined,
+                  areaStyle: sp.showArea ? {
+                    color: {
+                      type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                      colorStops: [
+                        { offset: 0, color: `${color}20` },
+                        { offset: 1, color: `${color}02` },
+                      ],
+                    },
+                  } : undefined,
+                };
+              });
+            }
+
+            // Single split KPI: one series per split value — stable colors per dimension value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))].sort();
             return splitValues.map((sv) => {
               const color = stableColorForSplit(sv, kpiId);
@@ -762,11 +822,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
+              const ne = svData.find(d => d.networkElement)?.networkElement;
 
               const sp = getSeriesProps(kpiId);
               return {
                 name: seriesName,
                 _kpiId: kpiId,
+                _splitValue: sv,
+                _splitValue2: undefined,
+                _networkElement: ne,
                 connectNulls: true,
                 type: sp.seriesType as any,
                 data: values,
@@ -801,6 +865,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             return {
               name: def.label,
               _kpiId: kpiId,
+              _splitValue: undefined,
+              _splitValue2: undefined,
+              _networkElement: undefined,
               connectNulls: true,
               type: sp.seriesType as any,
               data: values,
@@ -1102,7 +1169,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
               const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
 
-              // Group items: detect split series (name contains " — ") for total row
+              // Group items: detect split series for total row
+              // Also show split/NE details in tooltip
               const rows: string[] = [];
               let splitTotal = 0;
               let splitCount = 0;
@@ -1111,9 +1179,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
                 const unit = matchedDef?.unit || '';
                 const val = p.value != null ? p.value.toFixed(2) : '—';
-                const isSplit = p.seriesName?.includes(' — ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
+                const isSplit = p.seriesName?.includes(' — ') || p.seriesName?.includes(' / ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
                 if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
-                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px">${p.seriesName}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
+                // Find matching series metadata for NE info
+                const matchedSeries = option.series?.find((s: any) => s.name === p.seriesName);
+                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,0.15);padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
+                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
               }
               // Add total row for split series
               const totalRow = splitCount > 1
@@ -1144,7 +1215,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             return {
               ...s,
-              _kpiId: undefined,
+              // Keep _kpiId, _splitValue, _splitValue2, _networkElement for table/tooltip
               // Counter series already have yAxisIndex set; for KPIs, use assignment logic
               yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
@@ -1364,33 +1435,112 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }}
             />
 
-            {/* Data Table View */}
-            {cfg.showDataTable && option?.series?.length > 0 && (
-              <div className="mt-2 overflow-auto max-h-[200px] rounded-lg border border-border/40">
-                <table className="w-full text-[10px]">
-                  <thead>
-                    <tr className="bg-muted/40 sticky top-0">
-                      <th className="text-left px-2 py-1.5 font-bold text-muted-foreground">Date</th>
-                      {option.series.map((s: any, i: number) => (
-                        <th key={i} className="text-right px-2 py-1.5 font-bold text-muted-foreground truncate max-w-[120px]">{s.name}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(option.xAxis?.[0]?.data || []).map((date: string, ri: number) => (
-                      <tr key={ri} className="border-t border-border/20 hover:bg-muted/20">
-                        <td className="px-2 py-1 font-mono text-muted-foreground">{date}</td>
-                        {option.series.map((s: any, si: number) => (
-                          <td key={si} className="text-right px-2 py-1 font-mono">
-                            {s.data?.[ri] != null ? Number(s.data[ri]).toFixed(2) : '—'}
-                          </td>
+            {/* Data Table View — with split/NE columns when applicable */}
+            {cfg.showDataTable && option?.series?.length > 0 && (() => {
+              const hasSplitCols = option.series.some((s: any) => s._splitValue);
+              const hasSplit2Cols = option.series.some((s: any) => s._splitValue2);
+              const hasNeCols = option.series.some((s: any) => s._networkElement);
+              const xData = option.xAxis?.data || (Array.isArray(option.xAxis) ? option.xAxis[0]?.data : []) || [];
+
+              // For split tables, restructure: one row per (timestamp, split combo)
+              if (hasSplitCols) {
+                // Collect unique KPI base names
+                const kpiBaseIds = Array.from(new Set(option.series.map((s: any) => String(s._kpiId || '')).filter((v: string) => v))) as string[];
+                const kpiLabels: string[] = kpiBaseIds.map((id: string) => {
+                  const d = getDef(id);
+                  return d?.label || id;
+                });
+                // Get split label from slot config
+                const split1Label = slot.splitBy?.replace('PM_DIM:', '') || 'Split 1';
+                const split2Label = slot.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
+
+                return (
+                  <div className="mt-2 overflow-auto max-h-[260px] rounded-lg border border-border/40">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="bg-muted/40 sticky top-0 z-10">
+                          <th className="text-left px-2 py-1.5 font-bold text-muted-foreground whitespace-nowrap">Date</th>
+                          <th className="text-left px-2 py-1.5 font-bold text-muted-foreground whitespace-nowrap">{split1Label}</th>
+                          {hasSplit2Cols && (
+                            <th className="text-left px-2 py-1.5 font-bold text-muted-foreground whitespace-nowrap">{split2Label}</th>
+                          )}
+                          {hasNeCols && (
+                            <th className="text-left px-2 py-1.5 font-bold text-muted-foreground whitespace-nowrap">Network Element</th>
+                          )}
+                          {kpiLabels.map((label, i) => (
+                            <th key={i} className="text-right px-2 py-1.5 font-bold text-muted-foreground truncate max-w-[120px]">{label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {xData.map((date: string, ri: number) => {
+                          // For each timestamp, render one row per series (split combo)
+                          const seriesAtRow = option.series.filter((s: any) => s.data?.[ri] != null);
+                          if (seriesAtRow.length === 0) return null;
+                          return seriesAtRow.map((s: any, si: number) => (
+                            <tr key={`${ri}-${si}`} className="border-t border-border/20 hover:bg-muted/20">
+                              {si === 0 ? (
+                                <td className="px-2 py-1 font-mono text-muted-foreground" rowSpan={seriesAtRow.length}>{date}</td>
+                              ) : null}
+                              <td className="px-2 py-1 text-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.itemStyle?.color || '#6366f1' }} />
+                                  {s._splitValue || '—'}
+                                </span>
+                              </td>
+                              {hasSplit2Cols && (
+                                <td className="px-2 py-1 text-foreground">{s._splitValue2 || '—'}</td>
+                              )}
+                              {hasNeCols && (
+                                <td className="px-2 py-1 text-foreground font-mono">{s._networkElement || 'N/A'}</td>
+                              )}
+                              {kpiBaseIds.map((kpiId, ki) => {
+                                // Find the series matching this kpiId for this split combo
+                                const matchSeries = s._kpiId === kpiId ? s : null;
+                                const val = matchSeries?.data?.[ri];
+                                return (
+                                  <td key={ki} className="text-right px-2 py-1 font-mono">
+                                    {val != null ? Number(val).toFixed(2) : '—'}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ));
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+
+              // Non-split table — original flat layout
+              return (
+                <div className="mt-2 overflow-auto max-h-[200px] rounded-lg border border-border/40">
+                  <table className="w-full text-[10px]">
+                    <thead>
+                      <tr className="bg-muted/40 sticky top-0">
+                        <th className="text-left px-2 py-1.5 font-bold text-muted-foreground">Date</th>
+                        {option.series.map((s: any, i: number) => (
+                          <th key={i} className="text-right px-2 py-1.5 font-bold text-muted-foreground truncate max-w-[120px]">{s.name}</th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {xData.map((date: string, ri: number) => (
+                        <tr key={ri} className="border-t border-border/20 hover:bg-muted/20">
+                          <td className="px-2 py-1 font-mono text-muted-foreground">{date}</td>
+                          {option.series.map((s: any, si: number) => (
+                            <td key={si} className="text-right px-2 py-1 font-mono">
+                              {s.data?.[ri] != null ? Number(s.data[ri]).toFixed(2) : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
 
             {/* KPI Breakdown — raw counters composing the KPI */}
             {cfg.showBreakdown && kpiIds.length > 0 && (

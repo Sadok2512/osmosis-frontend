@@ -119,6 +119,10 @@ export interface DataPoint {
   kpi: string;
   value: number;
   splitValue?: string;
+  /** Second split dimension value (for double split / cross-tabulation) */
+  splitValue2?: string;
+  /** Network Element identifier extracted from split data */
+  networkElement?: string;
 }
 
 export interface CellAlarms {

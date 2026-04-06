@@ -51,6 +51,14 @@ function determineHigherIsBetter(k: any): boolean {
   return true;
 }
 
+/** Detect if a split value represents a Network Element (Cell/Site) */
+function detectNetworkElement(sv1?: string, sv2?: string, split1?: string, split2?: string): string | undefined {
+  const NE_DIMS = ['CELL', 'SITE', 'NETWORK_ELEMENT', 'NE'];
+  if (split1 && NE_DIMS.includes(split1.replace('PM_DIM:', '').toUpperCase()) && sv1) return sv1;
+  if (split2 && NE_DIMS.includes(split2.replace('PM_DIM:', '').toUpperCase()) && sv2) return sv2;
+  return undefined;
+}
+
 // ── Fetch KPI computed on-the-fly from Parser (formula applied in SQL) ──
 async function fetchKpiComputeOnTheFly(
   kpiId: string,
@@ -474,12 +482,24 @@ export async function fetchTimeSeriesForSlot(
     const data = await res.json();
     kpiSeries = data.series || [];
     const noSplitRequested = !ctx.splitBy;
-    kpiResults = kpiSeries.map((s: any) => ({
-      timestamp: s.ts,
-      kpi: s.kpi_key,
-      value: s.value,
-      splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
-    }));
+    kpiResults = kpiSeries.map((s: any) => {
+      const sv1 = noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value);
+      const sv2 = s.split_value_2 && s.split_value_2 !== 'ALL' ? s.split_value_2 : undefined;
+      // Build composite kpi key for double split
+      let kpiKey = s.kpi_key;
+      if (sv1) kpiKey += `@${sv1}`;
+      if (sv2) kpiKey += `@${sv2}`;
+      // Detect network element from split values
+      const ne = detectNetworkElement(sv1, sv2, ctx.splitBy, ctx.splitBy2);
+      return {
+        timestamp: s.ts,
+        kpi: kpiKey,
+        value: s.value,
+        splitValue: sv1,
+        splitValue2: sv2,
+        networkElement: ne || (s.cell_name || s.network_element || undefined),
+      };
+    });
   } else {
     console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
   }
