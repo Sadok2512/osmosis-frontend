@@ -1468,10 +1468,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           {CHART_TYPES.map(ct => (
                             <button
                               key={ct.value}
-                              onClick={() => setSlotConfig({ chartType: ct.value })}
+                              onClick={() => setSlotConfig({ chartTypePerKpi: { ...(cfg.chartTypePerKpi || {}), [kpiIdItem]: ct.value } })}
                               className={cn(
                                 'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                                cfg.chartType === ct.value
+                                (cfg.chartTypePerKpi?.[kpiIdItem] || cfg.chartType) === ct.value
                                   ? 'border-primary/40 bg-primary/10 text-primary'
                                   : 'border-border/40 text-muted-foreground hover:bg-muted/50'
                               )}
