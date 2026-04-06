@@ -107,28 +107,32 @@ const InvestigatorPage: React.FC = () => {
 
     // Require at least one KPI in a graph slot
     const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
-    if (slotsWithKpis.length === 0) {
+
+    // Only query the active slot (avoid redundant requests for inactive slots)
+    const activeSlot = activeSlotId
+      ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
+      : slotsWithKpis[0];
+
+    if (!activeSlot) {
       setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
       return;
     }
 
     setApplyError(null);
     setIsApplying(true);
-    setTsData([]);  // Clear old data before fetching new
+    setTsData([]);
     setHasUnfilteredFallback(false);
     try {
+      const slotContexts = [{
+        slot: activeSlot,
+        ctx: resolveSlotContext(activeSlot, state),
+      }];
 
-      // Bug #1 + #2: Issue separate requests per slot (respects per-slot splits, filters, dates)
-      // Group slots by their effective split dimension to minimize requests
-      const slotContexts = slotsWithKpis.map(slot => ({
-        slot,
-        ctx: resolveSlotContext(slot, state),
-      }));
-
-      console.log('[Investigator] Slots:', slotContexts.map(s => ({
-        kpis: s.ctx.kpiIds, dateFrom: s.ctx.dateFrom, dateTo: s.ctx.dateTo,
-        gran: s.ctx.granularity, filters: s.ctx.filters,
-      })));
+      console.log('[Investigator] Active slot:', {
+        kpis: slotContexts[0].ctx.kpiIds, dateFrom: slotContexts[0].ctx.dateFrom,
+        dateTo: slotContexts[0].ctx.dateTo, gran: slotContexts[0].ctx.granularity,
+        splitBy: slotContexts[0].ctx.splitBy, filters: slotContexts[0].ctx.filters,
+      });
 
       const results = await Promise.all(
         slotContexts.map(async ({ ctx }) => {
