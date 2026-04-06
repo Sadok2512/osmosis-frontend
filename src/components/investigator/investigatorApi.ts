@@ -237,11 +237,15 @@ async function fetchCounterTimeSeriesFallback(
     }
 
     const data = await res.json();
+    console.log('[CounterFallback] Response keys:', Object.keys(data), 'series count:', (data.series || []).length, 'data count:', (data.data || []).length);
+    // Handle multiple response formats: { series: [...] } or { data: [...] } or { timeseries: [...] }
+    const rawSeries = data.series || data.data || data.timeseries || [];
     return {
-      data: (data.series || []).map((s: any) => ({
-        timestamp: s.ts,
-        kpi: s.counter,
-        value: s.value,
+      data: rawSeries.map((s: any) => ({
+        timestamp: s.ts || s.timestamp || s.date,
+        kpi: s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
+        value: s.value ?? s.kpi_value ?? s.val,
+        splitValue: s.dimension_key || s.split_value || undefined,
         _isRawFallback: true,
       })),
       isUnfiltered: false,
