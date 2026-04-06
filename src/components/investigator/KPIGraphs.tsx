@@ -890,9 +890,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           xAxis: end.xAxis,
         }]);
 
-        // Smart x-axis interval: keep labels horizontal, show ~8-12 ticks max
-        const totalPts = allTimestamps.length;
-        const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
+        // Smart x-axis interval
+        const xInterval = smartXInterval(allTimestamps.length);
 
         // Determine if we need a right Y-axis
         const yAxisAssignments = cfg.yAxisAssignments || {};
