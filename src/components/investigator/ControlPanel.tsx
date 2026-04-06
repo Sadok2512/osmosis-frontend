@@ -893,6 +893,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   // Detect PM dimension types from selected KPIs → add to filter dimensions
   const activePmDimensions = useMemo(() => {
     const dims = new Set<string>();
+    const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
+    // 1. Check KPI definitions (from KPI Engine) for dimension_type
     for (const slot of state.graphSlots) {
       for (const kpiId of slot.kpiIds) {
         const def = kpiDefs.find(k => k.id === kpiId);
@@ -901,8 +903,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         }
       }
     }
+    // 2. Fallback: if KPI Engine didn't provide dimension_type (e.g. VPS 502),
+    //    expose all PM dimension types found in counter catalog when KPIs are selected
+    if (dims.size === 0 && hasKpis && counterCatalog.length > 0) {
+      for (const c of counterCatalog) {
+        if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type)) {
+          dims.add(c.dimension_type);
+        }
+      }
+    }
     return dims;
-  }, [state.graphSlots, kpiDefs]);
+  }, [state.graphSlots, kpiDefs, counterCatalog]);
 
   // Load PM dimension values based on selected KPIs' dimension types
   const primaryKpiDimType = useMemo(() => {
