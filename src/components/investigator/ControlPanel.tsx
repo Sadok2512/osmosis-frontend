@@ -563,7 +563,7 @@ const ScopeFilterPopover: React.FC<{
             <div className="flex flex-wrap gap-1.5">
               {vendorValues.map(val => {
                 const isActive = vendorSelected.includes(val);
-                const accent = VENDOR_COLORS[val.toUpperCase()] || 'hsl(var(--primary))';
+                const accent = vendorHsl(val);
                 return (
                   <button
                     key={val}
