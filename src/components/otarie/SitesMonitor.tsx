@@ -75,7 +75,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -3086,7 +3086,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
-  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | null>(null);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | 'profile' | null>(null);
+  const [profileTarget, setProfileTarget] = useState<[number, number] | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileData, setProfileData] = useState<{ points: any[]; analysis: any } | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
@@ -3110,6 +3113,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (activeMapTool !== 'radius') {
       setRadiusCenter(null);
     }
+    if (activeMapTool !== 'profile') {
+      setProfileTarget(null);
+      setProfileData(null);
+    }
   }, [activeMapTool, distanceMeasurePoints.length]);
 
   const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
@@ -3132,7 +3139,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { azimuth, label };
   }, [distanceMeasurePoints]);
 
-  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius') => {
+  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius' | 'profile') => {
     setDistanceMeasurePoints([]);
     setRadiusCenter(null);
     setRadiusConfirmed(false);
@@ -3140,7 +3147,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setRadiusConfirmedMeters(0);
     setPolygonPoints([]);
     setPolygonClosed(false);
+    setProfileTarget(null);
+    setProfileData(null);
     setActiveMapTool(prev => (prev === tool ? null : tool));
+  }, []);
+
+  const handleProfileClick = useCallback((latlng: LatLng) => {
+    setProfileTarget([latlng.lat, latlng.lng]);
   }, []);
 
   const handleRadiusSetCenter = useCallback((latlng: LatLng) => {
@@ -3542,10 +3555,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const linkFresnel = useFresnel(linkProfilePoints, linkProfileAnalysis, linkTotalDistance, 1.8, linkEnableFresnel);
 
+  // ── Cell Profile Tool (terrain profile from cell to clicked point) ──
+  const { loading: cellProfileLoading, profilePoints: cellProfilePoints, analysis: cellProfileAnalysis, computeProfile: cellProfileCompute } = useTerrainProfile();
+  const cellProfileFresnel = useFresnel(cellProfilePoints, cellProfileAnalysis, (() => {
+    if (!profileTarget || !selectedSiteSnapshot) return 0;
+    const coords = selectedSiteSnapshot.coordinates;
+    return haversineDistance({ lat: coords[0], lng: coords[1] }, { lat: profileTarget[0], lng: profileTarget[1] });
+  })(), 1.8, true);
+
+  // Auto-compute profile when target is set
+  useEffect(() => {
+    if (!profileTarget || !focusCellId) return;
+    const site = siteDetail || selectedSiteSnapshot;
+    if (!site) return;
+    const cell = site.cells.find((c: CellProperties) => c.cell_id === focusCellId);
+    const coords = site.coordinates;
+    const hba = cell?.hba ?? 30;
+    const az = cell?.azimut ?? 0;
+    cellProfileCompute(
+      { lat: coords[0], lng: coords[1] },
+      { lat: profileTarget[0], lng: profileTarget[1] },
+      { hba, mechTilt: 0, elecTilt: 0, totalTilt: (cell as any)?.tilt ?? 0, azimuth: az, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: hba },
+      true
+    );
+  }, [profileTarget, focusCellId, siteDetail, selectedSiteSnapshot, cellProfileCompute]);
+
   const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
     const fromLL = { lat: coords.from[0], lng: coords.from[1] };
     const toLL = { lat: coords.to[0], lng: coords.to[1] };
-    // Compute actual bearing so azimuth analysis is correct for point-to-point links
     const linkBearing = Math.round(bearing(fromLL, toLL) * 10) / 10;
     linkComputeProfile(
       fromLL,
@@ -5568,6 +5605,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
         <RadiusClickHandler active={activeMapTool === 'radius'} center={radiusCenter} confirmed={radiusConfirmed} onSetCenter={handleRadiusSetCenter} onConfirm={handleRadiusConfirm} onPreview={handleRadiusPreview} />
         <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
+        <DistanceMeasureClickHandler active={activeMapTool === 'profile'} onPick={handleProfileClick} />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
@@ -5649,6 +5687,28 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </Polyline>
         )}
+
+        {/* ── Profile tool line ── */}
+        {activeMapTool === 'profile' && profileTarget && selectedSiteSnapshot && (() => {
+          const siteCoords = selectedSiteSnapshot.coordinates;
+          const dist = haversineDistance({ lat: siteCoords[0], lng: siteCoords[1] }, { lat: profileTarget[0], lng: profileTarget[1] });
+          const fmtDist = dist >= 1000 ? `${(dist / 1000).toFixed(2)} km` : `${Math.round(dist)} m`;
+          return (
+            <>
+              <Polyline
+                positions={[siteCoords, profileTarget]}
+                pathOptions={{ color: 'hsl(280, 70%, 60%)', weight: 2.5, opacity: 0.85, dashArray: '8 4' }}
+              >
+                <Tooltip direction="center" permanent className="profile-distance-tooltip">
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(280, 70%, 60%)', textShadow: '0 0 4px #fff, 0 0 8px #fff' }}>
+                    {fmtDist}
+                  </span>
+                </Tooltip>
+              </Polyline>
+              <CircleMarker center={profileTarget} radius={5} pathOptions={{ fillColor: 'hsl(280, 70%, 60%)', fillOpacity: 1, color: '#fff', weight: 2 }} />
+            </>
+          );
+        })()}
 
         {/* ── Radius tool ── */}
         {activeMapTool === 'radius' && radiusCenter && (() => {
@@ -7078,6 +7138,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
             {activeMapTool === 'radius' && (!radiusCenter ? '🎯 Cliquez pour placer le centre' : !radiusConfirmed ? '🎯 Déplacez la souris et cliquez pour fixer le rayon' : '✅ Rayon fixé — cliquez pour recommencer')}
+            {activeMapTool === 'profile' && (profileTarget ? '✅ Profil calculé — cliquez ailleurs pour recalculer' : '⛰️ Cliquez sur la carte pour tracer le profil terrain')}
           </div>
         </div>
       )}
@@ -10033,6 +10094,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <h4 className="text-[14px] font-extrabold text-foreground font-mono truncate">{cell.cell_id}</h4>
                         <div className="text-[11px] text-muted-foreground">{cell.techno} • {cell.bande} MHz • Az {cell.azimut}°</div>
                       </div>
+                      <button
+                        onClick={() => {
+                          handleMapToolToggle('profile');
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${
+                          activeMapTool === 'profile'
+                            ? 'bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/40'
+                            : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                        title="Profil terrain depuis cette cellule"
+                      >
+                        <Mountain size={13} />
+                        Profil
+                      </button>
                       <button onClick={handleBackToSite} className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
                         ✕
                       </button>
@@ -10094,6 +10169,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Terrain Profile Chart ── */}
+                    {activeMapTool === 'profile' && profileTarget && cellProfilePoints.length > 0 && cellProfileAnalysis && (
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Mountain size={12} className="text-purple-400" />
+                          Profil Terrain
+                        </h5>
+                        <div className="rounded-xl border border-border overflow-hidden bg-card" style={{ height: 220 }}>
+                          <ProfileChart
+                            profilePoints={cellProfilePoints}
+                            analysis={cellProfileAnalysis}
+                            fresnel={cellProfileFresnel}
+                            showFresnel={true}
+                            showCurvature={true}
+                            siteName={cell.cell_id}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span>LOS: <span className={`font-bold ${cellProfileAnalysis.isLOS ? 'text-emerald-500' : 'text-destructive'}`}>
+                            {cellProfileAnalysis.isLOS ? 'Dégagé' : 'Obstrué'}
+                          </span></span>
+                          <span>Clearance: <span className="font-bold text-foreground">{cellProfileAnalysis.clearanceMin?.toFixed(1) ?? '—'} m</span></span>
+                        </div>
+                      </div>
+                    )}
+                    {activeMapTool === 'profile' && cellProfileLoading && (
+                      <div className="flex items-center gap-2 py-4">
+                        <RefreshCw size={14} className="text-purple-400 animate-spin" />
+                        <span className="text-[11px] text-muted-foreground font-medium">Calcul du profil terrain...</span>
+                      </div>
+                    )}
+                    {activeMapTool === 'profile' && !profileTarget && (
+                      <div className="py-3 px-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300 font-medium">
+                        ⛰️ Cliquez sur la carte pour tracer le profil terrain depuis cette cellule
+                      </div>
+                    )}
                   </div>
                 );
               })()}
