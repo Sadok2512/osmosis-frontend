@@ -538,17 +538,15 @@ const InvestigatorPage: React.FC = () => {
               {tsData.length > 0 && (() => {
                 const hasSplits = tsData.some(d => d.splitValue);
                 const hasSplit2 = tsData.some(d => d.splitValue2);
-                const hasNE = tsData.some(d => d.networkElement);
                 return (
                 <button
                   onClick={() => {
                     const kpis = [...new Set(tsData.map(d => d.kpi))];
                     if (hasSplits) {
-                      // Flat export: one row per data point
                       const extraCols = [
                         ...(hasSplits ? ['Split'] : []),
                         ...(hasSplit2 ? ['Split2'] : []),
-                        ...(hasNE ? ['NE'] : []),
+                        'NE',
                       ];
                       const header = ['Timestamp', ...extraCols, 'KPI', 'Value'].join(',');
                       const rows = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map(d => {
@@ -556,7 +554,7 @@ const InvestigatorPage: React.FC = () => {
                         const extra = [
                           ...(hasSplits ? [d.splitValue || ''] : []),
                           ...(hasSplit2 ? [d.splitValue2 || ''] : []),
-                          ...(hasNE ? [d.networkElement || 'N/A'] : []),
+                          d.networkElement || 'N/A',
                         ];
                         return [ts, ...extra, d.kpi, d.value].join(',');
                       });
