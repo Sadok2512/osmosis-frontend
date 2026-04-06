@@ -474,12 +474,24 @@ export async function fetchTimeSeriesForSlot(
     const data = await res.json();
     kpiSeries = data.series || [];
     const noSplitRequested = !ctx.splitBy;
-    kpiResults = kpiSeries.map((s: any) => ({
-      timestamp: s.ts,
-      kpi: s.kpi_key,
-      value: s.value,
-      splitValue: noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value),
-    }));
+    kpiResults = kpiSeries.map((s: any) => {
+      const sv1 = noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value);
+      const sv2 = s.split_value_2 && s.split_value_2 !== 'ALL' ? s.split_value_2 : undefined;
+      // Build composite kpi key for double split
+      let kpiKey = s.kpi_key;
+      if (sv1) kpiKey += `@${sv1}`;
+      if (sv2) kpiKey += `@${sv2}`;
+      // Detect network element from split values
+      const ne = detectNetworkElement(sv1, sv2, ctx.splitBy, ctx.splitBy2);
+      return {
+        timestamp: s.ts,
+        kpi: kpiKey,
+        value: s.value,
+        splitValue: sv1,
+        splitValue2: sv2,
+        networkElement: ne || (s.cell_name || s.network_element || undefined),
+      };
+    });
   } else {
     console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
   }
