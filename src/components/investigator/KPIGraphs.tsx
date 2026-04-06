@@ -187,6 +187,12 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 
   const counters = [...new Set(tsData.map(d => d.counter))];
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+  // Build a reverse map: display_name → counter_id from response data
+  const displayLabel = (c: string) => {
+    // If nameMap has a mapping for any counterName that maps to c, show "display (ID)"
+    const id = Object.entries(nameMap).find(([, name]) => name === c)?.[0];
+    return id ? `${c} (${id})` : c;
+  };
 
   const option = {
     tooltip: {
@@ -195,7 +201,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       borderColor: 'rgba(255,255,255,0.08)',
       textStyle: { color: '#f8fafc', fontSize: 10 },
     },
-    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters },
+    legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 }, data: counters.map(c => displayLabel(c)) },
     grid: { left: 60, right: 20, top: 10, bottom: 40 },
     xAxis: {
       type: 'category' as const,
