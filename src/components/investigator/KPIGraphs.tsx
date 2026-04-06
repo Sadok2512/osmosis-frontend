@@ -964,18 +964,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const option: any = {
           animation: false,
-          toolbox: {
-            show: true,
-            right: hasRightAxis ? 68 : 34,
-            top: 4,
-            itemSize: 13,
-            iconStyle: { borderColor: '#a1a1aa', borderWidth: 1 },
-            emphasis: { iconStyle: { borderColor: '#6366f1' } },
-            feature: {
-              dataView: { show: cfg.showDataTable, readOnly: true, title: 'Table', lang: ['Table View', 'Close', 'Refresh'], buttonColor: '#6366f1' },
-              saveAsImage: { show: false },
-            },
-          },
+          toolbox: { show: false },
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
