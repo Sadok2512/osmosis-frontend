@@ -67,6 +67,7 @@ async function fetchKpiComputeOnTheFly(
   granularity: string = '1d',
   filters?: { dimension: string; values: string[] }[],
   splitByPmDim?: string,
+  splitByField?: string,
 ): Promise<{ data: DataPoint[]; isComputed: boolean }> {
   try {
     const url = getApiUrl('pm/kpi/compute');
@@ -84,9 +85,14 @@ async function fetchKpiComputeOnTheFly(
         const dim = (f.dimension || '').toUpperCase();
         if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
         else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
-        else if (PM_DIM_TYPES.has(dim) && f.values?.length) body.dimension_filter = f.values[0];
+        else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
+          body.dimension_filter = f.values.length === 1 ? f.values[0] : f.values;
+        }
         // KPI Engine profile QCI → translate to PMQAP dimension
-        else if (dim === 'QCI' && f.values?.length) body.dimension_filter = `PMQAP=${f.values[0]}`;
+        else if (dim === 'QCI' && f.values?.length) {
+          const mapped = f.values.map(v => `PMQAP=${v}`);
+          body.dimension_filter = mapped.length === 1 ? mapped[0] : mapped;
+        }
         else if (dim === 'KPI_LEVEL') { /* ignore, handled by kpi engine */ }
       }
     }
@@ -105,8 +111,9 @@ async function fetchKpiComputeOnTheFly(
           }
         }
 
-        // Single request with split_by_dimension=true
-        const splitBody = { ...body, split_by_dimension: true };
+        // Single request with split_by_dimension=true (+ optional double split field)
+        const splitBody: any = { ...body, split_by_dimension: true };
+        if (splitByField) splitBody.split_by_field = splitByField;
         const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
@@ -115,7 +122,10 @@ async function fetchKpiComputeOnTheFly(
             for (const s of splitResult.series) {
               const dimKey = s.dimension_key || '';
               const dimLabel = labelMap[dimKey] || dimKey;
-              allData.push({ timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true } as any);
+              const splitField = s.split_field || undefined;
+              const dp: any = { timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true };
+              if (splitField) dp.splitValue2 = splitField;
+              allData.push(dp);
             }
             if (allData.length > 0) return { data: allData, isComputed: true };
           } else {
@@ -404,31 +414,51 @@ export async function fetchTimeSeriesForSlot(
 
   console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo, neFromFilters });
 
-  // Detect PM dimension split (global fallback)
+  // Detect PM and non-PM splits
   const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
-  // Non-PM splits (CELL, VENDOR, BAND...) are only handled by KPI Engine, not compute
-  const hasNonPmSplit = (ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None')
-    || (ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None');
-  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit:', hasNonPmSplit, 'splitBy2:', ctx.splitBy2);
+  const hasNonPmSplit1 = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
+  const pmDimSplit2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : undefined;
+  const hasNonPmSplit2 = ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None';
+  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit1:', hasNonPmSplit1, 'splitBy2:', ctx.splitBy2);
 
-  // Step 1: Try /kpi/compute FIRST — but ONLY when there's no non-PM split
-  // (compute endpoint can't split by CELL/VENDOR/BAND, only KPI Engine can)
+  // Double split: detect if one split is PM and the other is a field (cell_name, site_name)
+  // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name)
+  const FIELD_MAP: Record<string, string> = { 'Cell': 'cell_name', 'CELL': 'cell_name', 'Site': 'site_name', 'SITE': 'site_name' };
+  let computeSplitByField: string | undefined;
+  let computePmDim: string | undefined;
+
+  if (globalPmDimSplit && hasNonPmSplit2) {
+    // Split1=PM, Split2=Cell/Site → compute can do both
+    computePmDim = globalPmDimSplit;
+    computeSplitByField = FIELD_MAP[ctx.splitBy2!] || undefined;
+  } else if (hasNonPmSplit1 && pmDimSplit2) {
+    // Split1=Cell/Site, Split2=PM → swap for compute (PM as dimension, field as split_by_field)
+    computePmDim = pmDimSplit2;
+    computeSplitByField = FIELD_MAP[ctx.splitBy!] || undefined;
+  } else if (globalPmDimSplit) {
+    computePmDim = globalPmDimSplit;
+  }
+
+  // Can compute handle this? Only if there's no non-PM split without a field mapping
+  const canCompute = !hasNonPmSplit1 || computeSplitByField;
+  console.log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
+
+  // Step 1: Try /kpi/compute FIRST
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
-  if (!hasNonPmSplit) {
+  if (canCompute) {
     for (const kpiId of ctx.kpiIds) {
-      // Per-KPI PM dimension split: only send split_by_dimension for KPIs that have the dimension
+      // Per-KPI PM dimension split
       const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
       const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
-      // Use per-KPI split if available, otherwise fall back to global (only if this KPI has a per-KPI entry)
-      const pmDimSplit = kpiPmDim || (perKpiSplit ? undefined : globalPmDimSplit);
+      const pmDimSplit = kpiPmDim || (perKpiSplit ? undefined : computePmDim);
 
-      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
+      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${computeSplitByField || ''}`;
 
       if (!_computeCache.has(cacheKey)) {
         _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
-          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
         ));
         setTimeout(() => _computeCache.delete(cacheKey), 30000);
       }
@@ -449,7 +479,7 @@ export async function fetchTimeSeriesForSlot(
       return { data: computeResults, hasUnfilteredFallback: false };
     }
   } else {
-    // Non-PM split: all KPIs must go through KPI Engine
+    // Can't compute: all KPIs must go through KPI Engine
     computeFailed.push(...ctx.kpiIds);
   }
 
