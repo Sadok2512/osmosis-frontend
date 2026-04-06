@@ -964,18 +964,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const option: any = {
           animation: false,
-          toolbox: {
-            show: true,
-            right: hasRightAxis ? 68 : 34,
-            top: 4,
-            itemSize: 13,
-            iconStyle: { borderColor: '#a1a1aa', borderWidth: 1 },
-            emphasis: { iconStyle: { borderColor: '#6366f1' } },
-            feature: {
-              dataView: { show: cfg.showDataTable, readOnly: true, title: 'Table', lang: ['Table View', 'Close', 'Refresh'], buttonColor: '#6366f1' },
-              saveAsImage: { show: false },
-            },
-          },
+          toolbox: { show: false },
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
@@ -1313,6 +1302,34 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
               }}
             />
+
+            {/* Data Table View */}
+            {cfg.showDataTable && option?.series?.length > 0 && (
+              <div className="mt-2 overflow-auto max-h-[200px] rounded-lg border border-border/40">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="bg-muted/40 sticky top-0">
+                      <th className="text-left px-2 py-1.5 font-bold text-muted-foreground">Date</th>
+                      {option.series.map((s: any, i: number) => (
+                        <th key={i} className="text-right px-2 py-1.5 font-bold text-muted-foreground truncate max-w-[120px]">{s.name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(option.xAxis?.[0]?.data || []).map((date: string, ri: number) => (
+                      <tr key={ri} className="border-t border-border/20 hover:bg-muted/20">
+                        <td className="px-2 py-1 font-mono text-muted-foreground">{date}</td>
+                        {option.series.map((s: any, si: number) => (
+                          <td key={si} className="text-right px-2 py-1 font-mono">
+                            {s.data?.[ri] != null ? Number(s.data[ri]).toFixed(2) : '—'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* KPI Breakdown — raw counters composing the KPI */}
             {cfg.showBreakdown && kpiIds.length > 0 && (
