@@ -38,6 +38,8 @@ export interface GraphConfig {
   yAxisAssignments?: Record<string, number>;
   /** Maps kpiId → split dimension (e.g. 'BAND'). Missing or 'None' means no split. */
   splitByPerKpi?: Record<string, string>;
+  /** Maps kpiId → second split dimension for cross-tabulation. */
+  splitByPerKpi2?: Record<string, string>;
   /** Maps kpiId → chart type override. Missing means use slot-level chartType. */
   chartTypePerKpi?: Record<string, ChartType>;
   /** Persisted dataZoom window for the slot chart. */
