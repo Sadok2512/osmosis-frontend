@@ -1520,7 +1520,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           );
                         })()}
                       </div>
-                      {/* Split 1 */}
+                      {/* Split 1 — only show if there are split options or PM dimensions */}
+                      {(splitOptions.length > 0 || activePmDimensions.size > 0) && (
                       <div className="space-y-1">
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
                         <select
@@ -1561,7 +1562,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           )}
                         </select>
                       </div>
-                      {/* Split 2 (cross-tabulation) */}
+                      )}
+                      {/* Split 2 (cross-tabulation) — only show if Split 1 is active */}
+                      {(splitOptions.length > 0 || activePmDimensions.size > 0) && Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None') && (
                       <div className="space-y-1">
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
                         <select
@@ -1590,7 +1593,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             }
                           }}
                           className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
-                          disabled={!Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None')}
                         >
                           <option value="None">Aucun</option>
                           {splitOptions
