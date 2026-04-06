@@ -1275,10 +1275,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         open={!!counterSelectorSlotId}
         onClose={() => setCounterSelectorSlotId(null)}
         catalog={counterCatalog}
-        selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.kpiIds || []) : []}
+        selectedKeys={counterSelectorSlotId ? (graphSlots.find(s => s.id === counterSelectorSlotId)?.counterIds || []) : []}
         onConfirm={(keys) => {
           if (counterSelectorSlotId) {
-            onSetSlotKpiIds(counterSelectorSlotId, keys);
+            onSetSlotCounterIds(counterSelectorSlotId, keys);
           }
           setCounterSelectorSlotId(null);
         }}
