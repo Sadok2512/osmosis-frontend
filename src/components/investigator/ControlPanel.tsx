@@ -271,7 +271,7 @@ const AddFilterDropdown: React.FC<{
                 </span>
                 <span className={cn("flex-1", isChecked && "font-bold")}>{label}</span>
                 {isPm && (
-                  <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">PM</span>
+                  <span className={cn("text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded", getDimensionColor(dim).bg, getDimensionColor(dim).text, getDimensionColor(dim).textDark)}>PM</span>
                 )}
               </button>
             );
