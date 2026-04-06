@@ -459,16 +459,19 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   useEffect(() => {
     fetchKpiCatalog().then(data => {
-      if (data && data.length > 0) {
-        const mapped = data.map((k: any) => ({
+      const items = Array.isArray(data) ? data : (data as any)?.kpis || (data as any)?.items || [];
+      if (items.length > 0) {
+        const mapped = items.map((k: any) => ({
           kpi_id: k.kpi_key, kpi_key: k.kpi_key, display_name: k.display_name || k.kpi_key,
           description: k.description || '', techno_scope: 'both' as const, unit: k.unit || '',
           value_type: (k.value_type || 'gauge') as any, default_agg: 'avg' as const, allowed_aggs: ['avg' as const],
           is_map_supported: false, category: k.category || 'Other', color: '#3b82f6',
           vendor: k.vendor || '', techno: k.techno || '',
+          is_normalized: k.is_normalized ?? false,
           dimension_type: k.dimension_type || null,
           dimension_prefix: k.dimension_prefix || null,
           counter_count: k.counter_count || 0,
+          supported_levels: k.supported_levels || [],
         }));
         setCatalog(mapped);
       }

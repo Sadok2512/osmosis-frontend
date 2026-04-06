@@ -77,6 +77,17 @@ const FilterSection: React.FC<{
   );
 };
 
+const DIMENSION_LABELS: Record<string, string> = {
+  PMQAP: 'QCI Profile',
+  FLEX: 'Flex QoS',
+  NEIGHBOR: 'Neighbor',
+  CA_REL: 'CA Relation',
+  RANSHARE: 'RAN Sharing',
+  SLICE: 'Slice (NSSAI)',
+  '5QI': '5QI (NR)',
+  TRANSPORT: 'Transport',
+};
+
 const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, catalog, selectedKeys, onConfirm, axisAssignments: extAxisAssignments, onAxisAssignmentsChange }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [axisMap, setAxisMap] = useState<Record<string, AxisSide>>({});
@@ -90,6 +101,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterTechno, setFilterTechno] = useState('');
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
+  const [filterDimension, setFilterDimension] = useState('');
 
   // Load favorites from DB on open
   React.useEffect(() => {
@@ -101,6 +113,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterTechno('');
       setFilterNormalized('');
       setFilterLevel('');
+      setFilterDimension('');
       setShowFavOnly(false);
       setAxisMap(extAxisAssignments || {});
       // Async load favorites from DB
@@ -130,6 +143,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     const vendors = new Map<string, number>();
     const technos = new Map<string, number>();
     const levels = new Map<string, number>();
+    const dimensions = new Map<string, number>();
 
     for (const k of catalog) {
       if (k.vendor) vendors.set(k.vendor, (vendors.get(k.vendor) || 0) + 1);
@@ -139,6 +153,8 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
           if (l.trim()) levels.set(l.trim(), (levels.get(l.trim()) || 0) + 1);
         }
       }
+      const dt = (k as any).dimension_type;
+      if (dt) dimensions.set(dt, (dimensions.get(dt) || 0) + 1);
     }
 
     const normalizedCount = catalog.filter(k => k.is_normalized).length;
@@ -148,12 +164,13 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       vendors: Array.from(vendors.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
       technos: Array.from(technos.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
       levels: Array.from(levels.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
+      dimensions,
       normalizedCount,
       vendorSpecificCount,
     };
   }, [catalog]);
 
-  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel].filter(Boolean).length;
+  const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension].filter(Boolean).length;
 
   // Apply all filters
   const filteredCatalog = useMemo(() => {
@@ -165,6 +182,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
     if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
+    if (filterDimension) items = items.filter(k => (k as any).dimension_type === filterDimension);
     if (activeCategory) items = items.filter(k => k.category === activeCategory);
     if (search) {
       const q = search.toLowerCase();
@@ -176,7 +194,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     }
 
     return items;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, activeCategory, search, showFavOnly, favorites]);
+  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, activeCategory, search, showFavOnly, favorites]);
 
   // Categories computed from filtered catalog
   const tabCategories = useMemo(() => {
@@ -187,6 +205,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     if (filterNormalized === 'normalized') items = items.filter(k => k.is_normalized);
     if (filterNormalized === 'vendor-specific') items = items.filter(k => !k.is_normalized);
     if (filterLevel) items = items.filter(k => k.supported_levels?.includes(filterLevel));
+    if (filterDimension) items = items.filter(k => (k as any).dimension_type === filterDimension);
 
     const cats = new Map<string, number>();
     for (const k of items) {
@@ -194,7 +213,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       cats.set(cat, (cats.get(cat) || 0) + 1);
     }
     return cats;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, showFavOnly, favorites]);
+  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, showFavOnly, favorites]);
 
   const totalFiltered = Array.from(tabCategories.values()).reduce((a, b) => a + b, 0);
 
@@ -210,7 +229,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const reset = () => setSelected(new Set());
   const clearFilters = () => {
     setFilterVendor(''); setFilterTechno(''); setFilterNormalized('');
-    setFilterLevel(''); setActiveCategory(null); setShowFavOnly(false);
+    setFilterLevel(''); setFilterDimension(''); setActiveCategory(null); setShowFavOnly(false);
   };
 
   const handleConfirm = () => {
@@ -311,6 +330,16 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                   selected={filterLevel}
                   onChange={setFilterLevel}
                   options={filterOptions.levels}
+                  defaultOpen={false}
+                />
+              )}
+
+              {filterOptions.dimensions.size > 0 && (
+                <FilterSection
+                  label="Dimension"
+                  selected={filterDimension}
+                  onChange={setFilterDimension}
+                  options={Array.from(filterOptions.dimensions.entries()).sort((a, b) => b[1] - a[1]).map(([v, c]) => ({ value: v, label: DIMENSION_LABELS[v] || v, count: c }))}
                   defaultOpen={false}
                 />
               )}
@@ -440,6 +469,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             )}
                             {k.techno && (
                               <span className="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">{k.techno}</span>
+                            )}
+                            {(k as any).dimension_type && (
+                              <span className="text-[8px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">{DIMENSION_LABELS[(k as any).dimension_type] || (k as any).dimension_type}</span>
                             )}
                             <span className="text-[8px] px-1 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
                           </div>
