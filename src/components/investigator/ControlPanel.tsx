@@ -15,6 +15,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from './CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
@@ -1512,17 +1513,24 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                           <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
-                          <div className="flex items-center bg-muted/50 rounded border border-border/40 overflow-hidden">
-                            {(['L', 'R'] as const).map(side => {
-                              const isActiveAxis = (cfg as any).__activeYTab === side || (!(cfg as any).__activeYTab && side === 'L');
-                              return (
-                                <button key={side} onClick={() => setSlotConfig({ __activeYTab: side } as any)}
-                                  className={cn('px-2.5 py-0.5 text-[9px] font-bold transition-colors',
-                                    isActiveAxis ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-foreground')}
-                                >{side}</button>
-                              );
-                            })}
-                          </div>
+                          <ToggleGroup
+                            type="single"
+                            value={(cfg as any).__activeYTab || 'L'}
+                            onValueChange={(value) => value && setSlotConfig({ __activeYTab: value } as any)}
+                            className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
+                          >
+                            {(['L', 'R'] as const).map(side => (
+                              <ToggleGroupItem
+                                key={side}
+                                value={side}
+                                size="sm"
+                                className="h-6 min-w-7 rounded-[5px] border-0 px-2 text-[9px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                                aria-label={`Activer l'axe ${side === 'L' ? 'gauche' : 'droit'}`}
+                              >
+                                {side}
+                              </ToggleGroupItem>
+                            ))}
+                          </ToggleGroup>
                         </div>
                         {(() => {
                           const isRight = (cfg as any).__activeYTab === 'R';
