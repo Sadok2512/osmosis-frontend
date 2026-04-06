@@ -559,7 +559,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                             {/* Tech badge */}
                             <div className="w-[50px] flex justify-center">
                               {c.techno ? (
-                                <Badge className="bg-purple-500/10 text-purple-500">{c.techno}</Badge>
+                                <Badge className={cn(techBadge(c.techno).bg, techBadge(c.techno).text)}>{c.techno}</Badge>
                               ) : <span className="text-[9px] text-muted-foreground/30">—</span>}
                             </div>
                             {/* Family/Type badge */}
