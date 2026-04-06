@@ -293,6 +293,10 @@ export function resolveSlotContext(
 
   // Split: per-KPI split takes ABSOLUTE priority, then slot-level, then global
   // Per-KPI splits are the source of truth — global splitBy should NOT override them
+  // VENDOR and TECHNOLOGY are perimeter filters, never valid as split dimensions
+  const PERIMETER_DIMENSIONS = ['VENDOR', 'TECHNOLOGY', 'vendor', 'technology', 'Vendor', 'Technology'];
+  const isPerimeterDim = (v: string) => PERIMETER_DIMENSIONS.includes(v);
+
   let splitValue: string | undefined;
   const perKpi = slot.config?.splitByPerKpi || {};
   const perKpiValues = Object.values(perKpi).filter(v => v && v !== 'None');
@@ -302,10 +306,10 @@ export function resolveSlotContext(
     // Use the first active per-KPI split (PM_DIM splits get priority)
     const activePmSplit = perKpiValues.find(v => v!.startsWith('PM_DIM:'));
     splitValue = activePmSplit || perKpiValues[0]!;
-  } else if (slot.splitBy && slot.splitBy !== 'None') {
+  } else if (slot.splitBy && slot.splitBy !== 'None' && !isPerimeterDim(slot.splitBy)) {
     splitValue = slot.splitBy;
-  } else if (!hasPerKpiSplits && globalState.splitBy && globalState.splitBy !== 'None') {
-    // Only use global fallback if NO per-KPI splits are configured at all
+  } else if (!hasPerKpiSplits && globalState.splitBy && globalState.splitBy !== 'None' && !isPerimeterDim(globalState.splitBy)) {
+    // Only use global fallback if NOT a perimeter dimension and NO per-KPI splits configured
     splitValue = globalState.splitBy;
   }
 
