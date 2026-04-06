@@ -1150,6 +1150,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 <Hash className="w-3.5 h-3.5" />
               </button>
 
+              {/* Duplicate slot */}
+              {onDuplicateSlot && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDuplicateSlot(slot.id); }}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Dupliquer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Export as PNG */}
+              <button
+                onClick={(e) => { e.stopPropagation(); exportChartAsPng(chartRefsMap.current[slot.id], slot.name || 'chart'); }}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Exporter PNG"
+              >
+                <Download className="w-3.5 h-3.5" />
+              </button>
+
               {/* Remove button */}
               <button
                 onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
