@@ -3086,7 +3086,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
-  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | null>(null);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | 'profile' | null>(null);
+  const [profileTarget, setProfileTarget] = useState<[number, number] | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileData, setProfileData] = useState<{ points: any[]; analysis: any } | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
