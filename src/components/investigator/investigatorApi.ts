@@ -531,12 +531,15 @@ export async function fetchTimeSeriesForSlot(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters,
     );
-    hasUnfilteredFallback = fallback.isUnfiltered;
-    return { data: [...computeResults, ...kpiResults, ...fallback.data], hasUnfilteredFallback };
+    const allData = [...computeResults, ...kpiResults, ...fallback.data];
+    if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+    return { data: allData, hasUnfilteredFallback };
   }
 
   // Fix #2: Merge compute results with KPI Engine results (don't drop successful computes)
-  return { data: [...computeResults, ...kpiResults], hasUnfilteredFallback };
+  const allData = [...computeResults, ...kpiResults];
+  if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+  return { data: allData, hasUnfilteredFallback };
 }
 
 // ── Legacy wrapper (keeps backward compat) ──
