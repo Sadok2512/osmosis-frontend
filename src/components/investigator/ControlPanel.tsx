@@ -630,7 +630,6 @@ const JalonsManagerPopup: React.FC<{
                 className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
             </div>
           </div>
-          </div>
           <div className="flex items-center gap-1">
             <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
             <Slider value={[opacity]} min={10} max={100} step={5} onValueChange={([v]) => setOpacity(v)} className="flex-1" />
@@ -1256,7 +1255,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
                   <Flag className="w-3 h-3 text-muted-foreground" />
-                  Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
+                  Jalons
+                  {state.jalons.length > 0 && (
+                    <span className="flex items-center gap-0.5 ml-0.5">
+                      {state.jalons.slice(0, 4).map(j => (
+                        <Flag key={j.id} className="w-2.5 h-2.5" style={{ color: j.color }} />
+                      ))}
+                      {state.jalons.length > 4 && <span className="text-[8px] text-muted-foreground">+{state.jalons.length - 4}</span>}
+                    </span>
+                  )}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[320px] p-3" align="start">
