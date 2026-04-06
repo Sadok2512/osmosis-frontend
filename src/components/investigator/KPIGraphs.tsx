@@ -581,7 +581,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
               </div>
-              <KpiCardWidget kpiIds={kpiIds} data={data} allKpis={allKpis} />
+              <KpiCardWidget
+                kpiIds={kpiIds}
+                data={data.filter((d: any) => d._slotId == null || d._slotId === slot.id)}
+                allKpis={allKpis}
+              />
             </div>
           );
         }
@@ -619,7 +623,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         });
 
         // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel")
-        const slotData = data.filter(d => kpiIds.includes(d.kpi) || kpiIds.some(id => d.kpi.startsWith(id + '@')));
+        // and keep slot isolation when Apply fetched multiple slots at once.
+        const slotData = data.filter((d: any) => {
+          const matchesSlot = d._slotId == null || d._slotId === slot.id;
+          const matchesKpi = kpiIds.includes(d.kpi) || kpiIds.some(id => d.kpi.startsWith(id + '@'));
+          return matchesSlot && matchesKpi;
+        });
 
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
