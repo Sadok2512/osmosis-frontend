@@ -262,11 +262,11 @@ const getZoomAwareRadius = (
 ): number => {
   // Zoom-based target pixel size: compact at low zoom, larger at high zoom
   let targetPx: number;
-  if (zoom <= 9) targetPx = 22;
-  else if (zoom <= 10) targetPx = 28;
-  else if (zoom <= 11) targetPx = 34;
-  else if (zoom <= 12) targetPx = 38;
-  else targetPx = 42;
+  if (zoom <= 9) targetPx = 44;
+  else if (zoom <= 10) targetPx = 56;
+  else if (zoom <= 11) targetPx = 68;
+  else if (zoom <= 12) targetPx = 76;
+  else targetPx = 84;
 
   // Viewport scaling: shrink on small screens, slight grow on large
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
