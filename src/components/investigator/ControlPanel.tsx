@@ -75,41 +75,25 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
   TRANSPORT: 'Transport Link',
 };
 
-// Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
-const useBackendFilterValues = (dimension: string, siteFilter?: string): string[] => {
-  const [values, setValues] = React.useState<string[]>([]);
+// Filter values fetched from backend — now uses centralized cache
+import { preloadAllFilters, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
+
+const useBackendFilterValues = (dimension: string): string[] => {
+  const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
+  const [values, setValues] = React.useState<string[]>(() => getFilterValues(key).values);
+
   React.useEffect(() => {
-    // PM dimension types → use /counters/dimension-values (with site filter for live data)
-    if (PM_DIMENSION_TYPES.has(dimension)) {
-      import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-        const params = new URLSearchParams({ dimension_type: dimension, limit: '100' });
-        if (siteFilter) params.set('site_name', siteFilter);
-        fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() })
-          .then(r => r.ok ? r.json() : { values: [] })
-          .then(d => { if (d.values) setValues(d.values); })
-          .catch(() => {});
-      });
-      return;
-    }
-    const dimMap: Record<string, string> = { Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP' };
-    const key = dimMap[dimension] || dimension;
-    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-      // Try KPI Engine first
-      fetch(getApiUrl(`monitor/filters/values?dimension=${key}`), { headers: getApiHeaders() })
-        .then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-        .then(d => {
-          if (d.values && d.values.length > 0) { setValues(d.values); return; }
-          throw new Error('empty');
-        })
-        .catch(() => {
-          // Fallback: read from Parser fact_counters_15min
-          fetch(getApiUrl(`pm/counters/filter-values?dimension=${key}`), { headers: getApiHeaders() })
-            .then(r => r.json())
-            .then(d => { if (d.values) setValues(d.values); })
-            .catch(() => {});
-        });
+    // Update from cache whenever it changes
+    const unsub = subscribeCacheUpdates(() => {
+      const entry = getFilterValues(key);
+      if (entry.loaded) setValues(entry.values);
     });
-  }, [dimension]);
+    // Check if already loaded
+    const entry = getFilterValues(key);
+    if (entry.loaded) setValues(entry.values);
+    return unsub;
+  }, [key]);
+
   return values;
 };
 
