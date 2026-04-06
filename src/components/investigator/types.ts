@@ -38,6 +38,13 @@ export interface GraphConfig {
   splitByPerKpi?: Record<string, string>;
   /** Maps kpiId → chart type override. Missing means use slot-level chartType. */
   chartTypePerKpi?: Record<string, ChartType>;
+  /** Persisted dataZoom window for the slot chart. */
+  zoomWindow?: {
+    start?: number;
+    end?: number;
+  };
+  /** Temporary UI state for settings popover. */
+  __activeYTab?: 'L' | 'R';
 }
 
 export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
