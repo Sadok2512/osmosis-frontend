@@ -1,5 +1,5 @@
 /**
- * Neighbor visualization types and mock data
+ * Neighbor visualization types and API fetch
  */
 
 export type NeighborRelationType = 'intra_freq' | 'inter_freq' | 'inter_system';
@@ -31,6 +31,37 @@ export const NEIGHBOR_LABELS: Record<NeighborRelationType, string> = {
   inter_system: 'Inter-système',
 };
 
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '';
+
+/**
+ * Fetch real neighbors from backend API.
+ * GET /api/v1/neighbors/{cell_id}?direction=out|in&limit=20
+ */
+export async function fetchCellNeighbors(
+  cellId: string,
+  direction: NeighborDirection = 'out',
+  limit: number = 20,
+): Promise<{ source_cell_id: string; source_site_name: string | null; source_coords: [number, number] | null; neighbors: CellNeighbor[] }> {
+  const url = `${API_BASE}/api/v1/neighbors/${encodeURIComponent(cellId)}?direction=${direction}&limit=${limit}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`Neighbors API error: ${resp.status}`);
+  const data = await resp.json();
+  // Normalize response: ensure relationType is valid
+  const validTypes = new Set(['intra_freq', 'inter_freq', 'inter_system']);
+  const neighbors: CellNeighbor[] = (data.neighbors || []).map((n: any) => ({
+    ...n,
+    targetCoords: n.targetCoords || [0, 0],
+    targetAzimut: n.targetAzimut ?? 0,
+    targetTechno: n.targetTechno || '',
+    targetBande: n.targetBande || '',
+    relationType: validTypes.has(n.relationType) ? n.relationType : 'inter_system',
+    distanceKm: n.distanceKm ?? 0,
+    hoCount: n.hoCount ?? 0,
+    hoSuccessRate: n.hoSuccessRate ?? 0,
+  }));
+  return { ...data, neighbors };
+}
+
 /** Haversine distance in km */
 function haversineKm(a: [number, number], b: [number, number]): number {
   const R = 6371;
@@ -44,8 +75,7 @@ function haversineKm(a: [number, number], b: [number, number]): number {
 
 /**
  * Generate mock neighbors for a given cell based on nearby sites.
- * Now generates more neighbors (up to 20), includes distance, HO count, HO SR,
- * and ensures a mix of LTE and NR technos.
+ * Used as fallback when API returns no data.
  */
 export function generateMockNeighbors(
   cellId: string,
@@ -54,7 +84,7 @@ export function generateMockNeighbors(
 ): CellNeighbor[] {
   const neighbors: CellNeighbor[] = [];
   const types: NeighborRelationType[] = ['intra_freq', 'inter_freq', 'inter_system'];
-  
+
   // Pick up to 20 neighbors from nearby sites
   let count = 0;
   for (const site of nearbySites) {
@@ -62,7 +92,7 @@ export function generateMockNeighbors(
     for (const cell of site.cells) {
       if (count >= 20) break;
       if (cell.cell_id === cellId) continue;
-      
+
       // Deterministic hash based on cell_id
       let hash = 0;
       for (let i = 0; i < cell.cell_id.length; i++) {
@@ -71,14 +101,14 @@ export function generateMockNeighbors(
       }
       const typeIdx = Math.abs(hash) % 3;
       const dirIdx = Math.abs(hash >> 3) % 2;
-      
+
       const dist = haversineKm(sourceSiteCoords, site.coordinates);
-      
+
       // Mock HO count: 50–2000 depending on hash
       const hoCount = 50 + Math.abs(hash >> 5) % 1950;
       // Mock HO success rate: 85–100%
       const hoSR = 85 + (Math.abs(hash >> 8) % 1500) / 100;
-      
+
       neighbors.push({
         targetCellId: cell.cell_id,
         targetSiteName: site.site_name,
@@ -95,6 +125,6 @@ export function generateMockNeighbors(
       count++;
     }
   }
-  
+
   return neighbors;
 }

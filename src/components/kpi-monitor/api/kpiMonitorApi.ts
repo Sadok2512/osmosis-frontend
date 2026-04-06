@@ -26,6 +26,7 @@ export interface MonitorKpiCatalogEntry {
   is_vendor_specific?: boolean;
   techno?: string;
   vendor?: string;
+  dimension_type?: string | null;
   nom_bdd?: string;
   normalized_kpi_group?: string;
 }

@@ -11,6 +11,7 @@ interface Props {
   layout: 1 | 2 | 4;
   dateFrom?: string;
   dateTo?: string;
+  filters?: { dimension: string; values: string[] }[];
   splitBy?: string;
 }
 
@@ -202,7 +203,7 @@ const CounterTable: React.FC<{
   );
 };
 
-const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0] }) => {
+const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0], filters = [], splitBy }) => {
   const cols = layout === 1 ? 1 : 2;
   const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
   const [explainData, setExplainData] = React.useState<Record<string, KpiExplain>>({});
@@ -225,18 +226,22 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
 
   React.useEffect(() => {
     selectedKpis.forEach(kpiId => {
-      fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim).then(slices => {
+      // Fetch breakdown (pie) — use active split or default to vendor
+      const breakdownDim = (splitBy && splitBy !== 'None') ? splitBy : 'vendor';
+      fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim, filters).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
-      fetchTimeSeriesData([kpiId], dateFrom, dateTo, '1d').then(ts => {
+
+      // Fetch timeseries for this KPI (daily) — forward filters + split
+      fetchTimeSeriesData([kpiId], dateFrom, dateTo, '1d', splitBy, filters).then(ts => {
         setCounterTs(prev => ({ ...prev, [kpiId]: ts }));
       }).catch(() => {});
       setActiveView(prev => ({ ...prev, [kpiId]: prev[kpiId] || 'chart' }));
     });
-  }, [selectedKpis, dateFrom, dateTo, breakdownDim]);
+  }, [selectedKpis, dateFrom, dateTo, filters, splitBy]);
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>

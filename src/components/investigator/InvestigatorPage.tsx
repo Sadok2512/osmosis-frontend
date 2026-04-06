@@ -501,14 +501,25 @@ const InvestigatorPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Tab content */}
-        {analysisTab === 'breakdown' && (
-          <KPIBreakdown
-            selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)}
-            layout={state.graphLayout}
-            splitBy={state.splitBy}
-            dateFrom={state.startDate}
-            dateTo={state.endDate}
+        {/* ═══ Tab Content ═══ */}
+
+        {/* KPI Breakdown */}
+        {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+          <section className="space-y-4">
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} />
+          </section>
+        )}
+
+        {/* PM Counters */}
+        {analysisTab === 'counters' && selectedCounters.length === 0 && (
+          <div className="rounded-xl border border-border/60 bg-card p-10 text-center">
+            <p className="text-sm text-muted-foreground">Utilisez "Add Counter" dans la toolbar ci-dessus pour ajouter des compteurs PM au graphe.</p>
+          </div>
+        )}
+        {analysisTab === 'counters' && selectedCounters.length > 0 && (
+          <CounterGraphSection
+            dateFrom={state.startDate.split("T")[0] || "2026-01-01"}
+            dateTo={state.endDate.split("T")[0] || "2026-03-24"}
           />
         )}
 

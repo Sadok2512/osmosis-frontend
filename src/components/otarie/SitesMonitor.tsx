@@ -63,7 +63,7 @@ import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
 import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
-import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, generateMockNeighbors } from './map/neighborTypes';
+import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import { BboxFilters } from '@/lib/localDb';
@@ -3620,6 +3620,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [neighborDirection, setNeighborDirection] = useState<NeighborDirection>('out');
   const [neighborData, setNeighborData] = useState<CellNeighbor[]>([]);
   const [showNeighborPanel, setShowNeighborPanel] = useState(false);
+  const [neighborLoading, setNeighborLoading] = useState(false);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
     try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
   });
@@ -10668,20 +10669,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 {/* ── Neighbors Tab ── */}
                 {cellDetailTab === 'neighbors' && (() => {
-                  // Generate mock neighbors on first access
-                  if (neighborCellId !== focusCellId) {
-                    const nearbySitesForNeighbors = sites
-                      .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
-                      .slice(0, 15);
-                    const mockNeighbors = generateMockNeighbors(
-                      focusCellId!,
-                      siteDetail?.coordinates || [0, 0],
-                      nearbySitesForNeighbors,
-                    );
-                    setTimeout(() => {
+                  // Fetch real neighbors from API on first access or cell change
+                  if (neighborCellId !== focusCellId && !neighborLoading) {
+                    setTimeout(async () => {
+                      setNeighborLoading(true);
                       setNeighborCellId(focusCellId);
-                      setNeighborData(mockNeighbors);
-                      setShowNeighborPanel(false);
+                      try {
+                        // Fetch both directions in parallel
+                        const [outRes, inRes] = await Promise.all([
+                          fetchCellNeighbors(focusCellId!, 'out', 20),
+                          fetchCellNeighbors(focusCellId!, 'in', 20),
+                        ]);
+                        const allNeighbors = [...(outRes.neighbors || []), ...(inRes.neighbors || [])];
+                        if (allNeighbors.length > 0) {
+                          setNeighborData(allNeighbors);
+                        } else {
+                          // Fallback to mock if API returns no data
+                          const nearbySitesForNeighbors = sites
+                            .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
+                            .slice(0, 15);
+                          setNeighborData(generateMockNeighbors(focusCellId!, siteDetail?.coordinates || [0, 0], nearbySitesForNeighbors));
+                        }
+                      } catch {
+                        // API unavailable — fallback to mock
+                        const nearbySitesForNeighbors = sites
+                          .filter(s => s.site_id !== siteDetail?.site_id && s.cells.length > 0)
+                          .slice(0, 15);
+                        setNeighborData(generateMockNeighbors(focusCellId!, siteDetail?.coordinates || [0, 0], nearbySitesForNeighbors));
+                      } finally {
+                        setNeighborLoading(false);
+                        setShowNeighborPanel(false);
+                      }
                     }, 0);
                   }
                   const filtered = neighborData.filter(n => n.relationDirection === neighborDirection);
@@ -10725,7 +10743,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
 
                       {/* Neighbor list */}
-                      {filtered.length === 0 ? (
+                      {neighborLoading ? (
+                        <div className="text-center py-6 text-muted-foreground text-[11px]">Chargement des voisins...</div>
+                      ) : filtered.length === 0 ? (
                         <div className="text-center py-6 text-muted-foreground text-[11px]">Aucun voisin {neighborDirection === 'out' ? 'sortant' : 'entrant'}</div>
                       ) : (
                         <div className="rounded-xl border border-border overflow-hidden">
