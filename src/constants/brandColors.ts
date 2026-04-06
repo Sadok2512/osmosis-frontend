@@ -9,11 +9,11 @@
 
 // ── Hex values ──────────────────────────────────────────────
 export const VENDOR = {
-  ERICSSON: '#2563eb',   // blue-600
-  NOKIA:    '#16a34a',   // green-600
+  ERICSSON: '#60a5fa',   // blue-400 (bleu clair)
+  NOKIA:    '#1e40af',   // blue-800 (bleu foncé)
   HUAWEI:   '#dc2626',   // red-600
   SAMSUNG:  '#7c3aed',   // violet-600
-  NSN:      '#16a34a',   // green-600 (Nokia Siemens)
+  NSN:      '#1e40af',   // blue-800 (Nokia Siemens)
   ALCATEL:  '#f97316',   // orange-500
   ALU:      '#f97316',   // orange-500
   INDEFINI: '#64748b',   // slate-500
@@ -31,11 +31,11 @@ export const TECH = {
 
 // ── HSL equivalents (for inline style / popover use) ──
 export const VENDOR_HSL: Record<string, string> = {
-  ERICSSON: 'hsl(217, 91%, 53%)',
-  NOKIA:    'hsl(142, 72%, 40%)',
+  ERICSSON: 'hsl(213, 94%, 68%)',
+  NOKIA:    'hsl(224, 76%, 40%)',
   HUAWEI:   'hsl(0, 72%, 51%)',
   SAMSUNG:  'hsl(263, 70%, 50%)',
-  NSN:      'hsl(142, 72%, 40%)',
+  NSN:      'hsl(224, 76%, 40%)',
   ALCATEL:  'hsl(25, 95%, 53%)',
   ALU:      'hsl(25, 95%, 53%)',
   INDEFINI: 'hsl(215, 14%, 50%)',
@@ -54,12 +54,12 @@ export const TECH_HSL: Record<string, string> = {
 
 // ── Tailwind badge classes (bg + text) ──
 export const VENDOR_BADGE: Record<string, { bg: string; text: string }> = {
-  Ericsson: { bg: 'bg-blue-600/15',  text: 'text-blue-600' },
-  Nokia:    { bg: 'bg-green-600/15', text: 'text-green-600' },
+  Ericsson: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
+  Nokia:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
   Huawei:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
   Samsung:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
-  ERICSSON: { bg: 'bg-blue-600/15',  text: 'text-blue-600' },
-  NOKIA:    { bg: 'bg-green-600/15', text: 'text-green-600' },
+  ERICSSON: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
+  NOKIA:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
   HUAWEI:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
   SAMSUNG:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
 };
