@@ -229,7 +229,7 @@ const KPIBreakdown: React.FC<Props> = ({
 
   const breakdownDim = splitBy && splitBy !== 'None'
     ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
-    : 'vendor';
+    : undefined;
 
   const toggleSeries = (kpiId: string, seriesName: string) => {
     setSelectedSeries(prev => {
