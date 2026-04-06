@@ -1774,19 +1774,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           })()}
           onAxisAssignmentsChange={(assignments) => {
             pendingAxisRef.current = assignments;
-            if (!selectorOpen || selectorOpen === 'new') return;
-            const numericAssignments: Record<string, number> = {};
-            for (const [k, v] of Object.entries(assignments)) {
-              numericAssignments[k] = v === 'right' ? 1 : 0;
-            }
-            setState(prev => ({
-              ...prev,
-              graphSlots: prev.graphSlots.map(s =>
-                s.id === selectorOpen
-                  ? { ...s, config: { ...(s.config || DEFAULT_GRAPH_CONFIG), yAxisAssignments: numericAssignments } }
-                  : s
-              ),
-            }));
           }}
           onConfirm={(keys) => {
             const validKeys = keys.filter(Boolean);
