@@ -10188,10 +10188,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           />
                         </div>
                         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span>LOS: <span className={`font-bold ${cellProfileAnalysis.losState === 'clear' ? 'text-emerald-500' : cellProfileAnalysis.losState === 'partial' ? 'text-amber-500' : 'text-destructive'}`}>
-                            {cellProfileAnalysis.losState === 'clear' ? 'Dégagé' : cellProfileAnalysis.losState === 'partial' ? 'Partiel' : 'Obstrué'}
+                          <span>LOS: <span className={`font-bold ${cellProfileAnalysis.isLOS ? 'text-emerald-500' : 'text-destructive'}`}>
+                            {cellProfileAnalysis.isLOS ? 'Dégagé' : 'Obstrué'}
                           </span></span>
-                          <span>Clearance: <span className="font-bold text-foreground">{cellProfileAnalysis.clearanceM?.toFixed(1) ?? '—'} m</span></span>
+                          <span>Clearance: <span className="font-bold text-foreground">{cellProfileAnalysis.clearanceMin?.toFixed(1) ?? '—'} m</span></span>
                         </div>
                       </div>
                     )}
