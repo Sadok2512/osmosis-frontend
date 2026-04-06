@@ -95,19 +95,7 @@ const InvestigatorPage: React.FC = () => {
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
 
-  // Auto-refresh: re-apply when dates/granularity/filters/KPIs change AFTER first successful load
-  const autoRefreshKey = `${JSON.stringify(state.filters)}|${state.graphSlots.filter(s => s.kpiIds.length > 0).map(s => s.kpiIds.join(',')).join('|')}|${state.splitBy}`;
-  const prevAutoRefreshKey = useRef(autoRefreshKey);
-  useEffect(() => {
-    if (!hasLoadedOnce) { prevAutoRefreshKey.current = autoRefreshKey; return; }
-    if (autoRefreshKey === prevAutoRefreshKey.current) return;
-    prevAutoRefreshKey.current = autoRefreshKey;
-    if (hasFilters && hasKpis) {
-      // Small debounce to avoid rapid successive calls
-      const t = setTimeout(() => handleApplyRef.current(), 400);
-      return () => clearTimeout(t);
-    }
-  }, [autoRefreshKey, hasLoadedOnce, hasFilters, hasKpis]);
+  // No auto-refresh: queries only run on explicit "Appliquer" click
 
   const handleApply = async () => {
     // Require at least one dimension filter (Site, Cell, etc.)
