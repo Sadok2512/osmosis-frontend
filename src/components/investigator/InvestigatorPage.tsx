@@ -22,10 +22,9 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
-  timeseries: 'Graph',
+  timeseries: 'Timeseries',
   histogram: 'Histogram',
   kpi_card: 'KPI Card',
-  counter: 'Counter',
   neighbors: 'Neighbors',
 };
 
