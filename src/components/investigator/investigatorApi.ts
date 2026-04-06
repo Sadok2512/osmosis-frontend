@@ -389,7 +389,20 @@ export async function fetchTimeSeriesForSlot(
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
   if (ctx.kpiIds.length === 0) return { data: [], hasUnfilteredFallback: false };
 
-  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
+  // Extract Network Element from filters (cell > site)
+  const neFromFilters = (() => {
+    for (const f of (ctx.filters || [])) {
+      const dim = (f.dimension || '').toUpperCase();
+      if (dim === 'CELL' && f.values?.length === 1) return f.values[0];
+    }
+    for (const f of (ctx.filters || [])) {
+      const dim = (f.dimension || '').toUpperCase();
+      if (dim === 'SITE' && f.values?.length === 1) return f.values[0];
+    }
+    return undefined;
+  })();
+
+  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo, neFromFilters });
 
   // Detect PM dimension split (global fallback)
   const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
@@ -430,6 +443,8 @@ export async function fetchTimeSeriesForSlot(
     // If all KPIs computed successfully, return directly (skip KPI Engine)
     if (computeFailed.length === 0 && computeResults.length > 0) {
       console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+      // Inject NE from filters if not already set
+      if (neFromFilters) computeResults.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
       return { data: computeResults, hasUnfilteredFallback: false };
     }
   } else {
@@ -516,12 +531,15 @@ export async function fetchTimeSeriesForSlot(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters,
     );
-    hasUnfilteredFallback = fallback.isUnfiltered;
-    return { data: [...computeResults, ...kpiResults, ...fallback.data], hasUnfilteredFallback };
+    const allData = [...computeResults, ...kpiResults, ...fallback.data];
+    if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+    return { data: allData, hasUnfilteredFallback };
   }
 
   // Fix #2: Merge compute results with KPI Engine results (don't drop successful computes)
-  return { data: [...computeResults, ...kpiResults], hasUnfilteredFallback };
+  const allData = [...computeResults, ...kpiResults];
+  if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+  return { data: allData, hasUnfilteredFallback };
 }
 
 // ── Legacy wrapper (keeps backward compat) ──
