@@ -243,9 +243,11 @@ const KPIBreakdown: React.FC<Props> = ({
   React.useEffect(() => {
     uniqueKpiIds.forEach(kpiId => {
       const currentBreakdownDim = splitBy && splitBy !== 'None' ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy) : undefined;
-      fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
-        setBreakData(prev => ({ ...prev, [kpiId]: slices }));
-      }).catch(() => {});
+      if (currentBreakdownDim) {
+        fetchBreakdownData(kpiId, dateFrom, dateTo, currentBreakdownDim, filters).then(slices => {
+          setBreakData(prev => ({ ...prev, [kpiId]: slices }));
+        }).catch(() => {});
+      }
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
