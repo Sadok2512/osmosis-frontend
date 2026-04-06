@@ -290,19 +290,20 @@ export function resolveSlotContext(
   const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
   const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
 
-  // Split: use slot-level splitBy, fall back to per-KPI split, then global
+  // Split: per-KPI PM_DIM split takes priority, then slot-level, then global
   let splitValue: string | undefined;
-  if (slot.splitBy && slot.splitBy !== 'None') {
+  // Check per-KPI split first (PM dimension splits MUST take priority)
+  const perKpi = slot.config?.splitByPerKpi || {};
+  const activePmSplit = Object.values(perKpi).find(v => v && v !== 'None' && v.startsWith('PM_DIM:'));
+  const activePerKpiSplit = Object.values(perKpi).find(v => v && v !== 'None');
+  if (activePmSplit) {
+    splitValue = activePmSplit;
+  } else if (slot.splitBy && slot.splitBy !== 'None') {
     splitValue = slot.splitBy;
-  } else {
-    // Check per-KPI split config
-    const perKpi = slot.config?.splitByPerKpi || {};
-    const activeSplit = Object.values(perKpi).find(v => v && v !== 'None');
-    if (activeSplit) {
-      splitValue = activeSplit;
-    } else if (globalState.splitBy && globalState.splitBy !== 'None') {
-      splitValue = globalState.splitBy;
-    }
+  } else if (activePerKpiSplit) {
+    splitValue = activePerKpiSplit;
+  } else if (globalState.splitBy && globalState.splitBy !== 'None') {
+    splitValue = globalState.splitBy;
   }
 
   // Merge slot filters with global filters (slot overrides global for same dimension)
@@ -315,6 +316,8 @@ export function resolveSlotContext(
   const activeFilters = Object.entries(mergedFilters)
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
+
+  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, filters: activeFilters, globalFilters: globalState.filters, slotFilters: slot.filters });
 
   return {
     kpiIds: slot.kpiIds,
