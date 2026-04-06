@@ -29,17 +29,22 @@ interface KpiExplain {
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6'];
 
-const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0] }) => {
+const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0] }) => {
   const cols = layout === 1 ? 1 : 2;
   const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
   const [explainData, setExplainData] = React.useState<Record<string, KpiExplain>>({});
   const [counterTs, setCounterTs] = React.useState<Record<string, DataPoint[]>>({});
   const [activeView, setActiveView] = React.useState<Record<string, 'chart' | 'formula' | 'breakdown'>>({});
 
+  // Derive breakdown dimension from active splitBy (strip PM_DIM: prefix)
+  const breakdownDim = splitBy && splitBy !== 'None'
+    ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
+    : 'vendor';
+
   React.useEffect(() => {
     selectedKpis.forEach(kpiId => {
-      // Fetch breakdown (pie)
-      fetchBreakdownData(kpiId, dateFrom, dateTo).then(slices => {
+      // Fetch breakdown (pie) using the active split dimension
+      fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
 
