@@ -192,7 +192,7 @@ const CounterDefinitionPanel: React.FC<{
   hoveredCounter: string | null;
   onHoverCounter: (name: string | null) => void;
 }> = ({ counters, hoveredCounter, onHoverCounter }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   if (counters.length === 0) return null;
 
