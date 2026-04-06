@@ -244,7 +244,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
                     >
                       <div className="flex items-center justify-end gap-1.5">
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="truncate max-w-[140px]">{col}</span>
+                        <span className="whitespace-nowrap">{col}</span>
                       </div>
                     </th>
                   ))}
