@@ -1610,6 +1610,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           )}
                         </select>
                       </div>
+                      )}
                       <div className="h-px bg-border/60" />
                       <button
                         onClick={(e) => {
