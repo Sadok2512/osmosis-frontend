@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { getDimensionColor } from './dimensionColors';
 import { VENDOR_HSL, TECH_HSL, vendorHsl, techHsl } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
@@ -270,7 +271,7 @@ const AddFilterDropdown: React.FC<{
                 </span>
                 <span className={cn("flex-1", isChecked && "font-bold")}>{label}</span>
                 {isPm && (
-                  <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">PM</span>
+                  <span className={cn("text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded", getDimensionColor(dim).bg, getDimensionColor(dim).text, getDimensionColor(dim).textDark)}>PM</span>
                 )}
               </button>
             );
@@ -374,9 +375,9 @@ const FilterChip: React.FC<{
           <button
             className={cn(
               "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-l-lg text-[10px] font-semibold border border-r-0 transition-all cursor-pointer",
-              isPm
-                ? values.length > 0 ? "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" : "bg-amber-500/5 text-amber-600 border-amber-500/20"
-                : values.length > 0 ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30" : "bg-muted/50 text-muted-foreground border-border/40"
+              values.length > 0
+                ? `${getDimensionColor(dim).bgActive} ${getDimensionColor(dim).textActive} ${getDimensionColor(dim).textDark} ${getDimensionColor(dim).border}`
+                : `${getDimensionColor(dim).bg} ${getDimensionColor(dim).text} ${getDimensionColor(dim).border}`
             )}
           >
             <span className="text-muted-foreground font-normal">{label}:</span>
@@ -1362,18 +1363,24 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="truncate max-w-[140px]">{name}</span>
-                          {hasSplit && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[8px] font-bold uppercase tracking-wider border border-amber-500/20">
-                              <GitBranch className="w-2.5 h-2.5" />
-                              {splitLabel}
-                            </span>
-                          )}
-                          {hasSplit2 && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-600 dark:text-sky-400 text-[8px] font-bold uppercase tracking-wider border border-sky-500/20">
-                              <GitBranch className="w-2.5 h-2.5" />
-                              {splitLabel2}
-                            </span>
-                          )}
+                          {hasSplit && (() => {
+                            const dc = getDimensionColor(splitVal);
+                            return (
+                              <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc.bg, dc.text, dc.textDark, dc.border)}>
+                                <GitBranch className="w-2.5 h-2.5" />
+                                {splitLabel}
+                              </span>
+                            );
+                          })()}
+                          {hasSplit2 && (() => {
+                            const dc2 = getDimensionColor(splitVal2);
+                            return (
+                              <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc2.bg, dc2.text, dc2.textDark, dc2.border)}>
+                                <GitBranch className="w-2.5 h-2.5" />
+                                {splitLabel2}
+                              </span>
+                            );
+                          })()}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
