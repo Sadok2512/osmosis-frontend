@@ -38,7 +38,21 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
   const hasSplits = useMemo(() => tsData.some((d) => d.splitValue), [tsData]);
   const hasSplit2 = useMemo(() => tsData.some((d) => d.splitValue2), [tsData]);
 
-  const split1Label = activeSlot?.splitBy?.replace('PM_DIM:', '') || 'Split';
+  // Derive split labels: prefer slot-level, then detect from per-KPI splits, then fallback
+  const split1Label = useMemo(() => {
+    const raw = activeSlot?.splitBy;
+    if (raw && raw !== 'None') return raw.replace('PM_DIM:', '');
+    // Check per-KPI splits for a PM_DIM label
+    const perKpi = activeSlot?.config?.splitByPerKpi;
+    if (perKpi) {
+      for (const v of Object.values(perKpi)) {
+        if (v && v !== 'None') return (v as string).replace('PM_DIM:', '');
+      }
+    }
+    // Detect from data: if splitValues look like PMQAP/QCI labels
+    if (tsData.some(d => d.splitValue && /^(PMQAP|QCI|5QI|ARP)/i.test(d.splitValue))) return 'PMQAP';
+    return 'Split';
+  }, [activeSlot, tsData]);
   const split2Label = activeSlot?.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
 
   // ── Build rows ──

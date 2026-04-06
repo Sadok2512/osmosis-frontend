@@ -195,6 +195,7 @@ async function fetchCounterTimeSeriesFallback(
   granularity: string = '1d',
   splitBy?: string,
   filters?: { dimension: string; values: string[] }[],
+  splitByField?: string,
 ): Promise<{ data: DataPoint[]; isUnfiltered: boolean }> {
   try {
     const url = getApiUrl('pm/counters/timeseries');
@@ -207,6 +208,7 @@ async function fetchCounterTimeSeriesFallback(
 
     // Translate dimension filters to Parser format
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
+    if (splitByField) body.split_by_field = splitByField;
     const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
@@ -266,6 +268,8 @@ async function fetchCounterTimeSeriesFallback(
         kpi: s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
         value: s.value ?? s.kpi_value ?? s.val,
         splitValue: s.dimension_key || s.split_value || undefined,
+        splitValue2: s.split_field || undefined,
+        networkElement: s.split_field || undefined,
         _isRawFallback: true,
       })),
       isUnfiltered: false,
@@ -562,7 +566,7 @@ export async function fetchTimeSeriesForSlot(
   if (missingKpis.length > 0) {
     const fallback = await fetchCounterTimeSeriesFallback(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
-      ctx.splitBy, ctx.filters,
+      ctx.splitBy, ctx.filters, computeSplitByField,
     );
     const allData = [...computeResults, ...kpiResults, ...fallback.data];
     if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
