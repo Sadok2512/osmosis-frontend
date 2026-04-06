@@ -840,7 +840,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         const markLineData = jalons.map(j => {
           // Normalize jalon date to match allTimestamps format
-          const normDate = normalizeTimestamp(j.date, state.granularity);
+          const normDate = normalizeTimestamp(j.date, slotGranularity);
           // Find closest timestamp in timeline if exact match doesn't exist
           let xVal = normDate;
           if (!allTimestamps.includes(normDate) && allTimestamps.length > 0) {
