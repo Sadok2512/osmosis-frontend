@@ -3,9 +3,8 @@ import ReactECharts from 'echarts-for-react';
 import { fetchBreakdownData, fetchTimeSeriesData } from './investigatorApi';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { DataPoint } from './types';
-import { Info, BarChart3, TrendingUp, Calculator, Table2 } from 'lucide-react';
+import { BarChart3, TrendingUp, Calculator, Table2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatAxisLabel } from './timeUtils';
 
 interface Props {
   selectedKpis: string[];
@@ -29,55 +28,109 @@ interface KpiExplain {
 }
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6'];
+const MUTED_OPACITY = 0.15;
 
-/** Extract counter names from a formula string like `counter_a` + `counter_b` */
 const extractCounters = (formula: string) => {
   if (!formula) return [];
   const matches = formula.match(/`([^`]+)`/g) || [];
   return matches.map(m => m.replace(/`/g, ''));
 };
 
-/** Excel-like spreadsheet table for raw counter timeseries */
-const CounterTable: React.FC<{ ts: DataPoint[]; kpiLabel: string; color: string }> = ({ ts, kpiLabel, color }) => {
+/** Interactive Excel-like table synced with graph */
+const CounterTable: React.FC<{
+  ts: DataPoint[];
+  kpiLabel: string;
+  color: string;
+  selectedSeries: Set<string>;
+  onToggleSeries: (kpi: string) => void;
+}> = ({ ts, kpiLabel, color, selectedSeries, onToggleSeries }) => {
   if (ts.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-[10px]">
-        <Table2 className="w-5 h-5 mr-1.5 opacity-30" /> No data
+      <div className="flex items-center justify-center h-full text-muted-foreground text-xs">
+        <Table2 className="w-5 h-5 mr-2 opacity-30" /> No data available
       </div>
     );
   }
 
-  // Group by timestamp, multiple KPI series possible
   const kpis = [...new Set(ts.map(p => p.kpi))];
   const timestamps = [...new Set(ts.map(p => p.timestamp))].sort();
-
-  // Build lookup: kpi → timestamp → value
   const lookup: Record<string, Record<string, number>> = {};
   kpis.forEach(k => { lookup[k] = {}; });
   ts.forEach(p => { lookup[p.kpi][p.timestamp] = p.value; });
 
+  const hasSelection = selectedSeries.size > 0;
+
   return (
-    <div className="rounded-lg border border-border/50 overflow-hidden h-full flex flex-col">
-      <div className="px-2.5 py-1.5 bg-muted/40 border-b border-border/40 flex items-center gap-1.5 shrink-0">
-        <Table2 className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Raw Counters</span>
-        <span className="text-[8px] text-muted-foreground/60 ml-auto">{timestamps.length} rows × {kpis.length} cols</span>
+    <div className="rounded-xl border border-border/50 overflow-hidden h-full flex flex-col bg-card shadow-sm">
+      {/* Header */}
+      <div className="px-4 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2">
+          <Table2 className="w-4 h-4 text-primary" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Raw Counters</span>
+        </div>
+        <span className="text-[10px] text-muted-foreground font-medium">{timestamps.length} rows × {kpis.length} cols</span>
       </div>
+
+      {/* Clickable column legend */}
+      <div className="px-4 py-2 border-b border-border/30 bg-muted/10 flex flex-wrap gap-1.5 shrink-0">
+        {kpis.map((k, i) => {
+          const isSelected = selectedSeries.has(k);
+          const isMuted = hasSelection && !isSelected;
+          const seriesColor = COLORS[i % COLORS.length];
+          return (
+            <button
+              key={k}
+              onClick={() => onToggleSeries(k)}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold transition-all border cursor-pointer',
+                isSelected
+                  ? 'bg-primary/10 border-primary/40 text-primary shadow-sm'
+                  : isMuted
+                    ? 'bg-muted/20 border-border/20 text-muted-foreground/40'
+                    : 'bg-muted/30 border-border/30 text-foreground hover:bg-muted/50'
+              )}
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0 transition-opacity"
+                style={{ backgroundColor: seriesColor, opacity: isMuted ? 0.2 : 1 }}
+              />
+              <span className="truncate max-w-[120px]">{k}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Table */}
       <div className="overflow-auto flex-1">
-        <table className="w-full border-collapse text-[10px] font-mono">
+        <table className="w-full border-collapse">
           <thead className="sticky top-0 z-10">
-            <tr className="bg-muted/70 backdrop-blur-sm">
-              <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[90px]">
+            <tr className="bg-muted/60 backdrop-blur-sm">
+              <th className="px-4 py-2.5 text-left text-[11px] font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[110px] uppercase tracking-wider">
                 Date
               </th>
-              {kpis.map((k, i) => (
-                <th key={k} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
-                  <div className="flex items-center justify-end gap-1">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="truncate max-w-[100px]">{k}</span>
-                  </div>
-                </th>
-              ))}
+              {kpis.map((k, i) => {
+                const isSelected = selectedSeries.has(k);
+                const isMuted = hasSelection && !isSelected;
+                const seriesColor = COLORS[i % COLORS.length];
+                return (
+                  <th
+                    key={k}
+                    onClick={() => onToggleSeries(k)}
+                    className={cn(
+                      'px-4 py-2.5 text-right text-[11px] font-bold border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[100px] uppercase tracking-wider cursor-pointer transition-all',
+                      isSelected ? 'text-primary bg-primary/5' : isMuted ? 'text-muted-foreground/30' : 'text-muted-foreground hover:bg-muted/40'
+                    )}
+                  >
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0 transition-opacity"
+                        style={{ backgroundColor: seriesColor, opacity: isMuted ? 0.2 : 1 }}
+                      />
+                      <span className="truncate max-w-[110px]">{k}</span>
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -85,19 +138,31 @@ const CounterTable: React.FC<{ ts: DataPoint[]; kpiLabel: string; color: string 
               <tr
                 key={ti}
                 className={cn(
-                  'border-b border-border/20 hover:bg-primary/5 transition-colors',
-                  ti % 2 === 0 ? 'bg-background' : 'bg-muted/8'
+                  'border-b border-border/20 hover:bg-primary/[0.04] transition-colors',
+                  ti % 2 === 0 ? 'bg-background' : 'bg-muted/[0.06]'
                 )}
               >
-                <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
+                <td className="px-4 py-2 text-[12px] text-foreground/70 border-r border-border/20 whitespace-nowrap font-semibold tabular-nums">
                   {ts.length > 10 ? ts.slice(0, 10) : ts}
                 </td>
                 {kpis.map((k, ki) => {
                   const val = lookup[k]?.[ts];
+                  const isSelected = selectedSeries.has(k);
+                  const isMuted = hasSelection && !isSelected;
+                  const seriesColor = COLORS[ki % COLORS.length];
                   return (
                     <td
                       key={ki}
-                      className="px-2.5 py-1.5 text-right text-foreground border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums"
+                      onClick={() => onToggleSeries(k)}
+                      className={cn(
+                        'px-4 py-2 text-right border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums cursor-pointer transition-all',
+                        isSelected
+                          ? 'font-extrabold text-[13px]'
+                          : isMuted
+                            ? 'text-muted-foreground/25 text-[12px]'
+                            : 'text-foreground font-semibold text-[12px] hover:bg-muted/20'
+                      )}
+                      style={isSelected ? { color: seriesColor } : undefined}
                     >
                       {val != null ? val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
                     </td>
@@ -118,25 +183,32 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
   const [explainData, setExplainData] = React.useState<Record<string, KpiExplain>>({});
   const [counterTs, setCounterTs] = React.useState<Record<string, DataPoint[]>>({});
   const [activeView, setActiveView] = React.useState<Record<string, 'chart' | 'formula' | 'breakdown'>>({});
+  const [selectedSeries, setSelectedSeries] = React.useState<Record<string, Set<string>>>({});
 
   const breakdownDim = splitBy && splitBy !== 'None'
     ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
     : 'vendor';
+
+  const toggleSeries = (kpiId: string, seriesName: string) => {
+    setSelectedSeries(prev => {
+      const current = new Set(prev[kpiId] || []);
+      if (current.has(seriesName)) current.delete(seriesName);
+      else current.add(seriesName);
+      return { ...prev, [kpiId]: current };
+    });
+  };
 
   React.useEffect(() => {
     selectedKpis.forEach(kpiId => {
       fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
-
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
-
       fetchTimeSeriesData([kpiId], dateFrom, dateTo, '1d').then(ts => {
         setCounterTs(prev => ({ ...prev, [kpiId]: ts }));
       }).catch(() => {});
-
       setActiveView(prev => ({ ...prev, [kpiId]: prev[kpiId] || 'chart' }));
     });
   }, [selectedKpis, dateFrom, dateTo, breakdownDim]);
@@ -149,6 +221,22 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
         const ts = counterTs[kpiId] || [];
         const view = activeView[kpiId] || 'chart';
         const color = COLORS[idx % COLORS.length];
+        const kpiSelected = selectedSeries[kpiId] || new Set<string>();
+        const hasSelection = kpiSelected.size > 0;
+
+        const kpiNames = [...new Set(ts.map(p => p.kpi))];
+
+        const buildSeriesStyle = (seriesKpi: string, seriesIdx: number) => {
+          const c = COLORS[seriesIdx % COLORS.length];
+          const isSelected = kpiSelected.has(seriesKpi);
+          const isMuted = hasSelection && !isSelected;
+          return {
+            lineStyle: { width: isSelected ? 3.5 : 2.5, color: c, opacity: isMuted ? MUTED_OPACITY : 1 },
+            itemStyle: { color: c, opacity: isMuted ? MUTED_OPACITY : 1, borderWidth: isSelected ? 2 : 0, borderColor: '#fff' },
+            symbolSize: isSelected ? 8 : 4,
+            z: isSelected ? 10 : 1,
+          };
+        };
 
         const tsOption = {
           tooltip: {
@@ -157,66 +245,58 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
             borderColor: 'rgba(255,255,255,0.08)',
             textStyle: { color: '#f8fafc', fontSize: 11 },
           },
-          grid: { left: 50, right: 20, top: 10, bottom: 25 },
+          grid: { left: 55, right: 20, top: 15, bottom: 30 },
           xAxis: {
             type: 'category' as const,
-            data: ts.map(p => p.timestamp?.slice(5, 10)),
-            axisLabel: { color: '#6b7280', fontSize: 9 },
-            axisLine: { lineStyle: { color: '#374151' } },
+            data: [...new Set(ts.map(p => p.timestamp))].sort().map(t => t?.slice(5, 10)),
+            axisLabel: { color: '#6b7280', fontSize: 10 },
+            axisLine: { lineStyle: { color: '#e5e7eb' } },
           },
           yAxis: {
             type: 'value' as const,
-            axisLabel: { color: '#6b7280', fontSize: 9 },
-            splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
+            axisLabel: { color: '#6b7280', fontSize: 10 },
+            splitLine: { lineStyle: { color: '#f3f4f6' } },
           },
-          series: [{
-            type: 'line' as const,
-            data: ts.map(p => p.value),
-            smooth: true,
-            lineStyle: { width: 2, color },
-            areaStyle: { color: { type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: color + '30' }, { offset: 1, color: color + '05' }] } },
-            itemStyle: { color },
-            symbolSize: 3,
-          }],
+          series: kpiNames.map((kName, ki) => {
+            const seriesTs = ts.filter(p => p.kpi === kName);
+            const style = buildSeriesStyle(kName, ki);
+            return {
+              name: kName,
+              type: 'line' as const,
+              data: seriesTs.map(p => p.value),
+              smooth: true,
+              symbol: 'circle',
+              ...style,
+            };
+          }),
         };
 
         const pieOption = slices.length > 0 ? {
-          tooltip: {
-            trigger: 'item' as const,
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(255,255,255,0.08)',
-            textStyle: { color: '#f8fafc', fontSize: 11 },
-          },
-          legend: { bottom: 0, textStyle: { color: '#9ca3af', fontSize: 9 } },
-          series: [{
-            type: 'pie' as const,
-            radius: ['30%', '60%'],
-            center: ['50%', '45%'],
-            data: slices.map(s => ({ name: s.name, value: s.value, itemStyle: { color: s.color } })),
-            label: { show: true, color: '#9ca3af', fontSize: 9, formatter: '{b}: {d}%' },
-          }],
+          tooltip: { trigger: 'item' as const, backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#f8fafc', fontSize: 11 } },
+          legend: { bottom: 0, textStyle: { color: '#6b7280', fontSize: 10 } },
+          series: [{ type: 'pie' as const, radius: ['30%', '60%'], center: ['50%', '45%'], data: slices.map(s => ({ name: s.name, value: s.value, itemStyle: { color: s.color } })), label: { show: true, color: '#6b7280', fontSize: 10, formatter: '{b}: {d}%' } }],
         } : null;
 
         const numCounters = explain ? extractCounters(explain.numerator) : [];
         const denCounters = explain ? extractCounters(explain.denominator) : [];
 
         return (
-          <div key={kpiId} className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div key={kpiId} className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
             {/* Header */}
-            <div className="px-4 py-3 border-b border-border/40 bg-muted/20">
+            <div className="px-5 py-3.5 border-b border-border/40 bg-muted/15">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                  <h3 className="text-xs font-bold text-foreground uppercase tracking-tight">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: color }} />
+                  <h3 className="text-[13px] font-bold text-foreground tracking-tight">
                     {explain?.display_name || kpiId}
                   </h3>
                   {explain && (
-                    <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-muted text-muted-foreground">
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-muted/60 text-muted-foreground border border-border/30">
                       {explain.formula_type} · {explain.unit || 'ratio'}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+                <div className="flex items-center bg-muted/40 p-0.5 rounded-lg border border-border/30">
                   {([
                     { key: 'chart' as const, icon: TrendingUp, label: 'Trend' },
                     { key: 'formula' as const, icon: Calculator, label: 'Formula' },
@@ -226,27 +306,27 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
                       key={tab.key}
                       onClick={() => setActiveView(prev => ({ ...prev, [kpiId]: tab.key }))}
                       className={cn(
-                        'flex items-center gap-1 px-2.5 py-1 rounded-md text-[9px] font-bold transition-all',
+                        'flex items-center gap-1 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
                         view === tab.key ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
                       )}
                     >
-                      <tab.icon className="w-3 h-3" />
+                      <tab.icon className="w-3.5 h-3.5" />
                       {tab.label}
                     </button>
                   ))}
                 </div>
               </div>
               {explain?.description && (
-                <p className="text-[10px] text-muted-foreground mt-1">{explain.description}</p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">{explain.description}</p>
               )}
             </div>
 
             {/* Content */}
-            <div className="p-4">
+            <div className="p-5" style={{ backgroundColor: '#ffffff' }}>
               {view === 'chart' && (
                 <div>
                   {ts.length > 0 ? (
-                    <ReactECharts option={tsOption} style={{ height: layout === 1 ? 240 : 180 }} />
+                    <ReactECharts option={tsOption} style={{ height: layout === 1 ? 260 : 200 }} />
                   ) : (
                     <div className="flex items-center justify-center h-40 text-muted-foreground text-xs">No data</div>
                   )}
@@ -256,50 +336,44 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
               {view === 'formula' && (
                 <div className="space-y-4">
                   <div className="space-y-3">
-                    <div className="rounded-lg bg-muted/30 border border-border/40 p-3">
+                    <div className="rounded-lg bg-muted/20 border border-border/30 p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-green-500/15 text-green-500 border border-green-500/30">NUM</span>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase">Numerator</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-green-500/15 text-green-600 border border-green-500/30">NUM</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Numerator</span>
                       </div>
-                      <code className="text-[10px] text-foreground font-mono leading-relaxed break-all">
-                        {explain?.numerator || '—'}
-                      </code>
+                      <code className="text-[11px] text-foreground font-mono leading-relaxed break-all">{explain?.numerator || '—'}</code>
                       {numCounters.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap gap-1.5 mt-2.5">
                           {numCounters.map(c => (
-                            <span key={c} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-green-500/10 text-green-600 border border-green-500/20">{c}</span>
+                            <span key={c} className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-green-500/10 text-green-600 border border-green-500/20">{c}</span>
                           ))}
                         </div>
                       )}
                     </div>
-
-                    <div className="rounded-lg bg-muted/30 border border-border/40 p-3">
+                    <div className="rounded-lg bg-muted/20 border border-border/30 p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">DEN</span>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase">Denominator</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">DEN</span>
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Denominator</span>
                       </div>
-                      <code className="text-[10px] text-foreground font-mono leading-relaxed break-all">
-                        {explain?.denominator || '—'}
-                      </code>
+                      <code className="text-[11px] text-foreground font-mono leading-relaxed break-all">{explain?.denominator || '—'}</code>
                       {denCounters.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
+                        <div className="flex flex-wrap gap-1.5 mt-2.5">
                           {denCounters.map(c => (
-                            <span key={c} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20">{c}</span>
+                            <span key={c} className="px-2 py-0.5 rounded-md text-[9px] font-mono font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20">{c}</span>
                           ))}
                         </div>
                       )}
                     </div>
                   </div>
-
                   {explain && (
-                    <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div className="grid grid-cols-2 gap-3 mt-4">
                       {[
                         { label: 'Category', value: explain.category },
                         { label: 'Formula Type', value: explain.formula_type },
                         { label: 'Technology', value: explain.techno },
                         { label: 'Vendor', value: explain.vendor },
                       ].map(item => (
-                        <div key={item.label} className="flex items-center gap-2 text-[10px]">
+                        <div key={item.label} className="flex items-center gap-2 text-[11px]">
                           <span className="text-muted-foreground font-medium">{item.label}:</span>
                           <span className="font-bold text-foreground">{item.value || '—'}</span>
                         </div>
@@ -310,24 +384,32 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
               )}
 
               {view === 'breakdown' && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ minHeight: layout === 1 ? 300 : 220 }}>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-5" style={{ minHeight: layout === 1 ? 340 : 260 }}>
                   {/* Left: Breakdown graph */}
                   <div className="flex flex-col">
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <BarChart3 className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Breakdown by {breakdownDim}</span>
+                    <div className="flex items-center gap-2 mb-3">
+                      <BarChart3 className="w-4 h-4 text-primary" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Breakdown by {breakdownDim}</span>
                     </div>
                     {pieOption ? (
-                      <ReactECharts option={pieOption} style={{ height: layout === 1 ? 260 : 190, flex: 1 }} />
+                      <div className="rounded-xl border border-border/30 bg-white p-3 flex-1 shadow-sm">
+                        <ReactECharts option={pieOption} style={{ height: layout === 1 ? 280 : 220, width: '100%' }} />
+                      </div>
                     ) : (
-                      <div className="flex items-center justify-center flex-1 text-muted-foreground text-xs">
+                      <div className="flex items-center justify-center flex-1 text-muted-foreground text-xs rounded-xl border border-border/30 bg-white">
                         No breakdown data available
                       </div>
                     )}
                   </div>
 
-                  {/* Right: Raw counters table (Excel-like) */}
-                  <CounterTable ts={ts} kpiLabel={explain?.display_name || kpiId} color={color} />
+                  {/* Right: Interactive Excel-like table */}
+                  <CounterTable
+                    ts={ts}
+                    kpiLabel={explain?.display_name || kpiId}
+                    color={color}
+                    selectedSeries={kpiSelected}
+                    onToggleSeries={(series) => toggleSeries(kpiId, series)}
+                  />
                 </div>
               )}
             </div>
