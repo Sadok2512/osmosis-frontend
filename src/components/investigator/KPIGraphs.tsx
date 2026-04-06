@@ -1098,6 +1098,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 <Plus className="w-3.5 h-3.5" />
               </button>
 
+              {/* Add Counter to this graph */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setCounterSelectorSlotId(slot.id); }}
+                className="p-1 rounded-md hover:bg-amber-500/10 text-muted-foreground hover:text-amber-600 transition-colors"
+                title="Ajouter un Compteur"
+              >
+                <Hash className="w-3.5 h-3.5" />
+              </button>
+
               {/* Remove button */}
               <button
                 onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
