@@ -1313,46 +1313,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               }}
             />
 
-            {/* ── Table Data — rendered when tableView is ON ── */}
-            {cfg.showDataTable && (
-              <div className="mt-3 rounded-lg border border-border/40 overflow-hidden">
-                <div className="px-3 py-1.5 bg-muted/30 border-b border-border/40">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Table Data</span>
-                </div>
-                <div className="overflow-x-auto max-h-[260px] overflow-y-auto">
-                  <table className="w-full text-[10px]">
-                    <thead className="sticky top-0 bg-muted/60 backdrop-blur-sm z-10">
-                      <tr>
-                        <th className="px-2 py-1.5 text-left font-bold text-muted-foreground border-b border-border/30 whitespace-nowrap">Timestamp</th>
-                        {series.map((s: any, si: number) => (
-                          <th key={si} className="px-2 py-1.5 text-right font-bold text-muted-foreground border-b border-border/30 whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-1">
-                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.itemStyle?.color || '#6366f1' }} />
-                              <span className="truncate max-w-[120px]">{s.name}</span>
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allTimestamps.map((ts, ti) => (
-                        <tr key={ti} className={cn('border-b border-border/10', ti % 2 === 0 ? 'bg-background' : 'bg-muted/10')}>
-                          <td className="px-2 py-1 text-foreground font-mono whitespace-nowrap">{formatAxisLabel(ts, state.granularity)}</td>
-                          {series.map((s: any, si: number) => {
-                            const val = s.data?.[ti];
-                            return (
-                              <td key={si} className="px-2 py-1 text-right font-mono text-foreground whitespace-nowrap">
-                                {val != null ? (typeof val === 'number' ? val.toFixed(2) : val) : '—'}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
           </div>
         );
       })}

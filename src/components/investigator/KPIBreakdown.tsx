@@ -3,8 +3,9 @@ import ReactECharts from 'echarts-for-react';
 import { fetchBreakdownData, fetchTimeSeriesData } from './investigatorApi';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { DataPoint } from './types';
-import { Info, BarChart3, TrendingUp, Calculator } from 'lucide-react';
+import { Info, BarChart3, TrendingUp, Calculator, Table2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatAxisLabel } from './timeUtils';
 
 interface Props {
   selectedKpis: string[];
@@ -29,6 +30,88 @@ interface KpiExplain {
 
 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6'];
 
+/** Extract counter names from a formula string like `counter_a` + `counter_b` */
+const extractCounters = (formula: string) => {
+  if (!formula) return [];
+  const matches = formula.match(/`([^`]+)`/g) || [];
+  return matches.map(m => m.replace(/`/g, ''));
+};
+
+/** Excel-like spreadsheet table for raw counter timeseries */
+const CounterTable: React.FC<{ ts: DataPoint[]; kpiLabel: string; color: string }> = ({ ts, kpiLabel, color }) => {
+  if (ts.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-[10px]">
+        <Table2 className="w-5 h-5 mr-1.5 opacity-30" /> No data
+      </div>
+    );
+  }
+
+  // Group by timestamp, multiple KPI series possible
+  const kpis = [...new Set(ts.map(p => p.kpi))];
+  const timestamps = [...new Set(ts.map(p => p.timestamp))].sort();
+
+  // Build lookup: kpi → timestamp → value
+  const lookup: Record<string, Record<string, number>> = {};
+  kpis.forEach(k => { lookup[k] = {}; });
+  ts.forEach(p => { lookup[p.kpi][p.timestamp] = p.value; });
+
+  return (
+    <div className="rounded-lg border border-border/50 overflow-hidden h-full flex flex-col">
+      <div className="px-2.5 py-1.5 bg-muted/40 border-b border-border/40 flex items-center gap-1.5 shrink-0">
+        <Table2 className="w-3.5 h-3.5 text-muted-foreground" />
+        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Raw Counters</span>
+        <span className="text-[8px] text-muted-foreground/60 ml-auto">{timestamps.length} rows × {kpis.length} cols</span>
+      </div>
+      <div className="overflow-auto flex-1">
+        <table className="w-full border-collapse text-[10px] font-mono">
+          <thead className="sticky top-0 z-10">
+            <tr className="bg-muted/70 backdrop-blur-sm">
+              <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap min-w-[90px]">
+                Date
+              </th>
+              {kpis.map((k, i) => (
+                <th key={k} className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-r border-border/40 last:border-r-0 whitespace-nowrap min-w-[80px]">
+                  <div className="flex items-center justify-end gap-1">
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="truncate max-w-[100px]">{k}</span>
+                  </div>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {timestamps.map((ts, ti) => (
+              <tr
+                key={ti}
+                className={cn(
+                  'border-b border-border/20 hover:bg-primary/5 transition-colors',
+                  ti % 2 === 0 ? 'bg-background' : 'bg-muted/8'
+                )}
+              >
+                <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
+                  {ts.length > 10 ? ts.slice(0, 10) : ts}
+                </td>
+                {kpis.map((k, ki) => {
+                  const val = lookup[k]?.[ts];
+                  return (
+                    <td
+                      key={ki}
+                      className="px-2.5 py-1.5 text-right text-foreground border-r border-border/20 last:border-r-0 whitespace-nowrap tabular-nums"
+                    >
+                      {val != null ? val.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], dateTo = new Date().toISOString().split('T')[0] }) => {
   const cols = layout === 1 ? 1 : 2;
   const [breakData, setBreakData] = React.useState<Record<string, any[]>>({});
@@ -36,29 +119,24 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
   const [counterTs, setCounterTs] = React.useState<Record<string, DataPoint[]>>({});
   const [activeView, setActiveView] = React.useState<Record<string, 'chart' | 'formula' | 'breakdown'>>({});
 
-  // Derive breakdown dimension from active splitBy (strip PM_DIM: prefix)
   const breakdownDim = splitBy && splitBy !== 'None'
     ? (splitBy.startsWith('PM_DIM:') ? splitBy.replace('PM_DIM:', '') : splitBy)
     : 'vendor';
 
   React.useEffect(() => {
     selectedKpis.forEach(kpiId => {
-      // Fetch breakdown (pie) using the active split dimension
       fetchBreakdownData(kpiId, dateFrom, dateTo, breakdownDim).then(slices => {
         setBreakData(prev => ({ ...prev, [kpiId]: slices }));
       }).catch(() => {});
 
-      // Fetch formula explain
       fetchExplain(kpiId).then((data: any) => {
         setExplainData(prev => ({ ...prev, [kpiId]: data }));
       }).catch(() => {});
 
-      // Fetch timeseries for this KPI (daily)
       fetchTimeSeriesData([kpiId], dateFrom, dateTo, '1d').then(ts => {
         setCounterTs(prev => ({ ...prev, [kpiId]: ts }));
       }).catch(() => {});
 
-      // Default view
       setActiveView(prev => ({ ...prev, [kpiId]: prev[kpiId] || 'chart' }));
     });
   }, [selectedKpis, dateFrom, dateTo, breakdownDim]);
@@ -72,7 +150,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
         const view = activeView[kpiId] || 'chart';
         const color = COLORS[idx % COLORS.length];
 
-        // Timeseries chart option
         const tsOption = {
           tooltip: {
             trigger: 'axis' as const,
@@ -103,7 +180,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
           }],
         };
 
-        // Pie chart option  
         const pieOption = slices.length > 0 ? {
           tooltip: {
             trigger: 'item' as const,
@@ -120,13 +196,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
             label: { show: true, color: '#9ca3af', fontSize: 9, formatter: '{b}: {d}%' },
           }],
         } : null;
-
-        // Parse counter names from formula
-        const extractCounters = (formula: string) => {
-          if (!formula) return [];
-          const matches = formula.match(/`([^`]+)`/g) || [];
-          return matches.map(m => m.replace(/`/g, ''));
-        };
 
         const numCounters = explain ? extractCounters(explain.numerator) : [];
         const denCounters = explain ? extractCounters(explain.denominator) : [];
@@ -147,7 +216,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
                     </span>
                   )}
                 </div>
-                {/* View switcher */}
                 <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
                   {([
                     { key: 'chart' as const, icon: TrendingUp, label: 'Trend' },
@@ -187,7 +255,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
 
               {view === 'formula' && (
                 <div className="space-y-4">
-                  {/* Formula display */}
                   <div className="space-y-3">
                     <div className="rounded-lg bg-muted/30 border border-border/40 p-3">
                       <div className="flex items-center gap-2 mb-2">
@@ -224,7 +291,6 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
                     </div>
                   </div>
 
-                  {/* KPI metadata */}
                   {explain && (
                     <div className="grid grid-cols-2 gap-2 mt-3">
                       {[
@@ -244,14 +310,24 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
               )}
 
               {view === 'breakdown' && (
-                <div>
-                  {pieOption ? (
-                    <ReactECharts option={pieOption} style={{ height: layout === 1 ? 280 : 200 }} />
-                  ) : (
-                    <div className="flex items-center justify-center h-40 text-muted-foreground text-xs">
-                      No breakdown data available
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4" style={{ minHeight: layout === 1 ? 300 : 220 }}>
+                  {/* Left: Breakdown graph */}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Breakdown by {breakdownDim}</span>
                     </div>
-                  )}
+                    {pieOption ? (
+                      <ReactECharts option={pieOption} style={{ height: layout === 1 ? 260 : 190, flex: 1 }} />
+                    ) : (
+                      <div className="flex items-center justify-center flex-1 text-muted-foreground text-xs">
+                        No breakdown data available
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Raw counters table (Excel-like) */}
+                  <CounterTable ts={ts} kpiLabel={explain?.display_name || kpiId} color={color} />
                 </div>
               )}
             </div>
