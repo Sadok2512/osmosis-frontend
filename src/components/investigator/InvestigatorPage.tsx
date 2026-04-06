@@ -514,7 +514,7 @@ const InvestigatorPage: React.FC = () => {
         {/* KPI Breakdown */}
         {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
           <section className="space-y-4">
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} />
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} timeSeriesData={tsData} />
           </section>
         )}
 
