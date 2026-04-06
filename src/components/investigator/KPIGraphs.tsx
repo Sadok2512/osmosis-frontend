@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity } from './types';
-import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs } from './timeUtils';
+import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs, smartXInterval } from './timeUtils';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -242,8 +242,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   const yMax = parseFloat((rawMax + padding).toFixed(4));
 
   // Smart x-axis interval
-  const totalPts = timestamps.length;
-  const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
+  const xInterval = smartXInterval(timestamps.length);
 
   const legendRows = counters.length > 4 ? 78 : counters.length > 2 ? 66 : 54;
   const sliderHeight = 22;
@@ -254,7 +253,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     grid: {
       top: 32,
       right: 28,
-      bottom: legendRows + sliderHeight + 10,
+      bottom: legendRows + sliderHeight + 20,
       left: 62,
       containLabel: false,
     },
@@ -329,14 +328,15 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       data: timestamps,
       axisLabel: {
         formatter: (v: string) => formatAxisLabel(v, state.granularity),
-        fontSize: 10.5,
-        color: '#a1a1aa',
-        margin: 14,
+        fontSize: 11,
+        color: '#6b7280',
+        margin: 16,
         rotate: 0,
         interval: xInterval,
+        lineHeight: 16,
       },
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-      axisTick: { show: false },
+      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
       splitLine: { show: false },
     },
     yAxis: {
@@ -890,9 +890,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           xAxis: end.xAxis,
         }]);
 
-        // Smart x-axis interval: keep labels horizontal, show ~8-12 ticks max
-        const totalPts = allTimestamps.length;
-        const xInterval = totalPts > 90 ? Math.floor(totalPts / 8) : totalPts > 40 ? Math.floor(totalPts / 10) : totalPts > 20 ? Math.floor(totalPts / 8) : 0;
+        // Smart x-axis interval
+        const xInterval = smartXInterval(allTimestamps.length);
 
         // Determine if we need a right Y-axis
         const yAxisAssignments = cfg.yAxisAssignments || {};
@@ -980,7 +979,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendRows + sliderHeight + 10,
+            bottom: legendRows + sliderHeight + 20,
             left: 62,
             containLabel: false,
           },
@@ -1078,14 +1077,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             data: allTimestamps,
             axisLabel: {
               formatter: (v: string) => formatAxisLabel(v, state.granularity),
-              fontSize: 10.5,
-              color: '#a1a1aa',
-              margin: 14,
+              fontSize: 11,
+              color: '#6b7280',
+              margin: 16,
               rotate: 0,
               interval: xInterval,
+              lineHeight: 16,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.05)' } },
-            axisTick: { show: false },
+            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+            axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
             splitLine: { show: false },
           },
           yAxis: yAxisArr,
