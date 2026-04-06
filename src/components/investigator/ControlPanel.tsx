@@ -780,82 +780,88 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           <div className="flex items-center gap-3">
             {/* Date range */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 justify-start text-left text-[11px] font-medium rounded-lg bg-card', showTimePickers ? 'w-[155px]' : 'w-[120px]', !startDate && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
-                    {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
-                    {showTimePickers && <span className="ml-1 text-muted-foreground">{startTime}</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    defaultMonth={startDate || new Date()}
-                    today={undefined}
-                    onSelect={(d) => d && setState(prev => {
-                      const nextStart = format(d, 'yyyy-MM-dd');
-                      const timePart = parseTime(prev.startDate);
-                      const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
-                      const nextEnd = prev.endDate && prev.endDate.split('T')[0] < nextStart ? fullStart : prev.endDate;
-                      return { ...prev, startDate: fullStart, endDate: nextEnd };
-                    })}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                  {showTimePickers && (
-                    <div className="border-t border-border px-3 py-2 flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground font-medium">Heure</span>
-                      <input
-                        type="time"
-                        value={startTime}
-                        onChange={(e) => setStartTime(e.target.value)}
-                        className="h-7 px-2 text-[11px] rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
-              <span className="text-[10px] text-muted-foreground font-medium">→</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('h-8 justify-start text-left text-[11px] font-medium rounded-lg bg-card', showTimePickers ? 'w-[155px]' : 'w-[120px]', !endDate && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-1.5 h-3 w-3 text-muted-foreground" />
-                    {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
-                    {showTimePickers && <span className="ml-1 text-muted-foreground">{endTime}</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    defaultMonth={endDate || startDate || new Date()}
-                    disabled={(date) => !!startDate && date < startDate}
-                    onSelect={(d) => d && setState(prev => {
-                      const nextEnd = format(d, 'yyyy-MM-dd');
-                      const timePart = parseTime(prev.endDate);
-                      return { ...prev, endDate: showTimePickers ? `${nextEnd}T${timePart}` : nextEnd };
-                    })}
-                    today={undefined}
-                    modifiers={startDate ? { rangeStart: startDate } : undefined}
-                    modifiersStyles={{ rangeStart: { border: '2px solid hsl(var(--primary))', borderRadius: '6px', fontWeight: 700 } }}
-                    initialFocus
-                    className="p-3 pointer-events-auto"
-                  />
-                  {showTimePickers && (
-                    <div className="border-t border-border px-3 py-2 flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground font-medium">Heure</span>
-                      <input
-                        type="time"
-                        value={endTime}
-                        onChange={(e) => setEndTime(e.target.value)}
-                        className="h-7 px-2 text-[11px] rounded-md border border-border bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                      />
-                    </div>
-                  )}
-                </PopoverContent>
-              </Popover>
+              {/* ── Start Date+Time ── */}
+              <div className="flex items-center h-8 rounded-lg border border-border bg-card overflow-hidden">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !startDate && 'text-muted-foreground')}>
+                      <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      defaultMonth={startDate || new Date()}
+                      today={undefined}
+                      onSelect={(d) => d && setState(prev => {
+                        const nextStart = format(d, 'yyyy-MM-dd');
+                        const timePart = parseTime(prev.startDate);
+                        const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
+                        const nextEnd = prev.endDate && prev.endDate.split('T')[0] < nextStart ? fullStart : prev.endDate;
+                        return { ...prev, startDate: fullStart, endDate: nextEnd };
+                      })}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {showTimePickers && (
+                  <>
+                    <div className="w-px h-4 bg-border shrink-0" />
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="h-full w-[70px] px-1.5 text-[11px] font-medium bg-transparent text-foreground border-none outline-none focus:bg-accent/30 transition-colors [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                  </>
+                )}
+              </div>
+
+              <span className="text-[10px] text-muted-foreground font-semibold select-none">–</span>
+
+              {/* ── End Date+Time ── */}
+              <div className="flex items-center h-8 rounded-lg border border-border bg-card overflow-hidden">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !endDate && 'text-muted-foreground')}>
+                      <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      defaultMonth={endDate || startDate || new Date()}
+                      disabled={(date) => !!startDate && date < startDate}
+                      onSelect={(d) => d && setState(prev => {
+                        const nextEnd = format(d, 'yyyy-MM-dd');
+                        const timePart = parseTime(prev.endDate);
+                        return { ...prev, endDate: showTimePickers ? `${nextEnd}T${timePart}` : nextEnd };
+                      })}
+                      today={undefined}
+                      modifiers={startDate ? { rangeStart: startDate } : undefined}
+                      modifiersStyles={{ rangeStart: { border: '2px solid hsl(var(--primary))', borderRadius: '6px', fontWeight: 700 } }}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                {showTimePickers && (
+                  <>
+                    <div className="w-px h-4 bg-border shrink-0" />
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="h-full w-[70px] px-1.5 text-[11px] font-medium bg-transparent text-foreground border-none outline-none focus:bg-accent/30 transition-colors [&::-webkit-calendar-picker-indicator]:hidden"
+                    />
+                  </>
+                )}
+              </div>
             </div>
 
             {/* Separator */}
