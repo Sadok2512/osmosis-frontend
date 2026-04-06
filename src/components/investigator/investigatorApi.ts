@@ -365,33 +365,38 @@ export async function fetchTimeSeriesForSlot(
   const hasNonPmSplit = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
   console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit, 'hasNonPmSplit:', hasNonPmSplit);
 
-  // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
+  // Step 1: Try /kpi/compute FIRST — but ONLY when there's no non-PM split
+  // (compute endpoint can't split by CELL/VENDOR/BAND, only KPI Engine can)
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
-  for (const kpiId of ctx.kpiIds) {
-    const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
+  if (!hasNonPmSplit) {
+    for (const kpiId of ctx.kpiIds) {
+      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}`;
 
-    if (!_computeCache.has(cacheKey)) {
-      _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
-        kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
-      ));
-      // Clear cache after 30s
-      setTimeout(() => _computeCache.delete(cacheKey), 30000);
+      if (!_computeCache.has(cacheKey)) {
+        _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit,
+        ));
+        setTimeout(() => _computeCache.delete(cacheKey), 30000);
+      }
+
+      const computed = await _computeCache.get(cacheKey)!;
+      if (computed.isComputed) {
+        computeResults.push(...computed.data);
+      } else {
+        computeFailed.push(kpiId);
+      }
     }
 
-    const computed = await _computeCache.get(cacheKey)!;
-    if (computed.isComputed) {
-      computeResults.push(...computed.data);
-    } else {
-      computeFailed.push(kpiId);
+    // If all KPIs computed successfully, return directly (skip KPI Engine)
+    if (computeFailed.length === 0 && computeResults.length > 0) {
+      console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+      return { data: computeResults, hasUnfilteredFallback: false };
     }
-  }
-
-  // If all KPIs computed successfully, return directly (skip KPI Engine)
-  if (computeFailed.length === 0 && computeResults.length > 0) {
-    console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
-    return { data: computeResults, hasUnfilteredFallback: false };
+  } else {
+    // Non-PM split: all KPIs must go through KPI Engine
+    computeFailed.push(...ctx.kpiIds);
   }
 
   // Step 2: Fall back to KPI Engine for KPIs that failed compute
