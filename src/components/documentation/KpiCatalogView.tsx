@@ -360,6 +360,9 @@ const KpiCatalogView: React.FC = () => {
                       Vendor
                     </th>
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
+                      Normalized
+                    </th>
+                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
                       Status
                     </th>
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">
