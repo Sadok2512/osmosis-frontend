@@ -1004,6 +1004,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Determine if we need a right Y-axis
         const yAxisAssignments = { ...(cfg.yAxisAssignments || {}) };
+        console.log('[KPIGraphs] slot', slot.id, 'cfg.yAxisAssignments', JSON.stringify(cfg.yAxisAssignments), 'series._kpiIds', series.map(s => s._kpiId));
 
         // Auto dual-axis: when multiple KPIs have very different scales (>10x),
         // auto-assign the smaller-scale group to the right axis.
