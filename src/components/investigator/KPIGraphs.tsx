@@ -1215,7 +1215,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
             return {
               ...s,
-              _kpiId: undefined,
+              // Keep _kpiId, _splitValue, _splitValue2, _networkElement for table/tooltip
               // Counter series already have yAxisIndex set; for KPIs, use assignment logic
               yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
