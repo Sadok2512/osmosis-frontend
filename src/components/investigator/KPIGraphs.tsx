@@ -72,13 +72,28 @@ function stableColorForKpi(kpiId: string): string {
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
-const SlotChart: React.FC<{ option: any; height: number }> = ({ option, height }) => {
+const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start?: number, end?: number) => void }> = ({ option, height, onDataZoom }) => {
+  const chartRef = React.useRef<any>(null);
+
+  const handleChartReady = React.useCallback((chart: any) => {
+    chartRef.current = chart;
+    chart.off('datazoom');
+    chart.on('datazoom', () => {
+      const instance = chartRef.current;
+      if (!instance || !onDataZoom) return;
+      const zoomOption = instance.getOption?.()?.dataZoom?.[1] || instance.getOption?.()?.dataZoom?.[0];
+      onDataZoom(zoomOption?.start, zoomOption?.end);
+    });
+  }, [onDataZoom]);
+
   return (
     <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
       <ReactECharts
+        ref={chartRef}
         option={option}
         notMerge={true}
         lazyUpdate={false}
+        onChartReady={handleChartReady}
         style={{ height: '100%' }}
       />
     </div>
@@ -938,13 +953,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             containLabel: false,
           },
           dataZoom: [
-            { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+            {
+              type: 'inside' as const,
+              xAxisIndex: 0,
+              filterMode: 'none' as const,
+              start: cfg.zoomWindow?.start,
+              end: cfg.zoomWindow?.end,
+            },
             {
               type: 'slider' as const,
               xAxisIndex: 0,
               height: sliderHeight,
               bottom: legendRows - 12,
               filterMode: 'none' as const,
+              start: cfg.zoomWindow?.start,
+              end: cfg.zoomWindow?.end,
               borderColor: 'rgba(128,128,128,0.2)',
               backgroundColor: 'rgba(128,128,128,0.06)',
               fillerColor: 'rgba(99,102,241,0.15)',
@@ -1392,7 +1415,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 </PopoverContent>
               </Popover>
             </div>
-            <SlotChart key={`${slot.id}-${cfg.chartType}`} option={option} height={chartHeight} />
+            <SlotChart
+              key={`${slot.id}-${cfg.chartType}`}
+              option={option}
+              height={chartHeight}
+              onDataZoom={(start, end) => {
+                if (cfg.zoomWindow?.start === start && cfg.zoomWindow?.end === end) return;
+                onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
+              }}
+            />
           </div>
         );
       })}
