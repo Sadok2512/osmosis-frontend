@@ -1772,6 +1772,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             return result;
           })()}
           onAxisAssignmentsChange={(assignments) => {
+            pendingAxisRef.current = assignments;
             if (!selectorOpen || selectorOpen === 'new') return;
             const numericAssignments: Record<string, number> = {};
             for (const [k, v] of Object.entries(assignments)) {
@@ -1789,6 +1790,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           onConfirm={(keys) => {
             const validKeys = keys.filter(Boolean);
             if (validKeys.length === 0) return;
+            // Convert pending axis assignments to numeric format
+            const axisAssign: Record<string, number> = {};
+            if (pendingAxisRef.current) {
+              for (const [k, v] of Object.entries(pendingAxisRef.current)) {
+                axisAssign[k] = v === 'right' ? 1 : 0;
+              }
+            }
+            const hasAxisConfig = Object.keys(axisAssign).length > 0;
             if (selectorOpen === 'new') {
               const newId = `slot-${Date.now()}`;
               setState(prev => {
@@ -1802,6 +1811,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   endDate: '',
                   granularity: '' as Granularity,
                   splitBy: 'None',
+                  ...(hasAxisConfig ? { config: { ...DEFAULT_GRAPH_CONFIG, yAxisAssignments: axisAssign } } : {}),
                 };
                 return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
               });
@@ -1812,12 +1822,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 graphSlots: prev.graphSlots.map(s => {
                   if (s.id !== selectorOpen) return s;
                   const merged = [...new Set([...s.kpiIds, ...validKeys])];
-                  const cleanConfig = s.config ? { ...s.config, splitByPerKpi: {} } : s.config;
+                  const cleanConfig = { ...(s.config || DEFAULT_GRAPH_CONFIG), splitByPerKpi: {}, yAxisAssignments: { ...(s.config?.yAxisAssignments || {}), ...axisAssign } };
                   return { ...s, kpiIds: merged, splitBy: 'None', config: cleanConfig };
                 }),
               }));
               onSlotClick?.(selectorOpen);
             }
+            pendingAxisRef.current = null;
             handleSelectorClose();
           }}
         />,
