@@ -477,6 +477,7 @@ const InvestigatorPage: React.FC = () => {
           <div className="flex items-center gap-0.5 px-1 py-1">
             {([
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
+              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
               { key: 'counters' as const, icon: Cpu, label: 'PM Counters', color: 'text-emerald-500' },
               { key: 'histograms' as const, icon: BarChart3, label: 'Histogrammes', color: 'text-cyan-500' },
               { key: 'slicing' as const, icon: Layers, label: 'QoS / Slicing', color: 'text-purple-500' },
