@@ -10169,6 +10169,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         ))}
                       </div>
                     </div>
+
+                    {/* ── Terrain Profile Chart ── */}
+                    {activeMapTool === 'profile' && profileTarget && cellProfilePoints.length > 0 && cellProfileAnalysis && (
+                      <div className="space-y-2">
+                        <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Mountain size={12} className="text-purple-400" />
+                          Profil Terrain
+                        </h5>
+                        <div className="rounded-xl border border-border overflow-hidden bg-card" style={{ height: 220 }}>
+                          <ProfileChart
+                            profilePoints={cellProfilePoints}
+                            analysis={cellProfileAnalysis}
+                            fresnel={cellProfileFresnel}
+                            showFresnel={true}
+                            showCurvature={true}
+                            siteName={cell.cell_id}
+                          />
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                          <span>LOS: <span className={`font-bold ${cellProfileAnalysis.losState === 'clear' ? 'text-emerald-500' : cellProfileAnalysis.losState === 'partial' ? 'text-amber-500' : 'text-destructive'}`}>
+                            {cellProfileAnalysis.losState === 'clear' ? 'Dégagé' : cellProfileAnalysis.losState === 'partial' ? 'Partiel' : 'Obstrué'}
+                          </span></span>
+                          <span>Clearance: <span className="font-bold text-foreground">{cellProfileAnalysis.clearanceM?.toFixed(1) ?? '—'} m</span></span>
+                        </div>
+                      </div>
+                    )}
+                    {activeMapTool === 'profile' && cellProfileLoading && (
+                      <div className="flex items-center gap-2 py-4">
+                        <RefreshCw size={14} className="text-purple-400 animate-spin" />
+                        <span className="text-[11px] text-muted-foreground font-medium">Calcul du profil terrain...</span>
+                      </div>
+                    )}
+                    {activeMapTool === 'profile' && !profileTarget && (
+                      <div className="py-3 px-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300 font-medium">
+                        ⛰️ Cliquez sur la carte pour tracer le profil terrain depuis cette cellule
+                      </div>
+                    )}
                   </div>
                 );
               })()}
