@@ -1003,7 +1003,33 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const xInterval = smartXInterval(allTimestamps.length);
 
         // Determine if we need a right Y-axis
-        const yAxisAssignments = cfg.yAxisAssignments || {};
+        const yAxisAssignments = { ...(cfg.yAxisAssignments || {}) };
+
+        // Auto dual-axis: when multiple KPIs have very different scales (>10x),
+        // auto-assign the smaller-scale group to the right axis
+        if (!Object.values(yAxisAssignments).includes(1) && series.length >= 2) {
+          const kpiMaxes: { kpiId: string; maxVal: number }[] = [];
+          series.forEach(s => {
+            if (s.yAxisIndex != null) return; // skip counter series
+            const id = s._kpiId || '';
+            const vals = (s.data || []).filter((v: any) => typeof v === 'number' && !Number.isNaN(v)) as number[];
+            if (vals.length > 0) kpiMaxes.push({ kpiId: id, maxVal: Math.max(...vals.map(Math.abs)) });
+          });
+          if (kpiMaxes.length >= 2) {
+            kpiMaxes.sort((a, b) => a.maxVal - b.maxVal);
+            const smallest = kpiMaxes[0].maxVal || 1;
+            const largest = kpiMaxes[kpiMaxes.length - 1].maxVal || 1;
+            if (largest / smallest > 10) {
+              // Find the split point: group by order-of-magnitude proximity
+              const threshold = Math.sqrt(smallest * largest); // geometric mean
+              kpiMaxes.forEach(k => {
+                if (k.maxVal > threshold) yAxisAssignments[k.kpiId] = 0; // large → left
+                else yAxisAssignments[k.kpiId] = 1; // small → right
+              });
+            }
+          }
+        }
+
         const hasRightAxis = Object.values(yAxisAssignments).includes(1) || !!hasCounterSeries;
 
         // ── Auto Y-axis calculation ──
