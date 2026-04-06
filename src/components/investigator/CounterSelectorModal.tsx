@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { vendorBadge } from '@/constants/brandColors';
+import { vendorBadge, techBadge } from '@/constants/brandColors';
 import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter, SlidersHorizontal } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
