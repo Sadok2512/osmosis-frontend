@@ -534,13 +534,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                           </div>
 
                           {/* Badges — fixed-width container for alignment */}
-                          <div className="flex items-center shrink-0" style={{ width: '280px' }}>
-                            {/* KPI badge */}
-                            <div className="w-[32px] flex justify-center">
-                              {c.is_in_kpi && (
-                                <span className="inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold bg-cyan-500/10 text-cyan-500" title={`Used in ${c.kpi_usage_count || 0} KPIs`}>KPI</span>
-                              )}
-                            </div>
+                          <div className="flex items-center shrink-0" style={{ width: '248px' }}>
                             {/* Dimension badge */}
                             <div className="w-[58px] flex justify-center">
                               {c.dimension_type ? (
