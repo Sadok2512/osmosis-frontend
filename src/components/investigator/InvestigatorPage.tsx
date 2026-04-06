@@ -534,7 +534,20 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {!['breakdown', 'table_data'].includes(analysisTab) && (
+        {analysisTab === 'top_worst' && (
+          <WorstElementsTable
+            worstByDOR={worstByDOR}
+            selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)}
+            kpiMetaMap={kpiMetaMap}
+            filters={worstFilters}
+            onFiltersChange={setWorstFilters}
+            filterOptions={worstFilterOptions}
+            isLoading={isLoadingWorst}
+            hasUnfilteredFallback={hasUnfilteredFallback}
+          />
+        )}
+
+        {!['breakdown', 'table_data', 'top_worst'].includes(analysisTab) && (
           <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
             <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
           </div>
