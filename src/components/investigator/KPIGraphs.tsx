@@ -72,28 +72,32 @@ function stableColorForKpi(kpiId: string): string {
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
-const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start?: number, end?: number) => void }> = ({ option, height, onDataZoom }) => {
-  const chartRef = React.useRef<any>(null);
+const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: number, end: number) => void }> = ({ option, height, onDataZoom }) => {
+  const onDataZoomRef = React.useRef(onDataZoom);
+  onDataZoomRef.current = onDataZoom;
+  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handleChartReady = React.useCallback((chart: any) => {
-    chartRef.current = chart;
-    chart.off('datazoom');
-    chart.on('datazoom', () => {
-      const instance = chartRef.current;
-      if (!instance || !onDataZoom) return;
-      const zoomOption = instance.getOption?.()?.dataZoom?.[1] || instance.getOption?.()?.dataZoom?.[0];
-      onDataZoom(zoomOption?.start, zoomOption?.end);
-    });
-  }, [onDataZoom]);
+  const onEvents = React.useMemo(() => ({
+    datazoom: (params: any) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        if (!onDataZoomRef.current) return;
+        const start = params.start ?? params.batch?.[0]?.start;
+        const end = params.end ?? params.batch?.[0]?.end;
+        if (start != null && end != null) {
+          onDataZoomRef.current(start, end);
+        }
+      }, 300);
+    },
+  }), []);
 
   return (
     <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
       <ReactECharts
-        ref={chartRef}
         option={option}
         notMerge={true}
         lazyUpdate={false}
-        onChartReady={handleChartReady}
+        onEvents={onEvents}
         style={{ height: '100%' }}
       />
     </div>
