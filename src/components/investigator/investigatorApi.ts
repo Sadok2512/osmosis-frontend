@@ -406,13 +406,14 @@ export async function fetchTimeSeriesForSlot(
     if (ctx.neighborType) allFilters.push({ dimension: 'NEIGHBOR_TYPE', op: 'IN', values: [ctx.neighborType] });
   }
 
-  const body = {
+  const body: Record<string, any> = {
     date_from: ctx.dateFrom,
     date_to: ctx.dateTo,
     granularity: ctx.granularity,
     selections: ctx.kpiIds.map(k => ({ kpi_key: k })),
     filters: allFilters,
     split_by: ctx.splitBy || null,
+    split_by_2: ctx.splitBy2 || null,
     top_n: 10,
     kpi_level: ctx.kpiLevel || 'CELL',
   };
