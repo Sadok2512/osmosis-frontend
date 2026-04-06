@@ -1,4 +1,5 @@
 import React, { useMemo, createContext, useContext } from 'react';
+import { techHex } from '@/constants/brandColors';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
 import { ANOMALY_TYPE_LABELS, type DashboardOverviewData } from '../types';

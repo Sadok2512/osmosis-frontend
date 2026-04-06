@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { vendorBadge } from '@/constants/brandColors';
 import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, ChevronRight, Search, RefreshCw, MapPin } from 'lucide-react';

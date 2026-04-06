@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { vendorBadge, vendorHex } from '@/constants/brandColors';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { Layers, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';

@@ -1,4 +1,5 @@
 import { DataPoint, WorstElement, KpiDefinition } from './types';
+import { vendorHex } from '@/constants/brandColors';
 
 export const KPIS: KpiDefinition[] = [
   { id: '4G_LTE_DCR', label: 'LTE Drop Call Rate', unit: '%', category: 'Accessibility', color: '#3b82f6', thresholds: { warning: 0.5, critical: 1.0 }, higherIsBetter: false },

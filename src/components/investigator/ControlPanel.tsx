@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { VENDOR_HSL, TECH_HSL } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
 import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, KpiLevel } from './types';
