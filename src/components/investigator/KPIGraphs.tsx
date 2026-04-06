@@ -608,7 +608,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const state = useInvestigatorStore.getState().state;
         // Normalize all data point timestamps to match granularity format
         const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, state.granularity) }));
-        const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => d.kpi === id).map(d => d.timestamp)))].sort();
+        const matchesKpi = (dKpi: string, kpiId: string) => dKpi === kpiId || dKpi.startsWith(kpiId + '@');
+        const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => matchesKpi(d.kpi, id)).map(d => d.timestamp)))].sort();
 
         const fullTimeline = buildTimeline(state.startDate, state.endDate, state.granularity);
         // If buildTimeline returned empty (invalid dates), fall back to API timestamps
@@ -643,7 +644,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           series = kpiIds.flatMap((kpiId, ki) => {
             const def = defs[ki];
             const kpiHasSplit = getKpiHasSplit(kpiId);
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => matchesKpi(d.kpi, kpiId));
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
@@ -715,7 +716,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           // No split — one series per KPI (original logic)
           series = kpiIds.map((kpiId, i) => {
             const def = defs[i];
-            const kpiData = normalizedData.filter(d => d.kpi === kpiId);
+            const kpiData = normalizedData.filter(d => matchesKpi(d.kpi, kpiId));
             const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
