@@ -261,8 +261,14 @@ const FilterChip: React.FC<{
   const [open, setOpen] = useState(false);
   const backendValues = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
+  const [pendingValues, setPendingValues] = useState<string[]>([]);
   const isPm = PM_DIMENSION_TYPES.has(dim);
   const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+
+  // Sync pending with actual values when opening
+  useEffect(() => {
+    if (open) setPendingValues([...values]);
+  }, [open]);
 
   const filtered = search
     ? backendValues.filter(v => v.toLowerCase().includes(search.toLowerCase()))
@@ -274,11 +280,31 @@ const FilterChip: React.FC<{
     const items = pasted.split(/[\n,;]+/).map(s => s.trim()).filter(Boolean);
     if (items.length > 1) {
       e.preventDefault();
+      const next = [...pendingValues];
       items.forEach(item => {
         const match = backendValues.find(v => v.toLowerCase() === item.toLowerCase());
-        if (match && !values.includes(match)) onToggleValue(match);
+        if (match && !next.includes(match)) next.push(match);
       });
+      setPendingValues(next);
     }
+  };
+
+  const togglePending = (val: string) => {
+    setPendingValues(prev => prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]);
+  };
+
+  const handleConfirm = () => {
+    // Apply pending selections
+    const toAdd = pendingValues.filter(v => !values.includes(v));
+    const toRemove = values.filter(v => !pendingValues.includes(v));
+    toRemove.forEach(v => onToggleValue(v));
+    toAdd.forEach(v => onToggleValue(v));
+    setOpen(false);
+    setSearch('');
+  };
+
+  const handleReset = () => {
+    setPendingValues([]);
   };
 
   const displayText = values.length === 0
@@ -289,7 +315,7 @@ const FilterChip: React.FC<{
 
   return (
     <div className="flex items-center">
-      <Popover open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSearch(''); }}>
+      <Popover open={open} onOpenChange={(v) => { if (!v) { setSearch(''); } setOpen(v); }}>
         <PopoverTrigger asChild>
           <button
             className={cn(
@@ -304,45 +330,57 @@ const FilterChip: React.FC<{
             <ChevronDown className={cn("w-3 h-3 opacity-50 transition-transform", open && "rotate-180")} />
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-[260px] p-0" align="start" sideOffset={4}>
-          <div className="p-2 border-b border-border/40">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onPaste={handlePaste}
-              placeholder={`Rechercher ${label}...`}
-              className="w-full px-2.5 py-1.5 rounded-md border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/50"
-              autoFocus
-            />
+        <PopoverContent className="w-[280px] p-0 rounded-xl shadow-xl border border-border/60 overflow-hidden" align="start" sideOffset={4}>
+          {/* Header */}
+          <div className="px-3 py-2.5 border-b border-border/30 bg-muted/30">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Sélectionner — {label}
+            </h4>
           </div>
-          {values.length > 0 && (
-            <div className="px-2 py-1.5 border-b border-border/40 flex items-center justify-between">
-              <span className="text-[9px] text-muted-foreground font-medium">{values.length} sélectionné(s)</span>
-              <button onClick={onClear} className="text-[9px] text-muted-foreground hover:text-destructive font-medium">
-                Tout effacer
-              </button>
+
+          {/* Search */}
+          <div className="p-2.5">
+            <div className="relative">
+              <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/50" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onPaste={handlePaste}
+                placeholder="Rechercher..."
+                className="w-full pl-7 pr-3 py-2 rounded-full border border-border/50 bg-background text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 placeholder:text-muted-foreground/40 transition-all"
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Selection count */}
+          {pendingValues.length > 0 && (
+            <div className="px-3 pb-1.5 flex items-center justify-between">
+              <span className="text-[9px] text-primary font-semibold">{pendingValues.length} sélectionné(s)</span>
             </div>
           )}
-          <div className="max-h-[220px] overflow-y-auto p-1">
+
+          {/* Values list */}
+          <div className="max-h-[240px] overflow-y-auto px-2 pb-1">
             {backendValues.length === 0 ? (
-              <div className="px-3 py-2 text-[10px] text-muted-foreground animate-pulse">Chargement...</div>
+              <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Chargement...</div>
             ) : filtered.length === 0 ? (
-              <div className="px-3 py-2 text-[10px] text-muted-foreground">Aucun résultat pour "{search}"</div>
+              <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">Aucun résultat pour "{search}"</div>
             ) : (
               filtered.slice(0, 100).map(val => {
-                const isSelected = values.includes(val);
+                const isSelected = pendingValues.includes(val);
                 return (
                   <button
                     key={val}
-                    onClick={() => onToggleValue(val)}
+                    onClick={() => togglePending(val)}
                     className={cn(
-                      "w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
-                      isSelected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50"
+                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
+                      isSelected ? "bg-primary/8 text-primary" : "text-foreground hover:bg-muted/50"
                     )}
                   >
                     <div className={cn(
-                      "w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0",
-                      isSelected ? "bg-primary border-primary" : "border-border"
+                      "w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                      isSelected ? "bg-primary border-primary" : "border-border/60"
                     )}>
                       {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                     </div>
@@ -351,6 +389,28 @@ const FilterChip: React.FC<{
                 );
               })
             )}
+          </div>
+
+          {/* Footer with Reset / Confirm */}
+          <div className="px-3 py-2.5 border-t border-border/30 bg-muted/20 flex items-center justify-between gap-2">
+            <span className="text-[9px] text-muted-foreground">
+              {filtered.length > 100 ? `${filtered.length} éléments` : ''}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              >
+                Reset
+              </button>
+              <button
+                onClick={handleConfirm}
+                className="px-4 py-1.5 rounded-lg text-[10px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors flex items-center gap-1"
+              >
+                <Check className="w-3 h-3" />
+                Confirm
+              </button>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
