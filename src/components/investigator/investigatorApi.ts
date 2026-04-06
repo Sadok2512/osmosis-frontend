@@ -323,6 +323,13 @@ export function resolveSlotContext(
     splitValue2 = slot.splitBy2;
   }
 
+  // PM split compatibility: if the only active split is stored in split 2,
+  // promote it to the primary split so PM compute can actually return series.
+  if (!splitValue && splitValue2?.startsWith('PM_DIM:')) {
+    splitValue = splitValue2;
+    splitValue2 = undefined;
+  }
+
   // Merge slot filters with global filters (slot overrides global for same dimension)
   const mergedFilters: Record<string, string[]> = { ...globalState.filters };
   if (slot.filters) {
