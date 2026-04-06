@@ -953,13 +953,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             containLabel: false,
           },
           dataZoom: [
-            { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+            {
+              type: 'inside' as const,
+              xAxisIndex: 0,
+              filterMode: 'none' as const,
+              start: cfg.zoomWindow?.start,
+              end: cfg.zoomWindow?.end,
+            },
             {
               type: 'slider' as const,
               xAxisIndex: 0,
               height: sliderHeight,
               bottom: legendRows - 12,
               filterMode: 'none' as const,
+              start: cfg.zoomWindow?.start,
+              end: cfg.zoomWindow?.end,
               borderColor: 'rgba(128,128,128,0.2)',
               backgroundColor: 'rgba(128,128,128,0.06)',
               fillerColor: 'rgba(99,102,241,0.15)',
