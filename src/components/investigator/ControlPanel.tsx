@@ -530,7 +530,7 @@ const ScopeFilterPopover: React.FC<{
             <span className="flex items-center gap-1 truncate">
               <span className="shrink-0">Périmètre</span>
               {vendorSelected.map(v => (
-                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: vendorHsl(v) }}>
                   {v}
                 </span>
               ))}
