@@ -480,7 +480,8 @@ export async function fetchTimeSeriesForSlot(
     return { data: [...computeResults, ...kpiResults, ...fallback.data], hasUnfilteredFallback };
   }
 
-  return { data: kpiResults, hasUnfilteredFallback };
+  // Fix #2: Merge compute results with KPI Engine results (don't drop successful computes)
+  return { data: [...computeResults, ...kpiResults], hasUnfilteredFallback };
 }
 
 // ── Legacy wrapper (keeps backward compat) ──
