@@ -598,9 +598,6 @@ const JalonsManagerPopup: React.FC<{
                       <span className="text-[10px] font-medium text-foreground truncate block">{j.label}</span>
                       <span className="text-[8px] text-muted-foreground">{fmtDt(j.date)}{j.endDate && j.endDate !== j.date ? ` → ${fmtDt(j.endDate)}` : ''}</span>
                     </div>
-                    {j.visibility && j.visibility !== 'all' && (
-                      <span className="text-[7px] px-1 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{j.visibility === 'team' ? 'Éq.' : 'Perso'}</span>
-                    )}
                     <button onClick={() => setEditingId(j.id)} className="text-muted-foreground hover:text-primary shrink-0"><Edit2 className="w-3 h-3" /></button>
                     <button onClick={() => removeJalon(j.id)} className="text-muted-foreground hover:text-destructive shrink-0"><X className="w-3 h-3" /></button>
                   </div>
