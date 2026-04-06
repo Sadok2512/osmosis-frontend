@@ -746,7 +746,58 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           });
         }
 
-        // Build markLine data for jalons — normalize dates to match timeline format
+        // ── Merge counter series into the chart ──
+        const slotCounterData = counterDataMap[slot.id];
+        if (counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0) {
+          const cSeries = slotCounterData.series;
+          const cNameMap = slotCounterData.nameMap;
+          const cCounters = [...new Set(cSeries.map(d => d.counter))];
+          // Add counter timestamps to allTimestamps
+          const cTimestamps = [...new Set(cSeries.map(d => d.ts))].sort();
+          const tsSet = new Set(allTimestamps);
+          for (const ts of cTimestamps) {
+            if (!tsSet.has(ts)) { allTimestamps.push(ts); tsSet.add(ts); }
+          }
+          allTimestamps.sort();
+
+          cCounters.forEach((counter, ci) => {
+            const color = SERIES_COLORS[(kpiIds.length + ci) % SERIES_COLORS.length];
+            const idFromName = Object.entries(cNameMap).find(([, name]) => name === counter)?.[0];
+            const displayName = idFromName ? `${counter} (${idFromName})` : counter;
+            const cDef = counterCatalog.find(c => c.counter_name === counter);
+            const label = cDef?.display_name ? `${cDef.display_name} (${counter})` : displayName;
+
+            series.push({
+              name: label,
+              _kpiId: `counter_${counter}`,
+              connectNulls: true,
+              type: 'line' as any,
+              data: allTimestamps.map(ts => {
+                const p = cSeries.find(d => d.ts === ts && d.counter === counter);
+                return p ? p.value : null;
+              }),
+              smooth: true,
+              symbol: 'none',
+              symbolSize: 5,
+              lineStyle: { width: 2.5, color, type: 'dashed' as const },
+              itemStyle: { color },
+              areaStyle: {
+                color: {
+                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${color}15` },
+                    { offset: 1, color: `${color}02` },
+                  ],
+                },
+              },
+              // Put counters on right Y-axis by default
+              yAxisIndex: 1,
+            });
+          });
+        }
+        // Force right Y-axis if counters are present
+        const hasCounterSeries = counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0;
+
         const markLineData = jalons.map(j => {
           // Normalize jalon date to match allTimestamps format
           const normDate = normalizeTimestamp(j.date, state.granularity);
