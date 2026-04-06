@@ -44,7 +44,7 @@ interface Props {
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
-const FILTER_DIMS_FALLBACK = ['Cell', 'Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
+const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },
@@ -74,13 +74,15 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
 };
 
 // Filter values fetched from backend (KPI Engine first, fallback to Parser PM counters)
-const useBackendFilterValues = (dimension: string): string[] => {
+const useBackendFilterValues = (dimension: string, siteFilter?: string): string[] => {
   const [values, setValues] = React.useState<string[]>([]);
   React.useEffect(() => {
-    // PM dimension types → use /counters/dimension-values
+    // PM dimension types → use /counters/dimension-values (with site filter for live data)
     if (PM_DIMENSION_TYPES.has(dimension)) {
       import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-        fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${dimension}&limit=100`), { headers: getApiHeaders() })
+        const params = new URLSearchParams({ dimension_type: dimension, limit: '100' });
+        if (siteFilter) params.set('site_name', siteFilter);
+        fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() })
           .then(r => r.ok ? r.json() : { values: [] })
           .then(d => { if (d.values) setValues(d.values); })
           .catch(() => {});
@@ -271,9 +273,10 @@ const FilterChip: React.FC<{
   onToggleValue: (val: string) => void;
   onClear: () => void;
   onRemove: () => void;
-}> = ({ dim, values, onToggleValue, onClear, onRemove }) => {
+  siteFilter?: string;
+}> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter }) => {
   const [open, setOpen] = useState(false);
-  const backendValues = useBackendFilterValues(dim);
+  const backendValues = useBackendFilterValues(dim, siteFilter);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const isPm = PM_DIMENSION_TYPES.has(dim);
@@ -694,9 +697,34 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           .filter((f: any) => f.is_active !== false && f.is_filterable)
           .map((f: any) => f.display_name);
         if (dims.length > 0) setFilterDimensions(dims);
+      } else {
+        throw new Error('empty catalog');
       }
     }).catch(() => {
       setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
+      // Fallback: probe Parser for available filter dimensions
+      const dimProbes = [
+        { key: 'Site', param: 'SITE' },
+        { key: 'Cell', param: 'CELL' },
+        { key: 'Vendor', param: 'VENDOR' },
+        { key: 'Technology', param: 'TECHNO' },
+        { key: 'Band', param: 'BAND' },
+        { key: 'DOR', param: 'DOR' },
+        { key: 'Plaque', param: 'PLAQUE' },
+        { key: 'Zone ARCEP', param: 'ARCEP' },
+      ];
+      Promise.allSettled(
+        dimProbes.map(d =>
+          fetch(getApiUrl(`pm/counters/filter-values?dimension=${d.param}&limit=1`), { headers: getApiHeaders() })
+            .then(r => r.ok ? r.json() : { values: [] })
+            .then(data => ({ key: d.key, hasData: (data.values?.length || 0) > 0 }))
+        )
+      ).then(results => {
+        const available = results
+          .filter(r => r.status === 'fulfilled' && (r as any).value.hasData)
+          .map(r => (r as any).value.key as string);
+        if (available.length > 0) setFilterDimensions(available);
+      });
     });
   }, []);
 
@@ -782,17 +810,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     prevPmDimsRef.current = new Set(current);
   }, [activePmDimensions]);
 
+  const currentSiteFilter = (state.filters['Site'] || [])[0] || '';
   useEffect(() => {
     setPmDimValues([]);
     if (!primaryKpiDimType) return;
     setPmDimLoading(true);
     import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-      fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${primaryKpiDimType}&limit=50`), { headers: getApiHeaders() })
+      const params = new URLSearchParams({ dimension_type: primaryKpiDimType, limit: '50' });
+      if (currentSiteFilter) params.set('site_name', currentSiteFilter);
+      fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() })
         .then(r => r.ok ? r.json() : { labeled_values: [] })
         .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
         .catch(() => setPmDimLoading(false));
     });
-  }, [primaryKpiDimType]);
+  }, [primaryKpiDimType, currentSiteFilter]);
 
   // Load KPIs with data when Site/Cell filter is active
   useEffect(() => {
@@ -1156,6 +1187,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 onToggleValue={(val) => toggleFilterValue(dim, val)}
                 onClear={() => clearFilterValues(dim)}
                 onRemove={() => removeFilterDimension(dim)}
+                siteFilter={(state.filters['Site'] || [])[0]}
               />
             ))}
             <AddFilterDropdown

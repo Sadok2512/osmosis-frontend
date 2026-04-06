@@ -343,8 +343,11 @@ export async function fetchTimeSeriesForSlot(
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
   if (ctx.kpiIds.length === 0) return { data: [], hasUnfilteredFallback: false };
 
+  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo });
+
   // Detect PM dimension split
   const pmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
+  console.log('[fetchTimeSeriesForSlot] pmDimSplit:', pmDimSplit);
 
   // Step 1: Try /kpi/compute FIRST for all KPIs (deduplicated)
   const computeResults: DataPoint[] = [];
@@ -713,12 +716,14 @@ export async function fetchBreakdownData(
   kpiId: string,
   dateFrom: string = '2026-03-01',
   dateTo: string = '2026-03-31',
-  dimension: string = 'vendor'
+  dimension: string = 'vendor',
+  filters?: { dimension: string; values: string[] }[],
 ): Promise<{ name: string; value: number; color: string }[]> {
   const url = getApiUrl('monitor/query/timeseries');
+  const allFilters = (filters || []).map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
   const body = {
     date_from: dateFrom, date_to: dateTo, granularity: '1d',
-    selections: [{ kpi_key: kpiId }], filters: [], split_by: dimension.toUpperCase(), top_n: 10,
+    selections: [{ kpi_key: kpiId }], filters: allFilters, split_by: dimension.toUpperCase(), top_n: 10,
   };
   try {
     const res = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
