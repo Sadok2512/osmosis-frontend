@@ -5309,8 +5309,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    // Don't fetch sites without an active dashboard
-    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
+
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -5320,7 +5319,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+
+    // ── Viewport-driven data refresh (debounced, skips during flyTo) ──
+    if (dashboardActive && !isFlyingRef.current && v.bounds) {
+      handleViewportForFetch(v);
+    }
+  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked, handleViewportForFetch]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
