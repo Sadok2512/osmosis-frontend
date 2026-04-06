@@ -58,7 +58,9 @@ const GRANULARITIES: { value: Granularity; label: string }[] = [
   { value: '1d', label: 'Jour' },
   { value: '1w', label: 'Semaine' },
 ];
-// FILTER_DIMENSIONS now loaded from backend (see filterDimensions state)
+// Dimensions already handled by the Scope (Périmètre) popover — hide from filter row
+const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology']);
+
 
 // PM dimension types that use /counters/dimension-values API
 const PM_DIMENSION_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
