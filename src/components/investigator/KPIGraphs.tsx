@@ -648,7 +648,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
-        // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel")
+        // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel" or "kpi@split1@split2")
         // and keep slot isolation when Apply fetched multiple slots at once.
         const slotData = data.filter((d: any) => {
           const matchesSlot = d._slotId == null || d._slotId === slot.id;
@@ -658,12 +658,19 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
 
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
+        const splitByPerKpi2 = cfg.splitByPerKpi2 || {};
         const slotSplit = slot.splitBy && slot.splitBy !== 'None';
+        const slotSplit2 = slot.splitBy2 && slot.splitBy2 !== 'None';
         const hasPerKpiSplit = kpiIds.some(id => {
           const p = splitByPerKpi[id];
           return p && p !== 'None';
         });
+        const hasPerKpiSplit2 = kpiIds.some(id => {
+          const p = splitByPerKpi2[id];
+          return p && p !== 'None';
+        });
         const hasSplit = slotSplit || hasPerKpiSplit;
+        const hasDoubleSplit = (slotSplit && slotSplit2) || (hasPerKpiSplit && hasPerKpiSplit2);
         const getKpiHasSplit = (kpiId: string) => {
           if (slotSplit) return true;
           const perKpi = splitByPerKpi[kpiId];
@@ -671,12 +678,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         };
 
         // Filter data: if no split configured, aggregate (ignore splitValue)
-        // If split is configured but no data has splitValue (backend returned non-split fallback),
-        // fall back to non-split display instead of showing empty graph
         const hasSplitData = hasSplit && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        const hasDoubleSplitData = hasDoubleSplit && slotData.some(d => d.splitValue2);
         const effectiveData = hasSplitData
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
-          : slotData.map(d => ({ ...d, splitValue: undefined }));
+          : slotData.map(d => ({ ...d, splitValue: undefined, splitValue2: undefined }));
 
         // Fix #3: Use slot's effective context (dates/granularity) instead of global state
         const globalState = useInvestigatorStore.getState().state;
