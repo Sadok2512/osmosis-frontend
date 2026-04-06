@@ -1206,9 +1206,40 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                     </Button>
                   </div>
 
-                  <div className="h-px bg-border/60" />
+                  {/* Counters list */}
+                  {counterIds.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[9px] font-bold text-amber-600 uppercase tracking-wider">Counters ({counterIds.length})</span>
+                      {counterIds.map((cId, ci) => {
+                        const cDef = counterCatalog.find(c => c.counter_name === cId);
+                        const cColor = SERIES_COLORS[(kpiIds.length + ci) % SERIES_COLORS.length];
+                        return (
+                          <div key={cId} className="flex items-center justify-between gap-1 py-1 border-b border-border/20 last:border-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: cColor }} />
+                              <span className="text-[10px] font-medium text-foreground truncate max-w-[120px]">{cDef?.display_name || cId}</span>
+                            </div>
+                            <button
+                              onClick={() => onSetSlotCounterIds(slot.id, counterIds.filter(c => c !== cId))}
+                              className="text-muted-foreground hover:text-destructive"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] px-2 w-full"
+                    onClick={() => setCounterSelectorSlotId(slot.id)}
+                  >
+                    <Hash className="w-3 h-3 mr-1" /> Ajouter Counter
+                  </Button>
 
-                  {/* Chart Type */}
+                  <div className="h-px bg-border/60" />
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type (tous)</span>
                     <div className="flex flex-wrap gap-1">
