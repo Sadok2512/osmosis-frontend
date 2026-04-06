@@ -1003,65 +1003,53 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
         const xInterval = smartXInterval(allTimestamps.length);
 
         // Determine if we need a right Y-axis
-        const yAxisAssignments = { ...(cfg.yAxisAssignments || {}) };
+        const yAxisAssignments = cfg.yAxisAssignments || {};
 
-        // Auto dual-axis: when multiple KPIs have very different scales (>10x),
-        // auto-assign the smaller-scale group to the right axis.
-        // Skip only if existing assignments already cover the current KPI set exactly.
-        const existingKeys = cfg.yAxisAssignments ? Object.keys(cfg.yAxisAssignments) : [];
-        const currentKpiSeriesIds = series.filter(s => s.yAxisIndex == null).map(s => s._kpiId || '').filter(Boolean);
-        const uniqueCurrentIds = [...new Set(currentKpiSeriesIds)];
-        const assignmentsCoverCurrent = existingKeys.length > 0 && uniqueCurrentIds.length > 0 &&
-          uniqueCurrentIds.every(id => id in (cfg.yAxisAssignments || {}));
-        if (!assignmentsCoverCurrent && series.length >= 2) {
-          const kpiMaxes: { kpiId: string; maxVal: number }[] = [];
-          series.forEach(s => {
-            if (s.yAxisIndex != null) return; // skip counter series
-            const id = s._kpiId || '';
-            const vals = (s.data || []).filter((v: any) => typeof v === 'number' && !Number.isNaN(v)) as number[];
-            if (vals.length > 0) kpiMaxes.push({ kpiId: id, maxVal: Math.max(...vals.map(Math.abs)) });
-          });
-          if (kpiMaxes.length >= 2) {
-            kpiMaxes.sort((a, b) => a.maxVal - b.maxVal);
-            const smallest = kpiMaxes[0].maxVal || 1;
-            const largest = kpiMaxes[kpiMaxes.length - 1].maxVal || 1;
-            if (largest / smallest > 10) {
-              // Find the split point: group by order-of-magnitude proximity
-              const threshold = Math.sqrt(smallest * largest); // geometric mean
-              kpiMaxes.forEach(k => {
-                if (k.maxVal > threshold) yAxisAssignments[k.kpiId] = 0; // large → left
-                else yAxisAssignments[k.kpiId] = 1; // small → right
-              });
-              // Persist auto-detected assignments so the KPI selector shows them
-              // and user can modify from the correct baseline
-              onUpdateSlotConfig(slot.id, { yAxisAssignments: { ...yAxisAssignments } });
-            }
-          }
-        }
+        // Fallback behavior:
+        // - if counters exist => keep counters on right axis
+        // - if no explicit KPI assignment and there are 2+ KPIs => put first KPI on left, second on right
+        const effectiveYAxisAssignments: Record<string, 0 | 1> =
+          Object.keys(yAxisAssignments).length > 0
+            ? (yAxisAssignments as Record<string, 0 | 1>)
+            : kpiIds.reduce((acc, kpiId, index) => {
+                acc[kpiId] = index === 1 ? 1 : 0;
+                return acc;
+              }, {} as Record<string, 0 | 1>);
 
-        const hasRightAxis = Object.values(yAxisAssignments).includes(1) || !!hasCounterSeries;
+        const hasRightAxis =
+          Object.values(effectiveYAxisAssignments).includes(1) || !!hasCounterSeries;
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
           const vals: number[] = [];
-          seriesArr.forEach(s => {
-            // Counter series have explicit yAxisIndex
+
+          seriesArr.forEach((s) => {
+            // Explicit axis on the series itself (used by counters)
             if (s.yAxisIndex != null) {
               if (s.yAxisIndex !== axisIdx) return;
             } else {
               const sKpiId = s._kpiId || kpiIds[0];
-              const assignedAxis = hasRightAxis ? (yAxisAssignments[sKpiId] === 1 ? 1 : 0) : 0;
+              const assignedAxis = hasRightAxis
+                ? (effectiveYAxisAssignments[sKpiId] === 1 ? 1 : 0)
+                : 0;
+
               if (assignedAxis !== axisIdx) return;
             }
+
             (s.data || []).forEach((v: any) => {
-              if (typeof v === 'number' && !Number.isNaN(v)) vals.push(v);
+              if (typeof v === 'number' && !Number.isNaN(v)) {
+                vals.push(v);
+              }
             });
           });
+
           if (vals.length === 0) return { min: undefined, max: undefined };
+
           const rawMin = Math.min(...vals);
           const rawMax = Math.max(...vals);
           const range = rawMax - rawMin;
           const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
+
           return {
             min: parseFloat((rawMin - padding).toFixed(4)),
             max: parseFloat((rawMax + padding).toFixed(4)),
@@ -1077,7 +1065,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           position: 'left' as const,
           min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
           max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
-          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          axisLabel: {
+            fontSize: 10,
+            color: '#a1a1aa',
+            formatter: (v: number) => `${v.toFixed(1)}`,
+            margin: 14,
+          },
           splitLine: {
             show: cfg.showGrid,
             lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const },
@@ -1085,21 +1078,28 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           axisLine: { show: false },
           axisTick: { show: false },
         };
+
         const yAxisRightCfg = cfg.yAxisRight;
         const yAxisRight = {
           type: 'value' as const,
           position: 'right' as const,
           min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : autoRight.min,
           max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : autoRight.max,
-          axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => `${v.toFixed(1)}`, margin: 14 },
+          axisLabel: {
+            fontSize: 10,
+            color: '#a1a1aa',
+            formatter: (v: number) => `${v.toFixed(1)}`,
+            margin: 14,
+          },
           splitLine: { show: false },
           axisLine: { show: false },
           axisTick: { show: false },
         };
+
         const yAxisArr = hasRightAxis ? [yAxisLeft, yAxisRight] : [yAxisLeft];
 
-        // Assign yAxisIndex to each series based on its KPI
-        const getYAxisIndex = (kpiId: string) => yAxisAssignments[kpiId] === 1 ? 1 : 0;
+        const getYAxisIndex = (kpiId: string) =>
+          effectiveYAxisAssignments[kpiId] === 1 ? 1 : 0;
 
         // dataZoom slider height
         const sliderHeight = 22;
