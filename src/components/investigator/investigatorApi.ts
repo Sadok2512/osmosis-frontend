@@ -307,6 +307,16 @@ export function resolveSlotContext(
     splitValue = globalState.splitBy;
   }
 
+  // Split 2 (cross-tabulation)
+  let splitValue2: string | undefined;
+  const perKpi2 = slot.config?.splitByPerKpi2 || {};
+  const activeSplit2 = Object.values(perKpi2).find(v => v && v !== 'None');
+  if (activeSplit2) {
+    splitValue2 = activeSplit2;
+  } else if (slot.splitBy2 && slot.splitBy2 !== 'None') {
+    splitValue2 = slot.splitBy2;
+  }
+
   // Merge slot filters with global filters (slot overrides global for same dimension)
   const mergedFilters: Record<string, string[]> = { ...globalState.filters };
   if (slot.filters) {
@@ -318,7 +328,7 @@ export function resolveSlotContext(
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
 
-  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, filters: activeFilters, globalFilters: globalState.filters, slotFilters: slot.filters });
+  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, splitBy2: splitValue2, filters: activeFilters });
 
   return {
     kpiIds: slot.kpiIds,
@@ -326,6 +336,7 @@ export function resolveSlotContext(
     dateTo,
     granularity: gran,
     splitBy: splitValue,
+    splitBy2: splitValue2,
     filters: activeFilters,
     kpiLevel: globalState.kpiLevel,
     profileQci: globalState.profileQci,
