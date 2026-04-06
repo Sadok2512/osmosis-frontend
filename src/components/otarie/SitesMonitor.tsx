@@ -10094,6 +10094,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <h4 className="text-[14px] font-extrabold text-foreground font-mono truncate">{cell.cell_id}</h4>
                         <div className="text-[11px] text-muted-foreground">{cell.techno} • {cell.bande} MHz • Az {cell.azimut}°</div>
                       </div>
+                      <button
+                        onClick={() => {
+                          handleMapToolToggle('profile');
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${
+                          activeMapTool === 'profile'
+                            ? 'bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/40'
+                            : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                        title="Profil terrain depuis cette cellule"
+                      >
+                        <Mountain size={13} />
+                        Profil
+                      </button>
                       <button onClick={handleBackToSite} className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
                         ✕
                       </button>
