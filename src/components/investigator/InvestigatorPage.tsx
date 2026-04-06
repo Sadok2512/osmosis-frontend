@@ -535,43 +535,144 @@ const InvestigatorPage: React.FC = () => {
               <Table2 className="w-4 h-4 text-blue-500" />
               <span className="text-[11px] font-bold text-foreground">Table Data</span>
               <span className="text-[9px] text-muted-foreground ml-auto">{tsData.length} points</span>
-              {tsData.length > 0 && (
+              {tsData.length > 0 && (() => {
+                const hasSplits = tsData.some(d => d.splitValue);
+                const hasSplit2 = tsData.some(d => d.splitValue2);
+                const hasNE = tsData.some(d => d.networkElement);
+                return (
                 <button
                   onClick={() => {
                     const kpis = [...new Set(tsData.map(d => d.kpi))];
-                    const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
-                    const lookup: Record<string, Record<string, number>> = {};
-                    kpis.forEach(k => { lookup[k] = {}; });
-                    tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-                    const header = ['Timestamp', ...kpis].join(',');
-                    const rows = timestamps.map(t => {
-                      const vals = kpis.map(k => lookup[k]?.[t] ?? '');
-                      return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, ...vals].join(',');
-                    });
-                    const csv = [header, ...rows].join('\n');
-                    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'table_data.csv';
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    if (hasSplits) {
+                      // Flat export: one row per data point
+                      const extraCols = [
+                        ...(hasSplits ? ['Split'] : []),
+                        ...(hasSplit2 ? ['Split2'] : []),
+                        ...(hasNE ? ['NE'] : []),
+                      ];
+                      const header = ['Timestamp', ...extraCols, 'KPI', 'Value'].join(',');
+                      const rows = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp)).map(d => {
+                        const ts = d.timestamp.length > 10 ? d.timestamp.slice(0, 16).replace('T', ' ') : d.timestamp;
+                        const extra = [
+                          ...(hasSplits ? [d.splitValue || ''] : []),
+                          ...(hasSplit2 ? [d.splitValue2 || ''] : []),
+                          ...(hasNE ? [d.networkElement || 'N/A'] : []),
+                        ];
+                        return [ts, ...extra, d.kpi, d.value].join(',');
+                      });
+                      const csv = [header, ...rows].join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = 'table_data.csv'; a.click();
+                      URL.revokeObjectURL(url);
+                    } else {
+                      const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
+                      const lookup: Record<string, Record<string, number>> = {};
+                      kpis.forEach(k => { lookup[k] = {}; });
+                      tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
+                      const header = ['Timestamp', ...kpis].join(',');
+                      const rows = timestamps.map(t => {
+                        const vals = kpis.map(k => lookup[k]?.[t] ?? '');
+                        return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, ...vals].join(',');
+                      });
+                      const csv = [header, ...rows].join('\n');
+                      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url; a.download = 'table_data.csv'; a.click();
+                      URL.revokeObjectURL(url);
+                    }
                   }}
                   className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
                 >
                   <Download className="w-3 h-3" />
                   CSV
                 </button>
-              )}
+                );
+              })()}
             </div>
             <div className="overflow-auto" style={{ maxHeight: 500 }}>
               {tsData.length > 0 ? (() => {
+                const hasSplits = tsData.some(d => d.splitValue);
+                const hasSplit2 = tsData.some(d => d.splitValue2);
+                const hasNE = tsData.some(d => d.networkElement);
+                const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+
+                if (hasSplits) {
+                  // Structured table: rows = sorted data points with split/NE columns
+                  const sorted = [...tsData].sort((a, b) => a.timestamp.localeCompare(b.timestamp) || (a.splitValue || '').localeCompare(b.splitValue || ''));
+                  // Build a color map per unique series key
+                  const seriesKeys = [...new Set(tsData.map(d => `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`))];
+                  const colorMap: Record<string, string> = {};
+                  seriesKeys.forEach((k, i) => { colorMap[k] = COLORS[i % COLORS.length]; });
+
+                  // Derive split labels from slot config
+                  const activeSlot = state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0];
+                  const split1Label = activeSlot?.splitBy?.replace('PM_DIM:', '') || 'Split';
+                  const split2Label = activeSlot?.splitBy2?.replace('PM_DIM:', '') || 'Split 2';
+
+                  return (
+                    <table className="w-full border-collapse text-[10px] font-mono">
+                      <thead className="sticky top-0 z-10">
+                        <tr className="bg-muted/70 backdrop-blur-sm">
+                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">Timestamp</th>
+                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">{split1Label}</th>
+                          {hasSplit2 && (
+                            <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">{split2Label}</th>
+                          )}
+                          {hasNE && (
+                            <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">NE</th>
+                          )}
+                          <th className="px-2.5 py-2 text-left font-bold text-muted-foreground border-b-2 border-r border-border/40 whitespace-nowrap">KPI</th>
+                          <th className="px-2.5 py-2 text-right font-bold text-muted-foreground border-b-2 border-border/40 whitespace-nowrap">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sorted.map((d, ti) => {
+                          const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
+                          const color = colorMap[seriesKey] || COLORS[0];
+                          return (
+                            <tr
+                              key={ti}
+                              className={cn(
+                                'border-b border-border/20 hover:bg-primary/5 transition-colors',
+                                ti % 2 === 0 ? 'bg-background' : 'bg-muted/10'
+                              )}
+                            >
+                              <td className="px-2.5 py-1.5 text-foreground/80 border-r border-border/20 whitespace-nowrap font-medium">
+                                {d.timestamp.length > 10 ? d.timestamp.slice(0, 16).replace('T', ' ') : d.timestamp}
+                              </td>
+                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                  {d.splitValue || '—'}
+                                </span>
+                              </td>
+                              {hasSplit2 && (
+                                <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap">{d.splitValue2 || '—'}</td>
+                              )}
+                              {hasNE && (
+                                <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap font-medium">{d.networkElement || 'N/A'}</td>
+                              )}
+                              <td className="px-2.5 py-1.5 text-foreground border-r border-border/20 whitespace-nowrap truncate max-w-[160px]">{d.kpi}</td>
+                              <td className="px-2.5 py-1.5 text-right text-foreground whitespace-nowrap tabular-nums">
+                                {d.value != null ? Number(d.value).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                }
+
+                // Non-split: original pivot layout
                 const kpis = [...new Set(tsData.map(d => d.kpi))];
                 const timestamps = [...new Set(tsData.map(d => d.timestamp))].sort();
                 const lookup: Record<string, Record<string, number>> = {};
                 kpis.forEach(k => { lookup[k] = {}; });
                 tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-                const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
                 return (
                   <table className="w-full border-collapse text-[10px] font-mono">
