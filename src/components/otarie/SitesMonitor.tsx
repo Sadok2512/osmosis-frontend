@@ -9525,30 +9525,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {/* Band Distribution */}
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
-                  {show4G && Object.keys(bandMap4G).length > 0 && (
-                    <div className="mb-3">
-                      <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
-                      {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                        <div key={band} className="flex items-center gap-2 py-1">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
-                          <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                          <span className="text-[10px] font-black text-muted-foreground">{count}</span>
+                  {show4G && Object.keys(bandMap4G).length > 0 && (() => {
+                    const total4G = Object.values(bandMap4G).reduce((a, b) => a + b, 0) || 1;
+                    const maxCount4G = Math.max(...Object.values(bandMap4G));
+                    return (
+                      <div className="mb-4">
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                            const pct = (count / total4G) * 100;
+                            const barW = (count / maxCount4G) * 100;
+                            return (
+                              <div key={band} className="group flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
+                                <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: getBandColor(band, '4G'), opacity: 0.7 }} />
+                                </div>
+                                <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-                  )}
-                  {show5G && Object.keys(bandMap5G).length > 0 && (
-                    <div>
-                      <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
-                      {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                        <div key={band} className="flex items-center gap-2 py-1">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
-                          <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                          <span className="text-[10px] font-black text-muted-foreground">{count}</span>
+                      </div>
+                    );
+                  })()}
+                  {show5G && Object.keys(bandMap5G).length > 0 && (() => {
+                    const total5G = Object.values(bandMap5G).reduce((a, b) => a + b, 0) || 1;
+                    const maxCount5G = Math.max(...Object.values(bandMap5G));
+                    return (
+                      <div>
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                            const pct = (count / total5G) * 100;
+                            const barW = (count / maxCount5G) * 100;
+                            return (
+                              <div key={band} className="group flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
+                                <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: getBandColor(band, '5G'), opacity: 0.7 }} />
+                                </div>
+                                <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                              </div>
+                            );
+                          })}
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Vendor Distribution */}
@@ -9728,30 +9756,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {/* Band Distribution */}
                     <div className="px-5 py-4">
                       <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Bandes</h4>
-                      {Object.keys(displayStats.bandMap4G).length > 0 && (
-                        <div className="mb-3">
-                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
-                          {Object.entries(displayStats.bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                            <div key={band} className="flex items-center gap-2 py-1">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
-                              <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                              <span className="text-[10px] font-black text-muted-foreground">{count.toLocaleString('fr-FR')}</span>
+                      {Object.keys(displayStats.bandMap4G).length > 0 && (() => {
+                        const total4G = Object.values(displayStats.bandMap4G).reduce((a, b) => a + b, 0) || 1;
+                        const maxCount4G = Math.max(...Object.values(displayStats.bandMap4G));
+                        return (
+                          <div className="mb-4">
+                            <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['4G_GROUP'] || '#f97316' }}>LTE (4G)</div>
+                            <div className="space-y-1.5">
+                              {Object.entries(displayStats.bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                                const pct = (count / total4G) * 100;
+                                const barW = (count / maxCount4G) * 100;
+                                return (
+                                  <div key={band} className="group flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '4G') }} />
+                                    <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                    <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                      <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: getBandColor(band, '4G'), opacity: 0.7 }} />
+                                    </div>
+                                    <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                    <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                      {Object.keys(displayStats.bandMap5G).length > 0 && (
-                        <div>
-                          <div className="text-[9px] font-extrabold uppercase tracking-wider mb-1" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
-                          {Object.entries(displayStats.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => (
-                            <div key={band} className="flex items-center gap-2 py-1">
-                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
-                              <span className="text-[10px] font-semibold text-foreground flex-1">{band}</span>
-                              <span className="text-[10px] font-black text-muted-foreground">{count.toLocaleString('fr-FR')}</span>
+                          </div>
+                        );
+                      })()}
+                      {Object.keys(displayStats.bandMap5G).length > 0 && (() => {
+                        const total5G = Object.values(displayStats.bandMap5G).reduce((a, b) => a + b, 0) || 1;
+                        const maxCount5G = Math.max(...Object.values(displayStats.bandMap5G));
+                        return (
+                          <div>
+                            <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['5G_GROUP'] || '#22c55e' }}>NR (5G)</div>
+                            <div className="space-y-1.5">
+                              {Object.entries(displayStats.bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                                const pct = (count / total5G) * 100;
+                                const barW = (count / maxCount5G) * 100;
+                                return (
+                                  <div key={band} className="group flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: getBandColor(band, '5G') }} />
+                                    <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                    <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                      <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: getBandColor(band, '5G'), opacity: 0.7 }} />
+                                    </div>
+                                    <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                    <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Vendor Distribution */}
