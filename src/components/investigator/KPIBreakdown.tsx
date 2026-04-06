@@ -5,8 +5,7 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity } from './types';
 import {
-  Layers, Calculator, Table2, Download, Eye, EyeOff, Info,
-  ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Layers, Calculator, Eye, EyeOff, Info,
   Database, GitBranch, Cpu, TrendingUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
