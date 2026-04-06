@@ -9,6 +9,7 @@ import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
+import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
