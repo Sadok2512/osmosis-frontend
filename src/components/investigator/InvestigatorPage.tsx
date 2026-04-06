@@ -392,6 +392,12 @@ const InvestigatorPage: React.FC = () => {
               }))}
               onUpdateSlotConfig={handleUpdateSlotConfig}
               onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+              onDuplicateSlot={(slotId) => setState(prev => {
+                const source = prev.graphSlots.find(s => s.id === slotId);
+                if (!source) return prev;
+                const dup = { ...source, id: `slot-${Date.now()}-dup`, name: `${source.name} (copie)`, config: source.config ? { ...source.config } : undefined };
+                return { ...prev, graphSlots: [...prev.graphSlots, dup] };
+              })}
               activeSlotId={activeSlotId}
               onSlotClick={setActiveSlotId}
             />

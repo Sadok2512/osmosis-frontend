@@ -9,7 +9,7 @@ import { KPI_MAP, KPIS } from './mockData';
 import { fetchKpiDefinitions } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -72,7 +72,7 @@ function stableColorForKpi(kpiId: string): string {
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
-const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: number, end: number) => void }> = ({ option, height, onDataZoom }) => {
+const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void }>(({ option, height, onDataZoom }, ref) => {
   const onDataZoomRef = React.useRef(onDataZoom);
   onDataZoomRef.current = onDataZoom;
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,6 +94,7 @@ const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: nu
   return (
     <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
       <ReactECharts
+        ref={ref}
         option={option}
         notMerge={true}
         lazyUpdate={false}
@@ -102,7 +103,7 @@ const SlotChart: React.FC<{ option: any; height: number; onDataZoom?: (start: nu
       />
     </div>
   );
-};
+});
 /** Inline Histogram widget for a slot */
 const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: KpiDefinition[] }> = ({ kpiIds, height, allKpis }) => {
   const [histData, setHistData] = React.useState<Record<string, any[]>>({});
@@ -248,7 +249,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 
   const option = {
     animation: false,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     grid: {
       top: 32,
       right: 28,
@@ -393,17 +394,31 @@ interface Props {
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
+  onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
 }
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, activeSlotId, onSlotClick }) => {
+/** Export an ECharts instance to PNG and trigger download */
+const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
+  if (!chartRef) return;
+  const instance = chartRef.getEchartsInstance();
+  if (!instance) return;
+  const url = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${filename}.png`;
+  link.click();
+};
+
+const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick }) => {
   const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
   const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
+  const chartRefsMap = useRef<Record<string, ReactECharts | null>>({});
   // Counter data per slot: { [slotId]: { series, nameMap } }
   const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
 
@@ -1015,7 +1030,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             },
             tooltip: { show: true },
           },
-          backgroundColor: '#f8fafc',
+          backgroundColor: '#ffffff',
           tooltip: {
             trigger: 'axis' as const,
             backgroundColor: 'rgba(15,23,42,0.96)',
@@ -1133,6 +1148,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
                 title="Ajouter un Compteur"
               >
                 <Hash className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Duplicate slot */}
+              {onDuplicateSlot && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDuplicateSlot(slot.id); }}
+                  className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Dupliquer"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Export as PNG */}
+              <button
+                onClick={(e) => { e.stopPropagation(); exportChartAsPng(chartRefsMap.current[slot.id], slot.name || 'chart'); }}
+                className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                title="Exporter PNG"
+              >
+                <Download className="w-3.5 h-3.5" />
               </button>
 
               {/* Remove button */}
@@ -1420,6 +1455,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               </Popover>
             </div>
             <SlotChart
+              ref={(el) => { chartRefsMap.current[slot.id] = el; }}
               key={`${slot.id}-${cfg.chartType}`}
               option={option}
               height={chartHeight}

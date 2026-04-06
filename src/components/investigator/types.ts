@@ -51,10 +51,10 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   chartType: 'line',
   smooth: true,
   lineWidth: 2.5,
-  showSymbols: false,
+  showSymbols: true,
   showThresholds: true,
   showGrid: true,
-  showArea: true,
+  showArea: false,
 };
 
 export interface GraphSlot {
