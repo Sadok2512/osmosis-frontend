@@ -79,23 +79,24 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
 // Filter values fetched from backend — now uses centralized cache
 import { preloadAllFilters, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
 
-const useBackendFilterValues = (dimension: string): string[] => {
+const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
-  const [values, setValues] = React.useState<string[]>(() => getFilterValues(key).values);
+  const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string> }>(() => {
+    const e = getFilterValues(key);
+    return { values: e.values, labels: e.labels || {} };
+  });
 
   React.useEffect(() => {
-    // Update from cache whenever it changes
     const unsub = subscribeCacheUpdates(() => {
       const entry = getFilterValues(key);
-      if (entry.loaded) setValues(entry.values);
+      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     });
-    // Check if already loaded
     const entry = getFilterValues(key);
-    if (entry.loaded) setValues(entry.values);
+    if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     return unsub;
   }, [key]);
 
-  return values;
+  return result;
 };
 
 /* ── KPI Multi-Select Dropdown (loads from backend) ── */
@@ -314,11 +315,14 @@ const FilterChip: React.FC<{
   siteFilter?: string;
 }> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter }) => {
   const [open, setOpen] = useState(false);
-  const backendValues = useBackendFilterValues(dim);
+  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const isPm = PM_DIMENSION_TYPES.has(dim);
   const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+
+  // Helper: display label for a value (e.g. "PMQAP=9" → "QCI 9: Default Bearer")
+  const displayLabel = (val: string) => labelMap[val] || val;
 
   // Sync pending with actual values when opening
   useEffect(() => {
@@ -326,7 +330,10 @@ const FilterChip: React.FC<{
   }, [open]);
 
   const filtered = search
-    ? backendValues.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    ? backendValues.filter(v => {
+        const q = search.toLowerCase();
+        return v.toLowerCase().includes(q) || (labelMap[v] || '').toLowerCase().includes(q);
+      })
     : backendValues;
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -365,7 +372,7 @@ const FilterChip: React.FC<{
   const displayText = values.length === 0
     ? 'Tous'
     : values.length === 1
-      ? values[0]
+      ? displayLabel(values[0])
       : `${values.length} sélectionnés`;
 
   return (
@@ -439,7 +446,7 @@ const FilterChip: React.FC<{
                     )}>
                       {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
                     </div>
-                    <span className="truncate">{val}</span>
+                    <span className="truncate">{displayLabel(val)}</span>
                   </button>
                 );
               })
@@ -653,8 +660,8 @@ const ScopeFilterPopover: React.FC<{
   onToggle: (dim: string, val: string) => void;
   onClear: (dim: string) => void;
 }> = ({ filters, onToggle, onClear }) => {
-  const vendorValues = useBackendFilterValues('Vendor');
-  const techValues = useBackendFilterValues('Technology');
+  const { values: vendorValues } = useBackendFilterValues('Vendor');
+  const { values: techValues } = useBackendFilterValues('Technology');
   const vendorSelected = filters['Vendor'] || [];
   const techSelected = filters['Technology'] || [];
   const totalActive = vendorSelected.length + techSelected.length;

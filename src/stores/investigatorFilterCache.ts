@@ -4,7 +4,7 @@
  */
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
-type CacheEntry = { values: string[]; loading: boolean; loaded: boolean };
+type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
 const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQUE', 'ARCEP'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
@@ -21,11 +21,11 @@ export function subscribe(fn: () => void) {
 }
 
 export function getFilterValues(key: string): CacheEntry {
-  return cache.get(key) || { values: [], loading: false, loaded: false };
+  return cache.get(key) || { values: [], labels: {}, loading: false, loaded: false };
 }
 
 async function fetchStandard(dim: string) {
-  const entry: CacheEntry = { values: [], loading: true, loaded: false };
+  const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
   cache.set(dim, entry);
 
   try {
@@ -48,13 +48,21 @@ async function fetchStandard(dim: string) {
 }
 
 async function fetchPm(dim: string) {
-  const entry: CacheEntry = { values: [], loading: true, loaded: false };
+  const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
   cache.set(dim, entry);
   try {
     const params = new URLSearchParams({ dimension_type: dim, limit: '200' });
     const res = await fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() });
-    const d = res.ok ? await res.json() : { values: [] };
+    const d = res.ok ? await res.json() : { values: [], labeled_values: [] };
     if (d.values) entry.values = d.values;
+    // Store label map: "PMQAP=1" → "QCI 1: Voice (GBR)"
+    if (d.labeled_values) {
+      for (const lv of d.labeled_values) {
+        if (typeof lv === 'object' && lv.value && lv.label) {
+          entry.labels[lv.value] = lv.label;
+        }
+      }
+    }
   } catch {}
   entry.loading = false;
   entry.loaded = true;
