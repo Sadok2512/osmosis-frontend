@@ -248,7 +248,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 
   const option = {
     animation: false,
-    backgroundColor: '#f8fafc',
+    backgroundColor: '#ffffff',
     grid: {
       top: 32,
       right: 28,
