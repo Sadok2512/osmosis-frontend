@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { preloadAllFilters } from '@/stores/investigatorFilterCache';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
