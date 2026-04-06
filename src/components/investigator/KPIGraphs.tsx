@@ -640,14 +640,17 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined }));
 
-        // Build full timeline from requested date range so X axis always shows the complete period
-        const state = useInvestigatorStore.getState().state;
+        // Fix #3: Use slot's effective context (dates/granularity) instead of global state
+        const globalState = useInvestigatorStore.getState().state;
+        const slotStartDate = (slot.startDate && slot.startDate.trim()) || globalState.startDate;
+        const slotEndDate = (slot.endDate && slot.endDate.trim()) || globalState.endDate;
+        const slotGranularity = normalizeGranularity(slot.granularity || globalState.granularity);
         // Normalize all data point timestamps to match granularity format
-        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, state.granularity) }));
+        const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, slotGranularity) }));
         const matchesKpi = (dKpi: string, kpiId: string) => dKpi === kpiId || dKpi.startsWith(kpiId + '@');
         const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => matchesKpi(d.kpi, id)).map(d => d.timestamp)))].sort();
 
-        const fullTimeline = buildTimeline(state.startDate, state.endDate, state.granularity);
+        const fullTimeline = buildTimeline(slotStartDate, slotEndDate, slotGranularity);
         // If buildTimeline returned empty (invalid dates), fall back to API timestamps
         if (fullTimeline.length === 0) fullTimeline.push(...apiTimestamps);
         // Merge: use full timeline as base, add any API timestamps not already included

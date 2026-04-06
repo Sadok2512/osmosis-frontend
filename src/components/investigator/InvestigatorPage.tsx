@@ -154,7 +154,7 @@ const InvestigatorPage: React.FC = () => {
   };
   handleApplyRef.current = handleApply;
 
-  // Fetch counter timeseries when counters are selected
+  // Fix #5: Fetch counter timeseries and tag with slotId for isolation
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
     const body = {
@@ -167,9 +167,10 @@ const InvestigatorPage: React.FC = () => {
       method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
       const counterPoints = (data.series || []).map((s: any) => ({
-        timestamp: s.ts, kpi: s.counter, value: s.value,
+        timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: activeSlotId || 'global',
       }));
-      const current = useInvestigatorStore.getState().tsData;
+      // Remove old counter points and add fresh ones
+      const current = useInvestigatorStore.getState().tsData.filter((d: any) => !d._isCounter);
       setTsData([...current, ...counterPoints]);
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
