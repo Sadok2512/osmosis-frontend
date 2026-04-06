@@ -443,10 +443,18 @@ export async function fetchTimeSeriesForSlot(
     computeSplitByField = FIELD_MAP[ctx.splitBy!] || undefined;
   } else if (globalPmDimSplit) {
     computePmDim = globalPmDimSplit;
+  } else if (hasNonPmSplit1 && FIELD_MAP[ctx.splitBy!]) {
+    // Split1=Cell/Site only (no PM split) → compute with split_by_field alone
+    computeSplitByField = FIELD_MAP[ctx.splitBy!];
+    // If Split2 is also a field-mappable dimension, store it for second field split
+    if (hasNonPmSplit2 && FIELD_MAP[ctx.splitBy2!]) {
+      // Both splits are field-mappable — compute can't do two field splits,
+      // but we handle the primary one; KPI Engine handles Split2
+    }
   }
 
   // Can compute handle this? Only if there's no non-PM split without a field mapping
-  const canCompute = !hasNonPmSplit1 || computeSplitByField;
+  const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
   console.log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
   // Step 1: Try /kpi/compute FIRST
