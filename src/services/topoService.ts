@@ -701,7 +701,7 @@ export async function fetchCellsByBbox(
 }
 
 export function invalidateBboxCache() {
-  bboxCache = null;
+  bboxLruCache.length = 0;
 }
 
 export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {
