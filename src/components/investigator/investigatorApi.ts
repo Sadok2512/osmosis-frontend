@@ -135,6 +135,35 @@ async function fetchKpiComputeOnTheFly(
       } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
     }
 
+    // Split by field only (Cell/Site) without PM dimension
+    if (!splitByPmDim && splitByField) {
+      console.log('[KpiCompute] Split by field only:', splitByField);
+      try {
+        const splitBody: any = { ...body, split_by_field: splitByField };
+        const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+        if (splitRes.ok) {
+          const splitResult = await splitRes.json();
+          if (!splitResult.error && splitResult.series?.length > 0) {
+            const allData: DataPoint[] = [];
+            for (const s of splitResult.series) {
+              const fieldVal = s.split_field || s.ne_name || s.cell_name || s.site_name || '';
+              const dp: DataPoint = {
+                timestamp: s.ts,
+                kpi: fieldVal ? `${kpiId}@${fieldVal}` : kpiId,
+                value: s.kpi_value,
+                splitValue: fieldVal || undefined,
+                networkElement: fieldVal || undefined,
+              };
+              allData.push(dp);
+            }
+            if (allData.length > 0) return { data: allData, isComputed: true };
+          } else {
+            console.warn('[KpiCompute] Split by field returned 0 series for', kpiId);
+          }
+        }
+      } catch (e) { console.warn('[KpiCompute] Field split failed:', e); }
+    }
+
     console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
     const res = await fetch(url, {
       method: 'POST',
