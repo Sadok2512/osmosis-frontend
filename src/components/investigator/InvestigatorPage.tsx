@@ -569,10 +569,12 @@ const InvestigatorPage: React.FC = () => {
                       const lookup: Record<string, Record<string, number>> = {};
                       kpis.forEach(k => { lookup[k] = {}; });
                       tsData.forEach(p => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-                      const header = ['Timestamp', ...kpis].join(',');
+                      const neLookup: Record<string, string> = {};
+                      tsData.forEach(p => { if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement; });
+                      const header = ['Timestamp', 'NE', ...kpis].join(',');
                       const rows = timestamps.map(t => {
                         const vals = kpis.map(k => lookup[k]?.[t] ?? '');
-                        return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, ...vals].join(',');
+                        return [t.length > 10 ? t.slice(0, 16).replace('T', ' ') : t, neLookup[t] || 'N/A', ...vals].join(',');
                       });
                       const csv = [header, ...rows].join('\n');
                       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
