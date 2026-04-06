@@ -91,8 +91,15 @@ export const techHex = (t: string | null | undefined): string => {
 };
 
 /** Get vendor HSL (case-insensitive, for inline styles) */
-export const vendorHsl = (v: string | null | undefined): string =>
-  VENDOR_HSL[(v || '').toUpperCase()] || 'hsl(var(--primary))';
+export const vendorHsl = (v: string | null | undefined): string => {
+  const key = (v || '').toUpperCase().trim();
+  if (key.includes('ERICSSON')) return VENDOR_HSL.ERICSSON;
+  if (key.includes('NOKIA') || key === 'NSN') return VENDOR_HSL.NOKIA;
+  if (key.includes('HUAWEI')) return VENDOR_HSL.HUAWEI;
+  if (key.includes('SAMSUNG')) return VENDOR_HSL.SAMSUNG;
+  if (key.includes('ALCATEL') || key === 'ALU') return VENDOR_HSL.ALCATEL;
+  return VENDOR_HSL[key] || 'hsl(215, 14%, 50%)';
+};
 
 /** Get tech HSL */
 export const techHsl = (t: string | null | undefined): string =>
