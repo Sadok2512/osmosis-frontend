@@ -356,7 +356,7 @@ const KpiCatalogView: React.FC = () => {
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors hidden lg:table-cell" onClick={() => toggleSort('technology')}>
                       Technology
                     </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">
+                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
                       Vendor
                     </th>
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
