@@ -356,7 +356,7 @@ const KpiCatalogView: React.FC = () => {
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors hidden lg:table-cell" onClick={() => toggleSort('technology')}>
                       Technology
                     </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">
+                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
                       Vendor
                     </th>
                     <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
@@ -394,7 +394,7 @@ const KpiCatalogView: React.FC = () => {
                         <td className="px-3 py-3 hidden lg:table-cell">
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tCfg.bg} ${tCfg.text}`}>{row.technology}</span>
                         </td>
-                        <td className="px-3 py-3 hidden xl:table-cell">
+                        <td className="px-3 py-3 hidden lg:table-cell">
                           {row.vendor && row.vendor !== 'ALL' ? (() => {
                             const vBadge = VENDOR_COLORS[row.vendor] || VENDOR_COLORS[row.vendor.toUpperCase()];
                             return vBadge
