@@ -972,7 +972,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
             iconStyle: { borderColor: '#a1a1aa', borderWidth: 1 },
             emphasis: { iconStyle: { borderColor: '#6366f1' } },
             feature: {
-              dataView: { show: cfg.showDataTable, readOnly: true, title: 'Table', lang: ['Table View', 'Close', 'Refresh'], buttonColor: '#6366f1' },
               saveAsImage: { show: false },
             },
           },
