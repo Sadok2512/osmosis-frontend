@@ -61,7 +61,7 @@ const KPIBreakdown: React.FC<Props> = ({ selectedKpis, layout, splitBy, dateFrom
       // Default view
       setActiveView(prev => ({ ...prev, [kpiId]: prev[kpiId] || 'chart' }));
     });
-  }, [selectedKpis, dateFrom, dateTo]);
+  }, [selectedKpis, dateFrom, dateTo, breakdownDim]);
 
   return (
     <div className={`grid gap-4 ${cols === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
