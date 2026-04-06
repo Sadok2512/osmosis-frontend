@@ -78,11 +78,15 @@ export interface GraphSlot {
   splitBy: SplitOption;
 }
 
+export type JalonVisibility = 'all' | 'personal' | 'team';
+
 export interface Jalon {
   id: string;
   date: string;
+  endDate?: string;
   label: string;
   color: string;
+  visibility?: JalonVisibility;
 }
 
 export interface InvestigationState {
