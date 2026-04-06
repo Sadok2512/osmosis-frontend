@@ -32,8 +32,8 @@ export const DEFAULT_BAND_COLORS: Record<string, string> = {
   '4G_GROUP': '#f97316',
 };
 
-export const NR_BANDS = ['NR3500', 'NR700', 'NR2100'] as const;
-export const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'] as const;
+export const NR_BANDS = ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] as const;
+export const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'] as const;
 
 /** Darken a hex color by ~25% for stroke use */
 export const deriveStrokeColor = (hex: string): string => {
