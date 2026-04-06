@@ -596,7 +596,7 @@ const InvestigatorPage: React.FC = () => {
               {tsData.length > 0 ? (() => {
                 const hasSplits = tsData.some(d => d.splitValue);
                 const hasSplit2 = tsData.some(d => d.splitValue2);
-                const hasNE = tsData.some(d => d.networkElement);
+                const hasNE = true; // Always show NE column when splits are active
                 const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
 
                 if (hasSplits) {
