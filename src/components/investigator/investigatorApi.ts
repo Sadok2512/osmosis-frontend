@@ -135,6 +135,35 @@ async function fetchKpiComputeOnTheFly(
       } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
     }
 
+    // Split by field only (Cell/Site) without PM dimension
+    if (!splitByPmDim && splitByField) {
+      console.log('[KpiCompute] Split by field only:', splitByField);
+      try {
+        const splitBody: any = { ...body, split_by_field: splitByField };
+        const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+        if (splitRes.ok) {
+          const splitResult = await splitRes.json();
+          if (!splitResult.error && splitResult.series?.length > 0) {
+            const allData: DataPoint[] = [];
+            for (const s of splitResult.series) {
+              const fieldVal = s.split_field || s.ne_name || s.cell_name || s.site_name || '';
+              const dp: DataPoint = {
+                timestamp: s.ts,
+                kpi: fieldVal ? `${kpiId}@${fieldVal}` : kpiId,
+                value: s.kpi_value,
+                splitValue: fieldVal || undefined,
+                networkElement: fieldVal || undefined,
+              };
+              allData.push(dp);
+            }
+            if (allData.length > 0) return { data: allData, isComputed: true };
+          } else {
+            console.warn('[KpiCompute] Split by field returned 0 series for', kpiId);
+          }
+        }
+      } catch (e) { console.warn('[KpiCompute] Field split failed:', e); }
+    }
+
     console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
     const res = await fetch(url, {
       method: 'POST',
@@ -443,10 +472,18 @@ export async function fetchTimeSeriesForSlot(
     computeSplitByField = FIELD_MAP[ctx.splitBy!] || undefined;
   } else if (globalPmDimSplit) {
     computePmDim = globalPmDimSplit;
+  } else if (hasNonPmSplit1 && FIELD_MAP[ctx.splitBy!]) {
+    // Split1=Cell/Site only (no PM split) → compute with split_by_field alone
+    computeSplitByField = FIELD_MAP[ctx.splitBy!];
+    // If Split2 is also a field-mappable dimension, store it for second field split
+    if (hasNonPmSplit2 && FIELD_MAP[ctx.splitBy2!]) {
+      // Both splits are field-mappable — compute can't do two field splits,
+      // but we handle the primary one; KPI Engine handles Split2
+    }
   }
 
   // Can compute handle this? Only if there's no non-PM split without a field mapping
-  const canCompute = !hasNonPmSplit1 || computeSplitByField;
+  const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
   console.log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
   // Step 1: Try /kpi/compute FIRST
