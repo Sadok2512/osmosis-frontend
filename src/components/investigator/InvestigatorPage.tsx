@@ -483,8 +483,8 @@ const InvestigatorPage: React.FC = () => {
         <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center gap-0.5 px-1 py-1">
             {([
-              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms & Worst Cells', color: 'text-red-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
