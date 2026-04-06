@@ -844,17 +844,30 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   Jalons{state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[280px] p-3 space-y-2" align="start">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Ajouter un jalon</div>
-                <JalonForm onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))} />
+              <PopoverContent className="w-[300px] p-3 space-y-2" align="start">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  {editingJalon ? 'Modifier le jalon' : 'Ajouter un jalon'}
+                </div>
+                <JalonForm
+                  onAdd={(j) => setState(prev => ({ ...prev, jalons: [...prev.jalons, j] }))}
+                  editJalon={editingJalon}
+                  onUpdate={(j) => {
+                    setState(prev => ({ ...prev, jalons: prev.jalons.map(jj => jj.id === j.id ? j : jj) }));
+                    setEditingJalon(null);
+                  }}
+                  onCancelEdit={() => setEditingJalon(null)}
+                />
                 {state.jalons.length > 0 && (
                   <div className="space-y-1 pt-2 border-t border-border/40">
                     {state.jalons.map(j => (
-                      <div key={j.id} className="flex items-center gap-2 text-[10px]">
+                      <div key={j.id} className={cn("flex items-center gap-2 text-[10px] px-1.5 py-1 rounded-md transition-colors", editingJalon?.id === j.id && "bg-primary/10")}>
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: j.color }} />
                         <span className="font-medium text-foreground truncate flex-1">{j.label}</span>
                         <span className="text-muted-foreground">{j.date}</span>
-                        <button onClick={() => setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) }))} className="text-muted-foreground hover:text-destructive">
+                        <button onClick={() => setEditingJalon(editingJalon?.id === j.id ? null : j)} className="text-muted-foreground hover:text-primary">
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button onClick={() => { setState(prev => ({ ...prev, jalons: prev.jalons.filter(jj => jj.id !== j.id) })); if (editingJalon?.id === j.id) setEditingJalon(null); }} className="text-muted-foreground hover:text-destructive">
                           <X className="w-3 h-3" />
                         </button>
                       </div>
