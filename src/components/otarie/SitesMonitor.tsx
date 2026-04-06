@@ -3580,9 +3580,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     );
   }, [profileTarget, focusCellId, siteDetail, selectedSiteSnapshot, cellProfileCompute]);
 
+  const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
     const fromLL = { lat: coords.from[0], lng: coords.from[1] };
     const toLL = { lat: coords.to[0], lng: coords.to[1] };
-    // Compute actual bearing so azimuth analysis is correct for point-to-point links
     const linkBearing = Math.round(bearing(fromLL, toLL) * 10) / 10;
     linkComputeProfile(
       fromLL,
