@@ -949,17 +949,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return Array.from(activePmDimensions)[0];
   }, [activePmDimensions]);
 
-  // Auto-add/remove PM dimension filters when KPIs with dimension_type are selected/deselected
+  // Auto-remove PM dimension filters when KPIs are deselected (no auto-add — user must add manually)
   const prevPmDimsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const prev = prevPmDimsRef.current;
     const current = activePmDimensions;
-    // Auto-add newly appeared PM dimensions
-    for (const dim of current) {
-      if (!prev.has(dim) && !state.filters[dim]) {
-        setState(s => ({ ...s, filters: { ...s.filters, [dim]: [] } }));
-      }
-    }
     // Auto-remove PM dimensions that are no longer active (KPIs removed)
     for (const dim of prev) {
       if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
