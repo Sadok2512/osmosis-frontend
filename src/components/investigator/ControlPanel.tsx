@@ -533,11 +533,27 @@ const ScopeFilterPopover: React.FC<{
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
-          <Filter className="w-3 h-3 text-muted-foreground" />
-          Périmètre
+        <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card max-w-[300px]">
+          <Filter className="w-3 h-3 text-muted-foreground shrink-0" />
+          {totalActive === 0 ? (
+            <span>Périmètre</span>
+          ) : (
+            <span className="flex items-center gap-1 truncate">
+              <span className="shrink-0">Périmètre</span>
+              {vendorSelected.map(v => (
+                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: VENDOR_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                  {v}
+                </span>
+              ))}
+              {techSelected.map(v => (
+                <span key={v} className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold text-white shrink-0" style={{ backgroundColor: TECH_COLORS[v.toUpperCase()] || 'hsl(var(--primary))' }}>
+                  {v}
+                </span>
+              ))}
+            </span>
+          )}
           {totalActive > 0 && (
-            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{totalActive}</span>
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold shrink-0">{totalActive}</span>
           )}
         </Button>
       </PopoverTrigger>
