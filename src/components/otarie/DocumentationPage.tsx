@@ -8,8 +8,9 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
+import QosNetworkView from '@/components/documentation/QosNetworkView';
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -140,6 +141,7 @@ const DocumentationPage: React.FC = () => {
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
+    { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
     { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
@@ -215,6 +217,8 @@ const DocumentationPage: React.FC = () => {
           <KpiCatalogView />
         ) : activeTab === 'filters' ? (
           <FilterRepositoryView />
+        ) : activeTab === 'qos_network' ? (
+          <QosNetworkView />
         ) : (
           <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
