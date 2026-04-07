@@ -141,6 +141,7 @@ const DocumentationPage: React.FC = () => {
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
+    { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
     { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
