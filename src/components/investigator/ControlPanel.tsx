@@ -1143,7 +1143,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 <div className="flex items-center h-7 2xl:h-8 rounded-lg border border-border bg-card overflow-hidden">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !startDate && 'text-muted-foreground')}>
+                    <button className={cn('flex items-center gap-1.5 px-2 2xl:px-2.5 h-full text-[10px] 2xl:text-[11px] font-medium hover:bg-accent/50 transition-colors', !startDate && 'text-muted-foreground')}>
                       <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
                     </button>
