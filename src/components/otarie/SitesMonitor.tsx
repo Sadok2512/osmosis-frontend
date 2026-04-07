@@ -3088,8 +3088,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
   const [showLegend, setShowLegend] = useState(true);
-  const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || 6 });
-  const [initialCenter] = useState<[number, number] | null>(() => isValidMapCoords(mapCache.cachedCenter) ? mapCache.cachedCenter : null);
+  const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || FRANCE_DEFAULT_ZOOM });
+  const [initialCenter] = useState<[number, number] | null>(() => {
+    if (!isValidMapCoords(mapCache.cachedCenter)) return null;
+    // Reject [0,0] or coords far from France
+    const [lat, lng] = mapCache.cachedCenter!;
+    if (Math.abs(lat) < 1 && Math.abs(lng) < 1) return null;
+    if (lat < 40 || lat > 52 || lng < -6 || lng > 10) return null;
+    return mapCache.cachedCenter;
+  });
   const displayModeRef = useRef<'sites' | 'cells'>('sites');
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
