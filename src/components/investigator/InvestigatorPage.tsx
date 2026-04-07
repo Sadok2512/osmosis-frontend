@@ -481,39 +481,12 @@ const InvestigatorPage: React.FC = () => {
 
         </section>
 
-        {/* ═══ Analysis Toggles + Sections ═══ */}
+        {/* ═══ Analysis Tabs ═══ */}
         <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
           <div className="flex items-center gap-1 px-1 py-1">
-            {/* Toggle: Table Data */}
-            <button
-              onClick={() => setShowTableData(v => !v)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                showTableData
-                  ? 'bg-card text-foreground shadow-sm border border-border/60'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              )}
-            >
-              <Table2 className={cn('w-3.5 h-3.5', showTableData ? 'text-blue-500' : '')} />
-              Table Data
-              <span className={cn('w-2 h-2 rounded-full ml-1', showTableData ? 'bg-blue-500' : 'bg-muted-foreground/30')} />
-            </button>
-            {/* Toggle: KPI Breakdown */}
-            <button
-              onClick={() => setShowBreakdown(v => !v)}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                showBreakdown
-                  ? 'bg-card text-foreground shadow-sm border border-border/60'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              )}
-            >
-              <PieChart className={cn('w-3.5 h-3.5', showBreakdown ? 'text-purple-500' : '')} />
-              KPI Breakdown
-              <span className={cn('w-2 h-2 rounded-full ml-1', showBreakdown ? 'bg-purple-500' : 'bg-muted-foreground/30')} />
-            </button>
-            {/* Tab: Top Worst Cells (always navigable) */}
             {([
+              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
@@ -522,35 +495,36 @@ const InvestigatorPage: React.FC = () => {
                 onClick={() => setAnalysisTab(tab.key)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                  analysisTab === tab.key && !showTableData && !showBreakdown
+                  analysisTab === tab.key
                     ? 'bg-card text-foreground shadow-sm border border-border/60'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                 )}
               >
                 <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
                 {tab.label}
+                {analysisTab === tab.key && (
+                  <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* ═══ Toggled Sections (shown when active) ═══ */}
-
-        {showTableData && (
+        {/* ═══ Tab Content ═══ */}
+        {analysisTab === 'table_data' && (
           <InvestigatorDataTable
             tsData={tsData}
             activeSlot={state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0] || null}
           />
         )}
 
-        {showBreakdown && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+        {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
           <section>
             <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} granularity={state.granularity} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} timeSeriesData={tsData} />
           </section>
         )}
 
-        {/* ═══ Tab Content (Top Worst / CM History) ═══ */}
-        {!showTableData && !showBreakdown && analysisTab === 'top_worst' && (
+        {analysisTab === 'top_worst' && (
           <WorstElementsTable
             elements={worstElements}
             limit={state.topLimit}
@@ -562,9 +536,9 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {!showTableData && !showBreakdown && analysisTab !== 'top_worst' && (
+        {analysisTab === 'cm_history' && (
           <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
-            <p className="text-xs text-muted-foreground">Section « {analysisTab} » — à venir</p>
+            <p className="text-xs text-muted-foreground">Section « CM History » — à venir</p>
           </div>
         )}
       </main>
