@@ -279,7 +279,7 @@ const InvestigatorPage: React.FC = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 p-5 md:px-6 md:pt-5 md:pb-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 space-y-6 w-full">
         {/* Error toast when no KPIs selected */}
         {applyError && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
