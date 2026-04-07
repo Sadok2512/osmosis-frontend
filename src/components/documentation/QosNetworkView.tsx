@@ -538,7 +538,7 @@ const QosNetworkView: React.FC = () => {
                 <div key={vendor} className="rounded-2xl border border-border/50 bg-card overflow-hidden shadow-sm">
                   {/* Vendor header */}
                   <div className="px-5 py-3 flex items-center gap-3 border-b border-border/30" style={{ background: `linear-gradient(135deg, ${vHex}06 0%, transparent 100%)` }}>
-                    <span className="w-3 h-3 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-card" style={{ background: vHex, boxShadow: `0 0 8px ${vHex}40`, ringColor: `${vHex}30` }} />
+                    <span className="w-3 h-3 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-card" style={{ background: vHex, boxShadow: `0 0 8px ${vHex}40` }} />
                     <span className={cn('text-[11px] px-2.5 py-0.5 rounded-md font-bold', vBadge.bg, vBadge.text)}>{vendor}</span>
                     <div className="ml-auto flex items-center gap-3 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1">
