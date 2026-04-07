@@ -217,6 +217,8 @@ const DocumentationPage: React.FC = () => {
           <KpiCatalogView />
         ) : activeTab === 'filters' ? (
           <FilterRepositoryView />
+        ) : activeTab === 'qos_network' ? (
+          <QosNetworkView />
         ) : (
           <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
