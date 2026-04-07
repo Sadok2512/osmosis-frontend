@@ -1324,7 +1324,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
       {/* ═══ LAYER 3: FILTERS / KPIs / DIMENSIONS — 3 distinct rows ═══ */}
       <div className="bg-card border-b border-border/40">
-        <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 py-2 2xl:py-2.5 space-y-2">
 
           {/* ── ROW 1: Standard Filters (non-PM dimensions, excluding dims already shown as split badges) ── */}
           {(() => {
