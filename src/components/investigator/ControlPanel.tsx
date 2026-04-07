@@ -1740,7 +1740,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           {/* ── ROW 3: PM Dimension Levels (PMQAP, FLEX, etc.) — only when active slot has relevant KPIs ── */}
           {(() => {
             const aSlot = state.graphSlots.find(s => s.id === activeSlotId);
-            if (!aSlot || aSlot.kpiIds.length === 0) return false;
+            if (!aSlot || aSlot.kpiIds.length === 0) return null;
             // Check if any KPI in the active slot requires a PM dimension
             const slotPmDims = new Set<string>();
             for (const kpiId of aSlot.kpiIds) {
@@ -1756,25 +1756,58 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 slotPmDims.add(cDef.dimension_type);
               }
             }
-            return slotPmDims.size > 0 && activeFilterDims.some(dim => PM_DIMENSION_TYPES.has(dim));
-          })() && (
-            <div className="flex items-center gap-2 flex-wrap pt-0.5">
-              <div className="flex items-center gap-1 shrink-0">
-                <Layers className="w-3 h-3 text-amber-500" />
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimensions</span>
+            // Also check selected counters (global)
+            for (const c of selectedCounters) {
+              if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type)) {
+                slotPmDims.add(c.dimension_type);
+              }
+            }
+            // Show the row if any PM dimension is detected from KPIs/counters
+            if (slotPmDims.size === 0) return null;
+
+            // Auto-add detected PM dims to activeFilterDims if not already present
+            const pmDimsInFilters = activeFilterDims.filter(dim => PM_DIMENSION_TYPES.has(dim));
+            const missingPmDims = Array.from(slotPmDims).filter(d => !activeFilterDims.includes(d));
+
+            return (
+              <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                <div className="flex items-center gap-1 shrink-0">
+                  <Layers className="w-3 h-3 text-amber-500" />
+                  <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Dimensions</span>
+                </div>
+                {/* Existing PM dimension filter chips */}
+                {pmDimsInFilters.map(dim => (
+                  <FilterChip
+                    key={dim}
+                    dim={dim}
+                    values={state.filters[dim] || []}
+                    onToggleValue={(val) => toggleFilterValue(dim, val)}
+                    onClear={() => clearFilterValues(dim)}
+                    onRemove={() => removeFilterDimension(dim)}
+                  />
+                ))}
+                {/* Quick-add buttons for detected PM dims not yet added as filters */}
+                {missingPmDims.map(dim => (
+                  <button
+                    key={dim}
+                    onClick={() => addFilterDimension(dim)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-amber-600 hover:bg-amber-500/10 border border-dashed border-amber-500/30 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    {PM_DIMENSION_LABELS[dim] || dim}
+                  </button>
+                ))}
+                {/* Add more PM dimensions manually */}
+                {allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d) && !activeFilterDims.includes(d) && !slotPmDims.has(d)).length > 0 && (
+                  <AddFilterDropdown
+                    existingKeys={activeFilterDims}
+                    onAdd={addFilterDimension}
+                    filterDimensions={allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d))}
+                  />
+                )}
               </div>
-              {activeFilterDims.filter(dim => PM_DIMENSION_TYPES.has(dim)).map(dim => (
-                <FilterChip
-                  key={dim}
-                  dim={dim}
-                  values={state.filters[dim] || []}
-                  onToggleValue={(val) => toggleFilterValue(dim, val)}
-                  onClear={() => clearFilterValues(dim)}
-                  onRemove={() => removeFilterDimension(dim)}
-                />
-              ))}
-            </div>
-          )}
+            );
+          })()}
 
         </div>
       </div>
