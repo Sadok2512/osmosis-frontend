@@ -924,7 +924,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChange
               smooth: true,
               symbol: 'none',
               symbolSize: 5,
-              lineStyle: { width: 2.5, color, type: 'dashed' as const },
+              lineStyle: { width: 2.5, color, type: 'solid' as const },
               itemStyle: { color },
               areaStyle: {
                 color: {
