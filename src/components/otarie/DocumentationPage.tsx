@@ -10,7 +10,7 @@ import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
 import QosNetworkView from '@/components/documentation/QosNetworkView';
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
