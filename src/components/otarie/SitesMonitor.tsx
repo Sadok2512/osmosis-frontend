@@ -560,7 +560,8 @@ const CUSTOM_POINTS_KEY = 'qoebit_custom_points';
 function loadCustomPoints(): CustomMapPoint[] {
   try {
     const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const pts: CustomMapPoint[] = saved ? JSON.parse(saved) : [];
+    return pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && (p.lat !== 0 || p.lon !== 0));
   } catch { return []; }
 }
 
@@ -5634,7 +5635,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
-        {customPoints.map(pt => (
+        {customPoints.filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon) && (pt.lat !== 0 || pt.lon !== 0)).map(pt => (
           <Marker
             key={pt.id}
             position={[pt.lat, pt.lon]}
