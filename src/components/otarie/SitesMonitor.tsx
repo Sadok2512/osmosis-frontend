@@ -654,19 +654,27 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
 const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: number }) => {
   const map = useMap();
   const lastFitKeyRef = useRef<number>(0);
+  const isFirstFit = useRef(true);
   useEffect(() => {
     if (fitKey <= 0 || fitKey === lastFitKeyRef.current) return;
     lastFitKeyRef.current = fitKey;
     const validCoords = sites
       .filter(s => s.coordinates && Number.isFinite(s.coordinates[0]) && Number.isFinite(s.coordinates[1]) && (s.coordinates[0] !== 0 || s.coordinates[1] !== 0))
       .map(s => L.latLng(s.coordinates[0], s.coordinates[1]));
-    if (validCoords.length > 0) {
-      const bounds = L.latLngBounds(validCoords);
-      map.fitBounds(bounds.pad(0.15), { duration: 1.2, maxZoom: 13 });
-    } else {
-      // No sites — reset to France view
-      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-    }
+
+    // On first fit, use a delay to avoid competing with TopoFranceViewportReset
+    const delay = isFirstFit.current ? 400 : 0;
+    isFirstFit.current = false;
+
+    const timer = setTimeout(() => {
+      if (validCoords.length > 0) {
+        const bounds = L.latLngBounds(validCoords);
+        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13 });
+      } else {
+        map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
+      }
+    }, delay);
+    return () => clearTimeout(timer);
   }, [fitKey, sites, map]);
   return null;
 };
@@ -682,11 +690,7 @@ const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; rese
       map.invalidateSize();
       map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
     }, 50);
-    const t2 = setTimeout(() => {
-      map.invalidateSize();
-      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-    }, 300);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => { clearTimeout(t1); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
