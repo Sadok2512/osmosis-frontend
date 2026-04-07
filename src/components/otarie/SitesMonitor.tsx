@@ -662,6 +662,9 @@ const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: 
     if (validCoords.length > 0) {
       const bounds = L.latLngBounds(validCoords);
       map.fitBounds(bounds.pad(0.15), { duration: 1.2, maxZoom: 13 });
+    } else {
+      // No sites — reset to France view
+      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
     }
   }, [fitKey, sites, map]);
   return null;
