@@ -10,6 +10,7 @@ const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQU
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
 const cache = new Map<string, CacheEntry>();
+const inFlight = new Map<string, Promise<void>>();
 let preloaded = false;
 let listeners: Array<() => void> = [];
 
@@ -70,13 +71,26 @@ async function fetchPm(dim: string) {
   notify();
 }
 
+export function ensureFilterLoaded(key: string) {
+  const cacheKey = isPmDimension(key) ? key : dimToKey(key);
+  const entry = cache.get(cacheKey);
+  if (entry?.loaded || entry?.loading) return;
+  if (inFlight.has(cacheKey)) return;
+
+  const loader = (isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
+    .finally(() => {
+      inFlight.delete(cacheKey);
+    });
+
+  inFlight.set(cacheKey, loader);
+}
+
 /** Preload all filter dimensions. Safe to call multiple times — only runs once. */
 export function preloadAllFilters() {
   if (preloaded) return;
   preloaded = true;
-  // Fire all requests in parallel
-  STANDARD_DIMS.forEach(d => fetchStandard(d));
-  PM_DIMS.forEach(d => fetchPm(d));
+  // Warm only the common top-level dimensions to avoid overloading the VPS proxy at startup.
+  ['SITE', 'DOR', 'PLAQUE', 'BAND'].forEach(ensureFilterLoaded);
 }
 
 /** Map UI dimension label → cache key */

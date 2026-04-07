@@ -20,7 +20,6 @@ import {
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-import { preloadAllFilters } from '@/stores/investigatorFilterCache';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -64,9 +63,6 @@ const InvestigatorPage: React.FC = () => {
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
   const handleApplyRef = useRef<() => void>(() => {});
-
-  // Preload all filter values into cache on mount
-  React.useEffect(() => { preloadAllFilters(); }, []);
 
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {

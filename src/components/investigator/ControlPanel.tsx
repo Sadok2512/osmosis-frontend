@@ -78,7 +78,7 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
 };
 
 // Filter values fetched from backend — now uses centralized cache
-import { preloadAllFilters, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
+import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
 
 const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
@@ -88,6 +88,7 @@ const useBackendFilterValues = (dimension: string): { values: string[]; labels: 
   });
 
   React.useEffect(() => {
+    ensureFilterLoaded(key);
     const unsub = subscribeCacheUpdates(() => {
       const entry = getFilterValues(key);
       if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
