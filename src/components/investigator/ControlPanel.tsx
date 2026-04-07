@@ -1229,7 +1229,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Period shortcuts — compact dropdown */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
+                <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <CalendarIcon className="w-3 h-3 text-muted-foreground" />
                   Période
                   {state.startDate && state.endDate && (() => {
