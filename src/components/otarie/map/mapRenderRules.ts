@@ -15,7 +15,7 @@ export const AUTO_LABEL_ZOOM = 14;
 
 // ── France defaults ──
 export const FRANCE_CENTER: [number, number] = [46.6, 2.2];
-export const FRANCE_DEFAULT_ZOOM = 6;
+export const FRANCE_DEFAULT_ZOOM = 7;
 
 // ── Rendering caps ──
 export const MAX_RENDER_SITES = 5000;
