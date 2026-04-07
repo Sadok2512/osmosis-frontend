@@ -1126,7 +1126,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       {/* ═══ LAYER 2: TOOLBAR — Actions & Date Controls ═══ */}
       <div className="bg-secondary/50 border-b border-border/50">
         <div className="w-[95%] mx-auto px-4 2xl:px-6 py-1.5 2xl:py-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 2xl:gap-3 flex-wrap">
             {/* Scope filter (Vendor + Tech) — first position */}
             <ScopeFilterPopover
               filters={state.filters}
