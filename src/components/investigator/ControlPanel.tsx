@@ -1232,6 +1232,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
                   <CalendarIcon className="w-3 h-3 text-muted-foreground" />
                   Période
+                  {state.startDate && state.endDate && (
+                    <span className="font-bold text-primary ml-0.5">
+                      {state.startDate.split('T')[0]} → {state.endDate.split('T')[0]}
+                    </span>
+                  )}
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
