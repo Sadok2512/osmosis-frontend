@@ -5634,7 +5634,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
-        {customPoints.map(pt => (
+        {customPoints.filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon) && (pt.lat !== 0 || pt.lon !== 0)).map(pt => (
           <Marker
             key={pt.id}
             position={[pt.lat, pt.lon]}
