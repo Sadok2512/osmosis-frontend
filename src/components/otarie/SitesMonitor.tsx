@@ -690,11 +690,7 @@ const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; rese
       map.invalidateSize();
       map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
     }, 50);
-    const t2 = setTimeout(() => {
-      map.invalidateSize();
-      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-    }, 300);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+    return () => { clearTimeout(t1); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
