@@ -560,7 +560,8 @@ const CUSTOM_POINTS_KEY = 'qoebit_custom_points';
 function loadCustomPoints(): CustomMapPoint[] {
   try {
     const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
-    return saved ? JSON.parse(saved) : [];
+    const pts: CustomMapPoint[] = saved ? JSON.parse(saved) : [];
+    return pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && (p.lat !== 0 || p.lon !== 0));
   } catch { return []; }
 }
 
