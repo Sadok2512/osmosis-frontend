@@ -1182,7 +1182,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <span className="text-[10px] text-muted-foreground font-semibold select-none">–</span>
 
               {/* ── End Date+Time ── */}
-              <div className="flex items-center h-8 rounded-lg border border-border bg-card overflow-hidden">
+              <div className="flex items-center h-7 2xl:h-8 rounded-lg border border-border bg-card overflow-hidden">
                 <Popover>
                   <PopoverTrigger asChild>
                     <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !endDate && 'text-muted-foreground')}>
