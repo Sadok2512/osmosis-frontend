@@ -1098,7 +1098,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     <div className="sticky top-0 z-30">
       {/* ═══ LAYER 1: HEADER — Branding ═══ */}
       <div className="bg-card border-b border-border/60">
-        <div className="max-w-[1600px] mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 h-12 2xl:h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
               <Settings2 className="w-4.5 h-4.5 text-primary" />
