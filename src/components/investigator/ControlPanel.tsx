@@ -1282,7 +1282,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <div className="h-6 w-px bg-border/60 shrink-0" />
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
+                <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card">
                   <Flag className="w-3.5 h-3.5" fill={state.jalons.length > 0 ? state.jalons[0].color : 'hsl(var(--muted-foreground))'} style={{ color: state.jalons.length > 0 ? state.jalons[0].color : 'hsl(var(--muted-foreground))' }} />
                   Jalons
                   {state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
