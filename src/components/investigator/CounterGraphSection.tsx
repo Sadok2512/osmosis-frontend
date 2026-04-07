@@ -194,7 +194,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       smooth: true,
       connectNulls: true,
       data: timestamps.map(ts => {
-        const point = tsData.find(d => d.ts === ts && d.counter === counter);
+        const point = tsData.find(d => d.ts === ts && (d.counter === counter || (d as any).counter_id === counter));
         return point ? point.value : null;
       }),
       lineStyle: { width: 2, color: COLORS[i % COLORS.length] },

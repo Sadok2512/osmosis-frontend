@@ -430,7 +430,7 @@ const KPIBreakdown: React.FC<Props> = ({
         smooth: true,
         connectNulls: true,
         data: timestamps.map(ts => {
-          const p = counterTsData.find(d => d.ts === ts && d.counter === counter.name);
+          const p = counterTsData.find(d => d.ts === ts && (d.counter === counter.name || (d as any).counter_id === counter.name));
           return p ? p.value : null;
         }),
         symbol: isHovered ? 'circle' : 'none',
