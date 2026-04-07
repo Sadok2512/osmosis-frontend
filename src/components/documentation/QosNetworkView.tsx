@@ -53,7 +53,7 @@ const GROUP_META: Record<string, { label: string; bg: string; text: string; bord
   FLEX_UE_CATEGORY:      { label: 'UE category',          bg: 'bg-amber-500/8',   text: 'text-amber-700',   border: 'border-amber-500/15',  icon: <Smartphone className="w-3 h-3" /> },
   FLEX_SPID:             { label: 'Service provider ID',  bg: 'bg-pink-500/8',    text: 'text-pink-600',    border: 'border-pink-500/15',   icon: <Shield className="w-3 h-3" /> },
   NR_SNSSAI:             { label: 'NR slices (S-NSSAI)',  bg: 'bg-violet-500/8',  text: 'text-violet-600',  border: 'border-violet-500/15', icon: <Layers className="w-3 h-3" /> },
-  PMQAP:                 { label: 'LTE PMQAP profiles',   bg: 'bg-emerald-500/8', text: 'text-emerald-600', border: 'border-emerald-500/15',icon: <Activity className="w-3 h-3" /> },
+  PMQAP:                 { label: 'LTE PMQAP profiles',   bg: 'bg-amber-500/8',   text: 'text-amber-600',   border: 'border-amber-500/15',  icon: <Activity className="w-3 h-3" /> },
   NR_NSSAI:              { label: 'NR NSSAI slices',      bg: 'bg-violet-500/8',  text: 'text-violet-600',  border: 'border-violet-500/15', icon: <Layers className="w-3 h-3" /> },
 };
 
