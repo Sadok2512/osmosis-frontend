@@ -1305,7 +1305,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               onClick={onApply}
               size="sm"
               disabled={!Object.values(state.filters).some(v => v.length > 0) || isApplying}
-              className="h-8 px-6 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-7 2xl:h-8 px-4 2xl:px-6 text-[10px] 2xl:text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isApplying ? (
                 <div className="flex items-center gap-2">
