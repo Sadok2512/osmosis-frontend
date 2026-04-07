@@ -123,7 +123,9 @@ async function fetchKpiComputeOnTheFly(
               const dimKey = s.dimension_key || '';
               const dimLabel = labelMap[dimKey] || dimKey;
               const splitField = s.split_field || undefined;
-              const dp: any = { timestamp: s.ts, kpi: `${kpiId}@${dimLabel}`, value: s.kpi_value, splitValue: dimLabel, _isComputed: true };
+              // If no dimension_key (fallback from non-dimensioned counters), use plain kpiId
+              const kpiKey = dimLabel ? `${kpiId}@${dimLabel}` : kpiId;
+              const dp: any = { timestamp: s.ts, kpi: kpiKey, value: s.kpi_value, splitValue: dimLabel || undefined, _isComputed: true };
               if (splitField) dp.splitValue2 = splitField;
               allData.push(dp);
             }
