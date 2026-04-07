@@ -192,9 +192,10 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       name: displayName(counter),
       type: 'line' as const,
       smooth: true,
+      connectNulls: true,
       data: timestamps.map(ts => {
         const point = tsData.find(d => d.ts === ts && d.counter === counter);
-        return point ? point.value : 0;
+        return point ? point.value : null;
       }),
       lineStyle: { width: 2, color: COLORS[i % COLORS.length] },
       itemStyle: { color: COLORS[i % COLORS.length] },
