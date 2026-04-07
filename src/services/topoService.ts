@@ -811,8 +811,10 @@ export async function fetchDashboardSites(
     console.log(`[TopoService] Dashboard sites: ${enrichedSites.length} sites via VPS`);
     if (enrichedSites.length > 0) {
       dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
+      return enrichedSites;
     }
-    return enrichedSites;
+    // VPS returned 0 sites – fall through to RPC / embedded fallback
+    console.warn('[TopoService] VPS returned 0 sites, trying fallback…');
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
   }
