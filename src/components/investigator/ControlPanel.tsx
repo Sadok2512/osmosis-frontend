@@ -1098,14 +1098,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     <div className="sticky top-0 z-30">
       {/* ═══ LAYER 1: HEADER — Branding ═══ */}
       <div className="bg-card border-b border-border/60">
-        <div className="max-w-[1600px] mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 h-12 2xl:h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
               <Settings2 className="w-4.5 h-4.5 text-primary" />
             </div>
             <div className="leading-tight">
-              <h1 className="text-sm font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
-              <p className="text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
+              <h1 className="text-xs 2xl:text-sm font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
+              <p className="text-[9px] 2xl:text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1125,8 +1125,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
       {/* ═══ LAYER 2: TOOLBAR — Actions & Date Controls ═══ */}
       <div className="bg-secondary/50 border-b border-border/50">
-        <div className="max-w-[1600px] mx-auto px-6 py-2">
-          <div className="flex items-center gap-3">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 py-1.5 2xl:py-2">
+          <div className="flex items-center gap-2 2xl:gap-3 flex-wrap">
             {/* Scope filter (Vendor + Tech) — first position */}
             <ScopeFilterPopover
               filters={state.filters}
@@ -1140,10 +1140,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Date range */}
             <div className="flex items-center gap-1.5 shrink-0">
               {/* ── Start Date+Time ── */}
-              <div className="flex items-center h-8 rounded-lg border border-border bg-card overflow-hidden">
+                <div className="flex items-center h-7 2xl:h-8 rounded-lg border border-border bg-card overflow-hidden">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !startDate && 'text-muted-foreground')}>
+                    <button className={cn('flex items-center gap-1.5 px-2 2xl:px-2.5 h-full text-[10px] 2xl:text-[11px] font-medium hover:bg-accent/50 transition-colors', !startDate && 'text-muted-foreground')}>
                       <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
                     </button>
@@ -1182,10 +1182,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <span className="text-[10px] text-muted-foreground font-semibold select-none">–</span>
 
               {/* ── End Date+Time ── */}
-              <div className="flex items-center h-8 rounded-lg border border-border bg-card overflow-hidden">
+              <div className="flex items-center h-7 2xl:h-8 rounded-lg border border-border bg-card overflow-hidden">
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className={cn('flex items-center gap-1.5 px-2.5 h-full text-[11px] font-medium hover:bg-accent/50 transition-colors', !endDate && 'text-muted-foreground')}>
+                    <button className={cn('flex items-center gap-1.5 px-2 2xl:px-2.5 h-full text-[10px] 2xl:text-[11px] font-medium hover:bg-accent/50 transition-colors', !endDate && 'text-muted-foreground')}>
                       <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
                     </button>
@@ -1229,7 +1229,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Period shortcuts — compact dropdown */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
+                <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <CalendarIcon className="w-3 h-3 text-muted-foreground" />
                   Période
                   {state.startDate && state.endDate && (() => {
@@ -1260,7 +1260,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Granularity — compact dropdown */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card shrink-0">
+                <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <span className="text-muted-foreground">Grain:</span>
                   <span className="font-bold text-primary">{GRANULARITIES.find(g => g.value === state.granularity)?.label || state.granularity}</span>
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
@@ -1282,7 +1282,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <div className="h-6 w-px bg-border/60 shrink-0" />
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="h-8 text-[11px] gap-1.5 px-3 rounded-lg bg-card">
+                <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card">
                   <Flag className="w-3.5 h-3.5" fill={state.jalons.length > 0 ? state.jalons[0].color : 'hsl(var(--muted-foreground))'} style={{ color: state.jalons.length > 0 ? state.jalons[0].color : 'hsl(var(--muted-foreground))' }} />
                   Jalons
                   {state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
@@ -1305,7 +1305,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               onClick={onApply}
               size="sm"
               disabled={!Object.values(state.filters).some(v => v.length > 0) || isApplying}
-              className="h-8 px-6 text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-7 2xl:h-8 px-4 2xl:px-6 text-[10px] 2xl:text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isApplying ? (
                 <div className="flex items-center gap-2">
@@ -1324,7 +1324,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
       {/* ═══ LAYER 3: FILTERS / KPIs / DIMENSIONS — 3 distinct rows ═══ */}
       <div className="bg-card border-b border-border/40">
-        <div className="max-w-[1600px] mx-auto px-6 py-2.5 space-y-2">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 py-2 2xl:py-2.5 space-y-2">
 
           {/* ── ROW 1: Standard Filters (non-PM dimensions, excluding dims already shown as split badges) ── */}
           {(() => {
