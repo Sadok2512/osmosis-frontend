@@ -4,6 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
+import AlarmsSection from './AlarmsSection';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
@@ -482,6 +483,7 @@ const InvestigatorPage: React.FC = () => {
               { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
               <button
@@ -528,6 +530,10 @@ const InvestigatorPage: React.FC = () => {
               setState(prev => ({ ...prev, filters }));
             }}
           />
+        )}
+
+        {analysisTab === 'alarms' && (
+          <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
         )}
 
         {analysisTab === 'cm_history' && (
