@@ -95,7 +95,7 @@ const FilterListItem: React.FC<{
     className={cn(
       'w-full flex items-center justify-between px-3 py-[5px] text-[11px] transition-all rounded-md',
       active
-        ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+        ? 'bg-primary text-white font-semibold shadow-sm'
         : 'text-foreground/80 hover:bg-muted/60'
     )}
   >
@@ -118,7 +118,7 @@ const CategoryListItem: React.FC<{
     className={cn(
       'w-full flex items-center justify-between px-3 py-[5px] text-[11px] transition-all rounded-md',
       active
-        ? 'bg-emerald-600 text-white font-semibold shadow-sm'
+        ? 'bg-primary text-white font-semibold shadow-sm'
         : 'text-foreground/80 hover:bg-muted/40'
     )}
   >
@@ -282,7 +282,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       <div className="relative w-[1020px] max-w-[calc(100vw-280px)] h-[640px] max-h-[85vh] flex flex-col rounded-xl bg-card border border-border shadow-2xl overflow-hidden">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-5 py-2.5 bg-emerald-600 text-white shrink-0">
+        <div className="flex items-center justify-between px-5 py-2.5 bg-primary text-white shrink-0">
           <div className="flex items-center gap-3">
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
@@ -295,11 +295,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
         {/* ── Active filters summary ── */}
         {activeFilterCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-emerald-500/5 border-b border-border/40 shrink-0">
-            <SlidersHorizontal className="w-3 h-3 text-emerald-600" />
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-border/40 shrink-0">
+            <SlidersHorizontal className="w-3 h-3 text-primary" />
             <span className="text-[10px] text-muted-foreground">Filtres actifs :</span>
             {filterVendor && (
-              <span className="text-[9px] px-2 py-[1px] rounded-full bg-emerald-500/10 text-emerald-700 font-semibold">{filterVendor}</span>
+              <span className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{filterVendor}</span>
             )}
             {filterTechno && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
@@ -322,10 +322,10 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           {/* ═══ Left Sidebar: Filters ═══ */}
           <div className="w-[190px] shrink-0 border-r border-border/60 flex flex-col bg-muted/5">
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40">
-              <Filter className="w-3 h-3 text-emerald-600" />
+              <Filter className="w-3 h-3 text-primary" />
               <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-foreground">Filtres</span>
               {activeFilterCount > 0 && (
-                <span className="ml-auto w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">{activeFilterCount}</span>
+                <span className="ml-auto w-4 h-4 rounded-full bg-primary text-white text-[9px] font-bold flex items-center justify-center">{activeFilterCount}</span>
               )}
             </div>
 
@@ -439,7 +439,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Rechercher un counter..."
-                  className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-[11px] outline-none focus:ring-1 focus:ring-emerald-500/40 transition-all placeholder:text-muted-foreground/50"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-md border border-border bg-background text-[11px] outline-none focus:ring-1 focus:ring-primary/40 transition-all placeholder:text-muted-foreground/50"
                   autoFocus
                 />
               </div>
@@ -449,7 +449,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             {/* Selection bar */}
             <div className="px-3 py-1 border-b border-border/30 bg-muted/5 flex items-center justify-between shrink-0">
               <p className="text-[10px] text-muted-foreground">
-                <span className="font-bold text-emerald-600">{selected.size}</span> sélectionné(s)
+                <span className="font-bold text-primary">{selected.size}</span> sélectionné(s)
                 {isLoading && <span className="ml-2 animate-pulse text-muted-foreground/50">chargement...</span>}
               </p>
               {selected.size > 0 && (
@@ -477,7 +477,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
               <div className="px-1.5 py-0.5">
                 {isLoading ? (
                   <div className="flex flex-col items-center justify-center h-40 gap-2">
-                    <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                     <span className="text-[11px] text-muted-foreground">Chargement des counters...</span>
                   </div>
                 ) : filteredCatalog.length === 0 ? (
@@ -485,7 +485,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                     <Search className="w-5 h-5 text-muted-foreground/30" />
                     <span className="text-[11px] text-muted-foreground">Aucun counter trouvé pour les filtres sélectionnés</span>
                     {activeFilterCount > 0 && (
-                      <button onClick={resetFilters} className="text-[10px] text-emerald-600 hover:underline">Réinitialiser les filtres</button>
+                      <button onClick={resetFilters} className="text-[10px] text-primary hover:underline">Réinitialiser les filtres</button>
                     )}
                   </div>
                 ) : (
@@ -499,7 +499,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                           className={cn(
                             'flex items-center gap-2 px-2 py-[4px] rounded-md transition-all mb-[1px] group cursor-pointer',
                             isSelected
-                              ? 'bg-emerald-500/8 border border-emerald-500/20'
+                              ? 'bg-primary/8 border border-primary/20'
                               : 'hover:bg-muted/30 border border-transparent'
                           )}
                           onClick={() => toggle(c.counter_name)}
@@ -518,7 +518,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                           {/* Checkbox */}
                           <div className={cn(
                             'w-3.5 h-3.5 rounded-[3px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors',
-                            isSelected ? 'bg-emerald-600 border-emerald-600' : 'border-border/60'
+                            isSelected ? 'bg-primary border-primary' : 'border-border/60'
                           )}>
                             {isSelected && <Check className="w-2 h-2 text-white" />}
                           </div>
@@ -583,7 +583,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             {Array.from(selected).slice(0, 5).map(key => {
               const c = catalog.find(x => x.counter_name === key);
               return (
-                <span key={key} className="inline-flex items-center gap-1 px-2 py-[2px] rounded-md bg-emerald-500/10 text-emerald-600 text-[9px] font-semibold font-mono max-w-[140px] truncate">
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-[2px] rounded-md bg-primary/10 text-primary text-[9px] font-semibold font-mono max-w-[140px] truncate">
                   {c?.display_name || key}
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive shrink-0"><X className="w-2.5 h-2.5" /></button>
                 </span>
@@ -595,7 +595,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             <button onClick={onClose} className="px-4 py-1.5 rounded-lg border border-border text-[11px] font-medium text-muted-foreground hover:bg-muted transition-colors">
               Fermer
             </button>
-            <button onClick={handleConfirm} className="px-5 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-bold hover:bg-emerald-700 transition-colors shadow-sm">
+            <button onClick={handleConfirm} className="px-5 py-1.5 rounded-lg bg-primary text-white text-[11px] font-bold hover:bg-primary/90 transition-colors shadow-sm">
               Ok ({selected.size})
             </button>
           </div>
