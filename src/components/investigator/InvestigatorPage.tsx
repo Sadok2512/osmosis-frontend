@@ -5,6 +5,7 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
 import AlarmsSection from './AlarmsSection';
+import NeighborsSection from './NeighborsSection';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
@@ -56,7 +57,7 @@ const InvestigatorPage: React.FC = () => {
   const [applyError, setApplyError] = React.useState<string | null>(null);
    const [showAIPanel, setShowAIPanel] = useState(false);
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'cm_history'>('table_data');
+   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -484,6 +485,7 @@ const InvestigatorPage: React.FC = () => {
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
+              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
               <button
@@ -534,6 +536,10 @@ const InvestigatorPage: React.FC = () => {
 
         {analysisTab === 'alarms' && (
           <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
+        )}
+
+        {analysisTab === 'neighbors' && (
+          <NeighborsSection filters={state.filters} />
         )}
 
         {analysisTab === 'cm_history' && (
