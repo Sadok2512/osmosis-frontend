@@ -4,6 +4,7 @@ import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import CMChangesCard from './CMChangesCard';
+import AlarmsSection from './AlarmsSection';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
