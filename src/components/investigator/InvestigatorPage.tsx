@@ -531,6 +531,10 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
+        {analysisTab === 'alarms' && (
+          <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
+        )}
+
         {analysisTab === 'cm_history' && (
           <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
             <p className="text-xs text-muted-foreground">Section « CM History » — à venir</p>
