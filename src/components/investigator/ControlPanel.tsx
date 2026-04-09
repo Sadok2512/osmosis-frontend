@@ -1470,18 +1470,29 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           </button>
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[260px] p-3 space-y-3" align="start">
+                      <PopoverContent className="w-[320px] p-3 space-y-3" align="start">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                          <span className="text-xs font-bold text-foreground truncate max-w-[130px]">{name}</span>
+                          <span className="text-xs font-bold text-foreground truncate max-w-[180px]">{name}</span>
                         </div>
+                      </div>
+                      <div className="h-px bg-border/60" />
+                      {/* KPI Breakdown — at top */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-medium text-foreground">KPI Breakdown</span>
+                        <Switch checked={cfg.showBreakdown} onCheckedChange={v => {
+                          setSlotConfig({ showBreakdown: v });
+                          if (onActivateTab) {
+                            v ? onActivateTab('breakdown') : onActivateTab(null);
+                          }
+                        }} className="scale-75" />
                       </div>
                       <div className="h-px bg-border/60" />
                       {/* Chart Type */}
                       <div className="space-y-1">
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap gap-1">
                           {CHART_TYPES.map(ct => (
                             <button
                               key={ct.value}
