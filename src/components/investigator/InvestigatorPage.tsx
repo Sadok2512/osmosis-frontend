@@ -63,6 +63,7 @@ const InvestigatorPage: React.FC = () => {
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
    const analysisTabs = useAnalysisTabs();
+   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
 
    // Escape key exits fullscreen
    React.useEffect(() => {
@@ -630,7 +631,8 @@ const InvestigatorPage: React.FC = () => {
         })()}
 
         {/* ═══ Multi-tab bar for active section ═══ */}
-        {analysisTab && (() => {
+        {/* ═══ Multi-tab bar: slot-based for table_data, generic for others ═══ */}
+        {analysisTab && analysisTab !== 'table_data' && (() => {
           const sec = analysisTabs.getSection(analysisTab);
           return (
             <AnalysisTabBar
@@ -648,13 +650,63 @@ const InvestigatorPage: React.FC = () => {
           );
         })()}
 
-        {/* ═══ Tab Content ═══ */}
-        {analysisTab === 'table_data' && (
-          <InvestigatorDataTable
-            tsData={tsData}
-            activeSlot={state.graphSlots.find(s => s.id === activeSlotId) || state.graphSlots[0] || null}
-          />
-        )}
+        {/* ═══ Table Data: one tab per graph slot ═══ */}
+        {analysisTab === 'table_data' && (() => {
+          const slots = state.graphSlots;
+          // Auto-select first slot if current selection is invalid
+          const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
+            ? tableDataSlotId
+            : slots[0]?.id || null;
+          const activeTableSlot = slots.find(s => s.id === effectiveSlotId) || null;
+          const slotData = effectiveSlotId
+            ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
+            : [];
+
+          return (
+            <>
+              {/* Slot tabs */}
+              {slots.length > 0 && (
+                <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg">
+                  {slots.map((slot) => (
+                    <button
+                      key={slot.id}
+                      onClick={() => setTableDataSlotId(slot.id)}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all whitespace-nowrap',
+                        effectiveSlotId === slot.id
+                          ? 'bg-card text-primary shadow-sm border border-primary/30'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                      )}
+                    >
+                      <Table2 className="w-3 h-3" />
+                      {slot.name}
+                      <span className="text-[8px] opacity-50 ml-0.5">
+                        ({slot.kpiIds.length} KPI{slot.kpiIds.length !== 1 ? 's' : ''})
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Context banner */}
+              {activeTableSlot && (
+                <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground">
+                  <span className="font-bold text-primary">Source:</span>
+                  <span>{activeTableSlot.name}</span>
+                  <span className="opacity-40">|</span>
+                  <span>KPIs: {activeTableSlot.kpiIds.join(', ') || '—'}</span>
+                  <span className="opacity-40">|</span>
+                  <span>{slotData.length} rows</span>
+                </div>
+              )}
+
+              <InvestigatorDataTable
+                tsData={slotData}
+                activeSlot={activeTableSlot}
+              />
+            </>
+          );
+        })()}
 
         {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
           <section>
