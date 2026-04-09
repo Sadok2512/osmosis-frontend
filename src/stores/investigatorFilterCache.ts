@@ -25,6 +25,14 @@ export function getFilterValues(key: string): CacheEntry {
   return cache.get(key) || { values: [], labels: {}, loading: false, loaded: false };
 }
 
+const STATIC_FALLBACKS: Record<string, string[]> = {
+  VENDOR: ['Ericsson', 'Nokia'],
+  TECHNO: ['2G', '3G', '4G', '5G'],
+  BAND: ['700', '800', '1800', '2100', '2600', '3500'],
+  DOR: [],
+  PLAQUE: [],
+};
+
 async function fetchStandard(dim: string) {
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
   cache.set(dim, entry);
@@ -39,8 +47,12 @@ async function fetchStandard(dim: string) {
     try {
       const res2 = await fetch(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
       const d2 = await res2.json();
-      if (d2.values) entry.values = d2.values;
+      if (d2.values?.length) { entry.values = d2.values; entry.loading = false; entry.loaded = true; cache.set(dim, { ...entry }); notify(); return; }
     } catch {}
+  }
+  // Fallback to static values when backend is unreachable
+  if (!entry.values.length && STATIC_FALLBACKS[dim]?.length) {
+    entry.values = STATIC_FALLBACKS[dim];
   }
   entry.loading = false;
   entry.loaded = true;
