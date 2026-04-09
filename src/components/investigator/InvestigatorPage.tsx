@@ -13,6 +13,7 @@ import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
+import TopWorstTabContent from './TopWorstTabContent';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
