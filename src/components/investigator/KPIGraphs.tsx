@@ -1333,14 +1333,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   else if (newVal && onActivateTab) onActivateTab('breakdown');
                 }}
                 className={cn(
-                  "p-1 rounded-md transition-colors",
+                  "flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold transition-colors border",
                   cfg.showBreakdown
-                    ? "bg-primary/15 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground border-transparent"
                 )}
                 title={cfg.showBreakdown ? "Masquer KPI Breakdown" : "Afficher KPI Breakdown"}
               >
-                <BarChart3 className="w-3.5 h-3.5" />
+                <BarChart3 className="w-3 h-3" />
+                Breakdown
               </button>
 
               {/* Duplicate slot */}
