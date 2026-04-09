@@ -64,6 +64,9 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showArea: false,
   showDataTable: false,
   showBreakdown: false,
+  showTopWorst: false,
+  showAlarms: false,
+  showNeighbors: false,
 };
 
 export interface GraphSlot {
