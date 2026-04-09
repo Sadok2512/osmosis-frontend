@@ -344,7 +344,6 @@ const InvestigatorPage: React.FC = () => {
                 {([
                   { val: 1 as const, icon: Square, title: 'Single' },
                   { val: 2 as const, icon: Columns2, title: 'Dual' },
-                  { val: 4 as const, icon: Maximize2, title: 'Fullscreen' },
                 ]).map(l => (
                   <button
                     key={l.val}
@@ -352,7 +351,7 @@ const InvestigatorPage: React.FC = () => {
                     title={l.title}
                     className={cn(
                       'p-1.5 rounded-md transition-all',
-                      state.graphLayout === l.val
+                      state.graphLayout === l.val && !isGraphFullscreen
                         ? 'bg-card text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
@@ -360,6 +359,18 @@ const InvestigatorPage: React.FC = () => {
                     <l.icon className="w-3.5 h-3.5" />
                   </button>
                 ))}
+                <button
+                  onClick={() => setIsGraphFullscreen(prev => !prev)}
+                  title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+                  className={cn(
+                    'p-1.5 rounded-md transition-all',
+                    isGraphFullscreen
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {isGraphFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
           </div>
