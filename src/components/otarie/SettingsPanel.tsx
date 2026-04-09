@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { topoApi } from '@/lib/localDb';
-import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, isLocalMode, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { invalidateSitesCache } from '@/services/mockData';
 import { useCSVData, type CSVDataset } from '@/components/bi/CSVDataStore';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
