@@ -1,5 +1,5 @@
 /**
- * Shared helpers for QOEBIT — tech normalization, site/cell key resolution, map aggregation.
+ * Shared helpers for OSMOSIS — tech normalization, site/cell key resolution, map aggregation.
  * Single source of truth; import these everywhere instead of inline logic.
  */
 

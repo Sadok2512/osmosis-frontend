@@ -151,7 +151,7 @@ const METRICS_CONFIG: { name: string; id: string; numColors: number; thresholds:
 ];
 
 const MODULE_DEFS: { id: string; label: string; description: string; icon: React.ReactNode }[] = [
-  { id: 'ai_assistant', label: 'QOEBIT AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
+  { id: 'ai_assistant', label: 'OSMOSIS AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
   { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites & cellules', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', description: 'Topologie réseau et inventaire sites', icon: <Server className="w-5 h-5" /> },
@@ -185,8 +185,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
   const [selectedMetrics, setSelectedMetrics] = useState<Set<string>>(() => new Set(METRICS_CONFIG.map(m => m.id)));
   const [editingMetric, setEditingMetric] = useState<string | null>(null);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<MetricCategory>>(new Set());
-  const [defaultTopoTech, setDefaultTopoTech] = useState<'ALL' | '4G' | '5G'>(() => (localStorage.getItem('qoebit_default_topo_tech') as any) || 'ALL');
-  const [defaultMapStyle, setDefaultMapStyle] = useState<string>(() => localStorage.getItem('qoebit_default_map_style') || 'street');
+  const [defaultTopoTech, setDefaultTopoTech] = useState<'ALL' | '4G' | '5G'>(() => (localStorage.getItem('osmosis_default_topo_tech') as any) || 'ALL');
+  const [defaultMapStyle, setDefaultMapStyle] = useState<string>(() => localStorage.getItem('osmosis_default_map_style') || 'street');
 
   // Dimension toggle state — each dimension category has an array of selected values
   const [selectedDimensions, setSelectedDimensions] = useState<Record<string, string[]>>(() => {
@@ -559,7 +559,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             </div>
             <div>
               <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">Paramètres Système</h1>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Configuration & Diagnostics • QOEBIT Platform</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Configuration & Diagnostics • OSMOSIS Platform</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -699,7 +699,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                 <button
                   key={tech}
                   onClick={() => {
-                    localStorage.setItem('qoebit_default_topo_tech', tech);
+                    localStorage.setItem('osmosis_default_topo_tech', tech);
                     setDefaultTopoTech(tech);
                   }}
                   className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 transition-all text-[12px] font-black uppercase tracking-wider ${
@@ -738,7 +738,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
                 <button
                   key={style.id}
                   onClick={() => {
-                    localStorage.setItem('qoebit_default_map_style', style.id);
+                    localStorage.setItem('osmosis_default_map_style', style.id);
                     setDefaultMapStyle(style.id);
                   }}
                   className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all ${
@@ -1103,7 +1103,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <DetailRow label="Plateforme" value="QOEBIT QoE Observatory" />
+              <DetailRow label="Plateforme" value="OSMOSIS QoE Observatory" />
               <DetailRow label="Environnement" value="Production" badge="PROD" badgeColor="bg-emerald-500" />
               <DetailRow label="Framework" value="React 18 + TypeScript" />
               <DetailRow label="Cartographie" value="Leaflet 4.2.1" />

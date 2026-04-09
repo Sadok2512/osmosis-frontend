@@ -196,7 +196,7 @@ export const useAgentLearningStore = create<AgentLearningState>()(
       },
     }),
     {
-      name: 'qoebit-agent-learning',
+      name: 'osmosis-agent-learning',
       version: 2,
     }
   )

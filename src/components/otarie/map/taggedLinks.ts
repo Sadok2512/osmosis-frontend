@@ -16,7 +16,7 @@ export interface TaggedLink {
   createdAt: string;
 }
 
-const STORAGE_KEY = 'qoebit_tagged_links';
+const STORAGE_KEY = 'osmosis_tagged_links';
 
 export function loadTaggedLinks(): TaggedLink[] {
   try {

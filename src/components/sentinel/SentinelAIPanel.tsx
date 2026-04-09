@@ -48,7 +48,7 @@ const SentinelAIPanel: React.FC<SentinelAIPanelProps> = ({ onClose, date, apiCon
     let openrouterKey = '';
     let llmModel = '';
     try {
-      const saved = localStorage.getItem('qoebit_llm_config');
+      const saved = localStorage.getItem('osmosis_llm_config');
       if (saved) {
         const cfg = JSON.parse(saved);
         openrouterKey = cfg.apiKey || '';

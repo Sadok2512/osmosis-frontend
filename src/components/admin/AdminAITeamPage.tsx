@@ -58,7 +58,7 @@ interface Discussion {
 
 /* ── Agent definitions ── */
 const qAgents: QAgent[] = [
-  { id: 'ORCHESTRATOR', name: 'QOEBIT', emoji: '🧠', role: 'Orchestrateur', group: 'lead', color: 'hsl(var(--primary))', textColor: 'text-primary', status: 'active', description: 'Routage intelligent et classification des requêtes vers les agents spécialisés.' },
+  { id: 'ORCHESTRATOR', name: 'OSMOSIS', emoji: '🧠', role: 'Orchestrateur', group: 'lead', color: 'hsl(var(--primary))', textColor: 'text-primary', status: 'active', description: 'Routage intelligent et classification des requêtes vers les agents spécialisés.' },
   { id: 'PULSE', name: 'PULSE', emoji: '📊', role: 'KPI Analytics', group: 'analyst', color: '#3dd68c', textColor: 'text-emerald-400', status: 'active', description: 'Analyse des KPIs QoE : débit, latence, DMS, RTT.' },
   { id: 'TOPO', name: 'TOPO', emoji: '🗺️', role: 'Topology & Inventory', group: 'specialist', color: '#4ea8de', textColor: 'text-blue-400', status: 'active', description: 'Inventaire réseau, sites, cellules, paramètres d\'antennes.' },
   { id: 'PARMY', name: 'PARMY', emoji: '⚙️', role: 'Parameter Audit', group: 'specialist', color: '#f59e0b', textColor: 'text-amber-400', status: 'active', description: 'Audit et conformité des paramètres radio.' },
@@ -77,8 +77,8 @@ const statusDot: Record<string, string> = {
   active: 'bg-emerald-500', standby: 'bg-amber-400', offline: 'bg-muted-foreground/40',
 };
 
-const PROFILE_KEY = 'qoebit_admin_profile';
-const DISCUSSIONS_KEY = 'qoebit_discussions';
+const PROFILE_KEY = 'osmosis_admin_profile';
+const DISCUSSIONS_KEY = 'osmosis_discussions';
 
 function loadProfile(): UserProfile | null {
   try { const r = localStorage.getItem(PROFILE_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -442,7 +442,7 @@ export default function AdminAITeamPage() {
       <div className="px-6 pt-6 pb-3 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground">AI Team</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Agents QOEBIT — Architecture multi-agents spécialisés</p>
+          <p className="text-sm text-muted-foreground mt-0.5">Agents OSMOSIS — Architecture multi-agents spécialisés</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Profile badge */}

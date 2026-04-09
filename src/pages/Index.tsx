@@ -47,7 +47,7 @@ const Index: React.FC = () => {
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('qoebit_enabled_modules');
+    const saved = localStorage.getItem('osmosis_enabled_modules');
     if (saved) return JSON.parse(saved);
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
@@ -57,7 +57,7 @@ const Index: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('qoebit_enabled_modules', JSON.stringify(enabledModules));
+    localStorage.setItem('osmosis_enabled_modules', JSON.stringify(enabledModules));
   }, [enabledModules]);
 
   const accentStyles: Record<AccentColor, Record<string, string>> = {

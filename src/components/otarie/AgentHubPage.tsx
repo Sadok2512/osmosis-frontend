@@ -280,7 +280,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
               className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold text-primary hover:bg-primary/10 transition-colors mb-4 border border-primary/20"
             >
               <ArrowLeft size={16} />
-              Back to QOEBIT
+              Back to OSMOSIS
             </button>
           )}
           <div className="flex items-center gap-4 mb-3">
@@ -288,7 +288,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
               <Cpu className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">QOEBIT Agent Hub</h1>
+              <h1 className="text-3xl font-extrabold tracking-tight text-foreground">OSMOSIS Agent Hub</h1>
               <p className="text-sm text-muted-foreground mt-1">Architecture multi-agents — Routage intelligent et spécialisation métier</p>
             </div>
           </div>
@@ -330,7 +330,7 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
                 <div className="w-20 h-20 rounded-full bg-primary/15 border-2 border-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
                   <Radio className="w-8 h-8 text-primary" />
                 </div>
-                <span className="text-xs font-bold text-foreground mt-2">QOEBIT Orchestrator</span>
+                <span className="text-xs font-bold text-foreground mt-2">OSMOSIS Orchestrator</span>
                 <span className="text-[10px] text-muted-foreground">Routage & Classification</span>
               </div>
 

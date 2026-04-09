@@ -8,8 +8,8 @@ const corsHeaders = {
 };
 
 // Cloudflare Tunnel (permanent, HTTPS) — bypasses Iran IP blocking
-const CF_PARSER = 'https://api.qoebit.net';
-const CF_KPI = 'https://kpi.qoebit.net';
+const CF_PARSER = 'https://api.osmosis.net';
+const CF_KPI = 'https://kpi.osmosis.net';
 const VPS_HOST = '151.242.147.49';
 
 const SERVICE_URLS: Record<string, string[]> = {

@@ -691,7 +691,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   const openInEditor = (id: string) => {
-    localStorage.setItem('qoebit_open_dashboard_id', id);
+    localStorage.setItem('osmosis_open_dashboard_id', id);
     setActiveTab?.('traffic');
   };
 

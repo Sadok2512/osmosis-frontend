@@ -1,7 +1,7 @@
 {
-  "name": "qoebit-server",
+  "name": "osmosis-server",
   "version": "1.0.0",
-  "description": "Local Express backend for QOEBIT",
+  "description": "Local Express backend for OSMOSIS",
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js"

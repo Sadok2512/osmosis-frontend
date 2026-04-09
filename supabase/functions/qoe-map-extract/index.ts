@@ -24,7 +24,7 @@ serve(async (req) => {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
           "HTTP-Referer": Deno.env.get("SUPABASE_URL") || "",
-          "X-Title": "QOEBIT Map Extract",
+          "X-Title": "OSMOSIS Map Extract",
         },
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",

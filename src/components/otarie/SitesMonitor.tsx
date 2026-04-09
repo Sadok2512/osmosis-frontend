@@ -114,7 +114,7 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
 // Load custom colors from localStorage
 const loadCustomBandColors = (): Record<string, string> => {
   try {
-    const saved = localStorage.getItem('qoebit_band_colors');
+    const saved = localStorage.getItem('osmosis_band_colors');
     if (saved) return { ...DEFAULT_BAND_COLORS, ...JSON.parse(saved) };
   } catch (err) { console.warn('[SitesMonitor] loadCustomBandColors failed', err); }
   return { ...DEFAULT_BAND_COLORS };
@@ -555,7 +555,7 @@ export interface CustomMapPoint {
   createdAt: string;
 }
 
-const CUSTOM_POINTS_KEY = 'qoebit_custom_points';
+const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
 
 function loadCustomPoints(): CustomMapPoint[] {
   try {
@@ -3077,7 +3077,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [kpiLoading, setKpiLoading] = useState(false);
   const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
     try {
-      const saved = localStorage.getItem('qoebit_kpi_thresholds');
+      const saved = localStorage.getItem('osmosis_kpi_thresholds');
       if (saved) return JSON.parse(saved);
     } catch {}
     return {
@@ -3384,14 +3384,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } else if (band === '4G_GROUP') {
         LTE_BANDS.forEach(b => { next[b] = color; });
       }
-      localStorage.setItem('qoebit_band_colors', JSON.stringify(next));
+      localStorage.setItem('osmosis_band_colors', JSON.stringify(next));
       return next;
     });
   }, []);
 
   const resetBandColors = useCallback(() => {
     setBandColors({ ...DEFAULT_BAND_COLORS });
-    localStorage.removeItem('qoebit_band_colors');
+    localStorage.removeItem('osmosis_band_colors');
   }, []);
   const [detailFullscreen, setDetailFullscreen] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(true);
@@ -3466,20 +3466,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // ── Tagged / pinned sites (persistent) ──
   const [taggedSites, setTaggedSites] = useState<SiteSummary[]>(() => {
     try {
-      const saved = localStorage.getItem('qoebit_tagged_sites');
+      const saved = localStorage.getItem('osmosis_tagged_sites');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
-    try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+    try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
   }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
-      try { localStorage.setItem('qoebit_tagged_sites', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
       return next;
     });
   }, []);
@@ -3637,7 +3637,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showNeighborPanel, setShowNeighborPanel] = useState(false);
   const [neighborLoading, setNeighborLoading] = useState(false);
   const [activeDashboardId, _setActiveDashboardId] = useState<string | null>(() => {
-    try { return localStorage.getItem('qoebit_active_dashboard_id') || null; } catch { return null; }
+    try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
   });
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
   const setActiveDashboardId = useCallback((id: string | null) => {
@@ -3645,12 +3645,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Reset active view when switching dashboard
     setActiveViewId(null);
     try {
-      if (id) localStorage.setItem('qoebit_active_dashboard_id', id);
-      else localStorage.removeItem('qoebit_active_dashboard_id');
+      if (id) localStorage.setItem('osmosis_active_dashboard_id', id);
+      else localStorage.removeItem('osmosis_active_dashboard_id');
     } catch (err) { console.warn('[SitesMonitor] localStorage activeDashboardId failed', err); }
   }, []);
   const [beamVisibility, setBeamVisibility] = useState<number>(() => {
-    try { const v = localStorage.getItem('qoebit_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
+    try { const v = localStorage.getItem('osmosis_beam_visibility'); return v ? Number(v) : 75; } catch { return 75; }
   });
 
   // ── Active Dashboard selector ──
@@ -3910,12 +3910,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
       if (settings.bandColors) {
         setBandColors(settings.bandColors);
-        localStorage.setItem('qoebit_band_colors', JSON.stringify(settings.bandColors));
+        localStorage.setItem('osmosis_band_colors', JSON.stringify(settings.bandColors));
       }
       if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
       if (settings.beamVisibility != null) {
         setBeamVisibility(settings.beamVisibility);
-        localStorage.setItem('qoebit_beam_visibility', String(settings.beamVisibility));
+        localStorage.setItem('osmosis_beam_visibility', String(settings.beamVisibility));
       }
     }
     setActiveDashboardId(dbId);
@@ -4285,7 +4285,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const updateThreshold = useCallback((field: 'green' | 'orange', val: number) => {
     setKpiThresholds(prev => {
       const next = { ...prev, [mapKpi]: { ...(prev[mapKpi] || { green: 80, orange: 60 }), [field]: val } };
-      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next)); } catch {}
       return next;
     });
   }, [mapKpi]);
@@ -4294,7 +4294,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setKpiThresholds(prev => {
       const cur = prev[mapKpi] || { green: 80, orange: 60 };
       const next = { ...prev, [mapKpi]: { ...cur, invert: !cur.invert } };
-      try { localStorage.setItem('qoebit_kpi_thresholds', JSON.stringify(next)); } catch {}
+      try { localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next)); } catch {}
       return next;
     });
   }, [mapKpi]);
@@ -5397,7 +5397,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
     if ((settings as any).beamVisibility != null) {
       setBeamVisibility((settings as any).beamVisibility);
-      localStorage.setItem('qoebit_beam_visibility', String((settings as any).beamVisibility));
+      localStorage.setItem('osmosis_beam_visibility', String((settings as any).beamVisibility));
     }
   }, []);
 
@@ -9281,7 +9281,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
                   }}
                   beamVisibility={beamVisibility}
-                  onBeamVisChange={(v) => { setBeamVisibility(v); localStorage.setItem('qoebit_beam_visibility', String(v)); }}
+                  onBeamVisChange={(v) => { setBeamVisibility(v); localStorage.setItem('osmosis_beam_visibility', String(v)); }}
                   onSaveDashboard={(dbId) => saveDashboardSettings(dbId)}
                   onLoadDashboard={(dbId) => loadDashboardSettings(dbId)}
                   isSaving={dashboardSaving}

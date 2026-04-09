@@ -156,7 +156,7 @@ Règles:
     let openrouterKey = '';
     let llmModel = '';
     try {
-      const saved = localStorage.getItem('qoebit_llm_config');
+      const saved = localStorage.getItem('osmosis_llm_config');
       if (saved) {
         const cfg = JSON.parse(saved);
         openrouterKey = cfg.apiKey || '';
@@ -390,7 +390,7 @@ Règles:
               <Sparkles className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground tracking-tight">QOEBIT</h3>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">OSMOSIS</h3>
               <p className="text-[9px] text-muted-foreground font-medium">Assistant IA • KPI Monitor</p>
             </div>
           </div>
