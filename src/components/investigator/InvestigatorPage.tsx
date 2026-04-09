@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import AnalysisTabBar from './AnalysisTabBar';
+import { useAnalysisTabs } from './useAnalysisTabs';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
@@ -60,6 +62,7 @@ const InvestigatorPage: React.FC = () => {
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
+   const analysisTabs = useAnalysisTabs();
 
    // Escape key exits fullscreen
    React.useEffect(() => {
@@ -580,6 +583,9 @@ const InvestigatorPage: React.FC = () => {
                 onClick={() => {
                   const newTab = analysisTab === tab.key ? null : tab.key;
                   setAnalysisTab(newTab);
+                  if (newTab) {
+                    analysisTabs.ensureTab(newTab);
+                  }
                   if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
                     handleFindWorst();
                   }
@@ -594,12 +600,38 @@ const InvestigatorPage: React.FC = () => {
                 <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
                 {tab.label}
                 {analysisTab === tab.key && (
-                  <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                  <>
+                    <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                    {analysisTabs.getSection(tab.key).instances.length > 0 && (
+                      <span className="ml-1 text-[9px] opacity-60">
+                        ({analysisTabs.getSection(tab.key).instances.length})
+                      </span>
+                    )}
+                  </>
                 )}
               </button>
             ))}
           </div>
         </div>
+
+        {/* ═══ Multi-tab bar for active section ═══ */}
+        {analysisTab && (() => {
+          const sec = analysisTabs.getSection(analysisTab);
+          return (
+            <AnalysisTabBar
+              tabs={sec.instances}
+              activeId={sec.activeId}
+              onSelect={(id) => analysisTabs.setActiveTab(analysisTab!, id)}
+              onAdd={() => analysisTabs.addTab(analysisTab!)}
+              onRemove={(id) => {
+                analysisTabs.removeTab(analysisTab!, id);
+                const remaining = analysisTabs.getSection(analysisTab!).instances;
+                if (remaining.length === 0) setAnalysisTab(null);
+              }}
+              onRename={(id, label) => analysisTabs.renameTab(analysisTab!, id, label)}
+            />
+          );
+        })()}
 
         {/* ═══ Tab Content ═══ */}
         {analysisTab === 'table_data' && (
