@@ -1437,7 +1437,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
                     <button
                       onClick={(e) => {
-                        // Just close the popover — don't auto-assign splits
+                        // Activate corresponding bottom tab if toggle is on
+                        if (cfg.showDataTable && onActivateTab) onActivateTab('table_data');
+                        else if (cfg.showBreakdown && onActivateTab) onActivateTab('breakdown');
+                        // Close the popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
                         );
