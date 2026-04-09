@@ -1485,6 +1485,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                         else if (cfg.showTopWorst && onActivateTab) onActivateTab('top_worst');
                         else if (cfg.showAlarms && onActivateTab) onActivateTab('alarms');
                         else if (cfg.showNeighbors && onActivateTab) onActivateTab('neighbors');
+                        else if (cfg.showCmHistory && onActivateTab) onActivateTab('cm_history');
                         // Close the popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
