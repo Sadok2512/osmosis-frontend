@@ -669,12 +669,19 @@ export async function fetchTimeSeriesForSlot(
     }
   }
 
-  // For KPIs that failed both compute AND KPI Engine, try raw counter fallback
+  // Step 3: For KPIs that failed both compute AND KPI Engine, try raw counter fallback — SEQUENTIAL
   if (missingKpis.length > 0) {
+    const fallbackStart = Date.now();
+    console.log('[Pipeline] Step 3 Counter Fallback START:', missingKpis);
     const fallback = await fetchCounterTimeSeriesFallback(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
     );
+    console.log('[Pipeline] Step 3 Counter Fallback END:', {
+      duration: `${Date.now() - fallbackStart}ms`,
+      points: fallback.data.length,
+      status: fallback.data.length > 0 ? 'success' : 'no_counter_data',
+    });
     const allData = [...computeResults, ...kpiResults, ...fallback.data];
     if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
     return { data: allData, hasUnfilteredFallback };
