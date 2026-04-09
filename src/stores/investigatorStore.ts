@@ -5,11 +5,10 @@ import type { InvestigationState, DataPoint, WorstElement } from '@/components/i
 /* ── Dynamic default dates: current month ── */
 function defaultDateRange(): { startDate: string; endDate: string } {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const start = new Date(y, m, 1);
-  const end = new Date(y, m + 1, 0); // last day of current month
-  // Use local date parts to avoid UTC offset shifting the date
+  // Default to last 30 days (past data, not future)
+  const end = new Date(now);
+  const start = new Date(now);
+  start.setDate(start.getDate() - 30);
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { startDate: fmt(start), endDate: fmt(end) };
