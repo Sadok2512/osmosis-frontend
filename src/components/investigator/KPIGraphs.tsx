@@ -426,6 +426,7 @@ interface Props {
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
+  onActivateTab?: (tab: 'table_data' | 'breakdown') => void;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
@@ -440,7 +441,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   link.click();
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : 2;
