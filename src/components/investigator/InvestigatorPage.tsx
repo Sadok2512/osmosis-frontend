@@ -58,6 +58,7 @@ const InvestigatorPage: React.FC = () => {
    const [showAIPanel, setShowAIPanel] = useState(false);
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
+   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
