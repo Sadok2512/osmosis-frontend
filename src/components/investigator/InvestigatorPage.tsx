@@ -13,6 +13,7 @@ import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
 import WorstElementsTable from './WorstElementsTable';
+import TopWorstTabContent from './TopWorstTabContent';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
@@ -695,24 +696,17 @@ const InvestigatorPage: React.FC = () => {
           </section>
         )}
 
-        {analysisTab === 'top_worst' && (
-          isLoadingWorst ? (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
-              <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-              Computing worst cells...
-            </div>
+        {analysisTab === 'top_worst' && (() => {
+          const sec = analysisTabs.getSection('top_worst');
+          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+          return activeTabId ? (
+            <TopWorstTabContent key={activeTabId} tabId={activeTabId} />
           ) : (
-            <WorstElementsTable
-              elements={worstElements}
-              limit={state.topLimit}
-              onLimitChange={(limit) => setState(prev => ({ ...prev, topLimit: limit }))}
-              onRowClick={(id) => {
-                const filters = { ...state.filters, Cell: [id] };
-                setState(prev => ({ ...prev, filters }));
-              }}
-            />
-          )
-        )}
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              Aucun onglet Top Worst Cells ouvert.
+            </div>
+          );
+        })()}
 
         {analysisTab === 'alarms' && (
           <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
