@@ -21,6 +21,23 @@ interface Props {
   filters: Record<string, string[]>;
 }
 
+/** Map backend neighbor response to frontend interface */
+function mapNeighbor(r: any, fallbackSource: string): NeighborRelation {
+  return {
+    source_cell: r.source_cell || fallbackSource,
+    target_cell: r.targetCellId || r.target_cell || '',
+    target_site: r.targetSiteName || r.target_site || '',
+    relation_type: r.relationType || r.relation_type || 'inter_system',
+    direction: (r.relationDirection || r.direction || 'outgoing') === 'out' ? 'outgoing' : (r.relationDirection || r.direction || 'outgoing'),
+    ho_count: r.hoCount ?? r.ho_count ?? 0,
+    ho_success_rate: r.hoSuccessRate ?? r.ho_success_rate,
+    target_techno: r.targetTechno || r.target_techno || '',
+    target_band: r.targetBande || r.target_band || '',
+    target_lat: r.targetCoords?.[0] ?? r.target_lat,
+    target_lon: r.targetCoords?.[1] ?? r.target_lon,
+  };
+}
+
 const RELATION_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
   intra_freq:   { bg: 'bg-blue-500/10', text: 'text-blue-600', dot: 'bg-blue-500', label: 'Intra-Freq' },
   inter_freq:   { bg: 'bg-amber-500/10', text: 'text-amber-600', dot: 'bg-amber-500', label: 'Inter-Freq' },
@@ -46,34 +63,51 @@ const NeighborsSection: React.FC<Props> = ({ filters }) => {
     return filters.Cell || filters.CELL || [];
   }, [filters]);
 
+  const siteIds = useMemo(() => {
+    return filters.Site || filters.SITE || [];
+  }, [filters]);
+
+  const hasFilter = cellIds.length > 0 || siteIds.length > 0;
+
   useEffect(() => {
-    if (cellIds.length === 0) {
+    if (!hasFilter) {
       setNeighbors([]);
       return;
     }
+    const controller = new AbortController();
     const fetchNeighbors = async () => {
       setLoading(true);
       setError(null);
       try {
         const allResults: NeighborRelation[] = [];
-        for (const cellId of cellIds.slice(0, 5)) {
-          const res = await fetch(getApiUrl(`neighbors/${encodeURIComponent(cellId)}`), { headers: getApiHeaders() });
-          if (!res.ok) throw new Error(`${res.status}`);
+
+        // Fetch neighbors for cells or sites
+        const lookupIds = cellIds.length > 0 ? cellIds.slice(0, 5) : siteIds.slice(0, 3);
+        for (const id of lookupIds) {
+          const res = await fetch(getApiUrl(`neighbors/${encodeURIComponent(id)}`), {
+            headers: getApiHeaders(), signal: controller.signal,
+          });
+          if (!res.ok) continue;
           const data = await res.json();
-          const rels: NeighborRelation[] = Array.isArray(data) ? data : data.neighbors || data.relations || [];
-          allResults.push(...rels.map(r => ({ ...r, source_cell: r.source_cell || cellId })));
+          const rawRels = Array.isArray(data) ? data : data.neighbors || data.relations || [];
+          allResults.push(...rawRels.map((r: any) => mapNeighbor(r, id)));
         }
+
+        if (controller.signal.aborted) return;
         setNeighbors(allResults);
+        if (allResults.length === 0) setError('Aucune relation de voisinage trouvée');
       } catch (err: any) {
-        console.warn('[Neighbors] Fetch failed, using mock:', err.message);
+        if (controller.signal.aborted) return;
+        console.warn('[Neighbors] Fetch failed:', err.message);
         setError(err.message);
-        setNeighbors(generateMockNeighbors(cellIds));
+        setNeighbors([]);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchNeighbors();
-  }, [cellIds]);
+    return () => controller.abort();
+  }, [cellIds, siteIds, hasFilter]);
 
   const filtered = useMemo(() => {
     let items = neighbors;
@@ -99,11 +133,11 @@ const NeighborsSection: React.FC<Props> = ({ filters }) => {
   const outCount = neighbors.filter(n => n.direction === 'outgoing').length;
   const inCount = neighbors.filter(n => n.direction === 'incoming').length;
 
-  if (cellIds.length === 0) {
+  if (!hasFilter) {
     return (
       <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
         <Waypoints className="w-8 h-8 mx-auto text-muted-foreground/20 mb-3" />
-        <p className="text-xs text-muted-foreground">Sélectionnez une ou plusieurs cellules dans les filtres pour afficher les relations de voisinage.</p>
+        <p className="text-xs text-muted-foreground">Sélectionnez un site ou une cellule dans les filtres pour afficher les relations de voisinage.</p>
       </div>
     );
   }
