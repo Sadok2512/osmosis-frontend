@@ -6,9 +6,9 @@ import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
-import CMChangesCard from './CMChangesCard';
-import AlarmsSection from './AlarmsSection';
-import NeighborsSection from './NeighborsSection';
+import AlarmsTabContent from './AlarmsTabContent';
+import NeighborsTabContent from './NeighborsTabContent';
+import CMHistoryTabContent from './CMHistoryTabContent';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
@@ -708,9 +708,17 @@ const InvestigatorPage: React.FC = () => {
           );
         })()}
 
-        {analysisTab === 'alarms' && (
-          <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
-        )}
+        {analysisTab === 'alarms' && (() => {
+          const sec = analysisTabs.getSection('alarms');
+          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+          return activeTabId ? (
+            <AlarmsTabContent key={activeTabId} tabId={activeTabId} />
+          ) : (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              Aucun onglet Alarms ouvert.
+            </div>
+          );
+        })()}
 
         {analysisTab === 'counters' && (
           <CounterGraphSection
@@ -719,15 +727,29 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {analysisTab === 'neighbors' && (
-          <NeighborsSection filters={state.filters} />
-        )}
+        {analysisTab === 'neighbors' && (() => {
+          const sec = analysisTabs.getSection('neighbors');
+          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+          return activeTabId ? (
+            <NeighborsTabContent key={activeTabId} tabId={activeTabId} />
+          ) : (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              Aucun onglet Neighbors ouvert.
+            </div>
+          );
+        })()}
 
-        {analysisTab === 'cm_history' && (
-          <div className="rounded-xl border border-dashed border-border/40 bg-muted/10 p-12 text-center">
-            <p className="text-xs text-muted-foreground">Section « CM History » — à venir</p>
-          </div>
-        )}
+        {analysisTab === 'cm_history' && (() => {
+          const sec = analysisTabs.getSection('cm_history');
+          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+          return activeTabId ? (
+            <CMHistoryTabContent key={activeTabId} tabId={activeTabId} />
+          ) : (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+              Aucun onglet CM History ouvert.
+            </div>
+          );
+        })()}
       </main>
     </div>
 
