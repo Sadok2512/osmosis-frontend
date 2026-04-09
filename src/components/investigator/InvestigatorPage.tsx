@@ -58,7 +58,7 @@ const InvestigatorPage: React.FC = () => {
   const [applyError, setApplyError] = React.useState<string | null>(null);
    const [showAIPanel, setShowAIPanel] = useState(false);
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
+   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
 
    // Escape key exits fullscreen
@@ -568,7 +568,7 @@ const InvestigatorPage: React.FC = () => {
             ] as const).map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setAnalysisTab(tab.key)}
+                onClick={() => setAnalysisTab(prev => prev === tab.key ? null : tab.key)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
                   analysisTab === tab.key
