@@ -134,34 +134,70 @@ const InvestigatorPage: React.FC = () => {
       return;
     }
 
+    // Only fetch data for the active graph tab view
+    const activeView = state.activeGraphTab; // 'TimeSeries' | 'Histogram' | 'Neighbors'
+    console.log('[Investigator] Active view:', activeView, '— only fetching data for this view');
+
     setApplyError(null);
     setIsApplying(true);
     setTsData([]);
     setHasUnfilteredFallback(false);
     try {
-      // Fix #1: Query ALL slots with KPIs, not just the active one
       const slotContexts = slotsWithKpis.map(slot => ({
         slot,
         ctx: resolveSlotContext(slot, state),
       }));
 
-      console.log('[Investigator] Fetching', slotContexts.length, 'slots');
+      console.log('[Investigator] Fetching', slotContexts.length, 'slots SEQUENTIALLY for view:', activeView);
 
-      const results = await Promise.all(
-        slotContexts.map(async ({ slot, ctx }) => {
-          console.log('[Investigator] Fetching slot:', slot.id, ctx.kpiIds, 'from', ctx.dateFrom, 'to', ctx.dateTo, 'gran', ctx.granularity);
+      // ── SEQUENTIAL execution: one slot at a time, no Promise.all ──
+      const allData: any[] = [];
+      let anyUnfiltered = false;
+
+      for (const { slot, ctx } of slotContexts) {
+        const queryStart = Date.now();
+        console.log('[Investigator] ── Query START ──', {
+          slotId: slot.id,
+          kpis: ctx.kpiIds,
+          activeView,
+          dateFrom: ctx.dateFrom,
+          dateTo: ctx.dateTo,
+          granularity: ctx.granularity,
+          filters: ctx.filters,
+          splitBy: ctx.splitBy,
+        });
+
+        try {
           const result = await fetchTimeSeriesForSlot(ctx);
-          // Tag each point with slotId for isolation
+          const queryEnd = Date.now();
           const taggedData = result.data.map(d => ({ ...d, _slotId: slot.id }));
-          console.log('[Investigator] Result slot', slot.id, ':', taggedData.length, 'points');
-          return { ...result, data: taggedData };
-        })
-      );
 
-      // Merge all results
-      const allData = results.flatMap(r => r.data);
-      console.log('[Investigator] Total data points:', allData.length);
-      const anyUnfiltered = results.some(r => r.hasUnfilteredFallback);
+          console.log('[Investigator] ── Query END ──', {
+            slotId: slot.id,
+            kpis: ctx.kpiIds,
+            activeView,
+            duration: `${queryEnd - queryStart}ms`,
+            dataPoints: taggedData.length,
+            status: taggedData.length > 0 ? 'success' : 'no_data',
+            hasUnfilteredFallback: result.hasUnfilteredFallback,
+          });
+
+          allData.push(...taggedData);
+          if (result.hasUnfilteredFallback) anyUnfiltered = true;
+        } catch (slotError) {
+          const queryEnd = Date.now();
+          console.error('[Investigator] ── Query FAILED ──', {
+            slotId: slot.id,
+            kpis: ctx.kpiIds,
+            activeView,
+            duration: `${queryEnd - queryStart}ms`,
+            error: slotError instanceof Error ? slotError.message : String(slotError),
+            status: 'query_failed',
+          });
+        }
+      }
+
+      console.log('[Investigator] Total data points:', allData.length, '(view:', activeView, ')');
       setHasUnfilteredFallback(anyUnfiltered);
       setTsData(allData);
       setHasLoadedOnce(true);
