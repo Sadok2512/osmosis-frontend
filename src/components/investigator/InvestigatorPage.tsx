@@ -575,7 +575,13 @@ const InvestigatorPage: React.FC = () => {
               <button
                 key={`analysis-tab-${tab.key}`}
                 data-analysis-tab={tab.key}
-                onClick={() => setAnalysisTab(prev => prev === tab.key ? null : tab.key)}
+                onClick={() => {
+                  const newTab = analysisTab === tab.key ? null : tab.key;
+                  setAnalysisTab(newTab);
+                  if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
+                    handleFindWorst();
+                  }
+                }}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
                   analysisTab === tab.key
@@ -608,15 +614,22 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {analysisTab === 'top_worst' && (
-          <WorstElementsTable
-            elements={worstElements}
-            limit={state.topLimit}
-            onLimitChange={(limit) => setState(prev => ({ ...prev, topLimit: limit }))}
-            onRowClick={(id) => {
-              const filters = { ...state.filters, Cell: [id] };
-              setState(prev => ({ ...prev, filters }));
-            }}
-          />
+          isLoadingWorst ? (
+            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground gap-2">
+              <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              Computing worst cells...
+            </div>
+          ) : (
+            <WorstElementsTable
+              elements={worstElements}
+              limit={state.topLimit}
+              onLimitChange={(limit) => setState(prev => ({ ...prev, topLimit: limit }))}
+              onRowClick={(id) => {
+                const filters = { ...state.filters, Cell: [id] };
+                setState(prev => ({ ...prev, filters }));
+              }}
+            />
+          )
         )}
 
         {analysisTab === 'alarms' && (
