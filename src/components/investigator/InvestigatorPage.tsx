@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
@@ -66,6 +67,15 @@ const InvestigatorPage: React.FC = () => {
      const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsGraphFullscreen(false); };
      window.addEventListener('keydown', handler);
      return () => window.removeEventListener('keydown', handler);
+   }, [isGraphFullscreen]);
+
+   React.useEffect(() => {
+     if (!isGraphFullscreen) return;
+     const originalOverflow = document.body.style.overflow;
+     document.body.style.overflow = 'hidden';
+     return () => {
+       document.body.style.overflow = originalOverflow;
+     };
    }, [isGraphFullscreen]);
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
@@ -266,6 +276,204 @@ const InvestigatorPage: React.FC = () => {
     }));
   };
 
+  const renderGraphSection = () => (
+    <section className={cn(
+      'space-y-4',
+      isGraphFullscreen && 'fixed inset-0 z-[100] bg-background p-4 md:p-6 overflow-auto'
+    )}>
+      <div className={cn(
+        'flex items-center justify-between border-b border-border/40 pb-3',
+        isGraphFullscreen && 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm'
+      )}>
+        <div className="flex items-center gap-3">
+          <div className="p-1.5 bg-primary/10 rounded-lg">
+            <Maximize2 className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
+            <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+            {([
+              { key: 'TimeSeries' as const, icon: LineChartIcon, label: 'Time Series' },
+              { key: 'Histogram' as const, icon: BarChart3, label: 'Histogram' },
+              { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors Flux' },
+            ]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key as any }))}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
+                  state.activeGraphTab === tab.key
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <tab.icon className="w-3 h-3" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
+            {([
+              { val: 1 as const, icon: Square, title: 'Single' },
+              { val: 2 as const, icon: Columns2, title: 'Dual' },
+            ]).map(l => (
+              <button
+                key={l.val}
+                onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
+                title={l.title}
+                className={cn(
+                  'p-1.5 rounded-md transition-all',
+                  state.graphLayout === l.val && !isGraphFullscreen
+                    ? 'bg-card text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <l.icon className="w-3.5 h-3.5" />
+              </button>
+            ))}
+            <button
+              onClick={() => {
+                const goingFullscreen = !isGraphFullscreen;
+                if (goingFullscreen && !activeSlotId && state.graphSlots.length > 0) {
+                  setActiveSlotId(state.graphSlots[0].id);
+                }
+                setIsGraphFullscreen(goingFullscreen);
+              }}
+              title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+              className={cn(
+                'p-1.5 rounded-md transition-all',
+                isGraphFullscreen
+                  ? 'bg-card text-primary shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {isGraphFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {state.activeGraphTab === 'TimeSeries' && (
+        <KPIGraphs
+          jalons={state.jalons}
+          graphSlots={state.graphSlots}
+          data={tsData}
+          layout={state.graphLayout}
+          onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
+          }))}
+          onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
+          }))}
+          onSetSlotCounterIds={(slotId, cIds) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, counterIds: cIds } : s),
+          }))}
+          onRemoveSlot={(slotId) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
+          }))}
+          onAddEmptySlot={(widgetType) => {
+            setState(prev => {
+              const nextIndex = prev.graphSlots.length + 1;
+              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
+            });
+          }}
+          onRenameSlot={(slotId, name) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
+          }))}
+          onUpdateSlotConfig={handleUpdateSlotConfig}
+          onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
+          onDuplicateSlot={(slotId) => setState(prev => {
+            const source = prev.graphSlots.find(s => s.id === slotId);
+            if (!source) return prev;
+            const dup = { ...source, id: `slot-${Date.now()}-dup`, name: `${source.name} (copie)`, config: source.config ? { ...source.config } : undefined };
+            return { ...prev, graphSlots: [...prev.graphSlots, dup] };
+          })}
+          activeSlotId={activeSlotId}
+          onSlotClick={setActiveSlotId}
+          isFullscreen={isGraphFullscreen}
+        />
+      )}
+
+      {state.activeGraphTab === 'Histogram' && (
+        <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
+      )}
+
+      {state.activeGraphTab === 'Neighbors' && (
+        <div className="rounded-xl border border-border/60 bg-card p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 rounded-lg bg-cyan-500/10">
+              <Activity className="w-5 h-5 text-cyan-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Neighbors Flux Analysis</h3>
+              <p className="text-[10px] text-muted-foreground">Analyse des relations de voisinage inter-cellules et flux de handover</p>
+            </div>
+          </div>
+
+          {state.kpiLevel === 'NEIGHBOR' && tsData.length > 0 ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3">
+                {(['X2', 'HO_LTE', 'HO_UTRAN'] as const).map(ntype => {
+                  const count = tsData.filter(d => d.splitValue === ntype).length;
+                  return (
+                    <div
+                      key={ntype}
+                      onClick={() => setState(prev => ({ ...prev, neighborType: prev.neighborType === ntype ? null : ntype }))}
+                      className={cn(
+                        'rounded-lg border p-4 cursor-pointer transition-all',
+                        state.neighborType === ntype
+                          ? 'border-cyan-500/60 bg-cyan-500/10 shadow-sm'
+                          : 'border-border/60 bg-card hover:border-cyan-500/30'
+                      )}
+                    >
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{ntype.replace('_', ' ')}</div>
+                      <div className="text-lg font-bold text-foreground mt-1">{count > 0 ? count : '--'}</div>
+                      <div className="text-[9px] text-muted-foreground">data points</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                Les KPIs neighbor sont affiches dans le graphe TimeSeries ci-dessus. Utilisez le filtre "Type" pour isoler X2, HO LTE ou HO UTRAN.
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <Activity className="w-12 h-12 text-cyan-500/20" />
+              <p className="text-sm font-semibold text-muted-foreground">
+                {state.kpiLevel !== 'NEIGHBOR'
+                  ? 'Passez au niveau "Neighbor" dans la barre de filtres pour analyser les relations de voisinage'
+                  : 'Selectionnez des KPIs Neighbor (NEIGH_*) et appliquez'}
+              </p>
+              <p className="text-[10px] text-muted-foreground max-w-md">
+                Le flux de voisinage affiche les handovers entrants/sortants, les taux de succes HO et la topologie des relations entre cellules adjacentes.
+              </p>
+              {state.kpiLevel !== 'NEIGHBOR' && (
+                <button
+                  onClick={() => setState(prev => ({ ...prev, kpiLevel: 'NEIGHBOR', activeGraphTab: 'TimeSeries' }))}
+                  className="mt-2 px-4 py-2 rounded-lg bg-cyan-500/10 text-cyan-600 text-xs font-bold hover:bg-cyan-500/20 transition-colors border border-cyan-500/20"
+                >
+                  Activer le niveau Neighbor
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
@@ -310,202 +518,7 @@ const InvestigatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* KPI Graph Section */}
-        <section className={cn(
-          'space-y-4',
-          isGraphFullscreen && 'fixed inset-0 z-50 bg-background p-4 flex flex-col overflow-hidden'
-        )}>
-          <div className="flex items-center justify-between border-b border-border/40 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-1.5 bg-primary/10 rounded-lg">
-                <Maximize2 className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
-                <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {/* Graph type tabs */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                {([
-                  { key: 'TimeSeries' as const, icon: LineChartIcon, label: 'Time Series' },
-                  { key: 'Histogram' as const, icon: BarChart3, label: 'Histogram' },
-                  { key: 'Neighbors' as const, icon: Activity, label: 'Neighbors Flux' },
-                ]).map(tab => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setState(prev => ({ ...prev, activeGraphTab: tab.key as any }))}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all',
-                      state.activeGraphTab === tab.key
-                        ? 'bg-card text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <tab.icon className="w-3 h-3" />
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Layout switcher */}
-              <div className="flex items-center bg-muted/50 p-0.5 rounded-lg border border-border/40">
-                {([
-                  { val: 1 as const, icon: Square, title: 'Single' },
-                  { val: 2 as const, icon: Columns2, title: 'Dual' },
-                ]).map(l => (
-                  <button
-                    key={l.val}
-                    onClick={() => setState(prev => ({ ...prev, graphLayout: l.val }))}
-                    title={l.title}
-                    className={cn(
-                      'p-1.5 rounded-md transition-all',
-                      state.graphLayout === l.val && !isGraphFullscreen
-                        ? 'bg-card text-primary shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <l.icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    const goingFullscreen = !isGraphFullscreen;
-                    if (goingFullscreen && !activeSlotId && state.graphSlots.length > 0) {
-                      setActiveSlotId(state.graphSlots[0].id);
-                    }
-                    setIsGraphFullscreen(goingFullscreen);
-                  }}
-                  title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
-                  className={cn(
-                    'p-1.5 rounded-md transition-all',
-                    isGraphFullscreen
-                      ? 'bg-card text-primary shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {isGraphFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {state.activeGraphTab === 'TimeSeries' && (
-            <KPIGraphs
-              jalons={state.jalons}
-              graphSlots={state.graphSlots}
-              data={tsData}
-              layout={state.graphLayout}
-              onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds: kpiId ? [kpiId] : [] } : s),
-              }))}
-              onSetSlotKpiIds={(slotId, kpiIds) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, kpiIds } : s),
-              }))}
-              onSetSlotCounterIds={(slotId, cIds) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, counterIds: cIds } : s),
-              }))}
-              onRemoveSlot={(slotId) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.filter(s => s.id !== slotId),
-              }))}
-              onAddEmptySlot={(widgetType) => {
-                setState(prev => {
-                  const nextIndex = prev.graphSlots.length + 1;
-                  return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
-                });
-              }}
-              onRenameSlot={(slotId, name) => setState(prev => ({
-                ...prev,
-                graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
-              }))}
-              onUpdateSlotConfig={handleUpdateSlotConfig}
-              onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
-              onDuplicateSlot={(slotId) => setState(prev => {
-                const source = prev.graphSlots.find(s => s.id === slotId);
-                if (!source) return prev;
-                const dup = { ...source, id: `slot-${Date.now()}-dup`, name: `${source.name} (copie)`, config: source.config ? { ...source.config } : undefined };
-                return { ...prev, graphSlots: [...prev.graphSlots, dup] };
-              })}
-              activeSlotId={activeSlotId}
-              onSlotClick={setActiveSlotId}
-              isFullscreen={isGraphFullscreen}
-            />
-          )}
-
-          {state.activeGraphTab === 'Histogram' && (
-            <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
-          )}
-
-          {state.activeGraphTab === 'Neighbors' && (
-            <div className="rounded-xl border border-border/60 bg-card p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 rounded-lg bg-cyan-500/10">
-                  <Activity className="w-5 h-5 text-cyan-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-foreground">Neighbors Flux Analysis</h3>
-                  <p className="text-[10px] text-muted-foreground">Analyse des relations de voisinage inter-cellules et flux de handover</p>
-                </div>
-              </div>
-
-              {state.kpiLevel === 'NEIGHBOR' && tsData.length > 0 ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    {(['X2', 'HO_LTE', 'HO_UTRAN'] as const).map(ntype => {
-                      const count = tsData.filter(d => d.splitValue === ntype).length;
-                      return (
-                        <div
-                          key={ntype}
-                          onClick={() => setState(prev => ({ ...prev, neighborType: prev.neighborType === ntype ? null : ntype }))}
-                          className={cn(
-                            'rounded-lg border p-4 cursor-pointer transition-all',
-                            state.neighborType === ntype
-                              ? 'border-cyan-500/60 bg-cyan-500/10 shadow-sm'
-                              : 'border-border/60 bg-card hover:border-cyan-500/30'
-                          )}
-                        >
-                          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{ntype.replace('_', ' ')}</div>
-                          <div className="text-lg font-bold text-foreground mt-1">{count > 0 ? count : '--'}</div>
-                          <div className="text-[9px] text-muted-foreground">data points</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Les KPIs neighbor sont affiches dans le graphe TimeSeries ci-dessus. Utilisez le filtre "Type" pour isoler X2, HO LTE ou HO UTRAN.
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-                  <Activity className="w-12 h-12 text-cyan-500/20" />
-                  <p className="text-sm font-semibold text-muted-foreground">
-                    {state.kpiLevel !== 'NEIGHBOR'
-                      ? 'Passez au niveau "Neighbor" dans la barre de filtres pour analyser les relations de voisinage'
-                      : 'Selectionnez des KPIs Neighbor (NEIGH_*) et appliquez'}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground max-w-md">
-                    Le flux de voisinage affiche les handovers entrants/sortants, les taux de succes HO et la topologie des relations entre cellules adjacentes.
-                  </p>
-                  {state.kpiLevel !== 'NEIGHBOR' && (
-                    <button
-                      onClick={() => setState(prev => ({ ...prev, kpiLevel: 'NEIGHBOR', activeGraphTab: 'TimeSeries' }))}
-                      className="mt-2 px-4 py-2 rounded-lg bg-cyan-500/10 text-cyan-600 text-xs font-bold hover:bg-cyan-500/20 transition-colors border border-cyan-500/20"
-                    >
-                      Activer le niveau Neighbor
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-        </section>
+        {!isGraphFullscreen && renderGraphSection()}
 
         {/* ═══ Analysis Tabs ═══ */}
         <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
@@ -579,6 +592,8 @@ const InvestigatorPage: React.FC = () => {
         )}
       </main>
     </div>
+
+    {isGraphFullscreen && typeof document !== 'undefined' && createPortal(graphSection, document.body)}
 
       {/* AI Panel */}
       {showAIPanel && (
