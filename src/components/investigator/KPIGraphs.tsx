@@ -440,9 +440,11 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   link.click();
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick }) => {
-  const cols = layout === 1 ? 1 : layout === 4 ? 2 : 2;
-  const chartHeight = layout === 1 ? 520 : layout === 4 ? 340 : 400;
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen }) => {
+  // In fullscreen mode, show only the active slot
+  const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
+  const cols = isFullscreen ? 1 : layout === 1 ? 1 : 2;
+  const chartHeight = isFullscreen ? 'calc(100vh - 180px)' : layout === 1 ? 520 : layout === 4 ? 340 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
