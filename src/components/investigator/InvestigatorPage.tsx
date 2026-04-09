@@ -1,5 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import AnalysisTabBar from './AnalysisTabBar';
+import { useAnalysisTabs } from './useAnalysisTabs';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
