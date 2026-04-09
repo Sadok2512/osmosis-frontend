@@ -371,7 +371,13 @@ const InvestigatorPage: React.FC = () => {
                   </button>
                 ))}
                 <button
-                  onClick={() => setIsGraphFullscreen(prev => !prev)}
+                  onClick={() => {
+                    const goingFullscreen = !isGraphFullscreen;
+                    if (goingFullscreen && !activeSlotId && state.graphSlots.length > 0) {
+                      setActiveSlotId(state.graphSlots[0].id);
+                    }
+                    setIsGraphFullscreen(goingFullscreen);
+                  }}
                   title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
                   className={cn(
                     'p-1.5 rounded-md transition-all',
