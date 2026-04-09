@@ -425,6 +425,7 @@ interface Props {
   onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
+  isFullscreen?: boolean;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
