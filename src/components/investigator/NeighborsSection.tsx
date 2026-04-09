@@ -81,16 +81,19 @@ const NeighborsSection: React.FC<Props> = ({ filters }) => {
       try {
         const allResults: NeighborRelation[] = [];
 
-        // Fetch neighbors for cells or sites
+        // Fetch neighbors for cells or sites — both directions
         const lookupIds = cellIds.length > 0 ? cellIds.slice(0, 5) : siteIds.slice(0, 3);
         for (const id of lookupIds) {
-          const res = await fetch(getApiUrl(`neighbors/${encodeURIComponent(id)}`), {
-            headers: getApiHeaders(), signal: controller.signal,
-          });
-          if (!res.ok) continue;
-          const data = await res.json();
-          const rawRels = Array.isArray(data) ? data : data.neighbors || data.relations || [];
-          allResults.push(...rawRels.map((r: any) => mapNeighbor(r, id)));
+          for (const dir of ['out', 'in'] as const) {
+            if (controller.signal.aborted) break;
+            const res = await fetch(getApiUrl(`neighbors/${encodeURIComponent(id)}?direction=${dir}&limit=100`), {
+              headers: getApiHeaders(), signal: controller.signal,
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+            const rawRels = Array.isArray(data) ? data : data.neighbors || data.relations || [];
+            allResults.push(...rawRels.map((r: any) => mapNeighbor(r, id)));
+          }
         }
 
         if (controller.signal.aborted) return;
