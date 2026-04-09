@@ -59,6 +59,14 @@ const InvestigatorPage: React.FC = () => {
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
+
+   // Escape key exits fullscreen
+   React.useEffect(() => {
+     if (!isGraphFullscreen) return;
+     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsGraphFullscreen(false); };
+     window.addEventListener('keydown', handler);
+     return () => window.removeEventListener('keydown', handler);
+   }, [isGraphFullscreen]);
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -363,7 +371,13 @@ const InvestigatorPage: React.FC = () => {
                   </button>
                 ))}
                 <button
-                  onClick={() => setIsGraphFullscreen(prev => !prev)}
+                  onClick={() => {
+                    const goingFullscreen = !isGraphFullscreen;
+                    if (goingFullscreen && !activeSlotId && state.graphSlots.length > 0) {
+                      setActiveSlotId(state.graphSlots[0].id);
+                    }
+                    setIsGraphFullscreen(goingFullscreen);
+                  }}
                   title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
                   className={cn(
                     'p-1.5 rounded-md transition-all',
@@ -420,6 +434,7 @@ const InvestigatorPage: React.FC = () => {
               })}
               activeSlotId={activeSlotId}
               onSlotClick={setActiveSlotId}
+              isFullscreen={isGraphFullscreen}
             />
           )}
 
