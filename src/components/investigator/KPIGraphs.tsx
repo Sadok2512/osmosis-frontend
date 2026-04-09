@@ -11,7 +11,6 @@ import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
 import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
 import BreakdownChart from './BreakdownChart';
-import KPIBreakdown from './KPIBreakdown';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
@@ -1465,21 +1464,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               }}
             />
 
-            {/* Inline KPI Breakdown when toggled on */}
-            {cfg.showBreakdown && slot.kpiIds.length > 0 && (
-              <div className="mt-2">
-                <KPIBreakdown
-                  selectedKpis={slot.kpiIds}
-                  layout={1}
-                  dateFrom={slot.startDate?.split('T')[0]}
-                  dateTo={slot.endDate?.split('T')[0]}
-                  granularity={slot.granularity || '1d'}
-                  filters={Object.entries(slot.filters || {}).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                  splitBy={slot.splitBy !== 'None' ? slot.splitBy : undefined}
-                  timeSeriesData={data.filter(d => slot.kpiIds.includes(d.kpi))}
-                />
-              </div>
-            )}
+
+
 
           </div>
         );

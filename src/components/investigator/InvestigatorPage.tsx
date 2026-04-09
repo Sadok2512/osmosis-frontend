@@ -561,7 +561,7 @@ const InvestigatorPage: React.FC = () => {
           <div className="flex items-center gap-1 px-1 py-1">
             {([
               { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
               { key: 'counters' as const, icon: Hash, label: 'Counter Timeseries', color: 'text-teal-500' },
@@ -596,6 +596,11 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
+        {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+          <section>
+            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} granularity={state.granularity} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} timeSeriesData={tsData} />
+          </section>
+        )}
 
         {analysisTab === 'top_worst' && (
           <WorstElementsTable
