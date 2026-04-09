@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { topoApi } from '@/lib/localDb';
-import { getApiUrl, getApiHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, isLocalMode, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { invalidateSitesCache } from '@/services/mockData';
 import { useCSVData, type CSVDataset } from '@/components/bi/CSVDataStore';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
@@ -428,6 +428,82 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
     }
   };
 
+  const handleSyncFromVps = async () => {
+    setTopoImporting(true);
+    setTopoStatus({ message: 'Récupération des sites depuis le VPS...', type: 'info' });
+    try {
+      const allRows: any[] = [];
+      const PAGE_SIZE = 10000;
+      let offset = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const url = getVpsProxyUrl('parser', `/api/v1/topo/cells?limit=${PAGE_SIZE}&offset=${offset}`);
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (!resp.ok) throw new Error(`VPS HTTP ${resp.status}`);
+        const json = await resp.json();
+        const cells: any[] = Array.isArray(json) ? json : (json?.cells || json?.rows || []);
+        if (cells.length === 0) { hasMore = false; break; }
+        allRows.push(...cells);
+        setTopoStatus({ message: `Récupération VPS... ${allRows.length.toLocaleString()} cellules chargées`, type: 'info' });
+        offset += PAGE_SIZE;
+        if (cells.length < PAGE_SIZE) hasMore = false;
+      }
+      if (allRows.length === 0) throw new Error('Aucune cellule retournée par le VPS');
+      const mapped = allRows.map((r: any) => ({
+        code_nidt: r.site_id || r.code_nidt || r.site_code || '',
+        nom_site: r.site_name || r.nom_site || '',
+        region: r.region || r.nom_dr || null,
+        longitude: r.longitude != null ? parseFloat(String(r.longitude)) : null,
+        latitude: r.latitude != null ? parseFloat(String(r.latitude)) : null,
+        nom_cellule: r.cell_name || r.nom_cellule || '',
+        techno: r.techno || null,
+        bande: r.bande || r.band || null,
+        constructeur: r.vendor || r.constructeur || null,
+        azimut: r.azimut != null ? parseInt(String(r.azimut)) : null,
+        date_mes: r.date_mes || r.date_mest || null,
+        plaque: r.plaque || r.cluster || null,
+        hba: r.hba != null ? Math.round(parseFloat(String(r.hba))) : null,
+        tac: r.tac != null ? parseInt(String(r.tac)) : null,
+        pci: r.pci != null && r.pci !== '' ? parseInt(String(r.pci)) : null,
+        cid: r.cid != null && r.cid !== '' ? parseInt(String(r.cid)) : null,
+        eci: r.eci != null && r.eci !== '' ? parseInt(String(r.eci)) : null,
+        nci: r.nci != null && r.nci !== '' ? parseInt(String(r.nci)) : null,
+        tilt: r.tilt != null && r.tilt !== '' ? parseFloat(String(r.tilt)) : null,
+        etat_cellule: r.etat_cellule || null,
+        zone_arcep: r.zone_arcep || null,
+        dor: r.dor || r.nom_dor || null,
+        relative_id: r.relative_id != null && r.relative_id !== '' ? parseInt(String(r.relative_id)) : null,
+      }));
+      const CHUNK_SIZE = 10000;
+      let totalInserted = 0;
+      const allErrors: string[] = [];
+      for (let c = 0; c < mapped.length; c += CHUNK_SIZE) {
+        const chunk = mapped.slice(c, c + CHUNK_SIZE);
+        const isFirst = c === 0;
+        setTopoStatus({ message: `Import lot ${Math.floor(c / CHUNK_SIZE) + 1}/${Math.ceil(mapped.length / CHUNK_SIZE)} (${c.toLocaleString()}/${mapped.length.toLocaleString()})...`, type: 'info' });
+        const res = await fetch(getApiUrl('import-topo'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({ rows: chunk, clear_before: isFirst }),
+        });
+        const result = await res.json();
+        if (!res.ok || result.code || (result.error && !result.inserted)) {
+          throw new Error(result.message || result.error || `HTTP ${res.status}`);
+        }
+        if (result.errors?.length) allErrors.push(...result.errors);
+        totalInserted += (result.inserted || 0);
+      }
+      if (allErrors.length) console.warn('[sync-vps] Batch errors:', allErrors);
+      setTopoCount(totalInserted);
+      invalidateSitesCache();
+      setTopoStatus({ message: `✓ ${totalInserted.toLocaleString()} cellules synchronisées depuis le VPS.`, type: 'success' });
+    } catch (err: any) {
+      setTopoStatus({ message: `Erreur sync VPS: ${err.message}`, type: 'error' });
+    } finally {
+      setTopoImporting(false);
+    }
+  };
+
   const handleCsvUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -718,6 +794,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
             >
               {topoImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {topoImporting ? 'Import en cours...' : 'Importer Fichier Excel'}
+            </button>
+            <button
+              onClick={handleSyncFromVps}
+              disabled={topoImporting}
+              className="flex items-center gap-3 px-6 py-3 bg-emerald-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg"
+            >
+              {topoImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+              Sync depuis VPS
             </button>
             {topoCount !== null && topoCount > 0 && (
               <button
