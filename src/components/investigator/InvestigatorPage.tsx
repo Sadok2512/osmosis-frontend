@@ -527,6 +527,7 @@ const InvestigatorPage: React.FC = () => {
         onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
         selectedCounters={selectedCounters}
         onSelectedCountersChange={setSelectedCounters}
+        onActivateTab={(tab) => setAnalysisTab(tab as any)}
       />
 
       {/* Main Content */}

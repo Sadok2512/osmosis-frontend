@@ -43,6 +43,7 @@ interface Props {
   onToggleAIPanel?: () => void;
   selectedCounters?: any[];
   onSelectedCountersChange?: (counters: any[]) => void;
+  onActivateTab?: (tab: string | null) => void;
 }
 
 const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
