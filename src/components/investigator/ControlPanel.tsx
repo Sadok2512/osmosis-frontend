@@ -1159,8 +1159,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         const nextStart = format(d, 'yyyy-MM-dd');
                         const timePart = parseTime(prev.startDate);
                         const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
-                        const nextEnd = prev.endDate && prev.endDate.split('T')[0] < nextStart ? fullStart : prev.endDate;
-                        return { ...prev, startDate: fullStart, endDate: nextEnd };
+                        // Always reset endDate to startDate when start changes
+                        const prevEndDate = prev.endDate ? prev.endDate.split('T')[0] : '';
+                        const endTimePart = parseTime(prev.endDate);
+                        const newEnd = (!prevEndDate || prevEndDate < nextStart)
+                          ? fullStart
+                          : (showTimePickers ? `${prevEndDate}T${endTimePart}` : prevEndDate);
+                        return { ...prev, startDate: fullStart, endDate: newEnd };
                       })}
                       initialFocus
                       className="p-3 pointer-events-auto"
@@ -1234,7 +1239,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <CalendarIcon className="w-3 h-3 text-muted-foreground" />
                   Période
                   {state.startDate && state.endDate && (() => {
-                    const diffDays = Math.round((new Date(state.endDate).getTime() - new Date(state.startDate).getTime()) / 86400000);
+                    const diffDays = Math.round((new Date(state.endDate.split('T')[0]).getTime() - new Date(state.startDate.split('T')[0]).getTime()) / 86400000) + 1;
                     const match = PERIODS.find(p => p.days === diffDays);
                     return match ? (
                       <span className="font-bold text-primary">{match.label}</span>
