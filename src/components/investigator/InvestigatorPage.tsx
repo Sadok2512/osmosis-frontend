@@ -620,11 +620,8 @@ const InvestigatorPage: React.FC = () => {
 
         {analysisTab === 'counters' && (
           <CounterGraphSection
-            selectedCounters={selectedCounters}
-            startDate={state.startDate}
-            endDate={state.endDate}
-            granularity={state.granularity}
-            filters={state.filters}
+            dateFrom={state.startDate.split('T')[0]}
+            dateTo={state.endDate.split('T')[0]}
           />
         )}
 
