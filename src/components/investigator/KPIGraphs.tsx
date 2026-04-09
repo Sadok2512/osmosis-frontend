@@ -1419,6 +1419,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <Switch checked={cfg.showNeighbors} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showNeighbors: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('neighbors'); }} className="scale-[0.65]" />
                     </div>
 
+                    {/* CM History */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">CM History</span>
+                      <Switch checked={cfg.showCmHistory} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showCmHistory: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('cm_history'); }} className="scale-[0.65]" />
+                    </div>
+
                     <div className="h-px bg-border/40" />
 
                     {/* Chart Style */}

@@ -35,6 +35,7 @@ export interface GraphConfig {
   showTopWorst: boolean;
   showAlarms: boolean;
   showNeighbors: boolean;
+  showCmHistory: boolean;
   yAxis?: YAxisConfig;
   yAxisRight?: YAxisConfig;
   /** Maps kpiId → 0 (left) or 1 (right). Default is 0. */
@@ -67,6 +68,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showTopWorst: false,
   showAlarms: false,
   showNeighbors: false,
+  showCmHistory: false,
 };
 
 export interface GraphSlot {
