@@ -137,7 +137,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 6,  // v6: reset kpiLevel to CELL, clear stale slots/KPIs, fix date range
+      version: 7,  // v7: force-clear all stale slots/KPIs/dates
       migrate: (persisted: any, version: number) => {
         if (version < 4 && persisted?.state?.graphSlots) {
           persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
@@ -153,13 +153,10 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
             config: s.config ? { ...s.config, splitByPerKpi: {}, splitByPerKpi2: {} } : s.config,
           }));
         }
-        if (version < 6 && persisted?.state) {
-          // Reset kpiLevel to CELL (was stuck on NEIGHBOR)
+        if (version < 7 && persisted?.state) {
           persisted.state.kpiLevel = 'CELL';
-          // Clear stale KPIs and slots from previous sessions
           persisted.state.selectedKpis = [];
           persisted.state.graphSlots = [];
-          // Reset dates to last 30 days
           const now = new Date();
           const end = new Date(now);
           const start = new Date(now);
