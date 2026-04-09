@@ -795,6 +795,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ sidebarTheme, setSidebarT
               {topoImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {topoImporting ? 'Import en cours...' : 'Importer Fichier Excel'}
             </button>
+            <button
+              onClick={handleSyncFromVps}
+              disabled={topoImporting}
+              className="flex items-center gap-3 px-6 py-3 bg-emerald-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all disabled:opacity-50 shadow-lg"
+            >
+              {topoImporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
+              Sync depuis VPS
+            </button>
             {topoCount !== null && topoCount > 0 && (
               <button
                 onClick={handleClearTopo}
