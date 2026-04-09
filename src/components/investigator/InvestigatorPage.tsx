@@ -58,7 +58,7 @@ const InvestigatorPage: React.FC = () => {
   const [applyError, setApplyError] = React.useState<string | null>(null);
    const [showAIPanel, setShowAIPanel] = useState(false);
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
+   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
 
    // Escape key exits fullscreen
