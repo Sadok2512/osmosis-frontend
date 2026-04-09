@@ -104,6 +104,10 @@ async function fetchKpiComputeOnTheFly(
           body.site_name = f.values.length === 1 ? f.values[0] : f.values;
         } else if (dim === 'CELL' && f.values?.length) {
           body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'VENDOR' && f.values?.length) {
+          body.vendor = f.values[0];
+        } else if ((dim === 'TECHNOLOGY' || dim === 'TECHNO') && f.values?.length) {
+          body.object_type = f.values[0];
         } else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
           body.dimension_filter = f.values.length === 1 ? f.values[0] : f.values;
         }
