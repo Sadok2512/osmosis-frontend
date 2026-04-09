@@ -12,11 +12,13 @@
 const VPS_HOST = '151.242.147.49';
 
 // Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
-const CF_PARSER = 'https://api.osmosis.net';
-const CF_KPI = 'https://kpi.osmosis.net';
+const CF_PARSER = 'https://api.qoebit.net';
+const CF_KPI = 'https://kpi.qoebit.net';
 
 // Detect if we're on the Cloudflare tunnel domain
 const isOnTunnel = typeof window !== 'undefined' && (
+  window.location.hostname === 'app.qoebit.net' ||
+  window.location.hostname.endsWith('.qoebit.net') ||
   window.location.hostname === 'app.osmosis.net' ||
   window.location.hostname.endsWith('.osmosis.net')
 );
@@ -99,6 +101,7 @@ export function getVpsProxyUrl(
   // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
   const onDirect = typeof window !== 'undefined' && (
     window.location.hostname === VPS_HOST ||
+    window.location.hostname.endsWith('.qoebit.net') ||
     window.location.hostname.endsWith('.osmosis.net')
   );
   if (onDirect) {
@@ -159,6 +162,7 @@ export function getApiUrl(functionName: string): string {
     // When browser is on the VPS or on a Cloudflare tunnel domain, call services directly
     const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
+      window.location.hostname.endsWith('.qoebit.net') ||
       window.location.hostname.endsWith('.osmosis.net')
     );
 
@@ -196,6 +200,7 @@ export function getApiHeaders(): Record<string, string> {
     // Direct mode: simple headers when on VPS or Cloudflare tunnel (no proxy auth needed)
     const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
+      window.location.hostname.endsWith('.qoebit.net') ||
       window.location.hostname.endsWith('.osmosis.net')
     );
     if (onDirect) {
