@@ -38,25 +38,27 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
   const [loading, setLoading] = useState(false);
   const [explainLabels, setExplainLabels] = useState<Record<string, { tag: string }>>({});
 
-  // Step 1: Fetch explain for each KPI to extract counter names
+  // Step 1: Fetch explain for each KPI sequentially to extract counter names
   useEffect(() => {
     if (kpiIds.length === 0) return;
     const allCounters: string[] = [];
     const labels: Record<string, { tag: string }> = {};
     
-    Promise.all(kpiIds.map(kpiId =>
-      fetchExplain(kpiId).then((ex: any) => {
-        const numCounters = extractCounters(ex?.numerator || '');
-        const denCounters = extractCounters(ex?.denominator || '');
-        numCounters.forEach(c => { labels[c] = { tag: 'NUM' }; });
-        denCounters.forEach(c => { labels[c] = { tag: 'DEN' }; });
-        allCounters.push(...numCounters, ...denCounters);
-      }).catch(() => {})
-    )).then(() => {
+    (async () => {
+      for (const kpiId of kpiIds) {
+        try {
+          const ex: any = await fetchExplain(kpiId);
+          const numCounters = extractCounters(ex?.numerator || '');
+          const denCounters = extractCounters(ex?.denominator || '');
+          numCounters.forEach(c => { labels[c] = { tag: 'NUM' }; });
+          denCounters.forEach(c => { labels[c] = { tag: 'DEN' }; });
+          allCounters.push(...numCounters, ...denCounters);
+        } catch {}
+      }
       const unique = [...new Set(allCounters)];
       setCounterNames(unique);
       setExplainLabels(labels);
-    });
+    })();
   }, [kpiIds]);
 
   // Step 2: Fetch counter timeseries with same filters

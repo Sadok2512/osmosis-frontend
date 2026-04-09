@@ -514,7 +514,7 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Step 1: Try /kpi/compute FIRST
+  // Step 1: Try /kpi/compute FIRST — SEQUENTIAL, one KPI at a time
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
@@ -527,14 +527,26 @@ export async function fetchTimeSeriesForSlot(
 
       const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${computeSplitByField || ''}`;
 
-      if (!_computeCache.has(cacheKey)) {
-        _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+      // Sequential: do NOT pre-create promises — execute one at a time
+      let computed: { data: DataPoint[]; isComputed: boolean };
+      if (_computeCache.has(cacheKey)) {
+        computed = await _computeCache.get(cacheKey)!;
+      } else {
+        const queryStart = Date.now();
+        console.log('[Pipeline] Step 1 PM Compute START:', kpiId);
+        const promise = fetchKpiComputeOnTheFly(
           kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
-        ));
+        );
+        _computeCache.set(cacheKey, promise);
         setTimeout(() => _computeCache.delete(cacheKey), 30000);
+        computed = await promise;
+        console.log('[Pipeline] Step 1 PM Compute END:', kpiId, {
+          duration: `${Date.now() - queryStart}ms`,
+          points: computed.data.length,
+          status: computed.isComputed ? 'success' : 'no_data',
+        });
       }
 
-      const computed = await _computeCache.get(cacheKey)!;
       if (computed.isComputed) {
         computeResults.push(...computed.data);
       } else {
@@ -554,7 +566,7 @@ export async function fetchTimeSeriesForSlot(
     computeFailed.push(...ctx.kpiIds);
   }
 
-  // Step 2: Fall back to KPI Engine for KPIs that failed compute
+  // Step 2: Fall back to KPI Engine for KPIs that failed compute — SEQUENTIAL
   const url = getApiUrl('monitor/query/timeseries');
   const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
@@ -586,6 +598,8 @@ export async function fetchTimeSeriesForSlot(
     kpi_level: ctx.kpiLevel || 'CELL',
   };
 
+  const kpiEngineStart = Date.now();
+  console.log('[Pipeline] Step 2 KPI Engine START:', computeFailed, JSON.stringify(body));
   const res = await fetch(url, {
     method: 'POST',
     headers: getApiHeaders(),
@@ -598,6 +612,11 @@ export async function fetchTimeSeriesForSlot(
   if (res.ok) {
     const data = await res.json();
     kpiSeries = data.series || [];
+    console.log('[Pipeline] Step 2 KPI Engine END:', {
+      duration: `${Date.now() - kpiEngineStart}ms`,
+      points: kpiSeries.length,
+      status: kpiSeries.length > 0 ? 'success' : 'no_data',
+    });
     const noSplitRequested = !ctx.splitBy;
     kpiResults = kpiSeries.map((s: any) => {
       const sv1 = noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value);
@@ -619,7 +638,10 @@ export async function fetchTimeSeriesForSlot(
       };
     });
   } else {
-    console.warn('[Investigator] KPI Engine failed:', res.status, '— falling back to /kpi/compute');
+    console.warn('[Pipeline] Step 2 KPI Engine FAILED:', res.status, {
+      duration: `${Date.now() - kpiEngineStart}ms`,
+      status: 'query_failed',
+    });
   }
 
   // Merge KPI Engine results with any compute results from Step 1
@@ -647,12 +669,19 @@ export async function fetchTimeSeriesForSlot(
     }
   }
 
-  // For KPIs that failed both compute AND KPI Engine, try raw counter fallback
+  // Step 3: For KPIs that failed both compute AND KPI Engine, try raw counter fallback — SEQUENTIAL
   if (missingKpis.length > 0) {
+    const fallbackStart = Date.now();
+    console.log('[Pipeline] Step 3 Counter Fallback START:', missingKpis);
     const fallback = await fetchCounterTimeSeriesFallback(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
     );
+    console.log('[Pipeline] Step 3 Counter Fallback END:', {
+      duration: `${Date.now() - fallbackStart}ms`,
+      points: fallback.data.length,
+      status: fallback.data.length > 0 ? 'success' : 'no_counter_data',
+    });
     const allData = [...computeResults, ...kpiResults, ...fallback.data];
     if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
     return { data: allData, hasUnfilteredFallback };
