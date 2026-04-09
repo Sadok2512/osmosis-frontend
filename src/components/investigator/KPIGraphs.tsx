@@ -1383,7 +1383,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                     <Settings2 className="w-4 h-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[260px] p-0 z-50 overflow-hidden" align="end" side="bottom" avoidCollisions={false} sideOffset={4}>
+                <PopoverContent className="w-[260px] p-0 z-[200] overflow-hidden" align="end" side="bottom" sideOffset={4}>
                   <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph Settings</span>
                   </div>
