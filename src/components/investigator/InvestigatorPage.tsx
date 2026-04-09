@@ -561,52 +561,73 @@ const InvestigatorPage: React.FC = () => {
         {!isGraphFullscreen && renderGraphSection()}
 
         {/* ═══ Analysis Tabs ═══ */}
-        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
-          <div className="flex items-center gap-1 px-1 py-1">
-            {[
-              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
-              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
-            ].map((tab) => (
-              <button
-                key={`analysis-tab-${tab.key}`}
-                data-analysis-tab={tab.key}
-                onClick={() => {
-                  const newTab = analysisTab === tab.key ? null : tab.key;
-                  setAnalysisTab(newTab);
-                  if (newTab) {
-                    analysisTabs.ensureTab(newTab);
-                  }
-                  if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
-                    handleFindWorst();
-                  }
-                }}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                  analysisTab === tab.key
-                    ? 'bg-card text-foreground shadow-sm border border-border/60'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                )}
-              >
-                <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
-                {tab.label}
-                {analysisTab === tab.key && (
-                  <>
-                    <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                    {analysisTabs.getSection(tab.key).instances.length > 0 && (
-                      <span className="ml-1 text-[9px] opacity-60">
-                        ({analysisTabs.getSection(tab.key).instances.length})
-                      </span>
+        {(() => {
+          // Determine which tabs are enabled based on ANY slot's config toggles
+          const configKeyMap: Record<string, keyof GraphConfig> = {
+            table_data: 'showDataTable',
+            breakdown: 'showBreakdown',
+            top_worst: 'showTopWorst',
+            alarms: 'showAlarms',
+            neighbors: 'showNeighbors',
+          };
+          const allTabs = [
+            { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
+            { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
+            { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
+            { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
+            { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
+            { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+          ];
+          const visibleTabs = allTabs.filter(tab => {
+            const cfgKey = configKeyMap[tab.key];
+            if (!cfgKey) return true; // cm_history always visible
+            return state.graphSlots.some(s => (s.config || DEFAULT_GRAPH_CONFIG)[cfgKey]);
+          });
+
+          if (visibleTabs.length === 0) return null;
+
+          return (
+            <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
+              <div className="flex items-center gap-1 px-1 py-1">
+                {visibleTabs.map((tab) => (
+                  <button
+                    key={`analysis-tab-${tab.key}`}
+                    data-analysis-tab={tab.key}
+                    onClick={() => {
+                      const newTab = analysisTab === tab.key ? null : tab.key;
+                      setAnalysisTab(newTab);
+                      if (newTab) {
+                        analysisTabs.ensureTab(newTab);
+                      }
+                      if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
+                        handleFindWorst();
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                      analysisTab === tab.key
+                        ? 'bg-card text-foreground shadow-sm border border-border/60'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                     )}
-                  </>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+                  >
+                    <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
+                    {tab.label}
+                    {analysisTab === tab.key && (
+                      <>
+                        <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                        {analysisTabs.getSection(tab.key).instances.length > 0 && (
+                          <span className="ml-1 text-[9px] opacity-60">
+                            ({analysisTabs.getSection(tab.key).instances.length})
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ═══ Multi-tab bar for active section ═══ */}
         {analysisTab && (() => {
