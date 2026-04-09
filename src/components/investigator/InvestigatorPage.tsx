@@ -303,7 +303,10 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* KPI Graph Section */}
-        <section className="space-y-4">
+        <section className={cn(
+          'space-y-4',
+          isGraphFullscreen && 'fixed inset-0 z-50 bg-background p-6 overflow-auto'
+        )}>
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-primary/10 rounded-lg">
