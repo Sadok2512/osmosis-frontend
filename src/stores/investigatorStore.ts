@@ -5,11 +5,10 @@ import type { InvestigationState, DataPoint, WorstElement } from '@/components/i
 /* ── Dynamic default dates: current month ── */
 function defaultDateRange(): { startDate: string; endDate: string } {
   const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const start = new Date(y, m, 1);
-  const end = new Date(y, m + 1, 0); // last day of current month
-  // Use local date parts to avoid UTC offset shifting the date
+  // Default to last 30 days (past data, not future)
+  const end = new Date(now);
+  const start = new Date(now);
+  start.setDate(start.getDate() - 30);
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { startDate: fmt(start), endDate: fmt(end) };
@@ -138,7 +137,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
     }),
     {
       name: 'investigator-store',
-      version: 5,  // v5: clear auto-assigned splits (Cell badge bug)
+      version: 6,  // v6: reset kpiLevel to CELL, clear stale slots/KPIs, fix date range
       migrate: (persisted: any, version: number) => {
         if (version < 4 && persisted?.state?.graphSlots) {
           persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
@@ -147,13 +146,28 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
           }));
         }
         if (version < 5 && persisted?.state?.graphSlots) {
-          // Clear stale auto-assigned splitByPerKpi from all slots
           persisted.state.graphSlots = persisted.state.graphSlots.map((s: any) => ({
             ...s,
             splitBy: 'None',
             splitBy2: 'None',
             config: s.config ? { ...s.config, splitByPerKpi: {}, splitByPerKpi2: {} } : s.config,
           }));
+        }
+        if (version < 6 && persisted?.state) {
+          // Reset kpiLevel to CELL (was stuck on NEIGHBOR)
+          persisted.state.kpiLevel = 'CELL';
+          // Clear stale KPIs and slots from previous sessions
+          persisted.state.selectedKpis = [];
+          persisted.state.graphSlots = [];
+          // Reset dates to last 30 days
+          const now = new Date();
+          const end = new Date(now);
+          const start = new Date(now);
+          start.setDate(start.getDate() - 30);
+          const fmt = (d: Date) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+          persisted.state.startDate = fmt(start);
+          persisted.state.endDate = fmt(end);
         }
         return persisted;
       },
