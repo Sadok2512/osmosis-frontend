@@ -306,7 +306,7 @@ const InvestigatorPage: React.FC = () => {
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-primary/10 rounded-lg">
-                <LayoutGrid className="w-4 h-4 text-primary" />
+                <Maximize2 className="w-4 h-4 text-primary" />
               </div>
               <div>
                 <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
@@ -343,7 +343,7 @@ const InvestigatorPage: React.FC = () => {
                 {([
                   { val: 1 as const, icon: Square, title: 'Single' },
                   { val: 2 as const, icon: Columns2, title: 'Dual' },
-                  { val: 4 as const, icon: LayoutGrid, title: 'Grid' },
+                  { val: 4 as const, icon: Maximize2, title: 'Fullscreen' },
                 ]).map(l => (
                   <button
                     key={l.val}
