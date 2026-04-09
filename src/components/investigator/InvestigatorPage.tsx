@@ -9,8 +9,6 @@ import KPIBreakdown from './KPIBreakdown';
 import AlarmsTabContent from './AlarmsTabContent';
 import NeighborsTabContent from './NeighborsTabContent';
 import CMHistoryTabContent from './CMHistoryTabContent';
-import NeighborsTabContent from './NeighborsTabContent';
-import CMHistoryTabContent from './CMHistoryTabContent';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
 import SliceMappingSection from './SliceMappingSection';
