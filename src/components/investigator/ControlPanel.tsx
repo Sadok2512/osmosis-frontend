@@ -1879,7 +1879,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 ...prev,
                 graphSlots: prev.graphSlots.map(s => {
                   if (s.id !== selectorOpen) return s;
-                  const merged = [...new Set([...s.kpiIds, ...validKeys])];
+                  const merged = validKeys;
                   const cleanConfig = { ...(s.config || DEFAULT_GRAPH_CONFIG), splitByPerKpi: {}, yAxisAssignments: { ...(s.config?.yAxisAssignments || {}), ...axisAssign } };
                   return { ...s, kpiIds: merged, splitBy: 'None', config: cleanConfig };
                 }),
