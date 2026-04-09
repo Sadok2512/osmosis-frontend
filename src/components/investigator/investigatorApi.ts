@@ -899,6 +899,94 @@ export async function fetchWorstByDOR(
   return { 'ALL': all };
 }
 
+// ── Fetch worst cells directly from Parser ClickHouse (primary path) ──
+export async function fetchWorstCellsDirect(
+  kpiIds: string[],
+  limit: number,
+  dateFrom: string,
+  dateTo: string,
+  filters?: { dimension: string; op?: string; values: string[] }[],
+  kpiMetas?: Map<string, KpiDefinition>,
+): Promise<Record<string, WorstElement[]>> {
+  if (!kpiIds.length) return {};
+
+  // Extract site filter
+  let siteName: string | undefined;
+  if (filters) {
+    for (const f of filters) {
+      const dim = (f.dimension || '').toUpperCase();
+      if (dim === 'SITE' && f.values?.length) siteName = f.values[0];
+    }
+  }
+
+  const url = getApiUrl('pm/kpi/worst-cells');
+  const body: any = {
+    kpi_codes: kpiIds,
+    date_from: dateFrom,
+    date_to: dateTo,
+    limit,
+  };
+  if (siteName) body.site_name = siteName;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error || !data.cells?.length) throw new Error(data.error || 'no data');
+
+    const primaryKpi = kpiIds[0];
+    const primaryMeta = kpiMetas?.get(primaryKpi);
+    const higherIsBetter = primaryMeta?.higherIsBetter ?? true;
+
+    const elements: WorstElement[] = data.cells.map((c: any, i: number) => {
+      const primaryVal = c.kpi_values?.[primaryKpi] ?? 0;
+      const severity = primaryMeta
+        ? getKpiSeverity(primaryVal, {
+            key: primaryKpi,
+            higherIsBetter,
+            warningThreshold: primaryMeta.thresholds.warning,
+            criticalThreshold: primaryMeta.thresholds.critical,
+          })
+        : c.severity || 'ok';
+
+      return {
+        id: c.id || `worst_${i}`,
+        name: c.name,
+        dimension: 'Cell',
+        kpiValues: c.kpi_values || {},
+        trend: 'stable' as const,
+        severity,
+        region: '',
+        vendor: c.vendor || '',
+        technology: c.rat || '',
+        dor: c.dor || '',
+        plaque: c.plaque || '',
+        band: c.band || '',
+        site_name: c.site_name || '',
+      };
+    });
+
+    elements.sort((a, b) => worstFirstComparator(
+      a.kpiValues[primaryKpi], b.kpiValues[primaryKpi], higherIsBetter,
+    ));
+
+    const byDOR: Record<string, WorstElement[]> = {};
+    for (const el of elements) {
+      const dorKey = el.dor || 'ALL';
+      if (!byDOR[dorKey]) byDOR[dorKey] = [];
+      byDOR[dorKey].push(el);
+    }
+    return Object.keys(byDOR).length ? byDOR : { 'ALL': elements };
+  } catch (e) {
+    console.warn('[fetchWorstCellsDirect] Failed, falling back to KPI Engine:', e);
+    return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas);
+  }
+}
+
 // ── Fetch KPIs that have data for a given filter (e.g. SITE=xxx) ──
 export async function fetchKpisWithData(dimension: string, value: string): Promise<Set<string>> {
   const url = getApiUrl(`monitor/catalog/kpis-with-data?dimension=${encodeURIComponent(dimension)}&value=${encodeURIComponent(value)}`);

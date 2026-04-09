@@ -14,7 +14,7 @@ import WorstElementsTable from './WorstElementsTable';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
-import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
+import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   Maximize2, Minimize2, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
@@ -237,41 +237,45 @@ const InvestigatorPage: React.FC = () => {
       const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
       const dateTo = state.endDate.split('T')[0] || '2026-03-24';
 
-      // Bug #5: Single grouped query instead of N+1
-      const byDOR = await fetchWorstByDOR(kpiIds, state.topLimit, dateFrom, dateTo, worstFilters, kpiMetaMap);
+      // Primary: direct ClickHouse query via parser (works when KPI Engine can't reach CH)
+      const allFilters = [...worstFilters];
+      const siteFromState = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0];
+      if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
+        allFilters.push({ dimension: 'SITE', op: 'IN', values: [siteFromState] });
+      }
+      const byDOR = await fetchWorstCellsDirect(kpiIds, state.topLimit, dateFrom, dateTo, allFilters, kpiMetaMap);
 
-      // Enrich all cells with metadata + alarms
+      // Enrich with alarms
       const allCells = Object.values(byDOR).flat();
       const cellNames = allCells.map(c => c.name).filter(Boolean);
-      const cellDetails = cellNames.length > 0 ? await fetchCellDetails(cellNames) : [];
-      const detailMap: Record<string, any> = {};
-      for (const d of cellDetails) {
-        detailMap[d.cell_name] = d;
-      }
+      try {
+        const cellDetails = cellNames.length > 0 ? await fetchCellDetails(cellNames) : [];
+        const detailMap: Record<string, any> = {};
+        for (const d of cellDetails) detailMap[d.cell_name] = d;
 
-      // Merge details into worst elements
-      const enriched: Record<string, typeof allCells> = {};
-      for (const [dor, elements] of Object.entries(byDOR)) {
-        enriched[dor] = elements.map(el => {
-          const detail = detailMap[el.name];
-          if (detail) {
-            return {
-              ...el,
-              vendor: detail.vendor || el.vendor,
-              dor: detail.dor || dor,
-              plaque: detail.plaque || '',
-              band: detail.band || '',
-              techno: detail.techno || '',
-              site_name: detail.site_name || '',
-              alarms: detail.alarms,
-              latest_alarms: detail.latest_alarms,
-            };
-          }
-          return { ...el, dor: dor };
-        });
+        const enriched: Record<string, typeof allCells> = {};
+        for (const [dor, elements] of Object.entries(byDOR)) {
+          enriched[dor] = elements.map(el => {
+            const detail = detailMap[el.name];
+            if (detail) {
+              return {
+                ...el,
+                vendor: detail.vendor || el.vendor,
+                dor: detail.dor || el.dor || dor,
+                plaque: detail.plaque || el.plaque || '',
+                band: detail.band || el.band || '',
+                site_name: detail.site_name || el.site_name || '',
+                alarms: detail.alarms,
+                latest_alarms: detail.latest_alarms,
+              };
+            }
+            return el;
+          });
+        }
+        setWorstByDOR(enriched);
+      } catch {
+        setWorstByDOR(byDOR);
       }
-
-      setWorstByDOR(enriched);
       setWorstElements(Object.values(enriched).flat());
     } catch (e) {
       console.error('[Investigator] Worst elements error:', e);
