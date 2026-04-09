@@ -146,6 +146,17 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     });
   }, []);
 
+  // Deduplicate catalog by logical KPI key to avoid one click selecting multiple visible rows
+  const uniqueCatalog = useMemo(() => {
+    const byKey = new Map<string, KpiCatalogEntry>();
+    for (const item of catalog) {
+      if (!byKey.has(item.kpi_key)) {
+        byKey.set(item.kpi_key, item);
+      }
+    }
+    return Array.from(byKey.values());
+  }, [catalog]);
+
   // Extract unique filter values from catalog
   const filterOptions = useMemo(() => {
     const vendors = new Map<string, number>();
@@ -153,7 +164,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     const levels = new Map<string, number>();
     const dimensions = new Map<string, number>();
 
-    for (const k of catalog) {
+    for (const k of uniqueCatalog) {
       if (k.vendor) vendors.set(k.vendor, (vendors.get(k.vendor) || 0) + 1);
       if (k.techno) technos.set(k.techno, (technos.get(k.techno) || 0) + 1);
       if (k.supported_levels) {
@@ -165,8 +176,8 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       if (dt) dimensions.set(dt, (dimensions.get(dt) || 0) + 1);
     }
 
-    const normalizedCount = catalog.filter(k => k.is_normalized).length;
-    const vendorSpecificCount = catalog.filter(k => !k.is_normalized).length;
+    const normalizedCount = uniqueCatalog.filter(k => k.is_normalized).length;
+    const vendorSpecificCount = uniqueCatalog.filter(k => !k.is_normalized).length;
 
     return {
       vendors: Array.from(vendors.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
@@ -176,13 +187,13 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       normalizedCount,
       vendorSpecificCount,
     };
-  }, [catalog]);
+  }, [uniqueCatalog]);
 
   const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension].filter(Boolean).length;
 
   // Apply all filters
   const filteredCatalog = useMemo(() => {
-    let items = catalog;
+    let items = uniqueCatalog;
 
     if (showFavOnly) items = items.filter(k => favorites.includes(k.kpi_key));
     if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
@@ -202,11 +213,11 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     }
 
     return items;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, activeCategory, search, showFavOnly, favorites]);
+  }, [uniqueCatalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, activeCategory, search, showFavOnly, favorites]);
 
   // Categories computed from filtered catalog
   const tabCategories = useMemo(() => {
-    let items = catalog;
+    let items = uniqueCatalog;
     if (showFavOnly) items = items.filter(k => favorites.includes(k.kpi_key));
     if (filterVendor) items = items.filter(k => k.vendor === filterVendor);
     if (filterTechno) items = items.filter(k => k.techno === filterTechno);
@@ -221,7 +232,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       cats.set(cat, (cats.get(cat) || 0) + 1);
     }
     return cats;
-  }, [catalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, showFavOnly, favorites]);
+  }, [uniqueCatalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, showFavOnly, favorites]);
 
   const totalFiltered = Array.from(tabCategories.values()).reduce((a, b) => a + b, 0);
 
