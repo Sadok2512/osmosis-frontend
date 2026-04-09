@@ -1703,18 +1703,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         );
                       })()}
                       <div className="h-px bg-border/60" />
-                      {/* KPI Breakdown */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">KPI Breakdown</span>
-                        <Switch checked={cfg.showBreakdown} onCheckedChange={v => {
-                          setSlotConfig({ showBreakdown: v });
-                          if (onActivateTab) {
-                            if (v) onActivateTab('breakdown');
-                            else onActivateTab(null);
-                          }
-                        }} className="scale-75" />
-                      </div>
-                      <div className="h-px bg-border/60" />
                       <button
                         onClick={(e) => {
                           (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
