@@ -56,18 +56,15 @@ interface CounterTsPoint {
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
 const DEN_COLORS = ['#3b82f6', '#2563eb', '#60a5fa', '#93c5fd', '#1d4ed8'];
-const ALL_COLORS = [...NUM_COLORS, ...DEN_COLORS, '#f59e0b', '#8b5cf6', '#06b6d4', '#ec4899'];
 
 const extractCounters = (formula: string): string[] => {
   if (!formula) return [];
-  // Match both backtick `M8009C6` and curly-brace {M8009C6} formats
   const matches = formula.match(/[`{]([A-Za-z0-9_]+)[}`]/g) || [];
   return [...new Set(matches.map(m => m.replace(/[`{}]/g, '')))];
 };
 
 /* ──────────────────── Sub-components ──────────────────── */
 
-/** Formula display panel */
 const FormulaPanel: React.FC<{
   explain: KpiExplain | null;
   numCounters: CounterInfo[];
@@ -120,7 +117,6 @@ const FormulaPanel: React.FC<{
 
   return (
     <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
-      {/* KPI Header */}
       <div className="px-6 py-4 border-b border-border/30 bg-muted/10">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-primary/10">
@@ -144,14 +140,10 @@ const FormulaPanel: React.FC<{
         </div>
       </div>
 
-      {/* Formula */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border/30">
-        {/* Numerator */}
         <div className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-500/15 text-green-600 border border-green-500/30 tracking-wider">
-              NUM
-            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-500/15 text-green-600 border border-green-500/30 tracking-wider">NUM</span>
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Numerator</span>
           </div>
           <code className="block text-[11px] text-foreground font-mono leading-relaxed break-all bg-muted/20 rounded-lg p-3 border border-border/20">
@@ -163,13 +155,9 @@ const FormulaPanel: React.FC<{
             </div>
           )}
         </div>
-
-        {/* Denominator */}
         <div className="p-5">
           <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-blue-500/15 text-blue-500 border border-blue-500/30 tracking-wider">
-              DEN
-            </span>
+            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-blue-500/15 text-blue-500 border border-blue-500/30 tracking-wider">DEN</span>
             <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Denominator</span>
           </div>
           <code className="block text-[11px] text-foreground font-mono leading-relaxed break-all bg-muted/20 rounded-lg p-3 border border-border/20">
@@ -186,14 +174,12 @@ const FormulaPanel: React.FC<{
   );
 };
 
-/** Counter definition info cards */
 const CounterDefinitionPanel: React.FC<{
   counters: CounterInfo[];
   hoveredCounter: string | null;
   onHoverCounter: (name: string | null) => void;
 }> = ({ counters, hoveredCounter, onHoverCounter }) => {
   const [expanded, setExpanded] = useState(false);
-
   if (counters.length === 0) return null;
 
   return (
@@ -204,14 +190,11 @@ const CounterDefinitionPanel: React.FC<{
       >
         <div className="flex items-center gap-2">
           <Database className="w-4 h-4 text-primary" />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-            Counter Definitions
-          </span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Counter Definitions</span>
           <span className="text-[10px] text-muted-foreground">({counters.length})</span>
         </div>
         <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', expanded && 'rotate-180')} />
       </button>
-
       {expanded && (
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {counters.map(c => {
@@ -228,12 +211,7 @@ const CounterDefinitionPanel: React.FC<{
                 )}
               >
                 <div className="flex items-center gap-2 mb-2">
-                  <span className={cn(
-                    'px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider',
-                    isNum ? 'bg-green-500/15 text-green-600' : 'bg-blue-500/15 text-blue-500'
-                  )}>
-                    {c.tag}
-                  </span>
+                  <span className={cn('px-1.5 py-0.5 rounded text-[8px] font-black tracking-wider', isNum ? 'bg-green-500/15 text-green-600' : 'bg-blue-500/15 text-blue-500')}>{c.tag}</span>
                   <span className="text-[11px] font-bold text-foreground font-mono truncate">{c.name}</span>
                 </div>
                 <div className="space-y-1.5 text-[10px]">
@@ -242,14 +220,8 @@ const CounterDefinitionPanel: React.FC<{
                     <span className="text-muted-foreground">{c.description || 'No description'}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground">
-                      <Cpu className="w-3 h-3 inline mr-1" />
-                      {c.source || 'PM'}
-                    </span>
-                    <span className="text-muted-foreground">
-                      <GitBranch className="w-3 h-3 inline mr-1" />
-                      {c.aggregation || 'SUM'}
-                    </span>
+                    <span className="text-muted-foreground"><Cpu className="w-3 h-3 inline mr-1" />{c.source || 'PM'}</span>
+                    <span className="text-muted-foreground"><GitBranch className="w-3 h-3 inline mr-1" />{c.aggregation || 'SUM'}</span>
                   </div>
                 </div>
               </div>
@@ -261,144 +233,102 @@ const CounterDefinitionPanel: React.FC<{
   );
 };
 
-/* ──────────────────── Main Component ──────────────────── */
+/* ──────────────────── Single KPI Tab Content ──────────────────── */
 
-const KPIBreakdown: React.FC<Props> = ({
-  selectedKpis,
-  layout,
-  dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
-  dateTo = new Date().toISOString().split('T')[0],
-  granularity = '1d',
-  filters = [],
-  splitBy,
-  timeSeriesData = [],
-}) => {
-  const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
-  const activeKpiId = uniqueKpiIds[0] || '';
-
-  // State
-  const [explainData, setExplainData] = useState<Record<string, KpiExplain>>({});
+/** Fully isolated breakdown for a single KPI – own state, own fetch */
+const SingleKpiBreakdown: React.FC<{
+  kpiId: string;
+  dateFrom: string;
+  dateTo: string;
+  granularity: Granularity;
+  filters: { dimension: string; values: string[] }[];
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters }) => {
+  const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState<string | null>(null);
   const [hiddenCounters, setHiddenCounters] = useState<Set<string>>(new Set());
-  const [selectedKpiTab, setSelectedKpiTab] = useState(activeKpiId);
-  const [pageSize, setPageSize] = useState(50);
-  const [currentPage, setCurrentPage] = useState(0);
 
-  // Sync selected tab
+  // Fetch explain
   useEffect(() => {
-    if (uniqueKpiIds.length > 0 && !uniqueKpiIds.includes(selectedKpiTab)) {
-      setSelectedKpiTab(uniqueKpiIds[0]);
-    }
-  }, [uniqueKpiIds, selectedKpiTab]);
-
-  // Fetch explain data for all KPIs (use parser endpoint, fallback to KPI Engine)
-  useEffect(() => {
-    uniqueKpiIds.forEach(kpiId => {
-      if (explainData[kpiId]) return;
-      // Try parser /pm/kpi/explain first (has formula from kpi_definition)
-      fetch(getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`), { headers: getApiHeaders() })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data && !data.error && data.numerator) {
-            // Map parser response to KpiExplain format
-            setExplainData(prev => ({
-              ...prev,
-              [kpiId]: {
-                kpi_key: data.kpi_key,
-                display_name: data.display_name,
-                description: data.description || '',
-                category: data.category || '',
-                unit: data.unit || '',
-                formula_type: data.formula_type || 'ratio',
-                numerator: data.numerator,
-                denominator: data.denominator,
-                techno: data.techno || '',
-                vendor: data.vendor || '',
-              },
-            }));
-            // Also set counter infos directly from backend response
-            if (data.counters?.length > 0) {
-              setCounterInfos(data.counters.map((c: any) => ({
-                name: c.name,
-                tag: c.tag as 'NUM' | 'DEN',
-                description: c.description,
-                source: c.source,
-                aggregation: c.aggregation,
-              })));
-            }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`), { headers: getApiHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled && data && !data.error && data.numerator) {
+            setExplain({
+              kpi_key: data.kpi_key,
+              display_name: data.display_name,
+              description: data.description || '',
+              category: data.category || '',
+              unit: data.unit || '',
+              formula_type: data.formula_type || 'ratio',
+              numerator: data.numerator,
+              denominator: data.denominator,
+              techno: data.techno || '',
+              vendor: data.vendor || '',
+            });
             return;
           }
-          // Fallback to KPI Engine
-          return fetchExplain(kpiId).then((fallback: any) => {
-            setExplainData(prev => ({ ...prev, [kpiId]: fallback }));
-          });
-        })
-        .catch(() => {
-          // Final fallback
-          fetchExplain(kpiId).then((data: any) => {
-            setExplainData(prev => ({ ...prev, [kpiId]: data }));
-          }).catch(() => {});
-        });
-    });
-  }, [uniqueKpiIds]);
+        }
+        // Fallback
+        const fallback: any = await fetchExplain(kpiId);
+        if (!cancelled) setExplain(fallback);
+      } catch {
+        try {
+          const fallback: any = await fetchExplain(kpiId);
+          if (!cancelled) setExplain(fallback);
+        } catch {}
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [kpiId]);
 
-  // Extract counter infos from the selected KPI explain
-  const currentExplain = explainData[selectedKpiTab];
+  // Extract counter infos from explain
   useEffect(() => {
-    if (!currentExplain) { setCounterInfos([]); return; }
-    const numCounters = extractCounters(currentExplain.numerator).map(name => ({
-      name, tag: 'NUM' as const, source: currentExplain.vendor, aggregation: 'SUM',
+    if (!explain) { setCounterInfos([]); return; }
+    const numC = extractCounters(explain.numerator).map(name => ({
+      name, tag: 'NUM' as const, source: explain.vendor, aggregation: 'SUM',
     }));
-    const denCounters = extractCounters(currentExplain.denominator).map(name => ({
-      name, tag: 'DEN' as const, source: currentExplain.vendor, aggregation: 'SUM',
+    const denC = extractCounters(explain.denominator).map(name => ({
+      name, tag: 'DEN' as const, source: explain.vendor, aggregation: 'SUM',
     }));
-    setCounterInfos([...numCounters, ...denCounters]);
+    setCounterInfos([...numC, ...denC]);
     setHiddenCounters(new Set());
-  }, [currentExplain]);
+  }, [explain]);
 
   // Fetch counter timeseries
   useEffect(() => {
     const names = counterInfos.map(c => c.name);
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
-
-    const body: any = {
-      counter_names: names,
-      date_from: dateFrom,
-      date_to: dateTo,
-      granularity,
-    };
+    const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
       if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
       else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
     }
-
-    console.log('[KPIBreakdown] Fetching counter TS:', JSON.stringify(body));
+    const ctrl = new AbortController();
     fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST',
-      headers: getApiHeaders(),
-      body: JSON.stringify(body),
+      method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body), signal: ctrl.signal,
     })
-      .then(r => { console.log('[KPIBreakdown] Counter TS response status:', r.status); return r.ok ? r.json() : { series: [] }; })
-      .then(data => { console.log('[KPIBreakdown] Counter TS data:', data.series?.length, 'points'); setCounterTsData(data.series || []); setLoading(false); })
-      .catch((err) => { console.error('[KPIBreakdown] Counter TS error:', err); setCounterTsData([]); setLoading(false); });
+      .then(r => r.ok ? r.json() : { series: [] })
+      .then(data => { setCounterTsData(data.series || []); setLoading(false); })
+      .catch(() => { setCounterTsData([]); setLoading(false); });
+    return () => ctrl.abort();
   }, [counterInfos, dateFrom, dateTo, granularity, filters]);
 
-  // Toggle counter visibility
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(name)) next.delete(name); else next.add(name);
       return next;
     });
   }, []);
 
-  // Derive NE from filters
   const neValue = useMemo(() => {
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
@@ -407,17 +337,15 @@ const KPIBreakdown: React.FC<Props> = ({
     return undefined;
   }, [filters]);
 
-  // ──── Chart ────
   const numCounterNames = useMemo(() => counterInfos.filter(c => c.tag === 'NUM').map(c => c.name), [counterInfos]);
   const denCounterNames = useMemo(() => counterInfos.filter(c => c.tag === 'DEN').map(c => c.name), [counterInfos]);
 
   const chartOption = useMemo(() => {
     if (counterTsData.length === 0) return null;
-
     const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
     const timestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
 
-    const series = visibleCounters.map((counter, i) => {
+    const series = visibleCounters.map((counter) => {
       const isNum = counter.tag === 'NUM';
       const tagCounters = isNum ? numCounterNames : denCounterNames;
       const tagIdx = tagCounters.indexOf(counter.name);
@@ -436,11 +364,7 @@ const KPIBreakdown: React.FC<Props> = ({
         }),
         symbol: isHovered ? 'circle' : 'none',
         symbolSize: isHovered ? 8 : 0,
-        lineStyle: {
-          width: isHovered ? 4 : 2.5,
-          color,
-          type: isNum ? 'solid' as const : 'dashed' as const,
-        },
+        lineStyle: { width: isHovered ? 4 : 2.5, color, type: isNum ? 'solid' as const : 'dashed' as const },
         itemStyle: { color },
         emphasis: { focus: 'series' as const, lineStyle: { width: 4 } },
         z: isHovered ? 10 : 1,
@@ -485,25 +409,20 @@ const KPIBreakdown: React.FC<Props> = ({
       xAxis: {
         type: 'category' as const,
         data: timestamps,
-        axisLabel: {
-          formatter: (v: string) => formatAxisLabel(v, granularity),
-          fontSize: 10, color: '#6b7280', margin: 14,
-        },
+        axisLabel: { formatter: (v: string) => formatAxisLabel(v, granularity), fontSize: 10, color: '#6b7280', margin: 14 },
         axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
         axisTick: { show: true, length: 3, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
       },
       yAxis: [
         {
-          type: 'value' as const,
-          name: 'NUM',
+          type: 'value' as const, name: 'NUM',
           nameTextStyle: { fontSize: 9, color: '#22c55e', fontWeight: 700, padding: [0, 0, 0, 4] },
           axisLabel: { fontSize: 9, color: '#22c55e', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : String(Math.round(v)) },
           splitLine: { show: true, lineStyle: { color: 'rgba(34,197,94,0.08)', type: 'dashed' as const } },
           axisLine: { show: true, lineStyle: { color: 'rgba(34,197,94,0.3)' } },
         },
         {
-          type: 'value' as const,
-          name: 'DEN',
+          type: 'value' as const, name: 'DEN',
           nameTextStyle: { fontSize: 9, color: '#3b82f6', fontWeight: 700, padding: [0, 4, 0, 0] },
           axisLabel: { fontSize: 9, color: '#3b82f6', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : String(Math.round(v)) },
           splitLine: { show: false },
@@ -514,78 +433,13 @@ const KPIBreakdown: React.FC<Props> = ({
     };
   }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames]);
 
-  // ──── Table data ────
-  const tableRows = useMemo(() => {
-    const rows: { ts: string; ne: string; counter: string; tag: string; value: number }[] = [];
-    const tagMap = new Map(counterInfos.map(c => [c.name, c.tag]));
-
-    for (const d of counterTsData) {
-      if (hiddenCounters.has(d.counter)) continue;
-      rows.push({
-        ts: d.ts,
-        ne: d.ne || neValue || 'N/A',
-        counter: d.counter,
-        tag: tagMap.get(d.counter) || '—',
-        value: d.value,
-      });
-    }
-    rows.sort((a, b) => a.ts.localeCompare(b.ts) || a.counter.localeCompare(b.counter));
-    return rows;
-  }, [counterTsData, counterInfos, hiddenCounters, neValue]);
-
-  const totalPages = Math.max(1, Math.ceil(tableRows.length / pageSize));
-  const pageRows = tableRows.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-
-  // CSV export
-  const downloadCSV = useCallback(() => {
-    const header = 'Timestamp,NE,Counter,Type,Value';
-    const lines = tableRows.map(r =>
-      `${r.ts},${r.ne},"${r.counter}",${r.tag},${r.value}`
-    );
-    const csv = [header, ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `breakdown_${selectedKpiTab}_counters.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [tableRows, selectedKpiTab]);
-
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
 
-  /* ──────────────────── Render ──────────────────── */
-
   return (
     <div className="space-y-4">
-      {/* KPI selector tabs (when multiple KPIs) */}
-      {uniqueKpiIds.length > 1 && (
-        <div className="flex items-center gap-1 p-1 bg-muted/30 rounded-xl border border-border/30">
-          {uniqueKpiIds.map((kpiId, i) => {
-            const ex = explainData[kpiId];
-            return (
-              <button
-                key={kpiId}
-                onClick={() => { setSelectedKpiTab(kpiId); setCurrentPage(0); }}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold transition-all',
-                  selectedKpiTab === kpiId
-                    ? 'bg-card text-foreground shadow-sm border border-border/50'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                )}
-              >
-                <TrendingUp className="w-3.5 h-3.5" />
-                {ex?.display_name || kpiId}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ═══ Zone 1: Formula Panel ═══ */}
       <FormulaPanel
-        explain={currentExplain || null}
+        explain={explain}
         numCounters={numInfos}
         denCounters={denInfos}
         hoveredCounter={hoveredCounter}
@@ -594,14 +448,11 @@ const KPIBreakdown: React.FC<Props> = ({
         onToggleCounter={toggleCounter}
       />
 
-      {/* ═══ Zone 2: Counters Graph ═══ */}
       <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-              Counter Timeseries
-            </span>
+            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">Counter Timeseries</span>
             <span className="text-[10px] text-muted-foreground ml-1">
               {counterInfos.filter(c => !hiddenCounters.has(c.name)).length}/{counterInfos.length} visible
             </span>
@@ -617,12 +468,9 @@ const KPIBreakdown: React.FC<Props> = ({
             </div>
           </div>
         </div>
-
         <div className="p-4" style={{ backgroundColor: '#ffffff' }}>
           {loading ? (
-            <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">
-              Loading counters...
-            </div>
+            <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">Loading counters...</div>
           ) : chartOption ? (
             <ReactECharts option={chartOption} notMerge style={{ height: 340 }} />
           ) : (
@@ -635,13 +483,77 @@ const KPIBreakdown: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* ═══ Zone 3: Counter Definitions ═══ */}
       <CounterDefinitionPanel
         counters={counterInfos}
         hoveredCounter={hoveredCounter}
         onHoverCounter={setHoveredCounter}
       />
+    </div>
+  );
+};
 
+/* ──────────────────── Main Component (Tab container) ──────────────────── */
+
+const KPIBreakdown: React.FC<Props> = ({
+  selectedKpis,
+  layout,
+  dateFrom = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0],
+  dateTo = new Date().toISOString().split('T')[0],
+  granularity = '1d',
+  filters = [],
+}) => {
+  const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
+  const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
+
+  // Sync active tab when KPI list changes
+  useEffect(() => {
+    if (uniqueKpiIds.length > 0 && !uniqueKpiIds.includes(activeKpiTab)) {
+      setActiveKpiTab(uniqueKpiIds[0]);
+    }
+  }, [uniqueKpiIds, activeKpiTab]);
+
+  if (uniqueKpiIds.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/40 bg-card p-8 flex flex-col items-center justify-center text-muted-foreground gap-2">
+        <Layers className="w-10 h-10 opacity-20" />
+        <span className="text-sm font-medium">No KPI selected</span>
+        <span className="text-[10px]">Select KPIs in the graph to see breakdown</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* KPI Tabs */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin p-1 bg-muted/30 rounded-xl border border-border/30">
+        {uniqueKpiIds.map(kpiId => (
+          <button
+            key={kpiId}
+            onClick={() => setActiveKpiTab(kpiId)}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap shrink-0',
+              activeKpiTab === kpiId
+                ? 'bg-card text-foreground shadow-sm border border-border/50'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+            )}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            {kpiId}
+          </button>
+        ))}
+      </div>
+
+      {/* Active KPI content – only render the active tab (lazy) */}
+      {activeKpiTab && uniqueKpiIds.includes(activeKpiTab) && (
+        <SingleKpiBreakdown
+          key={activeKpiTab}
+          kpiId={activeKpiTab}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          granularity={granularity}
+          filters={filters}
+        />
+      )}
     </div>
   );
 };
