@@ -568,7 +568,7 @@ const InvestigatorPage: React.FC = () => {
             ] as const).map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setAnalysisTab(tab.key)}
+                onClick={() => setAnalysisTab(prev => prev === tab.key ? null : tab.key)}
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
                   analysisTab === tab.key
