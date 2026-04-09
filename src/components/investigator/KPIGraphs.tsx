@@ -426,7 +426,7 @@ interface Props {
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
-  onActivateTab?: (tab: 'table_data' | 'breakdown' | 'top_worst' | 'alarms' | 'neighbors' | null) => void;
+  onActivateTab?: (tab: 'table_data' | 'breakdown' | 'top_worst' | 'alarms' | 'neighbors' | 'cm_history' | null) => void;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
@@ -1419,6 +1419,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <Switch checked={cfg.showNeighbors} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showNeighbors: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('neighbors'); }} className="scale-[0.65]" />
                     </div>
 
+                    {/* CM History */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">CM History</span>
+                      <Switch checked={cfg.showCmHistory} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showCmHistory: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('cm_history'); }} className="scale-[0.65]" />
+                    </div>
+
                     <div className="h-px bg-border/40" />
 
                     {/* Chart Style */}
@@ -1479,6 +1485,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                         else if (cfg.showTopWorst && onActivateTab) onActivateTab('top_worst');
                         else if (cfg.showAlarms && onActivateTab) onActivateTab('alarms');
                         else if (cfg.showNeighbors && onActivateTab) onActivateTab('neighbors');
+                        else if (cfg.showCmHistory && onActivateTab) onActivateTab('cm_history');
                         // Close the popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })

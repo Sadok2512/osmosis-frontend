@@ -587,6 +587,7 @@ const InvestigatorPage: React.FC = () => {
             top_worst: 'showTopWorst',
             alarms: 'showAlarms',
             neighbors: 'showNeighbors',
+            cm_history: 'showCmHistory',
           };
           const allTabs = [
             { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
