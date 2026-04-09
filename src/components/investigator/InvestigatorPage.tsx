@@ -248,6 +248,7 @@ const InvestigatorPage: React.FC = () => {
       // Enrich with alarms
       const allCells = Object.values(byDOR).flat();
       const cellNames = allCells.map(c => c.name).filter(Boolean);
+      let finalByDOR = byDOR;
       try {
         const cellDetails = cellNames.length > 0 ? await fetchCellDetails(cellNames) : [];
         const detailMap: Record<string, any> = {};
@@ -272,11 +273,12 @@ const InvestigatorPage: React.FC = () => {
             return el;
           });
         }
+        finalByDOR = enriched;
         setWorstByDOR(enriched);
       } catch {
         setWorstByDOR(byDOR);
       }
-      setWorstElements(Object.values(enriched).flat());
+      setWorstElements(Object.values(finalByDOR).flat() as WorstElement[]);
     } catch (e) {
       console.error('[Investigator] Worst elements error:', e);
     }

@@ -983,7 +983,7 @@ export async function fetchWorstCellsDirect(
     return Object.keys(byDOR).length ? byDOR : { 'ALL': elements };
   } catch (e) {
     console.warn('[fetchWorstCellsDirect] Failed, falling back to KPI Engine:', e);
-    return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas);
+    return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters.map(f => ({ ...f, op: f.op || 'IN' })), kpiMetas);
   }
 }
 
