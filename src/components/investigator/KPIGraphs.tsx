@@ -1397,6 +1397,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
                     </div>
 
+                    {/* Top Worst Cells */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">Top Worst Cells</span>
+                      <Switch checked={cfg.showTopWorst} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showTopWorst: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('top_worst'); }} className="scale-[0.65]" />
+                    </div>
+
+                    {/* Alarms */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">Alarms</span>
+                      <Switch checked={cfg.showAlarms} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showAlarms: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('alarms'); }} className="scale-[0.65]" />
+                    </div>
+
+                    {/* Neighbors */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-foreground">Neighbors</span>
+                      <Switch checked={cfg.showNeighbors} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showNeighbors: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('neighbors'); }} className="scale-[0.65]" />
+                    </div>
 
                     <div className="h-px bg-border/40" />
 
