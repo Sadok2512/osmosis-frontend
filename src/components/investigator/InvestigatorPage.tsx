@@ -94,15 +94,14 @@ const InvestigatorPage: React.FC = () => {
     });
   }, []);
 
-  // Load filter options on mount
+  // Load filter options on mount — sequential to avoid DB connection issues
   React.useEffect(() => {
-    Promise.all([
-      fetchFilterValues('DOR'),
-      fetchFilterValues('PLAQUE'),
-      fetchFilterValues('BAND'),
-    ]).then(([dors, plaques, bands]) => {
+    (async () => {
+      const dors = await fetchFilterValues('DOR');
+      const plaques = await fetchFilterValues('PLAQUE');
+      const bands = await fetchFilterValues('BAND');
       setWorstFilterOptions({ DOR: dors, PLAQUE: plaques, BAND: bands });
-    });
+    })();
   }, []);
 
   // Auto-select first slot if none selected or active was removed
