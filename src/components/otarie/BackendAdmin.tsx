@@ -71,7 +71,7 @@ const MODULE_TABLE_MAP = [
     apiEndpoints: ['/api/dump-parameter'],
   },
   {
-    module: 'QOEBIT Assistant',
+    module: 'OSMOSIS Assistant',
     icon: '🤖',
     tables: ['rag_documents', 'qoe_metric'],
     description: 'Assistant IA RAG + contexte QoE',
@@ -106,7 +106,7 @@ const BackendAdmin: React.FC = () => {
   });
 
   const [llmConfig, setLlmConfig] = useState<LLMConfig>(() => {
-    const saved = localStorage.getItem('qoebit_llm_config');
+    const saved = localStorage.getItem('osmosis_llm_config');
     if (saved) {
       try { return JSON.parse(saved); } catch { /* ignore */ }
     }
@@ -120,7 +120,7 @@ const BackendAdmin: React.FC = () => {
 
   // Persist LLM config to localStorage whenever it changes
   React.useEffect(() => {
-    localStorage.setItem('qoebit_llm_config', JSON.stringify(llmConfig));
+    localStorage.setItem('osmosis_llm_config', JSON.stringify(llmConfig));
   }, [llmConfig]);
 
   const [dbTestStatus, setDbTestStatus] = useState<TestStatus>('idle');
@@ -342,7 +342,7 @@ const BackendAdmin: React.FC = () => {
           Authorization: `Bearer ${llmConfig.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
-          'X-Title': 'QOEBIT Admin Test',
+          'X-Title': 'OSMOSIS Admin Test',
         },
         body: JSON.stringify({
           model: llmConfig.model,

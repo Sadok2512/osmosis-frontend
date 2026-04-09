@@ -2,7 +2,7 @@
  * API URL helper — routes through VPS proxy edge function (HTTPS→HTTP relay).
  *
  * VPS Services:
- *   QOEBIT Parser  → http://151.242.147.49:8000
+ *   OSMOSIS Parser  → http://151.242.147.49:8000
  *   KPI Engine     → http://151.242.147.49:8001
  *   Agent Layer    → http://151.242.147.49:1000
  *
@@ -12,13 +12,13 @@
 const VPS_HOST = '151.242.147.49';
 
 // Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
-const CF_PARSER = 'https://api.qoebit.net';
-const CF_KPI = 'https://kpi.qoebit.net';
+const CF_PARSER = 'https://api.osmosis.net';
+const CF_KPI = 'https://kpi.osmosis.net';
 
 // Detect if we're on the Cloudflare tunnel domain
 const isOnTunnel = typeof window !== 'undefined' && (
-  window.location.hostname === 'app.qoebit.net' ||
-  window.location.hostname.endsWith('.qoebit.net')
+  window.location.hostname === 'app.osmosis.net' ||
+  window.location.hostname.endsWith('.osmosis.net')
 );
 
 export const VPS_ENDPOINTS = {
@@ -29,7 +29,7 @@ export const VPS_ENDPOINTS = {
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
 const DEFAULT_LOCAL_API = 'http://localhost:3001';
-const DATA_SOURCE_KEY = 'qoebit_data_source';
+const DATA_SOURCE_KEY = 'osmosis_data_source';
 
 type DataSource = 'local' | 'cloud' | 'vps';
 
@@ -99,7 +99,7 @@ export function getVpsProxyUrl(
   // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
   const onDirect = typeof window !== 'undefined' && (
     window.location.hostname === VPS_HOST ||
-    window.location.hostname.endsWith('.qoebit.net')
+    window.location.hostname.endsWith('.osmosis.net')
   );
   if (onDirect) {
     const ep = VPS_ENDPOINTS[service];
@@ -159,16 +159,16 @@ export function getApiUrl(functionName: string): string {
     // When browser is on the VPS or on a Cloudflare tunnel domain, call services directly
     const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
-      window.location.hostname.endsWith('.qoebit.net')
+      window.location.hostname.endsWith('.osmosis.net')
     );
 
-    // KPI Engine endpoints → kpi.qoebit.net (or :8001 on VPS)
+    // KPI Engine endpoints → kpi.osmosis.net (or :8001 on VPS)
     const kpiPrefixes = ['monitor', 'catalog', 'kpi/', 'anomalies', 'clusters', 'config/aggregation', 'config/jobs', 'config/ne-scope', 'config/quality', 'config/stats', 'internal/'];
     const isKpi = kpiPrefixes.some(p => cleanPath.startsWith(p));
     if (isKpi) {
       return onDirect ? `${VPS_ENDPOINTS.kpi}/${clean}` : getVpsProxyUrl('kpi', `/${cleanPath}`, Object.keys(extraParams).length ? extraParams : undefined);
     }
-    // Parser endpoints → api.qoebit.net/api/v1/* (or :8000 on VPS)
+    // Parser endpoints → api.osmosis.net/api/v1/* (or :8000 on VPS)
     const parserPrefixes = ['topo', 'qoe-map', 'qoe-metrics', 'dump-parameter', 'parameter-changes', 'bi-query', 'bi-distinct', 'bi-date-range', 'sentinel', 'alarms', 'cm', 'pm'];
     const isParser = parserPrefixes.some(p => cleanPath.startsWith(p));
     if (isParser) {
@@ -196,7 +196,7 @@ export function getApiHeaders(): Record<string, string> {
     // Direct mode: simple headers when on VPS or Cloudflare tunnel (no proxy auth needed)
     const onDirect = typeof window !== 'undefined' && (
       window.location.hostname === VPS_HOST ||
-      window.location.hostname.endsWith('.qoebit.net')
+      window.location.hostname.endsWith('.osmosis.net')
     );
     if (onDirect) {
       return { 'Content-Type': 'application/json' };

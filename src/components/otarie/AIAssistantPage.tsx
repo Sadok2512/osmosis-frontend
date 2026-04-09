@@ -25,7 +25,7 @@ import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
 import { getStoredSession } from '@/services/adminAuth';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'OSMOSIS';
 type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
@@ -34,7 +34,7 @@ const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string 
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
   PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
-  QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
+  OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
 };
 
 function extractAgent(content: string): { agent: AgentId | null; cleanContent: string } {
@@ -197,7 +197,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     let openrouterKey = '';
     let configuredModel = '';
     try {
-      const saved = localStorage.getItem('qoebit_llm_config');
+      const saved = localStorage.getItem('osmosis_llm_config');
       if (saved) {
         const cfg = JSON.parse(saved);
         openrouterKey = cfg.apiKey || '';
@@ -486,7 +486,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       await dashboardsApi.upsert({
         id: dashId, name: spec.name || 'AI Dashboard', description: spec.description || '',
         is_shared: true, widgets, dashboard_type: 'analytic_qoe',
-        owner_username: session?.username || 'QOEBIT AI',
+        owner_username: session?.username || 'OSMOSIS AI',
       });
       toast({ title: '📊 Dashboard créé !', description: `"${spec.name}" est disponible dans Dashboard Overview.` });
       addDebugLog(`✅ Dashboard "${spec.name}" created with ${widgets.length} charts`);
@@ -508,7 +508,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       extractCellsFromResponse(finalText);
       handleDashboardCreation(finalText);
     } catch (e: any) {
-      console.error('QOEBIT stream error:', e);
+      console.error('OSMOSIS stream error:', e);
       addDebugLog(`❌ Error: ${e?.message}`);
       const errorDetail = e?.message || String(e);
       const isLocal = isLocalMode() && !errorDetail.includes('Cloud');
@@ -587,7 +587,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                   <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
                   </div>
-                  <span className="text-sm font-bold text-foreground tracking-tight">QOEBIT</span>
+                  <span className="text-sm font-bold text-foreground tracking-tight">OSMOSIS</span>
                 </div>
                 <button
                   onClick={() => setSidebarMode('collapsed')}
@@ -709,7 +709,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                 >
                   <Cpu className="w-4 h-4" />
                   <div className="text-left">
-                    <span className="text-[11px] font-bold block leading-tight">QOEBIT Agents</span>
+                    <span className="text-[11px] font-bold block leading-tight">OSMOSIS Agents</span>
                     <span className="text-[9px] text-primary/60">Hub & Architecture</span>
                   </div>
                   <ChevronRight className="w-3 h-3 ml-auto opacity-50 group-hover:opacity-100 transition-opacity" />
@@ -780,7 +780,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
               <Sparkles className="w-4.5 h-4.5 text-primary" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-foreground tracking-tight">QOEBIT — AI Network Analyst</h1>
+              <h1 className="text-sm font-bold text-foreground tracking-tight">OSMOSIS — AI Network Analyst</h1>
               <p className="text-[11px] text-muted-foreground">{activeSession?.title || 'Prêt à analyser votre réseau'}</p>
             </div>
           </div>
@@ -821,7 +821,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center border border-primary/10 shadow-lg shadow-primary/5">
                   <Bot className="w-10 h-10 text-primary" />
                 </div>
-                <h2 className="text-xl font-bold text-foreground">Bonjour, je suis QOEBIT 👋</h2>
+                <h2 className="text-xl font-bold text-foreground">Bonjour, je suis OSMOSIS 👋</h2>
                 <p className="text-sm text-muted-foreground text-center max-w-lg leading-relaxed">
                   Assistant IA pour l'analyse QoE réseau. Posez vos questions : classements, comparaisons, diagnostics, analyses par dimension.
                 </p>
@@ -995,7 +995,7 @@ const ExportPDFButton: React.FC<{ msgRef: string; index: number }> = ({ msgRef, 
     if (!el) return;
     setExporting(true);
     try {
-      await exportElementToPDF(el, `QOEBIT_response_${index + 1}`);
+      await exportElementToPDF(el, `OSMOSIS_response_${index + 1}`);
       toast({ title: 'PDF exporté' });
     } catch { toast({ title: 'Erreur export', variant: 'destructive' }); }
     finally { setExporting(false); }

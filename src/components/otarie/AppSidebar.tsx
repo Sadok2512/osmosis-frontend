@@ -23,7 +23,7 @@ interface SidebarProps {
 }
 
 const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'ai_assistant', label: 'QOEBIT', icon: <Sparkles className="w-5 h-5" /> },
+  { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
   { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
   { id: 'sites', label: 'Network Topology', icon: <Network className="w-5 h-5" /> },
@@ -83,7 +83,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         </div>
         {!isCollapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">QOEBIT</h1>
+            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">OSMOSIS</h1>
             <p className="text-[11px] text-sidebar-primary font-medium">QoE Observatory</p>
           </div>
         )}

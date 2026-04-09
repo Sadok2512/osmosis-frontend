@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'OSMOSIS';
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
   PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
@@ -9,7 +9,7 @@ const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string 
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
   PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
-  QOEBIT: { emoji: '🧠', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
+  OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
 };
 
 interface ChatInputProps {
@@ -106,7 +106,7 @@ const ChatInput = React.memo(({ onSend, isLoading, forcedAgent, onForcedAgentCha
         </div>
       </div>
       <p className="text-[10px] text-muted-foreground/50 text-center mt-2">
-        QOEBIT • AI-powered network analytics
+        OSMOSIS • AI-powered network analytics
       </p>
     </div>
   );

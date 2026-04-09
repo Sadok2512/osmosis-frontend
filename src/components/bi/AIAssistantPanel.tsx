@@ -100,7 +100,7 @@ async function streamChat({
 
 const AIAssistantPanel: React.FC<Props> = ({ charts, onClose, onApplySuggestion }) => {
   const [messages, setMessages] = useState<Msg[]>([
-    { role: 'assistant', content: '👋 Bonjour ! Je suis **QOEBIT**, votre assistant BI. Je peux analyser vos KPIs, recommander des visualisations et détecter des anomalies. Que souhaitez-vous explorer ?' }
+    { role: 'assistant', content: '👋 Bonjour ! Je suis **OSMOSIS**, votre assistant BI. Je peux analyser vos KPIs, recommander des visualisations et détecter des anomalies. Que souhaitez-vous explorer ?' }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -166,7 +166,7 @@ const AIAssistantPanel: React.FC<Props> = ({ charts, onClose, onApplySuggestion 
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-foreground">QOEBIT</span>
+          <span className="text-xs font-semibold text-foreground">OSMOSIS</span>
         </div>
         <button onClick={onClose} className="p-1 rounded hover:bg-muted"><X className="w-4 h-4" /></button>
       </div>

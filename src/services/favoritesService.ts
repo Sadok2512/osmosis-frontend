@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredSession } from './adminAuth';
 
-const LOCAL_FAV_KEY_PREFIX = 'qoebit_kpi_favorites';
+const LOCAL_FAV_KEY_PREFIX = 'osmosis_kpi_favorites';
 
 function getLocalKey(module: string) {
   return `${LOCAL_FAV_KEY_PREFIX}_${module}`;

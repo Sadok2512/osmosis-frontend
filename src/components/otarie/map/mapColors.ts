@@ -51,7 +51,7 @@ export const deriveStrokeColor = (hex: string): string => {
 /** Load custom band colors from localStorage, merged with defaults */
 export const loadCustomBandColors = (): Record<string, string> => {
   try {
-    const saved = localStorage.getItem('qoebit_band_colors');
+    const saved = localStorage.getItem('osmosis_band_colors');
     if (saved) return { ...DEFAULT_BAND_COLORS, ...JSON.parse(saved) };
   } catch (err) {
     console.warn('[mapColors] loadCustomBandColors failed', err);

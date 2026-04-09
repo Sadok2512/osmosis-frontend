@@ -73,7 +73,7 @@ export default function AdminPanel() {
         {/* Logo */}
         <div className="p-4 flex items-center gap-2 border-b border-[hsl(var(--sidebar-border))]">
           <ShieldCheck className="w-6 h-6 text-[hsl(var(--sidebar-primary))] shrink-0" />
-          {!collapsed && <span className="font-bold text-lg">QOEBIT Admin</span>}
+          {!collapsed && <span className="font-bold text-lg">OSMOSIS Admin</span>}
         </div>
 
         {/* Nav sections */}

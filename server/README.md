@@ -1,4 +1,4 @@
-# QOEBIT Local Server
+# OSMOSIS Local Server
 
 Backend Express.js pour utilisation 100% locale avec PostgreSQL.
 

@@ -19,7 +19,7 @@ const AIFloatingModal: React.FC<AIFloatingModalProps> = ({ open, onClose }) => {
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 shrink-0">
-        <span className="text-xs font-bold text-foreground uppercase tracking-wider">QOEBIT</span>
+        <span className="text-xs font-bold text-foreground uppercase tracking-wider">OSMOSIS</span>
         <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
           <X className="w-4 h-4" />
         </button>

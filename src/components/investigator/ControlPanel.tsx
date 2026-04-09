@@ -1106,7 +1106,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <Settings2 className="w-4.5 h-4.5 text-primary" />
             </div>
             <div className="leading-tight">
-              <h1 className="text-xs 2xl:text-sm font-bold text-foreground tracking-tight">QOEBIT Investigator</h1>
+              <h1 className="text-xs 2xl:text-sm font-bold text-foreground tracking-tight">OSMOSIS Investigator</h1>
               <p className="text-[9px] 2xl:text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
             </div>
           </div>

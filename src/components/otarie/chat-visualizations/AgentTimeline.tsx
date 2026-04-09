@@ -8,7 +8,7 @@ const AGENT_META: Record<string, { emoji: string; label: string; color: string }
   SENTINEL: { emoji: '\u{1F6A8}', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '\u{1F5FC}', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
   PARMY: { emoji: '\u{2699}\u{FE0F}', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
-  QOEBIT: { emoji: '\u{1F9E0}', label: 'QOEBIT', color: 'hsl(142, 60%, 45%)' },
+  OSMOSIS: { emoji: '\u{1F9E0}', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
   SYNTHESIS: { emoji: '\u{2728}', label: 'SYNTHESIS', color: 'hsl(50, 85%, 50%)' },
   MULTI: { emoji: '\u{1F504}', label: 'MULTI', color: 'hsl(280, 60%, 55%)' },
 };
@@ -122,7 +122,7 @@ const AgentTimeline: React.FC<AgentTimelineProps> = ({ events, isStreaming }) =>
       : `${durationMs}ms`;
 
     const agentList = Array.from(agents);
-    const primaryAgent = agentList[0] || 'QOEBIT';
+    const primaryAgent = agentList[0] || 'OSMOSIS';
     const meta = AGENT_META[primaryAgent];
 
     return {

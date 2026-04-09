@@ -49,7 +49,7 @@ export default function UserLogin() {
             <ShieldCheck className="w-10 h-10 text-[hsl(170,70%,55%)]" />
           </div>
           <h2 className="text-3xl font-bold text-white mb-3 tracking-tight">
-            QOEBIT
+            OSMOSIS
           </h2>
           <p className="text-white/50 text-sm max-w-xs mx-auto leading-relaxed">
             Centralized management for users, agents, models, memory sessions and system health monitoring.
@@ -123,7 +123,7 @@ export default function UserLogin() {
           </form>
 
           <p className="text-center text-xs text-muted-foreground/50 mt-8">
-            Protected access · QOEBIT Platform
+            Protected access · OSMOSIS Platform
           </p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'QOEBIT';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'OSMOSIS';
 
 export type ProgressEventType =
   | 'agent_selected'
@@ -138,14 +138,14 @@ export const useChatSessionStore = create<ChatSessionStore>()(
       },
     }),
     {
-      name: 'qoebit-chat-sessions',
+      name: 'osmosis-chat-sessions',
       version: 1,
       // Migrate from old single-history format
       migrate: (persistedState: any, version: number) => {
         if (version === 0 || !persistedState) {
           // Try to import old single-session history
           try {
-            const old = localStorage.getItem('qoebit_chat_history');
+            const old = localStorage.getItem('osmosis_chat_history');
             if (old) {
               const messages = JSON.parse(old);
               if (Array.isArray(messages) && messages.length > 0) {
@@ -157,7 +157,7 @@ export const useChatSessionStore = create<ChatSessionStore>()(
                   createdAt: Date.now(),
                   updatedAt: Date.now(),
                 };
-                localStorage.removeItem('qoebit_chat_history');
+                localStorage.removeItem('osmosis_chat_history');
                 return { sessions: [session], activeSessionId: id };
               }
             }

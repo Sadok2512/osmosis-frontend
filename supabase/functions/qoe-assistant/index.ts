@@ -858,7 +858,7 @@ async function searchDumpParameters(query: string): Promise<string> {
 
 // ═══════════════════════════════════════════════════════════════
 //  PARMY SQL ENGINE — AI-powered SQL generation for parameter_dump
-//  Queries are routed to VPS qoebit-parser /api/v1/parmy/sql
+//  Queries are routed to VPS osmosis-parser /api/v1/parmy/sql
 // ═══════════════════════════════════════════════════════════════
 
 async function executeVpsParmySql(query_sql: string): Promise<{ data: any[] | null; error: string | null }> {
@@ -2919,7 +2919,7 @@ serve(async (req) => {
     // Set module-level variable for buildContextFromPlan to use
     _activeAgentsForCurrentRequest = activeAgentsForInvestigation;
 
-    console.log(`🧠 QOEBIT → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
+    console.log(`🧠 OSMOSIS → ${plan.agent} | intent=${plan.intent} | scope=${JSON.stringify(plan.scope)}`);
 
     if (plan.clarificationNeeded && plan.clarificationQuestion) {
       const clarMsg = `<!-- AGENT:${plan.agent} -->\n${plan.clarificationQuestion}`;
@@ -3072,7 +3072,7 @@ serve(async (req) => {
     } else {
       aiHeaders["Authorization"] = `Bearer ${OPENROUTER_API_KEY}`;
       aiHeaders["HTTP-Referer"] = Deno.env.get("SUPABASE_URL") || "";
-      aiHeaders["X-Title"] = `QOEBIT ${plan.agent}`;
+      aiHeaders["X-Title"] = `OSMOSIS ${plan.agent}`;
     }
 
     // 🎛️ ORCHESTRATOR: Dynamic model selection from DB config
