@@ -426,6 +426,7 @@ interface Props {
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
+  onActivateTab?: (tab: 'table_data' | 'breakdown') => void;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
@@ -440,7 +441,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   link.click();
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : 2;
@@ -1436,7 +1437,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
                     <button
                       onClick={(e) => {
-                        // Just close the popover — don't auto-assign splits
+                        // Activate corresponding bottom tab if toggle is on
+                        if (cfg.showDataTable && onActivateTab) onActivateTab('table_data');
+                        else if (cfg.showBreakdown && onActivateTab) onActivateTab('breakdown');
+                        // Close the popover
                         (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
                           new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
                         );
