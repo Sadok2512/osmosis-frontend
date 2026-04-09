@@ -1397,11 +1397,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
                     </div>
 
-                    {/* KPI Breakdown */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">KPI Breakdown</span>
-                      <Switch checked={cfg.showBreakdown} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showBreakdown: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('breakdown'); }} className="scale-[0.65]" />
-                    </div>
 
                     <div className="h-px bg-border/40" />
 
