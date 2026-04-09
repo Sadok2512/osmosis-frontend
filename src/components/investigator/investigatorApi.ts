@@ -514,7 +514,7 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Step 1: Try /kpi/compute FIRST
+  // Step 1: Try /kpi/compute FIRST — SEQUENTIAL, one KPI at a time
   const computeResults: DataPoint[] = [];
   const computeFailed: string[] = [];
 
@@ -527,14 +527,26 @@ export async function fetchTimeSeriesForSlot(
 
       const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${computeSplitByField || ''}`;
 
-      if (!_computeCache.has(cacheKey)) {
-        _computeCache.set(cacheKey, fetchKpiComputeOnTheFly(
+      // Sequential: do NOT pre-create promises — execute one at a time
+      let computed: { data: DataPoint[]; isComputed: boolean };
+      if (_computeCache.has(cacheKey)) {
+        computed = await _computeCache.get(cacheKey)!;
+      } else {
+        const queryStart = Date.now();
+        console.log('[Pipeline] Step 1 PM Compute START:', kpiId);
+        const promise = fetchKpiComputeOnTheFly(
           kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
-        ));
+        );
+        _computeCache.set(cacheKey, promise);
         setTimeout(() => _computeCache.delete(cacheKey), 30000);
+        computed = await promise;
+        console.log('[Pipeline] Step 1 PM Compute END:', kpiId, {
+          duration: `${Date.now() - queryStart}ms`,
+          points: computed.data.length,
+          status: computed.isComputed ? 'success' : 'no_data',
+        });
       }
 
-      const computed = await _computeCache.get(cacheKey)!;
       if (computed.isComputed) {
         computeResults.push(...computed.data);
       } else {
