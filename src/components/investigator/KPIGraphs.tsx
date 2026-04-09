@@ -1302,6 +1302,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   onClick={(e) => e.stopPropagation()}
                   className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate"
                 />
+                {isActive && (
+                  <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">Active</span>
+                )}
               </div>
               <span className="ml-auto" />
 
