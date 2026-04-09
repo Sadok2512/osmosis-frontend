@@ -593,7 +593,7 @@ const InvestigatorPage: React.FC = () => {
       </main>
     </div>
 
-    {isGraphFullscreen && typeof document !== 'undefined' && createPortal(graphSection, document.body)}
+    {isGraphFullscreen && typeof document !== 'undefined' && createPortal(renderGraphSection(), document.body)}
 
       {/* AI Panel */}
       {showAIPanel && (
