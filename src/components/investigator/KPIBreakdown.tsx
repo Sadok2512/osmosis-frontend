@@ -377,14 +377,15 @@ const KPIBreakdown: React.FC<Props> = ({
       else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
     }
 
+    console.log('[KPIBreakdown] Fetching counter TS:', JSON.stringify(body));
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
     })
-      .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setCounterTsData(data.series || []); setLoading(false); })
-      .catch(() => { setCounterTsData([]); setLoading(false); });
+      .then(r => { console.log('[KPIBreakdown] Counter TS response status:', r.status); return r.ok ? r.json() : { series: [] }; })
+      .then(data => { console.log('[KPIBreakdown] Counter TS data:', data.series?.length, 'points'); setCounterTsData(data.series || []); setLoading(false); })
+      .catch((err) => { console.error('[KPIBreakdown] Counter TS error:', err); setCounterTsData([]); setLoading(false); });
   }, [counterInfos, dateFrom, dateTo, granularity, filters]);
 
   // Toggle counter visibility
