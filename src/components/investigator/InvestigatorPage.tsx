@@ -130,17 +130,18 @@ const InvestigatorPage: React.FC = () => {
       return;
     }
 
-    // Require at least one KPI in a graph slot
-    const slotsWithKpis = state.graphSlots.filter(s => s.kpiIds.length > 0);
+    // Determine the active slot to query
+    const targetSlot = activeSlotId
+      ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
+      : null;
 
-    if (slotsWithKpis.length === 0) {
-      setApplyError('Veuillez ajouter au moins un KPI dans un graphe avant de lancer la requête.');
+    if (!targetSlot) {
+      setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI.');
       return;
     }
 
-    // Only fetch data for the active graph tab view
-    const activeView = state.activeGraphTab; // 'TimeSeries' | 'Histogram' | 'Neighbors'
-    if (import.meta.env.DEV) console.log('[Investigator] Active view:', activeView);
+    const activeView = state.activeGraphTab;
+    if (import.meta.env.DEV) console.log('[Investigator] Apply → active slot only:', targetSlot.id, targetSlot.name);
 
     // Abort any in-flight request before starting a new one
     if (abortRef.current) abortRef.current.abort();
@@ -149,50 +150,30 @@ const InvestigatorPage: React.FC = () => {
 
     setApplyError(null);
     setIsApplying(true);
-    setTsData([]);
     setHasUnfilteredFallback(false);
+
     try {
-      const slotContexts = slotsWithKpis.map(slot => ({
-        slot,
-        ctx: resolveSlotContext(slot, state),
-      }));
+      const ctx = resolveSlotContext(targetSlot, state);
 
-      if (import.meta.env.DEV) console.log('[Investigator] Fetching', slotContexts.length, 'slots for view:', activeView);
+      const queryStart = Date.now();
+      const result = await fetchTimeSeriesForSlot(ctx);
 
-      // ── SEQUENTIAL execution: one slot at a time, no Promise.all ──
-      const allData: any[] = [];
-      let anyUnfiltered = false;
-
-      for (const { slot, ctx } of slotContexts) {
-        // Check if this request was aborted (user clicked Appliquer again)
-        if (controller.signal.aborted) break;
-
-        const queryStart = Date.now();
-
-        try {
-          const result = await fetchTimeSeriesForSlot(ctx);
-          // Check abort after await
-          if (controller.signal.aborted) break;
-
-          const taggedData = result.data.map(d => ({ ...d, _slotId: slot.id }));
-          allData.push(...taggedData);
-          if (result.hasUnfilteredFallback) anyUnfiltered = true;
-        } catch (slotError) {
-          if (controller.signal.aborted) break;
-          console.error('[Investigator] Query failed for slot', slot.id, slotError instanceof Error ? slotError.message : String(slotError));
-        }
-      }
-
-      // Don't update state if this request was aborted
       if (controller.signal.aborted) return;
 
-      setHasUnfilteredFallback(anyUnfiltered);
-      setTsData(allData);
+      const taggedData = result.data.map(d => ({ ...d, _slotId: targetSlot.id }));
+
+      // Preserve data from OTHER slots, replace only the active slot's data
+      const otherData = tsData.filter((d: any) => d._slotId !== targetSlot.id);
+      setTsData([...otherData, ...taggedData]);
       setHasLoadedOnce(true);
 
-      if (allData.length === 0 && slotsWithKpis.length > 0) {
-        setApplyError('Aucune donnée trouvée pour les KPIs et filtres sélectionnés. Vérifiez la période et les filtres.');
+      if (taggedData.length === 0) {
+        setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
       }
+
+      if (result.hasUnfilteredFallback) setHasUnfilteredFallback(true);
+
+      if (import.meta.env.DEV) console.log(`[Investigator] Slot ${targetSlot.id}: ${taggedData.length} points in ${Date.now() - queryStart}ms`);
     } catch (e) {
       if (controller.signal.aborted) return;
       console.error('[Investigator] API error:', e);
