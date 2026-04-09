@@ -420,6 +420,7 @@ const InvestigatorPage: React.FC = () => {
               })}
               activeSlotId={activeSlotId}
               onSlotClick={setActiveSlotId}
+              isFullscreen={isGraphFullscreen}
             />
           )}
 
