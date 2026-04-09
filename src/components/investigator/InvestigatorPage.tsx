@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
@@ -66,6 +67,15 @@ const InvestigatorPage: React.FC = () => {
      const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsGraphFullscreen(false); };
      window.addEventListener('keydown', handler);
      return () => window.removeEventListener('keydown', handler);
+   }, [isGraphFullscreen]);
+
+   React.useEffect(() => {
+     if (!isGraphFullscreen) return;
+     const originalOverflow = document.body.style.overflow;
+     document.body.style.overflow = 'hidden';
+     return () => {
+       document.body.style.overflow = originalOverflow;
+     };
    }, [isGraphFullscreen]);
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
@@ -265,6 +275,10 @@ const InvestigatorPage: React.FC = () => {
       ),
     }));
   };
+
+  const graphSection = (
+        {!isGraphFullscreen && graphSection}
+  );
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -579,6 +593,8 @@ const InvestigatorPage: React.FC = () => {
         )}
       </main>
     </div>
+
+    {isGraphFullscreen && typeof document !== 'undefined' && createPortal(graphSection, document.body)}
 
       {/* AI Panel */}
       {showAIPanel && (
