@@ -9,8 +9,8 @@
  * All calls go through the vps-proxy edge function to avoid mixed-content blocking.
  */
 
-const VPS_HOST = import.meta.env.VITE_VPS_HOST || '';
-if (!VPS_HOST) console.warn('[apiConfig] VITE_VPS_HOST not set — VPS mode will not work');
+const VPS_HOST = import.meta.env.VITE_VPS_HOST || 'localhost';
+if (VPS_HOST === 'localhost') console.warn('[apiConfig] VITE_VPS_HOST not set — VPS mode will use localhost');
 
 // Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
 const CF_PARSER = 'https://api.qoebit.net';

@@ -104,7 +104,6 @@ const InvestigatorPage: React.FC = () => {
   const [isLoadingWorst, setIsLoadingWorst] = React.useState(false);
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
-  const handleApplyRef = useRef<() => void>(() => {});
   const abortRef = useRef<AbortController | null>(null);
 
   // Load KPI metadata for severity/ranking
@@ -118,12 +117,17 @@ const InvestigatorPage: React.FC = () => {
 
   // Load filter options on mount
   React.useEffect(() => {
+    let cancelled = false;
     (async () => {
       const dors = await fetchFilterValues('DOR');
+      if (cancelled) return;
       const plaques = await fetchFilterValues('PLAQUE');
+      if (cancelled) return;
       const bands = await fetchFilterValues('BAND');
+      if (cancelled) return;
       setWorstFilterOptions({ DOR: dors, PLAQUE: plaques, BAND: bands });
     })();
+    return () => { cancelled = true; };
   }, []);
 
   // Auto-select first slot if none selected or active was removed
@@ -221,8 +225,6 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
-  handleApplyRef.current = handleApply;
-
   // Counter timeseries — tag with slotId for isolation
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   React.useEffect(() => {
@@ -241,9 +243,10 @@ const InvestigatorPage: React.FC = () => {
       const counterPoints = (data.series || []).map((s: any) => ({
         timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: slotId,
       }));
-      // Remove old counter points for THIS slot only, preserve others
-      const current = useInvestigatorStore.getState().tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
-      setTsData([...current, ...counterPoints]);
+      // Remove old counter points for THIS slot, merge fresh ones — use store's latest state
+      useInvestigatorStore.setState((prev) => ({
+        tsData: [...prev.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId)), ...counterPoints],
+      }));
     }).catch(() => {});
     return () => ctrl.abort();
   }, [counterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, setTsData]);

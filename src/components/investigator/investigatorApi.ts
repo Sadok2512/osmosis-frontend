@@ -220,7 +220,7 @@ async function fetchKpiComputeOnTheFly(
               };
             }
           }
-        } catch {}
+        } catch (retryErr) { warn('[KpiCompute] Retry failed:', retryErr); }
       }
       return { data: [], isComputed: false };
     }
@@ -330,7 +330,8 @@ async function fetchCounterTimeSeriesFallback(
       })),
       isUnfiltered: false,
     };
-  } catch {
+  } catch (e) {
+    warn('[CounterFallback] Exception:', e);
     return { data: [], isUnfiltered: false };
   }
 }
@@ -572,8 +573,9 @@ export async function fetchTimeSeriesForSlot(
           kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
         );
         cacheSet(cacheKey, promise);
-        setTimeout(() => _computeCache.delete(cacheKey), 30000);
         computed = await promise;
+        // Evict after settle — not while pending
+        setTimeout(() => _computeCache.delete(cacheKey), 30000);
         log('[Pipeline] Step 1 PM Compute END:', kpiId, {
           duration: `${Date.now() - queryStart}ms`,
           points: computed.data.length,
@@ -1029,7 +1031,8 @@ export async function fetchKpisWithData(dimension: string, value: string): Promi
     if (!res.ok) return new Set();
     const data = await res.json();
     return new Set((data || []).map((k: any) => k.kpi_key));
-  } catch {
+  } catch (e) {
+    warn('[API] Exception:', e);
     return new Set();
   }
 }
@@ -1042,7 +1045,8 @@ export async function fetchFilterValues(dimension: string): Promise<string[]> {
     if (!res.ok) return [];
     const data = await res.json();
     return data.values || [];
-  } catch {
+  } catch (e) {
+    warn('[API] Exception:', e);
     return [];
   }
 }
@@ -1077,7 +1081,7 @@ export async function fetchHistogramData(
       histogram[idx].count++;
     }
     return histogram;
-  } catch { return []; }
+  } catch (e) { warn('[API] Exception:', e); return []; }
 }
 
 // ── Fetch breakdown by dimension ──
@@ -1108,7 +1112,7 @@ export async function fetchBreakdownData(
     return Object.entries(groups).map(([name, values], i) => ({
       name, value: +(values.reduce((a, b) => a + b, 0) / values.length).toFixed(2), color: colors[i % colors.length],
     }));
-  } catch { return []; }
+  } catch (e) { warn('[API] Exception:', e); return []; }
 }
 
 // ── AI Investigation → Agent Layer :1000 ──
@@ -1138,7 +1142,8 @@ export async function fetchCellDetails(
     });
     if (!res.ok) return [];
     return res.json();
-  } catch {
+  } catch (e) {
+    warn('[API] Exception:', e);
     return [];
   }
 }
