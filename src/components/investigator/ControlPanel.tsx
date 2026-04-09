@@ -1159,12 +1159,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         const nextStart = format(d, 'yyyy-MM-dd');
                         const timePart = parseTime(prev.startDate);
                         const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
-                        // Always reset endDate to startDate when start changes
-                        const prevEndDate = prev.endDate ? prev.endDate.split('T')[0] : '';
+                        // Reset endDate to startDate; keep endDate only if still valid (>= new start)
+                        const prevEndOnly = prev.endDate ? prev.endDate.split('T')[0] : '';
                         const endTimePart = parseTime(prev.endDate);
-                        const newEnd = (!prevEndDate || prevEndDate < nextStart)
-                          ? fullStart
-                          : (showTimePickers ? `${prevEndDate}T${endTimePart}` : prevEndDate);
+                        const keepEnd = prevEndOnly && prevEndOnly >= nextStart;
+                        const newEnd = keepEnd
+                          ? (showTimePickers ? `${prevEndOnly}T${endTimePart}` : prevEndOnly)
+                          : fullStart;
                         return { ...prev, startDate: fullStart, endDate: newEnd };
                       })}
                       initialFocus
