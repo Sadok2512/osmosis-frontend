@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import AnalysisTabBar from './AnalysisTabBar';
-import { useAnalysisTabs } from './useAnalysisTabs';
+import { useAnalysisTabs, TabContextSnapshot } from './useAnalysisTabs';
 import ControlPanel from './ControlPanel';
 import KPIGraphs from './KPIGraphs';
 import KPIHistogram from './KPIHistogram';
@@ -43,9 +43,24 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   filters: {},
   startDate: '',
   endDate: '',
-  granularity: '' as Granularity,  // empty = use global granularity from toolbar
+  granularity: '' as Granularity,
   splitBy: 'None',
 });
+
+/** Build a context snapshot from a graph slot + global state */
+function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
+  return {
+    sourceGraphId: slot.id,
+    sourceGraphTitle: slot.name,
+    kpiIds: slot.kpiIds,
+    filters: { ...globalState.filters, ...slot.filters },
+    startDate: slot.startDate || globalState.startDate,
+    endDate: slot.endDate || globalState.endDate,
+    granularity: slot.granularity || globalState.granularity,
+    kpiLevel: globalState.kpiLevel,
+    splitBy: slot.splitBy !== 'None' ? slot.splitBy : globalState.splitBy !== 'None' ? globalState.splitBy : null,
+  };
+}
 
 const InvestigatorPage: React.FC = () => {
   const {
@@ -59,29 +74,30 @@ const InvestigatorPage: React.FC = () => {
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
-   const [showAIPanel, setShowAIPanel] = useState(false);
-   const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-   const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
-   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
-   const analysisTabs = useAnalysisTabs();
-   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
+  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
+  const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
+  const analysisTabs = useAnalysisTabs();
+  const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
 
-   // Escape key exits fullscreen
-   React.useEffect(() => {
-     if (!isGraphFullscreen) return;
-     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsGraphFullscreen(false); };
-     window.addEventListener('keydown', handler);
-     return () => window.removeEventListener('keydown', handler);
-   }, [isGraphFullscreen]);
+  // Escape key exits fullscreen
+  React.useEffect(() => {
+    if (!isGraphFullscreen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setIsGraphFullscreen(false); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isGraphFullscreen]);
 
-   React.useEffect(() => {
-     if (!isGraphFullscreen) return;
-     const originalOverflow = document.body.style.overflow;
-     document.body.style.overflow = 'hidden';
-     return () => {
-       document.body.style.overflow = originalOverflow;
-     };
-   }, [isGraphFullscreen]);
+  React.useEffect(() => {
+    if (!isGraphFullscreen) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isGraphFullscreen]);
+
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -100,7 +116,7 @@ const InvestigatorPage: React.FC = () => {
     });
   }, []);
 
-  // Load filter options on mount — sequential to avoid DB connection issues
+  // Load filter options on mount
   React.useEffect(() => {
     (async () => {
       const dors = await fetchFilterValues('DOR');
@@ -119,19 +135,47 @@ const InvestigatorPage: React.FC = () => {
     }
   }, [state.graphSlots, activeSlotId]);
 
+  // ═══ Auto-sync bottom panels to active graph ═══
+  // When activeSlotId changes, auto-activate/create tabs linked to that graph
+  const prevActiveSlotRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeSlotId || activeSlotId === prevActiveSlotRef.current) return;
+    prevActiveSlotRef.current = activeSlotId;
+
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    if (!slot) return;
+
+    const snapshot = buildSnapshot(slot, state);
+
+    // Auto-sync table data to active graph
+    setTableDataSlotId(activeSlotId);
+
+    // Auto-sync multi-tab sections
+    const sections = ['top_worst', 'alarms', 'neighbors', 'cm_history'] as const;
+    for (const sec of sections) {
+      analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
+    }
+  }, [activeSlotId, state.graphSlots]);
+
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
 
-  // No auto-refresh: queries only run on explicit "Appliquer" click
+  // Get active slot for context
+  const activeSlot = useMemo(() => 
+    state.graphSlots.find(s => s.id === activeSlotId) || null
+  , [state.graphSlots, activeSlotId]);
+
+  // Build current snapshot for active graph
+  const activeSnapshot = useMemo(() => 
+    activeSlot ? buildSnapshot(activeSlot, state) : null
+  , [activeSlot, state]);
 
   const handleApply = async () => {
-    // Require at least one dimension filter (Site, Cell, etc.)
     if (!hasFilters) {
       setApplyError('Veuillez sélectionner au moins un filtre (Site, Cell…) avant de lancer la requête.');
       return;
     }
 
-    // Determine the active slot to query
     const targetSlot = activeSlotId
       ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
       : null;
@@ -141,10 +185,8 @@ const InvestigatorPage: React.FC = () => {
       return;
     }
 
-    const activeView = state.activeGraphTab;
     if (import.meta.env.DEV) console.log('[Investigator] Apply → active slot only:', targetSlot.id, targetSlot.name);
 
-    // Abort any in-flight request before starting a new one
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -155,15 +197,12 @@ const InvestigatorPage: React.FC = () => {
 
     try {
       const ctx = resolveSlotContext(targetSlot, state);
-
       const queryStart = Date.now();
       const result = await fetchTimeSeriesForSlot(ctx);
 
       if (controller.signal.aborted) return;
 
       const taggedData = result.data.map(d => ({ ...d, _slotId: targetSlot.id }));
-
-      // Preserve data from OTHER slots, replace only the active slot's data
       const otherData = tsData.filter((d: any) => d._slotId !== targetSlot.id);
       setTsData([...otherData, ...taggedData]);
       setHasLoadedOnce(true);
@@ -184,10 +223,11 @@ const InvestigatorPage: React.FC = () => {
   };
   handleApplyRef.current = handleApply;
 
-  // Fix #5: Fetch counter timeseries and tag with slotId for isolation
+  // Counter timeseries — tag with slotId for isolation
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
+    const slotId = activeSlotId || 'global';
     const body = {
       counter_names: selectedCounters.map((c: any) => c.counter_name),
       date_from: state.startDate.split('T')[0],
@@ -198,12 +238,11 @@ const InvestigatorPage: React.FC = () => {
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal,
     }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
-      const slotId = activeSlotId || 'global';
       const counterPoints = (data.series || []).map((s: any) => ({
         timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: slotId,
       }));
-      // Remove old counter points and add fresh ones
-      const current = useInvestigatorStore.getState().tsData.filter((d: any) => !d._isCounter);
+      // Remove old counter points for THIS slot only, preserve others
+      const current = useInvestigatorStore.getState().tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
       setTsData([...current, ...counterPoints]);
     }).catch(() => {});
     return () => ctrl.abort();
@@ -212,12 +251,11 @@ const InvestigatorPage: React.FC = () => {
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
     try {
-      const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
+      const kpiIds = activeSlot?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds);
       if (!kpiIds.length) { setIsLoadingWorst(false); return; }
       const dateFrom = state.startDate.split('T')[0];
       const dateTo = state.endDate.split('T')[0];
 
-      // Primary: direct ClickHouse query via parser (works when KPI Engine can't reach CH)
       const allFilters = [...worstFilters];
       const siteFromState = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0];
       if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
@@ -225,7 +263,6 @@ const InvestigatorPage: React.FC = () => {
       }
       const byDOR = await fetchWorstCellsDirect(kpiIds, state.topLimit, dateFrom, dateTo, allFilters, kpiMetaMap);
 
-      // Enrich with alarms
       const allCells = Object.values(byDOR).flat();
       const cellNames = allCells.map(c => c.name).filter(Boolean);
       let finalByDOR = byDOR;
@@ -285,8 +322,6 @@ const InvestigatorPage: React.FC = () => {
       }).filter(f => f.values.length > 0);
     });
   };
-
-  // Manual apply only — user must click "Appliquer" to load data
 
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
@@ -467,7 +502,7 @@ const InvestigatorPage: React.FC = () => {
                 })}
               </div>
               <div className="text-[10px] text-muted-foreground">
-                Les KPIs neighbor sont affiches dans le graphe TimeSeries ci-dessus. Utilisez le filtre "Type" pour isoler X2, HO LTE ou HO UTRAN.
+                Les KPIs neighbor sont affichés dans le graphe TimeSeries ci-dessus. Utilisez le filtre "Type" pour isoler X2, HO LTE ou HO UTRAN.
               </div>
             </div>
           ) : (
@@ -476,10 +511,10 @@ const InvestigatorPage: React.FC = () => {
               <p className="text-sm font-semibold text-muted-foreground">
                 {state.kpiLevel !== 'NEIGHBOR'
                   ? 'Passez au niveau "Neighbor" dans la barre de filtres pour analyser les relations de voisinage'
-                  : 'Selectionnez des KPIs Neighbor (NEIGH_*) et appliquez'}
+                  : 'Sélectionnez des KPIs Neighbor (NEIGH_*) et appliquez'}
               </p>
               <p className="text-[10px] text-muted-foreground max-w-md">
-                Le flux de voisinage affiche les handovers entrants/sortants, les taux de succes HO et la topologie des relations entre cellules adjacentes.
+                Le flux de voisinage affiche les handovers entrants/sortants, les taux de succès HO et la topologie des relations entre cellules adjacentes.
               </p>
               {state.kpiLevel !== 'NEIGHBOR' && (
                 <button
@@ -518,7 +553,7 @@ const InvestigatorPage: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 space-y-6 w-full">
-        {/* Error toast when no KPIs selected */}
+        {/* Error toast */}
         {applyError && (
           <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
@@ -531,7 +566,6 @@ const InvestigatorPage: React.FC = () => {
           </div>
         )}
 
-        {/* Bug #3: Warning when fallback data is unfiltered */}
         {hasUnfilteredFallback && (
           <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
@@ -545,7 +579,8 @@ const InvestigatorPage: React.FC = () => {
 
         {/* ═══ Analysis Tabs ═══ */}
         {(() => {
-          // Determine which tabs are enabled based on ANY slot's config toggles
+          // Visibility based on active graph's config (not global some())
+          const activeConfig = activeSlot?.config || DEFAULT_GRAPH_CONFIG;
           const configKeyMap: Record<string, keyof GraphConfig> = {
             table_data: 'showDataTable',
             breakdown: 'showBreakdown',
@@ -564,7 +599,7 @@ const InvestigatorPage: React.FC = () => {
           const visibleTabs = allTabs.filter(tab => {
             const cfgKey = configKeyMap[tab.key];
             if (!cfgKey) return true; // cm_history always visible
-            return state.graphSlots.some(s => (s.config || DEFAULT_GRAPH_CONFIG)[cfgKey]);
+            return (activeConfig as any)[cfgKey];
           });
 
           if (visibleTabs.length === 0) return null;
@@ -579,8 +614,9 @@ const InvestigatorPage: React.FC = () => {
                     onClick={() => {
                       const newTab = analysisTab === tab.key ? null : tab.key;
                       setAnalysisTab(newTab);
-                      if (newTab) {
-                        analysisTabs.ensureTab(newTab);
+                      if (newTab && activeSlot) {
+                        const snap = buildSnapshot(activeSlot, state);
+                        analysisTabs.ensureTab(newTab, activeSlotId, snap);
                       }
                       if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
                         handleFindWorst();
@@ -613,15 +649,17 @@ const InvestigatorPage: React.FC = () => {
         })()}
 
         {/* ═══ Multi-tab bar for active section ═══ */}
-        {/* ═══ Multi-tab bar: slot-based for table_data, generic for others ═══ */}
-        {analysisTab && analysisTab !== 'table_data' && (() => {
+        {analysisTab && analysisTab !== 'table_data' && analysisTab !== 'breakdown' && (() => {
           const sec = analysisTabs.getSection(analysisTab);
           return (
             <AnalysisTabBar
               tabs={sec.instances}
               activeId={sec.activeId}
               onSelect={(id) => analysisTabs.setActiveTab(analysisTab!, id)}
-              onAdd={() => analysisTabs.addTab(analysisTab!)}
+              onAdd={() => {
+                const snap = activeSlot ? buildSnapshot(activeSlot, state) : null;
+                analysisTabs.addTab(analysisTab!, activeSlotId, snap, activeSlot?.name);
+              }}
               onRemove={(id) => {
                 analysisTabs.removeTab(analysisTab!, id);
                 const remaining = analysisTabs.getSection(analysisTab!).instances;
@@ -635,10 +673,9 @@ const InvestigatorPage: React.FC = () => {
         {/* ═══ Table Data: one tab per graph slot ═══ */}
         {analysisTab === 'table_data' && (() => {
           const slots = state.graphSlots;
-          // Auto-select first slot if current selection is invalid
           const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
             ? tableDataSlotId
-            : slots[0]?.id || null;
+            : activeSlotId || slots[0]?.id || null;
           const activeTableSlot = slots.find(s => s.id === effectiveSlotId) || null;
           const slotData = effectiveSlotId
             ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
@@ -646,7 +683,6 @@ const InvestigatorPage: React.FC = () => {
 
           return (
             <>
-              {/* Slot tabs */}
               {slots.length > 0 && (
                 <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg">
                   {slots.map((slot) => (
@@ -670,7 +706,6 @@ const InvestigatorPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Context banner */}
               {activeTableSlot && (
                 <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground">
                   <span className="font-bold text-primary">Source:</span>
@@ -690,9 +725,21 @@ const InvestigatorPage: React.FC = () => {
           );
         })()}
 
-        {analysisTab === 'breakdown' && state.graphSlots.flatMap(s => s.kpiIds).length > 0 && (
+        {/* ═══ KPI Breakdown: linked to active graph ═══ */}
+        {analysisTab === 'breakdown' && activeSlot && activeSlot.kpiIds.length > 0 && (
           <section>
-            <KPIBreakdown selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} dateFrom={state.startDate.split("T")[0] || "2026-01-01"} dateTo={state.endDate.split("T")[0] || "2026-03-24"} granularity={state.granularity} filters={Object.entries(state.filters).filter(([,v]) => v.length > 0).map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))} splitBy={state.splitBy !== 'None' ? state.splitBy : undefined} timeSeriesData={tsData} />
+            <KPIBreakdown
+              selectedKpis={activeSlot.kpiIds}
+              layout={state.graphLayout}
+              dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
+              dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
+              granularity={activeSlot.granularity || state.granularity}
+              filters={Object.entries({ ...state.filters, ...activeSlot.filters })
+                .filter(([,v]) => v.length > 0)
+                .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
+              splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+              timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
+            />
           </section>
         )}
 
@@ -702,7 +749,7 @@ const InvestigatorPage: React.FC = () => {
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
           return sec.instances.map(inst => (
             <div key={inst.id} style={{ display: analysisTab === 'top_worst' && inst.id === activeTabId ? undefined : 'none' }}>
-              <TopWorstTabContent tabId={inst.id} />
+              <TopWorstTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
             </div>
           ));
         })()}
@@ -713,7 +760,7 @@ const InvestigatorPage: React.FC = () => {
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
           return sec.instances.map(inst => (
             <div key={inst.id} style={{ display: analysisTab === 'alarms' && inst.id === activeTabId ? undefined : 'none' }}>
-              <AlarmsTabContent tabId={inst.id} />
+              <AlarmsTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
             </div>
           ));
         })()}
@@ -731,7 +778,7 @@ const InvestigatorPage: React.FC = () => {
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
           return sec.instances.map(inst => (
             <div key={inst.id} style={{ display: analysisTab === 'neighbors' && inst.id === activeTabId ? undefined : 'none' }}>
-              <NeighborsTabContent tabId={inst.id} />
+              <NeighborsTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
             </div>
           ));
         })()}
@@ -742,7 +789,7 @@ const InvestigatorPage: React.FC = () => {
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
           return sec.instances.map(inst => (
             <div key={inst.id} style={{ display: analysisTab === 'cm_history' && inst.id === activeTabId ? undefined : 'none' }}>
-              <CMHistoryTabContent tabId={inst.id} />
+              <CMHistoryTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
             </div>
           ));
         })()}
