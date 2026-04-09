@@ -1470,132 +1470,110 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           </button>
                         </button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[320px] p-3 space-y-3" align="start">
+                      <PopoverContent className="w-[300px] p-2.5 space-y-2" align="start">
+                      {/* Header + Breakdown */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                          <span className="text-xs font-bold text-foreground truncate max-w-[180px]">{name}</span>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="text-[11px] font-bold text-foreground truncate">{name}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[9px] text-muted-foreground">Breakdown</span>
+                          <Switch checked={cfg.showBreakdown} onCheckedChange={v => {
+                            setSlotConfig({ showBreakdown: v });
+                            if (onActivateTab) { v ? onActivateTab('breakdown') : onActivateTab(null); }
+                          }} className="scale-[0.65]" />
                         </div>
                       </div>
-                      <div className="h-px bg-border/60" />
-                      {/* KPI Breakdown — at top */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">KPI Breakdown</span>
-                        <Switch checked={cfg.showBreakdown} onCheckedChange={v => {
-                          setSlotConfig({ showBreakdown: v });
-                          if (onActivateTab) {
-                            v ? onActivateTab('breakdown') : onActivateTab(null);
-                          }
-                        }} className="scale-75" />
-                      </div>
-                      <div className="h-px bg-border/60" />
-                      {/* Chart Type */}
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Chart Type</span>
-                        <div className="flex flex-wrap gap-1">
-                          {CHART_TYPES.map(ct => (
-                            <button
-                              key={ct.value}
-                              onClick={() => setSlotConfig({ chartTypePerKpi: { ...(cfg.chartTypePerKpi || {}), [kpiIdItem]: ct.value } })}
-                              className={cn(
-                                'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                                (cfg.chartTypePerKpi?.[kpiIdItem] || cfg.chartType) === ct.value
-                                  ? 'border-primary/40 bg-primary/10 text-primary'
-                                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-                              )}
-                            >
-                              <ct.icon className="w-3 h-3" />
-                              {ct.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Smooth Curve</span>
-                        <Switch checked={cfg.smooth} onCheckedChange={v => setSlotConfig({ smooth: v })} className="scale-75" />
-                      </div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-medium text-foreground">Line Width</span>
-                          <span className="text-[9px] text-muted-foreground font-mono">{cfg.lineWidth}px</span>
-                        </div>
-                        <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="w-full" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Show Markers</span>
-                        <Switch checked={cfg.showSymbols} onCheckedChange={v => setSlotConfig({ showSymbols: v })} className="scale-75" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Area Fill</span>
-                        <Switch checked={cfg.showArea} onCheckedChange={v => setSlotConfig({ showArea: v })} className="scale-75" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Thresholds</span>
-                        <Switch checked={cfg.showThresholds} onCheckedChange={v => setSlotConfig({ showThresholds: v })} className="scale-75" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-medium text-foreground">Grid Lines</span>
-                        <Switch checked={cfg.showGrid} onCheckedChange={v => setSlotConfig({ showGrid: v })} className="scale-75" />
-                      </div>
-                      {/* Y-Axis */}
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Axe Y</span>
-                          <ToggleGroup
-                            type="single"
-                            value={(cfg as any).__activeYTab || 'L'}
-                            onValueChange={(value) => value && setSlotConfig({ __activeYTab: value } as any)}
-                            className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
+                      {/* Chart Type — compact icon row */}
+                      <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/40">
+                        {CHART_TYPES.map(ct => (
+                          <button key={ct.value}
+                            onClick={() => setSlotConfig({ chartTypePerKpi: { ...(cfg.chartTypePerKpi || {}), [kpiIdItem]: ct.value } })}
+                            className={cn('flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[9px] font-semibold transition-all',
+                              (cfg.chartTypePerKpi?.[kpiIdItem] || cfg.chartType) === ct.value
+                                ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                            )}
+                            title={ct.label}
                           >
-                            {(['L', 'R'] as const).map(side => (
-                              <ToggleGroupItem
-                                key={side}
-                                value={side}
-                                size="sm"
-                                className="h-6 min-w-7 rounded-[5px] border-0 px-2 text-[9px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
-                                aria-label={`Activer l'axe ${side === 'L' ? 'gauche' : 'droit'}`}
-                              >
-                                {side}
-                              </ToggleGroupItem>
-                            ))}
-                          </ToggleGroup>
-                        </div>
+                            <ct.icon className="w-3 h-3" />
+                            <span className="hidden sm:inline">{ct.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      {/* Toggles — 2-column grid */}
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                        {([
+                          { label: 'Smooth', checked: cfg.smooth, onChange: (v: boolean) => setSlotConfig({ smooth: v }) },
+                          { label: 'Markers', checked: cfg.showSymbols, onChange: (v: boolean) => setSlotConfig({ showSymbols: v }) },
+                          { label: 'Area Fill', checked: cfg.showArea, onChange: (v: boolean) => setSlotConfig({ showArea: v }) },
+                          { label: 'Thresholds', checked: cfg.showThresholds, onChange: (v: boolean) => setSlotConfig({ showThresholds: v }) },
+                          { label: 'Grid', checked: cfg.showGrid, onChange: (v: boolean) => setSlotConfig({ showGrid: v }) },
+                        ] as const).map(toggle => (
+                          <div key={toggle.label} className="flex items-center justify-between py-0.5">
+                            <span className="text-[9px] text-foreground">{toggle.label}</span>
+                            <Switch checked={toggle.checked} onCheckedChange={toggle.onChange} className="scale-[0.6]" />
+                          </div>
+                        ))}
+                      </div>
+                      {/* Line Width — inline */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-foreground shrink-0">Width</span>
+                        <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
+                        <span className="text-[8px] text-muted-foreground font-mono w-6 text-right">{cfg.lineWidth}px</span>
+                      </div>
+                      {/* Y-Axis — compact */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
+                        <ToggleGroup type="single" value={(cfg as any).__activeYTab || 'L'}
+                          onValueChange={(value) => value && setSlotConfig({ __activeYTab: value } as any)}
+                          className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
+                        >
+                          {(['L', 'R'] as const).map(side => (
+                            <ToggleGroupItem key={side} value={side} size="sm"
+                              className="h-5 min-w-6 rounded-[4px] border-0 px-1.5 text-[8px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                            >{side}</ToggleGroupItem>
+                          ))}
+                        </ToggleGroup>
                         {(() => {
                           const isRight = (cfg as any).__activeYTab === 'R';
                           const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
                           const axisKey = isRight ? 'yAxisRight' : 'yAxis';
                           return (
-                            <>
-                              <div className="flex gap-1">
-                                {(['auto', 'manual'] as const).map(mode => (
-                                  <button key={mode} onClick={() => setSlotConfig({ [axisKey]: { ...axisCfg, mode } })}
-                                    className={cn('flex-1 px-2 py-1 rounded-md text-[10px] font-semibold transition-all border',
-                                      (axisCfg?.mode || 'auto') === mode ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/40 text-muted-foreground hover:bg-muted/50')}
-                                  >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
-                                ))}
-                              </div>
-                              {axisCfg?.mode === 'manual' && (
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="space-y-0.5">
-                                    <span className="text-[9px] text-muted-foreground">Min</span>
-                                    <input type="number" value={axisCfg?.min ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <span className="text-[9px] text-muted-foreground">Max</span>
-                                    <input type="number" value={axisCfg?.max ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-mono" />
-                                  </div>
-                                </div>
-                              )}
-                            </>
+                            <div className="flex gap-0.5 flex-1">
+                              {(['auto', 'manual'] as const).map(mode => (
+                                <button key={mode} onClick={() => setSlotConfig({ [axisKey]: { ...axisCfg, mode } })}
+                                  className={cn('flex-1 px-1.5 py-0.5 rounded text-[8px] font-semibold transition-all',
+                                    (axisCfg?.mode || 'auto') === mode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/50')}
+                                >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
+                              ))}
+                            </div>
                           );
                         })()}
                       </div>
-                      {/* Split 1 & 2 — hidden when no split is active, with "+ Ajouter Split" button */}
+                      {(() => {
+                        const isRight = (cfg as any).__activeYTab === 'R';
+                        const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
+                        const axisKey = isRight ? 'yAxisRight' : 'yAxis';
+                        if (axisCfg?.mode !== 'manual') return null;
+                        return (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] text-muted-foreground">Min</span>
+                              <input type="number" value={axisCfg?.min ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-mono" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] text-muted-foreground">Max</span>
+                              <input type="number" value={axisCfg?.max ?? ''} onChange={e => setSlotConfig({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-mono" />
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      {/* Split */}
                       {(() => {
                         const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
                         const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
                         const hasSplitOptions = splitOptions.length > 0 || activePmDimensions.size > 0;
-                        // Per-KPI PM dimension: only show dimensions relevant to THIS KPI
                         const thisKpiDim = kpiDimensionMap.get(kpiIdItem);
                         const relevantPmDims = thisKpiDim ? [thisKpiDim] : Array.from(activePmDimensions);
                         const buildSplits = (val: string) => {
@@ -1615,104 +1593,62 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         return (
                           <>
                             {hasSplit1Active ? (
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
-                                <select
-                                  value={Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || 'None'}
+                              <div className="space-y-0.5">
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
+                                <select value={Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || 'None'}
                                   onChange={e => {
                                     const val = e.target.value;
-                                    if (val === 'None') {
-                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
-                                    } else {
-                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(val) } } : s) }));
-                                    }
+                                    if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
+                                    else setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(val) } } : s) }));
                                   }}
-                                  className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                                  className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-medium"
                                 >
                                   <option value="None">Aucun</option>
                                   {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                  {relevantPmDims.length > 0 && (
-                                    <optgroup label="── PM Dimensions ──">
-                                      {relevantPmDims.map(d => (
-                                        <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
-                                      ))}
-                                    </optgroup>
-                                  )}
+                                  {relevantPmDims.length > 0 && <optgroup label="PM Dimensions">{relevantPmDims.map(d => <option key={`pm_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>)}</optgroup>}
                                 </select>
                               </div>
                             ) : hasSplitOptions ? (
-                              <button
-                                onClick={() => {
-                                  const firstKey = splitOptions[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
-                                  if (firstKey === 'None') return;
-                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(firstKey) } } : s) }));
-                                }}
-                                className="w-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1.5 rounded-md transition-colors border border-dashed border-border"
-                              >
-                                + Ajouter Split
-                              </button>
+                              <button onClick={() => {
+                                const firstKey = splitOptions[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
+                                if (firstKey === 'None') return;
+                                setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(firstKey) } } : s) }));
+                              }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split</button>
                             ) : null}
-
                             {hasSplit1Active && hasSplit2Active ? (
-                              <div className="space-y-1">
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
-                                <select
-                                  value={Object.values(cfg.splitByPerKpi2 || {}).find(v => v && v !== 'None') || 'None'}
+                              <div className="space-y-0.5">
+                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
+                                <select value={Object.values(cfg.splitByPerKpi2 || {}).find(v => v && v !== 'None') || 'None'}
                                   onChange={e => {
                                     const val = e.target.value;
-                                    if (val === 'None') {
-                                      setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
-                                    } else {
+                                    if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
+                                    else {
                                       const allSplits2: Record<string, string> = {};
                                       slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
                                       setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                                     }
                                   }}
-                                  className="w-full px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+                                  className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-medium"
                                 >
                                   <option value="None">Aucun</option>
-                                  {splitOptions
-                                    .filter(s => s.key !== (Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None')))
-                                    .map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                                  {relevantPmDims.length > 0 && (
-                                    <optgroup label="── PM Dimensions ──">
-                                      {relevantPmDims.map(d => (
-                                        <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>
-                                      ))}
-                                    </optgroup>
-                                  )}
+                                  {splitOptions.filter(s => s.key !== (Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None'))).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                                  {relevantPmDims.length > 0 && <optgroup label="PM Dimensions">{relevantPmDims.map(d => <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>)}</optgroup>}
                                 </select>
                               </div>
                             ) : hasSplit1Active && hasSplitOptions ? (
-                              <button
-                                onClick={() => {
-                                  const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
-                                  const available = splitOptions.filter(s => s.key !== split1Val);
-                                  const firstKey = available[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
-                                  if (firstKey === 'None') return;
-                                  const allSplits2: Record<string, string> = {};
-                                  slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
-                                  setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
-                                }}
-                                className="w-full text-[10px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1.5 rounded-md transition-colors border border-dashed border-border"
-                              >
-                                + Ajouter Split 2
-                              </button>
+                              <button onClick={() => {
+                                const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
+                                const available = splitOptions.filter(s => s.key !== split1Val);
+                                const firstKey = available[0]?.key || (relevantPmDims.length > 0 ? `PM_DIM:${relevantPmDims[0]}` : 'None');
+                                if (firstKey === 'None') return;
+                                const allSplits2: Record<string, string> = {};
+                                slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
+                                setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
+                              }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split 2</button>
                             ) : null}
                           </>
                         );
                       })()}
-                      <div className="h-px bg-border/60" />
-                      <button
-                        onClick={(e) => {
-                          (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
-                            new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-                          );
-                        }}
-                        className="w-full text-[10px] font-semibold text-primary hover:bg-primary/10 py-1.5 rounded-md transition-colors"
-                      >
-                        Appliquer
-                      </button>
                     </PopoverContent>
                     </Popover>
                     {/* Split chip — only for non-PM splits (PM splits are already shown as badge on the KPI chip) */}
