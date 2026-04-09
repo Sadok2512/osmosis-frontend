@@ -426,7 +426,7 @@ interface Props {
   activeSlotId?: string | null;
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
-  onActivateTab?: (tab: 'table_data' | 'breakdown') => void;
+  onActivateTab?: (tab: 'table_data' | 'breakdown' | null) => void;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
