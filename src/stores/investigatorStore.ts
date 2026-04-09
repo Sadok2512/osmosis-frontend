@@ -26,7 +26,7 @@ const INITIAL_STATE: InvestigationState = {
   granularity: '1d',  // default daily, user changes via toolbar
   filters: {},
   topLimit: 10,
-  sortBy: null as unknown as string, // typed as string in interface, null semantically
+  sortBy: null,
   graphLayout: 2,
   activeGraphTab: 'TimeSeries',
   jalons: [],

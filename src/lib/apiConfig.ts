@@ -9,7 +9,8 @@
  * All calls go through the vps-proxy edge function to avoid mixed-content blocking.
  */
 
-const VPS_HOST = '151.242.147.49';
+const VPS_HOST = import.meta.env.VITE_VPS_HOST || '';
+if (!VPS_HOST) console.warn('[apiConfig] VITE_VPS_HOST not set — VPS mode will not work');
 
 // Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
 const CF_PARSER = 'https://api.qoebit.net';
@@ -32,6 +33,12 @@ export const VPS_ENDPOINTS = {
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
 const DEFAULT_LOCAL_API = 'http://localhost:3001';
 const DATA_SOURCE_KEY = 'osmosis_data_source';
+
+/** Default request timeout (30s) */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
+/** Agent API key from env */
+export const AGENT_API_KEY = import.meta.env.VITE_AGENT_API_KEY || '';
 
 type DataSource = 'local' | 'cloud' | 'vps';
 
@@ -73,7 +80,8 @@ export const isVpsMode = (): boolean => getPreferredDataSource() === 'vps';
 
 // ── VPS Proxy via Edge Function ──
 
-const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID || 'nmblfljpqiyxayaswmwn';
+const SUPABASE_PROJECT_ID = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+if (!SUPABASE_PROJECT_ID) console.error('[apiConfig] VITE_SUPABASE_PROJECT_ID is required but not set');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
 /**
@@ -225,11 +233,33 @@ export function getAgentHeaders(): Record<string, string> {
   if (source === 'vps') {
     return {
       ...getVpsProxyHeaders(),
-      'x-api-key': 'agent_secret_key',
+      'x-api-key': AGENT_API_KEY,
     };
   }
   return {
     'Content-Type': 'application/json',
-    'x-api-key': 'agent_secret_key',
+    'x-api-key': AGENT_API_KEY,
   };
+}
+
+/**
+ * Fetch with timeout — wraps native fetch with AbortSignal.timeout.
+ * @param input - fetch input (URL or Request)
+ * @param init - fetch init options (signal is merged, not overwritten)
+ * @param timeoutMs - timeout in milliseconds (default: REQUEST_TIMEOUT_MS)
+ */
+export function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  // Merge with existing signal if provided
+  if (init?.signal) {
+    init.signal.addEventListener('abort', () => controller.abort());
+  }
+
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
 }

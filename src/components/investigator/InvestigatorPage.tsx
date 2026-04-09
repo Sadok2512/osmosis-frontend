@@ -87,6 +87,7 @@ const InvestigatorPage: React.FC = () => {
   const [hasUnfilteredFallback, setHasUnfilteredFallback] = React.useState(false);
   const [kpiMetaMap, setKpiMetaMap] = React.useState<Map<string, KpiDefinition>>(new Map());
   const handleApplyRef = useRef<() => void>(() => {});
+  const abortRef = useRef<AbortController | null>(null);
 
   // Load KPI metadata for severity/ranking
   React.useEffect(() => {
@@ -138,7 +139,12 @@ const InvestigatorPage: React.FC = () => {
 
     // Only fetch data for the active graph tab view
     const activeView = state.activeGraphTab; // 'TimeSeries' | 'Histogram' | 'Neighbors'
-    console.log('[Investigator] Active view:', activeView, '— only fetching data for this view');
+    if (import.meta.env.DEV) console.log('[Investigator] Active view:', activeView);
+
+    // Abort any in-flight request before starting a new one
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setApplyError(null);
     setIsApplying(true);
@@ -150,95 +156,83 @@ const InvestigatorPage: React.FC = () => {
         ctx: resolveSlotContext(slot, state),
       }));
 
-      console.log('[Investigator] Fetching', slotContexts.length, 'slots SEQUENTIALLY for view:', activeView);
+      if (import.meta.env.DEV) console.log('[Investigator] Fetching', slotContexts.length, 'slots for view:', activeView);
 
       // ── SEQUENTIAL execution: one slot at a time, no Promise.all ──
       const allData: any[] = [];
       let anyUnfiltered = false;
 
       for (const { slot, ctx } of slotContexts) {
+        // Check if this request was aborted (user clicked Appliquer again)
+        if (controller.signal.aborted) break;
+
         const queryStart = Date.now();
-        console.log('[Investigator] ── Query START ──', {
-          slotId: slot.id,
-          kpis: ctx.kpiIds,
-          activeView,
-          dateFrom: ctx.dateFrom,
-          dateTo: ctx.dateTo,
-          granularity: ctx.granularity,
-          filters: ctx.filters,
-          splitBy: ctx.splitBy,
-        });
 
         try {
           const result = await fetchTimeSeriesForSlot(ctx);
-          const queryEnd = Date.now();
+          // Check abort after await
+          if (controller.signal.aborted) break;
+
           const taggedData = result.data.map(d => ({ ...d, _slotId: slot.id }));
-
-          console.log('[Investigator] ── Query END ──', {
-            slotId: slot.id,
-            kpis: ctx.kpiIds,
-            activeView,
-            duration: `${queryEnd - queryStart}ms`,
-            dataPoints: taggedData.length,
-            status: taggedData.length > 0 ? 'success' : 'no_data',
-            hasUnfilteredFallback: result.hasUnfilteredFallback,
-          });
-
           allData.push(...taggedData);
           if (result.hasUnfilteredFallback) anyUnfiltered = true;
         } catch (slotError) {
-          const queryEnd = Date.now();
-          console.error('[Investigator] ── Query FAILED ──', {
-            slotId: slot.id,
-            kpis: ctx.kpiIds,
-            activeView,
-            duration: `${queryEnd - queryStart}ms`,
-            error: slotError instanceof Error ? slotError.message : String(slotError),
-            status: 'query_failed',
-          });
+          if (controller.signal.aborted) break;
+          console.error('[Investigator] Query failed for slot', slot.id, slotError instanceof Error ? slotError.message : String(slotError));
         }
       }
 
-      console.log('[Investigator] Total data points:', allData.length, '(view:', activeView, ')');
+      // Don't update state if this request was aborted
+      if (controller.signal.aborted) return;
+
       setHasUnfilteredFallback(anyUnfiltered);
       setTsData(allData);
       setHasLoadedOnce(true);
+
+      if (allData.length === 0 && slotsWithKpis.length > 0) {
+        setApplyError('Aucune donnée trouvée pour les KPIs et filtres sélectionnés. Vérifiez la période et les filtres.');
+      }
     } catch (e) {
+      if (controller.signal.aborted) return;
       console.error('[Investigator] API error:', e);
+      setApplyError('Erreur lors de la requête. Veuillez réessayer.');
     }
     setIsApplying(false);
   };
   handleApplyRef.current = handleApply;
 
   // Fix #5: Fetch counter timeseries and tag with slotId for isolation
+  const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
     const body = {
       counter_names: selectedCounters.map((c: any) => c.counter_name),
-      date_from: state.startDate.split('T')[0] || '2026-03-24',
-      date_to: state.endDate.split('T')[0] || '2026-03-31',
+      date_from: state.startDate.split('T')[0],
+      date_to: state.endDate.split('T')[0],
       granularity: normalizeGranularity(state.granularity),
     };
+    const ctrl = new AbortController();
     fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal,
     }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
+      const slotId = activeSlotId || 'global';
       const counterPoints = (data.series || []).map((s: any) => ({
-        timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: activeSlotId || 'global',
+        timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: slotId,
       }));
       // Remove old counter points and add fresh ones
       const current = useInvestigatorStore.getState().tsData.filter((d: any) => !d._isCounter);
       setTsData([...current, ...counterPoints]);
     }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCounters.map((c:any) => c.counter_name).join(','), state.startDate, state.endDate, state.granularity]);
+    return () => ctrl.abort();
+  }, [counterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, setTsData]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
     try {
       const kpiIds = state.graphSlots.flatMap(s => s.kpiIds);
       if (!kpiIds.length) { setIsLoadingWorst(false); return; }
-      const dateFrom = state.startDate.split('T')[0] || '2026-01-01';
-      const dateTo = state.endDate.split('T')[0] || '2026-03-24';
+      const dateFrom = state.startDate.split('T')[0];
+      const dateTo = state.endDate.split('T')[0];
 
       // Primary: direct ClickHouse query via parser (works when KPI Engine can't reach CH)
       const allFilters = [...worstFilters];

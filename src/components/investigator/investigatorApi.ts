@@ -1,22 +1,39 @@
 // ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
 
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, AGENT_API_KEY } from '@/lib/apiConfig';
 import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
+
+/* ── Conditional logger: silent in production ── */
+const IS_DEV = import.meta.env.DEV;
+const log = (...args: unknown[]) => { if (IS_DEV) console.log(...args); };
+const warn = (...args: unknown[]) => { if (IS_DEV) console.warn(...args); };
+
+/* ── Dynamic date defaults (last 30 days) ── */
+const defaultDateFrom = () => new Date(Date.now() - 30 * 86400_000).toISOString().split('T')[0];
+const defaultDateTo = () => new Date().toISOString().split('T')[0];
+
+/** Stable color from KPI key — deterministic hash so colors don't shift when catalog order changes */
+const KPI_PALETTE = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+function stableKpiColor(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  return KPI_PALETTE[Math.abs(hash) % KPI_PALETTE.length];
+}
 
 // ── Fetch KPI catalog from KPI Engine :8001 ──
 export async function fetchKpiDefinitions(): Promise<KpiDefinition[]> {
   const url = getApiUrl('monitor/catalog/kpis');
-  const res = await fetch(url, { headers: getApiHeaders() });
+  const res = await fetchWithTimeout(url, { headers: getApiHeaders() });
   if (!res.ok) return [];
   const raw = await res.json();
   const data = Array.isArray(raw) ? raw : (raw?.kpis || raw?.items || raw?.data || raw?.rows || []);
-  return (data || []).slice(0, 5000).map((k: any, i: number) => ({
+  return (data || []).slice(0, 5000).map((k: any) => ({
     id: k.kpi_key,
     label: k.display_name || k.kpi_key,
     unit: k.unit || '',
     category: k.category || 'Other',
-    color: ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'][i % 10],
+    color: stableKpiColor(k.kpi_key || ''),
     thresholds: { warning: k.threshold_warning ?? 50, critical: k.threshold_critical ?? 20 },
     higherIsBetter: determineHigherIsBetter(k),
     orientation: k.orientation || null,
@@ -78,14 +95,16 @@ async function fetchKpiComputeOnTheFly(
       granularity,
     };
 
-    // Extract site/cell/dimension from filters
+    // Extract site/cell/dimension from filters — support multi-value
     const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
     if (filters && filters.length > 0) {
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
-        if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
-        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
-        else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
+        if (dim === 'SITE' && f.values?.length) {
+          body.site_name = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'CELL' && f.values?.length) {
+          body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
           body.dimension_filter = f.values.length === 1 ? f.values[0] : f.values;
         }
         // KPI Engine profile QCI → translate to PMQAP dimension
@@ -99,10 +118,10 @@ async function fetchKpiComputeOnTheFly(
 
     // Split by PM dimension: single query with GROUP BY dimension_key
     if (splitByPmDim && !body.dimension_filter) {
-      console.log('[KpiCompute] Split by PM dimension:', splitByPmDim);
+      log('[KpiCompute] Split by PM dimension:', splitByPmDim);
       try {
         // Fetch dimension labels for display
-        const dimRes = await fetch(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=50`), { headers: getApiHeaders() });
+        const dimRes = await fetchWithTimeout(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=50`), { headers: getApiHeaders() });
         const labelMap: Record<string, string> = {};
         if (dimRes.ok) {
           const dimData = await dimRes.json();
@@ -114,7 +133,7 @@ async function fetchKpiComputeOnTheFly(
         // Single request with split_by_dimension=true (+ optional double split field)
         const splitBody: any = { ...body, split_by_dimension: true };
         if (splitByField) splitBody.split_by_field = splitByField;
-        const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+        const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
           if (!splitResult.error && splitResult.series?.length > 0) {
@@ -131,18 +150,18 @@ async function fetchKpiComputeOnTheFly(
             }
             if (allData.length > 0) return { data: allData, isComputed: true };
           } else {
-            console.warn('[KpiCompute] Split by dimension returned 0 series for', kpiId, '— falling back to aggregated query');
+            warn('[KpiCompute] Split by dimension returned 0 series for', kpiId, '— falling back to aggregated query');
           }
         }
-      } catch (e) { console.warn('[KpiCompute] Split failed:', e); }
+      } catch (e) { warn('[KpiCompute] Split failed:', e); }
     }
 
     // Split by field only (Cell/Site) without PM dimension
     if (!splitByPmDim && splitByField) {
-      console.log('[KpiCompute] Split by field only:', splitByField);
+      log('[KpiCompute] Split by field only:', splitByField);
       try {
         const splitBody: any = { ...body, split_by_field: splitByField };
-        const splitRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
+        const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
           if (!splitResult.error && splitResult.series?.length > 0) {
@@ -160,37 +179,37 @@ async function fetchKpiComputeOnTheFly(
             }
             if (allData.length > 0) return { data: allData, isComputed: true };
           } else {
-            console.warn('[KpiCompute] Split by field returned 0 series for', kpiId);
+            warn('[KpiCompute] Split by field returned 0 series for', kpiId);
           }
         }
-      } catch (e) { console.warn('[KpiCompute] Field split failed:', e); }
+      } catch (e) { warn('[KpiCompute] Field split failed:', e); }
     }
 
-    console.log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
-    const res = await fetch(url, {
+    log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
     });
 
     if (!res.ok) {
-      console.warn('[KpiCompute] Failed:', res.status);
+      warn('[KpiCompute] Failed:', res.status);
       // Try with shorter date range (reduce load)
       return { data: [], isComputed: false };
     }
 
     const result = await res.json();
     if (result.error) {
-      console.warn('[KpiCompute] Error:', result.error, '— retrying with 1h granularity');
+      warn('[KpiCompute] Error:', result.error, '— retrying with 1h granularity');
       // Retry with hourly granularity (faster query)
       if (granularity !== '1h') {
         const retryBody = { ...body, granularity: '1h' };
         try {
-          const retryRes = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(retryBody) });
+          const retryRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(retryBody) });
           if (retryRes.ok) {
             const retryResult = await retryRes.json();
             if (!retryResult.error && retryResult.series?.length > 0) {
-              console.log('[KpiCompute] Retry succeeded with 1h');
+              log('[KpiCompute] Retry succeeded with 1h');
               return {
                 data: retryResult.series.map((s: any) => ({ timestamp: s.ts, kpi: kpiId, value: s.kpi_value, _isComputed: true })),
                 isComputed: true,
@@ -209,10 +228,10 @@ async function fetchKpiComputeOnTheFly(
       _isComputed: true,
     }));
 
-    console.log('[KpiCompute] Result:', kpiId, series.length, 'points, formula:', result.formula_display?.substring(0, 60));
+    log('[KpiCompute] Result:', kpiId, series.length, 'points, formula:', result.formula_display?.substring(0, 60));
     return { data: series, isComputed: series.length > 0 };
   } catch (e) {
-    console.warn('[KpiCompute] Exception:', e);
+    warn('[KpiCompute] Exception:', e);
     return { data: [], isComputed: false };
   }
 }
@@ -245,9 +264,11 @@ async function fetchCounterTimeSeriesFallback(
       const dimFilterValues: string[] = [];
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
-        if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
-        else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
-        else if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
+        if (dim === 'SITE' && f.values?.length) {
+          body.site_name = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'CELL' && f.values?.length) {
+          body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
         else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
           // PM dimension filter → pass as dimension_filter array
           dimFilterValues.push(...f.values);
@@ -255,20 +276,20 @@ async function fetchCounterTimeSeriesFallback(
       }
       if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
     }
-    console.log('[CounterFallback] Request:', url, JSON.stringify(body));
+    log('[CounterFallback] Request:', url, JSON.stringify(body));
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
     });
 
-    console.log('[CounterFallback] Response status:', res.status);
+    log('[CounterFallback] Response status:', res.status);
     if (!res.ok) {
-      console.warn('[CounterFallback] Failed:', res.status, await res.text().catch(() => ''));
+      warn('[CounterFallback] Failed:', res.status, await res.text().catch(() => ''));
       // If endpoint doesn't support filters, retry without and mark as unfiltered
       if (res.status === 400 || res.status === 422) {
-        const fallbackRes = await fetch(url, {
+        const fallbackRes = await fetchWithTimeout(url, {
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity }),
@@ -290,7 +311,7 @@ async function fetchCounterTimeSeriesFallback(
     }
 
     const data = await res.json();
-    console.log('[CounterFallback] Response keys:', Object.keys(data), 'series count:', (data.series || []).length, 'data count:', (data.data || []).length);
+    log('[CounterFallback] Response keys:', Object.keys(data), 'series count:', (data.series || []).length, 'data count:', (data.data || []).length);
     // Handle multiple response formats: { series: [...] } or { data: [...] } or { timeseries: [...] }
     const rawSeries = data.series || data.data || data.timeseries || [];
     return {
@@ -412,7 +433,7 @@ export function resolveSlotContext(
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
 
-  console.log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, splitBy2: splitValue2, filters: activeFilters });
+  log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, splitBy2: splitValue2, filters: activeFilters });
 
   return {
     kpiIds: slot.kpiIds,
@@ -430,8 +451,17 @@ export function resolveSlotContext(
   };
 }
 
-// ── Dedup cache to prevent 6x identical requests ──
+// ── Dedup cache to prevent 6x identical requests (bounded LRU, max 50 entries) ──
+const CACHE_MAX = 50;
 const _computeCache = new Map<string, Promise<{ data: DataPoint[]; isComputed: boolean }>>();
+function cacheSet(key: string, value: Promise<{ data: DataPoint[]; isComputed: boolean }>) {
+  if (_computeCache.size >= CACHE_MAX) {
+    // Evict oldest entry (first key in Map insertion order)
+    const oldest = _computeCache.keys().next().value;
+    if (oldest !== undefined) _computeCache.delete(oldest);
+  }
+  _computeCache.set(key, value);
+}
 
 // ── Fetch timeseries data per-slot ──
 // Strategy: call /kpi/compute FIRST (on-the-fly, always has data)
@@ -453,14 +483,14 @@ export async function fetchTimeSeriesForSlot(
     return undefined;
   })();
 
-  console.log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo, neFromFilters });
+  log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo, neFromFilters });
 
   // Detect PM and non-PM splits
   const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
   const hasNonPmSplit1 = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
   const pmDimSplit2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : undefined;
   const hasNonPmSplit2 = ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None';
-  console.log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit1:', hasNonPmSplit1, 'splitBy2:', ctx.splitBy2);
+  log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit1:', hasNonPmSplit1, 'splitBy2:', ctx.splitBy2);
 
   // Double split: detect if one split is PM and the other is a field (cell_name, site_name)
   // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name)
@@ -492,7 +522,7 @@ export async function fetchTimeSeriesForSlot(
 
   // Can compute handle this? Only if there's no non-PM split without a field mapping
   const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
-  console.log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
+  log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
   // Fast path: detect raw PM counters and route directly to counter fallback
   // (avoids 3-4 wasted HTTP calls through KPI compute + KPI Engine)
@@ -504,7 +534,7 @@ export async function fetchTimeSeriesForSlot(
 
   if (rawCounterIds.length > 0 && kpiOnlyIds.length === 0) {
     // ALL items are raw counters — skip compute + KPI Engine entirely
-    console.log('[Investigator] Fast path: all raw counters, using counter fallback directly:', rawCounterIds);
+    log('[Investigator] Fast path: all raw counters, using counter fallback directly:', rawCounterIds);
     const fallback = await fetchCounterTimeSeriesFallback(
       rawCounterIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
@@ -533,14 +563,14 @@ export async function fetchTimeSeriesForSlot(
         computed = await _computeCache.get(cacheKey)!;
       } else {
         const queryStart = Date.now();
-        console.log('[Pipeline] Step 1 PM Compute START:', kpiId);
+        log('[Pipeline] Step 1 PM Compute START:', kpiId);
         const promise = fetchKpiComputeOnTheFly(
           kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
         );
-        _computeCache.set(cacheKey, promise);
+        cacheSet(cacheKey, promise);
         setTimeout(() => _computeCache.delete(cacheKey), 30000);
         computed = await promise;
-        console.log('[Pipeline] Step 1 PM Compute END:', kpiId, {
+        log('[Pipeline] Step 1 PM Compute END:', kpiId, {
           duration: `${Date.now() - queryStart}ms`,
           points: computed.data.length,
           status: computed.isComputed ? 'success' : 'no_data',
@@ -556,7 +586,7 @@ export async function fetchTimeSeriesForSlot(
 
     // If all KPIs computed successfully, return directly (skip KPI Engine)
     if (computeFailed.length === 0 && computeResults.length > 0) {
-      console.log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
+      log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
       // Inject NE from filters if not already set
       if (neFromFilters) computeResults.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
       return { data: computeResults, hasUnfilteredFallback: false };
@@ -599,8 +629,8 @@ export async function fetchTimeSeriesForSlot(
   };
 
   const kpiEngineStart = Date.now();
-  console.log('[Pipeline] Step 2 KPI Engine START:', computeFailed, JSON.stringify(body));
-  const res = await fetch(url, {
+  log('[Pipeline] Step 2 KPI Engine START:', computeFailed, JSON.stringify(body));
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: getApiHeaders(),
     body: JSON.stringify(body),
@@ -612,7 +642,7 @@ export async function fetchTimeSeriesForSlot(
   if (res.ok) {
     const data = await res.json();
     kpiSeries = data.series || [];
-    console.log('[Pipeline] Step 2 KPI Engine END:', {
+    log('[Pipeline] Step 2 KPI Engine END:', {
       duration: `${Date.now() - kpiEngineStart}ms`,
       points: kpiSeries.length,
       status: kpiSeries.length > 0 ? 'success' : 'no_data',
@@ -638,7 +668,7 @@ export async function fetchTimeSeriesForSlot(
       };
     });
   } else {
-    console.warn('[Pipeline] Step 2 KPI Engine FAILED:', res.status, {
+    warn('[Pipeline] Step 2 KPI Engine FAILED:', res.status, {
       duration: `${Date.now() - kpiEngineStart}ms`,
       status: 'query_failed',
     });
@@ -656,7 +686,7 @@ export async function fetchTimeSeriesForSlot(
     // KPI Engine returned aggregated data without splits — try counter fallback instead
     const unsplitKpis = computeFailed.filter(k => kpisWithData.has(k.toLowerCase()));
     if (unsplitKpis.length > 0) {
-      console.log('[Investigator] KPI Engine returned data without splits, trying counter fallback for:', unsplitKpis);
+      log('[Investigator] KPI Engine returned data without splits, trying counter fallback for:', unsplitKpis);
       const fallback = await fetchCounterTimeSeriesFallback(
         unsplitKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
         ctx.splitBy, ctx.filters, computeSplitByField,
@@ -672,12 +702,12 @@ export async function fetchTimeSeriesForSlot(
   // Step 3: For KPIs that failed both compute AND KPI Engine, try raw counter fallback — SEQUENTIAL
   if (missingKpis.length > 0) {
     const fallbackStart = Date.now();
-    console.log('[Pipeline] Step 3 Counter Fallback START:', missingKpis);
+    log('[Pipeline] Step 3 Counter Fallback START:', missingKpis);
     const fallback = await fetchCounterTimeSeriesFallback(
       missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
     );
-    console.log('[Pipeline] Step 3 Counter Fallback END:', {
+    log('[Pipeline] Step 3 Counter Fallback END:', {
       duration: `${Date.now() - fallbackStart}ms`,
       points: fallback.data.length,
       status: fallback.data.length > 0 ? 'success' : 'no_counter_data',
@@ -719,8 +749,8 @@ export async function fetchTimeSeriesData(
 export async function fetchWorstElements(
   kpiIds: string[],
   limit: number = 10,
-  dateFrom: string = '2026-03-01',
-  dateTo: string = '2026-03-31',
+  dateFrom: string = defaultDateFrom(),
+  dateTo: string = defaultDateTo(),
   filters?: { dimension: string; op: string; values: string[] }[],
   kpiMetas?: Map<string, KpiDefinition>,
 ): Promise<WorstElement[]> {
@@ -739,7 +769,7 @@ export async function fetchWorstElements(
   };
 
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
@@ -801,8 +831,8 @@ export async function fetchWorstElements(
 export async function fetchWorstByDOR(
   kpiIds: string[],
   limit: number = 10,
-  dateFrom: string = '2026-03-01',
-  dateTo: string = '2026-03-31',
+  dateFrom: string = defaultDateFrom(),
+  dateTo: string = defaultDateTo(),
   filters?: { dimension: string; op: string; values: string[] }[],
   kpiMetas?: Map<string, KpiDefinition>,
 ): Promise<Record<string, WorstElement[]>> {
@@ -822,7 +852,7 @@ export async function fetchWorstByDOR(
   };
 
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
@@ -891,7 +921,7 @@ export async function fetchWorstByDOR(
       return byDOR;
     }
   } catch (e) {
-    console.warn('[fetchWorstByDOR] Grouped query failed, falling back', e);
+    warn('[fetchWorstByDOR] Grouped query failed, falling back', e);
   }
 
   // Fallback: single non-DOR query
@@ -929,7 +959,7 @@ export async function fetchWorstCellsDirect(
   if (siteName) body.site_name = siteName;
 
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
@@ -982,7 +1012,7 @@ export async function fetchWorstCellsDirect(
     }
     return Object.keys(byDOR).length ? byDOR : { 'ALL': elements };
   } catch (e) {
-    console.warn('[fetchWorstCellsDirect] Failed, falling back to KPI Engine:', e);
+    warn('[fetchWorstCellsDirect] Failed, falling back to KPI Engine:', e);
     return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters.map(f => ({ ...f, op: f.op || 'IN' })), kpiMetas);
   }
 }
@@ -991,7 +1021,7 @@ export async function fetchWorstCellsDirect(
 export async function fetchKpisWithData(dimension: string, value: string): Promise<Set<string>> {
   const url = getApiUrl(`monitor/catalog/kpis-with-data?dimension=${encodeURIComponent(dimension)}&value=${encodeURIComponent(value)}`);
   try {
-    const res = await fetch(url, { headers: getApiHeaders() });
+    const res = await fetchWithTimeout(url, { headers: getApiHeaders() });
     if (!res.ok) return new Set();
     const data = await res.json();
     return new Set((data || []).map((k: any) => k.kpi_key));
@@ -1004,7 +1034,7 @@ export async function fetchKpisWithData(dimension: string, value: string): Promi
 export async function fetchFilterValues(dimension: string): Promise<string[]> {
   const url = getApiUrl(`monitor/filters/values?dimension=${encodeURIComponent(dimension)}`);
   try {
-    const res = await fetch(url, { headers: getApiHeaders() });
+    const res = await fetchWithTimeout(url, { headers: getApiHeaders() });
     if (!res.ok) return [];
     const data = await res.json();
     return data.values || [];
@@ -1016,8 +1046,8 @@ export async function fetchFilterValues(dimension: string): Promise<string[]> {
 // ── Fetch histogram data ──
 export async function fetchHistogramData(
   kpiId: string,
-  dateFrom: string = '2026-03-01',
-  dateTo: string = '2026-03-31',
+  dateFrom: string = defaultDateFrom(),
+  dateTo: string = defaultDateTo(),
   bins: number = 20
 ): Promise<{ bin: number; count: number; label: string }[]> {
   const url = getApiUrl('monitor/query/table');
@@ -1026,7 +1056,7 @@ export async function fetchHistogramData(
     kpi_keys: [kpiId], split_by: 'CELL', top_n: 200, page: 1, page_size: 200,
   };
   try {
-    const res = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
+    const res = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const data = await res.json();
     const values = (data.rows || []).map((r: any) => r.avg).filter((v: any) => v != null);
@@ -1049,8 +1079,8 @@ export async function fetchHistogramData(
 // ── Fetch breakdown by dimension ──
 export async function fetchBreakdownData(
   kpiId: string,
-  dateFrom: string = '2026-03-01',
-  dateTo: string = '2026-03-31',
+  dateFrom: string = defaultDateFrom(),
+  dateTo: string = defaultDateTo(),
   dimension: string = 'vendor',
   filters?: { dimension: string; values: string[] }[],
 ): Promise<{ name: string; value: number; color: string }[]> {
@@ -1061,7 +1091,7 @@ export async function fetchBreakdownData(
     selections: [{ kpi_key: kpiId }], filters: allFilters, split_by: dimension.toUpperCase(), top_n: 10,
   };
   try {
-    const res = await fetch(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
+    const res = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const data = await res.json();
     const groups: Record<string, number[]> = {};
@@ -1079,16 +1109,13 @@ export async function fetchBreakdownData(
 
 // ── AI Investigation → Agent Layer :1000 ──
 export async function startInvestigation(query: string): Promise<ReadableStream | null> {
-  let url: string;
-  let headers: Record<string, string>;
-  if (isLocalMode()) {
-    url = getVpsProxyUrl('agent', '/orchestrator/stream');
-    headers = { 'Content-Type': 'application/json', 'x-api-key': 'agent_secret_key' };
-  } else {
-    url = getVpsProxyUrl('agent', '/orchestrator/stream');
-    headers = { ...getVpsProxyHeaders(), 'x-api-key': 'agent_secret_key' };
-  }
-  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ query, session_id: crypto.randomUUID() }) });
+  const url = getVpsProxyUrl('agent', '/orchestrator/stream');
+  const baseHeaders = isLocalMode()
+    ? { 'Content-Type': 'application/json' }
+    : getVpsProxyHeaders();
+  const headers = { ...baseHeaders, 'x-api-key': AGENT_API_KEY };
+  // Streaming — use longer timeout (120s)
+  const res = await fetchWithTimeout(url, { method: 'POST', headers, body: JSON.stringify({ query, session_id: crypto.randomUUID() }) }, 120_000);
   if (!res.ok) throw new Error(`Agent ${res.status}`);
   return res.body;
 }
@@ -1100,7 +1127,7 @@ export async function fetchCellDetails(
   if (!cellNames.length) return [];
   const url = getApiUrl('alarms/cell-details');
   try {
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify({ cell_names: cellNames }),
