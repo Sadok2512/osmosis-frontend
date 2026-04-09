@@ -7,9 +7,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Cloudflare Tunnel (permanent, HTTPS) — bypasses Iran IP blocking
-const CF_PARSER = 'https://api.osmosis.net';
-const CF_KPI = 'https://kpi.osmosis.net';
+// Cloudflare Tunnel (permanent, HTTPS)
+const CF_PARSER = 'https://api.qoebit.net';
+const CF_KPI = 'https://kpi.qoebit.net';
 const VPS_HOST = '151.242.147.49';
 
 const SERVICE_URLS: Record<string, string[]> = {
