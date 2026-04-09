@@ -59,36 +59,57 @@ const AlarmsSection: React.FC<Props> = ({ filters, startDate, endDate }) => {
   const [severityFilter, setSeverityFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'cleared'>('all');
 
-  // Fetch alarms from VPS
+  // Fetch alarms from Parser /api/v1/alarms/nokia
   useEffect(() => {
+    const controller = new AbortController();
     const fetchAlarms = async () => {
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams();
-        if (startDate) params.set('start_date', startDate.split('T')[0]);
-        if (endDate) params.set('end_date', endDate.split('T')[0]);
-        
+        if (startDate) params.set('from_date', startDate.split('T')[0]);
+        if (endDate) params.set('to_date', endDate.split('T')[0]);
+        params.set('limit', '200');
+
         // Apply site/cell filters
         const siteFilter = filters.Site || filters.SITE || [];
-        const cellFilter = filters.Cell || filters.CELL || [];
-        if (siteFilter.length > 0) params.set('site', siteFilter.join(','));
-        if (cellFilter.length > 0) params.set('cell', cellFilter.join(','));
+        if (siteFilter.length > 0) params.set('site', siteFilter[0]);
 
-        const res = await fetch(getApiUrl(`monitor/alarms?${params.toString()}`), { headers: getApiHeaders() });
+        const res = await fetch(getApiUrl(`alarms/nokia?${params.toString()}`), {
+          headers: getApiHeaders(),
+          signal: controller.signal,
+        });
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         const data = await res.json();
-        setAlarms(Array.isArray(data) ? data : data.alarms || data.data || []);
+
+        // Map backend fields to frontend Alarm interface
+        const items: Alarm[] = (data.items || []).map((a: any) => ({
+          id: String(a.id),
+          alarm_name: a.alarm_text || a.specific_problem || 'Unknown alarm',
+          severity: (a.alarm_severity || 'info').toLowerCase() as Alarm['severity'],
+          category: a.alarm_type || '',
+          site: a.site_name || '',
+          cell: a.cell_name || '',
+          ne_name: a.mo_dn || '',
+          raised_at: a.alarm_time || '',
+          cleared_at: a.cancel_time || null,
+          duration_min: a.duration_min || undefined,
+          vendor: a.vendor || '',
+          description: a.supplementary_info || '',
+          probable_cause: a.specific_problem || '',
+        }));
+        setAlarms(items);
       } catch (err: any) {
-        console.warn('[Alarms] Fetch failed, using mock data:', err.message);
+        if (controller.signal.aborted) return;
+        console.warn('[Alarms] Fetch failed:', err.message);
         setError(err.message);
-        // Generate contextual mock data based on filters
-        setAlarms(generateMockAlarms(filters));
+        setAlarms([]);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchAlarms();
+    return () => controller.abort();
   }, [filters, startDate, endDate]);
 
   // Filter alarms
