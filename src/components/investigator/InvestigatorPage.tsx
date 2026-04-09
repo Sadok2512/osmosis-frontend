@@ -618,6 +618,16 @@ const InvestigatorPage: React.FC = () => {
           <AlarmsSection filters={state.filters} startDate={state.startDate} endDate={state.endDate} />
         )}
 
+        {analysisTab === 'counters' && (
+          <CounterGraphSection
+            selectedCounters={selectedCounters}
+            startDate={state.startDate}
+            endDate={state.endDate}
+            granularity={state.granularity}
+            filters={state.filters}
+          />
+        )}
+
         {analysisTab === 'neighbors' && (
           <NeighborsSection filters={state.filters} />
         )}
