@@ -558,35 +558,45 @@ const InvestigatorPage: React.FC = () => {
         {!isGraphFullscreen && renderGraphSection()}
 
         {/* ═══ Analysis Tabs ═══ */}
-        <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
-          <div className="flex items-center gap-1 px-1 py-1">
-            {([
-              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
-              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
-            ] as const).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setAnalysisTab(prev => prev === tab.key ? null : tab.key)}
-                className={cn(
-                  'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                  analysisTab === tab.key
-                    ? 'bg-card text-foreground shadow-sm border border-border/60'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                )}
-              >
-                <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
-                {tab.label}
-                {analysisTab === tab.key && (
-                  <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
+        {(() => {
+          // Collect activated features from all slots
+          const anySlotHas = (key: string) => state.graphSlots.some(s => s.config && (s.config as any)[key]);
+          const allTabs = [
+            { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500', always: true },
+            { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500', always: true },
+            { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500', always: true },
+            { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500', always: true },
+            { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500', always: true },
+            { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500', always: true },
+          ] as const;
+          // Deduplicate: use a Set to ensure unique keys
+          const seen = new Set<string>();
+          const tabs = allTabs.filter(t => { if (seen.has(t.key)) return false; seen.add(t.key); return true; });
+          return (
+            <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
+              <div className="flex items-center gap-1 px-1 py-1">
+                {tabs.map(tab => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setAnalysisTab(prev => prev === tab.key ? null : tab.key)}
+                    className={cn(
+                      'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                      analysisTab === tab.key
+                        ? 'bg-card text-foreground shadow-sm border border-border/60'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                    )}
+                  >
+                    <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
+                    {tab.label}
+                    {analysisTab === tab.key && (
+                      <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ═══ Tab Content ═══ */}
         {analysisTab === 'table_data' && (
