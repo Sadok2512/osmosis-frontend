@@ -564,7 +564,6 @@ const InvestigatorPage: React.FC = () => {
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-              { key: 'counters' as const, icon: Hash, label: 'Counter Timeseries', color: 'text-teal-500' },
               { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ] as const).map(tab => (
