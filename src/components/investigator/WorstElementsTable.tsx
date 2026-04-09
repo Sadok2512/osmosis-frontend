@@ -89,7 +89,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
 
       {elements.length === 0 ? (
         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-          Click <strong>Find Worst Cells</strong> to identify degraded cells
+          Aucune cellule dégradée trouvée pour les KPIs et filtres sélectionnés
         </div>
       ) : (
         <div className="overflow-x-auto">
