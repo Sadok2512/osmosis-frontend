@@ -1323,6 +1323,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                 <Hash className="w-3.5 h-3.5" />
               </button>
 
+              {/* KPI Breakdown toggle button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const newVal = !cfg.showBreakdown;
+                  onUpdateSlotConfig(slot.id, { showBreakdown: newVal });
+                  if (!newVal && onActivateTab) onActivateTab(null as any);
+                  else if (newVal && onActivateTab) onActivateTab('breakdown');
+                }}
+                className={cn(
+                  "p-1 rounded-md transition-colors",
+                  cfg.showBreakdown
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+                title={cfg.showBreakdown ? "Masquer KPI Breakdown" : "Afficher KPI Breakdown"}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+              </button>
+
               {/* Duplicate slot */}
               {onDuplicateSlot && (
                 <button
@@ -1377,11 +1397,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
                     </div>
 
-                    {/* KPI Breakdown */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">KPI Breakdown</span>
-                      <Switch checked={cfg.showBreakdown} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showBreakdown: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('breakdown'); }} className="scale-[0.65]" />
-                    </div>
 
                     <div className="h-px bg-border/40" />
 
