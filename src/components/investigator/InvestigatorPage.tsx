@@ -62,6 +62,7 @@ const InvestigatorPage: React.FC = () => {
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
    const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
+   const analysisTabs = useAnalysisTabs();
 
    // Escape key exits fullscreen
    React.useEffect(() => {
