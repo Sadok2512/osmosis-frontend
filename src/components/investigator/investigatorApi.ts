@@ -350,8 +350,14 @@ export function resolveSlotContext(
   const rawTo = (slot.endDate && slot.endDate.trim()) || (globalState.endDate && globalState.endDate.trim()) || defaultTo;
   const gran = normalizeGranularity(slot.granularity || globalState.granularity);
   // For fine granularity, keep full datetime; for daily/weekly, date-only is fine
-  const dateFrom = (gran === '15min' || gran === '1h') ? rawFrom : rawFrom.split('T')[0];
-  const dateTo = (gran === '15min' || gran === '1h') ? rawTo : rawTo.split('T')[0];
+  // Ensure datetime always has seconds (ClickHouse requires T00:00:00 format)
+  const ensureSeconds = (dt: string) => {
+    if (/T\d{2}:\d{2}$/.test(dt)) return dt + ':00';
+    if (!dt.includes('T')) return dt + 'T00:00:00';
+    return dt;
+  };
+  const dateFrom = (gran === '15min' || gran === '1h') ? ensureSeconds(rawFrom) : rawFrom.split('T')[0];
+  const dateTo = (gran === '15min' || gran === '1h') ? ensureSeconds(rawTo) : rawTo.split('T')[0];
 
   // Split: per-KPI split takes ABSOLUTE priority, then slot-level, then global
   // Per-KPI splits are the source of truth — global splitBy should NOT override them
