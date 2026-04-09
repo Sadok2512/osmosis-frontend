@@ -696,28 +696,26 @@ const InvestigatorPage: React.FC = () => {
           </section>
         )}
 
-        {analysisTab === 'top_worst' && (() => {
+        {/* Top Worst – keep all instances mounted, show only active */}
+        {(() => {
           const sec = analysisTabs.getSection('top_worst');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return activeTabId ? (
-            <TopWorstTabContent key={activeTabId} tabId={activeTabId} />
-          ) : (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              Aucun onglet Top Worst Cells ouvert.
+          return sec.instances.map(inst => (
+            <div key={inst.id} style={{ display: analysisTab === 'top_worst' && inst.id === activeTabId ? undefined : 'none' }}>
+              <TopWorstTabContent tabId={inst.id} />
             </div>
-          );
+          ));
         })()}
 
-        {analysisTab === 'alarms' && (() => {
+        {/* Alarms – keep all instances mounted */}
+        {(() => {
           const sec = analysisTabs.getSection('alarms');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return activeTabId ? (
-            <AlarmsTabContent key={activeTabId} tabId={activeTabId} />
-          ) : (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              Aucun onglet Alarms ouvert.
+          return sec.instances.map(inst => (
+            <div key={inst.id} style={{ display: analysisTab === 'alarms' && inst.id === activeTabId ? undefined : 'none' }}>
+              <AlarmsTabContent tabId={inst.id} />
             </div>
-          );
+          ));
         })()}
 
         {analysisTab === 'counters' && (
@@ -727,28 +725,26 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {analysisTab === 'neighbors' && (() => {
+        {/* Neighbors – keep all instances mounted */}
+        {(() => {
           const sec = analysisTabs.getSection('neighbors');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return activeTabId ? (
-            <NeighborsTabContent key={activeTabId} tabId={activeTabId} />
-          ) : (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              Aucun onglet Neighbors ouvert.
+          return sec.instances.map(inst => (
+            <div key={inst.id} style={{ display: analysisTab === 'neighbors' && inst.id === activeTabId ? undefined : 'none' }}>
+              <NeighborsTabContent tabId={inst.id} />
             </div>
-          );
+          ));
         })()}
 
-        {analysisTab === 'cm_history' && (() => {
+        {/* CM History – keep all instances mounted */}
+        {(() => {
           const sec = analysisTabs.getSection('cm_history');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return activeTabId ? (
-            <CMHistoryTabContent key={activeTabId} tabId={activeTabId} />
-          ) : (
-            <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-              Aucun onglet CM History ouvert.
+          return sec.instances.map(inst => (
+            <div key={inst.id} style={{ display: analysisTab === 'cm_history' && inst.id === activeTabId ? undefined : 'none' }}>
+              <CMHistoryTabContent tabId={inst.id} />
             </div>
-          );
+          ));
         })()}
       </main>
     </div>
