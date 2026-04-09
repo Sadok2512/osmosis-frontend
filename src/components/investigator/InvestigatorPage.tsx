@@ -15,7 +15,7 @@ import InvestigatorDataTable from './InvestigatorDataTable';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
-  Maximize2, AlertTriangle, Activity, Square, Columns2,
+  Maximize2, Minimize2, AlertTriangle, Activity, Square, Columns2,
   BarChart3, PieChart, LineChart as LineChartIcon,
   Settings2, Bell, Cpu, Layers, Table2,
 } from 'lucide-react';
@@ -58,6 +58,7 @@ const InvestigatorPage: React.FC = () => {
    const [showAIPanel, setShowAIPanel] = useState(false);
    const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
    const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history'>('table_data');
+   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const [worstByDOR, setWorstByDOR] = React.useState<Record<string, WorstElement[]>>({});
   const [worstFilters, setWorstFilters] = React.useState<{ dimension: string; op: string; values: string[] }[]>([]);
   const [worstFilterOptions, setWorstFilterOptions] = React.useState<Record<string, string[]>>({});
@@ -302,7 +303,10 @@ const InvestigatorPage: React.FC = () => {
         )}
 
         {/* KPI Graph Section */}
-        <section className="space-y-4">
+        <section className={cn(
+          'space-y-4',
+          isGraphFullscreen && 'fixed inset-0 z-50 bg-background p-6 overflow-auto'
+        )}>
           <div className="flex items-center justify-between border-b border-border/40 pb-3">
             <div className="flex items-center gap-3">
               <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -343,7 +347,6 @@ const InvestigatorPage: React.FC = () => {
                 {([
                   { val: 1 as const, icon: Square, title: 'Single' },
                   { val: 2 as const, icon: Columns2, title: 'Dual' },
-                  { val: 4 as const, icon: Maximize2, title: 'Fullscreen' },
                 ]).map(l => (
                   <button
                     key={l.val}
@@ -351,7 +354,7 @@ const InvestigatorPage: React.FC = () => {
                     title={l.title}
                     className={cn(
                       'p-1.5 rounded-md transition-all',
-                      state.graphLayout === l.val
+                      state.graphLayout === l.val && !isGraphFullscreen
                         ? 'bg-card text-primary shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
                     )}
@@ -359,6 +362,18 @@ const InvestigatorPage: React.FC = () => {
                     <l.icon className="w-3.5 h-3.5" />
                   </button>
                 ))}
+                <button
+                  onClick={() => setIsGraphFullscreen(prev => !prev)}
+                  title={isGraphFullscreen ? 'Quitter plein écran' : 'Plein écran'}
+                  className={cn(
+                    'p-1.5 rounded-md transition-all',
+                    isGraphFullscreen
+                      ? 'bg-card text-primary shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {isGraphFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
               </div>
             </div>
           </div>
