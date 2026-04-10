@@ -497,7 +497,9 @@ const SingleKpiBreakdown: React.FC<{
         totals.set(dv, (totals.get(dv) || 0) + (p.value || 0));
       }
       const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
-      topDimValues = sorted.slice(0, SPLIT_TOP_N).map(([k]) => k);
+      const allDimValues = sorted.slice(0, SPLIT_TOP_N).map(([k]) => k);
+      // Filter by selectedElements if set
+      topDimValues = selectedElements ? allDimValues.filter(dv => selectedElements.has(dv)) : allDimValues;
       otherDimValues = new Set(sorted.slice(SPLIT_TOP_N).map(([k]) => k));
     }
 
