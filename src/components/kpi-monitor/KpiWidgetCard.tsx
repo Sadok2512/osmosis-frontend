@@ -197,17 +197,43 @@ const KpiWidgetCard: React.FC<Props> = ({
         axisLine: { lineStyle: { color: 'hsl(var(--border))' } },
         axisTick: { show: false },
       },
-      yAxis: {
-        type: 'value',
-        axisLabel: { fontSize: 8, color: 'hsl(var(--muted-foreground))',
-          formatter: (v: number) => {
-            if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + 'M';
-            if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'k';
-            return v % 1 === 0 ? v.toString() : v.toFixed(2);
+      yAxis: (() => {
+        const hasRightAxis = config.yAxisAssignments && Object.values(config.yAxisAssignments).some(v => v === 1);
+        const leftCfg = config.yAxis;
+        const rightCfg = config.yAxisRight;
+        const baseAxis = {
+          type: 'value' as const,
+          position: 'left' as const,
+          min: leftCfg?.mode === 'manual' && leftCfg.min != null ? leftCfg.min : undefined,
+          max: leftCfg?.mode === 'manual' && leftCfg.max != null ? leftCfg.max : undefined,
+          axisLabel: { fontSize: 8, color: 'hsl(var(--muted-foreground))',
+            formatter: (v: number) => {
+              if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+              if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'k';
+              return v % 1 === 0 ? v.toString() : v.toFixed(2);
+            },
           },
-        },
-        splitLine: { lineStyle: { color: 'hsl(var(--border))', opacity: 0.2, type: 'dashed' } },
-      },
+          splitLine: { lineStyle: { color: 'hsl(var(--border))', opacity: config.showGrid ? 0.2 : 0, type: 'dashed' as const } },
+        };
+        if (!hasRightAxis) return baseAxis;
+        return [
+          baseAxis,
+          {
+            type: 'value' as const,
+            position: 'right' as const,
+            min: rightCfg?.mode === 'manual' && rightCfg.min != null ? rightCfg.min : undefined,
+            max: rightCfg?.mode === 'manual' && rightCfg.max != null ? rightCfg.max : undefined,
+            axisLabel: { fontSize: 8, color: 'hsl(var(--muted-foreground))',
+              formatter: (v: number) => {
+                if (Math.abs(v) >= 1e6) return (v / 1e6).toFixed(1) + 'M';
+                if (Math.abs(v) >= 1e3) return (v / 1e3).toFixed(1) + 'k';
+                return v % 1 === 0 ? v.toString() : v.toFixed(2);
+              },
+            },
+            splitLine: { show: false },
+          },
+        ];
+      })(),
       series: seriesArr.map((s, i) => {
         const isArea = config.graphType === 'area' || config.graphType === 'stacked_area' || config.showArea;
         const isBar = config.graphType === 'bar';
