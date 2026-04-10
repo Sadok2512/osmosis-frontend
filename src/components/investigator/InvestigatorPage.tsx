@@ -72,6 +72,9 @@ const InvestigatorPage: React.FC = () => {
     activeSlotId, setActiveSlotId,
     kpiSelectorSlot, setKpiSelectorSlot,
     hasLoadedOnce, setHasLoadedOnce,
+    currentInvestigatorId, setCurrentInvestigatorId,
+    currentInvestigatorName, setCurrentInvestigatorName,
+    hasUnsavedChanges, setHasUnsavedChanges,
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
