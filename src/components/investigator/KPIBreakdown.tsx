@@ -322,8 +322,6 @@ const SingleKpiBreakdown: React.FC<{
   }, [explain]);
 
   const splitActive = !!(splitBy && splitBy !== 'None');
-  const techno = (explain?.techno || '').toUpperCase();
-  const is5G = techno === 'NR' || techno === '5G' || techno.includes('NR') || techno.includes('5G');
 
   // Fetch counter timeseries
   useEffect(() => {
