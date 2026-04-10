@@ -1560,6 +1560,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           { label: 'Markers', checked: cfg.showSymbols, onChange: (v: boolean) => setSlotConfig({ showSymbols: v }) },
                           { label: 'Area Fill', checked: cfg.showArea, onChange: (v: boolean) => setSlotConfig({ showArea: v }) },
                           { label: 'Thresholds', checked: cfg.showThresholds, onChange: (v: boolean) => setSlotConfig({ showThresholds: v }) },
+                          { label: 'Average', checked: cfg.showAverage ?? false, onChange: (v: boolean) => setSlotConfig({ showAverage: v }) },
                           { label: 'Grid', checked: cfg.showGrid, onChange: (v: boolean) => setSlotConfig({ showGrid: v }) },
                         ] as const).map(toggle => (
                           <div key={toggle.label} className="flex items-center justify-between py-0.5">
