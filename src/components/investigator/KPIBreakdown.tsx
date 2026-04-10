@@ -743,13 +743,31 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Resolve split dimension for the active KPI: per-KPI map takes precedence over slot-level splitBy.
-  const effectiveSplitBy = useMemo(() => {
-    const perKpi = splitByPerKpi?.[activeKpiTab];
+  // Per-KPI local split override (managed inside this breakdown, not global)
+  const [localSplitOverrides, setLocalSplitOverrides] = useState<Record<string, string>>({});
+
+  const handleSplitChange = useCallback((kpiId: string, split: string) => {
+    setLocalSplitOverrides(prev => ({ ...prev, [kpiId]: split }));
+  }, []);
+
+  // Resolve split: local override > per-KPI map > slot-level
+  const getEffectiveSplit = useCallback((kpiId: string) => {
+    const local = localSplitOverrides[kpiId];
+    if (local) return local === 'None' ? undefined : local;
+    const perKpi = splitByPerKpi?.[kpiId];
     if (perKpi && perKpi !== 'None') return perKpi;
     if (splitBy && splitBy !== 'None') return splitBy;
     return undefined;
-  }, [splitByPerKpi, activeKpiTab, splitBy]);
+  }, [localSplitOverrides, splitByPerKpi, splitBy]);
+
+  const getSelectorValue = useCallback((kpiId: string) => {
+    const local = localSplitOverrides[kpiId];
+    if (local) return local;
+    const perKpi = splitByPerKpi?.[kpiId];
+    if (perKpi && perKpi !== 'None') return perKpi;
+    if (splitBy && splitBy !== 'None') return splitBy;
+    return 'None';
+  }, [localSplitOverrides, splitByPerKpi, splitBy]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
@@ -767,6 +785,9 @@ const KPIBreakdown: React.FC<Props> = ({
       </div>
     );
   }
+
+  const effectiveSplit = getEffectiveSplit(activeKpiTab);
+  const selectorValue = getSelectorValue(activeKpiTab);
 
   return (
     <div className="space-y-3">
@@ -789,16 +810,17 @@ const KPIBreakdown: React.FC<Props> = ({
         ))}
       </div>
 
-      {/* Active KPI content – only render the active tab (lazy) */}
+      {/* Active KPI content */}
       {activeKpiTab && uniqueKpiIds.includes(activeKpiTab) && (
         <SingleKpiBreakdown
-          key={activeKpiTab}
+          key={`${activeKpiTab}-${selectorValue}`}
           kpiId={activeKpiTab}
           dateFrom={dateFrom}
           dateTo={dateTo}
           granularity={granularity}
           filters={filters}
-          splitBy={effectiveSplitBy}
+          splitBy={effectiveSplit}
+          onSplitChange={(split) => handleSplitChange(activeKpiTab, split)}
           timeSeriesData={timeSeriesData}
         />
       )}
