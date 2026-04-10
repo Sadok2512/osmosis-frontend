@@ -55,17 +55,8 @@ interface CounterTsPoint {
   dimension_key?: string;
 }
 
-const SPLIT_OPTIONS = [
-  { value: 'None', label: 'None (Aggregated)' },
-  { value: 'CELL', label: 'Cell' },
-  { value: 'SITE', label: 'Site' },
-  { value: 'SECTOR', label: 'Sector' },
-  { value: 'BAND', label: 'Band' },
-  { value: 'TECHNO', label: 'Technology' },
-  { value: 'VENDOR', label: 'Vendor' },
-  { value: 'DOR', label: 'DOR' },
-  { value: 'PLAQUE', label: 'Plaque' },
-];
+
+
 
 
 
