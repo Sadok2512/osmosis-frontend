@@ -1037,6 +1037,57 @@ export async function fetchKpisWithData(dimension: string, value: string): Promi
   }
 }
 
+// ── Fetch which PM dimensions a given KPI actually has data for, optionally scoped to a site ──
+// Returns the list of dimension types that have > 0 rows in ClickHouse for that KPI's counters.
+// Used to grey-out / hide dimension filters that would produce empty results.
+export interface KpiDimensionInfo {
+  available: boolean;
+  row_count: number;
+  sample_values: string[];
+}
+export interface KpiDimensionsResponse {
+  kpi_code: string;
+  vendor?: string | null;
+  counters: string[];
+  site_name?: string | null;
+  dimensions: Record<string, KpiDimensionInfo>;
+  available_dimensions: string[];
+  error?: string;
+}
+
+const _kpiDimCache: Map<string, { ts: number; data: KpiDimensionsResponse }> = new Map();
+const KPI_DIM_CACHE_TTL_MS = 5 * 60 * 1000; // 5 min client-side cache
+
+export async function fetchKpiDimensions(
+  kpiCode: string,
+  siteName?: string | null
+): Promise<KpiDimensionsResponse> {
+  const cacheKey = `${kpiCode}|${siteName || ''}`;
+  const cached = _kpiDimCache.get(cacheKey);
+  if (cached && (Date.now() - cached.ts) < KPI_DIM_CACHE_TTL_MS) {
+    return cached.data;
+  }
+  const params = new URLSearchParams({ kpi_code: kpiCode });
+  if (siteName) params.set('site_name', siteName);
+  const url = getApiUrl(`monitor/catalog/kpi-dimensions?${params.toString()}`);
+  try {
+    const res = await fetchWithTimeout(url, { headers: getApiHeaders() });
+    if (!res.ok) {
+      const empty: KpiDimensionsResponse = {
+        kpi_code: kpiCode, counters: [], dimensions: {}, available_dimensions: [],
+        error: `http_${res.status}`,
+      };
+      return empty;
+    }
+    const data = await res.json() as KpiDimensionsResponse;
+    _kpiDimCache.set(cacheKey, { ts: Date.now(), data });
+    return data;
+  } catch (e) {
+    warn('[API] fetchKpiDimensions:', e);
+    return { kpi_code: kpiCode, counters: [], dimensions: {}, available_dimensions: [], error: String(e) };
+  }
+}
+
 // ── Fetch filter values for a dimension ──
 export async function fetchFilterValues(dimension: string): Promise<string[]> {
   const url = getApiUrl(`monitor/filters/values?dimension=${encodeURIComponent(dimension)}`);

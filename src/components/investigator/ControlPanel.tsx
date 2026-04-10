@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, JalonVisibility, KpiLevel } from './types';
 import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
-import { fetchKpiDefinitions, fetchKpisWithData } from './investigatorApi';
+import { fetchKpiDefinitions, fetchKpisWithData, fetchKpiDimensions, type KpiDimensionsResponse } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -813,6 +813,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
+  // Real data-driven map: kpi_code → { dimensions, available_dimensions } fetched from CH probe.
+  const [kpiDimData, setKpiDimData] = useState<Map<string, KpiDimensionsResponse>>(new Map());
   // editingJalon state removed — managed inside JalonsManagerPopup
 
   // Load split and filter dimensions from backend catalog
@@ -900,11 +902,54 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
   }, []);
 
-  // Detect PM dimension types from selected KPIs AND counters → add to filter dimensions
+  // Data-driven PM dimension probe:
+  // Whenever the set of selected KPIs (or the Site filter) changes, ask the backend
+  // which dimensions actually have rows in ClickHouse for those KPI's counters.
+  // Result: only dimensions with > 0 rows are exposed in the filter row.
+  const selectedKpiIdsKey = useMemo(() => {
+    const ids: string[] = [];
+    for (const slot of state.graphSlots) ids.push(...slot.kpiIds);
+    return Array.from(new Set(ids)).sort().join(',');
+  }, [state.graphSlots]);
+
+  const siteFilterForProbe = (state.filters['Site'] || [])[0] || null;
+
+  useEffect(() => {
+    const kpiIds = selectedKpiIdsKey ? selectedKpiIdsKey.split(',').filter(Boolean) : [];
+    if (kpiIds.length === 0) {
+      setKpiDimData(new Map());
+      return;
+    }
+    let cancelled = false;
+    Promise.all(kpiIds.map(id => fetchKpiDimensions(id, siteFilterForProbe))).then(results => {
+      if (cancelled) return;
+      const next = new Map<string, KpiDimensionsResponse>();
+      for (const r of results) {
+        if (r && r.kpi_code) next.set(r.kpi_code, r);
+      }
+      setKpiDimData(next);
+    });
+    return () => { cancelled = true; };
+  }, [selectedKpiIdsKey, siteFilterForProbe]);
+
+  // Detect PM dimension types that ACTUALLY have data for the current selection.
+  // Priority: backend CH probe (kpiDimData) → KPI definition metadata → counter catalog fallback.
   const activePmDimensions = useMemo(() => {
     const dims = new Set<string>();
     const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
-    // 1. Check KPI definitions (from KPI Engine) for dimension_type
+
+    // 1) Primary source: data-driven probe via /monitor/catalog/kpi-dimensions
+    if (kpiDimData.size > 0) {
+      for (const [, info] of kpiDimData) {
+        for (const d of info.available_dimensions || []) {
+          if (PM_DIMENSION_TYPES.has(d)) dims.add(d);
+        }
+      }
+      // Union of available dims across all selected KPIs — if any KPI has PMQAP, expose it.
+      return dims;
+    }
+
+    // 2) Fallback: catalog metadata (can be wrong, used only while probe is loading)
     for (const slot of state.graphSlots) {
       for (const kpiId of slot.kpiIds) {
         const def = kpiDefs.find(k => k.id === kpiId);
@@ -913,14 +958,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         }
       }
     }
-    // Also include dimension types from selected counters
     for (const c of selectedCounters) {
       if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type)) {
         dims.add(c.dimension_type);
       }
     }
-    // Fallback: if KPI Engine didn't provide dimension_type (e.g. VPS 502),
-    //    expose all PM dimension types found in counter catalog when KPIs are selected
     if (dims.size === 0 && hasKpis && counterCatalog.length > 0) {
       for (const c of counterCatalog) {
         if (c.dimension_type && PM_DIMENSION_TYPES.has(c.dimension_type)) {
@@ -929,7 +971,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       }
     }
     return dims;
-  }, [state.graphSlots, kpiDefs, selectedCounters, counterCatalog]);
+  }, [state.graphSlots, kpiDefs, selectedCounters, counterCatalog, kpiDimData]);
+
+  // Per-KPI available-dimensions map, derived from the backend probe. Used to grey-out
+  // dimensions that a particular KPI doesn't support.
+  const kpiAvailableDimsMap = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const [kpi_code, info] of kpiDimData) {
+      m.set(kpi_code, new Set(info.available_dimensions || []));
+    }
+    return m;
+  }, [kpiDimData]);
 
   // Per-KPI dimension type map: kpi_id → dimension_type (or null)
   const kpiDimensionMap = useMemo(() => {
@@ -1574,8 +1626,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
                         const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
                         const hasSplitOptions = splitOptions.length > 0 || activePmDimensions.size > 0;
-                        const thisKpiDim = kpiDimensionMap.get(kpiIdItem);
-                        const relevantPmDims = thisKpiDim ? [thisKpiDim] : Array.from(activePmDimensions);
+                        // Data-driven per-KPI dimension list (from CH probe). Falls back to catalog metadata.
+                        const probedDims = kpiAvailableDimsMap.get(kpiIdItem);
+                        const relevantPmDims = probedDims
+                          ? Array.from(probedDims).filter(d => PM_DIMENSION_TYPES.has(d))
+                          : ((): string[] => {
+                              const thisKpiDim = kpiDimensionMap.get(kpiIdItem);
+                              return thisKpiDim ? [thisKpiDim] : Array.from(activePmDimensions);
+                            })();
                         const buildSplits = (val: string) => {
                           const allSplits: Record<string, string> = {};
                           // Apply selected split to ALL KPIs in the slot.
