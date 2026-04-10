@@ -868,47 +868,73 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               })()}
             </div>
 
-            {/* KPI Breakdown — mounted when active slot has KPIs */}
+            {/* KPI Breakdown — only for slots with showBreakdown === true */}
             <div style={{ display: analysisTab === 'breakdown' ? undefined : 'none' }}>
-              {activeSlot && activeSlot.kpiIds.length > 0 && (
-                <section>
-                  <KPIBreakdown
-                    selectedKpis={activeSlot.kpiIds}
-                    layout={state.graphLayout}
-                    dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
-                    dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
-                    granularity={activeSlot.granularity || state.granularity}
-                    filters={Object.entries({ ...state.filters, ...activeSlot.filters })
-                      .filter(([,v]) => v.length > 0)
-                      .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                    splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
-                    splitByPerKpi={activeSlot.config?.splitByPerKpi}
-                    timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
-                  />
-                </section>
-              )}
+              {(() => {
+                const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showBreakdown && s.kpiIds.length > 0);
+                if (enabledSlots.length === 0) {
+                  return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « KPI Breakdown ».</div>;
+                }
+                const slot = (activeSlot && enabledSlots.find(s => s.id === activeSlot.id)) || enabledSlots[0];
+                return (
+                  <section>
+                    <KPIBreakdown
+                      selectedKpis={slot.kpiIds}
+                      layout={state.graphLayout}
+                      dateFrom={(slot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
+                      dateTo={(slot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
+                      granularity={slot.granularity || state.granularity}
+                      filters={Object.entries({ ...state.filters, ...slot.filters })
+                        .filter(([,v]) => v.length > 0)
+                        .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
+                      splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+                      splitByPerKpi={slot.config?.splitByPerKpi}
+                      timeSeriesData={tsData.filter((d: any) => d._slotId === slot.id)}
+                    />
+                  </section>
+                );
+              })()}
             </div>
 
-            {/* Top Worst — all instances always mounted, CSS visibility */}
+            {/* Top Worst — only for slots with showTopWorst === true */}
             {(() => {
+              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showTopWorst);
+              if (enabledSlots.length === 0 && analysisTab === 'top_worst') {
+                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Top Worst Cells ».</div>;
+              }
               const sec = analysisTabs.getSection('top_worst');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances.map(inst2 => (
-                <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
-                  <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                </div>
-              ));
+              return sec.instances
+                .filter(inst2 => {
+                  // Only show tabs linked to slots that have showTopWorst enabled
+                  if (!inst2.sourceGraphId) return true;
+                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
+                })
+                .map(inst2 => (
+                  <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
+                    <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                  </div>
+                ));
             })()}
 
-            {/* Alarms — all instances always mounted */}
+            {/* Alarms — only for slots with showAlarms === true */}
             {(() => {
+              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showAlarms);
+              if (enabledSlots.length === 0 && analysisTab === 'alarms') {
+                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Alarms ».</div>;
+              }
               const sec = analysisTabs.getSection('alarms');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances.map(inst2 => (
-                <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
-                  <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                </div>
-              ));
+              return sec.instances
+                .filter(inst2 => {
+                  if (!inst2.sourceGraphId) return true;
+                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
+                })
+                .map(inst2 => (
+                  <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
+                    <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                  </div>
+                ));
             })()}
 
             {/* Counters */}
@@ -919,26 +945,44 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               />
             </div>
 
-            {/* Neighbors — all instances always mounted */}
+            {/* Neighbors — only for slots with showNeighbors === true */}
             {(() => {
+              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showNeighbors);
+              if (enabledSlots.length === 0 && analysisTab === 'neighbors') {
+                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Neighbors ».</div>;
+              }
               const sec = analysisTabs.getSection('neighbors');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances.map(inst2 => (
-                <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
-                  <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                </div>
-              ));
+              return sec.instances
+                .filter(inst2 => {
+                  if (!inst2.sourceGraphId) return true;
+                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
+                })
+                .map(inst2 => (
+                  <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
+                    <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                  </div>
+                ));
             })()}
 
-            {/* CM History — all instances always mounted */}
+            {/* CM History — only for slots with showCmHistory === true */}
             {(() => {
+              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showCmHistory);
+              if (enabledSlots.length === 0 && analysisTab === 'cm_history') {
+                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « CM History ».</div>;
+              }
               const sec = analysisTabs.getSection('cm_history');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances.map(inst2 => (
-                <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
-                  <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                </div>
-              ));
+              return sec.instances
+                .filter(inst2 => {
+                  if (!inst2.sourceGraphId) return true;
+                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
+                })
+                .map(inst2 => (
+                  <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
+                    <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                  </div>
+                ));
             })()}
 
           </div>
