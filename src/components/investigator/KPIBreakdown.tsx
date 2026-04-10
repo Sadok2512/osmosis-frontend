@@ -93,8 +93,12 @@ const FormulaPanel: React.FC<{
   hiddenCounters: Set<string>;
   onToggleCounter: (name: string) => void;
   splitBy?: string;
-  onSplitChange?: (split: string) => void;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, onSplitChange }) => {
+  splitElements?: string[];
+  selectedElements?: Set<string>;
+  onToggleElement?: (el: string) => void;
+  onSelectAllElements?: () => void;
+  onDeselectAllElements?: () => void;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements }) => {
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
