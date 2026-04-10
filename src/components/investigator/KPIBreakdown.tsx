@@ -105,7 +105,8 @@ const FormulaPanel: React.FC<{
   hiddenCounters: Set<string>;
   onToggleCounter: (name: string) => void;
   splitBy?: string;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy }) => {
+  onSplitChange?: (split: string) => void;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, onSplitChange }) => {
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
@@ -163,14 +164,27 @@ const FormulaPanel: React.FC<{
               { label: explain.formula_type, color: 'bg-primary/10 text-primary border-primary/30' },
               { label: explain.unit || 'ratio', color: 'bg-muted/60 text-muted-foreground border-border/30' },
               { label: explain.techno, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
-              ...(splitBy && splitBy !== 'None'
-                ? [{ label: `SPLIT: ${splitBy}`, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' }]
-                : []),
             ].filter(t => t.label).map(t => (
               <span key={t.label} className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold border', t.color)}>
                 {t.label}
               </span>
             ))}
+            {/* Split Selector */}
+            <div className="flex items-center gap-1.5">
+              <SplitSquareVertical className="w-3.5 h-3.5 text-indigo-500" />
+              <Select value={splitBy || 'None'} onValueChange={v => onSplitChange?.(v)}>
+                <SelectTrigger className="h-6 w-[130px] text-[10px] font-bold border-indigo-500/30 bg-indigo-500/5 text-indigo-600 px-2 py-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPLIT_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
