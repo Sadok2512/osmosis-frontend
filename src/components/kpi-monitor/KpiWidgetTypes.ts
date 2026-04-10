@@ -1,6 +1,12 @@
 // ── Independent KPI Widget Types ─────────────────────────────────────
 import type { KpiSelection, SplitDimension, DynamicFilter, Granularity } from './types';
 
+export interface YAxisWidgetConfig {
+  mode: 'auto' | 'manual';
+  min?: number;
+  max?: number;
+}
+
 export interface KpiWidgetConfig {
   id: string;
   title: string;
@@ -22,6 +28,19 @@ export interface KpiWidgetConfig {
   graphType: 'line' | 'area' | 'bar' | 'stacked_area';
   showLegend: boolean;
   smooth: boolean;
+  // Advanced graph settings (Investigator-style)
+  showSymbols: boolean;
+  showArea: boolean;
+  showThresholds: boolean;
+  showAverage: boolean;
+  showGrid: boolean;
+  lineWidth: number;
+  yAxis?: YAxisWidgetConfig;
+  yAxisRight?: YAxisWidgetConfig;
+  /** Maps kpi_key → 0 (left) or 1 (right). Default 0. */
+  yAxisAssignments?: Record<string, number>;
+  /** Maps kpi_key → chart type override */
+  chartTypePerKpi?: Record<string, string>;
   // Status
   isLoading?: boolean;
   lastRefreshed?: string;
