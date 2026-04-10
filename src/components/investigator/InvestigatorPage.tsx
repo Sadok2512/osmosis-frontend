@@ -568,6 +568,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           jalons={state.jalons}
           graphSlots={state.graphSlots}
           data={tsData}
+          investigatorState={state}
           layout={state.graphLayout}
           onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
             ...prev,
