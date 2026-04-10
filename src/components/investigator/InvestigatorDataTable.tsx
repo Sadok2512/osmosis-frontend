@@ -31,7 +31,7 @@ const fmtVal = (v: number | null | undefined) =>
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
