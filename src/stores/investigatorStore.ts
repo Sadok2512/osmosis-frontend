@@ -189,10 +189,11 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
         return persisted;
       },
       partialize: (s) => ({
-        // Only persist config — NOT runtime API data
         state: s.state,
         activeSlotId: s.activeSlotId,
         hasLoadedOnce: s.hasLoadedOnce,
+        currentInvestigatorId: s.currentInvestigatorId,
+        currentInvestigatorName: s.currentInvestigatorName,
       }),
       // Validate activeSlotId on rehydration
       onRehydrateStorage: () => (rehydrated) => {
