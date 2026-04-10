@@ -730,6 +730,7 @@ const InvestigatorPage: React.FC = () => {
               <InvestigatorDataTable
                 tsData={slotData}
                 activeSlot={activeTableSlot}
+                siteName={state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || undefined}
               />
             </>
           );

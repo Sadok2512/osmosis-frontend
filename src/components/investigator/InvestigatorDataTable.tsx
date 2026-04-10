@@ -14,6 +14,7 @@ import type { DataPoint, GraphSlot } from './types';
 interface Props {
   tsData: DataPoint[];
   activeSlot?: GraphSlot | null;
+  siteName?: string;
 }
 
 const COLORS = [
@@ -30,7 +31,7 @@ const fmtVal = (v: number | null | undefined) =>
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
@@ -89,15 +90,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
       const builtRows = sorted.map((d) => {
         const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
-        // Extract site name from networkElement or splitValue (remove cell suffix)
         const rawNe = d.networkElement || d.splitValue || '';
-        const siteName = rawNe.replace(/-\d+$/, '') || rawNe;
+        const cellName = rawNe;
         // Clean KPI name: remove @CellName suffix
         const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
           timestamp: fmt(d.timestamp),
-          ne: siteName || 'N/A',
-          cell: rawNe || '—',
+          ne: siteName || '—',
+          cell: cellName || '—',
           split1: d.splitValue || '—',
           split2: d.splitValue2 || '—',
           kpi: cleanKpi,
@@ -119,25 +119,17 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     tsData.forEach((p) => {
       if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value;
     });
-    const neLookup: Record<string, string> = {};
-    tsData.forEach((p) => {
-      if (p.networkElement && !neLookup[p.timestamp]) {
-        const raw = p.networkElement;
-        neLookup[p.timestamp] = raw.replace(/-\d+$/, '') || raw;
-      }
-    });
-
     // Clean KPI names (remove @CellName suffix)
     const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
     const cols = ['Timestamp', 'Network Element', ...cleanKpis];
     const builtRows = timestamps.map((ts) => ({
       timestamp: fmt(ts),
-      ne: neLookup[ts] || 'N/A',
+      ne: siteName || '—',
       kpiValues: kpis.map((k) => lookup[k]?.[ts] ?? null),
     }));
 
     return { rows: builtRows, columns: cols };
-  }, [tsData, hasSplits, hasSplit2, split1Label, split2Label]);
+  }, [tsData, hasSplits, hasSplit2, split1Label, split2Label, siteName]);
 
   // ── Pagination ──
   const totalRows = rows.length;
