@@ -222,18 +222,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
                 <>
                   <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
-                      {split1Label}
-                      <Filter className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      CELL
+                      <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </th>
-                  {hasSplit2 && (
-                    <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                      <div className="flex items-center gap-2">
-                        {split2Label}
-                        <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </th>
-                  )}
                   <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
                       KPI Metric
