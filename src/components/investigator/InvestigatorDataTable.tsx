@@ -14,6 +14,7 @@ import type { DataPoint, GraphSlot } from './types';
 interface Props {
   tsData: DataPoint[];
   activeSlot?: GraphSlot | null;
+  siteName?: string;
 }
 
 const COLORS = [
