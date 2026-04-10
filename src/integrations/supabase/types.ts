@@ -402,6 +402,30 @@ export type Database = {
         }
         Relationships: []
       }
+      investigators: {
+        Row: {
+          context: Json
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       kpi_catalog: {
         Row: {
           color: string | null

@@ -46,6 +46,14 @@ interface InvestigatorStore {
   hasLoadedOnce: boolean;
   setHasLoadedOnce: (v: boolean) => void;
 
+  // ── Named investigator tracking ──
+  currentInvestigatorId: string | null;
+  setCurrentInvestigatorId: (id: string | null) => void;
+  currentInvestigatorName: string;
+  setCurrentInvestigatorName: (name: string) => void;
+  hasUnsavedChanges: boolean;
+  setHasUnsavedChanges: (v: boolean) => void;
+
   // ── Runtime only: API results ──
   tsData: DataPoint[];
   setTsData: (d: DataPoint[]) => void;
@@ -87,6 +95,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
           return {
             state: next,
             activeSlotId: validateActiveSlot(store.activeSlotId, next.graphSlots),
+            hasUnsavedChanges: true,
           };
         }),
       activeSlotId: null,
@@ -96,6 +105,14 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
         })),
       hasLoadedOnce: false,
       setHasLoadedOnce: (v) => set({ hasLoadedOnce: v }),
+
+      // ── Named investigator tracking ──
+      currentInvestigatorId: null,
+      setCurrentInvestigatorId: (id) => set({ currentInvestigatorId: id }),
+      currentInvestigatorName: 'Untitled Investigator',
+      setCurrentInvestigatorName: (name) => set({ currentInvestigatorName: name, hasUnsavedChanges: true }),
+      hasUnsavedChanges: false,
+      setHasUnsavedChanges: (v) => set({ hasUnsavedChanges: v }),
 
       // ── Runtime result data (NOT persisted) ──
       tsData: [],
@@ -132,6 +149,9 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
           loading: false,
           error: null,
           kpiSelectorSlot: null,
+          currentInvestigatorId: null,
+          currentInvestigatorName: 'Untitled Investigator',
+          hasUnsavedChanges: false,
         });
       },
     }),
@@ -169,10 +189,11 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
         return persisted;
       },
       partialize: (s) => ({
-        // Only persist config — NOT runtime API data
         state: s.state,
         activeSlotId: s.activeSlotId,
         hasLoadedOnce: s.hasLoadedOnce,
+        currentInvestigatorId: s.currentInvestigatorId,
+        currentInvestigatorName: s.currentInvestigatorName,
       }),
       // Validate activeSlotId on rehydration
       onRehydrateStorage: () => (rehydrated) => {

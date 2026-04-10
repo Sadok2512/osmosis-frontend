@@ -16,6 +16,7 @@ import WorstElementsTable from './WorstElementsTable';
 import TopWorstTabContent from './TopWorstTabContent';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
+import InvestigatorSaveLoadBar from './InvestigatorSaveLoadBar';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
@@ -26,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import type { SavedInvestigator } from '@/services/investigatorService';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -70,6 +72,9 @@ const InvestigatorPage: React.FC = () => {
     activeSlotId, setActiveSlotId,
     kpiSelectorSlot, setKpiSelectorSlot,
     hasLoadedOnce, setHasLoadedOnce,
+    currentInvestigatorId, setCurrentInvestigatorId,
+    currentInvestigatorName, setCurrentInvestigatorName,
+    hasUnsavedChanges, setHasUnsavedChanges,
   } = useInvestigatorStore();
 
   const [isApplying, setIsApplying] = React.useState(false);
@@ -349,7 +354,9 @@ const InvestigatorPage: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">
+              {currentInvestigatorName || 'Untitled Investigator'}
+            </h2>
             <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
           </div>
         </div>
@@ -534,9 +541,49 @@ const InvestigatorPage: React.FC = () => {
     </section>
   );
 
+  // ═══ Save / Load handlers ═══
+  const handleGetContext = useCallback(() => ({
+    state,
+    activeSlotId,
+  }), [state, activeSlotId]);
+
+  const handleLoadInvestigator = useCallback((inv: SavedInvestigator) => {
+    const ctx = inv.context as any;
+    if (ctx?.state) {
+      setState(ctx.state);
+    }
+    if (ctx?.activeSlotId) {
+      setActiveSlotId(ctx.activeSlotId);
+    }
+    setCurrentInvestigatorId(inv.id);
+    setCurrentInvestigatorName(inv.name);
+    setHasUnsavedChanges(false);
+    setHasLoadedOnce(false);
+    setTsData([]);
+    setWorstElements([]);
+  }, [setState, setActiveSlotId, setCurrentInvestigatorId, setCurrentInvestigatorName, setHasUnsavedChanges, setHasLoadedOnce, setTsData, setWorstElements]);
+
+  const handleNewInvestigator = useCallback(() => {
+    useInvestigatorStore.getState().resetAll();
+  }, []);
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+
+      {/* ═══ Save/Load Bar ═══ */}
+      <div className="px-4 md:px-[2.5%] pt-3 pb-1">
+        <InvestigatorSaveLoadBar
+          investigatorId={currentInvestigatorId}
+          investigatorName={currentInvestigatorName}
+          onNameChange={setCurrentInvestigatorName}
+          onSave={handleGetContext}
+          onLoad={handleLoadInvestigator}
+          onNewInvestigator={handleNewInvestigator}
+          hasUnsavedChanges={hasUnsavedChanges}
+        />
+      </div>
+
       {/* Unified Toolbar */}
       <ControlPanel
         state={state}
