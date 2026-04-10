@@ -120,15 +120,17 @@ const InvestigatorWorkspace: React.FC = () => {
    ═══════════════════════════════════════════════════════════ */
 const InvestigatorPageInstance: React.FC<{ instanceId: string }> = ({ instanceId }) => {
   const ws = useInvestigatorWorkspace();
-  const inst = ws.getInstance(instanceId);
+  const inst = ws.instances.find(i => i.instanceId === instanceId);
 
-  // Bail if instance was removed
-  if (!inst) return null;
-
-  const state = inst.state;
-  const tsData = inst.tsData;
-  const activeSlotId = inst.activeSlotId;
-  const worstElements = inst.worstElements;
+  const state = inst?.state ?? {
+    dimension: 'Cell' as const, selectedKpis: [], graphSlots: [], splitBy: 'None',
+    startDate: '', endDate: '', granularity: '1d' as const, filters: {}, topLimit: 10,
+    sortBy: null, graphLayout: 2 as const, activeGraphTab: 'TimeSeries' as const, jalons: [],
+    kpiLevel: 'CELL' as const, profileQci: null, profileArp: null, neighborType: null,
+  };
+  const tsData = inst?.tsData ?? [];
+  const activeSlotId = inst?.activeSlotId ?? null;
+  const worstElements = inst?.worstElements ?? [];
 
   // Helper to update state
   const setState = useCallback((updater: any) => {
