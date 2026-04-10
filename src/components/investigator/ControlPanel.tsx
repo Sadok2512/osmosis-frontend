@@ -1699,6 +1699,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                 setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                               }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split 2</button>
                             ) : null}
+                            {/* Apply button inside split popover */}
+                            {hasSplit1Active && (
+                              <Button
+                                size="sm"
+                                onClick={() => { onApply(); }}
+                                disabled={isApplying}
+                                className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
+                              >
+                                {isApplying ? 'Chargement…' : 'Appliquer'}
+                              </Button>
+                            )}
                           </>
                         );
                       })()}
