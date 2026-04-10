@@ -312,15 +312,15 @@ const SingleKpiBreakdown: React.FC<{
   granularity: Granularity;
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
-  onSplitChange?: (split: string) => void;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, onSplitChange, timeSeriesData }) => {
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState<string | null>(null);
   const [hiddenCounters, setHiddenCounters] = useState<Set<string>>(new Set());
+  const [selectedElements, setSelectedElements] = useState<Set<string> | null>(null); // null = all selected
 
   // Fetch explain
   useEffect(() => {
