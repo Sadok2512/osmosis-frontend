@@ -16,6 +16,26 @@ interface Props {
   siteName?: string;
 }
 
+// Same palette & hash as KPIGraphs.tsx so cell colors match the graph
+const SPLIT_COLORS = [
+  '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
+  '#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6',
+  '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24',
+  '#fb7185','#2dd4bf','#818cf8','#facc15','#34d399',
+];
+
+function stableHash(key: string): number {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+  }
+  return ((hash % SPLIT_COLORS.length) + SPLIT_COLORS.length) % SPLIT_COLORS.length;
+}
+
+function stableColorForSplit(splitValue: string): string {
+  return SPLIT_COLORS[stableHash(splitValue)];
+}
+
 const COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
   '#ec4899', '#84cc16', '#ef4444', '#6366f1', '#14b8a6',
