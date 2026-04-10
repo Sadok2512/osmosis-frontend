@@ -119,22 +119,17 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
     tsData.forEach((p) => {
       if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value;
     });
-    const cols = ['Timestamp', 'Network Element', ...cleanKpis];
-    const builtRows = timestamps.map((ts) => ({
-      timestamp: fmt(ts),
-      ne: siteName || '—',
-
     // Clean KPI names (remove @CellName suffix)
     const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
     const cols = ['Timestamp', 'Network Element', ...cleanKpis];
     const builtRows = timestamps.map((ts) => ({
       timestamp: fmt(ts),
-      ne: neLookup[ts] || 'N/A',
+      ne: siteName || '—',
       kpiValues: kpis.map((k) => lookup[k]?.[ts] ?? null),
     }));
 
     return { rows: builtRows, columns: cols };
-  }, [tsData, hasSplits, hasSplit2, split1Label, split2Label]);
+  }, [tsData, hasSplits, hasSplit2, split1Label, split2Label, siteName]);
 
   // ── Pagination ──
   const totalRows = rows.length;
