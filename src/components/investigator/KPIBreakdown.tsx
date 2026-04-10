@@ -768,6 +768,7 @@ const KPIBreakdown: React.FC<Props> = ({
           granularity={granularity}
           filters={filters}
           splitBy={effectiveSplitBy}
+          timeSeriesData={timeSeriesData}
         />
       )}
     </div>
