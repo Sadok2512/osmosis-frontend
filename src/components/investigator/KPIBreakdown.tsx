@@ -292,8 +292,9 @@ const SingleKpiBreakdown: React.FC<{
   granularity: Granularity;
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
+  onSplitChange?: (split: string) => void;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, onSplitChange, timeSeriesData }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
