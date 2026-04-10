@@ -271,9 +271,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   // Smart x-axis interval
   const xInterval = smartXInterval(timestamps.length);
 
-  const itemsPerRow = 4;
-  const legendRowCount = Math.ceil(counters.length / itemsPerRow);
-  const legendHeight = Math.max(20, legendRowCount * 16 + 4);
+  const legendHeight = 28; // scroll legend = single row
   const sliderHeight = 22;
 
   const option = {
@@ -314,13 +312,15 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     ],
     legend: {
       show: true,
-      bottom: 4,
+      bottom: 0,
       icon: 'roundRect',
       itemWidth: 14,
       itemHeight: 4,
-      itemGap: 8,
-      type: 'plain' as any,
-      textStyle: { fontSize: 9, fontWeight: 500, color: '#4b5563', padding: [0, 0, 0, 2] },
+      itemGap: 10,
+      type: 'scroll' as any,
+      pageIconSize: 10,
+      pageTextStyle: { fontSize: 9, color: '#6b7280' },
+      textStyle: { fontSize: 9, fontWeight: 500, color: '#4b5563', padding: [0, 0, 0, 2], overflow: 'truncate' as any, width: 180 },
       tooltip: { show: true },
     },
     tooltip: {
@@ -1121,10 +1121,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        // Dynamic legend height: ~14px per row, estimate ~4 items per row
-        const itemsPerRow = 4;
-        const legendRowCount = Math.ceil(series.length / itemsPerRow);
-        const legendHeight = Math.max(20, legendRowCount * 16 + 4);
+        const legendHeight = 28; // scroll legend = single row
 
         const option: any = {
           animation: false,
@@ -1172,17 +1169,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
           ],
           legend: {
             show: true,
-            bottom: 4,
+            bottom: 0,
             icon: 'roundRect',
             itemWidth: 14,
             itemHeight: 4,
-            itemGap: 8,
-            type: 'plain' as any,
+            itemGap: 10,
+            type: 'scroll' as any,
+            pageIconSize: 10,
+            pageTextStyle: { fontSize: 9, color: '#6b7280' },
             textStyle: {
               fontSize: 9,
               fontWeight: 500,
               color: '#4b5563',
               padding: [0, 0, 0, 2],
+              overflow: 'truncate' as any,
+              width: 180,
             },
             tooltip: { show: true },
           },
