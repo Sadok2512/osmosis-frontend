@@ -3,11 +3,20 @@ import { WorstElement } from './types';
 import { ArrowUp, ArrowDown, Minus, ChevronDown, AlertTriangle, Bell, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+interface DrilldownContext {
+  kpiIds: string[];
+  startDate: string;
+  endDate: string;
+  granularity: string;
+  filters: Record<string, string[]>;
+}
+
 interface Props {
   elements: WorstElement[];
   limit: number;
   onLimitChange: (limit: number) => void;
   onRowClick: (id: string) => void;
+  drilldownContext?: DrilldownContext;
 }
 
 const SeverityBadge: React.FC<{ severity: 'critical' | 'warning' | 'ok' }> = ({ severity }) => {
@@ -38,7 +47,7 @@ const AlarmBadge: React.FC<{ count: number; severity: string }> = ({ count, seve
   );
 };
 
-const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, onRowClick }) => {
+const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, onRowClick, drilldownContext }) => {
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
