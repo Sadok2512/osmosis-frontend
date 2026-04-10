@@ -153,7 +153,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     let csvRows: string[];
     if (hasSplits) {
       csvRows = (rows as any[]).map((r) => {
-        const parts = [r.timestamp, r.ne, r.split1, ...(hasSplit2 ? [r.split2] : []), r.kpi, r.value];
+        const parts = [r.timestamp, r.ne, r.cell, r.kpi, r.value];
         return parts.join(',');
       });
     } else {
