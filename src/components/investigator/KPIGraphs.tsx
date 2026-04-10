@@ -1297,18 +1297,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
           >
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 relative z-10">
-              <div className="flex items-center gap-1.5">
-                <input
-                  value={slot.name}
-                  onChange={(e) => onRenameSlot(slot.id, e.target.value)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate"
-                />
-                {isActive && (
-                  <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">Active</span>
-                )}
-              </div>
+              <input
+                value={slot.name}
+                onChange={(e) => onRenameSlot(slot.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="text-[13px] font-semibold text-foreground bg-transparent border-b border-transparent hover:border-border focus:border-primary focus:outline-none max-w-[160px] truncate"
+              />
               <span className="ml-auto" />
+              {isActive && (
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">Active</span>
+              )}
 
 
 
