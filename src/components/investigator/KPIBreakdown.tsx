@@ -652,6 +652,7 @@ const SingleKpiBreakdown: React.FC<{
     const timestamps = new Set<string>();
     for (const d of kpiData) {
       const cell = d.splitValue || d.networkElement || 'Aggregated';
+      if (selectedElements && !selectedElements.has(cell)) continue; // filter by selected elements
       timestamps.add(d.timestamp);
       if (!cellMap.has(cell)) cellMap.set(cell, new Map());
       cellMap.get(cell)!.set(d.timestamp, d.value);
