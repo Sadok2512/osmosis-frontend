@@ -236,16 +236,39 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     const slot = state.graphSlots.find(s => s.id === activeSlotId);
     if (!slot) return;
 
+    const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
     const snapshot = buildSnapshot(slot, state);
 
     setTableDataSlotId(activeSlotId);
 
-    const sections = ['top_worst', 'alarms', 'neighbors', 'cm_history'] as const;
-    for (const sec of sections) {
-      analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
+    // Only create/sync tabs for sections that are enabled on the NEW active slot
+    const sectionFlagMap: Record<string, keyof GraphConfig> = {
+      top_worst: 'showTopWorst',
+      alarms: 'showAlarms',
+      neighbors: 'showNeighbors',
+      cm_history: 'showCmHistory',
+    };
+    for (const [sec, flag] of Object.entries(sectionFlagMap)) {
+      if ((cfg as any)[flag]) {
+        analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
+      }
     }
 
-    // Per-slot: no need to auto-close — each slot has its own analysisTab state
+    // If the currently active analysis tab is not enabled on the new slot, close it
+    if (analysisTab) {
+      const configKeyMap: Record<string, keyof GraphConfig> = {
+        table_data: 'showDataTable',
+        breakdown: 'showBreakdown',
+        top_worst: 'showTopWorst',
+        alarms: 'showAlarms',
+        neighbors: 'showNeighbors',
+        cm_history: 'showCmHistory',
+      };
+      const cfgKey = configKeyMap[analysisTab];
+      if (cfgKey && !(cfg as any)[cfgKey]) {
+        setAnalysisTab(null);
+      }
+    }
   }, [activeSlotId, state.graphSlots]);
 
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
@@ -699,8 +722,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           {!isGraphFullscreen && renderGraphSection()}
         </div>
 
-        {/* ═══ ZONE 2: Stable Analysis Area — always mounted, min-height reserved ═══ */}
-        <div className="flex-1 mt-6" style={{ minHeight: 320 }}>
+        {/* ═══ ZONE 2: Stable Analysis Area — always mounted, stable height ═══ */}
+        <div className="shrink-0 mt-6" style={{ minHeight: 360 }}>
 
           {/* Analysis Tab Bar — always visible when there are enabled tabs */}
           {(() => {
@@ -817,8 +840,18 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     ? activeSlotId
                     : enabledSlots[0]?.id || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
+                // Filter data by slot AND only include KPIs configured in that slot
+                const slotKpiIds = new Set(activeTableSlot?.kpiIds || []);
                 const slotData = effectiveSlotId
-                  ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
+                  ? tsData.filter((d: any) => {
+                      if (d._slotId !== effectiveSlotId) return false;
+                      // If slot has configured KPIs, only include matching data
+                      if (slotKpiIds.size > 0) {
+                        const baseKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
+                        return slotKpiIds.has(baseKpi) || d._isCounter;
+                      }
+                      return true;
+                    })
                   : [];
 
                 return (

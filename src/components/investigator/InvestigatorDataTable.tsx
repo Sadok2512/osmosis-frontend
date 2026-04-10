@@ -6,7 +6,6 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Download,
-  Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DataPoint, GraphSlot } from './types';
@@ -31,76 +30,77 @@ const fmtVal = (v: number | null | undefined) =>
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '—';
 
+/** Clean KPI key: remove @splitValue suffix */
+const cleanKpi = (k: string) => k.includes('@') ? k.split('@')[0] : k;
+
+/**
+ * Build pivot table: one row per (timestamp, networkElement, cell)
+ * with separate columns for each KPI metric.
+ */
+function buildPivotTable(tsData: DataPoint[], siteName?: string) {
+  // Discover unique KPI metrics
+  const kpiSet = new Set<string>();
+  tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
+  const kpiColumns = [...kpiSet];
+
+  // Build row key → values map
+  const rowMap = new Map<string, {
+    timestamp: string;
+    ne: string;
+    cell: string;
+    kpiValues: Record<string, number | null>;
+  }>();
+
+  for (const d of tsData) {
+    const cell = d.networkElement || d.splitValue || '';
+    const ne = siteName || '—';
+    const rowKey = `${d.timestamp}||${ne}||${cell}`;
+    const kpi = cleanKpi(d.kpi);
+
+    if (!rowMap.has(rowKey)) {
+      rowMap.set(rowKey, {
+        timestamp: fmt(d.timestamp),
+        ne,
+        cell: cell || '—',
+        kpiValues: {},
+      });
+    }
+    const row = rowMap.get(rowKey)!;
+    row.kpiValues[kpi] = d.value;
+  }
+
+  // Sort rows by timestamp, then cell
+  const rows = [...rowMap.values()].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp) || a.cell.localeCompare(b.cell)
+  );
+
+  // Determine if we have splits (cell-level data)
+  const hasCells = tsData.some(d => d.splitValue || d.networkElement);
+
+  return { rows, kpiColumns, hasCells };
+}
+
 const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
-  const hasSplits = useMemo(() => tsData.some((d) => d.splitValue), [tsData]);
-
   // ── Source info ──
   const sourceInfo = useMemo(() => {
-    const kpis = [...new Set(tsData.map(d => {
-      const k = d.kpi;
-      return k.includes('@') ? k.split('@')[0] : k;
-    }))];
+    const kpis = [...new Set(tsData.map(d => cleanKpi(d.kpi)))];
     return {
-      slotLabel: (activeSlot as any)?.label || activeSlot?.id || 'Timeseries',
+      slotLabel: (activeSlot as any)?.label || activeSlot?.name || activeSlot?.id || 'Timeseries',
       kpiCount: kpis.length,
       kpiNames: kpis.join(', '),
       rowCount: tsData.length,
     };
   }, [tsData, activeSlot]);
 
-  // ── Build rows ──
-  const { rows, columns } = useMemo(() => {
-    if (hasSplits) {
-      const sorted = [...tsData].sort(
-        (a, b) =>
-          a.timestamp.localeCompare(b.timestamp) ||
-          (a.splitValue || '').localeCompare(b.splitValue || ''),
-      );
-      const seriesKeys = [...new Set(tsData.map((d) => `${d.kpi}@${d.splitValue || ''}`))];
-      const colorMap: Record<string, string> = {};
-      seriesKeys.forEach((k, i) => {
-        colorMap[k] = COLORS[i % COLORS.length];
-      });
-
-      const cols = ['Timestamp', 'Network Element', 'CELL', 'KPI Metric', 'Value'];
-
-      const builtRows = sorted.map((d) => {
-        const seriesKey = `${d.kpi}@${d.splitValue || ''}`;
-        const cellName = d.networkElement || d.splitValue || '';
-        const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
-        return {
-          timestamp: fmt(d.timestamp),
-          ne: siteName || '—',
-          cell: cellName || '—',
-          kpi: cleanKpi,
-          value: d.value,
-          color: colorMap[seriesKey] || COLORS[0],
-        };
-      });
-
-      return { rows: builtRows, columns: cols };
-    }
-
-    // ── Non-split: flat rows ──
-    const kpis = [...new Set(tsData.map((d) => d.kpi))];
-    const timestamps = [...new Set(tsData.map((d) => d.timestamp))].sort();
-    const lookup: Record<string, Record<string, number>> = {};
-    kpis.forEach((k) => { lookup[k] = {}; });
-    tsData.forEach((p) => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
-    const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
-    const cols = ['Timestamp', 'Network Element', ...cleanKpis];
-    const builtRows = timestamps.map((ts) => ({
-      timestamp: fmt(ts),
-      ne: siteName || '—',
-      kpiValues: kpis.map((k) => lookup[k]?.[ts] ?? null),
-    }));
-
-    return { rows: builtRows, columns: cols };
-  }, [tsData, hasSplits, siteName]);
+  // ── Build pivot table ──
+  const { rows, kpiColumns, hasCells } = useMemo(
+    () => buildPivotTable(tsData, siteName),
+    [tsData, siteName]
+  );
 
   // ── Pagination ──
   const totalRows = rows.length;
@@ -112,23 +112,24 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
 
   // ── CSV export ──
   const exportCsv = () => {
-    const header = columns.join(',');
-    let csvRows: string[];
-    if (hasSplits) {
-      csvRows = (rows as any[]).map((r) => {
-        return [r.timestamp, r.ne, r.cell, r.kpi, r.value].join(',');
-      });
-    } else {
-      csvRows = (rows as any[]).map((r) => {
-        return [r.timestamp, r.ne, ...(r.kpiValues || [])].join(',');
-      });
-    }
+    const headerCols = ['Timestamp', 'Network Element'];
+    if (hasCells) headerCols.push('Cell');
+    headerCols.push(...kpiColumns);
+    const header = headerCols.join(',');
+
+    const csvRows = rows.map(r => {
+      const baseCols = [r.timestamp, r.ne];
+      if (hasCells) baseCols.push(r.cell);
+      const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
+      return [...baseCols, ...kpiVals].join(',');
+    });
+
     const csv = [header, ...csvRows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'table_data.csv';
+    a.download = `table_data_${activeSlot?.name || 'export'}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -155,7 +156,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
           </span>
           <span className="text-muted-foreground">|</span>
           <span className="text-muted-foreground font-medium">
-            {sourceInfo.rowCount} rows
+            {totalRows} pivoted rows ({sourceInfo.rowCount} raw points)
           </span>
         </div>
       </div>
@@ -165,6 +166,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
         <div className="flex items-center gap-3">
           <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
           <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
+          <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
+            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasCells ? 'Cell' : 'NE'}
+          </span>
         </div>
         <button
           onClick={exportCsv}
@@ -175,68 +179,48 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
         </button>
       </div>
 
-      {/* ── Table ── */}
+      {/* ── Table — Pivot Format ── */}
       <div className="overflow-auto flex-grow relative" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[11px]">
           <thead className="sticky top-0 z-20">
             <tr className="bg-muted/80 backdrop-blur-md border-b border-border/30">
               {/* Timestamp */}
-              <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                <div className="flex items-center gap-2">
-                  Timestamp
-                  <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
+              <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                Timestamp
               </th>
 
               {/* NE — sticky */}
-              <th className="text-left py-3 px-4 font-bold text-primary uppercase tracking-wider sticky left-0 bg-muted/95 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] group cursor-pointer hover:bg-primary/10 transition-colors">
-                <div className="flex items-center gap-2">
-                  Network Element
-                  <ChevronDown className="w-3 h-3 transition-opacity" />
-                </div>
+              <th className="text-left py-3 px-4 font-bold text-primary uppercase tracking-wider sticky left-0 bg-muted/95 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
+                Network Element
               </th>
 
-              {hasSplits ? (
-                <>
-                  <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-2">
-                      CELL
-                      <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </th>
-                  <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                    <div className="flex items-center gap-2">
-                      KPI Metric
-                      <Filter className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </th>
-                  <th className="text-right py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                    <div className="flex items-center justify-end gap-2">
-                      Value
-                      <Filter className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                  </th>
-                </>
-              ) : (
-                <>
-                  {columns.slice(2).map((col, i) => (
-                    <th
-                      key={col}
-                      className="text-right py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors"
-                    >
-                      <div className="flex items-center justify-end gap-1.5">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="whitespace-nowrap">{col}</span>
-                      </div>
-                    </th>
-                  ))}
-                </>
+              {/* Cell — only when splits exist */}
+              {hasCells && (
+                <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                  Cell
+                </th>
               )}
+
+              {/* KPI Columns */}
+              {kpiColumns.map((kpi, i) => (
+                <th
+                  key={kpi}
+                  className="text-right py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                    />
+                    <span className="truncate max-w-[200px]" title={kpi}>{kpi}</span>
+                  </div>
+                </th>
+              ))}
             </tr>
           </thead>
 
           <tbody className="divide-y divide-border/10">
-            {pageRows.map((row: any, idx) => {
+            {pageRows.map((row, idx) => {
               const absIdx = startIdx + idx;
               const isOdd = absIdx % 2 !== 0;
 
@@ -263,39 +247,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
                     {row.ne}
                   </td>
 
-                  {hasSplits ? (
-                    <>
-                      {/* CELL */}
-                      <td className="py-2.5 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: row.color }}
-                          />
-                          <span className="text-foreground">{row.cell}</span>
-                        </span>
-                      </td>
-                      {/* KPI */}
-                      <td className="py-2.5 px-4 text-muted-foreground truncate max-w-[250px]" title={row.kpi}>
-                        {row.kpi}
-                      </td>
-                      {/* Value */}
-                      <td className="py-2.5 px-4 text-right tabular-nums font-semibold text-primary whitespace-nowrap">
-                        {fmtVal(row.value)}
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      {(row.kpiValues || []).map((v: number | null, ki: number) => (
-                        <td
-                          key={ki}
-                          className="py-2.5 px-4 text-right tabular-nums font-medium text-foreground whitespace-nowrap"
-                        >
-                          {fmtVal(v)}
-                        </td>
-                      ))}
-                    </>
+                  {/* Cell */}
+                  {hasCells && (
+                    <td className="py-2.5 px-4 whitespace-nowrap text-foreground">
+                      {row.cell}
+                    </td>
                   )}
+
+                  {/* KPI values */}
+                  {kpiColumns.map((kpi) => (
+                    <td
+                      key={kpi}
+                      className="py-2.5 px-4 text-right tabular-nums font-medium text-foreground whitespace-nowrap"
+                    >
+                      {fmtVal(row.kpiValues[kpi] ?? null)}
+                    </td>
+                  ))}
                 </tr>
               );
             })}
