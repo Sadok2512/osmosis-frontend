@@ -37,32 +37,20 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
   const hasSplits = useMemo(() => tsData.some((d) => d.splitValue), [tsData]);
-  const hasSplit2 = useMemo(() => tsData.some((d) => d.splitValue2), [tsData]);
 
-  // Derive split labels: prefer slot-level, then detect from per-KPI splits, then fallback
-  const split1Label = useMemo(() => {
-    const raw = activeSlot?.splitBy;
-    if (raw && raw !== 'None') return raw.replace('PM_DIM:', '');
-    // Check per-KPI splits for a PM_DIM label
-    const perKpi = activeSlot?.config?.splitByPerKpi;
-    if (perKpi) {
-      for (const v of Object.values(perKpi)) {
-        if (v && v !== 'None') return (v as string).replace('PM_DIM:', '');
-      }
-    }
-    // Detect from data: if splitValues look like PMQAP/QCI labels
-    if (tsData.some(d => d.splitValue && /^(PMQAP|QCI|5QI|ARP)/i.test(d.splitValue))) return 'PMQAP';
-    return 'Split';
-  }, [activeSlot, tsData]);
-  const split2Label = useMemo(() => {
-    const raw = activeSlot?.splitBy2 || activeSlot?.config?.splitByPerKpi2 && Object.values(activeSlot.config.splitByPerKpi2).find(v => v && v !== 'None');
-    if (!raw || raw === 'None') return 'Split 2';
-    const clean = (raw as string).replace('PM_DIM:', '');
-    // Friendly labels for common split dimensions
-    if (/^cell$/i.test(clean)) return 'Cell Name';
-    if (/^site$/i.test(clean)) return 'Site Name';
-    return clean;
-  }, [activeSlot]);
+  // ── Source info ──
+  const sourceInfo = useMemo(() => {
+    const kpis = [...new Set(tsData.map(d => {
+      const k = d.kpi;
+      return k.includes('@') ? k.split('@')[0] : k;
+    }))];
+    return {
+      slotLabel: activeSlot?.label || 'Timeseries',
+      kpiCount: kpis.length,
+      kpiNames: kpis.join(', '),
+      rowCount: tsData.length,
+    };
+  }, [tsData, activeSlot]);
 
   // ── Build rows ──
   const { rows, columns } = useMemo(() => {
@@ -72,34 +60,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
           a.timestamp.localeCompare(b.timestamp) ||
           (a.splitValue || '').localeCompare(b.splitValue || ''),
       );
-      const seriesKeys = [...new Set(tsData.map((d) => `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`))];
+      const seriesKeys = [...new Set(tsData.map((d) => `${d.kpi}@${d.splitValue || ''}`))];
       const colorMap: Record<string, string> = {};
       seriesKeys.forEach((k, i) => {
         colorMap[k] = COLORS[i % COLORS.length];
       });
 
-      const cols = [
-        'Timestamp',
-        'Network Element',
-        'CELL',
-        split1Label,
-        ...(hasSplit2 ? [split2Label] : []),
-        'KPI Metric',
-        'Value',
-      ];
+      const cols = ['Timestamp', 'Network Element', 'CELL', 'KPI Metric', 'Value'];
 
       const builtRows = sorted.map((d) => {
-        const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
-        const rawNe = d.networkElement || d.splitValue || '';
-        const cellName = rawNe;
-        // Clean KPI name: remove @CellName suffix
+        const seriesKey = `${d.kpi}@${d.splitValue || ''}`;
+        const cellName = d.networkElement || d.splitValue || '';
         const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
           timestamp: fmt(d.timestamp),
           ne: siteName || '—',
           cell: cellName || '—',
-          split1: d.splitValue || '—',
-          split2: d.splitValue2 || '—',
           kpi: cleanKpi,
           value: d.value,
           color: colorMap[seriesKey] || COLORS[0],
@@ -113,13 +89,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
     const kpis = [...new Set(tsData.map((d) => d.kpi))];
     const timestamps = [...new Set(tsData.map((d) => d.timestamp))].sort();
     const lookup: Record<string, Record<string, number>> = {};
-    kpis.forEach((k) => {
-      lookup[k] = {};
-    });
-    tsData.forEach((p) => {
-      if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value;
-    });
-    // Clean KPI names (remove @CellName suffix)
+    kpis.forEach((k) => { lookup[k] = {}; });
+    tsData.forEach((p) => { if (lookup[p.kpi]) lookup[p.kpi][p.timestamp] = p.value; });
     const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
     const cols = ['Timestamp', 'Network Element', ...cleanKpis];
     const builtRows = timestamps.map((ts) => ({
@@ -129,7 +100,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
     }));
 
     return { rows: builtRows, columns: cols };
-  }, [tsData, hasSplits, hasSplit2, split1Label, split2Label, siteName]);
+  }, [tsData, hasSplits, siteName]);
 
   // ── Pagination ──
   const totalRows = rows.length;
@@ -145,13 +116,11 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
     let csvRows: string[];
     if (hasSplits) {
       csvRows = (rows as any[]).map((r) => {
-        const parts = [r.timestamp, r.ne, r.cell, r.kpi, r.value];
-        return parts.join(',');
+        return [r.timestamp, r.ne, r.cell, r.kpi, r.value].join(',');
       });
     } else {
       csvRows = (rows as any[]).map((r) => {
-        const parts = [r.timestamp, r.ne, ...(r.kpiValues || [])];
-        return parts.join(',');
+        return [r.timestamp, r.ne, ...(r.kpiValues || [])].join(',');
       });
     }
     const csv = [header, ...csvRows].join('\n');
@@ -174,6 +143,23 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
 
   return (
     <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col">
+      {/* ── Source Info Banner ── */}
+      <div className="px-4 py-2 bg-primary/5 border-b border-primary/10">
+        <div className="flex items-center gap-2 text-[10px]">
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
+            📊 {sourceInfo.slotLabel}
+          </span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground font-medium">
+            KPIs: <span className="text-foreground">{sourceInfo.kpiNames}</span>
+          </span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground font-medium">
+            {sourceInfo.rowCount} rows
+          </span>
+        </div>
+      </div>
+
       {/* ── Toolbar ── */}
       <div className="h-10 border-b border-border/30 flex items-center justify-between px-4 bg-muted/30">
         <div className="flex items-center gap-2">
@@ -290,11 +276,11 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
                         </span>
                       </td>
                       {/* KPI */}
-                      <td className="py-2.5 px-4 text-foreground truncate max-w-[150px]" title={row.kpi}>
+                      <td className="py-2.5 px-4 text-muted-foreground truncate max-w-[250px]" title={row.kpi}>
                         {row.kpi}
                       </td>
                       {/* Value */}
-                      <td className="py-2.5 px-4 text-right tabular-nums font-medium text-foreground whitespace-nowrap">
+                      <td className="py-2.5 px-4 text-right tabular-nums font-semibold text-primary whitespace-nowrap">
                         {fmtVal(row.value)}
                       </td>
                     </>
