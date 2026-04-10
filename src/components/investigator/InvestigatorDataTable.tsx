@@ -287,24 +287,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
                   {hasSplits ? (
                     <>
-                      {/* Split 1 */}
+                      {/* CELL */}
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           <span
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: row.color }}
                           />
-                          <span className="text-foreground">{row.split1}</span>
+                          <span className="text-foreground">{row.cell}</span>
                         </span>
                       </td>
-                      {/* Split 2 */}
-                      {hasSplit2 && (
-                        <td className="py-2.5 px-4 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[9px] font-bold">
-                            {row.split2}
-                          </span>
-                        </td>
-                      )}
                       {/* KPI */}
                       <td className="py-2.5 px-4 text-foreground truncate max-w-[150px]" title={row.kpi}>
                         {row.kpi}
