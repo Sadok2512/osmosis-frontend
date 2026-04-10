@@ -1177,12 +1177,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                 const shortKpi = kpiPart.length > 18 ? kpiPart.slice(0, 16) + '…' : kpiPart;
                 return `${shortKpi} — ${dimPart}`;
               }
-              // Fallback: truncate long counter/KPI names
+              // Fallback: for split series with NE prefix (e.g. "NRCELL-1_KPIName"), keep the NE prefix
+              const underIdx = name.indexOf('_');
+              if (underIdx > 0 && name.length > 32) {
+                const nePrefix = name.slice(0, underIdx);
+                const kpiPart = name.slice(underIdx + 1);
+                const shortKpi = kpiPart.length > 24 ? kpiPart.slice(0, 22) + '…' : kpiPart;
+                return `${nePrefix}_${shortKpi}`;
+              }
               if (name.length <= 32) return name;
-              const parts = name.split('_').filter(Boolean);
-              if (parts.length <= 3) return name.slice(0, 30) + '…';
-              const tail = parts.slice(-3).join('_');
-              return tail.length > 30 ? tail.slice(0, 28) + '…' : tail;
+              return name.slice(0, 30) + '…';
             },
             tooltip: { show: true },
           },
