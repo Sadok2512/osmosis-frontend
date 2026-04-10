@@ -551,7 +551,13 @@ const InvestigatorPage: React.FC = () => {
         onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
         selectedCounters={selectedCounters}
         onSelectedCountersChange={setSelectedCounters}
-        onActivateTab={(tab) => setAnalysisTab(tab as any)}
+        onActivateTab={(tab) => {
+          setAnalysisTab(tab as any);
+          if (tab && activeSlot) {
+            const snap = buildSnapshot(activeSlot, state);
+            analysisTabs.ensureTab(tab as any, activeSlotId, snap);
+          }
+        }}
       />
 
       {/* Main Content */}
