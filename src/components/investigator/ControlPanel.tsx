@@ -7,6 +7,7 @@ import { InvestigationState, Dimension, SplitOption, Granularity, GraphSlot, Gra
 import { formatDateTime } from './timeUtils';
 import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData, fetchKpiDimensions, type KpiDimensionsResponse } from './investigatorApi';
+import { usePerimeterScope, type PerimeterScope } from './usePerimeterScope';
 import type { KpiDefinition } from './types';
 import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -316,7 +317,9 @@ const FilterChip: React.FC<{
   onClear: () => void;
   onRemove: () => void;
   siteFilter?: string;
-}> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter }) => {
+  /** Perimeter-derived allow-set. When provided, backendValues are intersected with it. */
+  scopeAllowed?: Set<string> | null;
+}> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter, scopeAllowed }) => {
   const [open, setOpen] = useState(false);
   const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
@@ -332,12 +335,20 @@ const FilterChip: React.FC<{
     if (open) setPendingValues([...values]);
   }, [open]);
 
+  // Apply perimeter scope: when the scope provides an allow-set, keep only values
+  // that are part of it (e.g. SITE list restricted to Ericsson+4G). `null` means
+  // no scope is active so we pass backendValues through unchanged.
+  const scopedValues = useMemo(() => {
+    if (!scopeAllowed || scopeAllowed.size === 0) return backendValues;
+    return backendValues.filter(v => scopeAllowed.has(v));
+  }, [backendValues, scopeAllowed]);
+
   const filtered = search
-    ? backendValues.filter(v => {
+    ? scopedValues.filter(v => {
         const q = search.toLowerCase();
         return v.toLowerCase().includes(q) || (labelMap[v] || '').toLowerCase().includes(q);
       })
-    : backendValues;
+    : scopedValues;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData('text').trim();
@@ -347,7 +358,7 @@ const FilterChip: React.FC<{
       e.preventDefault();
       const next = [...pendingValues];
       items.forEach(item => {
-        const match = backendValues.find(v => v.toLowerCase() === item.toLowerCase());
+        const match = scopedValues.find(v => v.toLowerCase() === item.toLowerCase());
         if (match && !next.includes(match)) next.push(match);
       });
       setPendingValues(next);
@@ -1063,15 +1074,35 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return base;
   }, [filterDimensions, activePmDimensions]);
 
-  // Sort catalog: KPIs with data first
+  // ── Perimeter scope ────────────────────────────────────────────────────
+  // Vendor / Technology selected via the "Périmètre" popover drive client-side
+  // filtering of the KPI catalog, counter catalog, Site list and Cell list.
+  // See ./usePerimeterScope for the full derivation.
+  const perimeter: PerimeterScope = usePerimeterScope(state.filters);
+
+  // KPI catalog filtered by perimeter. Entries without vendor/techno metadata
+  // are hidden once a perimeter is active (fail closed).
+  const perimeterFilteredCatalog = useMemo(() => {
+    if (!perimeter.hasScope) return catalog;
+    return catalog.filter((entry: any) => perimeter.matchKpi({ vendor: entry.vendor, techno: entry.techno }));
+  }, [catalog, perimeter]);
+
+  // Counter catalog filtered by perimeter — consumed by CounterSelectorModal
+  // and by the dimension auto-detection logic that scans counter metadata.
+  const perimeterFilteredCounters = useMemo(() => {
+    if (!perimeter.hasScope) return counterCatalog;
+    return counterCatalog.filter((c: any) => perimeter.matchCounter({ vendor: c.vendor, techno: c.techno }));
+  }, [counterCatalog, perimeter]);
+
+  // Sort catalog: KPIs with data first — now applied on top of the perimeter filter.
   const sortedCatalog = useMemo(() => {
-    if (!kpisWithData || kpisWithData.size === 0) return catalog;
-    return [...catalog].sort((a, b) => {
+    if (!kpisWithData || kpisWithData.size === 0) return perimeterFilteredCatalog;
+    return [...perimeterFilteredCatalog].sort((a, b) => {
       const aHas = kpisWithData.has(a.kpi_key) ? 0 : 1;
       const bHas = kpisWithData.has(b.kpi_key) ? 0 : 1;
       return aHas - bHas;
     });
-  }, [catalog, kpisWithData]);
+  }, [perimeterFilteredCatalog, kpisWithData]);
 
   const applyPeriod = (days: number) => {
     const end = new Date();
@@ -1421,6 +1452,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 onClear={() => clearFilterValues(dim)}
                 onRemove={() => removeFilterDimension(dim)}
                 siteFilter={(state.filters['Site'] || [])[0]}
+                scopeAllowed={
+                  dim === 'Site' ? perimeter.siteAllowed
+                  : dim === 'Cell' ? perimeter.cellAllowed
+                  : null
+                }
               />
             ))}
             <AddFilterDropdown
@@ -1916,7 +1952,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       <CounterSelectorModal
         open={counterSelectorOpen}
         onClose={() => setCounterSelectorOpen(false)}
-        catalog={counterCatalog}
+        catalog={perimeterFilteredCounters}
         selectedKeys={selectedCounters.map((c: any) => c.counter_name)}
         onConfirm={(keys: string[]) => {
           const resolved = keys.map(k => counterCatalog.find((c: any) => c.counter_name === k)).filter(Boolean);
