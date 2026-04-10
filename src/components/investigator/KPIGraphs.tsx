@@ -784,9 +784,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                 const comboData = kpiData.filter(d => (d.splitValue || 'N/A') === sv1 && (d.splitValue2 || 'N/A') === sv2);
                 const dataMap = new Map(comboData.map(d => [d.timestamp, d.value]));
                 const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
-                const seriesName = kpiIds.length > 1
-                  ? `${def.label} — ${sv1} / ${sv2}`
-                  : `${sv1} / ${sv2}`;
+              const seriesName = kpiIds.length > 1
+                  ? `${sv1} / ${sv2}_${def.label}`
+                  : `${sv1} / ${sv2}_${def.label}`;
                 const ne = comboData.find(d => d.networkElement)?.networkElement;
                 const sp = getSeriesProps(kpiId);
                 return {
@@ -825,7 +825,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
-              const seriesName = kpiIds.length > 1 ? `${def.label} — ${sv}` : sv;
+              const seriesName = `${sv}_${def.label}`;
               const ne = svData.find(d => d.networkElement)?.networkElement;
 
               const sp = getSeriesProps(kpiId);
