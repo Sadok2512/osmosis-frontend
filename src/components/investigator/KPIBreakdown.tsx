@@ -723,7 +723,11 @@ const SingleKpiBreakdown: React.FC<{
         hiddenCounters={hiddenCounters}
         onToggleCounter={toggleCounter}
         splitBy={splitBy}
-        onSplitChange={onSplitChange}
+        splitElements={splitElements}
+        selectedElements={selectedElements || undefined}
+        onToggleElement={toggleElement}
+        onSelectAllElements={selectAllElements}
+        onDeselectAllElements={deselectAllElements}
       />
 
       {/* KPI Timeseries by Cell */}
