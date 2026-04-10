@@ -413,6 +413,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
+  investigatorState: InvestigationState;
   layout: 1 | 2 | 4;
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
