@@ -1578,15 +1578,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         const relevantPmDims = thisKpiDim ? [thisKpiDim] : Array.from(activePmDimensions);
                         const buildSplits = (val: string) => {
                           const allSplits: Record<string, string> = {};
-                          const isPmDim = val.startsWith('PM_DIM:');
-                          const pmDimType = isPmDim ? val.replace('PM_DIM:', '') : null;
+                          // Apply selected split to ALL KPIs in the slot.
+                          // User explicitly chose this dimension — don't gate on dimension_type match.
                           slot.kpiIds.forEach(kid => {
-                            if (isPmDim && pmDimType) {
-                              const kpiDim = kpiDimensionMap.get(kid);
-                              if (kpiDim === pmDimType) allSplits[kid] = val;
-                            } else {
-                              allSplits[kid] = val;
-                            }
+                            allSplits[kid] = val;
                           });
                           return allSplits;
                         };
