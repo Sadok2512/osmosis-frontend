@@ -155,7 +155,15 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
-  const [analysisTab, setAnalysisTab] = React.useState<'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history' | null>(null);
+  type AnalysisTabKey = 'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history';
+  /** Per-slot analysis tab state: each graph slot remembers its own active analysis panel */
+  const [perSlotAnalysisTab, setPerSlotAnalysisTab] = React.useState<Record<string, AnalysisTabKey | null>>({});
+  /** Derived: current analysis tab for the active slot */
+  const analysisTab = activeSlotId ? (perSlotAnalysisTab[activeSlotId] ?? null) : null;
+  const setAnalysisTab = React.useCallback((tab: AnalysisTabKey | null) => {
+    if (!activeSlotId) return;
+    setPerSlotAnalysisTab(prev => ({ ...prev, [activeSlotId]: tab }));
+  }, [activeSlotId]);
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
