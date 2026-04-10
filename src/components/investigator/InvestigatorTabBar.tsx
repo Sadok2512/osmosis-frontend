@@ -46,7 +46,7 @@ const InvestigatorTabBar: React.FC<Props> = ({
   };
 
   return (
-    <div className="flex items-center gap-0.5 bg-muted/30 border-b border-border/40 px-1 pt-1 shrink-0 overflow-hidden">
+    <div className="flex items-center gap-0.5 px-1 py-1 shrink-0 overflow-hidden">
       <div
         ref={scrollRef}
         className="flex items-end gap-0.5 overflow-x-auto scrollbar-hide flex-1 min-w-0"
