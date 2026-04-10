@@ -236,16 +236,39 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     const slot = state.graphSlots.find(s => s.id === activeSlotId);
     if (!slot) return;
 
+    const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
     const snapshot = buildSnapshot(slot, state);
 
     setTableDataSlotId(activeSlotId);
 
-    const sections = ['top_worst', 'alarms', 'neighbors', 'cm_history'] as const;
-    for (const sec of sections) {
-      analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
+    // Only create/sync tabs for sections that are enabled on the NEW active slot
+    const sectionFlagMap: Record<string, keyof GraphConfig> = {
+      top_worst: 'showTopWorst',
+      alarms: 'showAlarms',
+      neighbors: 'showNeighbors',
+      cm_history: 'showCmHistory',
+    };
+    for (const [sec, flag] of Object.entries(sectionFlagMap)) {
+      if ((cfg as any)[flag]) {
+        analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
+      }
     }
 
-    // Per-slot: no need to auto-close — each slot has its own analysisTab state
+    // If the currently active analysis tab is not enabled on the new slot, close it
+    if (analysisTab) {
+      const configKeyMap: Record<string, keyof GraphConfig> = {
+        table_data: 'showDataTable',
+        breakdown: 'showBreakdown',
+        top_worst: 'showTopWorst',
+        alarms: 'showAlarms',
+        neighbors: 'showNeighbors',
+        cm_history: 'showCmHistory',
+      };
+      const cfgKey = configKeyMap[analysisTab];
+      if (cfgKey && !(cfg as any)[cfgKey]) {
+        setAnalysisTab(null);
+      }
+    }
   }, [activeSlotId, state.graphSlots]);
 
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
