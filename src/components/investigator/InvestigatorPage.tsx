@@ -511,6 +511,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             </button>
           </div>
         </div>
+        </div>
       </div>
 
       {state.activeGraphTab === 'TimeSeries' && (
