@@ -6,9 +6,12 @@ import { formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity } from './types';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
-  Database, GitBranch, Cpu, TrendingUp,
+  Database, GitBranch, Cpu, TrendingUp, SplitSquareVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 /* ──────────────────── Types ──────────────────── */
 
@@ -55,7 +58,19 @@ interface CounterTsPoint {
   dimension_key?: string;
 }
 
-/* ──────────────────── Constants ──────────────────── */
+const SPLIT_OPTIONS = [
+  { value: 'None', label: 'None (Aggregated)' },
+  { value: 'CELL', label: 'Cell' },
+  { value: 'SITE', label: 'Site' },
+  { value: 'SECTOR', label: 'Sector' },
+  { value: 'BAND', label: 'Band' },
+  { value: 'TECHNO', label: 'Technology' },
+  { value: 'VENDOR', label: 'Vendor' },
+  { value: 'DOR', label: 'DOR' },
+  { value: 'PLAQUE', label: 'Plaque' },
+];
+
+
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
 const DEN_COLORS = ['#3b82f6', '#2563eb', '#60a5fa', '#93c5fd', '#1d4ed8'];
@@ -90,7 +105,8 @@ const FormulaPanel: React.FC<{
   hiddenCounters: Set<string>;
   onToggleCounter: (name: string) => void;
   splitBy?: string;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy }) => {
+  onSplitChange?: (split: string) => void;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, onSplitChange }) => {
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
@@ -148,14 +164,27 @@ const FormulaPanel: React.FC<{
               { label: explain.formula_type, color: 'bg-primary/10 text-primary border-primary/30' },
               { label: explain.unit || 'ratio', color: 'bg-muted/60 text-muted-foreground border-border/30' },
               { label: explain.techno, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
-              ...(splitBy && splitBy !== 'None'
-                ? [{ label: `SPLIT: ${splitBy}`, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' }]
-                : []),
             ].filter(t => t.label).map(t => (
               <span key={t.label} className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold border', t.color)}>
                 {t.label}
               </span>
             ))}
+            {/* Split Selector */}
+            <div className="flex items-center gap-1.5">
+              <SplitSquareVertical className="w-3.5 h-3.5 text-indigo-500" />
+              <Select value={splitBy || 'None'} onValueChange={v => onSplitChange?.(v)}>
+                <SelectTrigger className="h-6 w-[130px] text-[10px] font-bold border-indigo-500/30 bg-indigo-500/5 text-indigo-600 px-2 py-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SPLIT_OPTIONS.map(opt => (
+                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>
@@ -263,8 +292,9 @@ const SingleKpiBreakdown: React.FC<{
   granularity: Granularity;
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
+  onSplitChange?: (split: string) => void;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, onSplitChange, timeSeriesData }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
@@ -632,6 +662,7 @@ const SingleKpiBreakdown: React.FC<{
         hiddenCounters={hiddenCounters}
         onToggleCounter={toggleCounter}
         splitBy={splitBy}
+        onSplitChange={onSplitChange}
       />
 
       {/* KPI Timeseries by Cell */}
@@ -712,13 +743,31 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Resolve split dimension for the active KPI: per-KPI map takes precedence over slot-level splitBy.
-  const effectiveSplitBy = useMemo(() => {
-    const perKpi = splitByPerKpi?.[activeKpiTab];
+  // Per-KPI local split override (managed inside this breakdown, not global)
+  const [localSplitOverrides, setLocalSplitOverrides] = useState<Record<string, string>>({});
+
+  const handleSplitChange = useCallback((kpiId: string, split: string) => {
+    setLocalSplitOverrides(prev => ({ ...prev, [kpiId]: split }));
+  }, []);
+
+  // Resolve split: local override > per-KPI map > slot-level
+  const getEffectiveSplit = useCallback((kpiId: string) => {
+    const local = localSplitOverrides[kpiId];
+    if (local) return local === 'None' ? undefined : local;
+    const perKpi = splitByPerKpi?.[kpiId];
     if (perKpi && perKpi !== 'None') return perKpi;
     if (splitBy && splitBy !== 'None') return splitBy;
     return undefined;
-  }, [splitByPerKpi, activeKpiTab, splitBy]);
+  }, [localSplitOverrides, splitByPerKpi, splitBy]);
+
+  const getSelectorValue = useCallback((kpiId: string) => {
+    const local = localSplitOverrides[kpiId];
+    if (local) return local;
+    const perKpi = splitByPerKpi?.[kpiId];
+    if (perKpi && perKpi !== 'None') return perKpi;
+    if (splitBy && splitBy !== 'None') return splitBy;
+    return 'None';
+  }, [localSplitOverrides, splitByPerKpi, splitBy]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
@@ -736,6 +785,9 @@ const KPIBreakdown: React.FC<Props> = ({
       </div>
     );
   }
+
+  const effectiveSplit = getEffectiveSplit(activeKpiTab);
+  const selectorValue = getSelectorValue(activeKpiTab);
 
   return (
     <div className="space-y-3">
@@ -758,16 +810,17 @@ const KPIBreakdown: React.FC<Props> = ({
         ))}
       </div>
 
-      {/* Active KPI content – only render the active tab (lazy) */}
+      {/* Active KPI content */}
       {activeKpiTab && uniqueKpiIds.includes(activeKpiTab) && (
         <SingleKpiBreakdown
-          key={activeKpiTab}
+          key={`${activeKpiTab}-${selectorValue}`}
           kpiId={activeKpiTab}
           dateFrom={dateFrom}
           dateTo={dateTo}
           granularity={granularity}
           filters={filters}
-          splitBy={effectiveSplitBy}
+          splitBy={effectiveSplit}
+          onSplitChange={(split) => handleSplitChange(activeKpiTab, split)}
           timeSeriesData={timeSeriesData}
         />
       )}
