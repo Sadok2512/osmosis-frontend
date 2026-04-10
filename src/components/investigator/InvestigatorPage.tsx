@@ -349,16 +349,19 @@ const InvestigatorPage: React.FC = () => {
         'flex items-center justify-between border-b border-border/40 pb-3',
         isGraphFullscreen && 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm'
       )}>
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
             <Maximize2 className="w-4 h-4 text-primary" />
           </div>
-          <div>
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">
-              {currentInvestigatorName || 'Untitled Investigator'}
-            </h2>
-            <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
-          </div>
+          <InvestigatorSaveLoadBar
+            investigatorId={currentInvestigatorId}
+            investigatorName={currentInvestigatorName}
+            onNameChange={setCurrentInvestigatorName}
+            onSave={handleGetContext}
+            onLoad={handleLoadInvestigator}
+            onNewInvestigator={handleNewInvestigator}
+            hasUnsavedChanges={hasUnsavedChanges}
+          />
         </div>
 
         <div className="flex items-center gap-4">
