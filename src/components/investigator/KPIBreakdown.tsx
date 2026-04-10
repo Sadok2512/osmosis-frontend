@@ -322,6 +322,8 @@ const SingleKpiBreakdown: React.FC<{
   }, [explain]);
 
   const splitActive = !!(splitBy && splitBy !== 'None');
+  const techno = (explain?.techno || '').toUpperCase();
+  const is5G = techno === 'NR' || techno === '5G' || techno.includes('NR') || techno.includes('5G');
 
   // Fetch counter timeseries
   useEffect(() => {
@@ -329,13 +331,34 @@ const SingleKpiBreakdown: React.FC<{
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
     const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
-    if (splitActive) body.split_by_dimension = true;
+
+    // Resolve splitBy → backend params.
+    //  - CELL on 5G KPI → split by `dimension_key` (which holds NRCEL id for NR counters).
+    //  - CELL on LTE KPI → split by `split_by_field: "ne_name"` (physical cell).
+    //  - Any PM dimension (PMQAP/SLICE/…) → split by `dimension_key`.
+    //  - SITE → split by `split_by_field: "site_name"`.
+    let suppressCellFilter = false;
+    if (splitActive) {
+      const sb = (splitBy || '').toUpperCase();
+      if (sb === 'CELL') {
+        if (is5G) {
+          body.split_by_dimension = true;       // NRCEL lives in dimension_key
+        } else {
+          body.split_by_field = 'ne_name';      // LTE physical cell
+        }
+        suppressCellFilter = true;              // don't restrict to a single cell when splitting
+      } else if (sb === 'SITE') {
+        body.split_by_field = 'site_name';
+      } else {
+        body.split_by_dimension = true;
+      }
+    }
 
     const dimFilterValues: string[] = [];
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
       if (dim === 'SITE' && f.values?.length) body.site_name = f.values.length === 1 ? f.values[0] : f.values;
-      else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+      else if (dim === 'CELL' && f.values?.length && !suppressCellFilter) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
       else if (PM_DIM_TYPES.has(dim) && f.values?.length) dimFilterValues.push(...f.values);
     }
     if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
@@ -346,20 +369,22 @@ const SingleKpiBreakdown: React.FC<{
     })
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => {
-        // Normalize: backend may return `dimension_key` or `split_value`, and `counter` may be `counter_id`
+        // Backend returns `counter_id` (raw id) and `counter` (display "name@dim" in split mode).
+        // We must index by the raw counter id to match the counter.name we extracted from the formula.
+        // Split key comes from `dimension_key` (dim split) or `split_field` (ne_name/site_name split).
         const raw = data.series || data.data || [];
         const norm: CounterTsPoint[] = raw.map((s: any) => ({
           ts: s.ts || s.timestamp || s.date,
-          counter: s.counter || s.counter_id || s.counter_name || '',
+          counter: s.counter_id || s.counter_name || s.counter || '',
           value: s.value ?? s.kpi_value ?? s.val ?? 0,
-          dimension_key: s.dimension_key || s.split_value || undefined,
+          dimension_key: s.dimension_key || s.split_field || s.split_value || undefined,
         }));
         setCounterTsData(norm);
         setLoading(false);
       })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive]);
+  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy, is5G]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
