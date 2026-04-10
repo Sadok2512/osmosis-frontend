@@ -713,7 +713,7 @@ const SingleKpiBreakdown: React.FC<{
       },
       series,
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements]);
 
   return (
     <div className="space-y-4">
