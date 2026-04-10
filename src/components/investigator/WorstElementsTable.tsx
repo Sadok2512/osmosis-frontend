@@ -175,7 +175,17 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2.5">
                       <div>
-                        <span className="text-xs font-bold text-foreground">{el.name}</span>
+                        {drilldownContext ? (
+                          <button
+                            onClick={(e) => handleDrillDown(e, el.name, el)}
+                            className="text-xs font-bold text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer text-left"
+                            title={`Drill down into ${el.name}`}
+                          >
+                            {el.name}
+                          </button>
+                        ) : (
+                          <span className="text-xs font-bold text-foreground">{el.name}</span>
+                        )}
                         {el.site_name && <div className="text-[9px] text-muted-foreground">{el.site_name}</div>}
                       </div>
                     </td>
