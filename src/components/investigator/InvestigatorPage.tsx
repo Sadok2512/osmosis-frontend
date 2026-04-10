@@ -44,6 +44,10 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   kpiIds,
   name: `${WIDGET_NAMES[widgetType]} ${index}`,
   widgetType,
+  config: {
+    ...DEFAULT_GRAPH_CONFIG,
+    ...(widgetType === 'timeseries' ? { showDataTable: true } : {}),
+  },
   filters: {},
   startDate: '',
   endDate: '',
@@ -64,6 +68,14 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
     kpiLevel: globalState.kpiLevel,
     splitBy: slot.splitBy !== 'None' ? slot.splitBy : globalState.splitBy !== 'None' ? globalState.splitBy : null,
   };
+}
+
+function isSectionEnabled(slot: GraphSlot | null | undefined, flag: keyof GraphConfig): boolean {
+  if (!slot) return false;
+  if (flag === 'showDataTable' && (slot.widgetType || 'timeseries') === 'timeseries') {
+    return slot.config?.showDataTable ?? true;
+  }
+  return Boolean((slot.config as any)?.[flag] ?? (DEFAULT_GRAPH_CONFIG as any)[flag]);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -418,9 +430,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
     setState(prev => ({
       ...prev,
-      graphSlots: prev.graphSlots.map(s =>
-        s.id === slotId ? { ...s, config: { ...(s.config || DEFAULT_GRAPH_CONFIG), ...updates } } : s
-      ),
+      graphSlots: prev.graphSlots.map(s => {
+        const baseConfig = {
+          ...DEFAULT_GRAPH_CONFIG,
+          ...((s.widgetType || 'timeseries') === 'timeseries' ? { showDataTable: true } : {}),
+          ...(s.config || {}),
+        };
+        return s.id === slotId ? { ...s, config: { ...baseConfig, ...updates } } : s;
+      }),
     }));
   };
 
@@ -712,7 +729,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
           {/* Analysis Tab Bar — always visible when there are enabled tabs */}
           {(() => {
-            const activeConfig = activeSlot?.config || DEFAULT_GRAPH_CONFIG;
+            const activeConfig = activeSlot
+              ? {
+                  ...DEFAULT_GRAPH_CONFIG,
+                  ...(activeSlot.config || {}),
+                  showDataTable: isSectionEnabled(activeSlot, 'showDataTable'),
+                }
+              : DEFAULT_GRAPH_CONFIG;
             const configKeyMap: Record<string, keyof GraphConfig> = {
               table_data: 'showDataTable',
               breakdown: 'showBreakdown',
