@@ -798,23 +798,35 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           {/* ═══ Analysis Panel Content — all panels stay mounted, visibility via CSS ═══ */}
           <div className="relative">
 
-            {/* Table Data — mounted when slot data exists */}
+            {/* Table Data — only render for slots with showDataTable === true */}
             <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
               {(() => {
-                const slots = state.graphSlots;
-                const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
+                // Only slots that explicitly opted in
+                const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showDataTable);
+                if (enabledSlots.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">
+                      Aucun graphe n'a activé « Data Table ». Activez-le dans les réglages d'un graphe.
+                    </div>
+                  );
+                }
+                // Pick effective slot: prefer tableDataSlotId if it's among enabled slots
+                const effectiveSlotId = (tableDataSlotId && enabledSlots.find(s => s.id === tableDataSlotId))
                   ? tableDataSlotId
-                  : activeSlotId || slots[0]?.id || null;
-                const activeTableSlot = slots.find(s => s.id === effectiveSlotId) || null;
+                  : (activeSlotId && enabledSlots.find(s => s.id === activeSlotId))
+                    ? activeSlotId
+                    : enabledSlots[0]?.id || null;
+                const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
                 const slotData = effectiveSlotId
                   ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
                   : [];
 
                 return (
                   <>
-                    {slots.length > 0 && (
+                    {/* Only show slot picker if multiple slots have table enabled */}
+                    {enabledSlots.length > 1 && (
                       <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg mb-2">
-                        {slots.map((slot) => (
+                        {enabledSlots.map((slot) => (
                           <button
                             key={slot.id}
                             onClick={() => setTableDataSlotId(slot.id)}
