@@ -443,7 +443,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   link.click();
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : 2;
@@ -456,7 +456,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
   // Counter data per slot: { [slotId]: { series, nameMap } }
   const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
 
-  const { state: investigatorState } = useInvestigatorStore();
   const siteName = investigatorState.filters?.['Site']?.[0] || investigatorState.filters?.['SITE']?.[0] || null;
 
   useEffect(() => {
@@ -665,7 +664,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
         const splitByPerKpi2 = cfg.splitByPerKpi2 || {};
-        const globalSplitBy = useInvestigatorStore.getState().state.splitBy;
+        const globalSplitBy = investigatorState.splitBy;
         const slotSplit = (slot.splitBy && slot.splitBy !== 'None') || (globalSplitBy && globalSplitBy !== 'None');
         const slotSplit2 = slot.splitBy2 && slot.splitBy2 !== 'None';
         const hasPerKpiSplit = kpiIds.some(id => {
@@ -691,11 +690,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined, splitValue2: undefined }));
 
-        // Fix #3: Use slot's effective context (dates/granularity) instead of global state
-        const globalState = useInvestigatorStore.getState().state;
-        const slotStartDate = (slot.startDate && slot.startDate.trim()) || globalState.startDate;
-        const slotEndDate = (slot.endDate && slot.endDate.trim()) || globalState.endDate;
-        const slotGranularity = normalizeGranularity(slot.granularity || globalState.granularity);
+        // Fix #3: Use slot's effective context (dates/granularity) instead of instance state
+        const slotStartDate = (slot.startDate && slot.startDate.trim()) || investigatorState.startDate;
+        const slotEndDate = (slot.endDate && slot.endDate.trim()) || investigatorState.endDate;
+        const slotGranularity = normalizeGranularity(slot.granularity || investigatorState.granularity);
         // Normalize all data point timestamps to match granularity format
         const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, slotGranularity) }));
         const matchesKpi = (dKpi: string, kpiId: string) => dKpi === kpiId || dKpi.startsWith(kpiId + '@');
