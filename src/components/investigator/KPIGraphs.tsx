@@ -271,9 +271,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   // Smart x-axis interval
   const xInterval = smartXInterval(timestamps.length);
 
-  const itemsPerRow = 4;
-  const legendRowCount = Math.ceil(counters.length / itemsPerRow);
-  const legendHeight = Math.max(20, legendRowCount * 16 + 4);
+  const legendHeight = 28; // scroll legend = single row
   const sliderHeight = 22;
 
   const option = {
@@ -1123,10 +1121,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        // Dynamic legend height: ~14px per row, estimate ~4 items per row
-        const itemsPerRow = 4;
-        const legendRowCount = Math.ceil(series.length / itemsPerRow);
-        const legendHeight = Math.max(20, legendRowCount * 16 + 4);
+        const legendHeight = 28; // scroll legend = single row
 
         const option: any = {
           animation: false,
