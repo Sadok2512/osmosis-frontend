@@ -840,8 +840,18 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     ? activeSlotId
                     : enabledSlots[0]?.id || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
+                // Filter data by slot AND only include KPIs configured in that slot
+                const slotKpiIds = new Set(activeTableSlot?.kpiIds || []);
                 const slotData = effectiveSlotId
-                  ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
+                  ? tsData.filter((d: any) => {
+                      if (d._slotId !== effectiveSlotId) return false;
+                      // If slot has configured KPIs, only include matching data
+                      if (slotKpiIds.size > 0) {
+                        const baseKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
+                        return slotKpiIds.has(baseKpi) || d._isCounter;
+                      }
+                      return true;
+                    })
                   : [];
 
                 return (
