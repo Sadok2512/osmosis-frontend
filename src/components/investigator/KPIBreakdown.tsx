@@ -356,11 +356,7 @@ const SingleKpiBreakdown: React.FC<{
     })
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => {
-        console.log('[KPIBreakdown] request body:', JSON.stringify(body));
-        console.log('[KPIBreakdown] splitActive:', splitActive, 'splitBy:', splitBy, 'is5G:', is5G);
         const raw = data.series || data.data || [];
-        console.log('[KPIBreakdown] raw response sample (first 3):', JSON.stringify(raw.slice(0, 3)));
-        console.log('[KPIBreakdown] raw keys:', raw.length > 0 ? Object.keys(raw[0]) : 'empty');
         const norm: CounterTsPoint[] = raw.map((s: any) => ({
           ts: s.ts || s.timestamp || s.date,
           counter: s.counter_id || s.counter_name || s.counter || '',
@@ -368,13 +364,12 @@ const SingleKpiBreakdown: React.FC<{
           dimension_key: s.dimension_key || s.split_field || s.split_value
             || s.ne_name || s.site_name || s.split_field_value || undefined,
         }));
-        console.log('[KPIBreakdown] normalized sample (first 3):', JSON.stringify(norm.slice(0, 3)));
         setCounterTsData(norm);
         setLoading(false);
       })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy, is5G]);
+  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
