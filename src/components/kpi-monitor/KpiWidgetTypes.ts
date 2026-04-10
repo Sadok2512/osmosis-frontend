@@ -84,6 +84,12 @@ export function createEmptyKpiWidget(index?: number): KpiWidgetItem {
       graphType: 'line',
       showLegend: true,
       smooth: true,
+      showSymbols: false,
+      showArea: false,
+      showThresholds: true,
+      showAverage: false,
+      showGrid: true,
+      lineWidth: 2,
     },
     layout: {
       x: 0,
