@@ -79,21 +79,28 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
       const cols = [
         'Timestamp',
-        'Site',
+        'Network Element',
+        'CELL',
         split1Label,
         ...(hasSplit2 ? [split2Label] : []),
-        'KPI',
+        'KPI Metric',
         'Value',
       ];
 
       const builtRows = sorted.map((d) => {
         const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
+        // Extract site name from networkElement or splitValue (remove cell suffix)
+        const rawNe = d.networkElement || d.splitValue || '';
+        const siteName = rawNe.replace(/-\d+$/, '') || rawNe;
+        // Clean KPI name: remove @CellName suffix
+        const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
           timestamp: fmt(d.timestamp),
-          ne: d.networkElement || 'N/A',
+          ne: siteName || 'N/A',
+          cell: rawNe || '—',
           split1: d.splitValue || '—',
           split2: d.splitValue2 || '—',
-          kpi: d.kpi,
+          kpi: cleanKpi,
           value: d.value,
           color: colorMap[seriesKey] || COLORS[0],
         };
