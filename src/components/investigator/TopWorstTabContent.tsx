@@ -122,6 +122,13 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
           onRowClick={(id) => {
             setGlobalState(prev => ({ ...prev, filters: { ...prev.filters, Cell: [id] } }));
           }}
+          drilldownContext={{
+            kpiIds: ctx?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds),
+            startDate: ctx?.startDate || state.startDate,
+            endDate: ctx?.endDate || state.endDate,
+            granularity: ctx?.granularity || state.granularity,
+            filters: ctx?.filters || state.filters,
+          }}
         />
       )}
     </div>
