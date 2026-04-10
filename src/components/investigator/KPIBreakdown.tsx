@@ -374,6 +374,47 @@ const SingleKpiBreakdown: React.FC<{
 
   const splitActive = !!(splitBy && splitBy !== 'None');
 
+  // Extract unique split element names from KPI timeSeriesData and counter data
+  const splitElements = useMemo(() => {
+    if (!splitActive) return [];
+    const elements = new Set<string>();
+    // From KPI timeseries data
+    if (timeSeriesData) {
+      for (const d of timeSeriesData) {
+        if (d.kpi === kpiId) {
+          const el = d.splitValue || d.networkElement;
+          if (el && el !== 'Aggregated') elements.add(el);
+        }
+      }
+    }
+    // From counter timeseries data
+    for (const d of counterTsData) {
+      if (d.dimension_key) elements.add(d.dimension_key);
+    }
+    return [...elements].sort();
+  }, [splitActive, timeSeriesData, kpiId, counterTsData]);
+
+  // Initialize selectedElements when splitElements change
+  useEffect(() => {
+    if (splitElements.length > 0) {
+      setSelectedElements(new Set(splitElements));
+    } else {
+      setSelectedElements(null);
+    }
+  }, [splitElements.join(',')]);
+
+  const toggleElement = useCallback((el: string) => {
+    setSelectedElements(prev => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(el)) next.delete(el); else next.add(el);
+      return next;
+    });
+  }, []);
+
+  const selectAllElements = useCallback(() => setSelectedElements(new Set(splitElements)), [splitElements]);
+  const deselectAllElements = useCallback(() => setSelectedElements(new Set()), []);
+
   // Fetch counter timeseries
   useEffect(() => {
     const names = counterInfos.map(c => c.name);
