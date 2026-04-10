@@ -467,6 +467,40 @@ const WidgetSidebarPanel: React.FC<{
           )}
         </div>
 
+        {/* ── Split By Section ── */}
+        <div className="px-3 py-2.5 border-b border-border/30">
+          <div className="flex items-center gap-2 mb-2">
+            <GitBranch className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Split By</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Select value={config.splitBy || 'none'} onValueChange={v => onUpdate({ splitBy: v === 'none' ? null : v as SplitDimension })}>
+              <SelectTrigger className="h-7 flex-1 text-[10px]">
+                <SelectValue placeholder="Aucun" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none" className="text-xs">Aucun</SelectItem>
+                {FILTER_DIMENSIONS_LIST.map(d => (
+                  <SelectItem key={d} value={d} className="text-xs">{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {config.splitBy && (
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-muted-foreground">Top</span>
+                <input
+                  type="number"
+                  value={config.topN}
+                  onChange={e => onUpdate({ topN: Math.max(1, Number(e.target.value) || 5) })}
+                  className="w-10 px-1 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-mono text-center"
+                  min={1}
+                  max={50}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ── Per-KPI Settings ── */}
         {config.kpis.length > 0 && (
           <div className="px-3 py-2.5">
