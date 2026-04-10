@@ -896,7 +896,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   // Load counter catalog for counter selector
   useEffect(() => {
-    fetch(getApiUrl('pm/counters/catalog?limit=5000'), { headers: getApiHeaders() })
+    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : []).then(setCounterCatalog).catch(() => {});
   }, []);
 
