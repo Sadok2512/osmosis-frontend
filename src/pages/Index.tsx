@@ -7,7 +7,7 @@ import DashboardOverview from '../components/otarie/DashboardOverview';
 const SitesMonitor = lazy(() => import('../components/otarie/SitesMonitor'));
 const GlobalDashboard = lazy(() => import('../components/otarie/GlobalDashboard'));
 const AdvancedAnalytics = lazy(() => import('../components/otarie/AdvancedAnalytics'));
-const AlertsRCA = lazy(() => import('../components/otarie/AlertsRCA'));
+
 const RadioMobility = lazy(() => import('../components/otarie/RadioMobility'));
 const AnalyticBIStudio = lazy(() => import('../components/otarie/AnalyticBIStudio'));
 const SubscriberExperience = lazy(() => import('../components/otarie/SubscriberExperience'));
@@ -125,7 +125,7 @@ const Index: React.FC = () => {
       case 'list':
         return null; // SitesMonitor is always mounted, rendered separately
       case 'alerts':
-        return <AlertsRCA filters={filters} />;
+        return null;
       case 'radio':
         return <RadioMobility filters={filters} />;
       case 'traffic':
