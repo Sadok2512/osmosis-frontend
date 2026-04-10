@@ -96,8 +96,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
         const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
           timestamp: fmt(d.timestamp),
-          ne: siteName || 'N/A',
-          cell: rawNe || '—',
+          ne: siteName || '—',
+          cell: cellName || '—',
           split1: d.splitValue || '—',
           split2: d.splitValue2 || '—',
           kpi: cleanKpi,
