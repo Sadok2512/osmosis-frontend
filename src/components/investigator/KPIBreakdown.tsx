@@ -332,25 +332,14 @@ const SingleKpiBreakdown: React.FC<{
     setLoading(true);
     const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
 
-    // Resolve splitBy → backend params.
-    //  - CELL on 5G KPI → split by `dimension_key` (which holds NRCEL id for NR counters).
-    //  - CELL on LTE KPI → split by `split_by_field: "ne_name"` (physical cell).
-    //  - Any PM dimension (PMQAP/SLICE/…) → split by `dimension_key`.
-    //  - SITE → split by `split_by_field: "site_name"`.
+    // Always use split_by_dimension for any split type — the PM counters backend
+    // returns dimension_key for all split modes (CELL, SITE, PMQAP, etc.).
     let suppressCellFilter = false;
     if (splitActive) {
+      body.split_by_dimension = true;
       const sb = (splitBy || '').toUpperCase();
       if (sb === 'CELL') {
-        if (is5G) {
-          body.split_by_dimension = true;       // NRCEL lives in dimension_key
-        } else {
-          body.split_by_field = 'ne_name';      // LTE physical cell
-        }
         suppressCellFilter = true;              // don't restrict to a single cell when splitting
-      } else if (sb === 'SITE') {
-        body.split_by_field = 'site_name';
-      } else {
-        body.split_by_dimension = true;
       }
     }
 
