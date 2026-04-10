@@ -58,7 +58,19 @@ interface CounterTsPoint {
   dimension_key?: string;
 }
 
-/* ──────────────────── Constants ──────────────────── */
+const SPLIT_OPTIONS = [
+  { value: 'None', label: 'None (Aggregated)' },
+  { value: 'CELL', label: 'Cell' },
+  { value: 'SITE', label: 'Site' },
+  { value: 'SECTOR', label: 'Sector' },
+  { value: 'BAND', label: 'Band' },
+  { value: 'TECHNO', label: 'Technology' },
+  { value: 'VENDOR', label: 'Vendor' },
+  { value: 'DOR', label: 'DOR' },
+  { value: 'PLAQUE', label: 'Plaque' },
+];
+
+
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
 const DEN_COLORS = ['#3b82f6', '#2563eb', '#60a5fa', '#93c5fd', '#1d4ed8'];
