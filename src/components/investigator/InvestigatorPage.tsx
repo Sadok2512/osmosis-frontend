@@ -326,6 +326,20 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     setIsApplying(false);
   };
 
+  // ═══ Auto-apply for drill-down instances (name starts with "Drill:") ═══
+  const autoAppliedRef = useRef(false);
+  useEffect(() => {
+    if (autoAppliedRef.current) return;
+    if (!inst) return;
+    if (!inst.name.startsWith('Drill:')) return;
+    if (inst.hasLoadedOnce) return;
+    if (!hasFilters || !hasKpis) return;
+    autoAppliedRef.current = true;
+    // Delay slightly to let state settle
+    const timer = setTimeout(() => handleApply(), 300);
+    return () => clearTimeout(timer);
+  }, [inst?.name, hasFilters, hasKpis, inst?.hasLoadedOnce]);
+
   // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   React.useEffect(() => {
