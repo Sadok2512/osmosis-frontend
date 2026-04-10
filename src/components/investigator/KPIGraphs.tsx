@@ -1254,10 +1254,26 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           series: series.map((s, i) => {
             const seriesKpiId = s._kpiId || kpiIds[0];
 
+            // Build average markLine for this series if showAverage is enabled
+            const avgMarkLine = cfg.showAverage ? (() => {
+              const nums = (s.data as (number | null | undefined)[]).filter((v): v is number => v != null && typeof v === 'number' && isFinite(v));
+              if (nums.length === 0) return undefined;
+              const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+              return {
+                yAxis: avg,
+                label: { formatter: `Avg: ${avg.toFixed(2)}`, fontSize: 9, color: s.itemStyle?.color || '#888' },
+                lineStyle: { type: 'dashed' as const, color: s.itemStyle?.color || '#888', width: 1.5 },
+              };
+            })() : undefined;
+
+            // Merge jalon markLines (only on first series) with per-series average markLine
+            const combinedMarkLineData = [
+              ...(i === 0 ? markLineData : []),
+              ...(avgMarkLine ? [avgMarkLine] : []),
+            ];
+
             return {
               ...s,
-              // Keep _kpiId, _splitValue, _splitValue2, _networkElement for table/tooltip
-              // Counter series already have yAxisIndex set; for KPIs, use assignment logic
               yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
@@ -1265,8 +1281,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 blurScope: 'coordinateSystem' as const,
                 lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
               },
+              markLine: combinedMarkLineData.length > 0 ? { silent: true, symbol: 'none', data: combinedMarkLineData } : undefined,
               ...(i === 0 ? {
-                markLine: markLineData.length > 0 ? { silent: true, symbol: 'none', data: markLineData } : undefined,
                 markArea: markAreaData.length > 0 ? { silent: true, data: markAreaData } : undefined,
               } : {}),
             };
