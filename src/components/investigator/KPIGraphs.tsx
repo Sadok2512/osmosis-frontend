@@ -1161,32 +1161,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
             icon: 'roundRect',
             itemWidth: 20,
             itemHeight: 5,
-            itemGap: 18,
-            type: 'scroll' as any,
-            pageIconSize: 12,
+            itemGap: 14,
+            type: 'plain' as any,
             textStyle: {
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 500,
               color: '#4b5563',
               padding: [0, 0, 0, 4],
-            },
-            formatter: (name: string) => {
-              // Handle split series names: "KPI Label — DimValue" or just "DimValue"
-              if (name.includes(' — ')) {
-                const [kpiPart, dimPart] = name.split(' — ');
-                const shortKpi = kpiPart.length > 18 ? kpiPart.slice(0, 16) + '…' : kpiPart;
-                return `${shortKpi} — ${dimPart}`;
-              }
-              // Fallback: for split series with NE prefix (e.g. "NRCELL-1_KPIName"), keep the NE prefix
-              const underIdx = name.indexOf('_');
-              if (underIdx > 0 && name.length > 32) {
-                const nePrefix = name.slice(0, underIdx);
-                const kpiPart = name.slice(underIdx + 1);
-                const shortKpi = kpiPart.length > 24 ? kpiPart.slice(0, 22) + '…' : kpiPart;
-                return `${nePrefix}_${shortKpi}`;
-              }
-              if (name.length <= 32) return name;
-              return name.slice(0, 30) + '…';
             },
             tooltip: { show: true },
           },
