@@ -46,6 +46,14 @@ interface InvestigatorStore {
   hasLoadedOnce: boolean;
   setHasLoadedOnce: (v: boolean) => void;
 
+  // ── Named investigator tracking ──
+  currentInvestigatorId: string | null;
+  setCurrentInvestigatorId: (id: string | null) => void;
+  currentInvestigatorName: string;
+  setCurrentInvestigatorName: (name: string) => void;
+  hasUnsavedChanges: boolean;
+  setHasUnsavedChanges: (v: boolean) => void;
+
   // ── Runtime only: API results ──
   tsData: DataPoint[];
   setTsData: (d: DataPoint[]) => void;
