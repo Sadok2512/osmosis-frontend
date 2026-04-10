@@ -45,7 +45,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
       return k.includes('@') ? k.split('@')[0] : k;
     }))];
     return {
-      slotLabel: activeSlot?.label || 'Timeseries',
+      slotLabel: (activeSlot as any)?.label || activeSlot?.id || 'Timeseries',
       kpiCount: kpis.length,
       kpiNames: kpis.join(', '),
       rowCount: tsData.length,
