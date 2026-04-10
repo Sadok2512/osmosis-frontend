@@ -90,9 +90,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
 
       const builtRows = sorted.map((d) => {
         const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
-        // Extract site name from networkElement or splitValue (remove cell suffix)
         const rawNe = d.networkElement || d.splitValue || '';
-        const siteName = rawNe.replace(/-\d+$/, '') || rawNe;
+        const cellName = rawNe;
         // Clean KPI name: remove @CellName suffix
         const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
