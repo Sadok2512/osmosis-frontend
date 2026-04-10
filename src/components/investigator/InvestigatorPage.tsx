@@ -574,19 +574,6 @@ const InvestigatorPage: React.FC = () => {
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
 
-      {/* ═══ Save/Load Bar ═══ */}
-      <div className="px-4 md:px-[2.5%] pt-3 pb-1">
-        <InvestigatorSaveLoadBar
-          investigatorId={currentInvestigatorId}
-          investigatorName={currentInvestigatorName}
-          onNameChange={setCurrentInvestigatorName}
-          onSave={handleGetContext}
-          onLoad={handleLoadInvestigator}
-          onNewInvestigator={handleNewInvestigator}
-          hasUnsavedChanges={hasUnsavedChanges}
-        />
-      </div>
-
       {/* Unified Toolbar */}
       <ControlPanel
         state={state}
