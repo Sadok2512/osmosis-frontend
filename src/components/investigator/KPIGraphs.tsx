@@ -664,7 +664,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // Per-KPI split detection — only split if user explicitly configured it
         const splitByPerKpi = cfg.splitByPerKpi || {};
         const splitByPerKpi2 = cfg.splitByPerKpi2 || {};
-        const slotSplit = slot.splitBy && slot.splitBy !== 'None';
+        const globalSplitBy = useInvestigatorStore.getState().state.splitBy;
+        const slotSplit = (slot.splitBy && slot.splitBy !== 'None') || (globalSplitBy && globalSplitBy !== 'None');
         const slotSplit2 = slot.splitBy2 && slot.splitBy2 !== 'None';
         const hasPerKpiSplit = kpiIds.some(id => {
           const p = splitByPerKpi[id];
