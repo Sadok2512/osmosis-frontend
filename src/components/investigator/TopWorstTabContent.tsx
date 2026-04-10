@@ -105,6 +105,7 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
     const startDate = (ctx?.startDate || state.startDate).split('T')[0];
     const endDate = (ctx?.endDate || state.endDate).split('T')[0];
     const granularity = (ctx?.granularity || state.granularity) as Granularity;
+    const parentSplitBy = ctx?.splitBy || state.splitBy || 'None';
 
     // Build filters: cell + context from the element
     const filters: Record<string, string[]> = {};
@@ -153,9 +154,9 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
         startDate,
         endDate,
         granularity,
-        splitBy: 'None',
+        splitBy: parentSplitBy,
       }],
-      splitBy: 'None',
+      splitBy: parentSplitBy,
       startDate,
       endDate,
       granularity,
