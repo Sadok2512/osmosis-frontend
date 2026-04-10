@@ -95,6 +95,7 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
           return {
             state: next,
             activeSlotId: validateActiveSlot(store.activeSlotId, next.graphSlots),
+            hasUnsavedChanges: true,
           };
         }),
       activeSlotId: null,
@@ -104,6 +105,14 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
         })),
       hasLoadedOnce: false,
       setHasLoadedOnce: (v) => set({ hasLoadedOnce: v }),
+
+      // ── Named investigator tracking ──
+      currentInvestigatorId: null,
+      setCurrentInvestigatorId: (id) => set({ currentInvestigatorId: id }),
+      currentInvestigatorName: 'Untitled Investigator',
+      setCurrentInvestigatorName: (name) => set({ currentInvestigatorName: name, hasUnsavedChanges: true }),
+      hasUnsavedChanges: false,
+      setHasUnsavedChanges: (v) => set({ hasUnsavedChanges: v }),
 
       // ── Runtime result data (NOT persisted) ──
       tsData: [],
