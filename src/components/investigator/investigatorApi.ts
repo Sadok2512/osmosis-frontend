@@ -95,8 +95,12 @@ async function fetchKpiComputeOnTheFly(
       granularity,
     };
 
-    // Extract site/cell/dimension from filters — support multi-value
-    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
+    // Extract site/cell/dimension from filters — support multi-value.
+    // Any filter whose dimension is not a structural field (SITE/CELL/VENDOR/TECH)
+    // is treated as a PM dimension_filter passthrough. Values from the UI come already
+    // formatted as "DIM=value" by /pm/counters/dimension-values, so no remapping is
+    // needed — we just forward them straight to the compute endpoint.
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
     if (filters && filters.length > 0) {
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
@@ -108,15 +112,13 @@ async function fetchKpiComputeOnTheFly(
           body.vendor = f.values[0];
         } else if ((dim === 'TECHNOLOGY' || dim === 'TECHNO') && f.values?.length) {
           body.object_type = f.values[0];
-        } else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
+        } else if (dim === 'KPI_LEVEL') {
+          /* ignore, handled by kpi engine */
+        } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
+          // PM dimension passthrough — covers PMQAP, FLEX_*, NEIGHBOR, SLICE, 5QI,
+          // RANSHARE, TRANSPORT, CA_REL, QCI_IDX, and any future dimension type.
           body.dimension_filter = f.values.length === 1 ? f.values[0] : f.values;
         }
-        // KPI Engine profile QCI → translate to PMQAP dimension
-        else if (dim === 'QCI' && f.values?.length) {
-          const mapped = f.values.map(v => `PMQAP=${v}`);
-          body.dimension_filter = mapped.length === 1 ? mapped[0] : mapped;
-        }
-        else if (dim === 'KPI_LEVEL') { /* ignore, handled by kpi engine */ }
       }
     }
 
@@ -260,10 +262,12 @@ async function fetchCounterTimeSeriesFallback(
       granularity,
     };
 
-    // Translate dimension filters to Parser format
+    // Translate dimension filters to Parser format.
+    // Any filter not matching a structural column (SITE/CELL/VENDOR/TECH/KPI_LEVEL) is
+    // forwarded as a PM dimension_filter — values arrive already prefixed as "DIM=value".
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
     if (splitByField) body.split_by_field = splitByField;
-    const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
       for (const f of filters) {
@@ -272,9 +276,13 @@ async function fetchCounterTimeSeriesFallback(
           body.site_name = f.values.length === 1 ? f.values[0] : f.values;
         } else if (dim === 'CELL' && f.values?.length) {
           body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
-        } else if (dim === 'TECHNO' && f.values?.length) body.object_type = f.values[0];
-        else if (PM_DIM_TYPES.has(dim) && f.values?.length) {
-          // PM dimension filter → pass as dimension_filter array
+        } else if (dim === 'TECHNO' && f.values?.length) {
+          body.object_type = f.values[0];
+        } else if (dim === 'VENDOR' && f.values?.length) {
+          body.vendor = f.values[0];
+        } else if (dim === 'KPI_LEVEL') {
+          /* ignore */
+        } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
           dimFilterValues.push(...f.values);
         }
       }
@@ -497,10 +505,11 @@ export async function fetchTimeSeriesForSlot(
   const hasNonPmSplit2 = ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None';
   log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit1:', hasNonPmSplit1, 'splitBy2:', ctx.splitBy2);
 
-  // Double split: detect if one split is PM and the other is a field (cell_name, site_name)
-  // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name)
-  // Map split dimension → SQL column. Use ne_name for Cell because cell_name = site_name
-  // in Nokia PM data (enrichment stores site-level, ne_name has LNCEL-XX)
+  // Double split: detect if one split is PM and the other is a field (cell_name, site_name).
+  // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name).
+  // Cell → cell_name (Ericsson has proper cell_name after the parser fix).
+  // Nokia pm_15m still has empty cell_name; those splits will show only the ENB until
+  // the Nokia-specific pm_15m_enriched path is wired in.
   const FIELD_MAP: Record<string, string> = { 'Cell': 'cell_name', 'CELL': 'cell_name', 'Site': 'site_name', 'SITE': 'site_name' };
   let computeSplitByField: string | undefined;
   let computePmDim: string | undefined;
