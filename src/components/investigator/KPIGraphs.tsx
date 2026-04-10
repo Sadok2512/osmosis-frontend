@@ -1120,7 +1120,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        const legendRows = series.length > 4 ? 78 : series.length > 2 ? 66 : 54;
+        // Use scroll legend with fixed compact height to avoid eating chart space
+        const legendHeight = series.length > 6 ? 50 : series.length > 3 ? 40 : 30;
 
         const option: any = {
           animation: false,
@@ -1128,7 +1129,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
           grid: {
             top: 32,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendRows + sliderHeight + 20,
+            bottom: legendHeight + sliderHeight + 20,
             left: 62,
             containLabel: false,
           },
@@ -1144,7 +1145,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               type: 'slider' as const,
               xAxisIndex: 0,
               height: sliderHeight,
-              bottom: legendRows - 12,
+              bottom: legendHeight - 4,
               filterMode: 'none' as const,
               start: cfg.zoomWindow?.start,
               end: cfg.zoomWindow?.end,
@@ -1170,15 +1171,19 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
             show: true,
             bottom: 4,
             icon: 'roundRect',
-            itemWidth: 20,
-            itemHeight: 5,
-            itemGap: 14,
-            type: 'plain' as any,
+            itemWidth: 16,
+            itemHeight: 4,
+            itemGap: 10,
+            type: 'scroll' as any,
+            pageIconSize: 10,
+            pageTextStyle: { fontSize: 9, color: '#a1a1aa' },
             textStyle: {
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: 500,
               color: '#4b5563',
-              padding: [0, 0, 0, 4],
+              padding: [0, 0, 0, 2],
+              overflow: 'truncate' as any,
+              width: 140,
             },
             tooltip: { show: true },
           },
