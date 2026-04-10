@@ -6,9 +6,12 @@ import { formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity } from './types';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
-  Database, GitBranch, Cpu, TrendingUp,
+  Database, GitBranch, Cpu, TrendingUp, SplitSquareVertical,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 /* ──────────────────── Types ──────────────────── */
 
