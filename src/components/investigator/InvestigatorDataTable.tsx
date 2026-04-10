@@ -267,10 +267,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
                     {row.ne}
                   </td>
 
-                  {/* Cell */}
+                  {/* Cell — with color dot matching graph series */}
                   {hasCells && (
                     <td className="py-2.5 px-4 whitespace-nowrap text-foreground">
-                      {row.cell}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10"
+                          style={{ backgroundColor: stableColorForSplit(row.cell) }}
+                        />
+                        <span className="font-medium">{row.cell}</span>
+                      </span>
                     </td>
                   )}
 
