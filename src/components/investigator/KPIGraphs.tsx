@@ -1471,26 +1471,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                       <span className="text-[9px] text-muted-foreground font-mono w-8 text-right">{cfg.lineWidth}px</span>
                     </div>
 
-                    <div className="h-px bg-border/40" />
-
-                    {/* Actions */}
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Actions</span>
-                    <div className="flex gap-2">
-                      {onDuplicateSlot && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onDuplicateSlot(slot.id); }}
-                          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
-                        >
-                          <Copy className="w-3.5 h-3.5" /> Duplicate
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); exportChartAsPng(chartRefsMap.current[slot.id], slot.name || 'chart'); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Export PNG
-                      </button>
-                    </div>
                   </div>
 
                   {/* Footer — Apply */}
