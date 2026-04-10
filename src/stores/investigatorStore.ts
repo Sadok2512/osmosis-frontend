@@ -149,6 +149,9 @@ export const useInvestigatorStore = create<InvestigatorStore>()(
           loading: false,
           error: null,
           kpiSelectorSlot: null,
+          currentInvestigatorId: null,
+          currentInvestigatorName: 'Untitled Investigator',
+          hasUnsavedChanges: false,
         });
       },
     }),
