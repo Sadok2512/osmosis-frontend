@@ -722,8 +722,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           {!isGraphFullscreen && renderGraphSection()}
         </div>
 
-        {/* ═══ ZONE 2: Stable Analysis Area — always mounted, min-height reserved ═══ */}
-        <div className="flex-1 mt-6" style={{ minHeight: 320 }}>
+        {/* ═══ ZONE 2: Stable Analysis Area — always mounted, stable height ═══ */}
+        <div className="shrink-0 mt-6" style={{ minHeight: 360 }}>
 
           {/* Analysis Tab Bar — always visible when there are enabled tabs */}
           {(() => {
