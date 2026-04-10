@@ -322,8 +322,6 @@ const SingleKpiBreakdown: React.FC<{
   }, [explain]);
 
   const splitActive = !!(splitBy && splitBy !== 'None');
-  const techno = (explain?.techno || '').toUpperCase();
-  const is5G = techno === 'NR' || techno === '5G' || techno.includes('NR') || techno.includes('5G');
 
   // Fetch counter timeseries
   useEffect(() => {
@@ -332,25 +330,14 @@ const SingleKpiBreakdown: React.FC<{
     setLoading(true);
     const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
 
-    // Resolve splitBy → backend params.
-    //  - CELL on 5G KPI → split by `dimension_key` (which holds NRCEL id for NR counters).
-    //  - CELL on LTE KPI → split by `split_by_field: "ne_name"` (physical cell).
-    //  - Any PM dimension (PMQAP/SLICE/…) → split by `dimension_key`.
-    //  - SITE → split by `split_by_field: "site_name"`.
+    // Always use split_by_dimension for any split type — the PM counters backend
+    // returns dimension_key for all split modes (CELL, SITE, PMQAP, etc.).
     let suppressCellFilter = false;
     if (splitActive) {
+      body.split_by_dimension = true;
       const sb = (splitBy || '').toUpperCase();
       if (sb === 'CELL') {
-        if (is5G) {
-          body.split_by_dimension = true;       // NRCEL lives in dimension_key
-        } else {
-          body.split_by_field = 'ne_name';      // LTE physical cell
-        }
         suppressCellFilter = true;              // don't restrict to a single cell when splitting
-      } else if (sb === 'SITE') {
-        body.split_by_field = 'site_name';
-      } else {
-        body.split_by_dimension = true;
       }
     }
 
@@ -369,11 +356,7 @@ const SingleKpiBreakdown: React.FC<{
     })
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => {
-        console.log('[KPIBreakdown] request body:', JSON.stringify(body));
-        console.log('[KPIBreakdown] splitActive:', splitActive, 'splitBy:', splitBy, 'is5G:', is5G);
         const raw = data.series || data.data || [];
-        console.log('[KPIBreakdown] raw response sample (first 3):', JSON.stringify(raw.slice(0, 3)));
-        console.log('[KPIBreakdown] raw keys:', raw.length > 0 ? Object.keys(raw[0]) : 'empty');
         const norm: CounterTsPoint[] = raw.map((s: any) => ({
           ts: s.ts || s.timestamp || s.date,
           counter: s.counter_id || s.counter_name || s.counter || '',
@@ -381,13 +364,12 @@ const SingleKpiBreakdown: React.FC<{
           dimension_key: s.dimension_key || s.split_field || s.split_value
             || s.ne_name || s.site_name || s.split_field_value || undefined,
         }));
-        console.log('[KPIBreakdown] normalized sample (first 3):', JSON.stringify(norm.slice(0, 3)));
         setCounterTsData(norm);
         setLoading(false);
       })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy, is5G]);
+  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
