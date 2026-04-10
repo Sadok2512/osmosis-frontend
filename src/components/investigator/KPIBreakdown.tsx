@@ -6,7 +6,7 @@ import { formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity } from './types';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
-  Database, GitBranch, Cpu, TrendingUp, SplitSquareVertical, Filter,
+  Database, GitBranch, Cpu, TrendingUp, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
