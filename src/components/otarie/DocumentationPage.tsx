@@ -1,16 +1,18 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Search, BookOpen, Database, BarChart3, Layers, Wifi, Cpu, Globe, Zap,
   ArrowDownUp, Timer, ShieldAlert, Activity, Signal, Gauge, Users,
   Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save
+  Sliders
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
 import QosNetworkView from '@/components/documentation/QosNetworkView';
+const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -145,6 +147,7 @@ const DocumentationPage: React.FC = () => {
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
     { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
+    { id: 'parameters_hub', label: 'Parameters HUB', icon: <Sliders className="w-4 h-4" /> },
   ];
 
   return (
@@ -219,6 +222,10 @@ const DocumentationPage: React.FC = () => {
           <FilterRepositoryView />
         ) : activeTab === 'qos_network' ? (
           <QosNetworkView />
+        ) : activeTab === 'parameters_hub' ? (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <TopologiePage />
+          </Suspense>
         ) : (
           <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
