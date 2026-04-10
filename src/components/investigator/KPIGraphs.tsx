@@ -1266,10 +1266,33 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               };
             })() : undefined;
 
-            // Merge jalon markLines (only on first series) with per-series average markLine
+            // Build threshold markLines (warning + critical) for this series
+            const thresholdMarkLines: any[] = [];
+            if (cfg.showThresholds) {
+              const def = getDef(seriesKpiId);
+              if (def?.thresholds) {
+                if (def.thresholds.warning != null) {
+                  thresholdMarkLines.push({
+                    yAxis: def.thresholds.warning,
+                    label: { formatter: `⚠ ${def.thresholds.warning}`, fontSize: 8, color: '#f59e0b', position: 'insideEndTop' },
+                    lineStyle: { type: 'dashed' as const, color: '#f59e0b', width: 1.2 },
+                  });
+                }
+                if (def.thresholds.critical != null) {
+                  thresholdMarkLines.push({
+                    yAxis: def.thresholds.critical,
+                    label: { formatter: `🔴 ${def.thresholds.critical}`, fontSize: 8, color: '#ef4444', position: 'insideEndTop' },
+                    lineStyle: { type: 'dashed' as const, color: '#ef4444', width: 1.2 },
+                  });
+                }
+              }
+            }
+
+            // Merge jalon markLines (only on first series) with per-series average + threshold markLines
             const combinedMarkLineData = [
               ...(i === 0 ? markLineData : []),
               ...(avgMarkLine ? [avgMarkLine] : []),
+              ...thresholdMarkLines,
             ];
 
             return {
