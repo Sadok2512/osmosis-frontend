@@ -28,6 +28,7 @@ export interface GraphConfig {
   lineWidth: number;
   showSymbols: boolean;
   showThresholds: boolean;
+  showAverage: boolean;
   showGrid: boolean;
   showArea: boolean;
   showDataTable: boolean;
@@ -61,6 +62,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   lineWidth: 2.5,
   showSymbols: true,
   showThresholds: true,
+  showAverage: false,
   showGrid: true,
   showArea: false,
   showDataTable: false,

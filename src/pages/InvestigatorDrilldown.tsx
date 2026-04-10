@@ -79,6 +79,7 @@ const InvestigatorDrilldown: React.FC = () => {
         lineWidth: 2.5,
         showSymbols: true,
         showThresholds: true,
+        showAverage: false,
         showGrid: true,
         showArea: false,
         showDataTable: true,

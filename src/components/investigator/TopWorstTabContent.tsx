@@ -141,6 +141,7 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
           lineWidth: 2.5,
           showSymbols: true,
           showThresholds: true,
+          showAverage: false,
           showGrid: true,
           showArea: false,
           showDataTable: true,
