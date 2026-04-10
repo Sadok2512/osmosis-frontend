@@ -1121,8 +1121,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        // Use scroll legend with fixed compact height to avoid eating chart space
-        const legendHeight = series.length > 6 ? 50 : series.length > 3 ? 40 : 30;
+        // Dynamic legend height: ~14px per row, estimate ~4 items per row
+        const itemsPerRow = 4;
+        const legendRowCount = Math.ceil(series.length / itemsPerRow);
+        const legendHeight = Math.max(20, legendRowCount * 16 + 4);
 
         const option: any = {
           animation: false,
@@ -1172,19 +1174,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
             show: true,
             bottom: 4,
             icon: 'roundRect',
-            itemWidth: 16,
+            itemWidth: 14,
             itemHeight: 4,
-            itemGap: 10,
-            type: 'scroll' as any,
-            pageIconSize: 10,
-            pageTextStyle: { fontSize: 9, color: '#a1a1aa' },
+            itemGap: 8,
+            type: 'plain' as any,
             textStyle: {
               fontSize: 9,
               fontWeight: 500,
               color: '#4b5563',
               padding: [0, 0, 0, 2],
-              overflow: 'truncate' as any,
-              width: 140,
             },
             tooltip: { show: true },
           },
