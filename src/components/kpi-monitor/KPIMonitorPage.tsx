@@ -67,7 +67,7 @@ const SPLIT_OPTIONS: { value: SplitDimension | 'none'; label: string }[] = [
 
 const TOP_N_OPTIONS = [3, 5, 10, 15, 20];
 
-const FILTER_DIMENSIONS_LIST = ['Site', 'Vendor', 'Technology', 'Band', 'DOR', 'DR', 'Plaque', 'Zone ARCEP'];
+const FILTER_DIMENSIONS_LIST = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'DR', 'PLAQUE', 'ZONE_ARCEP'];
 
 const COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444',
