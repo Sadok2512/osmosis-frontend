@@ -89,18 +89,6 @@ const InvestigatorWorkspace: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden h-full">
-      {/* Multi-tab bar */}
-      <InvestigatorTabBar
-        instances={instances}
-        activeInstanceId={activeInstanceId}
-        onActivate={setActiveTab}
-        onAdd={() => addNewTab()}
-        onClose={handleCloseTab}
-        onRename={renameTab}
-        onDuplicate={duplicateTab}
-        onCloseOthers={handleCloseOthers}
-      />
-
       {/* Render all instances, show only active via CSS for instant switching */}
       {instances.map(inst => (
         <div
@@ -108,7 +96,21 @@ const InvestigatorWorkspace: React.FC = () => {
           className="flex-1 overflow-hidden"
           style={{ display: inst.instanceId === activeInstanceId ? 'flex' : 'none' }}
         >
-          <InvestigatorPageInstance instanceId={inst.instanceId} />
+          <InvestigatorPageInstance
+            instanceId={inst.instanceId}
+            tabBar={
+              <InvestigatorTabBar
+                instances={instances}
+                activeInstanceId={activeInstanceId}
+                onActivate={setActiveTab}
+                onAdd={() => addNewTab()}
+                onClose={handleCloseTab}
+                onRename={renameTab}
+                onDuplicate={duplicateTab}
+                onCloseOthers={handleCloseOthers}
+              />
+            }
+          />
         </div>
       ))}
     </div>
@@ -118,7 +120,7 @@ const InvestigatorWorkspace: React.FC = () => {
 /* ═══════════════════════════════════════════════════════════
    InvestigatorPageInstance — one investigator (fully isolated)
    ═══════════════════════════════════════════════════════════ */
-const InvestigatorPageInstance: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.ReactNode }> = ({ instanceId, tabBar }) => {
   const ws = useInvestigatorWorkspace();
   const inst = ws.instances.find(i => i.instanceId === instanceId);
 
@@ -426,13 +428,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string }> = ({ instanceId
       isGraphFullscreen && 'fixed inset-0 z-[100] bg-background p-4 md:p-6 overflow-auto'
     )}>
       <div className={cn(
-        'flex items-center justify-between border-b border-border/40 pb-3',
+        'flex flex-col gap-2 border-b border-border/40 pb-3',
         isGraphFullscreen && 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm'
       )}>
+        {/* Multi-investigator tab bar — local to this module header */}
+        {tabBar}
+
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
-            <Maximize2 className="w-4 h-4 text-primary" />
-          </div>
           <InvestigatorSaveLoadBar
             investigatorId={inst?.investigatorId ?? null}
             investigatorName={inst?.name ?? 'Untitled'}
