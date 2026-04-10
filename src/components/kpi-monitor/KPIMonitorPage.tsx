@@ -16,6 +16,8 @@ import { toast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -168,8 +170,16 @@ const FilterValuesList: React.FC<{ dim: string; onSelect: (val: string) => void;
 };
 
 /* ═══════════════════════════════════════════════════════════════════
-   RIGHT SIDEBAR — Widget Config Panel
+   RIGHT SIDEBAR — Investigator-Style Widget Config Panel
    ═══════════════════════════════════════════════════════════════════ */
+
+const SIDEBAR_CHART_TYPES = [
+  { value: 'line', label: 'Line', icon: LineChartIcon },
+  { value: 'area', label: 'Area', icon: BarChart3 },
+  { value: 'bar', label: 'Bar', icon: BarChart3 },
+  { value: 'stacked_area', label: 'Stack', icon: BarChart3 },
+] as const;
+
 const WidgetSidebarPanel: React.FC<{
   widget: KpiWidgetItem;
   catalog: KpiCatalogEntry[];
@@ -217,70 +227,68 @@ const WidgetSidebarPanel: React.FC<{
     onUpdate({ kpis: config.kpis.filter(k => k.kpi_key !== key) });
   };
 
-  // Build display title from KPI names
   const displayTitle = config.kpis.length > 0
     ? config.kpis.map(k => catalogMap[k.kpi_key]?.display_name || k.kpi_key).join(' / ')
     : config.title;
 
+  // Y-Axis active tab state
+  const [activeYTab, setActiveYTab] = useState<'L' | 'R'>('L');
+
   return (
-    <div className="w-[340px] border-l border-border bg-card flex flex-col shrink-0 overflow-hidden">
+    <div className="w-[300px] border-l border-border bg-card flex flex-col shrink-0 overflow-hidden">
       {/* Header */}
-      <div className="flex items-start gap-3 px-4 py-4 border-b border-border/40">
-        <div className="p-2 rounded-lg bg-primary/10 shrink-0 mt-0.5">
-          <Settings className="w-4 h-4 text-primary" />
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border/40 bg-muted/20">
+        <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
+          <Settings className="w-3.5 h-3.5 text-primary" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-foreground leading-tight break-words">{displayTitle}</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Click to edit appearance</p>
+          <p className="text-[11px] font-bold text-foreground leading-tight truncate">{displayTitle}</p>
+          <p className="text-[9px] text-muted-foreground">Configuration du widget</p>
         </div>
         <button onClick={onClose} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0">
-          <X className="w-4 h-4" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* KPIs Section */}
-        <div className="px-4 py-3 border-b border-border/30">
-          <div className="flex items-center gap-2 mb-3">
-            <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">KPIS SÉLECTIONNÉS</span>
+        <div className="px-3 py-2.5 border-b border-border/30">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">KPIs</span>
+            <span className="text-[8px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold ml-auto">{config.kpis.length}</span>
           </div>
 
-          {/* Add KPI button */}
           <button
             onClick={() => setShowKpiSelector(!showKpiSelector)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all mb-3"
+            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg border border-dashed border-primary/30 hover:border-primary/50 bg-primary/5 hover:bg-primary/10 transition-all mb-2"
           >
-            <Plus className="w-4 h-4 text-primary" />
-            <div className="text-left">
-              <span className="text-xs font-semibold text-primary">Sélectionner des KPIs</span>
-              <span className="text-[10px] text-muted-foreground ml-2">{config.kpis.length} actif(s)</span>
-            </div>
+            <Plus className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] font-semibold text-primary">Sélectionner des KPIs</span>
           </button>
 
-          {/* KPI Selector */}
           {showKpiSelector && (
-            <div className="mb-3 rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
-              <div className="p-2">
+            <div className="mb-2 rounded-lg border border-border/60 bg-muted/10 overflow-hidden">
+              <div className="p-1.5">
                 <input value={kpiSearch} onChange={e => setKpiSearch(e.target.value)} placeholder="Rechercher KPI..."
-                  className="w-full px-2.5 py-1.5 rounded-md border border-border/60 bg-background text-[11px] outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40"
+                  className="w-full px-2 py-1 rounded-md border border-border/60 bg-background text-[10px] outline-none focus:ring-1 focus:ring-primary/30 placeholder:text-muted-foreground/40"
                 />
               </div>
-              <div className="max-h-48 overflow-y-auto px-1 pb-1">
+              <div className="max-h-40 overflow-y-auto px-1 pb-1">
                 {Object.entries(groupedCatalog).map(([category, entries]) => (
                   <div key={category}>
-                    <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">{category}</div>
+                    <div className="px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-muted-foreground/60">{category}</div>
                     {entries.map(entry => {
                       const selected = config.kpis.some(k => k.kpi_key === entry.kpi_key);
                       return (
                         <button key={entry.kpi_key} onClick={() => toggleKpi(entry.kpi_key)}
                           className={cn(
-                            "w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] text-left transition-all",
+                            "w-full flex items-center gap-2 px-2 py-1 rounded-md text-[10px] text-left transition-all",
                             selected ? "bg-primary/10 text-foreground font-medium" : "hover:bg-muted/60 text-muted-foreground"
                           )}
                         >
                           <div className={cn(
-                            "w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border transition-all",
+                            "w-3 h-3 rounded flex items-center justify-center shrink-0 border transition-all",
                             selected ? "bg-primary border-primary" : "border-border/80 bg-background"
                           )}>
                             {selected && <Check className="w-2 h-2 text-primary-foreground" />}
@@ -296,19 +304,16 @@ const WidgetSidebarPanel: React.FC<{
           )}
 
           {/* Selected KPIs list */}
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {config.kpis.map((k, i) => {
               const entry = catalogMap[k.kpi_key];
               const color = k.color || COLORS[i % COLORS.length];
               return (
-                <div key={k.kpi_key} className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/30 transition-colors group/kpi">
-                  <span className="w-3 h-3 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-card" style={{ backgroundColor: color, boxShadow: `0 0 0 2px ${color}30` }} />
-                  <span className="text-xs font-medium text-foreground truncate flex-1">{entry?.display_name || k.kpi_key}</span>
-                  <button className="p-1 rounded text-muted-foreground hover:text-foreground opacity-0 group-hover/kpi:opacity-100 transition-all">
-                    <GitBranch className="w-3 h-3" />
-                  </button>
-                  <button onClick={() => removeKpi(k.kpi_key)} className="p-1 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover/kpi:opacity-100 transition-all">
-                    <span className="text-sm font-bold">—</span>
+                <div key={k.kpi_key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/30 transition-colors group/kpi">
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-[10px] font-medium text-foreground truncate flex-1">{entry?.display_name || k.kpi_key}</span>
+                  <button onClick={() => removeKpi(k.kpi_key)} className="p-0.5 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover/kpi:opacity-100 transition-all">
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               );
@@ -316,18 +321,127 @@ const WidgetSidebarPanel: React.FC<{
           </div>
         </div>
 
-        {/* Filters Section */}
-        <div className="px-4 py-3 border-b border-border/30">
+        {/* ── Graph Settings (Investigator-style) ── */}
+        <div className="px-3 py-2.5 border-b border-border/30 space-y-2">
+          <div className="flex items-center gap-2">
+            <Settings className="w-3 h-3 text-muted-foreground" />
+            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Graphique</span>
+          </div>
+
+          {/* Chart Type — compact icon row */}
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/40">
+            {SIDEBAR_CHART_TYPES.map(ct => (
+              <button key={ct.value}
+                onClick={() => onUpdate({ graphType: ct.value })}
+                className={cn('flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[9px] font-semibold transition-all',
+                  config.graphType === ct.value
+                    ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                )}
+                title={ct.label}
+              >
+                <ct.icon className="w-3 h-3" />
+                <span className="hidden sm:inline">{ct.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Toggles — 2-column grid */}
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+            {([
+              { label: 'Smooth', key: 'smooth' },
+              { label: 'Markers', key: 'showSymbols' },
+              { label: 'Area Fill', key: 'showArea' },
+              { label: 'Thresholds', key: 'showThresholds' },
+              { label: 'Average', key: 'showAverage' },
+              { label: 'Grid', key: 'showGrid' },
+              { label: 'Legend', key: 'showLegend' },
+            ] as const).map(toggle => (
+              <div key={toggle.key} className="flex items-center justify-between py-0.5">
+                <span className="text-[9px] text-foreground">{toggle.label}</span>
+                <Switch
+                  checked={Boolean((config as any)[toggle.key])}
+                  onCheckedChange={v => onUpdate({ [toggle.key]: v })}
+                  className="scale-[0.6]"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Line Width — inline */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-foreground shrink-0">Width</span>
+            <Slider
+              value={[config.lineWidth]}
+              onValueChange={v => onUpdate({ lineWidth: v[0] })}
+              min={0.5} max={5} step={0.5}
+              className="flex-1"
+            />
+            <span className="text-[8px] text-muted-foreground font-mono w-6 text-right">{config.lineWidth}px</span>
+          </div>
+
+          {/* Y-Axis — compact */}
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
+            <div className="flex gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5">
+              {(['L', 'R'] as const).map(side => (
+                <button key={side}
+                  onClick={() => setActiveYTab(side)}
+                  className={cn('h-5 min-w-6 rounded-[4px] px-1.5 text-[8px] font-bold transition-all',
+                    activeYTab === side
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >{side}</button>
+              ))}
+            </div>
+            {(() => {
+              const isRight = activeYTab === 'R';
+              const axisCfg = isRight ? config.yAxisRight : config.yAxis;
+              const axisKey = isRight ? 'yAxisRight' : 'yAxis';
+              return (
+                <div className="flex gap-0.5 flex-1">
+                  {(['auto', 'manual'] as const).map(mode => (
+                    <button key={mode} onClick={() => onUpdate({ [axisKey]: { ...axisCfg, mode } })}
+                      className={cn('flex-1 px-1.5 py-0.5 rounded text-[8px] font-semibold transition-all',
+                        (axisCfg?.mode || 'auto') === mode ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/50')}
+                    >{mode === 'auto' ? 'Auto' : 'Manuel'}</button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          {(() => {
+            const isRight = activeYTab === 'R';
+            const axisCfg = isRight ? config.yAxisRight : config.yAxis;
+            const axisKey = isRight ? 'yAxisRight' : 'yAxis';
+            if (axisCfg?.mode !== 'manual') return null;
+            return (
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-0.5">
+                  <span className="text-[8px] text-muted-foreground">Min</span>
+                  <input type="number" value={axisCfg?.min ?? ''} onChange={e => onUpdate({ [axisKey]: { ...axisCfg, mode: 'manual', min: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-mono" />
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[8px] text-muted-foreground">Max</span>
+                  <input type="number" value={axisCfg?.max ?? ''} onChange={e => onUpdate({ [axisKey]: { ...axisCfg, mode: 'manual', max: e.target.value === '' ? undefined : Number(e.target.value) } })} placeholder="Auto" className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-mono" />
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {/* ── Filters Section ── */}
+        <div className="px-3 py-2.5 border-b border-border/30">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
+              <Filter className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Filtres</span>
             </div>
             <Select onValueChange={v => {
               onUpdate({ filters: [...config.filters, { id: `f_${Date.now()}`, dimension: v, op: 'IN' as const, values: [] }] });
             }}>
-              <SelectTrigger className="h-6 w-auto text-[10px] border-dashed gap-1 px-2">
-                <Plus className="w-3 h-3" /> Ajouter
+              <SelectTrigger className="h-5 w-auto text-[9px] border-dashed gap-0.5 px-1.5 py-0">
+                <Plus className="w-2.5 h-2.5" /> Ajouter
               </SelectTrigger>
               <SelectContent>
                 {FILTER_DIMENSIONS_LIST.map(d => (
@@ -337,15 +451,15 @@ const WidgetSidebarPanel: React.FC<{
             </Select>
           </div>
           {config.filters.length === 0 ? (
-            <p className="text-[10px] text-muted-foreground/50 italic">Aucun filtre actif</p>
+            <p className="text-[9px] text-muted-foreground/50 italic">Aucun filtre actif</p>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {config.filters.map(f => (
-                <div key={f.id} className="flex items-center gap-2 px-2 py-1 rounded bg-muted/20 text-[10px]">
+                <div key={f.id} className="flex items-center gap-2 px-2 py-1 rounded bg-muted/20 text-[9px]">
                   <span className="font-semibold text-foreground">{f.dimension}</span>
                   {f.values.length > 0 && <span className="text-muted-foreground">({f.values.length})</span>}
                   <button onClick={() => onUpdate({ filters: config.filters.filter(ff => ff.id !== f.id) })} className="ml-auto text-muted-foreground hover:text-destructive">
-                    <X className="w-3 h-3" />
+                    <X className="w-2.5 h-2.5" />
                   </button>
                 </div>
               ))}
@@ -353,31 +467,47 @@ const WidgetSidebarPanel: React.FC<{
           )}
         </div>
 
-        {/* Display Options */}
-        <div className="px-4 py-3">
-          <div className="flex items-center gap-2 mb-2">
-            <Settings className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Options</span>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="text-foreground">Type</span>
-              <Select value={config.graphType} onValueChange={v => onUpdate({ graphType: v as any })}>
-                <SelectTrigger className="h-6 w-24 text-[10px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="line" className="text-xs">Line</SelectItem>
-                  <SelectItem value="area" className="text-xs">Area</SelectItem>
-                  <SelectItem value="bar" className="text-xs">Bar</SelectItem>
-                  <SelectItem value="stacked_area" className="text-xs">Stacked</SelectItem>
-                </SelectContent>
-              </Select>
+        {/* ── Per-KPI Settings ── */}
+        {config.kpis.length > 0 && (
+          <div className="px-3 py-2.5">
+            <div className="flex items-center gap-2 mb-2">
+              <GitBranch className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Per-KPI</span>
+            </div>
+            <div className="space-y-1.5">
+              {config.kpis.map((k, i) => {
+                const entry = catalogMap[k.kpi_key];
+                const color = k.color || COLORS[i % COLORS.length];
+                const yIdx = config.yAxisAssignments?.[k.kpi_key] ?? 0;
+                return (
+                  <div key={k.kpi_key} className="rounded-lg border border-border/30 bg-muted/10 p-2 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-[9px] font-semibold text-foreground truncate flex-1">{entry?.display_name || k.kpi_key}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[8px] text-muted-foreground shrink-0">Axe:</span>
+                      {(['L', 'R'] as const).map((side, sideIdx) => (
+                        <button key={side}
+                          onClick={() => onUpdate({
+                            yAxisAssignments: { ...(config.yAxisAssignments || {}), [k.kpi_key]: sideIdx }
+                          })}
+                          className={cn('px-1.5 py-0.5 rounded text-[8px] font-bold transition-all',
+                            yIdx === sideIdx ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted/50'
+                          )}
+                        >{side}</button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-2.5 border-t border-border/40 flex items-center gap-2 text-[10px] text-muted-foreground">
+      <div className="px-3 py-2 border-t border-border/40 flex items-center gap-2 text-[9px] text-muted-foreground">
         <Save className="w-3 h-3" />
         <span>À jour</span>
       </div>
