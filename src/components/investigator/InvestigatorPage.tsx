@@ -434,14 +434,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string }> = ({ instanceId
             <Maximize2 className="w-4 h-4 text-primary" />
           </div>
           <InvestigatorSaveLoadBar
-            investigatorId={inst.investigatorId}
-            investigatorName={inst.name}
+            investigatorId={inst?.investigatorId ?? null}
+            investigatorName={inst?.name ?? 'Untitled'}
             onNameChange={setCurrentInvestigatorName}
             getContext={handleGetContext}
             onLoad={handleLoadInvestigator}
             onNewInvestigator={handleNewInvestigator}
             onIdChange={(id) => setCurrentInvestigatorId(id)}
-            hasUnsavedChanges={inst.hasUnsavedChanges}
+            hasUnsavedChanges={inst?.hasUnsavedChanges ?? false}
             onMarkSaved={() => setHasUnsavedChanges(false)}
           />
         </div>
