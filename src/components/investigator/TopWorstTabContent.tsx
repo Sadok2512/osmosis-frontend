@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import WorstElementsTable from './WorstElementsTable';
 import { fetchWorstCellsDirect, fetchCellDetails, fetchKpiDefinitions } from './investigatorApi';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
-import type { WorstElement, KpiDefinition } from './types';
+import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
+import type { WorstElement, KpiDefinition, Granularity, InvestigationState } from './types';
 import type { TabContextSnapshot } from './useAnalysisTabs';
 import { Info } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Props {
   tabId: string;
@@ -17,6 +19,7 @@ interface Props {
  */
 const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
   const { state } = useInvestigatorStore();
+  const ws = useInvestigatorWorkspace();
   const [elements, setElements] = useState<WorstElement[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +94,95 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
 
   const { setState: setGlobalState } = useInvestigatorStore();
 
+  /** Open a new workspace tab prefilled with the clicked cell's context */
+  const handleDrillDown = useCallback((cellName: string, el: WorstElement) => {
+    const kpiIds = ctx?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds);
+    if (!kpiIds.length) {
+      toast.warning('Aucun KPI actif pour le drill-down.');
+      return;
+    }
+
+    const startDate = (ctx?.startDate || state.startDate).split('T')[0];
+    const endDate = (ctx?.endDate || state.endDate).split('T')[0];
+    const granularity = (ctx?.granularity || state.granularity) as Granularity;
+
+    // Build filters: cell + context from the element
+    const filters: Record<string, string[]> = {};
+    filters['Cell'] = [cellName];
+    if (el.site_name) filters['Site'] = [el.site_name];
+    if (el.vendor) filters['Vendor'] = [el.vendor];
+    if (el.dor) filters['DOR'] = [el.dor];
+    if (el.band) filters['Band'] = [el.band];
+    if (el.plaque) filters['Plaque'] = [el.plaque];
+    if (el.technology || el.techno) filters['Technologie'] = [el.technology || el.techno || ''];
+
+    // Merge existing context filters (except Cell which we override)
+    const existingFilters = ctx?.filters || state.filters;
+    for (const [dim, vals] of Object.entries(existingFilters)) {
+      if (dim !== 'Cell' && vals.length > 0 && !filters[dim]) {
+        filters[dim] = [...vals];
+      }
+    }
+
+    // Create graph slot
+    const slotId = `slot-drill-${Date.now()}`;
+    const drillState: InvestigationState = {
+      dimension: 'Cell',
+      selectedKpis: kpiIds,
+      graphSlots: [{
+        id: slotId,
+        kpiIds,
+        name: `Drill: ${cellName}`,
+        widgetType: 'timeseries',
+        config: {
+          chartType: 'line',
+          smooth: true,
+          lineWidth: 2.5,
+          showSymbols: true,
+          showThresholds: true,
+          showGrid: true,
+          showArea: false,
+          showDataTable: true,
+          showBreakdown: false,
+          showTopWorst: false,
+          showAlarms: false,
+          showNeighbors: false,
+          showCmHistory: false,
+        },
+        filters: {},
+        startDate,
+        endDate,
+        granularity,
+        splitBy: 'None',
+      }],
+      splitBy: 'None',
+      startDate,
+      endDate,
+      granularity,
+      filters,
+      topLimit: 10,
+      sortBy: null,
+      graphLayout: 2,
+      activeGraphTab: 'TimeSeries',
+      jalons: [],
+      kpiLevel: 'CELL',
+      profileQci: null,
+      profileArp: null,
+      neighborType: null,
+    };
+
+    // Create a new workspace tab with prefilled state
+    const newTabId = ws.addNewTab(`Drill: ${cellName}`);
+    ws.updateInstanceState(newTabId, drillState);
+    ws.updateInstance(newTabId, {
+      activeSlotId: slotId,
+      hasLoadedOnce: false,
+      hasUnsavedChanges: false,
+    });
+
+    toast.success(`Drill-down ouvert: ${cellName}`);
+  }, [ctx, state, ws]);
+
   return (
     <div>
       {ctx && (
@@ -129,6 +221,7 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
             granularity: ctx?.granularity || state.granularity,
             filters: ctx?.filters || state.filters,
           }}
+          onDrillDown={handleDrillDown}
         />
       )}
     </div>
