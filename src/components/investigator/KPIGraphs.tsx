@@ -724,6 +724,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
           const showArea = sType === 'line' && (cfg.showArea || ct === 'area');
           return { seriesType: sType, isSmooth: smooth, forceSymbols: symbols, isStacked: stacked, showArea };
         };
+        // Force markers on when a line series has ≤ 1 real value, otherwise a
+        // lone point is invisible (no segment to draw between two nulls).
+        const hasSinglePoint = (vals: (number | null)[]) =>
+          vals.filter(v => v != null && !Number.isNaN(v as number)).length <= 1;
 
         let series: any[];
 
@@ -739,6 +743,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const sp = getSeriesProps(kpiId);
+              const forceMarkers = sp.forceSymbols || cfg.showSymbols || hasSinglePoint(values);
               return [{
                 name: def.label,
                 _kpiId: kpiId,
@@ -749,8 +754,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                 type: sp.seriesType as any,
                 data: values,
                 smooth: sp.isSmooth,
-                symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                symbol: forceMarkers ? 'circle' : 'none',
+                symbolSize: forceMarkers ? 5 : 0,
                 lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
@@ -789,6 +794,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   : `${sv1} / ${sv2}_${def.label}`;
                 const ne = comboData.find(d => d.networkElement)?.networkElement;
                 const sp = getSeriesProps(kpiId);
+                const forceMarkers = sp.forceSymbols || cfg.showSymbols || hasSinglePoint(values);
                 return {
                   name: seriesName,
                   _kpiId: kpiId,
@@ -799,8 +805,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                   type: sp.seriesType as any,
                   data: values,
                   smooth: sp.isSmooth,
-                  symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                  symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                  symbol: forceMarkers ? 'circle' : 'none',
+                  symbolSize: forceMarkers ? 5 : 0,
                   lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
                   itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                   barMaxWidth: 20,
@@ -830,6 +836,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               const seriesName = `${neName}_${def.label}`;
 
               const sp = getSeriesProps(kpiId);
+              const forceMarkers = sp.forceSymbols || cfg.showSymbols || hasSinglePoint(values);
               return {
                 name: seriesName,
                 _kpiId: kpiId,
@@ -840,8 +847,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
                 type: sp.seriesType as any,
                 data: values,
                 smooth: sp.isSmooth,
-                symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-                symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+                symbol: forceMarkers ? 'circle' : 'none',
+                symbolSize: forceMarkers ? 5 : 0,
                 lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color } : undefined,
                 itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
                 barMaxWidth: 20,
@@ -867,6 +874,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
             const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
 
             const sp = getSeriesProps(kpiId);
+            const forceMarkers = sp.forceSymbols || cfg.showSymbols || hasSinglePoint(values);
             return {
               name: def.label,
               _kpiId: kpiId,
@@ -877,8 +885,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
               type: sp.seriesType as any,
               data: values,
               smooth: sp.isSmooth,
-              symbol: (sp.forceSymbols || cfg.showSymbols) ? 'circle' : 'none',
-              symbolSize: (sp.forceSymbols || cfg.showSymbols) ? 5 : 0,
+              symbol: forceMarkers ? 'circle' : 'none',
+              symbolSize: forceMarkers ? 5 : 0,
               lineStyle: sp.seriesType === 'line' ? { width: cfg.lineWidth, color: def.color } : undefined,
               itemStyle: { color: def.color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
               barMaxWidth: 20,
@@ -917,18 +925,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, layout, jalons
             const cDef = counterCatalog.find(c => c.counter_name === counter);
             const label = cDef?.display_name ? `${cDef.display_name} (${counter})` : displayName;
 
+            const counterData = allTimestamps.map(ts => {
+              const p = cSeries.find(d => d.ts === ts && d.counter === counter);
+              return p ? p.value : null;
+            });
+            const forceMarkers = cfg.showSymbols || hasSinglePoint(counterData);
+
             series.push({
               name: label,
               _kpiId: `counter_${counter}`,
               connectNulls: true,
               type: 'line' as any,
-              data: allTimestamps.map(ts => {
-                const p = cSeries.find(d => d.ts === ts && d.counter === counter);
-                return p ? p.value : null;
-              }),
+              data: counterData,
               smooth: true,
-              symbol: 'none',
-              symbolSize: 5,
+              symbol: forceMarkers ? 'circle' : 'none',
+              symbolSize: forceMarkers ? 5 : 0,
               lineStyle: { width: 2.5, color, type: 'solid' as const },
               itemStyle: { color },
               areaStyle: {
