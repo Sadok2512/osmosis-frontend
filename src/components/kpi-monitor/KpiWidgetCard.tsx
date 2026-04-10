@@ -209,9 +209,10 @@ const KpiWidgetCard: React.FC<Props> = ({
         splitLine: { lineStyle: { color: 'hsl(var(--border))', opacity: 0.2, type: 'dashed' } },
       },
       series: seriesArr.map((s, i) => {
-        const isArea = config.graphType === 'area' || config.graphType === 'stacked_area';
+        const isArea = config.graphType === 'area' || config.graphType === 'stacked_area' || config.showArea;
         const isBar = config.graphType === 'bar';
         const color = config.kpis.find(k => k.kpi_key === s.kpiKey)?.color || COLORS[i % COLORS.length];
+        const kpiEntry = catalogMap[s.kpiKey];
 
         // Jalon markLines (on first series only)
         const markLineData = i === 0 && jalons.length > 0 ? jalons.map(j => ({
@@ -221,22 +222,64 @@ const KpiWidgetCard: React.FC<Props> = ({
             color: j.color, position: 'insideEndTop' as const,
           },
           lineStyle: { color: j.color, width: 2, type: 'dashed' as const },
-        })) : undefined;
+        })) : [];
+
+        // Average markLine
+        const dataArr = allTs.map(t => s.points.get(t) ?? null);
+        const avgMarkLine = config.showAverage ? (() => {
+          const nums = dataArr.filter((v): v is number => v != null && typeof v === 'number' && isFinite(v));
+          if (nums.length === 0) return undefined;
+          const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+          return {
+            yAxis: avg,
+            label: { formatter: `Avg: ${avg.toFixed(2)}`, fontSize: 8, color },
+            lineStyle: { type: 'dashed' as const, color, width: 1.5 },
+          };
+        })() : undefined;
+
+        // Threshold markLines
+        const thresholdLines: any[] = [];
+        if (config.showThresholds && kpiEntry?.thresholds) {
+          if (kpiEntry.thresholds.warning != null) {
+            thresholdLines.push({
+              yAxis: kpiEntry.thresholds.warning,
+              label: { formatter: `⚠ ${kpiEntry.thresholds.warning}`, fontSize: 8, color: '#f59e0b', position: 'insideEndTop' },
+              lineStyle: { type: 'dashed' as const, color: '#f59e0b', width: 1.2 },
+            });
+          }
+          if (kpiEntry.thresholds.critical != null) {
+            thresholdLines.push({
+              yAxis: kpiEntry.thresholds.critical,
+              label: { formatter: `🔴 ${kpiEntry.thresholds.critical}`, fontSize: 8, color: '#ef4444', position: 'insideEndTop' },
+              lineStyle: { type: 'dashed' as const, color: '#ef4444', width: 1.2 },
+            });
+          }
+        }
+
+        const combinedMarkLineData = [
+          ...markLineData,
+          ...(avgMarkLine ? [avgMarkLine] : []),
+          ...thresholdLines,
+        ];
+
+        // Y-axis assignment
+        const yAxisIndex = config.yAxisAssignments?.[s.kpiKey] ?? 0;
 
         return {
-          name: catalogMap[s.kpiKey]?.display_name || s.name,
+          name: kpiEntry?.display_name || s.name,
           type: isBar ? 'bar' : 'line',
-          data: allTs.map(t => s.points.get(t) ?? null),
+          data: dataArr,
           smooth: config.smooth,
           color,
-          lineStyle: { width: 2 },
-          showSymbol: false,
+          lineStyle: { width: config.lineWidth || 2 },
+          showSymbol: config.showSymbols ?? false,
           areaStyle: isArea ? { opacity: 0.12 } : undefined,
           stack: config.graphType === 'stacked_area' ? 'total' : undefined,
           barMaxWidth: 16,
           itemStyle: isBar ? { borderRadius: [3, 3, 0, 0] } : undefined,
+          yAxisIndex,
           markArea: i === 0 && merged.length > 0 ? { silent: true, data: merged } : undefined,
-          markLine: markLineData ? { silent: true, symbol: 'none', data: markLineData } : undefined,
+          markLine: combinedMarkLineData.length > 0 ? { silent: true, symbol: 'none', data: combinedMarkLineData } : undefined,
         };
       }),
     };
