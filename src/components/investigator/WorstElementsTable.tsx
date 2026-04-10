@@ -48,36 +48,14 @@ const AlarmBadge: React.FC<{ count: number; severity: string }> = ({ count, seve
   );
 };
 
-const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, onRowClick, drilldownContext }) => {
+const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, onRowClick, drilldownContext, onDrillDown }) => {
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  const buildDrillUrl = (cellName: string, el: WorstElement) => {
-    if (!drilldownContext) return null;
-    const params = new URLSearchParams();
-    params.set('cell', cellName);
-    if (drilldownContext.kpiIds.length) params.set('kpis', drilldownContext.kpiIds.join(','));
-    if (drilldownContext.startDate) params.set('startDate', drilldownContext.startDate);
-    if (drilldownContext.endDate) params.set('endDate', drilldownContext.endDate);
-    if (drilldownContext.granularity) params.set('grain', drilldownContext.granularity);
-    if (el.site_name) params.set('site', el.site_name);
-    if (el.vendor) params.set('vendor', el.vendor);
-    if (el.dor) params.set('dor', el.dor);
-    if (el.band) params.set('band', el.band);
-    if (el.plaque) params.set('plaque', el.plaque);
-    if (el.technology || el.techno) params.set('technology', el.technology || el.techno || '');
-    // Pass along active filters
-    for (const [dim, vals] of Object.entries(drilldownContext.filters)) {
-      if (vals.length && dim !== 'Cell') params.set(`filter_${dim}`, vals.join(','));
-    }
-    return `/investigator?${params.toString()}`;
-  };
-
   const handleDrillDown = (e: React.MouseEvent, cellName: string, el: WorstElement) => {
     e.stopPropagation();
-    const url = buildDrillUrl(cellName, el);
-    if (url) window.open(url, '_blank');
+    if (onDrillDown) onDrillDown(cellName, el);
   };
 
   // Get all KPI keys from elements
