@@ -541,9 +541,49 @@ const InvestigatorPage: React.FC = () => {
     </section>
   );
 
+  // ═══ Save / Load handlers ═══
+  const handleGetContext = useCallback(() => ({
+    state,
+    activeSlotId,
+  }), [state, activeSlotId]);
+
+  const handleLoadInvestigator = useCallback((inv: SavedInvestigator) => {
+    const ctx = inv.context as any;
+    if (ctx?.state) {
+      setState(ctx.state);
+    }
+    if (ctx?.activeSlotId) {
+      setActiveSlotId(ctx.activeSlotId);
+    }
+    setCurrentInvestigatorId(inv.id);
+    setCurrentInvestigatorName(inv.name);
+    setHasUnsavedChanges(false);
+    setHasLoadedOnce(false);
+    setTsData([]);
+    setWorstElements([]);
+  }, [setState, setActiveSlotId, setCurrentInvestigatorId, setCurrentInvestigatorName, setHasUnsavedChanges, setHasLoadedOnce, setTsData, setWorstElements]);
+
+  const handleNewInvestigator = useCallback(() => {
+    useInvestigatorStore.getState().resetAll();
+  }, []);
+
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+
+      {/* ═══ Save/Load Bar ═══ */}
+      <div className="px-4 md:px-[2.5%] pt-3 pb-1">
+        <InvestigatorSaveLoadBar
+          investigatorId={currentInvestigatorId}
+          investigatorName={currentInvestigatorName}
+          onNameChange={setCurrentInvestigatorName}
+          onSave={handleGetContext}
+          onLoad={handleLoadInvestigator}
+          onNewInvestigator={handleNewInvestigator}
+          hasUnsavedChanges={hasUnsavedChanges}
+        />
+      </div>
+
       {/* Unified Toolbar */}
       <ControlPanel
         state={state}
