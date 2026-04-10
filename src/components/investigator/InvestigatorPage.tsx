@@ -17,6 +17,7 @@ import TopWorstTabContent from './TopWorstTabContent';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
 import InvestigatorSaveLoadBar from './InvestigatorSaveLoadBar';
+import InvestigatorTabBar from './InvestigatorTabBar';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
@@ -25,9 +26,10 @@ import {
   Settings2, Bell, Cpu, Layers, Table2, Hash,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { useInvestigatorWorkspace, type InvestigatorInstance } from '@/stores/investigatorWorkspaceStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import type { SavedInvestigator } from '@/services/investigatorService';
+import { toast } from 'sonner';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -64,18 +66,88 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
   };
 }
 
-const InvestigatorPage: React.FC = () => {
-  const {
-    state, setState,
-    tsData, setTsData,
-    worstElements, setWorstElements,
-    activeSlotId, setActiveSlotId,
-    kpiSelectorSlot, setKpiSelectorSlot,
-    hasLoadedOnce, setHasLoadedOnce,
-    currentInvestigatorId, setCurrentInvestigatorId,
-    currentInvestigatorName, setCurrentInvestigatorName,
-    hasUnsavedChanges, setHasUnsavedChanges,
-  } = useInvestigatorStore();
+/* ═══════════════════════════════════════════════════════════
+   InvestigatorWorkspace — multi-tab wrapper
+   ═══════════════════════════════════════════════════════════ */
+const InvestigatorWorkspace: React.FC = () => {
+  const { instances, activeInstanceId, addNewTab, closeTab, setActiveTab, renameTab, duplicateTab, loadIntoNewTab } = useInvestigatorWorkspace();
+
+  const handleCloseTab = (id: string) => {
+    const inst = instances.find(i => i.instanceId === id);
+    if (inst?.hasUnsavedChanges) {
+      if (!window.confirm(`"${inst.name}" has unsaved changes. Close anyway?`)) return;
+    }
+    closeTab(id);
+  };
+
+  const handleCloseOthers = (id: string) => {
+    const toClose = instances.filter(i => i.instanceId !== id);
+    const hasUnsaved = toClose.some(i => i.hasUnsavedChanges);
+    if (hasUnsaved && !window.confirm('Some tabs have unsaved changes. Close them anyway?')) return;
+    toClose.forEach(i => closeTab(i.instanceId));
+  };
+
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden h-full">
+      {/* Multi-tab bar */}
+      <InvestigatorTabBar
+        instances={instances}
+        activeInstanceId={activeInstanceId}
+        onActivate={setActiveTab}
+        onAdd={() => addNewTab()}
+        onClose={handleCloseTab}
+        onRename={renameTab}
+        onDuplicate={duplicateTab}
+        onCloseOthers={handleCloseOthers}
+      />
+
+      {/* Render all instances, show only active via CSS for instant switching */}
+      {instances.map(inst => (
+        <div
+          key={inst.instanceId}
+          className="flex-1 overflow-hidden"
+          style={{ display: inst.instanceId === activeInstanceId ? 'flex' : 'none' }}
+        >
+          <InvestigatorPageInstance instanceId={inst.instanceId} />
+        </div>
+      ))}
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
+   InvestigatorPageInstance — one investigator (fully isolated)
+   ═══════════════════════════════════════════════════════════ */
+const InvestigatorPageInstance: React.FC<{ instanceId: string }> = ({ instanceId }) => {
+  const ws = useInvestigatorWorkspace();
+  const inst = ws.instances.find(i => i.instanceId === instanceId);
+
+  const state = inst?.state ?? {
+    dimension: 'Cell' as const, selectedKpis: [], graphSlots: [], splitBy: 'None',
+    startDate: '', endDate: '', granularity: '1d' as const, filters: {}, topLimit: 10,
+    sortBy: null, graphLayout: 2 as const, activeGraphTab: 'TimeSeries' as const, jalons: [],
+    kpiLevel: 'CELL' as const, profileQci: null, profileArp: null, neighborType: null,
+  };
+  const tsData = inst?.tsData ?? [];
+  const activeSlotId = inst?.activeSlotId ?? null;
+  const worstElements = inst?.worstElements ?? [];
+
+  // Helper to update state
+  const setState = useCallback((updater: any) => {
+    ws.updateInstanceState(instanceId, updater);
+  }, [instanceId]);
+
+  const setTsData = useCallback((d: any) => ws.updateInstance(instanceId, { tsData: d }), [instanceId]);
+  const setWorstElements = useCallback((w: any) => ws.updateInstance(instanceId, { worstElements: w }), [instanceId]);
+  const setActiveSlotId = useCallback((id: string | null) => {
+    ws.updateInstance(instanceId, { activeSlotId: id });
+  }, [instanceId]);
+  const setHasLoadedOnce = useCallback((v: boolean) => ws.updateInstance(instanceId, { hasLoadedOnce: v }), [instanceId]);
+  const setHasUnsavedChanges = useCallback((v: boolean) => ws.updateInstance(instanceId, { hasUnsavedChanges: v }), [instanceId]);
+  const setCurrentInvestigatorId = useCallback((id: string | null) => ws.updateInstance(instanceId, { investigatorId: id }), [instanceId]);
+  const setCurrentInvestigatorName = useCallback((name: string) => {
+    ws.renameTab(instanceId, name);
+  }, [instanceId]);
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
@@ -85,6 +157,7 @@ const InvestigatorPage: React.FC = () => {
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
+  const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
 
   // Escape key exits fullscreen
   React.useEffect(() => {
@@ -138,14 +211,13 @@ const InvestigatorPage: React.FC = () => {
   // Auto-select first slot if none selected or active was removed
   useEffect(() => {
     if (state.graphSlots.length === 0) {
-      setActiveSlotId(null);
+      if (activeSlotId !== null) setActiveSlotId(null);
     } else if (!activeSlotId || !state.graphSlots.find(s => s.id === activeSlotId)) {
       setActiveSlotId(state.graphSlots[0].id);
     }
   }, [state.graphSlots, activeSlotId]);
 
   // ═══ Auto-sync bottom panels to active graph ═══
-  // When activeSlotId changes, auto-activate/create tabs linked to that graph
   const prevActiveSlotRef = useRef<string | null>(null);
   useEffect(() => {
     if (!activeSlotId || activeSlotId === prevActiveSlotRef.current) return;
@@ -156,10 +228,8 @@ const InvestigatorPage: React.FC = () => {
 
     const snapshot = buildSnapshot(slot, state);
 
-    // Auto-sync table data to active graph
     setTableDataSlotId(activeSlotId);
 
-    // Auto-sync multi-tab sections
     const sections = ['top_worst', 'alarms', 'neighbors', 'cm_history'] as const;
     for (const sec of sections) {
       analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
@@ -169,12 +239,10 @@ const InvestigatorPage: React.FC = () => {
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
 
-  // Get active slot for context
   const activeSlot = useMemo(() => 
     state.graphSlots.find(s => s.id === activeSlotId) || null
   , [state.graphSlots, activeSlotId]);
 
-  // Build current snapshot for active graph
   const activeSnapshot = useMemo(() => 
     activeSlot ? buildSnapshot(activeSlot, state) : null
   , [activeSlot, state]);
@@ -194,8 +262,6 @@ const InvestigatorPage: React.FC = () => {
       return;
     }
 
-    if (import.meta.env.DEV) console.log('[Investigator] Apply → active slot only:', targetSlot.id, targetSlot.name);
-
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -206,7 +272,6 @@ const InvestigatorPage: React.FC = () => {
 
     try {
       const ctx = resolveSlotContext(targetSlot, state);
-      const queryStart = Date.now();
       const result = await fetchTimeSeriesForSlot(ctx);
 
       if (controller.signal.aborted) return;
@@ -221,8 +286,6 @@ const InvestigatorPage: React.FC = () => {
       }
 
       if (result.hasUnfilteredFallback) setHasUnfilteredFallback(true);
-
-      if (import.meta.env.DEV) console.log(`[Investigator] Slot ${targetSlot.id}: ${taggedData.length} points in ${Date.now() - queryStart}ms`);
     } catch (e) {
       if (controller.signal.aborted) return;
       console.error('[Investigator] API error:', e);
@@ -230,7 +293,8 @@ const InvestigatorPage: React.FC = () => {
     }
     setIsApplying(false);
   };
-  // Counter timeseries — tag with slotId for isolation
+
+  // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
@@ -248,13 +312,13 @@ const InvestigatorPage: React.FC = () => {
       const counterPoints = (data.series || []).map((s: any) => ({
         timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: slotId,
       }));
-      // Remove old counter points for THIS slot, merge fresh ones — use store's latest state
-      useInvestigatorStore.setState((prev) => ({
-        tsData: [...prev.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId)), ...counterPoints],
-      }));
+      const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
+      if (!current) return;
+      const filtered = current.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
+      ws.updateInstance(instanceId, { tsData: [...filtered, ...counterPoints] });
     }).catch(() => {});
     return () => ctrl.abort();
-  }, [counterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, setTsData]);
+  }, [counterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
@@ -340,6 +404,22 @@ const InvestigatorPage: React.FC = () => {
     }));
   };
 
+  // ═══ Save / Load handlers ═══
+  const handleGetContext = useCallback(() => ({
+    state,
+    activeSlotId,
+  }), [state, activeSlotId]);
+
+  const handleLoadInvestigator = useCallback((inv: SavedInvestigator) => {
+    // Load into a NEW tab instead of replacing current
+    ws.loadIntoNewTab(inv);
+    toast.success(`Investigator "${inv.name}" loaded in new tab`);
+  }, []);
+
+  const handleNewInvestigator = useCallback(() => {
+    ws.addNewTab();
+  }, []);
+
   const renderGraphSection = () => (
     <section className={cn(
       'space-y-4',
@@ -354,14 +434,14 @@ const InvestigatorPage: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-primary" />
           </div>
           <InvestigatorSaveLoadBar
-            investigatorId={currentInvestigatorId}
-            investigatorName={currentInvestigatorName}
+            investigatorId={inst?.investigatorId ?? null}
+            investigatorName={inst?.name ?? 'Untitled'}
             onNameChange={setCurrentInvestigatorName}
             getContext={handleGetContext}
             onLoad={handleLoadInvestigator}
             onNewInvestigator={handleNewInvestigator}
-            onIdChange={setCurrentInvestigatorId}
-            hasUnsavedChanges={hasUnsavedChanges}
+            onIdChange={(id) => setCurrentInvestigatorId(id)}
+            hasUnsavedChanges={inst?.hasUnsavedChanges ?? false}
             onMarkSaved={() => setHasUnsavedChanges(false)}
           />
         </div>
@@ -546,32 +626,6 @@ const InvestigatorPage: React.FC = () => {
     </section>
   );
 
-  // ═══ Save / Load handlers ═══
-  const handleGetContext = useCallback(() => ({
-    state,
-    activeSlotId,
-  }), [state, activeSlotId]);
-
-  const handleLoadInvestigator = useCallback((inv: SavedInvestigator) => {
-    const ctx = inv.context as any;
-    if (ctx?.state) {
-      setState(ctx.state);
-    }
-    if (ctx?.activeSlotId) {
-      setActiveSlotId(ctx.activeSlotId);
-    }
-    setCurrentInvestigatorId(inv.id);
-    setCurrentInvestigatorName(inv.name);
-    setHasUnsavedChanges(false);
-    setHasLoadedOnce(false);
-    setTsData([]);
-    setWorstElements([]);
-  }, [setState, setActiveSlotId, setCurrentInvestigatorId, setCurrentInvestigatorName, setHasUnsavedChanges, setHasLoadedOnce, setTsData, setWorstElements]);
-
-  const handleNewInvestigator = useCallback(() => {
-    useInvestigatorStore.getState().resetAll();
-  }, []);
-
   return (
     <div className="flex-1 flex overflow-hidden">
       <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
@@ -627,7 +681,6 @@ const InvestigatorPage: React.FC = () => {
 
         {/* ═══ Analysis Tabs ═══ */}
         {(() => {
-          // Visibility based on active graph's config (not global some())
           const activeConfig = activeSlot?.config || DEFAULT_GRAPH_CONFIG;
           const configKeyMap: Record<string, keyof GraphConfig> = {
             table_data: 'showDataTable',
@@ -647,7 +700,7 @@ const InvestigatorPage: React.FC = () => {
           ];
           const visibleTabs = allTabs.filter(tab => {
             const cfgKey = configKeyMap[tab.key];
-            if (!cfgKey) return true; // cm_history always visible
+            if (!cfgKey) return true;
             return (activeConfig as any)[cfgKey];
           });
 
@@ -719,7 +772,7 @@ const InvestigatorPage: React.FC = () => {
           );
         })()}
 
-        {/* ═══ Table Data: one tab per graph slot ═══ */}
+        {/* ═══ Table Data ═══ */}
         {analysisTab === 'table_data' && (() => {
           const slots = state.graphSlots;
           const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
@@ -775,7 +828,7 @@ const InvestigatorPage: React.FC = () => {
           );
         })()}
 
-        {/* ═══ KPI Breakdown: linked to active graph ═══ */}
+        {/* ═══ KPI Breakdown ═══ */}
         {analysisTab === 'breakdown' && activeSlot && activeSlot.kpiIds.length > 0 && (
           <section>
             <KPIBreakdown
@@ -798,20 +851,20 @@ const InvestigatorPage: React.FC = () => {
         {(() => {
           const sec = analysisTabs.getSection('top_worst');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst => (
-            <div key={inst.id} style={{ display: analysisTab === 'top_worst' && inst.id === activeTabId ? undefined : 'none' }}>
-              <TopWorstTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
+          return sec.instances.map(inst2 => (
+            <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
+              <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
             </div>
           ));
         })()}
 
-        {/* Alarms – keep all instances mounted */}
+        {/* Alarms */}
         {(() => {
           const sec = analysisTabs.getSection('alarms');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst => (
-            <div key={inst.id} style={{ display: analysisTab === 'alarms' && inst.id === activeTabId ? undefined : 'none' }}>
-              <AlarmsTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
+          return sec.instances.map(inst2 => (
+            <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
+              <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
             </div>
           ));
         })()}
@@ -823,24 +876,24 @@ const InvestigatorPage: React.FC = () => {
           />
         )}
 
-        {/* Neighbors – keep all instances mounted */}
+        {/* Neighbors */}
         {(() => {
           const sec = analysisTabs.getSection('neighbors');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst => (
-            <div key={inst.id} style={{ display: analysisTab === 'neighbors' && inst.id === activeTabId ? undefined : 'none' }}>
-              <NeighborsTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
+          return sec.instances.map(inst2 => (
+            <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
+              <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
             </div>
           ));
         })()}
 
-        {/* CM History – keep all instances mounted */}
+        {/* CM History */}
         {(() => {
           const sec = analysisTabs.getSection('cm_history');
           const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst => (
-            <div key={inst.id} style={{ display: analysisTab === 'cm_history' && inst.id === activeTabId ? undefined : 'none' }}>
-              <CMHistoryTabContent tabId={inst.id} contextSnapshot={inst.contextSnapshot} />
+          return sec.instances.map(inst2 => (
+            <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
+              <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
             </div>
           ));
         })()}
@@ -859,4 +912,4 @@ const InvestigatorPage: React.FC = () => {
   );
 };
 
-export default InvestigatorPage;
+export default InvestigatorWorkspace;
