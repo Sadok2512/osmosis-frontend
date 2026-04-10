@@ -121,10 +121,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     });
     const neLookup: Record<string, string> = {};
     tsData.forEach((p) => {
-      if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement;
+      if (p.networkElement && !neLookup[p.timestamp]) {
+        const raw = p.networkElement;
+        neLookup[p.timestamp] = raw.replace(/-\d+$/, '') || raw;
+      }
     });
 
-    const cols = ['Timestamp', 'Site', ...kpis];
+    // Clean KPI names (remove @CellName suffix)
+    const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
+    const cols = ['Timestamp', 'Network Element', ...cleanKpis];
     const builtRows = timestamps.map((ts) => ({
       timestamp: fmt(ts),
       ne: neLookup[ts] || 'N/A',
