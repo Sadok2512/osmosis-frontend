@@ -254,21 +254,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       }
     }
 
-    // If the currently active analysis tab is not enabled on the new slot, close it
-    if (analysisTab) {
-      const configKeyMap: Record<string, keyof GraphConfig> = {
-        table_data: 'showDataTable',
-        breakdown: 'showBreakdown',
-        top_worst: 'showTopWorst',
-        alarms: 'showAlarms',
-        neighbors: 'showNeighbors',
-        cm_history: 'showCmHistory',
-      };
-      const cfgKey = configKeyMap[analysisTab];
-      if (cfgKey && !(cfg as any)[cfgKey]) {
-        setAnalysisTab(null);
-      }
-    }
+    // Note: we do NOT auto-close the analysis tab when switching slots.
+    // The tab bar already filters visible tabs by the active slot's flags,
+    // and perSlotAnalysisTab keeps each slot's state independent.
   }, [activeSlotId, state.graphSlots]);
 
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
