@@ -6,12 +6,9 @@ import { formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity } from './types';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
-  Database, GitBranch, Cpu, TrendingUp, SplitSquareVertical,
+  Database, GitBranch, Cpu, TrendingUp, Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
 
 /* ──────────────────── Types ──────────────────── */
 
@@ -58,17 +55,8 @@ interface CounterTsPoint {
   dimension_key?: string;
 }
 
-const SPLIT_OPTIONS = [
-  { value: 'None', label: 'None (Aggregated)' },
-  { value: 'CELL', label: 'Cell' },
-  { value: 'SITE', label: 'Site' },
-  { value: 'SECTOR', label: 'Sector' },
-  { value: 'BAND', label: 'Band' },
-  { value: 'TECHNO', label: 'Technology' },
-  { value: 'VENDOR', label: 'Vendor' },
-  { value: 'DOR', label: 'DOR' },
-  { value: 'PLAQUE', label: 'Plaque' },
-];
+
+
 
 
 
@@ -105,8 +93,12 @@ const FormulaPanel: React.FC<{
   hiddenCounters: Set<string>;
   onToggleCounter: (name: string) => void;
   splitBy?: string;
-  onSplitChange?: (split: string) => void;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, onSplitChange }) => {
+  splitElements?: string[];
+  selectedElements?: Set<string>;
+  onToggleElement?: (el: string) => void;
+  onSelectAllElements?: () => void;
+  onDeselectAllElements?: () => void;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements }) => {
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
@@ -159,35 +151,63 @@ const FormulaPanel: React.FC<{
             <h2 className="text-sm font-bold text-foreground tracking-tight">{explain.display_name}</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{explain.description}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {[
               { label: explain.formula_type, color: 'bg-primary/10 text-primary border-primary/30' },
               { label: explain.unit || 'ratio', color: 'bg-muted/60 text-muted-foreground border-border/30' },
               { label: explain.techno, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+              ...(splitBy && splitBy !== 'None'
+                ? [{ label: `SPLIT: ${splitBy}`, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' }]
+                : []),
             ].filter(t => t.label).map(t => (
               <span key={t.label} className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold border', t.color)}>
                 {t.label}
               </span>
             ))}
-            {/* Split Selector */}
-            <div className="flex items-center gap-1.5">
-              <SplitSquareVertical className="w-3.5 h-3.5 text-indigo-500" />
-              <Select value={splitBy || 'None'} onValueChange={v => onSplitChange?.(v)}>
-                <SelectTrigger className="h-6 w-[130px] text-[10px] font-bold border-indigo-500/30 bg-indigo-500/5 text-indigo-600 px-2 py-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SPLIT_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* Split Element Filter */}
+      {splitElements && splitElements.length > 0 && selectedElements && (
+        <div className="px-6 py-2.5 border-b border-border/30 bg-muted/5 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 mr-1">
+            <Filter className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Elements</span>
+            <span className="text-[9px] text-muted-foreground">
+              ({selectedElements.size}/{splitElements.length})
+            </span>
+          </div>
+          <button
+            onClick={() => selectedElements.size === splitElements.length ? onDeselectAllElements?.() : onSelectAllElements?.()}
+            className="px-2 py-0.5 rounded text-[9px] font-bold border border-border/40 text-muted-foreground hover:bg-muted/30 transition-colors"
+          >
+            {selectedElements.size === splitElements.length ? 'Deselect All' : 'Select All'}
+          </button>
+          {splitElements.map((el, idx) => {
+            const isSelected = selectedElements.has(el);
+            const color = SPLIT_COLORS[idx % SPLIT_COLORS.length];
+            return (
+              <button
+                key={el}
+                onClick={() => onToggleElement?.(el)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer',
+                  isSelected
+                    ? 'border-indigo-500/40 bg-indigo-500/10 text-foreground shadow-sm'
+                    : 'border-border/30 bg-muted/10 text-muted-foreground opacity-50 line-through'
+                )}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: color, opacity: isSelected ? 1 : 0.3 }}
+                />
+                {el}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border/30">
         <div className="p-5">
@@ -292,15 +312,15 @@ const SingleKpiBreakdown: React.FC<{
   granularity: Granularity;
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
-  onSplitChange?: (split: string) => void;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, onSplitChange, timeSeriesData }) => {
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState<string | null>(null);
   const [hiddenCounters, setHiddenCounters] = useState<Set<string>>(new Set());
+  const [selectedElements, setSelectedElements] = useState<Set<string> | null>(null); // null = all selected
 
   // Fetch explain
   useEffect(() => {
@@ -353,6 +373,47 @@ const SingleKpiBreakdown: React.FC<{
   }, [explain]);
 
   const splitActive = !!(splitBy && splitBy !== 'None');
+
+  // Extract unique split element names from KPI timeSeriesData and counter data
+  const splitElements = useMemo(() => {
+    if (!splitActive) return [];
+    const elements = new Set<string>();
+    // From KPI timeseries data
+    if (timeSeriesData) {
+      for (const d of timeSeriesData) {
+        if (d.kpi === kpiId) {
+          const el = d.splitValue || d.networkElement;
+          if (el && el !== 'Aggregated') elements.add(el);
+        }
+      }
+    }
+    // From counter timeseries data
+    for (const d of counterTsData) {
+      if (d.dimension_key) elements.add(d.dimension_key);
+    }
+    return [...elements].sort();
+  }, [splitActive, timeSeriesData, kpiId, counterTsData]);
+
+  // Initialize selectedElements when splitElements change
+  useEffect(() => {
+    if (splitElements.length > 0) {
+      setSelectedElements(new Set(splitElements));
+    } else {
+      setSelectedElements(null);
+    }
+  }, [splitElements.join(',')]);
+
+  const toggleElement = useCallback((el: string) => {
+    setSelectedElements(prev => {
+      if (!prev) return prev;
+      const next = new Set(prev);
+      if (next.has(el)) next.delete(el); else next.add(el);
+      return next;
+    });
+  }, []);
+
+  const selectAllElements = useCallback(() => setSelectedElements(new Set(splitElements)), [splitElements]);
+  const deselectAllElements = useCallback(() => setSelectedElements(new Set()), []);
 
   // Fetch counter timeseries
   useEffect(() => {
@@ -436,7 +497,9 @@ const SingleKpiBreakdown: React.FC<{
         totals.set(dv, (totals.get(dv) || 0) + (p.value || 0));
       }
       const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
-      topDimValues = sorted.slice(0, SPLIT_TOP_N).map(([k]) => k);
+      const allDimValues = sorted.slice(0, SPLIT_TOP_N).map(([k]) => k);
+      // Filter by selectedElements if set
+      topDimValues = selectedElements ? allDimValues.filter(dv => selectedElements.has(dv)) : allDimValues;
       otherDimValues = new Set(sorted.slice(SPLIT_TOP_N).map(([k]) => k));
     }
 
@@ -573,7 +636,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series,
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -591,6 +654,7 @@ const SingleKpiBreakdown: React.FC<{
     const timestamps = new Set<string>();
     for (const d of kpiData) {
       const cell = d.splitValue || d.networkElement || 'Aggregated';
+      if (selectedElements && !selectedElements.has(cell)) continue; // filter by selected elements
       timestamps.add(d.timestamp);
       if (!cellMap.has(cell)) cellMap.set(cell, new Map());
       cellMap.get(cell)!.set(d.timestamp, d.value);
@@ -649,7 +713,7 @@ const SingleKpiBreakdown: React.FC<{
       },
       series,
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements]);
 
   return (
     <div className="space-y-4">
@@ -662,7 +726,11 @@ const SingleKpiBreakdown: React.FC<{
         hiddenCounters={hiddenCounters}
         onToggleCounter={toggleCounter}
         splitBy={splitBy}
-        onSplitChange={onSplitChange}
+        splitElements={splitElements}
+        selectedElements={selectedElements || undefined}
+        onToggleElement={toggleElement}
+        onSelectAllElements={selectAllElements}
+        onDeselectAllElements={deselectAllElements}
       />
 
       {/* KPI Timeseries by Cell */}
@@ -743,31 +811,13 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Per-KPI local split override (managed inside this breakdown, not global)
-  const [localSplitOverrides, setLocalSplitOverrides] = useState<Record<string, string>>({});
-
-  const handleSplitChange = useCallback((kpiId: string, split: string) => {
-    setLocalSplitOverrides(prev => ({ ...prev, [kpiId]: split }));
-  }, []);
-
-  // Resolve split: local override > per-KPI map > slot-level
+  // Resolve split for each KPI: per-KPI map > slot-level
   const getEffectiveSplit = useCallback((kpiId: string) => {
-    const local = localSplitOverrides[kpiId];
-    if (local) return local === 'None' ? undefined : local;
     const perKpi = splitByPerKpi?.[kpiId];
     if (perKpi && perKpi !== 'None') return perKpi;
     if (splitBy && splitBy !== 'None') return splitBy;
     return undefined;
-  }, [localSplitOverrides, splitByPerKpi, splitBy]);
-
-  const getSelectorValue = useCallback((kpiId: string) => {
-    const local = localSplitOverrides[kpiId];
-    if (local) return local;
-    const perKpi = splitByPerKpi?.[kpiId];
-    if (perKpi && perKpi !== 'None') return perKpi;
-    if (splitBy && splitBy !== 'None') return splitBy;
-    return 'None';
-  }, [localSplitOverrides, splitByPerKpi, splitBy]);
+  }, [splitByPerKpi, splitBy]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
@@ -785,9 +835,6 @@ const KPIBreakdown: React.FC<Props> = ({
       </div>
     );
   }
-
-  const effectiveSplit = getEffectiveSplit(activeKpiTab);
-  const selectorValue = getSelectorValue(activeKpiTab);
 
   return (
     <div className="space-y-3">
@@ -813,14 +860,13 @@ const KPIBreakdown: React.FC<Props> = ({
       {/* Active KPI content */}
       {activeKpiTab && uniqueKpiIds.includes(activeKpiTab) && (
         <SingleKpiBreakdown
-          key={`${activeKpiTab}-${selectorValue}`}
+          key={activeKpiTab}
           kpiId={activeKpiTab}
           dateFrom={dateFrom}
           dateTo={dateTo}
           granularity={granularity}
           filters={filters}
-          splitBy={effectiveSplit}
-          onSplitChange={(split) => handleSplitChange(activeKpiTab, split)}
+          splitBy={getEffectiveSplit(activeKpiTab)}
           timeSeriesData={timeSeriesData}
         />
       )}
