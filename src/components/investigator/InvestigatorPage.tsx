@@ -236,6 +236,23 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     for (const sec of sections) {
       analysisTabs.findOrCreateForGraph(sec, activeSlotId, snapshot, slot.name);
     }
+
+    // Auto-close analysis tab if the new active graph doesn't have that feature enabled
+    if (analysisTab) {
+      const cfg = slot.config || DEFAULT_GRAPH_CONFIG;
+      const configKeyMap: Record<string, keyof GraphConfig> = {
+        table_data: 'showDataTable',
+        breakdown: 'showBreakdown',
+        top_worst: 'showTopWorst',
+        alarms: 'showAlarms',
+        neighbors: 'showNeighbors',
+        cm_history: 'showCmHistory',
+      };
+      const cfgKey = configKeyMap[analysisTab];
+      if (cfgKey && !(cfg as any)[cfgKey]) {
+        setAnalysisTab(null);
+      }
+    }
   }, [activeSlotId, state.graphSlots]);
 
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
