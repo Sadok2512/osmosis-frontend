@@ -1,5 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Save, FolderOpen, ChevronDown, Pencil, Trash2, Copy, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import {
+  MoreHorizontal, FolderOpen, Copy, Trash2, Plus, Clock,
+  FlaskConical, Check, Loader2,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -9,38 +12,105 @@ import {
   deleteInvestigator,
   type SavedInvestigator,
 } from '@/services/investigatorService';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+
+type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'idle';
 
 interface Props {
   investigatorId: string | null;
   investigatorName: string;
   onNameChange: (name: string) => void;
-  onSave: () => any; // returns context snapshot
+  getContext: () => any;
   onLoad: (inv: SavedInvestigator) => void;
   onNewInvestigator: () => void;
+  onIdChange: (id: string) => void;
   hasUnsavedChanges: boolean;
+  onMarkSaved: () => void;
 }
 
 const InvestigatorSaveLoadBar: React.FC<Props> = ({
   investigatorId,
   investigatorName,
   onNameChange,
-  onSave,
+  getContext,
   onLoad,
   onNewInvestigator,
+  onIdChange,
   hasUnsavedChanges,
+  onMarkSaved,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(investigatorName);
-  const [loadOpen, setLoadOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [loadModalOpen, setLoadModalOpen] = useState(false);
+  const [saveAsModalOpen, setSaveAsModalOpen] = useState(false);
+  const [saveAsName, setSaveAsName] = useState('');
   const [savedList, setSavedList] = useState<SavedInvestigator[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingList, setIsLoadingList] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const saveAsInputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
+  }, []);
 
   useEffect(() => { setEditValue(investigatorName); }, [investigatorName]);
 
+  // ═══ Auto-save logic (debounced 2s) ═══
+  const doSave = useCallback(async () => {
+    if (!isMountedRef.current) return;
+    setSaveStatus('saving');
+    try {
+      const ctx = getContext();
+      if (investigatorId) {
+        await updateInvestigator(investigatorId, investigatorName, ctx);
+      } else {
+        const created = await createInvestigator(investigatorName, ctx);
+        if (isMountedRef.current) {
+          onIdChange(created.id);
+        }
+      }
+      if (isMountedRef.current) {
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+        onMarkSaved();
+      }
+    } catch (err) {
+      console.error('[AutoSave] error:', err);
+      if (isMountedRef.current) setSaveStatus('unsaved');
+    }
+  }, [investigatorId, investigatorName, getContext, onIdChange, onMarkSaved]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    setSaveStatus('unsaved');
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      doSave();
+    }, 2000);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [hasUnsavedChanges, doSave]);
+
+  // ═══ Inline name editing ═══
   const handleStartEdit = () => {
     setIsEditing(true);
     setEditValue(investigatorName);
@@ -55,167 +125,223 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
     }
   };
 
-  const handleLoadOpen = async () => {
-    setLoadOpen(true);
-    setIsLoading(true);
+  // ═══ Load modal ═══
+  const openLoadModal = async () => {
+    setLoadModalOpen(true);
+    setIsLoadingList(true);
     try {
       const list = await listInvestigators();
       setSavedList(list);
-    } catch { toast.error('Failed to load investigators'); }
-    setIsLoading(false);
+    } catch { toast.error('Erreur de chargement'); }
+    setIsLoadingList(false);
   };
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
+  const handleLoadItem = (inv: SavedInvestigator) => {
+    onLoad(inv);
+    setLoadModalOpen(false);
+    setSaveStatus('saved');
+    setLastSavedAt(new Date(inv.updated_at));
+    toast.success(`Investigator "${inv.name}" chargé`);
+  };
+
+  const handleDeleteItem = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       await deleteInvestigator(id);
       setSavedList(prev => prev.filter(i => i.id !== id));
-      toast.success('Investigator supprimé');
-    } catch { toast.error('Erreur de suppression'); }
+      toast.success('Supprimé');
+    } catch { toast.error('Erreur'); }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      const ctx = onSave();
-      if (investigatorId) {
-        await updateInvestigator(investigatorId, investigatorName, ctx);
-        toast.success('Investigator sauvegardé');
-      } else {
-        const created = await createInvestigator(investigatorName, ctx);
-        // Update parent with new ID
-        onLoad(created);
-        toast.success('Investigator créé');
-      }
-    } catch (err) {
-      toast.error('Erreur de sauvegarde');
-      console.error(err);
-    }
-    setIsSaving(false);
+  // ═══ Save As ═══
+  const openSaveAs = () => {
+    setSaveAsName(`${investigatorName} (copie)`);
+    setSaveAsModalOpen(true);
+    setTimeout(() => saveAsInputRef.current?.select(), 100);
   };
 
   const handleSaveAs = async () => {
-    setIsSaving(true);
+    const name = saveAsName.trim();
+    if (!name) return;
+    setSaveAsModalOpen(false);
+    setSaveStatus('saving');
     try {
-      const ctx = onSave();
-      const newName = `${investigatorName} (copie)`;
-      const created = await createInvestigator(newName, ctx);
+      const ctx = getContext();
+      const created = await createInvestigator(name, ctx);
       onLoad(created);
-      toast.success('Copie créée');
-    } catch { toast.error('Erreur de sauvegarde'); }
-    setIsSaving(false);
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+      toast.success(`"${name}" créé`);
+    } catch {
+      toast.error('Erreur');
+      setSaveStatus('unsaved');
+    }
   };
 
+  // ═══ New ═══
+  const handleNew = () => {
+    if (hasUnsavedChanges) {
+      // Quick confirm
+      if (!window.confirm('Changements non sauvegardés. Continuer ?')) return;
+    }
+    onNewInvestigator();
+    setSaveStatus('idle');
+    setLastSavedAt(null);
+  };
+
+  // ═══ Status text ═══
+  const statusText = (() => {
+    switch (saveStatus) {
+      case 'saving': return 'Saving…';
+      case 'saved':
+        if (lastSavedAt) {
+          const secs = Math.floor((Date.now() - lastSavedAt.getTime()) / 1000);
+          if (secs < 10) return 'Saved just now';
+          if (secs < 60) return `Saved ${secs}s ago`;
+          const mins = Math.floor(secs / 60);
+          return `Saved ${mins}m ago`;
+        }
+        return 'Saved';
+      case 'unsaved': return 'Unsaved changes';
+      default: return null;
+    }
+  })();
+
+  // Refresh status text periodically
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (saveStatus !== 'saved' || !lastSavedAt) return;
+    const iv = setInterval(() => setTick(t => t + 1), 15000);
+    return () => clearInterval(iv);
+  }, [saveStatus, lastSavedAt]);
+
   const fmtDate = (d: string) => {
-    try { return new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
-    catch { return d; }
+    try {
+      return new Date(d).toLocaleDateString('fr-FR', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+    } catch { return d; }
   };
 
   return (
-    <div className="flex items-center gap-3 min-w-0">
-      {/* Investigator Name */}
-      <div className="flex items-center gap-1.5 min-w-0 flex-1">
+    <>
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {/* Workspace icon */}
+        <div className="p-1.5 bg-primary/10 rounded-lg shrink-0">
+          <FlaskConical className="w-4 h-4 text-primary" />
+        </div>
+
+        {/* Inline editable name */}
         {isEditing ? (
-          <Input
+          <input
             ref={inputRef}
             value={editValue}
             onChange={e => setEditValue(e.target.value)}
             onBlur={handleFinishEdit}
-            onKeyDown={e => { if (e.key === 'Enter') handleFinishEdit(); if (e.key === 'Escape') setIsEditing(false); }}
-            className="h-8 text-sm font-bold bg-transparent border-primary/40 focus:border-primary max-w-[280px]"
+            onKeyDown={e => {
+              if (e.key === 'Enter') { e.preventDefault(); handleFinishEdit(); }
+              if (e.key === 'Escape') setIsEditing(false);
+            }}
+            className="text-sm font-bold text-foreground bg-transparent border-b-2 border-primary/50 focus:border-primary outline-none px-1 py-0.5 max-w-[300px] min-w-[120px]"
             autoFocus
           />
         ) : (
           <button
             onClick={handleStartEdit}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/50 transition-colors min-w-0 group"
-            title="Renommer l'investigator"
+            className="text-sm font-bold text-foreground hover:text-primary transition-colors truncate max-w-[300px] px-1 py-0.5 rounded hover:bg-muted/40"
+            title="Click to rename"
           >
-            <span className="text-sm font-bold text-foreground truncate max-w-[240px]">
-              {investigatorName}
+            {investigatorName}
+          </button>
+        )}
+
+        {/* Save status */}
+        {statusText && (
+          <div className="flex items-center gap-1.5 shrink-0">
+            {saveStatus === 'saving' && <Loader2 className="w-3 h-3 text-muted-foreground animate-spin" />}
+            {saveStatus === 'saved' && <Check className="w-3 h-3 text-emerald-500" />}
+            {saveStatus === 'unsaved' && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+            <span className={cn(
+              'text-[10px] font-medium whitespace-nowrap',
+              saveStatus === 'saved' && 'text-emerald-500/80',
+              saveStatus === 'saving' && 'text-muted-foreground',
+              saveStatus === 'unsaved' && 'text-amber-500',
+            )}>
+              {statusText}
             </span>
-            <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-          </button>
-        )}
-        {hasUnsavedChanges && (
-          <span className="text-[9px] text-amber-500 font-semibold whitespace-nowrap">● Non sauvegardé</span>
-        )}
-      </div>
-
-      {/* Save */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={handleSave}
-          disabled={isSaving}
-          className={cn(
-            'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all',
-            'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm',
-            isSaving && 'opacity-60 cursor-wait'
-          )}
-        >
-          <Save className="w-3.5 h-3.5" />
-          {isSaving ? 'Saving…' : 'Save'}
-        </button>
-
-        <button
-          onClick={handleSaveAs}
-          disabled={isSaving}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-          title="Save As (nouvelle copie)"
-        >
-          <Copy className="w-3 h-3" />
-          Save As
-        </button>
-      </div>
-
-      {/* Load */}
-      <Popover open={loadOpen} onOpenChange={(open) => { if (open) handleLoadOpen(); else setLoadOpen(false); }}>
-        <PopoverTrigger asChild>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all border border-border/50">
-            <FolderOpen className="w-3.5 h-3.5" />
-            Load
-            <ChevronDown className="w-3 h-3" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-[380px] p-0 max-h-[420px] overflow-hidden">
-          <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wider">Saved Investigators</span>
-            <button
-              onClick={() => { setLoadOpen(false); onNewInvestigator(); }}
-              className="text-[10px] font-bold text-primary hover:underline"
-            >
-              + New
-            </button>
           </div>
-          <div className="overflow-y-auto max-h-[340px]">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8 text-muted-foreground text-xs">Loading…</div>
+        )}
+
+        {/* ••• Actions menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="p-1.5 rounded-md hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors shrink-0">
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-52">
+            <DropdownMenuItem onClick={handleNew} className="gap-2 text-xs font-medium">
+              <Plus className="w-3.5 h-3.5" />
+              New Investigator
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openSaveAs} className="gap-2 text-xs font-medium">
+              <Copy className="w-3.5 h-3.5" />
+              Save As…
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={openLoadModal} className="gap-2 text-xs font-medium">
+              <FolderOpen className="w-3.5 h-3.5" />
+              Load Investigator
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* ═══ Load Modal ═══ */}
+      <Dialog open={loadModalOpen} onOpenChange={setLoadModalOpen}>
+        <DialogContent className="max-w-md p-0 gap-0">
+          <DialogHeader className="px-5 pt-5 pb-3">
+            <DialogTitle className="text-sm font-bold">Load Investigator</DialogTitle>
+          </DialogHeader>
+          <div className="border-t border-border/40 max-h-[400px] overflow-y-auto">
+            {isLoadingList ? (
+              <div className="flex items-center justify-center py-12 text-muted-foreground text-xs gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading…
+              </div>
             ) : savedList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-muted-foreground">
-                <FolderOpen className="w-8 h-8 opacity-30" />
-                <span className="text-xs">Aucun investigator sauvegardé</span>
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                <FolderOpen className="w-10 h-10 opacity-20" />
+                <span className="text-xs">No saved investigators</span>
               </div>
             ) : (
               savedList.map(inv => (
                 <div
                   key={inv.id}
-                  onClick={() => { onLoad(inv); setLoadOpen(false); }}
+                  onClick={() => handleLoadItem(inv)}
                   className={cn(
-                    'flex items-center gap-3 px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/20 group',
-                    investigatorId === inv.id && 'bg-primary/5 border-l-2 border-l-primary'
+                    'flex items-center gap-3 px-5 py-3 hover:bg-muted/40 cursor-pointer transition-colors border-b border-border/10 group',
+                    investigatorId === inv.id && 'bg-primary/5'
                   )}
                 >
+                  <div className="p-1.5 rounded bg-primary/10 shrink-0">
+                    <FlaskConical className="w-3.5 h-3.5 text-primary" />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-bold text-foreground truncate">{inv.name}</div>
-                    <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground mt-0.5">
                       <Clock className="w-2.5 h-2.5" />
                       {fmtDate(inv.updated_at)}
                     </div>
                   </div>
+                  {investigatorId === inv.id && (
+                    <span className="text-[9px] text-primary font-bold shrink-0">Current</span>
+                  )}
                   <button
-                    onClick={(e) => handleDelete(inv.id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/10 hover:text-red-500 transition-all"
-                    title="Supprimer"
+                    onClick={(e) => handleDeleteItem(inv.id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
+                    title="Delete"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -223,9 +349,44 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
               ))
             )}
           </div>
-        </PopoverContent>
-      </Popover>
-    </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Save As Modal ═══ */}
+      <Dialog open={saveAsModalOpen} onOpenChange={setSaveAsModalOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-sm font-bold">Save As</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Input
+              ref={saveAsInputRef}
+              value={saveAsName}
+              onChange={e => setSaveAsName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleSaveAs(); }}
+              placeholder="Investigator name"
+              className="text-sm"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setSaveAsModalOpen(false)}
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-md hover:bg-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAs}
+                disabled={!saveAsName.trim()}
+                className="px-4 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 

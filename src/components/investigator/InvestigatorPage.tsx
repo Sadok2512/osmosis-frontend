@@ -357,10 +357,12 @@ const InvestigatorPage: React.FC = () => {
             investigatorId={currentInvestigatorId}
             investigatorName={currentInvestigatorName}
             onNameChange={setCurrentInvestigatorName}
-            onSave={handleGetContext}
+            getContext={handleGetContext}
             onLoad={handleLoadInvestigator}
             onNewInvestigator={handleNewInvestigator}
+            onIdChange={setCurrentInvestigatorId}
             hasUnsavedChanges={hasUnsavedChanges}
+            onMarkSaved={() => setHasUnsavedChanges(false)}
           />
         </div>
 
