@@ -531,4 +531,164 @@ const DimensionsSection: React.FC<{ search: string }> = ({ search }) => {
   );
 };
 
+
+/* ═══════════════════ ALARMS TAB ═══════════════════ */
+const AlarmsSection: React.FC<{ search: string }> = ({ search }) => {
+  const [alarms, setAlarms] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    monitorGet<any[]>('alarms')
+      .then(data => setAlarms(Array.isArray(data) ? data : []))
+      .catch(() => setAlarms([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const severityColors: Record<string, string> = {
+    critical: 'bg-destructive/10 text-destructive border-destructive/30',
+    major: 'bg-orange-500/10 text-orange-600 border-orange-500/30',
+    minor: 'bg-amber-500/10 text-amber-600 border-amber-500/30',
+    warning: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/30',
+    info: 'bg-primary/10 text-primary border-primary/30',
+  };
+
+  const filtered = alarms.filter(a => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (a.alarm_name || '').toLowerCase().includes(s) ||
+           (a.site_name || '').toLowerCase().includes(s) ||
+           (a.cell_name || '').toLowerCase().includes(s) ||
+           (a.severity || '').toLowerCase().includes(s);
+  });
+
+  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <Bell className="w-5 h-5 text-primary" />
+        <span className="text-sm font-bold text-foreground">Alarmes Réseau</span>
+        <span className="text-xs text-muted-foreground">({filtered.length} alarmes)</span>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+          <Bell className="w-10 h-10 mb-3 opacity-30" />
+          <p className="text-sm font-medium">Aucune alarme disponible</p>
+          <p className="text-xs mt-1">Les alarmes seront affichées ici lorsque le backend sera connecté.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Sévérité</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Alarme</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Site</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Cellule</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((a, i) => (
+                <tr key={i} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${severityColors[a.severity?.toLowerCase()] || severityColors.info}`}>
+                      {a.severity || 'Info'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-xs font-medium text-foreground">{a.alarm_name || '-'}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{a.site_name || '-'}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{a.cell_name || '-'}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{a.timestamp || a.raised_at || '-'}</td>
+                  <td className="px-4 py-2">
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.status === 'active' ? 'bg-destructive/10 text-destructive' : 'bg-emerald-500/10 text-emerald-600'}`}>
+                      {a.status || 'Active'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ═══════════════════ CM HISTORY TAB ═══════════════════ */
+const CMHistorySection: React.FC<{ search: string }> = ({ search }) => {
+  const [changes, setChanges] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    monitorGet<any[]>('cm/history')
+      .then(data => setChanges(Array.isArray(data) ? data : []))
+      .catch(() => setChanges([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = changes.filter(c => {
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (c.parameter_name || '').toLowerCase().includes(s) ||
+           (c.site_name || '').toLowerCase().includes(s) ||
+           (c.cell_name || '').toLowerCase().includes(s) ||
+           (c.old_value || '').toLowerCase().includes(s) ||
+           (c.new_value || '').toLowerCase().includes(s);
+  });
+
+  if (loading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-3">
+        <History className="w-5 h-5 text-primary" />
+        <span className="text-sm font-bold text-foreground">Historique CM (Configuration Management)</span>
+        <span className="text-xs text-muted-foreground">({filtered.length} changements)</span>
+      </div>
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
+          <History className="w-10 h-10 mb-3 opacity-30" />
+          <p className="text-sm font-medium">Aucun changement CM disponible</p>
+          <p className="text-xs mt-1">L'historique des modifications de paramètres sera affiché ici.</p>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Date</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Paramètre</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Site</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Cellule</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Ancienne valeur</th>
+                <th className="text-left px-4 py-2.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">Nouvelle valeur</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((c, i) => (
+                <tr key={i} className="hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{c.changed_at || c.timestamp || '-'}</td>
+                  <td className="px-4 py-2 text-xs font-medium text-foreground">{c.parameter_name || '-'}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{c.site_name || '-'}</td>
+                  <td className="px-4 py-2 text-xs text-muted-foreground">{c.cell_name || '-'}</td>
+                  <td className="px-4 py-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-destructive/10 text-destructive">{c.old_value ?? '-'}</span>
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600">{c.new_value ?? '-'}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default DocumentationPage;
