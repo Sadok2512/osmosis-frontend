@@ -151,35 +151,63 @@ const FormulaPanel: React.FC<{
             <h2 className="text-sm font-bold text-foreground tracking-tight">{explain.display_name}</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{explain.description}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {[
               { label: explain.formula_type, color: 'bg-primary/10 text-primary border-primary/30' },
               { label: explain.unit || 'ratio', color: 'bg-muted/60 text-muted-foreground border-border/30' },
               { label: explain.techno, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+              ...(splitBy && splitBy !== 'None'
+                ? [{ label: `SPLIT: ${splitBy}`, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' }]
+                : []),
             ].filter(t => t.label).map(t => (
               <span key={t.label} className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold border', t.color)}>
                 {t.label}
               </span>
             ))}
-            {/* Split Selector */}
-            <div className="flex items-center gap-1.5">
-              <SplitSquareVertical className="w-3.5 h-3.5 text-indigo-500" />
-              <Select value={splitBy || 'None'} onValueChange={v => onSplitChange?.(v)}>
-                <SelectTrigger className="h-6 w-[130px] text-[10px] font-bold border-indigo-500/30 bg-indigo-500/5 text-indigo-600 px-2 py-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SPLIT_OPTIONS.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </div>
       </div>
+
+      {/* Split Element Filter */}
+      {splitElements && splitElements.length > 0 && selectedElements && (
+        <div className="px-6 py-2.5 border-b border-border/30 bg-muted/5 flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 mr-1">
+            <Filter className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Elements</span>
+            <span className="text-[9px] text-muted-foreground">
+              ({selectedElements.size}/{splitElements.length})
+            </span>
+          </div>
+          <button
+            onClick={() => selectedElements.size === splitElements.length ? onDeselectAllElements?.() : onSelectAllElements?.()}
+            className="px-2 py-0.5 rounded text-[9px] font-bold border border-border/40 text-muted-foreground hover:bg-muted/30 transition-colors"
+          >
+            {selectedElements.size === splitElements.length ? 'Deselect All' : 'Select All'}
+          </button>
+          {splitElements.map((el, idx) => {
+            const isSelected = selectedElements.has(el);
+            const color = SPLIT_COLORS[idx % SPLIT_COLORS.length];
+            return (
+              <button
+                key={el}
+                onClick={() => onToggleElement?.(el)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer',
+                  isSelected
+                    ? 'border-indigo-500/40 bg-indigo-500/10 text-foreground shadow-sm'
+                    : 'border-border/30 bg-muted/10 text-muted-foreground opacity-50 line-through'
+                )}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: color, opacity: isSelected ? 1 : 0.3 }}
+                />
+                {el}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border/30">
         <div className="p-5">
