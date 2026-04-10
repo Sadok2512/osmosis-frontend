@@ -3,7 +3,7 @@ import {
   Search, BookOpen, Database, BarChart3, Layers, Wifi, Cpu, Globe, Zap,
   ArrowDownUp, Timer, ShieldAlert, Activity, Signal, Gauge, Users,
   Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save,
-  Sliders, Loader2
+  Sliders, Loader2, Bell, History
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
@@ -12,7 +12,7 @@ import FilterRepositoryView from '@/components/documentation/FilterRepositoryVie
 import QosNetworkView from '@/components/documentation/QosNetworkView';
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -148,6 +148,8 @@ const DocumentationPage: React.FC = () => {
     { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
     { id: 'parameters_hub', label: 'Parameters HUB', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'alarms', label: 'Alarms', icon: <Bell className="w-4 h-4" /> },
+    { id: 'cm_history', label: 'CM History', icon: <History className="w-4 h-4" /> },
   ];
 
   return (
@@ -231,6 +233,8 @@ const DocumentationPage: React.FC = () => {
             {activeTab === 'topo' && <TopoSection search={search} />}
             {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
             {activeTab === 'dimensions' && <DimensionsSection search={search} />}
+            {activeTab === 'alarms' && <AlarmsSection search={search} />}
+            {activeTab === 'cm_history' && <CMHistorySection search={search} />}
           </div>
         )}
       </div>
