@@ -16,6 +16,7 @@ import WorstElementsTable from './WorstElementsTable';
 import TopWorstTabContent from './TopWorstTabContent';
 import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
+import InvestigatorSaveLoadBar from './InvestigatorSaveLoadBar';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
@@ -26,6 +27,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import type { SavedInvestigator } from '@/services/investigatorService';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
