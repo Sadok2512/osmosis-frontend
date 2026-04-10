@@ -3,7 +3,7 @@ import { WorstElement } from './types';
 import { ArrowUp, ArrowDown, Minus, ChevronDown, AlertTriangle, Bell, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface DrilldownContext {
+export interface DrilldownContext {
   kpiIds: string[];
   startDate: string;
   endDate: string;
@@ -17,6 +17,7 @@ interface Props {
   onLimitChange: (limit: number) => void;
   onRowClick: (id: string) => void;
   drilldownContext?: DrilldownContext;
+  onDrillDown?: (cellName: string, element: WorstElement) => void;
 }
 
 const SeverityBadge: React.FC<{ severity: 'critical' | 'warning' | 'ok' }> = ({ severity }) => {
