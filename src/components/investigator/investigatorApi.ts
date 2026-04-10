@@ -501,7 +501,7 @@ export async function fetchTimeSeriesForSlot(
   // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name)
   // Map split dimension → SQL column. Use ne_name for Cell because cell_name = site_name
   // in Nokia PM data (enrichment stores site-level, ne_name has LNCEL-XX)
-  const FIELD_MAP: Record<string, string> = { 'Cell': 'ne_name', 'CELL': 'ne_name', 'Site': 'site_name', 'SITE': 'site_name' };
+  const FIELD_MAP: Record<string, string> = { 'Cell': 'cell_name', 'CELL': 'cell_name', 'Site': 'site_name', 'SITE': 'site_name' };
   let computeSplitByField: string | undefined;
   let computePmDim: string | undefined;
 
