@@ -667,250 +667,270 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         }}
       />
 
-      {/* Main Content */}
-      <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 space-y-6 w-full">
-        {/* Error toast */}
-        {applyError && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-            <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
-              {applyError}
-            </span>
-            <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
-              <span className="text-xs font-bold">✕</span>
-            </button>
-          </div>
-        )}
+      {/* Main Content — two stable zones */}
+      <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 w-full flex flex-col" style={{ minHeight: 0 }}>
 
-        {hasUnfilteredFallback && (
-          <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
-            <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
-              Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
-            </span>
-          </div>
-        )}
-
-        {!isGraphFullscreen && renderGraphSection()}
-
-        {/* ═══ Analysis Tabs ═══ */}
-        {(() => {
-          const activeConfig = activeSlot?.config || DEFAULT_GRAPH_CONFIG;
-          const configKeyMap: Record<string, keyof GraphConfig> = {
-            table_data: 'showDataTable',
-            breakdown: 'showBreakdown',
-            top_worst: 'showTopWorst',
-            alarms: 'showAlarms',
-            neighbors: 'showNeighbors',
-            cm_history: 'showCmHistory',
-          };
-          const allTabs = [
-            { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-            { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-            { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
-            { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-            { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
-            { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
-          ];
-          const visibleTabs = allTabs.filter(tab => {
-            const cfgKey = configKeyMap[tab.key];
-            if (!cfgKey) return true;
-            return (activeConfig as any)[cfgKey];
-          });
-
-          if (visibleTabs.length === 0) return null;
-
-          return (
-            <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm">
-              <div className="flex items-center gap-1 px-1 py-1">
-                {visibleTabs.map((tab) => (
-                  <button
-                    key={`analysis-tab-${tab.key}`}
-                    data-analysis-tab={tab.key}
-                    onClick={() => {
-                      const newTab = analysisTab === tab.key ? null : tab.key;
-                      setAnalysisTab(newTab);
-                      if (newTab && activeSlot) {
-                        const snap = buildSnapshot(activeSlot, state);
-                        analysisTabs.ensureTab(newTab, activeSlotId, snap);
-                      }
-                      if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
-                        handleFindWorst();
-                      }
-                    }}
-                    className={cn(
-                      'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                      analysisTab === tab.key
-                        ? 'bg-card text-foreground shadow-sm border border-border/60'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                    )}
-                  >
-                    <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
-                    {tab.label}
-                    {analysisTab === tab.key && (
-                      <>
-                        <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                        {analysisTabs.getSection(tab.key).instances.length > 0 && (
-                          <span className="ml-1 text-[9px] opacity-60">
-                            ({analysisTabs.getSection(tab.key).instances.length})
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </button>
-                ))}
-              </div>
+        {/* ═══ Alerts Zone (fixed height when present) ═══ */}
+        <div className="shrink-0 space-y-2 mb-4">
+          {applyError && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+              <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
+                {applyError}
+              </span>
+              <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
+                <span className="text-xs font-bold">✕</span>
+              </button>
             </div>
-          );
-        })()}
+          )}
 
-        {/* ═══ Multi-tab bar for active section ═══ */}
-        {analysisTab && analysisTab !== 'table_data' && analysisTab !== 'breakdown' && (() => {
-          const sec = analysisTabs.getSection(analysisTab);
-          return (
-            <AnalysisTabBar
-              tabs={sec.instances}
-              activeId={sec.activeId}
-              onSelect={(id) => analysisTabs.setActiveTab(analysisTab!, id)}
-              onAdd={() => {
-                const snap = activeSlot ? buildSnapshot(activeSlot, state) : null;
-                analysisTabs.addTab(analysisTab!, activeSlotId, snap, activeSlot?.name);
-              }}
-              onRemove={(id) => {
-                analysisTabs.removeTab(analysisTab!, id);
-                const remaining = analysisTabs.getSection(analysisTab!).instances;
-                if (remaining.length === 0) setAnalysisTab(null);
-              }}
-              onRename={(id, label) => analysisTabs.renameTab(analysisTab!, id, label)}
-            />
-          );
-        })()}
+          {hasUnfilteredFallback && (
+            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
+              <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
+                Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
+              </span>
+            </div>
+          )}
+        </div>
 
-        {/* ═══ Table Data ═══ */}
-        {analysisTab === 'table_data' && (() => {
-          const slots = state.graphSlots;
-          const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
-            ? tableDataSlotId
-            : activeSlotId || slots[0]?.id || null;
-          const activeTableSlot = slots.find(s => s.id === effectiveSlotId) || null;
-          const slotData = effectiveSlotId
-            ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
-            : [];
+        {/* ═══ ZONE 1: Stable Graph Area ═══ */}
+        <div className="shrink-0">
+          {!isGraphFullscreen && renderGraphSection()}
+        </div>
 
-          return (
-            <>
-              {slots.length > 0 && (
-                <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg">
-                  {slots.map((slot) => (
+        {/* ═══ ZONE 2: Stable Analysis Area — always mounted, min-height reserved ═══ */}
+        <div className="flex-1 mt-6" style={{ minHeight: 320 }}>
+
+          {/* Analysis Tab Bar — always visible when there are enabled tabs */}
+          {(() => {
+            const activeConfig = activeSlot?.config || DEFAULT_GRAPH_CONFIG;
+            const configKeyMap: Record<string, keyof GraphConfig> = {
+              table_data: 'showDataTable',
+              breakdown: 'showBreakdown',
+              top_worst: 'showTopWorst',
+              alarms: 'showAlarms',
+              neighbors: 'showNeighbors',
+              cm_history: 'showCmHistory',
+            };
+            const allTabs = [
+              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
+              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
+              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+            ];
+            const visibleTabs = allTabs.filter(tab => {
+              const cfgKey = configKeyMap[tab.key];
+              if (!cfgKey) return true;
+              return (activeConfig as any)[cfgKey];
+            });
+
+            if (visibleTabs.length === 0) return null;
+
+            return (
+              <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm mb-4">
+                <div className="flex items-center gap-1 px-1 py-1">
+                  {visibleTabs.map((tab) => (
                     <button
-                      key={slot.id}
-                      onClick={() => setTableDataSlotId(slot.id)}
+                      key={`analysis-tab-${tab.key}`}
+                      data-analysis-tab={tab.key}
+                      onClick={() => {
+                        const newTab = analysisTab === tab.key ? null : tab.key;
+                        setAnalysisTab(newTab);
+                        if (newTab && activeSlot) {
+                          const snap = buildSnapshot(activeSlot, state);
+                          analysisTabs.ensureTab(newTab, activeSlotId, snap);
+                        }
+                        if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
+                          handleFindWorst();
+                        }
+                      }}
                       className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all whitespace-nowrap',
-                        effectiveSlotId === slot.id
-                          ? 'bg-card text-primary shadow-sm border border-primary/30'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                        'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
+                        analysisTab === tab.key
+                          ? 'bg-card text-foreground shadow-sm border border-border/60'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
                       )}
                     >
-                      <Table2 className="w-3 h-3" />
-                      {slot.name}
-                      <span className="text-[8px] opacity-50 ml-0.5">
-                        ({slot.kpiIds.length} KPI{slot.kpiIds.length !== 1 ? 's' : ''})
-                      </span>
+                      <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
+                      {tab.label}
+                      {analysisTab === tab.key && (
+                        <>
+                          <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                          {analysisTabs.getSection(tab.key).instances.length > 0 && (
+                            <span className="ml-1 text-[9px] opacity-60">
+                              ({analysisTabs.getSection(tab.key).instances.length})
+                            </span>
+                          )}
+                        </>
+                      )}
                     </button>
                   ))}
                 </div>
-              )}
+              </div>
+            );
+          })()}
 
-              {activeTableSlot && (
-                <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground">
-                  <span className="font-bold text-primary">Source:</span>
-                  <span>{activeTableSlot.name}</span>
-                  <span className="opacity-40">|</span>
-                  <span>KPIs: {activeTableSlot.kpiIds.join(', ') || '—'}</span>
-                  <span className="opacity-40">|</span>
-                  <span>{slotData.length} rows</span>
-                </div>
-              )}
-
-              <InvestigatorDataTable
-                tsData={slotData}
-                activeSlot={activeTableSlot}
-                siteName={state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || undefined}
+          {/* Multi-tab sub-bar for sections with instances — always mounted */}
+          {analysisTab && analysisTab !== 'table_data' && analysisTab !== 'breakdown' && (() => {
+            const sec = analysisTabs.getSection(analysisTab);
+            return (
+              <AnalysisTabBar
+                tabs={sec.instances}
+                activeId={sec.activeId}
+                onSelect={(id) => analysisTabs.setActiveTab(analysisTab!, id)}
+                onAdd={() => {
+                  const snap = activeSlot ? buildSnapshot(activeSlot, state) : null;
+                  analysisTabs.addTab(analysisTab!, activeSlotId, snap, activeSlot?.name);
+                }}
+                onRemove={(id) => {
+                  analysisTabs.removeTab(analysisTab!, id);
+                  const remaining = analysisTabs.getSection(analysisTab!).instances;
+                  if (remaining.length === 0) setAnalysisTab(null);
+                }}
+                onRename={(id, label) => analysisTabs.renameTab(analysisTab!, id, label)}
               />
-            </>
-          );
-        })()}
+            );
+          })()}
 
-        {/* ═══ KPI Breakdown ═══ */}
-        {analysisTab === 'breakdown' && activeSlot && activeSlot.kpiIds.length > 0 && (
-          <section>
-            <KPIBreakdown
-              selectedKpis={activeSlot.kpiIds}
-              layout={state.graphLayout}
-              dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
-              dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
-              granularity={activeSlot.granularity || state.granularity}
-              filters={Object.entries({ ...state.filters, ...activeSlot.filters })
-                .filter(([,v]) => v.length > 0)
-                .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-              splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
-              splitByPerKpi={activeSlot.config?.splitByPerKpi}
-              timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
-            />
-          </section>
-        )}
+          {/* ═══ Analysis Panel Content — all panels stay mounted, visibility via CSS ═══ */}
+          <div className="relative">
 
-        {/* Top Worst – keep all instances mounted, show only active */}
-        {(() => {
-          const sec = analysisTabs.getSection('top_worst');
-          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst2 => (
-            <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
-              <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+            {/* Table Data — mounted when slot data exists */}
+            <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
+              {(() => {
+                const slots = state.graphSlots;
+                const effectiveSlotId = (tableDataSlotId && slots.find(s => s.id === tableDataSlotId))
+                  ? tableDataSlotId
+                  : activeSlotId || slots[0]?.id || null;
+                const activeTableSlot = slots.find(s => s.id === effectiveSlotId) || null;
+                const slotData = effectiveSlotId
+                  ? tsData.filter((d: any) => d._slotId === effectiveSlotId)
+                  : [];
+
+                return (
+                  <>
+                    {slots.length > 0 && (
+                      <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg mb-2">
+                        {slots.map((slot) => (
+                          <button
+                            key={slot.id}
+                            onClick={() => setTableDataSlotId(slot.id)}
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all whitespace-nowrap',
+                              effectiveSlotId === slot.id
+                                ? 'bg-card text-primary shadow-sm border border-primary/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                            )}
+                          >
+                            <Table2 className="w-3 h-3" />
+                            {slot.name}
+                            <span className="text-[8px] opacity-50 ml-0.5">
+                              ({slot.kpiIds.length} KPI{slot.kpiIds.length !== 1 ? 's' : ''})
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {activeTableSlot && (
+                      <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground mb-2">
+                        <span className="font-bold text-primary">Source:</span>
+                        <span>{activeTableSlot.name}</span>
+                        <span className="opacity-40">|</span>
+                        <span>KPIs: {activeTableSlot.kpiIds.join(', ') || '—'}</span>
+                        <span className="opacity-40">|</span>
+                        <span>{slotData.length} rows</span>
+                      </div>
+                    )}
+
+                    <InvestigatorDataTable
+                      tsData={slotData}
+                      activeSlot={activeTableSlot}
+                      siteName={state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || undefined}
+                    />
+                  </>
+                );
+              })()}
             </div>
-          ));
-        })()}
 
-        {/* Alarms */}
-        {(() => {
-          const sec = analysisTabs.getSection('alarms');
-          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst2 => (
-            <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
-              <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+            {/* KPI Breakdown — mounted when active slot has KPIs */}
+            <div style={{ display: analysisTab === 'breakdown' ? undefined : 'none' }}>
+              {activeSlot && activeSlot.kpiIds.length > 0 && (
+                <section>
+                  <KPIBreakdown
+                    selectedKpis={activeSlot.kpiIds}
+                    layout={state.graphLayout}
+                    dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
+                    dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
+                    granularity={activeSlot.granularity || state.granularity}
+                    filters={Object.entries({ ...state.filters, ...activeSlot.filters })
+                      .filter(([,v]) => v.length > 0)
+                      .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
+                    splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+                    splitByPerKpi={activeSlot.config?.splitByPerKpi}
+                    timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
+                  />
+                </section>
+              )}
             </div>
-          ));
-        })()}
 
-        {analysisTab === 'counters' && (
-          <CounterGraphSection
-            dateFrom={state.startDate.split('T')[0]}
-            dateTo={state.endDate.split('T')[0]}
-          />
-        )}
+            {/* Top Worst — all instances always mounted, CSS visibility */}
+            {(() => {
+              const sec = analysisTabs.getSection('top_worst');
+              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+              return sec.instances.map(inst2 => (
+                <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
+                  <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                </div>
+              ));
+            })()}
 
-        {/* Neighbors */}
-        {(() => {
-          const sec = analysisTabs.getSection('neighbors');
-          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst2 => (
-            <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
-              <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+            {/* Alarms — all instances always mounted */}
+            {(() => {
+              const sec = analysisTabs.getSection('alarms');
+              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+              return sec.instances.map(inst2 => (
+                <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
+                  <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                </div>
+              ));
+            })()}
+
+            {/* Counters */}
+            <div style={{ display: analysisTab === 'counters' ? undefined : 'none' }}>
+              <CounterGraphSection
+                dateFrom={state.startDate.split('T')[0]}
+                dateTo={state.endDate.split('T')[0]}
+              />
             </div>
-          ));
-        })()}
 
-        {/* CM History */}
-        {(() => {
-          const sec = analysisTabs.getSection('cm_history');
-          const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-          return sec.instances.map(inst2 => (
-            <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
-              <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-            </div>
-          ));
-        })()}
+            {/* Neighbors — all instances always mounted */}
+            {(() => {
+              const sec = analysisTabs.getSection('neighbors');
+              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+              return sec.instances.map(inst2 => (
+                <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
+                  <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                </div>
+              ));
+            })()}
+
+            {/* CM History — all instances always mounted */}
+            {(() => {
+              const sec = analysisTabs.getSection('cm_history');
+              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
+              return sec.instances.map(inst2 => (
+                <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
+                  <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                </div>
+              ));
+            })()}
+
+          </div>
+        </div>
       </main>
     </div>
 
