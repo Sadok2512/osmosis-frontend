@@ -749,6 +749,7 @@ const InvestigatorPage: React.FC = () => {
                 .filter(([,v]) => v.length > 0)
                 .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
               splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+              splitByPerKpi={activeSlot.config?.splitByPerKpi}
               timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
             />
           </section>

@@ -20,6 +20,8 @@ interface Props {
   granularity?: Granularity;
   filters?: { dimension: string; values: string[] }[];
   splitBy?: string;
+  /** Per-KPI split dimension map (takes precedence over `splitBy`). */
+  splitByPerKpi?: Record<string, string>;
   timeSeriesData?: DataPoint[];
 }
 
@@ -50,12 +52,26 @@ interface CounterTsPoint {
   counter: string;
   value: number;
   ne?: string;
+  dimension_key?: string;
 }
 
 /* ──────────────────── Constants ──────────────────── */
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
 const DEN_COLORS = ['#3b82f6', '#2563eb', '#60a5fa', '#93c5fd', '#1d4ed8'];
+
+/** Palette used when a split dimension is active — one color per dim value. */
+const SPLIT_COLORS = [
+  '#6366f1', '#f59e0b', '#ef4444', '#14b8a6', '#ec4899',
+  '#8b5cf6', '#06b6d4', '#f97316', '#84cc16', '#d946ef',
+  '#eab308', '#0ea5e9',
+];
+
+/** Maximum number of dimension values kept when splitting (rest bucketed as "other"). */
+const SPLIT_TOP_N = 10;
+
+/** PM dimension types forwarded as `dimension_filter` in the counters/timeseries request. */
+const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
 
 const extractCounters = (formula: string): string[] => {
   if (!formula) return [];
@@ -73,7 +89,8 @@ const FormulaPanel: React.FC<{
   onHoverCounter: (name: string | null) => void;
   hiddenCounters: Set<string>;
   onToggleCounter: (name: string) => void;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter }) => {
+  splitBy?: string;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy }) => {
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
@@ -131,6 +148,9 @@ const FormulaPanel: React.FC<{
               { label: explain.formula_type, color: 'bg-primary/10 text-primary border-primary/30' },
               { label: explain.unit || 'ratio', color: 'bg-muted/60 text-muted-foreground border-border/30' },
               { label: explain.techno, color: 'bg-amber-500/10 text-amber-600 border-amber-500/30' },
+              ...(splitBy && splitBy !== 'None'
+                ? [{ label: `SPLIT: ${splitBy}`, color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' }]
+                : []),
             ].filter(t => t.label).map(t => (
               <span key={t.label} className={cn('px-2 py-0.5 rounded-md text-[9px] font-bold border', t.color)}>
                 {t.label}
@@ -242,7 +262,8 @@ const SingleKpiBreakdown: React.FC<{
   dateTo: string;
   granularity: Granularity;
   filters: { dimension: string; values: string[] }[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters }) => {
+  splitBy?: string;
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
@@ -300,26 +321,45 @@ const SingleKpiBreakdown: React.FC<{
     setHiddenCounters(new Set());
   }, [explain]);
 
+  const splitActive = !!(splitBy && splitBy !== 'None');
+
   // Fetch counter timeseries
   useEffect(() => {
     const names = counterInfos.map(c => c.name);
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
     const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
+    if (splitActive) body.split_by_dimension = true;
+
+    const dimFilterValues: string[] = [];
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
-      if (dim === 'SITE' && f.values?.length) body.site_name = f.values[0];
-      else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values[0];
+      if (dim === 'SITE' && f.values?.length) body.site_name = f.values.length === 1 ? f.values[0] : f.values;
+      else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+      else if (PM_DIM_TYPES.has(dim) && f.values?.length) dimFilterValues.push(...f.values);
     }
+    if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
+
     const ctrl = new AbortController();
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body), signal: ctrl.signal,
     })
       .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setCounterTsData(data.series || []); setLoading(false); })
+      .then(data => {
+        // Normalize: backend may return `dimension_key` or `split_value`, and `counter` may be `counter_id`
+        const raw = data.series || data.data || [];
+        const norm: CounterTsPoint[] = raw.map((s: any) => ({
+          ts: s.ts || s.timestamp || s.date,
+          counter: s.counter || s.counter_id || s.counter_name || '',
+          value: s.value ?? s.kpi_value ?? s.val ?? 0,
+          dimension_key: s.dimension_key || s.split_value || undefined,
+        }));
+        setCounterTsData(norm);
+        setLoading(false);
+      })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos, dateFrom, dateTo, granularity, filters]);
+  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
@@ -345,27 +385,88 @@ const SingleKpiBreakdown: React.FC<{
     const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
     const timestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
 
-    const series = visibleCounters.map((counter) => {
-      const isNum = counter.tag === 'NUM';
-      const tagCounters = isNum ? numCounterNames : denCounterNames;
-      const tagIdx = tagCounters.indexOf(counter.name);
-      const colors = isNum ? NUM_COLORS : DEN_COLORS;
-      const color = colors[tagIdx % colors.length];
-      const isHovered = hoveredCounter === counter.name;
+    // Top-N dimension values (by total value across all counters) when split is active
+    let topDimValues: string[] = [];
+    let otherDimValues = new Set<string>();
+    if (splitActive) {
+      const totals = new Map<string, number>();
+      for (const p of counterTsData) {
+        const dv = p.dimension_key || '—';
+        totals.set(dv, (totals.get(dv) || 0) + (p.value || 0));
+      }
+      const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+      topDimValues = sorted.slice(0, SPLIT_TOP_N).map(([k]) => k);
+      otherDimValues = new Set(sorted.slice(SPLIT_TOP_N).map(([k]) => k));
+    }
+
+    type SeriesSpec = {
+      counter: CounterInfo;
+      dimValue?: string;     // undefined means no split
+      isOther?: boolean;     // bucketed "other"
+      color: string;
+      label: string;
+    };
+
+    const specs: SeriesSpec[] = [];
+    if (splitActive) {
+      visibleCounters.forEach(counter => {
+        topDimValues.forEach((dv, dvIdx) => {
+          specs.push({
+            counter,
+            dimValue: dv,
+            color: SPLIT_COLORS[dvIdx % SPLIT_COLORS.length],
+            label: `[${counter.tag}] ${counter.name} · ${dv}`,
+          });
+        });
+        if (otherDimValues.size > 0) {
+          specs.push({
+            counter,
+            isOther: true,
+            color: '#94a3b8',
+            label: `[${counter.tag}] ${counter.name} · other (${otherDimValues.size})`,
+          });
+        }
+      });
+    } else {
+      visibleCounters.forEach(counter => {
+        const isNum = counter.tag === 'NUM';
+        const tagCounters = isNum ? numCounterNames : denCounterNames;
+        const tagIdx = tagCounters.indexOf(counter.name);
+        const colors = isNum ? NUM_COLORS : DEN_COLORS;
+        specs.push({
+          counter,
+          color: colors[tagIdx % colors.length],
+          label: `[${counter.tag}] ${counter.name}`,
+        });
+      });
+    }
+
+    // Pre-index data by (counter, dimValue) for fast lookup
+    const indexed = new Map<string, Map<string, number>>();
+    for (const p of counterTsData) {
+      const dv = splitActive ? (otherDimValues.has(p.dimension_key || '—') ? '__OTHER__' : (p.dimension_key || '—')) : '__ALL__';
+      const key = `${p.counter}||${dv}`;
+      if (!indexed.has(key)) indexed.set(key, new Map());
+      const tsMap = indexed.get(key)!;
+      tsMap.set(p.ts, (tsMap.get(p.ts) || 0) + (p.value || 0));
+    }
+
+    const series = specs.map(spec => {
+      const isNum = spec.counter.tag === 'NUM';
+      const isHovered = hoveredCounter === spec.counter.name;
+      const dvKey = splitActive ? (spec.isOther ? '__OTHER__' : (spec.dimValue || '—')) : '__ALL__';
+      const tsMap = indexed.get(`${spec.counter.name}||${dvKey}`) || new Map<string, number>();
 
       return {
-        name: `[${counter.tag}] ${counter.name}`,
+        name: spec.label,
         type: 'line' as const,
         smooth: true,
         connectNulls: true,
-        data: timestamps.map(ts => {
-          const p = counterTsData.find(d => d.ts === ts && (d.counter === counter.name || (d as any).counter_id === counter.name));
-          return p ? p.value : null;
-        }),
+        data: timestamps.map(ts => tsMap.has(ts) ? tsMap.get(ts)! : null),
         symbol: isHovered ? 'circle' : 'none',
         symbolSize: isHovered ? 8 : 0,
-        lineStyle: { width: isHovered ? 4 : 2.5, color, type: isNum ? 'solid' as const : 'dashed' as const },
-        itemStyle: { color },
+        lineStyle: { width: isHovered ? 4 : 2.5, color: spec.color, type: isNum ? 'solid' as const : 'dashed' as const },
+        itemStyle: { color: spec.color },
         emphasis: { focus: 'series' as const, lineStyle: { width: 4 } },
         z: isHovered ? 10 : 1,
         yAxisIndex: isNum ? 0 : 1,
@@ -431,7 +532,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series,
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -446,6 +547,7 @@ const SingleKpiBreakdown: React.FC<{
         onHoverCounter={setHoveredCounter}
         hiddenCounters={hiddenCounters}
         onToggleCounter={toggleCounter}
+        splitBy={splitBy}
       />
 
       <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
@@ -501,9 +603,19 @@ const KPIBreakdown: React.FC<Props> = ({
   dateTo = new Date().toISOString().split('T')[0],
   granularity = '1d',
   filters = [],
+  splitBy,
+  splitByPerKpi,
 }) => {
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
+
+  // Resolve split dimension for the active KPI: per-KPI map takes precedence over slot-level splitBy.
+  const effectiveSplitBy = useMemo(() => {
+    const perKpi = splitByPerKpi?.[activeKpiTab];
+    if (perKpi && perKpi !== 'None') return perKpi;
+    if (splitBy && splitBy !== 'None') return splitBy;
+    return undefined;
+  }, [splitByPerKpi, activeKpiTab, splitBy]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
@@ -552,6 +664,7 @@ const KPIBreakdown: React.FC<Props> = ({
           dateTo={dateTo}
           granularity={granularity}
           filters={filters}
+          splitBy={effectiveSplitBy}
         />
       )}
     </div>
