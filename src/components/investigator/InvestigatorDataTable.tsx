@@ -144,9 +144,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
   return (
     <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col">
       {/* ── Source Info Banner ── */}
-      <div className="px-4 py-2 bg-primary/5 border-b border-primary/10">
-        <div className="flex items-center gap-2 text-[10px]">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
+      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
             📊 {sourceInfo.slotLabel}
           </span>
           <span className="text-muted-foreground">|</span>
@@ -161,16 +161,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
       </div>
 
       {/* ── Toolbar ── */}
-      <div className="h-10 border-b border-border/30 flex items-center justify-between px-4 bg-muted/30">
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">Table Data</span>
-          <span className="text-[9px] text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
+      <div className="h-14 border-b border-border/30 flex items-center justify-between px-5 bg-muted/30">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
+          <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+          className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
         >
-          <Download className="w-3.5 h-3.5" />
+          <Download className="w-5 h-5" />
           CSV
         </button>
       </div>
