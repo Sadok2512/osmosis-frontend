@@ -354,7 +354,9 @@ const InvestigatorPage: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">KPI Graph Analysis</h2>
+            <h2 className="text-xs font-bold text-foreground uppercase tracking-tight">
+              {currentInvestigatorName || 'Untitled Investigator'}
+            </h2>
             <p className="text-[10px] text-muted-foreground">Visual trend analysis and performance tracking</p>
           </div>
         </div>
