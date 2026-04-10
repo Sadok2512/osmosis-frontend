@@ -377,7 +377,8 @@ const SingleKpiBreakdown: React.FC<{
           ts: s.ts || s.timestamp || s.date,
           counter: s.counter_id || s.counter_name || s.counter || '',
           value: s.value ?? s.kpi_value ?? s.val ?? 0,
-          dimension_key: s.dimension_key || s.split_field || s.split_value || undefined,
+          dimension_key: s.dimension_key || s.split_field || s.split_value
+            || s.ne_name || s.site_name || s.split_field_value || undefined,
         }));
         setCounterTsData(norm);
         setLoading(false);
