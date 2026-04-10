@@ -36,7 +36,6 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
   { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
-  { id: 'topologie', label: 'Référentiel KPI Réseau', icon: <Sliders className="w-5 h-5" /> },
   
   { id: 'docs', label: 'Documentation', icon: <BookOpen className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },

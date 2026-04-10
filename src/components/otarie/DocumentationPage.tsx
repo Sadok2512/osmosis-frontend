@@ -2,8 +2,8 @@ import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from
 import {
   Search, BookOpen, Database, BarChart3, Layers, Wifi, Cpu, Globe, Zap,
   ArrowDownUp, Timer, ShieldAlert, Activity, Signal, Gauge, Users,
-  Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save
-  Sliders
+  Download, Filter, ChevronRight, Info, Plus, Pencil, Trash2, X, Check, Save,
+  Sliders, Loader2
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
