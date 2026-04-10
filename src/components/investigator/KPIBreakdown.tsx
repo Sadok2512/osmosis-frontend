@@ -548,6 +548,79 @@ const SingleKpiBreakdown: React.FC<{
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
 
+  /* ── KPI Timeseries by Cell chart (uses timeSeriesData from KPI Engine) ── */
+  const kpiSplitChart = useMemo(() => {
+    if (!splitActive || !timeSeriesData || timeSeriesData.length === 0) return null;
+
+    // Filter data for this KPI
+    const kpiData = timeSeriesData.filter(d => d.kpi === kpiId);
+    if (kpiData.length === 0) return null;
+
+    // Group by splitValue (cell name)
+    const cellMap = new Map<string, Map<string, number>>();
+    const timestamps = new Set<string>();
+    for (const d of kpiData) {
+      const cell = d.splitValue || d.networkElement || 'Aggregated';
+      timestamps.add(d.timestamp);
+      if (!cellMap.has(cell)) cellMap.set(cell, new Map());
+      cellMap.get(cell)!.set(d.timestamp, d.value);
+    }
+
+    if (cellMap.size <= 1 && cellMap.has('Aggregated')) return null; // No real split
+
+    const sortedTs = [...timestamps].sort();
+    const cells = [...cellMap.keys()].sort();
+
+    const series = cells.map((cell, idx) => {
+      const tsMap = cellMap.get(cell)!;
+      return {
+        name: cell,
+        type: 'line' as const,
+        smooth: true,
+        connectNulls: true,
+        data: sortedTs.map(ts => tsMap.has(ts) ? tsMap.get(ts)! : null),
+        symbol: 'none',
+        lineStyle: { width: 2.5, color: SPLIT_COLORS[idx % SPLIT_COLORS.length] },
+        itemStyle: { color: SPLIT_COLORS[idx % SPLIT_COLORS.length] },
+        emphasis: { focus: 'series' as const, lineStyle: { width: 4 } },
+      };
+    });
+
+    return {
+      animation: false,
+      backgroundColor: 'transparent',
+      grid: { top: 40, right: 50, bottom: 60, left: 70, containLabel: false },
+      legend: {
+        show: true, bottom: 4, icon: 'roundRect', type: 'plain' as any,
+        itemWidth: 18, itemHeight: 4, itemGap: 14,
+        textStyle: { fontSize: 10, fontWeight: 600, color: '#4b5563' },
+      },
+      tooltip: {
+        trigger: 'axis' as const,
+        backgroundColor: 'rgba(15,23,42,0.96)',
+        borderColor: 'rgba(255,255,255,0.06)',
+        borderRadius: 10,
+        padding: [10, 14],
+        textStyle: { color: '#f1f5f9', fontSize: 11, fontWeight: 500 },
+        axisPointer: { type: 'line' as const, lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const } },
+      },
+      xAxis: {
+        type: 'category' as const,
+        data: sortedTs,
+        axisLabel: { formatter: (v: string) => formatAxisLabel(v, granularity), fontSize: 10, color: '#6b7280', margin: 14 },
+        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+        axisTick: { show: true, length: 3, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      },
+      yAxis: {
+        type: 'value' as const,
+        axisLabel: { fontSize: 9, color: '#6366f1', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v >= 100 ? String(Math.round(v)) : v.toFixed(2) },
+        splitLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.08)', type: 'dashed' as const } },
+        axisLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.3)' } },
+      },
+      series,
+    };
+  }, [splitActive, timeSeriesData, kpiId, granularity]);
+
   return (
     <div className="space-y-4">
       <FormulaPanel
@@ -560,6 +633,24 @@ const SingleKpiBreakdown: React.FC<{
         onToggleCounter={toggleCounter}
         splitBy={splitBy}
       />
+
+      {/* KPI Timeseries by Cell */}
+      {kpiSplitChart && (
+        <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+              KPI by {splitBy || 'Cell'}
+            </span>
+            <span className="text-[10px] text-muted-foreground ml-1">
+              {kpiId}
+            </span>
+          </div>
+          <div className="p-4" style={{ backgroundColor: '#ffffff' }}>
+            <ReactECharts option={kpiSplitChart} notMerge style={{ height: 300 }} />
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between">
