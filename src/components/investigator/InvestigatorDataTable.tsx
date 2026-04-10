@@ -79,21 +79,28 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
       const cols = [
         'Timestamp',
-        'Site',
+        'Network Element',
+        'CELL',
         split1Label,
         ...(hasSplit2 ? [split2Label] : []),
-        'KPI',
+        'KPI Metric',
         'Value',
       ];
 
       const builtRows = sorted.map((d) => {
         const seriesKey = `${d.kpi}@${d.splitValue || ''}@${d.splitValue2 || ''}`;
+        // Extract site name from networkElement or splitValue (remove cell suffix)
+        const rawNe = d.networkElement || d.splitValue || '';
+        const siteName = rawNe.replace(/-\d+$/, '') || rawNe;
+        // Clean KPI name: remove @CellName suffix
+        const cleanKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
         return {
           timestamp: fmt(d.timestamp),
-          ne: d.networkElement || 'N/A',
+          ne: siteName || 'N/A',
+          cell: rawNe || '—',
           split1: d.splitValue || '—',
           split2: d.splitValue2 || '—',
-          kpi: d.kpi,
+          kpi: cleanKpi,
           value: d.value,
           color: colorMap[seriesKey] || COLORS[0],
         };
@@ -114,10 +121,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     });
     const neLookup: Record<string, string> = {};
     tsData.forEach((p) => {
-      if (p.networkElement && !neLookup[p.timestamp]) neLookup[p.timestamp] = p.networkElement;
+      if (p.networkElement && !neLookup[p.timestamp]) {
+        const raw = p.networkElement;
+        neLookup[p.timestamp] = raw.replace(/-\d+$/, '') || raw;
+      }
     });
 
-    const cols = ['Timestamp', 'Site', ...kpis];
+    // Clean KPI names (remove @CellName suffix)
+    const cleanKpis = kpis.map(k => k.includes('@') ? k.split('@')[0] : k);
+    const cols = ['Timestamp', 'Network Element', ...cleanKpis];
     const builtRows = timestamps.map((ts) => ({
       timestamp: fmt(ts),
       ne: neLookup[ts] || 'N/A',
@@ -141,7 +153,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     let csvRows: string[];
     if (hasSplits) {
       csvRows = (rows as any[]).map((r) => {
-        const parts = [r.timestamp, r.ne, r.split1, ...(hasSplit2 ? [r.split2] : []), r.kpi, r.value];
+        const parts = [r.timestamp, r.ne, r.cell, r.kpi, r.value];
         return parts.join(',');
       });
     } else {
@@ -210,18 +222,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
                 <>
                   <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
-                      {split1Label}
-                      <Filter className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      CELL
+                      <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </th>
-                  {hasSplit2 && (
-                    <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
-                      <div className="flex items-center gap-2">
-                        {split2Label}
-                        <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </th>
-                  )}
                   <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider group cursor-pointer hover:bg-muted transition-colors">
                     <div className="flex items-center gap-2">
                       KPI Metric
@@ -283,24 +287,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
 
                   {hasSplits ? (
                     <>
-                      {/* Split 1 */}
+                      {/* CELL */}
                       <td className="py-2.5 px-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5">
                           <span
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: row.color }}
                           />
-                          <span className="text-foreground">{row.split1}</span>
+                          <span className="text-foreground">{row.cell}</span>
                         </span>
                       </td>
-                      {/* Split 2 */}
-                      {hasSplit2 && (
-                        <td className="py-2.5 px-4 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-full bg-accent text-accent-foreground text-[9px] font-bold">
-                            {row.split2}
-                          </span>
-                        </td>
-                      )}
                       {/* KPI */}
                       <td className="py-2.5 px-4 text-foreground truncate max-w-[150px]" title={row.kpi}>
                         {row.kpi}
