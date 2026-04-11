@@ -410,7 +410,7 @@ export const topoApi = {
             latitude: coords.lat,
             longitude: coords.lng,
             techno: c.techno || '4g',
-            bande: c.band || c.bande || '',
+            bande: c.band || c.bande || inferBandFromCellName(c.cell_name || c.nom_cellule || '', c.techno || '4G'),
             constructeur: c.vendor || c.constructeur || null,
             azimut,
             hba: 30,
