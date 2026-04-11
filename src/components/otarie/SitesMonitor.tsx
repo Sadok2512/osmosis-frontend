@@ -5195,10 +5195,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
 
-        // Mark all as attempted (whether cells found or not) and clear loading flags
+        // Mark sites as attempted only if cache is fully loaded.
+        // If still loading, only mark sites that DID get cells — unresolved ones
+        // will be retried when new chunks arrive via the cache listener below.
+        const cacheStillLoading = isCellsCacheLoading();
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
-          cellLoadAttemptedRef.current.add(s.site_id);
+          const gotCells = !!resolveSiteCells(s);
+          if (gotCells || !cacheStillLoading) {
+            cellLoadAttemptedRef.current.add(s.site_id);
+          }
         });
         setCellsLoadingCount(cellLoadingRef.current.size);
 
@@ -5211,7 +5217,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
-          cellLoadAttemptedRef.current.add(s.site_id);
+          // Don't mark as attempted on error if cache still loading
+          if (!isCellsCacheLoading()) {
+            cellLoadAttemptedRef.current.add(s.site_id);
+          }
         });
         setCellsLoadingCount(cellLoadingRef.current.size);
         // Force re-render so filters re-evaluate with attempted flags
@@ -5223,6 +5232,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
   }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
+
+  // Re-trigger cell resolution when background cache loads new chunks
+  useEffect(() => {
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    if (!needsCellData) return;
+
+    const unsub = onCellsCacheUpdate(() => {
+      // Clear attempted flags for sites that still have no cells — they'll be retried
+      const sitesWithoutCells = visibleSites.filter(s => s.cells.length === 0);
+      if (sitesWithoutCells.length === 0) return;
+      let cleared = 0;
+      sitesWithoutCells.forEach(s => {
+        if (cellLoadAttemptedRef.current.has(s.site_id)) {
+          cellLoadAttemptedRef.current.delete(s.site_id);
+          cleared++;
+        }
+      });
+      if (cleared > 0) {
+        console.log(`[SitesMonitor] Cache updated, re-queuing ${cleared} sites for cell resolution`);
+        // Trigger re-render to re-enter the cell loading effect
+        setSites(prev => [...prev]);
+      }
+    });
+
+    return unsub;
+  }, [displayMode, visibleSites, hasCellLevelConditions, isBandFilterActive]);
 
 
   // Show labels only when explicitly toggled on by the user
