@@ -575,13 +575,14 @@ export const topoApi = {
       const sitesData = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
       const rawSites = Array.isArray(sitesData) ? sitesData : (sitesData?.sites || sitesData?.rows || []);
       
-      const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string }>();
+      const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string; code_nidt: string }>();
       for (const s of rawSites) {
         const lat = Number(s.latitude ?? s.lat);
         const lng = Number(s.longitude ?? s.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
         const name = s.site_name || s.nom_site || s.code_nidt;
-        if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '' });
+        const code_nidt = s.code_nidt || name;
+        if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '', code_nidt });
       }
 
       if (siteCoords.size === 0) {
@@ -619,7 +620,7 @@ export const topoApi = {
           const azimut = Math.round((360 / numSectors) * i);
           for (const c of sectorCells) {
             mergedCells.push({
-              code_nidt: siteName,
+              code_nidt: coords.code_nidt || siteName,
               nom_site: siteName,
               nom_cellule: c.cell_name || c.nom_cellule || `${siteName}_cell`,
               latitude: coords.lat,
