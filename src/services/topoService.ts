@@ -925,8 +925,14 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
   // ── 1) Try lightweight VPS /topo/cells?search=SITE_ID ──
   try {
     const url = getVpsProxyUrl('parser', `/api/v1/topo/cells`, { search: siteId, limit: '500' });
-    const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-    if (resp.ok) {
+    // Retry on 503 (edge function cold-start failures under load)
+    let resp: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      resp = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (resp.status !== 503) break;
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    }
+    if (resp && resp.ok) {
       const data = await resp.json();
       const rows: any[] = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
       const normalizedSiteId = siteId.trim().toUpperCase();
