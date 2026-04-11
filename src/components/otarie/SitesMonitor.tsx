@@ -5241,30 +5241,56 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
   // Re-trigger cell resolution when background cache loads new chunks
+  // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
     const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
     if (!needsCellData) return;
 
     const unsub = onCellsCacheUpdate(() => {
-      // Clear attempted flags for sites that still have no cells — they'll be retried
-      const sitesWithoutCells = visibleSites.filter(s => s.cells.length === 0);
-      if (sitesWithoutCells.length === 0) return;
-      let cleared = 0;
-      sitesWithoutCells.forEach(s => {
-        if (cellLoadAttemptedRef.current.has(s.site_id)) {
-          cellLoadAttemptedRef.current.delete(s.site_id);
-          cleared++;
-        }
+      setSites(prev => {
+        let changed = false;
+        const next = prev.map(s => {
+          if (s.cells.length > 0) return s;
+          // Direct lookup from the in-memory cache
+          const siteName = s.site_name || s.site_id;
+          const cachedCells = getCellsFromCacheForSite(siteName);
+          if (cachedCells.length === 0) return s;
+          changed = true;
+          // Build cell objects matching expected format
+          const cells = cachedCells.map((c: any) => {
+            const cellName = c.cell_name || c.nom_cellule || '';
+            const lastChar = cellName.slice(-1);
+            const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+            return {
+              cell_id: cellName,
+              cell_name: cellName,
+              techno: c.techno || '4G',
+              bande: c.band || c.bande || '',
+              vendor: c.vendor || c.constructeur || null,
+              azimut: c.azimut ?? Math.round((360 / 3) * (sectorIdx - 1)),
+              tilt: c.tilt ?? null,
+              pci: c.pci ?? null,
+              eci: c.eci ?? null,
+              nci: c.nci ?? null,
+              cid: c.cid ?? null,
+              tac: c.tac ?? null,
+              etat_cellule: c.etat_cellule ?? null,
+              essentiel: c.essentiel ?? null,
+              zone_arcep: c.zone_arcep ?? null,
+              plaque: c.plaque ?? null,
+              dor: c.dor ?? null,
+            };
+          });
+          cellLoadAttemptedRef.current.add(s.site_id);
+          return { ...s, cells };
+        });
+        if (!changed) return prev;
+        return next;
       });
-      if (cleared > 0) {
-        console.log(`[SitesMonitor] Cache updated, re-queuing ${cleared} sites for cell resolution`);
-        // Trigger re-render to re-enter the cell loading effect
-        setSites(prev => [...prev]);
-      }
     });
 
     return unsub;
-  }, [displayMode, visibleSites, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
 
 
   // Show labels only when explicitly toggled on by the user
