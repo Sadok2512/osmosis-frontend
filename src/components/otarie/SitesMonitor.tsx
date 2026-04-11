@@ -5694,8 +5694,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
-      {(cellsCacheLoading || cellsLoadingCount > 0) && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
+      {(cellsCacheLoading || cellsLoadingCount > 0) && viewport.zoom >= SITES_TO_CELLS_ZOOM && (
+        <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
             <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
