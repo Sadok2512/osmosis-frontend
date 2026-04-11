@@ -261,15 +261,33 @@ export function getCellsCacheVersion(): number {
   return _cellsCacheVersion;
 }
 
+// Fast site→cells index, rebuilt on each cache version change
+let _cellsSiteIndex: Map<string, any[]> | null = null;
+let _cellsSiteIndexVersion = -1;
+
+function ensureSiteIndex(): Map<string, any[]> {
+  if (_cellsSiteIndex && _cellsSiteIndexVersion === _cellsCacheVersion) return _cellsSiteIndex;
+  const idx = new Map<string, any[]>();
+  if (_cellsCache) {
+    for (const c of _cellsCache.cells) {
+      const name = c.site_name || c.nom_site || '';
+      if (!name) continue;
+      let arr = idx.get(name);
+      if (!arr) { arr = []; idx.set(name, arr); }
+      arr.push(c);
+    }
+  }
+  _cellsSiteIndex = idx;
+  _cellsSiteIndexVersion = _cellsCacheVersion;
+  return idx;
+}
+
 /** Look up cells for a given site name directly from the in-memory cache (no fetch). */
 export function getCellsFromCacheForSite(siteName: string): any[] {
   if (!_cellsCache) return [];
   const key = siteName?.trim();
   if (!key) return [];
-  return _cellsCache.cells.filter(c => {
-    const cn = c.site_name || c.nom_site || '';
-    return cn === key;
-  });
+  return ensureSiteIndex().get(key) || [];
 }
 
 function cellsCacheKey(filters?: BboxFilters): string {
