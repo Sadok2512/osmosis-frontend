@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-        (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/'));
+        (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
       const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
@@ -181,7 +181,8 @@ Deno.serve(async (req) => {
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+    const isSafeWrite = ['PUT', 'DELETE'].includes(req.method) && (service === 'kpi' || service === 'parser') && path.includes('/catalog/');
     const isAgentPost2 = req.method === 'POST' && service === 'agent';
 
     // Stream SSE responses directly (don't buffer)
@@ -199,10 +200,10 @@ Deno.serve(async (req) => {
 
     const responseBody = await upstreamRes.text();
 
-    if (!upstreamRes.ok && (isSafeRead || isSafePost)) {
+    if (!upstreamRes.ok && (isSafeRead || isSafePost || isSafeWrite)) {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
-      const fallback = isSafePost
+      const fallback = (isSafePost || isSafeWrite)
         ? { unavailable: true, service, path, error: `Upstream ${upstreamRes.status}: ${errorSnippet}`, series: [], data: [], rows: [], total: 0 }
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify(fallback), {
@@ -236,7 +237,7 @@ Deno.serve(async (req) => {
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
 
     if (isSafeRead || isSafePost) {
       const fallback = isSafePost
