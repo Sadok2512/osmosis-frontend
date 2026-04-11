@@ -3727,7 +3727,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!paramSearch || paramSearch.length < 3) return;
     const timer = setTimeout(async () => {
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-list?search=${encodeURIComponent(paramSearch)}&object_type=CELL&limit=50`), {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-list`, { search: paramSearch, object_type: 'CELL', limit: '50' }), {
           headers: getVpsProxyHeaders(),
         });
         const data = await resp.json();
@@ -4421,7 +4421,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       searchAbortRef.current = ctrl;
 
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites?search=${encodeURIComponent(term)}&limit=50`), {
+        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites`, { search: term, limit: '50' }), {
           headers: getVpsProxyHeaders(),
           signal: ctrl.signal,
         });
