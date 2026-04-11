@@ -669,7 +669,7 @@ const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: 
     const timer = setTimeout(() => {
       if (validCoords.length > 0) {
         const bounds = L.latLngBounds(validCoords);
-        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13 });
+        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13, minZoom: FRANCE_DEFAULT_ZOOM });
       } else {
         map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
       }
@@ -5714,6 +5714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
         zoom={FRANCE_DEFAULT_ZOOM}
+        minZoom={4}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
         zoomSnap={1}
