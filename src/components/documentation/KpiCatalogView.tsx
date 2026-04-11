@@ -91,12 +91,55 @@ function mapToEntry(k: any): KpiCatalogEntry {
   };
 }
 
+// Reserved words to strip from counter formulas (SQL/math keywords, not counter names)
+const FORMULA_RESERVED = new Set([
+  'sum', 'avg', 'max', 'min', 'count', 'coalesce', 'nullif', 'case', 'when', 'then',
+  'else', 'end', 'if', 'and', 'or', 'not', 'null', 'true', 'false', 'as', 'cast',
+  'integer', 'float', 'numeric', 'text', 'bigint', 'abs', 'round', 'floor', 'ceil',
+  'sqrt', 'power', 'log', 'exp', 'greatest', 'least', 'over', 'partition', 'by',
+  'order', 'rows', 'between', 'preceding', 'following', 'unbounded', 'distinct',
+]);
+
 function parseCounters(raw: any): CounterEntry[] {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map((name, i) => ({ id: `c-${i}`, name: String(name), description: `PM counter: ${name}`, vendor_mapping: {}, source_system: 'OSS PM', granularity: '15min' }));
+  // Array: already a list of counter names
+  if (Array.isArray(raw)) {
+    return raw.map((name, i) => ({
+      id: `c-${i}`, name: String(name), description: `PM counter: ${name}`,
+      vendor_mapping: {}, source_system: 'OSS PM', granularity: '15min',
+    }));
+  }
   if (typeof raw !== 'string') return [];
-  return raw.split(',').map(s => s.trim()).filter(Boolean).map((name, i) => ({
-    id: `c-${i}`, name, description: `PM counter: ${name}`, vendor_mapping: {}, source_system: 'OSS PM', granularity: '15min',
+  const str = raw.trim();
+  if (!str) return [];
+
+  // Detect if it's a comma-separated list (no math operators) vs a formula expression.
+  const hasFormulaOperators = /[+\-*/()]/.test(str);
+  let names: string[];
+  if (!hasFormulaOperators) {
+    // Simple comma-separated list
+    names = str.split(',').map(s => s.trim()).filter(Boolean);
+  } else {
+    // Formula expression — extract identifiers (counter names) via regex.
+    // A counter identifier: starts with a letter, contains letters/digits/underscore,
+    // not followed by '(' (which would make it a function call).
+    const matches = str.match(/[A-Za-z_][A-Za-z0-9_]*(?!\s*\()/g) || [];
+    const seen = new Set<string>();
+    names = [];
+    for (const m of matches) {
+      const lower = m.toLowerCase();
+      if (FORMULA_RESERVED.has(lower)) continue;
+      // Skip bare numbers interpreted as identifiers (shouldn't happen but safe)
+      if (/^\d+$/.test(m)) continue;
+      if (seen.has(m)) continue;
+      seen.add(m);
+      names.push(m);
+    }
+  }
+
+  return names.map((name, i) => ({
+    id: `c-${i}`, name, description: `PM counter: ${name}`,
+    vendor_mapping: {}, source_system: 'OSS PM', granularity: '15min',
   }));
 }
 
