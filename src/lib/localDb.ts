@@ -261,6 +261,17 @@ export function getCellsCacheVersion(): number {
   return _cellsCacheVersion;
 }
 
+/** Look up cells for a given site name directly from the in-memory cache (no fetch). */
+export function getCellsFromCacheForSite(siteName: string): any[] {
+  if (!_cellsCache) return [];
+  const key = siteName?.trim();
+  if (!key) return [];
+  return _cellsCache.cells.filter(c => {
+    const cn = c.site_name || c.nom_site || '';
+    return cn === key;
+  });
+}
+
 function cellsCacheKey(filters?: BboxFilters): string {
   if (!filters) return 'all';
   return Object.entries(filters).filter(([, v]) => v && v !== 'ALL').map(([k, v]) => `${k}=${v}`).sort().join('&') || 'all';
