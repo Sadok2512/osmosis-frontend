@@ -5075,20 +5075,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
-        // Build a lookup by site_id AND site_name (VPS may use site_name as code_nidt)
+        // Build a lookup by normalized site_id AND site_name (VPS keys are not always consistent)
         const cellMap = new Map<string, any[]>();
+        const registerCells = (rawKey: string | null | undefined, cells: any[]) => {
+          const normalizedKey = normalizeSiteKey(rawKey);
+          if (!normalizedKey || cells.length === 0) return;
+          cellMap.set(normalizedKey, cells);
+        };
+        const resolveSiteCells = (site: { site_id?: string | null; site_name?: string | null }) => {
+          return (
+            cellMap.get(normalizeSiteKey(site.site_id)) ||
+            cellMap.get(normalizeSiteKey(site.site_name)) ||
+            null
+          );
+        };
+
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
-            cellMap.set(cs.site_id, cs.cells);
-            if (cs.site_name && cs.site_name !== cs.site_id) {
-              cellMap.set(cs.site_name, cs.cells);
-            }
+            registerCells(cs.site_id, cs.cells);
+            registerCells(cs.site_name, cs.cells);
           }
         }
 
         // Bulk BBOX fetch is intentionally capped for performance, so some visible sites
         // may still be missing their cells. Backfill only unresolved sites individually.
-        const unresolvedAfterBulk = sitesNeedingCells.filter(site => !cellMap.has(site.site_id) && !cellMap.has(site.site_name));
+        const unresolvedAfterBulk = sitesNeedingCells.filter(site => !resolveSiteCells(site));
         if (unresolvedAfterBulk.length > 0) {
           const CONCURRENCY = 6;
           const DELAY_MS = 150;
@@ -5113,7 +5124,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             for (const { site, cells } of batchResults) {
               if (cells.length > 0) {
-                cellMap.set(site.site_id, cells);
+                registerCells(site.site_id, cells);
+                registerCells(site.site_name, cells);
               }
             }
 
@@ -5124,7 +5136,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Final fallback: synthesize approximate sectors only for sites still unresolved.
-        const unresolvedAfterFallback = sitesNeedingCells.filter(site => !cellMap.has(site.site_id) && !cellMap.has(site.site_name));
+        const unresolvedAfterFallback = sitesNeedingCells.filter(site => !resolveSiteCells(site));
         if (unresolvedAfterFallback.length > 0) {
           console.warn(`[SitesMonitor] Generating synthetic sectors for ${unresolvedAfterFallback.length} unresolved visible sites`);
           for (const site of unresolvedAfterFallback) {
@@ -5177,7 +5189,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             }
 
             if (syntheticCells.length > 0) {
-              cellMap.set(site.site_id, syntheticCells);
+              registerCells(site.site_id, syntheticCells);
+              registerCells(site.site_name, syntheticCells);
             }
           }
         }
@@ -5191,7 +5204,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
         setSites(prev => prev.map(s => {
-          const cells = cellMap.get(s.site_id) || cellMap.get(s.site_name);
+          const cells = resolveSiteCells(s);
           return cells && cells.length > 0 ? { ...s, cells } : s;
         }));
       } catch (err) {
