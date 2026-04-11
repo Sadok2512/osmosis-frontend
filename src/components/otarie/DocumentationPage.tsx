@@ -11,6 +11,7 @@ import KpiCatalogView from '@/components/documentation/KpiCatalogView';
 import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
 import QosNetworkView from '@/components/documentation/QosNetworkView';
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
+const NetworkTopologyPage = lazy(() => import('@/components/otarie/NetworkTopologyPage'));
 
 type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
 
@@ -225,7 +226,11 @@ const DocumentationPage: React.FC = () => {
           <FilterRepositoryView />
         ) : activeTab === 'qos_network' ? (
           <QosNetworkView />
-        ) : activeTab === 'parameters_hub' || activeTab === 'topology' ? (
+        ) : activeTab === 'topology' ? (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <NetworkTopologyPage />
+          </Suspense>
+        ) : activeTab === 'parameters_hub' ? (
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
             <TopologiePage />
           </Suspense>
