@@ -5680,19 +5680,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusCellId(null);
   };
 
-  // Non-blocking loading banner — map stays interactive
-  const loadingOverlay = (loading || bboxLoading) ? (
-    <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
-      <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
-        <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
-        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-          {sites.length > 0
-            ? `Chargement… ${sites.length.toLocaleString()} sites`
-            : 'Chargement des sites…'}
-        </p>
-      </div>
-    </div>
-  ) : null;
+  // Unified loading message — single banner below toolbar
+  const loadingMessage = useMemo(() => {
+    const isCellPhase = (cellsCacheLoading || cellsLoadingCount > 0) && viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    if (isCellPhase) {
+      return cellsLoadingCount > 0
+        ? `Chargement cellules • ${cellsLoadingCount} site${cellsLoadingCount > 1 ? 's' : ''} en cours`
+        : `Téléchargement cellules • ${cellsCacheLoadedCount.toLocaleString('fr-FR')} chargées`;
+    }
+    if (loading || bboxLoading) {
+      if (bboxLoading && bboxTotal > 0) return `Chargement sites (${bboxTotal})…`;
+      return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
+    }
+    return null;
+  }, [loading, bboxLoading, bboxTotal, sites.length, cellsCacheLoading, cellsLoadingCount, cellsCacheLoadedCount, viewport.zoom]);
 
   // Detail loading is now handled inline — no full-screen takeover
 
@@ -5701,26 +5702,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Main view — full screen map with clustering
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
-      {loadingOverlay}
-      {(cellsCacheLoading || cellsLoadingCount > 0) && viewport.zoom >= SITES_TO_CELLS_ZOOM && (
+      {loadingMessage && (
         <div className="absolute top-[72px] left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
             <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-              {cellsLoadingCount > 0
-                ? `Chargement cellules • ${cellsLoadingCount} site${cellsLoadingCount > 1 ? 's' : ''} en cours`
-                : `Téléchargement cellules • ${cellsCacheLoadedCount.toLocaleString('fr-FR')} chargées`}
-            </p>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{loadingMessage}</p>
           </div>
-        </div>
-      )}
-      {/* Empty state — no dashboard, modal closed */}
-      {/* Empty overlay removed — message now in sidebar */}
-      {/* Bbox loading indicator */}
-      {bboxLoading && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1001] px-3 py-1.5 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-lg flex items-center gap-2">
-          <RefreshCw size={12} className="text-primary animate-spin" />
-          <span className="text-[10px] font-semibold text-muted-foreground">Chargement {bboxTotal > 0 ? `(${bboxTotal} sites)` : ''}...</span>
         </div>
       )}
       {/* FULL SCREEN MAP */}
