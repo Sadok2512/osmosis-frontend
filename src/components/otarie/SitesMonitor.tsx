@@ -5088,7 +5088,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Bulk BBOX fetch is intentionally capped for performance, so some visible sites
         // may still be missing their cells. Backfill only unresolved sites individually.
-        const unresolvedAfterBulk = sitesNeedingCells.filter(site => !cellMap.has(site.site_id));
+        const unresolvedAfterBulk = sitesNeedingCells.filter(site => !cellMap.has(site.site_id) && !cellMap.has(site.site_name));
         if (unresolvedAfterBulk.length > 0) {
           const CONCURRENCY = 6;
           const DELAY_MS = 150;
@@ -5099,7 +5099,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const batchResults = await Promise.all(
               batch.map(async (site) => {
                 try {
-                  const cells = await fetchSiteCells(site.site_id);
+                  // Try site_id first, then site_name as fallback
+                  let cells = await fetchSiteCells(site.site_id);
+                  if (cells.length === 0 && site.site_name && site.site_name !== site.site_id) {
+                    cells = await fetchSiteCells(site.site_name);
+                  }
                   return { site, cells };
                 } catch {
                   return { site, cells: [] as any[] };
@@ -5120,7 +5124,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         // Final fallback: synthesize approximate sectors only for sites still unresolved.
-        const unresolvedAfterFallback = sitesNeedingCells.filter(site => !cellMap.has(site.site_id));
+        const unresolvedAfterFallback = sitesNeedingCells.filter(site => !cellMap.has(site.site_id) && !cellMap.has(site.site_name));
         if (unresolvedAfterFallback.length > 0) {
           console.warn(`[SitesMonitor] Generating synthetic sectors for ${unresolvedAfterFallback.length} unresolved visible sites`);
           for (const site of unresolvedAfterFallback) {
@@ -5187,7 +5191,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
         setSites(prev => prev.map(s => {
-          const cells = cellMap.get(s.site_id);
+          const cells = cellMap.get(s.site_id) || cellMap.get(s.site_name);
           return cells && cells.length > 0 ? { ...s, cells } : s;
         }));
       } catch (err) {
