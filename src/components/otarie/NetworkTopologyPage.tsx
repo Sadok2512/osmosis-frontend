@@ -266,45 +266,6 @@ const NetworkTopologyPage: React.FC = () => {
           />
         </div>
 
-        {/* ── Topo Service card ── */}
-        <Card className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <FolderOpen className="w-5 h-5 text-blue-500" />
-            <h2 className="text-sm font-bold uppercase tracking-wide">Topo Service</h2>
-          </div>
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border mb-3">
-            <FolderOpen className="w-5 h-5 text-blue-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Configured Path</div>
-              <div className="font-mono text-xs font-semibold truncate">
-                {stats?.csv_path || <span className="text-rose-500">— not configured —</span>}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Status</div>
-              {serviceBadge}
-            </div>
-          </div>
-          <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
-            <Info className="w-3 h-3" /> Path is configured in Config &gt; Vendors &amp; Paths. The service reads the file and imports it into the database.
-          </div>
-          <div className="flex gap-2 items-center">
-            <Button onClick={runImport} disabled={importing || !stats?.csv_path} size="sm">
-              {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-2" />}
-              Run Import
-            </Button>
-            {stats?.error && <span className="text-xs text-rose-500"><AlertCircle className="w-3 h-3 inline mr-1" />{stats.error}</span>}
-            <div className="flex-1" />
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-              disabled={!((stats?.rows || stats?.live_rows || 0) > 0)}
-            >
-              <Trash2 className="w-4 h-4 mr-2" /> Delete Topo
-            </Button>
-          </div>
-        </Card>
 
         {/* ── Sites search + table ── */}
         <Card className="p-5">
