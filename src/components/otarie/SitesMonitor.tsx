@@ -669,7 +669,13 @@ const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: 
     const timer = setTimeout(() => {
       if (validCoords.length > 0) {
         const bounds = L.latLngBounds(validCoords);
-        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13, minZoom: FRANCE_DEFAULT_ZOOM });
+        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13 });
+        // Prevent fitBounds from zooming out below default level
+        setTimeout(() => {
+          if (map.getZoom() < FRANCE_DEFAULT_ZOOM) {
+            map.setZoom(FRANCE_DEFAULT_ZOOM, { animate: false });
+          }
+        }, 100);
       } else {
         map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
       }
