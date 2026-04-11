@@ -66,7 +66,7 @@ import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } fro
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
-import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite } from '@/lib/localDb';
+import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
@@ -4647,6 +4647,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const cellLoadAttemptedRef = useRef(new Set<string>());
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cellsLoadingCount, setCellsLoadingCount] = useState(0);
+  const [cellsCacheLoadedCount, setCellsCacheLoadedCount] = useState(0);
+  const [cellsCacheLoading, setCellsCacheLoading] = useState(false);
 
   // Cleanup
   useEffect(() => {
@@ -5247,6 +5249,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!needsCellData) return;
 
     const unsub = onCellsCacheUpdate(() => {
+      setCellsCacheLoadedCount(getCellsCacheCount());
+      setCellsCacheLoading(isCellsCacheLoading());
       setSites(prev => {
         let changed = false;
         const next = prev.map(s => {
@@ -5290,6 +5294,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
 
     return unsub;
+  }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
+
+  useEffect(() => {
+    setCellsCacheLoadedCount(getCellsCacheCount());
+    setCellsCacheLoading(isCellsCacheLoading());
   }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
 
 
@@ -5685,6 +5694,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   return (
     <div className="absolute inset-0 bg-background overflow-hidden">
       {loadingOverlay}
+      {(cellsCacheLoading || cellsLoadingCount > 0) && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-[1100] pointer-events-none animate-fade-in">
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
+            <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              {cellsLoadingCount > 0
+                ? `Chargement cellules • ${cellsLoadingCount} site${cellsLoadingCount > 1 ? 's' : ''} en cours`
+                : `Téléchargement cellules • ${cellsCacheLoadedCount.toLocaleString('fr-FR')} chargées`}
+            </p>
+          </div>
+        </div>
+      )}
       {/* Empty state — no dashboard, modal closed */}
       {/* Empty overlay removed — message now in sidebar */}
       {/* Bbox loading indicator */}
