@@ -170,6 +170,7 @@ async function fetchKpiComputeOnTheFly(
       log('[KpiCompute] Split by field only:', splitByField);
       try {
         const splitBody: any = { ...body, split_by_field: splitByField };
+        console.log('[DEBUG KpiCompute] FIELD split request body:', JSON.stringify(splitBody, null, 2));
         const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
