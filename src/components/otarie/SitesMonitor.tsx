@@ -5101,8 +5101,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // may still be missing their cells. Backfill only unresolved sites individually.
         const unresolvedAfterBulk = sitesNeedingCells.filter(site => !resolveSiteCells(site));
         if (unresolvedAfterBulk.length > 0) {
-          const CONCURRENCY = 6;
-          const DELAY_MS = 150;
+          const CONCURRENCY = 3;
+          const DELAY_MS = 350;
           const queue = [...unresolvedAfterBulk];
 
           while (queue.length > 0) {
