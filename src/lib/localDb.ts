@@ -13,6 +13,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './apiConfig';
+import { inferBandFromCellName } from '@/services/topoService';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
