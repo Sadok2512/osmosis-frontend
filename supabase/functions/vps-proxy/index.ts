@@ -182,6 +182,7 @@ Deno.serve(async (req) => {
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+    const isSafeWrite = ['PUT', 'DELETE'].includes(req.method) && (service === 'kpi' || service === 'parser') && path.includes('/catalog/');
     const isAgentPost2 = req.method === 'POST' && service === 'agent';
 
     // Stream SSE responses directly (don't buffer)
