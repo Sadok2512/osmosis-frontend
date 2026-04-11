@@ -924,8 +924,7 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
 
   // ── 1) Try lightweight VPS /topo/cells?search=SITE_ID ──
   try {
-    const qs = new URLSearchParams({ search: siteId, limit: '500' });
-    const url = getVpsProxyUrl('parser', `/api/v1/topo/cells?${qs}`);
+    const url = getVpsProxyUrl('parser', `/api/v1/topo/cells`, { search: siteId, limit: '500' });
     const resp = await fetch(url, { headers: getVpsProxyHeaders() });
     if (resp.ok) {
       const data = await resp.json();
