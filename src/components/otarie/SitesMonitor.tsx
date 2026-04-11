@@ -5027,7 +5027,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Viewport width for responsive sector sizing
   const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
 
-        console.log(`[SitesMonitor] BBOX cells: ${cellSites.length} sites with cells, cellMap keys: ${cellMap.size}, sites needing: ${sitesNeedingCells.length}`);
+
   // Determine if we have cell-level view conditions that require cell data
   const hasCellLevelConditions = useMemo(
     () => hasAnyCellLevelCondition(activeViewConditions),
