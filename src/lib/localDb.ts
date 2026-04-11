@@ -620,7 +620,7 @@ export const topoApi = {
           const azimut = Math.round((360 / numSectors) * i);
           for (const c of sectorCells) {
             mergedCells.push({
-              code_nidt: siteName,
+              code_nidt: coords.code_nidt || siteName,
               nom_site: siteName,
               nom_cellule: c.cell_name || c.nom_cellule || `${siteName}_cell`,
               latitude: coords.lat,
