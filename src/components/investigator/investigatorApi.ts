@@ -94,6 +94,8 @@ async function fetchKpiComputeOnTheFly(
       date_to: dateTo,
       granularity,
     };
+    // DEBUG: log full request details
+    console.log('[DEBUG KpiCompute] url:', url, 'kpiId:', kpiId, 'splitByPmDim:', splitByPmDim, 'splitByField:', splitByField, 'filters:', JSON.stringify(filters));
 
     // Extract site/cell/dimension from filters — support multi-value.
     // Any filter whose dimension is not a structural field (SITE/CELL/VENDOR/TECH)
