@@ -518,23 +518,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       setMessages(prev => [...prev, { role: 'assistant', content: errorMsg }]);
     } finally {
       setIsLoading(false);
-      // Auto-save conversation to backend (DB is backup, localStorage is primary)
-      try {
-        const sess = sessions.find(s => s.id === activeSessionIdRef.current);
-        if (sess) {
-          const url = getVpsProxyUrl('parser', '/api/v1/ai/conversations');
-          await fetch(url, {
-            method: 'POST',
-            headers: { ...getAgentHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: sess.id,
-              title: sess.title,
-              messages: sess.messages,
-              user_id: getStoredSession()?.id,
-            }),
-          });
-        }
-      } catch {} // Silent - localStorage is primary, DB is backup
+      // Conversations are saved in localStorage (primary storage)
+      // VPS backup endpoint /api/v1/ai/conversations is not available — skipped
     }
   }, [messages, isLoading, setMessages, streamChat, extractCellsFromResponse, handleDashboardCreation, addDebugLog, sessions]);
 
