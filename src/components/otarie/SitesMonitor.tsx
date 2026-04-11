@@ -5054,11 +5054,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
-    const sitesNeedingCells = visibleSites.filter(
+    const sitesNeedingCellsRaw = visibleSites.filter(
       s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
     );
 
-    if (sitesNeedingCells.length === 0) return;
+    if (sitesNeedingCellsRaw.length === 0) return;
+
+    // Prioritize sites closest to viewport center so on-screen sites get sectors first
+    const center = viewport.bounds!.getCenter();
+    const sitesNeedingCells = [...sitesNeedingCellsRaw].sort((a, b) => {
+      const da = Math.abs(a.coordinates[0] - center.lat) + Math.abs(a.coordinates[1] - center.lng);
+      const db = Math.abs(b.coordinates[0] - center.lat) + Math.abs(b.coordinates[1] - center.lng);
+      return da - db;
+    });
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
