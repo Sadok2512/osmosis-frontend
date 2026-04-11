@@ -5075,11 +5075,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         // Single bulk call for all cells in current viewport
         const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
 
-        // Build a lookup by site_id
+        // Build a lookup by site_id AND site_name (VPS may use site_name as code_nidt)
         const cellMap = new Map<string, any[]>();
         for (const cs of cellSites) {
           if (cs.cells && cs.cells.length > 0) {
             cellMap.set(cs.site_id, cs.cells);
+            if (cs.site_name && cs.site_name !== cs.site_id) {
+              cellMap.set(cs.site_name, cs.cells);
+            }
           }
         }
 
