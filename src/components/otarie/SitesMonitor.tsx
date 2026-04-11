@@ -6169,10 +6169,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={r}
                 pane="pane4G"
                 pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : 'hsl(var(--border))'),
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['4G_GROUP'] || '#f97316'))),
                   fillColor: colorOverride || (bandColors['4G_GROUP'] || '#f97316'),
-                  fillOpacity: 0.85,
-                  weight: isSel ? 2 : (isHov ? 2 : 1),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
@@ -6209,10 +6209,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={r}
                 pane="pane5G"
                 pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : (isMixed && !colorOverride ? 'transparent' : 'hsl(var(--border))')),
+                  color: isSel ? '#fff' : (isHov ? '#fff' : (isMixed && !colorOverride ? 'transparent' : deriveStrokeColor(colorOverride || (bandColors['5G_GROUP'] || '#22c55e')))),
                   fillColor: colorOverride || (bandColors['5G_GROUP'] || '#22c55e'),
-                  fillOpacity: 0.9,
-                  weight: isSel ? 2 : (isHov ? 2 : (isMixed && !colorOverride ? 0 : 1)),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : (isMixed && !colorOverride ? 0 : 1.5)),
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
@@ -6246,10 +6246,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={br}
                 pane="pane4G"
                 pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : 'hsl(var(--border))'),
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || FADED_COLOR)),
                   fillColor: colorOverride || FADED_COLOR,
-                  fillOpacity: 0.85,
-                  weight: isSel ? 2 : (isHov ? 2 : 1),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
