@@ -66,7 +66,7 @@ import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } fro
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
-import { BboxFilters } from '@/lib/localDb';
+import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
   Search, RefreshCw, ChevronLeft, MapPin,
