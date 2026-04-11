@@ -5996,7 +5996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 11 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
