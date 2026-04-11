@@ -5129,6 +5129,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }
             }
 
+            // Progressive update: merge cells found so far into sites state
+            setSites(prev => prev.map(s => {
+              if (s.cells.length > 0) return s;
+              const cells = resolveSiteCells(s);
+              return cells && cells.length > 0 ? { ...s, cells } : s;
+            }));
+
             if (queue.length > 0) {
               await new Promise(resolve => setTimeout(resolve, DELAY_MS));
             }
