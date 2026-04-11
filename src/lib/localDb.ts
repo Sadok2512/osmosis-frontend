@@ -240,6 +240,26 @@ export interface BboxFilters {
 let _cellsCache: { key: string; cells: any[]; ts: number } | null = null;
 const CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
 const CHUNK_SIZE = 10000;
+let _cellsCacheLoading = false;
+let _cellsCacheVersion = 0; // increments on every chunk arrival
+type CellsCacheListener = (version: number) => void;
+const _cellsCacheListeners = new Set<CellsCacheListener>();
+
+/** Subscribe to cells cache updates (new chunks loaded). Returns unsubscribe fn. */
+export function onCellsCacheUpdate(fn: CellsCacheListener): () => void {
+  _cellsCacheListeners.add(fn);
+  return () => _cellsCacheListeners.delete(fn);
+}
+
+/** Whether the cells cache is still loading chunks in the background */
+export function isCellsCacheLoading(): boolean {
+  return _cellsCacheLoading;
+}
+
+/** Current cells cache version (increments on each chunk) */
+export function getCellsCacheVersion(): number {
+  return _cellsCacheVersion;
+}
 
 function cellsCacheKey(filters?: BboxFilters): string {
   if (!filters) return 'all';
@@ -264,12 +284,14 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
   }
 
   // Load first chunk quickly
+  _cellsCacheLoading = true;
   const qs1 = buildCellsQs(filters, CHUNK_SIZE, 0);
   const data1 = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs1}`), signal);
   const chunk1 = Array.isArray(data1) ? data1 : (data1?.rows || data1?.cells || []);
   
   // Cache first chunk immediately so sectors can render while rest loads
   _cellsCache = { key, cells: chunk1, ts: Date.now() };
+  _cellsCacheVersion++;
   console.log(`[TopoApi] Cells chunk 1 cached: ${chunk1.length} cells`);
 
   // If first chunk is full, load remaining chunks in background
@@ -288,6 +310,9 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
           if (_cellsCache?.key === key) {
             _cellsCache = { key, cells: allCells, ts: Date.now() };
           }
+          _cellsCacheVersion++;
+          // Notify listeners so SitesMonitor can re-merge
+          for (const fn of _cellsCacheListeners) fn(_cellsCacheVersion);
           console.log(`[TopoApi] Cells chunk cached: +${chunk.length} → ${allCells.length} total`);
           if (chunk.length < CHUNK_SIZE) break;
           offset += CHUNK_SIZE;
@@ -296,8 +321,14 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
         if (err?.name !== 'AbortError') {
           console.warn('[TopoApi] Background cells loading failed', err);
         }
+      } finally {
+        _cellsCacheLoading = false;
+        _cellsCacheVersion++;
+        for (const fn of _cellsCacheListeners) fn(_cellsCacheVersion);
       }
     })();
+  } else {
+    _cellsCacheLoading = false;
   }
 
   return chunk1;
