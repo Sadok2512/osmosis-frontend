@@ -137,46 +137,69 @@ interface TopoRow {
  * Infer band from cell name when backend doesn't provide it.
  * Common patterns: ENB1 → B1/1800, ENB3 → B3/1800, GNB1 → NR2100, etc.
  */
-function inferBandFromCellName(cellName: string, techno: string): string {
+/**
+ * Infer band from Orange France cell naming convention.
+ * The last letter before the sector digit encodes the band:
+ *   4G: E=L2600, F=L1800, H=L800, V=L2100, K=L700, L=L900
+ *   5G: X=NR3500, Y=NR2100, Z=NR700, W=NR1800, U=NR2600
+ * Exported so localDb.ts can reuse it.
+ */
+export function inferBandFromCellName(cellName: string, techno: string): string {
   if (!cellName) return '';
   const upper = cellName.toUpperCase();
   const is5G = techno.toUpperCase().includes('5G') || techno.toUpperCase().includes('NR') || upper.includes('GNB');
 
-  // Try to extract band indicator from cell name patterns like _ENB1_, _GNB1_, _B28_, _N78_
-  const enbMatch = upper.match(/ENB(\d+)/);
-  const gnbMatch = upper.match(/GNB(\d+)/);
-  const bandNumMatch = upper.match(/[_\-]B(\d+)[_\-]/);
-  const nrBandMatch = upper.match(/[_\-]N(\d+)[_\-]/);
-
-  if (gnbMatch || is5G) {
-    // 5G cell
-    if (upper.includes('3500') || upper.includes('N78')) return 'NR3500';
-    if (upper.includes('2100') || upper.includes('N1')) return 'NR2100';
-    if (upper.includes('700') || upper.includes('N28')) return 'NR700';
-    if (nrBandMatch) {
-      const n = nrBandMatch[1];
-      if (n === '78') return 'NR3500';
-      if (n === '1') return 'NR2100';
-      if (n === '28') return 'NR700';
+  // ── Orange letter-code convention (last segment like _E1, _F2, _X3) ──
+  const letterMatch = upper.match(/[_\-]([A-Z])(\d)$/);
+  if (letterMatch) {
+    const letter = letterMatch[1];
+    // 5G letters
+    if (is5G || 'XYZWU'.includes(letter)) {
+      switch (letter) {
+        case 'X': return 'NR3500';
+        case 'Y': return 'NR2100';
+        case 'Z': return 'NR700';
+        case 'W': return 'NR1800';
+        case 'U': return 'NR2600';
+      }
     }
-    return 'NR3500'; // default 5G band
+    // 4G letters
+    switch (letter) {
+      case 'E': return 'L2600';
+      case 'F': return 'L1800';
+      case 'H': return 'L800';
+      case 'V': return 'L2100';
+      case 'K': return 'L700';
+      case 'L': return 'L900';
+    }
   }
 
-  // 4G cell
-  if (upper.includes('2600') || upper.includes('B7')) return 'L2600';
-  if (upper.includes('1800') || upper.includes('B3')) return 'L1800';
-  if (upper.includes('2100') || upper.includes('B1')) return 'L2100';
-  if (upper.includes('800') || upper.includes('B20')) return 'L800';
-  if (upper.includes('700') || upper.includes('B28')) return 'L700';
-  if (bandNumMatch) {
-    const b = bandNumMatch[1];
+  // ── Fallback: explicit band numbers in name ──
+  if (is5G) {
+    if (upper.includes('3500') || upper.includes('N78')) return 'NR3500';
+    if (upper.includes('2100') || /\bN1\b/.test(upper)) return 'NR2100';
+    if (upper.includes('700') || upper.includes('N28')) return 'NR700';
+    return 'NR3500'; // default 5G
+  }
+
+  if (upper.includes('2600')) return 'L2600';
+  if (upper.includes('1800')) return 'L1800';
+  if (upper.includes('2100')) return 'L2100';
+  if (upper.includes('800') && !upper.includes('1800') && !upper.includes('3800')) return 'L800';
+  if (upper.includes('700') && !upper.includes('2700') && !upper.includes('3700')) return 'L700';
+
+  // Strict standalone B-code match (avoid ENB1 false positive)
+  const strictBand = upper.match(/(?:^|[_\-])B(\d+)(?:$|[_\-])/);
+  if (strictBand) {
+    const b = strictBand[1];
     if (b === '7') return 'L2600';
     if (b === '3') return 'L1800';
     if (b === '1') return 'L2100';
     if (b === '20') return 'L800';
     if (b === '28') return 'L700';
   }
-  return 'L1800'; // default 4G band
+
+  return 'L1800'; // default 4G
 }
 
 function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
