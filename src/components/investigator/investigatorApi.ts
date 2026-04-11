@@ -94,6 +94,8 @@ async function fetchKpiComputeOnTheFly(
       date_to: dateTo,
       granularity,
     };
+    // DEBUG: log full request details
+    console.log('[DEBUG KpiCompute] url:', url, 'kpiId:', kpiId, 'splitByPmDim:', splitByPmDim, 'splitByField:', splitByField, 'filters:', JSON.stringify(filters));
 
     // Extract site/cell/dimension from filters — support multi-value.
     // Any filter whose dimension is not a structural field (SITE/CELL/VENDOR/TECH)
@@ -139,6 +141,7 @@ async function fetchKpiComputeOnTheFly(
         // Single request with split_by_dimension=true (+ optional double split field)
         const splitBody: any = { ...body, split_by_dimension: true };
         if (splitByField) splitBody.split_by_field = splitByField;
+        console.log('[DEBUG KpiCompute] PM_DIM split request body:', JSON.stringify(splitBody, null, 2));
         const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
@@ -167,6 +170,7 @@ async function fetchKpiComputeOnTheFly(
       log('[KpiCompute] Split by field only:', splitByField);
       try {
         const splitBody: any = { ...body, split_by_field: splitByField };
+        console.log('[DEBUG KpiCompute] FIELD split request body:', JSON.stringify(splitBody, null, 2));
         const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
         if (splitRes.ok) {
           const splitResult = await splitRes.json();
