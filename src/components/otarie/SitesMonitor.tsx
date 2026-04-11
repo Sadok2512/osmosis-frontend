@@ -5279,7 +5279,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               zone_arcep: c.zone_arcep ?? null,
               plaque: c.plaque ?? null,
               dor: c.dor ?? null,
-            } as CellProperties;
+            } as unknown as CellProperties;
           });
           cellLoadAttemptedRef.current.add(s.site_id);
           return { ...s, cells };
