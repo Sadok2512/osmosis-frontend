@@ -979,8 +979,13 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
           const azimut = (hasRealAzimut && r.azimut != null && r.azimut !== 0)
             ? r.azimut
             : sectorAzimutMap.get(sectorIdx) ?? 0;
-          const technoRaw = r.techno || '4G';
-          const techno = technoRaw.toUpperCase().includes('5G') || technoRaw.toLowerCase() === '5g' || technoRaw.toLowerCase() === 'nr' ? '5G' : '4G';
+          const technoRaw = r.techno || r.rat || '4G';
+          const techUpper = technoRaw.toUpperCase();
+          const techno = techUpper.includes('5G') || techUpper === 'NR' ? '5G'
+            : techUpper.includes('3G') || techUpper === 'UMTS' || techUpper === 'WCDMA' ? '3G'
+            : techUpper.includes('2G') || techUpper === 'GSM' ? '2G'
+            : techUpper.includes('4G') || techUpper === 'LTE' ? '4G'
+            : '4G';
           return buildCellProperties(
             cellName,
             techno,
