@@ -10048,31 +10048,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const hasFastStats = ns && (ns.sites4G > 0 || ns.sites5G > 0 || ns.cells4G > 0 || ns.cells5G > 0);
             // Compute from loaded sites as fallback
             const computedStats: TopoNetworkStats = (() => {
-              const s4g = new Set<string>();
-              const s5g = new Set<string>();
-              let c4g = 0, c5g = 0;
-              const bm4g: Record<string, number> = {};
-              const bm5g: Record<string, number> = {};
-              const vm: Record<string, { '4G': number; '5G': number }> = {};
+              const s2g = new Set<string>(), s3g = new Set<string>(), s4g = new Set<string>(), s5g = new Set<string>();
+              let c2g = 0, c3g = 0, c4g = 0, c5g = 0;
+              const bm2g: Record<string, number> = {}, bm3g: Record<string, number> = {}, bm4g: Record<string, number> = {}, bm5g: Record<string, number> = {};
+              const vm: Record<string, { '2G': number; '3G': number; '4G': number; '5G': number }> = {};
               filteredSites.forEach(site => {
                 const inferredTechState = inferSiteTechState(site);
-                let has4g = inferredTechState.has4G, has5g = inferredTechState.has5G;
+                let has2g = inferredTechState.has2G, has3g = inferredTechState.has3G, has4g = inferredTechState.has4G, has5g = inferredTechState.has5G;
                 site.cells.forEach(c => {
-                  const is5g = c.techno?.includes('5G') || c.techno === 'NR';
+                  const tg = getCellTechGroup(c.techno);
                   const v = (c as any).vendor || site.vendor || 'Unknown';
-                  if (!vm[v]) vm[v] = { '4G': 0, '5G': 0 };
-                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
-                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
+                  if (!vm[v]) vm[v] = { '2G': 0, '3G': 0, '4G': 0, '5G': 0 };
+                  const b = c.bande || 'Unknown';
+                  if (tg === '5G') { c5g++; has5g = true; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
+                  else if (tg === '4G') { c4g++; has4g = true; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
+                  else if (tg === '3G') { c3g++; has3g = true; bm3g[b] = (bm3g[b] || 0) + 1; vm[v]['3G']++; }
+                  else if (tg === '2G') { c2g++; has2g = true; bm2g[b] = (bm2g[b] || 0) + 1; vm[v]['2G']++; }
+                  else { c4g++; has4g = true; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
                 });
+                if (has2g) s2g.add(site.site_id);
+                if (has3g) s3g.add(site.site_id);
                 if (has4g) s4g.add(site.site_id);
                 if (has5g) s5g.add(site.site_id);
-                // If no cells loaded, use lte_cells/nr_cells counts
                 if (site.cells.length === 0) {
                   if ((site.lte_cells ?? 0) > 0) { s4g.add(site.site_id); c4g += site.lte_cells ?? 0; }
                   if ((site.nr_cells ?? 0) > 0) { s5g.add(site.site_id); c5g += site.nr_cells ?? 0; }
+                  if (((site as any).cells_2g ?? 0) > 0) { s2g.add(site.site_id); c2g += (site as any).cells_2g ?? 0; }
+                  if (((site as any).cells_3g ?? 0) > 0) { s3g.add(site.site_id); c3g += (site as any).cells_3g ?? 0; }
                 }
               });
-              return { sites4G: s4g.size, sites5G: s5g.size, cells4G: c4g, cells5G: c5g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
+              return { sites2G: s2g.size, sites3G: s3g.size, sites4G: s4g.size, sites5G: s5g.size, cells2G: c2g, cells3G: c3g, cells4G: c4g, cells5G: c5g, bandMap2G: bm2g, bandMap3G: bm3g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
             })();
             const displayStats: TopoNetworkStats = hasFastStats
               ? {
