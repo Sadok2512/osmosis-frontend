@@ -5,16 +5,26 @@ import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
-// Only 4G (LTE) and 5G (NR) — ignore 2G/3G
-const ALLOWED_TECHNOS = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
-function is4Gor5G(techno: string | null | undefined): boolean {
+// All supported technologies
+const ALLOWED_TECHNOS = new Set(['2G', '3G', '4G', '5G', 'LTE', 'NR', 'GSM', 'UMTS', 'WCDMA', '2g', '3g', '4g', '5g', 'lte', 'nr', 'gsm', 'umts', 'wcdma']);
+function isAllowedTechno(techno: string | null | undefined): boolean {
   if (!techno) return true; // include unknowns
   return ALLOWED_TECHNOS.has(techno.trim());
 }
-function filterSites4G5G(sites: SiteSummary[]): SiteSummary[] {
+
+/** Normalize raw techno string to canonical 2G/3G/4G/5G */
+function normalizeTechnoRaw(raw: string | null | undefined): string {
+  const v = String(raw || '').toUpperCase().trim();
+  if (v.includes('5G') || v === 'NR') return '5G';
+  if (v.includes('3G') || v === 'UMTS' || v === 'WCDMA') return '3G';
+  if (v.includes('2G') || v === 'GSM') return '2G';
+  return '4G';
+}
+
+function filterSitesAllTech(sites: SiteSummary[]): SiteSummary[] {
   return sites.map(site => {
     if (!site.cells || site.cells.length === 0) return site;
-    const filtered = site.cells.filter(c => is4Gor5G(c.techno));
+    const filtered = site.cells.filter(c => isAllowedTechno(c.techno));
     if (filtered.length === site.cells.length) return site;
     return { ...site, cells: filtered, cell_count: filtered.length };
   });
