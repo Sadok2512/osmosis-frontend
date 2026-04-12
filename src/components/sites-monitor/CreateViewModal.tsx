@@ -149,7 +149,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
 
   const handleSave = () => {
     if (!viewType || !isValid) return;
-    const config: ViewConfig = { name: name.trim(), type: viewType };
+    const config: ViewConfig = { name: effectiveName, type: viewType };
     if (viewType === 'kpi_overlay') {
       config.technology = technology;
       config.level = level;
