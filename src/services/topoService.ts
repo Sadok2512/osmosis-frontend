@@ -665,7 +665,7 @@ export async function fetchSitesByBbox(
       throw new Error('BBOX returned only invalid site coordinates');
     }
 
-    const filtered4G5G = filterSites4G5G(sites);
+    const filtered4G5G = filterSitesAllTech(sites);
     bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
     const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
@@ -710,7 +710,7 @@ export async function fetchCellsByBbox(
 
   if (!sitesFromEndpoint) return [];
 
-  return filterSites4G5G(sitesFromEndpoint);
+  return filterSitesAllTech(sitesFromEndpoint);
 }
 
 export function invalidateBboxCache() {
@@ -825,7 +825,7 @@ export async function fetchDashboardSites(
       .map(dtoToSiteSummary)
       .filter((site): site is SiteSummary => site !== null);
 
-    const filteredSites = filterSites4G5G(rawSites);
+    const filteredSites = filterSitesAllTech(rawSites);
 
     // Progressive: push raw sites immediately so map renders them
     if (onProgressiveBatch && filteredSites.length > 0) {
