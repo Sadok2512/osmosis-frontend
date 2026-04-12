@@ -1929,7 +1929,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             id: crypto.randomUUID(),
             dimension: dim,
             operator: '=' as const,
-            value: val,
+            values: [val],
           }));
         settings.viewConditions = conditions;
         settings.siteFilters = conditionsToSiteFilters(conditions);
