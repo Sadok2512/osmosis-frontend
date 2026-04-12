@@ -223,6 +223,9 @@ export function resolveAvailableValues(
     case 'dor':
       return backendVals ?? REF_DOR_TREE.dors;
 
+    case 'dr':
+      return backendVals ?? REF_DOR_TREE.dors.map(d => d.replace('UPR ', 'DR ')).sort();
+
     case 'constructeur':
       return backendVals ?? Array.from(
         new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor => Object.keys(byDor)))
