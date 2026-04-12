@@ -9459,14 +9459,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       overlays.push(settings.mapKpi);
                     }
                     setKpiOverlays(overlays);
-                    // Restore techno and analysis level from view
-                    if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
-                      setKpiTechnoFilter(settings.kpiTechno);
+
+                    // Handle new view type configs (KPI Overlay / Topology Search)
+                    if (settings.viewType === 'kpi_overlay' && settings.kpiOverlayConfig) {
+                      const cfg = settings.kpiOverlayConfig;
+                      if (cfg.technology) setKpiTechnoFilter(cfg.technology);
+                      if (cfg.level) setKpiAnalysisLevel(cfg.level);
+                      // Apply KPI overlays from view config
+                      const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
+                      if (cfgOverlays.length > 0) {
+                        setKpiOverlays(cfgOverlays);
+                        setMapKpi(cfgOverlays[0]);
+                        setSectorColorMode('kpi');
+                        // Apply custom thresholds from view config
+                        const viewThresholds: Record<string, any> = {};
+                        for (const kpiCfg of cfg.kpis || []) {
+                          if (kpiCfg.thresholds?.length >= 2) {
+                            viewThresholds[kpiCfg.kpiKey] = {
+                              green: kpiCfg.thresholds[kpiCfg.thresholds.length - 1]?.min ?? 50,
+                              orange: kpiCfg.thresholds[1]?.min ?? 10,
+                            };
+                          }
+                        }
+                        if (Object.keys(viewThresholds).length > 0) {
+                          setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
+                        }
+                      }
+                    } else {
+                      // Restore techno and analysis level from view (legacy)
+                      if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
+                        setKpiTechnoFilter(settings.kpiTechno);
+                      }
+                      if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
+                        setKpiAnalysisLevel(settings.kpiAnalysisLevel);
+                      }
                     }
-                    if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
-                      setKpiAnalysisLevel(settings.kpiAnalysisLevel);
-                    }
-                    if (overlays.length > 0) {
+
+                    if (overlays.length > 0 && settings.viewType !== 'kpi_overlay') {
                       setMapKpi(overlays[overlays.length - 1]);
                       setSectorColorMode('kpi');
                     } else if (settings._isDashboardOnly) {
