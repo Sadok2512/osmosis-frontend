@@ -2471,6 +2471,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
                                   {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
                                   {vs.viewType === 'topology_search' && <span className="text-[7px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold uppercase">Topo</span>}
+                                  {vs.viewType === 'parameter' && <span className="text-[7px] px-1 py-0.5 rounded bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold uppercase">Param</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
                                   {vs.viewType === 'kpi_overlay' && vs.kpiOverlayConfig && (
@@ -2484,6 +2485,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   )}
                                   {vs.viewType === 'topology_search' && (
                                     <span>{Object.entries(vs.topoSearchConfig || {}).filter(([,v]: [string, any]) => v).length} critère(s)</span>
+                                  )}
+                                  {vs.viewType === 'parameter' && vs.paramFilters && (
+                                    <span>{vs.paramFilters.parameter || 'Paramètre'}</span>
                                   )}
                                   {!vs.viewType && (
                                     <>
