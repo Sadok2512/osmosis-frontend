@@ -4,10 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette } from 'lucide-react';
+import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2 } from 'lucide-react';
 
 // ── Types ──
-export type ViewType = 'kpi_overlay' | 'topology_search';
+export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter';
 export type AnalysisLevel = 'site' | 'cell' | 'band';
 
 export interface KpiThreshold {
@@ -31,6 +31,8 @@ export interface ViewConfig {
   kpis?: KpiOverlayItem[];
   // Topology Search
   topoFilters?: Record<string, string>;
+  // Parameter
+  paramFilters?: Record<string, string>;
 }
 
 interface Props {
@@ -58,6 +60,15 @@ const TOPO_FILTER_KEYS = [
   { key: 'nom_cellule', label: 'Nom Cellule' },
 ];
 
+const PARAM_FILTER_KEYS = [
+  { key: 'parameter', label: 'Paramètre' },
+  { key: 'site_name', label: 'Site' },
+  { key: 'cell_name', label: 'Cellule' },
+  { key: 'bande', label: 'Bande' },
+  { key: 'vendor', label: 'Vendor' },
+  { key: 'value', label: 'Valeur' },
+];
+
 export function CreateViewModal({ open, onOpenChange, onSave, saving, availableKpis = [] }: Props) {
   const [step, setStep] = useState<1 | 2>(1);
   const [viewType, setViewType] = useState<ViewType | null>(null);
@@ -73,6 +84,10 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
   const [topoFilters, setTopoFilters] = useState<Record<string, string>>({});
   const [activeTopoKeys, setActiveTopoKeys] = useState<string[]>(['pci']);
 
+  // Parameter state
+  const [paramFilters, setParamFilters] = useState<Record<string, string>>({});
+  const [activeParamKeys, setActiveParamKeys] = useState<string[]>(['parameter']);
+
   // Reset when closing
   const handleOpenChange = (o: boolean) => {
     if (!o) {
@@ -85,6 +100,8 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       setKpiSearch('');
       setTopoFilters({});
       setActiveTopoKeys(['pci']);
+      setParamFilters({});
+      setActiveParamKeys(['parameter']);
     }
     onOpenChange(o);
   };
@@ -137,13 +154,18 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
     }));
   };
 
-  const effectiveName = name.trim() || (viewType === 'kpi_overlay'
-    ? `KPI ${technology} – ${selectedKpis.map(k => k.label).join(', ') || 'Overlay'}`
-    : `Topo Search`);
+  const effectiveName = name.trim() || (
+    viewType === 'kpi_overlay'
+      ? `KPI ${technology} – ${selectedKpis.map(k => k.label).join(', ') || 'Overlay'}`
+      : viewType === 'parameter'
+        ? `Param – ${paramFilters['parameter'] || 'Search'}`
+        : `Topo Search`
+  );
 
   const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
-    (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim()))
+    (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim())) ||
+    (viewType === 'parameter' && Object.values(paramFilters).some(v => v.trim()))
   );
 
   const handleSave = () => {
@@ -153,9 +175,13 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       config.technology = technology;
       config.level = level;
       config.kpis = selectedKpis;
-    } else {
+    } else if (viewType === 'topology_search') {
       config.topoFilters = Object.fromEntries(
         Object.entries(topoFilters).filter(([, v]) => v.trim())
+      );
+    } else if (viewType === 'parameter') {
+      config.paramFilters = Object.fromEntries(
+        Object.entries(paramFilters).filter(([, v]) => v.trim())
       );
     }
     onSave(config);
@@ -180,7 +206,8 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                 <p className="text-xs text-muted-foreground mt-0.5">Choisissez le type de vue à créer</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                {/* KPI Overlay */}
                 <button
                   onClick={() => setViewType('kpi_overlay')}
                   className={`group relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
@@ -197,7 +224,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                   <div className="text-center">
                     <div className="text-sm font-bold">KPI Overlay</div>
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Visualisez les performances réseau directement sur la carte avec des codes couleur
+                      Performances réseau sur la carte avec codes couleur
                     </p>
                   </div>
                   {viewType === 'kpi_overlay' && (
@@ -207,6 +234,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                   )}
                 </button>
 
+                {/* Topology Search */}
                 <button
                   onClick={() => setViewType('topology_search')}
                   className={`group relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
@@ -223,10 +251,37 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                   <div className="text-center">
                     <div className="text-sm font-bold">Topology Search</div>
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Recherchez et affichez des éléments spécifiques de la topologie réseau
+                      Recherchez des éléments spécifiques de la topologie
                     </p>
                   </div>
                   {viewType === 'topology_search' && (
+                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                      <span className="text-[10px] font-bold">✓</span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Parameter */}
+                <button
+                  onClick={() => setViewType('parameter')}
+                  className={`group relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                    viewType === 'parameter'
+                      ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                      : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                    viewType === 'parameter' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary'
+                  }`}>
+                    <Settings2 size={24} />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-bold">Parameter</div>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                      Recherchez et filtrez les paramètres CM du réseau
+                    </p>
+                  </div>
+                  {viewType === 'parameter' && (
                     <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                       <span className="text-[10px] font-bold">✓</span>
                     </div>
@@ -247,7 +302,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
             </div>
           )}
 
-          {/* ── STEP 2: Configuration ── */}
+          {/* ── STEP 2: KPI Overlay ── */}
           {step === 2 && viewType === 'kpi_overlay' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -442,6 +497,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
             </div>
           )}
 
+          {/* ── STEP 2: Topology Search ── */}
           {step === 2 && viewType === 'topology_search' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -507,6 +563,92 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                     <SelectContent>
                       {TOPO_FILTER_KEYS
                         .filter(t => !activeTopoKeys.includes(t.key))
+                        .map(t => (
+                          <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                  <ChevronLeft size={14} className="mr-1" /> Retour
+                </Button>
+                <Button onClick={handleSave} disabled={!isValid || saving} className="flex-1">
+                  {saving ? 'Création...' : 'Créer la vue'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 2: Parameter ── */}
+          {step === 2 && viewType === 'parameter' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStep(1)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                  <ChevronLeft size={16} className="text-muted-foreground" />
+                </button>
+                <div>
+                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
+                    <Settings2 size={16} className="text-primary" /> Parameter
+                  </h2>
+                  <p className="text-[10px] text-muted-foreground">Filtrez et affichez les paramètres CM du réseau</p>
+                </div>
+              </div>
+
+              {/* View name */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Nom de la vue *</label>
+                <Input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Param maxTxPower Band 700"
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Param filters */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Filtres paramètres</label>
+                <div className="space-y-2">
+                  {activeParamKeys.map(key => {
+                    const def = PARAM_FILTER_KEYS.find(t => t.key === key);
+                    return (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-foreground w-24 shrink-0">{def?.label || key}</span>
+                        <Input
+                          value={paramFilters[key] || ''}
+                          onChange={e => setParamFilters(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder={`Valeur ${def?.label || key}...`}
+                          className="text-xs h-8 flex-1"
+                        />
+                        <button
+                          onClick={() => {
+                            setActiveParamKeys(prev => prev.filter(k => k !== key));
+                            setParamFilters(prev => { const n = { ...prev }; delete n[key]; return n; });
+                          }}
+                          className="p-1 hover:text-destructive text-muted-foreground"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Add filter */}
+                {PARAM_FILTER_KEYS.filter(t => !activeParamKeys.includes(t.key)).length > 0 && (
+                  <Select
+                    onValueChange={key => setActiveParamKeys(prev => [...prev, key])}
+                  >
+                    <SelectTrigger className="text-xs h-8 mt-2 w-48">
+                      <SelectValue placeholder="+ Ajouter un filtre" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARAM_FILTER_KEYS
+                        .filter(t => !activeParamKeys.includes(t.key))
                         .map(t => (
                           <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
                         ))}
