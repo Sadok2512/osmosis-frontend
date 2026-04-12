@@ -299,37 +299,40 @@ const getZoomAwareRadius = (
   return Math.max(30, Math.min(1200, targetPx * mpp));
 };
 
-const inferSiteTechState = (site: SiteSummary) => {
+const inferSiteTechState = (site: SiteSummary): { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean } => {
   if (site.cells.length > 0) {
     const has5G = site.cells.some(cell => is5GTech(cell.techno));
     const has4G = site.cells.some(cell => is4GTech(cell.techno));
-    return { has4G, has5G };
+    const has3G = site.cells.some(cell => is3GTech(cell.techno));
+    const has2G = site.cells.some(cell => is2GTech(cell.techno));
+    return { has2G, has3G, has4G, has5G };
   }
 
   const nrCells = Number(site.nr_cells || 0);
   const lteCells = Number(site.lte_cells || 0);
-  if (nrCells > 0 || lteCells > 0) {
-    return { has4G: lteCells > 0, has5G: nrCells > 0 };
+  const cells3g = Number((site as any).cells_3g || 0);
+  const cells2g = Number((site as any).cells_2g || 0);
+  if (nrCells > 0 || lteCells > 0 || cells3g > 0 || cells2g > 0) {
+    return { has2G: cells2g > 0, has3G: cells3g > 0, has4G: lteCells > 0, has5G: nrCells > 0 };
   }
 
-  // Try to derive tech from techno field (may be comma-separated or contain multiple values)
   const fallbackTech = String(site.techno || '').toUpperCase();
   let has5G = is5GTech(fallbackTech);
   let has4G = is4GTech(fallbackTech);
+  let has3G = is3GTech(fallbackTech);
+  let has2G = is2GTech(fallbackTech);
 
-  // Also check bande field for tech hints
   const bande = String((site as any).bande || '').toUpperCase();
-  if (bande.includes('NR') || bande.includes('N78') || bande.includes('N28') || bande.includes('N1')) {
-    has5G = true;
-  }
+  if (bande.includes('NR') || bande.includes('N78') || bande.includes('N28') || bande.includes('N1')) has5G = true;
+  if (bande.includes('UMTS') || bande.includes('WCDMA')) has3G = true;
+  if (bande.includes('GSM')) has2G = true;
   if (bande.includes('L') || bande.includes('B') || bande.includes('1800') || bande.includes('2600') || bande.includes('800') || bande.includes('700')) {
     if (!bande.includes('NR')) has4G = true;
   }
 
-  // If no tech info at all, keep it unknown so filters can hide it correctly
-  if (!has4G && !has5G) return { has4G: false, has5G: false };
+  if (!has2G && !has3G && !has4G && !has5G) return { has2G: false, has3G: false, has4G: false, has5G: false };
 
-  return { has4G, has5G };
+  return { has2G, has3G, has4G, has5G };
 };
 
 const siteMatchesRequestedTech = (site: SiteSummary, tech: '5G' | '4G'): boolean => {
