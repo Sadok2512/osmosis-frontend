@@ -2417,26 +2417,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </button>
                   </div>
                 )}
-                {/* Create View Dialog */}
-                <Dialog open={showCreateView === db.id} onOpenChange={(open) => { if (!open) { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); } }}>
-                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-sm font-black uppercase tracking-wider">View Configuration</DialogTitle>
-                      <DialogDescription className="text-[10px] text-muted-foreground">Configure filters and display settings for the new view</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-2">
-                      <ViewFilterBuilder
-                        viewName={newViewName}
-                        onViewNameChange={setNewViewName}
-                        backendFilterDefs={backendFilterDefs}
-                        initialConditions={siteFiltersToConditions(newViewFilters)}
-                        saving={creating}
-                        onSave={(conditions) => handleCreateViewWithConditions(db.id, conditions)}
-                        onCancel={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                {/* Create View Modal (2-step) */}
+                <CreateViewModal
+                  open={showCreateView === db.id}
+                  onOpenChange={(open) => { if (!open) setShowCreateView(null); }}
+                  onSave={(config) => handleCreateViewFromModal(db.id, config)}
+                  saving={creating}
+                  availableKpis={catalogKpisForModal}
+                />
 
                 {isExpanded && (
                   <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
