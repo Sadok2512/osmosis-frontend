@@ -4677,7 +4677,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (finalSites.length > 0) {
           setSites(finalSites);
           setBboxTotal(finalSites.length);
-          setDashboardFitKey(k => k + 1);
+          // Do NOT increment dashboardFitKey here — fitBounds was already triggered
+          // on the first batch/cache load. Re-triggering it mid-download causes
+          // unwanted zoom changes while the user is navigating.
           // Pre-warm cells cache in background so sectors appear instantly on zoom-in
           topoApi.prefetchCells(currentBboxFilters || undefined);
         } else {
