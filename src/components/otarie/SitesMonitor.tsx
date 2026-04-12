@@ -408,7 +408,7 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
 const getRenderableCellsForSite = (
   site: SiteSummary,
   mapTechnoFilter: 'ALL' | '4G' | '5G' | 'OFF',
-  enabledTechnos: Set<'4G' | '5G'>,
+  enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
 ) => {
   if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
@@ -3379,7 +3379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
-  const [enabledTechnos, setEnabledTechnos] = useState<Set<'4G' | '5G'>>(new Set(['5G', '4G']));
+  const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [topoResetCounter, setTopoResetCounter] = useState(0);
