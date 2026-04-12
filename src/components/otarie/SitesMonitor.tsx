@@ -3081,7 +3081,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
   const [kpiLoading, setKpiLoading] = useState(false);
-  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
+  // ── KPI Overlay enhancements ──
+  const [kpiAnalysisLevel, setKpiAnalysisLevel] = useState<'site' | 'cell' | 'band'>('cell');
+  const [kpiTechnoFilter, setKpiTechnoFilter] = useState<'4G' | '5G'>('4G');
+  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean; colorGreen?: string; colorOrange?: string; colorRed?: string }>>(() => {
     try {
       const saved = localStorage.getItem('osmosis_kpi_thresholds');
       if (saved) return JSON.parse(saved);
@@ -3098,6 +3101,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cqi_avg: { green: 10, orange: 7 },
     };
   });
+  const [catalogThresholds, setCatalogThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>({});
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
