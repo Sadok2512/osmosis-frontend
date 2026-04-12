@@ -1030,13 +1030,17 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
       const data = await resp.json();
       const rows: any[] = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
       const normalizedSiteId = siteId.trim().toUpperCase();
+      const normalizedFallbackName = fallbackSiteName?.trim().toUpperCase() || '';
 
-      // Filter rows belonging to this site
+      // Filter rows belonging to this site (match by code_nidt OR site_name)
+      const matchTokens = new Set([normalizedSiteId]);
+      if (normalizedFallbackName) matchTokens.add(normalizedFallbackName);
+
       const siteRows = rows.filter((r: any) => {
         const ids = [r.code_nidt, r.site_id, r.site_name, r.nom_site]
           .filter(Boolean)
           .map((v: unknown) => String(v).trim().toUpperCase());
-        return ids.includes(normalizedSiteId);
+        return ids.some(id => matchTokens.has(id));
       });
 
       if (siteRows.length > 0) {
