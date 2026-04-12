@@ -1905,6 +1905,47 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setCreating(false);
   };
 
+  const handleCreateViewFromModal = async (dashboardId: string, config: ViewConfig) => {
+    setCreating(true);
+    try {
+      const settings: Record<string, any> = {
+        center: [43.2965, 5.3698],
+        zoom: 6,
+        viewType: config.type,
+      };
+      if (config.type === 'kpi_overlay') {
+        settings.kpiOverlayConfig = {
+          technology: config.technology,
+          level: config.level,
+          kpis: config.kpis,
+        };
+        // Also set kpiOverlays for backward compat
+        settings.kpiOverlays = (config.kpis || []).map(k => k.kpiKey);
+      } else if (config.type === 'topology_search') {
+        // Convert topo filters to viewConditions
+        const conditions: ViewFilterCondition[] = Object.entries(config.topoFilters || {})
+          .filter(([, v]) => v.trim())
+          .map(([dim, val]) => ({
+            id: crypto.randomUUID(),
+            dimension: dim,
+            operator: '=' as const,
+            value: val,
+          }));
+        settings.viewConditions = conditions;
+        settings.siteFilters = conditionsToSiteFilters(conditions);
+        settings.topoSearchConfig = config.topoFilters;
+      }
+      await mapViewsApi.create({
+        name: config.name,
+        description: dashboardId,
+        settings,
+      });
+      setShowCreateView(null);
+      fetchAll();
+    } catch (err) { console.warn('[SitesMonitor] createView from modal failed', err); }
+    setCreating(false);
+  };
+
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
