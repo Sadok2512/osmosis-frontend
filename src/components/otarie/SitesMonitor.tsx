@@ -8530,6 +8530,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {([
                       { key: '5G_GROUP', tech: '5G' as const, label: '5G', defaultColor: '#22c55e' },
                       { key: '4G_GROUP', tech: '4G' as const, label: '4G', defaultColor: '#f97316' },
+                      { key: '3G_GROUP', tech: '3G' as const, label: '3G', defaultColor: '#3b82f6' },
+                      { key: '2G_GROUP', tech: '2G' as const, label: '2G', defaultColor: '#ef4444' },
                     ]).map(({ key, tech, label, defaultColor }) => {
                       const enabled = enabledTechnos.has(tech);
                       const color = bandColors[key] || defaultColor;
