@@ -399,8 +399,10 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
   const siteTech = String(site.techno || '').trim();
   if (siteTech) fallback.push(siteTech);
 
-  const { has4G, has5G } = inferSiteTechState(site);
+  const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
   if (!siteTech) {
+    if (has2G) fallback.push('2G');
+    if (has3G) fallback.push('3G');
     if (has4G) fallback.push('4G');
     if (has5G) fallback.push('5G');
   }
@@ -9005,12 +9007,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
                                       <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {(() => {
-                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
-                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
-                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#ef4444' }} title="2G" />}
+                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3b82f6' }} title="3G" />}
+                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
                                             </>
                                           );
                                         })()}
@@ -9022,14 +9025,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 })}
                               </div>
                               {/* Techno legend */}
-                              <div className="flex items-center gap-4 mb-3 px-1">
+                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">2G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#3b82f6' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">3G</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                               </div>
 
@@ -9304,12 +9315,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className={`text-[10px] font-bold mb-1.5 ${isSectorExpanded ? 'text-primary-foreground' : 'text-muted-foreground'}`}>{technoLabel}</span>
                                       <div className="flex items-center justify-center gap-1.5 mb-1.5">
                                         {(() => {
-                                          const hasNR = cells.some(c => c.techno?.includes('5G') || c.techno === 'NR');
-                                          const hasLTE = cells.some(c => !c.techno?.includes('5G') && c.techno !== 'NR');
+                                          const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {hasNR && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
-                                              {hasLTE && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#ef4444' }} title="2G" />}
+                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3b82f6' }} title="3G" />}
+                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#f97316' }} title="4G" />}
+                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#22c55e' }} title="5G" />}
                                             </>
                                           );
                                         })()}
@@ -9320,14 +9332,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 })}
                               </div>
-                              <div className="flex items-center gap-4 mb-3 px-1">
+                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">2G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#3b82f6' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">3G</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
                                   <span className="text-[10px] font-bold text-muted-foreground">4G</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
+                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                               </div>
                               {expandedSectors.size > 0 && (() => {
