@@ -9530,6 +9530,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else if (settings._isDashboardOnly) {
                       setKpiOverlays([]);
                       setSectorColorMode('topo');
+                      setKpiOverlayLocked(false);
                     }
 
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
