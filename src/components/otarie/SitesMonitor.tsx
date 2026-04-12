@@ -2328,9 +2328,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <Settings2 size={12} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); if (confirm('Archiver ce dashboard ?')) handleDeleteDashboard(db.id); }}
-                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                        title="Archiver"
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
+                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        title="Supprimer"
                       >
                         <Archive size={12} />
                       </button>
@@ -2632,6 +2632,32 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               <button
                 onClick={cancelSwitch}
                 className="w-full px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete dashboard confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 mx-4 max-w-sm w-full space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Supprimer ce dashboard ?</h3>
+              <p className="text-[11px] text-muted-foreground mt-1">Cette action est irréversible.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { handleDeleteDashboard(showDeleteConfirm); setShowDeleteConfirm(null); }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+              >
+                <Trash2 size={13} />
+                Supprimer
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
                 Annuler
               </button>
