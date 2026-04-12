@@ -9492,6 +9492,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const cfg = settings.kpiOverlayConfig;
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
+                      setKpiOverlayLocked(true);
                       // Apply KPI overlays from view config
                       const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
                       if (cfgOverlays.length > 0) {
