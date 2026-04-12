@@ -143,21 +143,35 @@ const FADED_COLOR = '#94a3b8';
 const FRANCE_CENTER: [number, number] = [46.6, 2.2];
 const FRANCE_DEFAULT_ZOOM = 7;
 
+type TechGroup = '2G' | '3G' | '4G' | '5G';
+
 type TopoNetworkStats = {
+  sites2G: number;
+  sites3G: number;
   sites4G: number;
   sites5G: number;
+  cells2G: number;
+  cells3G: number;
   cells4G: number;
   cells5G: number;
+  bandMap2G: Record<string, number>;
+  bandMap3G: Record<string, number>;
   bandMap4G: Record<string, number>;
   bandMap5G: Record<string, number>;
-  vendorMap: Record<string, { '4G': number; '5G': number }>;
+  vendorMap: Record<string, { '2G': number; '3G': number; '4G': number; '5G': number }>;
 };
 
 const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
+  sites2G: 0,
+  sites3G: 0,
   sites4G: 0,
   sites5G: 0,
+  cells2G: 0,
+  cells3G: 0,
   cells4G: 0,
   cells5G: 0,
+  bandMap2G: {},
+  bandMap3G: {},
   bandMap4G: {},
   bandMap5G: {},
   vendorMap: {},
