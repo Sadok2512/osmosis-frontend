@@ -6637,18 +6637,57 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
-            const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
-            // Respect techno filter: skip sites that don't match
+            const { has2G: fb2G, has3G: fb3G, has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
+            const show2G = fb2G && enabledTechnos.has('2G');
+            const show3G = fb3G && enabledTechnos.has('3G');
             const show4G = fb4G && enabledTechnos.has('4G');
             const show5G = fb5G && enabledTechnos.has('5G');
-            if (!show4G && !show5G) {
-              // If specific filter active and site doesn't match, skip entirely
+            if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
             const baseR = isHovered || isSelectedSite ? 7 : 5;
-            const fbMixed = show4G && show5G;
             return (
               <React.Fragment key={site.site_id}>
+                {show2G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane2G"
+                    fillColor={bandColors['2G_GROUP'] || '#ef4444'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {show3G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane3G"
+                    fillColor={bandColors['3G_GROUP'] || '#3b82f6'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['3G_GROUP'] || '#3b82f6')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
                 {show4G && (
                   <CircleMarker
                     center={site.coordinates}
@@ -6672,12 +6711,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {show5G && (
                   <CircleMarker
                     center={site.coordinates}
-                    radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
+                    radius={Math.round(baseR * 0.65)}
                     pane="pane5G"
                     fillColor={bandColors['5G_GROUP'] || '#22c55e'}
                     fillOpacity={0.9}
-                    weight={isSelectedSite ? 3 : (fbMixed ? 0 : 1.5)}
-                    color={isSelectedSite ? '#fff' : (fbMixed ? 'transparent' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e'))}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e')}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
                       mouseover: () => setHoveredSiteId(site.site_id),
@@ -6689,7 +6728,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {!show4G && !show5G && mapTechnoFilter === 'ALL' && (
+                {!show2G && !show3G && !show4G && !show5G && mapTechnoFilter === 'ALL' && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={baseR}
