@@ -31,6 +31,7 @@ import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
+import { CreateViewModal, ViewConfig } from '@/components/sites-monitor/CreateViewModal';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
@@ -1581,6 +1582,7 @@ interface DashboardInventoryTabProps {
   activeKpiOverlayId?: string | null;
   resolveKpiLabel?: (id: string) => string;
   overlayVersion?: number;
+  catalogKpisForModal?: { key: string; label: string; famille?: string; techno?: string; threshold_warning?: number | null; threshold_critical?: number | null }[];
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -1592,7 +1594,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -1903,6 +1905,47 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setCreating(false);
   };
 
+  const handleCreateViewFromModal = async (dashboardId: string, config: ViewConfig) => {
+    setCreating(true);
+    try {
+      const settings: Record<string, any> = {
+        center: [43.2965, 5.3698],
+        zoom: 6,
+        viewType: config.type,
+      };
+      if (config.type === 'kpi_overlay') {
+        settings.kpiOverlayConfig = {
+          technology: config.technology,
+          level: config.level,
+          kpis: config.kpis,
+        };
+        // Also set kpiOverlays for backward compat
+        settings.kpiOverlays = (config.kpis || []).map(k => k.kpiKey);
+      } else if (config.type === 'topology_search') {
+        // Convert topo filters to viewConditions
+        const conditions: ViewFilterCondition[] = Object.entries(config.topoFilters || {})
+          .filter(([, v]) => v.trim())
+          .map(([dim, val]) => ({
+            id: crypto.randomUUID(),
+            dimension: dim,
+            operator: '=' as const,
+            values: [val],
+          }));
+        settings.viewConditions = conditions;
+        settings.siteFilters = conditionsToSiteFilters(conditions);
+        settings.topoSearchConfig = config.topoFilters;
+      }
+      await mapViewsApi.create({
+        name: config.name,
+        description: dashboardId,
+        settings,
+      });
+      setShowCreateView(null);
+      fetchAll();
+    } catch (err) { console.warn('[SitesMonitor] createView from modal failed', err); }
+    setCreating(false);
+  };
+
   const handleDeleteView = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await mapViewsApi.remove(id);
@@ -1962,6 +2005,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       viewConditions: vs.viewConditions || [],
       mapLabelFields: vs.mapLabelFields || dbSettings.mapLabelFields,
       kpiOverlays: Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays : [],
+      viewType: vs.viewType || null,
+      kpiOverlayConfig: vs.kpiOverlayConfig || null,
+      topoSearchConfig: vs.topoSearchConfig || null,
     };
   };
 
@@ -2374,26 +2420,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </button>
                   </div>
                 )}
-                {/* Create View Dialog */}
-                <Dialog open={showCreateView === db.id} onOpenChange={(open) => { if (!open) { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); } }}>
-                  <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle className="text-sm font-black uppercase tracking-wider">View Configuration</DialogTitle>
-                      <DialogDescription className="text-[10px] text-muted-foreground">Configure filters and display settings for the new view</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 pt-2">
-                      <ViewFilterBuilder
-                        viewName={newViewName}
-                        onViewNameChange={setNewViewName}
-                        backendFilterDefs={backendFilterDefs}
-                        initialConditions={siteFiltersToConditions(newViewFilters)}
-                        saving={creating}
-                        onSave={(conditions) => handleCreateViewWithConditions(db.id, conditions)}
-                        onCancel={() => { setShowCreateView(null); setNewViewName(''); setNewViewFilters({}); }}
-                      />
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                {/* Create View Modal (2-step) */}
+                <CreateViewModal
+                  open={showCreateView === db.id}
+                  onOpenChange={(open) => { if (!open) setShowCreateView(null); }}
+                  onSave={(config) => handleCreateViewFromModal(db.id, config)}
+                  saving={creating}
+                  availableKpis={catalogKpisForModal}
+                />
 
                 {isExpanded && (
                   <div className="ml-5 pl-3 border-l-2 border-border/60 space-y-1 py-1.5">
@@ -2435,11 +2469,29 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>}
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
+                                  {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
+                                  {vs.viewType === 'topology_search' && <span className="text-[7px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold uppercase">Topo</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                                  <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
-                                  <span>•</span>
-                                  <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
+                                  {vs.viewType === 'kpi_overlay' && vs.kpiOverlayConfig && (
+                                    <>
+                                      <span>{vs.kpiOverlayConfig.technology}</span>
+                                      <span>•</span>
+                                      <span>{vs.kpiOverlayConfig.level === 'site' ? 'Site' : vs.kpiOverlayConfig.level === 'cell' ? 'Cellule' : 'Bande'}</span>
+                                      <span>•</span>
+                                      <span>{vs.kpiOverlayConfig.kpis?.length || 0} KPI{(vs.kpiOverlayConfig.kpis?.length || 0) > 1 ? 's' : ''}</span>
+                                    </>
+                                  )}
+                                  {vs.viewType === 'topology_search' && (
+                                    <span>{Object.entries(vs.topoSearchConfig || {}).filter(([,v]: [string, any]) => v).length} critère(s)</span>
+                                  )}
+                                  {!vs.viewType && (
+                                    <>
+                                      <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
+                                      <span>•</span>
+                                      <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
@@ -9407,14 +9459,43 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       overlays.push(settings.mapKpi);
                     }
                     setKpiOverlays(overlays);
-                    // Restore techno and analysis level from view
-                    if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
-                      setKpiTechnoFilter(settings.kpiTechno);
+
+                    // Handle new view type configs (KPI Overlay / Topology Search)
+                    if (settings.viewType === 'kpi_overlay' && settings.kpiOverlayConfig) {
+                      const cfg = settings.kpiOverlayConfig;
+                      if (cfg.technology) setKpiTechnoFilter(cfg.technology);
+                      if (cfg.level) setKpiAnalysisLevel(cfg.level);
+                      // Apply KPI overlays from view config
+                      const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
+                      if (cfgOverlays.length > 0) {
+                        setKpiOverlays(cfgOverlays);
+                        setMapKpi(cfgOverlays[0]);
+                        setSectorColorMode('kpi');
+                        // Apply custom thresholds from view config
+                        const viewThresholds: Record<string, any> = {};
+                        for (const kpiCfg of cfg.kpis || []) {
+                          if (kpiCfg.thresholds?.length >= 2) {
+                            viewThresholds[kpiCfg.kpiKey] = {
+                              green: kpiCfg.thresholds[kpiCfg.thresholds.length - 1]?.min ?? 50,
+                              orange: kpiCfg.thresholds[1]?.min ?? 10,
+                            };
+                          }
+                        }
+                        if (Object.keys(viewThresholds).length > 0) {
+                          setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
+                        }
+                      }
+                    } else {
+                      // Restore techno and analysis level from view (legacy)
+                      if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
+                        setKpiTechnoFilter(settings.kpiTechno);
+                      }
+                      if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
+                        setKpiAnalysisLevel(settings.kpiAnalysisLevel);
+                      }
                     }
-                    if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
-                      setKpiAnalysisLevel(settings.kpiAnalysisLevel);
-                    }
-                    if (overlays.length > 0) {
+
+                    if (overlays.length > 0 && settings.viewType !== 'kpi_overlay') {
                       setMapKpi(overlays[overlays.length - 1]);
                       setSectorColorMode('kpi');
                     } else if (settings._isDashboardOnly) {
@@ -9595,6 +9676,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       });
                     }
                   }}
+                  catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: 'all', threshold_warning: null, threshold_critical: null }))}
                 />
                </div>
               </>
