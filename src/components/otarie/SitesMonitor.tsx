@@ -9514,6 +9514,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                       }
                     } else {
+                      setKpiOverlayLocked(false);
                       // Restore techno and analysis level from view (legacy)
                       if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
                         setKpiTechnoFilter(settings.kpiTechno);
