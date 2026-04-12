@@ -213,8 +213,13 @@ export interface BboxSiteDTO {
   plaque: string | null;
   dor: string | null;
   region: string | null;
+  zone_arcep?: string | null;
+  techno?: string | null;
+  bande?: string | null;
   lte_cells?: number;
   nr_cells?: number;
+  cells_2g?: number;
+  cells_3g?: number;
 }
 
 export interface BboxSitesResponse {
@@ -236,6 +241,62 @@ export interface BboxFilters {
   zone_arcep?: string;
   q?: string;
 }
+
+function flattenTopoFieldValues(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(flattenTopoFieldValues);
+  if (value == null) return [];
+  return String(value)
+    .split(/[,/;|]+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
+function inferTopoTechPresence(values: string[]): { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean } {
+  const upperValues = values.map(value => value.toUpperCase());
+  const has2G = upperValues.some(value => value.includes('2G') || value.includes('GSM'));
+  const has3G = upperValues.some(value => value.includes('3G') || value.includes('UMTS') || value.includes('WCDMA'));
+  const has5G = upperValues.some(value => value.includes('5G') || value.includes('NR'));
+  const has4G = upperValues.some(value => (value.includes('4G') || value.includes('LTE') || /^L\d+/.test(value)) && !value.includes('NR'));
+  return { has2G, has3G, has4G, has5G };
+}
+
+function resolveTopoSiteTechSummary(site: any): {
+  techno: string | null;
+  bande: string | null;
+  lteCells: number;
+  nrCells: number;
+  cells2g: number;
+  cells3g: number;
+} {
+  const techValues = [
+    ...flattenTopoFieldValues(site.techno),
+    ...flattenTopoFieldValues(site.technos),
+    ...flattenTopoFieldValues(site.rat),
+    ...flattenTopoFieldValues(site.rats),
+    ...flattenTopoFieldValues(site.bande),
+    ...flattenTopoFieldValues(site.band),
+    ...flattenTopoFieldValues(site.bands),
+  ];
+  const inferred = inferTopoTechPresence(techValues);
+
+  const lteCells = Math.max(Number(site.lte_cells ?? site.nb_lte ?? site.cells_4g ?? site.nb_4g ?? 0) || 0, inferred.has4G ? 1 : 0);
+  const nrCells = Math.max(Number(site.nr_cells ?? site.nb_nr ?? site.cells_5g ?? site.nb_5g ?? 0) || 0, inferred.has5G ? 1 : 0);
+  const cells2g = Math.max(Number(site.cells_2g ?? site.nb_2g ?? site.nb_gsm ?? site.gsm_cells ?? 0) || 0, inferred.has2G ? 1 : 0);
+  const cells3g = Math.max(Number(site.cells_3g ?? site.nb_3g ?? site.nb_umts ?? site.umts_cells ?? 0) || 0, inferred.has3G ? 1 : 0);
+
+  const canonicalTechs = [
+    cells2g > 0 ? '2G' : null,
+    cells3g > 0 ? '3G' : null,
+    lteCells > 0 ? '4G' : null,
+    nrCells > 0 ? '5G' : null,
+  ].filter(Boolean).join(', ');
+
+  const techno = canonicalTechs || flattenTopoFieldValues(site.techno ?? site.technos ?? site.rat).join(', ') || null;
+  const bande = flattenTopoFieldValues(site.bande ?? site.band ?? site.bands).join(', ') || null;
+
+  return { techno, bande, lteCells, nrCells, cells2g, cells3g };
+}
+
 // ── Module-level cells cache (avoids re-fetching 50k cells on every zoom/pan) ──
 let _cellsCache: { key: string; cells: any[]; ts: number } | null = null;
 const CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
@@ -552,22 +613,27 @@ export const topoApi = {
     const normalizeSites = (data: any): BboxSitesResponse => {
       const rawSites = Array.isArray(data?.sites) ? data.sites : (Array.isArray(data) ? data : []);
       const sites = rawSites
-        .map((site: any) => ({
-          code_nidt: site.code_nidt || site.site_id || site.nom_site || site.site_name,
-          nom_site: site.nom_site || site.site_name || site.code_nidt || site.site_id,
-          lat: Number(site.lat ?? site.latitude),
-          lng: Number(site.lng ?? site.longitude),
-          nb_cells: Number(site.nb_cells ?? site.cell_count ?? 0),
-          vendor: (Array.isArray(site.vendors) ? site.vendors[0] : site.vendor) ?? site.constructeur ?? null,
-          plaque: site.plaque ?? null,
-          dor: site.dor ?? null,
-          region: site.region ?? null,
-          zone_arcep: site.zone_arcep ?? null,
-          techno: site.techno ?? site.technos ?? null,
-          bande: site.bande ?? null,
-          lte_cells: Number(site.lte_cells ?? site.nb_lte ?? 0) || 0,
-          nr_cells: Number(site.nr_cells ?? site.nb_nr ?? 0) || 0,
-        }))
+        .map((site: any) => {
+          const techSummary = resolveTopoSiteTechSummary(site);
+          return {
+            code_nidt: site.code_nidt || site.site_id || site.nom_site || site.site_name,
+            nom_site: site.nom_site || site.site_name || site.code_nidt || site.site_id,
+            lat: Number(site.lat ?? site.latitude),
+            lng: Number(site.lng ?? site.longitude),
+            nb_cells: Number(site.nb_cells ?? site.cell_count ?? 0),
+            vendor: (Array.isArray(site.vendors) ? site.vendors[0] : site.vendor) ?? site.constructeur ?? null,
+            plaque: site.plaque ?? null,
+            dor: site.dor ?? null,
+            region: site.region ?? null,
+            zone_arcep: site.zone_arcep ?? null,
+            techno: techSummary.techno,
+            bande: techSummary.bande,
+            lte_cells: techSummary.lteCells,
+            nr_cells: techSummary.nrCells,
+            cells_2g: techSummary.cells2g,
+            cells_3g: techSummary.cells3g,
+          };
+        })
         .filter((site: BboxSiteDTO) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
 
       return { sites, total: Number(data?.total) || sites.length };
@@ -605,17 +671,34 @@ export const topoApi = {
             plaque: row.plaque || null,
             dor: row.dor || null,
             region: row.region || null,
+            zone_arcep: row.zone_arcep || null,
+            techno: null,
+            bande: null,
             lte_cells: 0,
             nr_cells: 0,
+            cells_2g: 0,
+            cells_3g: 0,
           });
         }
         const entry = siteMap.get(key)!;
         entry.nb_cells += 1;
-        const cellTech = String(row.techno || '').toUpperCase();
+        const cellTech = String(row.techno || row.rat || '').toUpperCase();
+        const nextTechValues = new Set(flattenTopoFieldValues(entry.techno));
+        flattenTopoFieldValues(row.techno || row.rat).forEach(value => nextTechValues.add(value));
+        entry.techno = Array.from(nextTechValues).join(', ') || entry.techno || null;
+
+        const nextBandValues = new Set(flattenTopoFieldValues(entry.bande));
+        flattenTopoFieldValues(row.bande || row.band).forEach(value => nextBandValues.add(value));
+        entry.bande = Array.from(nextBandValues).join(', ') || entry.bande || null;
+
         if (cellTech.includes('5G') || cellTech.includes('NR')) {
           entry.nr_cells = (entry.nr_cells || 0) + 1;
-        } else {
+        } else if (cellTech.includes('4G') || cellTech.includes('LTE')) {
           entry.lte_cells = (entry.lte_cells || 0) + 1;
+        } else if (cellTech.includes('3G') || cellTech.includes('UMTS') || cellTech.includes('WCDMA')) {
+          entry.cells_3g = (entry.cells_3g || 0) + 1;
+        } else if (cellTech.includes('2G') || cellTech.includes('GSM')) {
+          entry.cells_2g = (entry.cells_2g || 0) + 1;
         }
       }
 

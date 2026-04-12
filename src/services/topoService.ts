@@ -398,6 +398,24 @@ function normalizeBandFilterValue(value: string | null | undefined): string {
   return normalizeFilterValue(value).replace(/[_\s-]+/g, '');
 }
 
+function collectTechFilterTokens(value: unknown): string[] {
+  if (Array.isArray(value)) return value.flatMap(collectTechFilterTokens);
+  return String(value ?? '')
+    .split(/[,/;|]+/)
+    .map(normalizeFilterValue)
+    .filter(Boolean);
+}
+
+function addCanonicalTechValues(target: Set<string>, value: unknown): void {
+  collectTechFilterTokens(value).forEach((token) => {
+    target.add(token);
+    if (token.includes('5g') || token.includes('nr')) target.add('5g');
+    if ((token.includes('4g') || token.includes('lte') || /^l\d+/.test(token)) && !token.includes('nr')) target.add('4g');
+    if (token.includes('3g') || token.includes('umts') || token.includes('wcdma')) target.add('3g');
+    if (token.includes('2g') || token.includes('gsm')) target.add('2g');
+  });
+}
+
 function hasMatchingFilterValue(
   candidates: Array<string | null | undefined>,
   selected?: string[],
@@ -421,23 +439,20 @@ function siteMatchesTechFilter(site: SiteSummary, selected?: string[]): boolean 
 
   const techValues = new Set<string>();
   site.cells?.forEach((cell) => {
-    const normalized = normalizeFilterValue(cell.techno);
-    if (normalized) {
-      techValues.add(normalized);
-      if (normalized.includes('5g') || normalized.includes('nr')) techValues.add('5g');
-      if (normalized.includes('4g') || normalized.includes('lte')) techValues.add('4g');
-    }
+    addCanonicalTechValues(techValues, cell.techno);
+    addCanonicalTechValues(techValues, cell.bande);
   });
 
-  const siteTech = normalizeFilterValue((site as any).techno);
-  if (siteTech) techValues.add(siteTech);
+  addCanonicalTechValues(techValues, (site as any).techno);
+  addCanonicalTechValues(techValues, (site as any).bande);
   if (Number((site as any).nr_cells || 0) > 0) techValues.add('5g');
   if (Number((site as any).lte_cells || 0) > 0) techValues.add('4g');
+  if (Number((site as any).cells_3g || 0) > 0) techValues.add('3g');
+  if (Number((site as any).cells_2g || 0) > 0) techValues.add('2g');
 
-  return selected
-    .map(normalizeFilterValue)
-    .filter(Boolean)
-    .some((value) => techValues.has(value));
+  const selectedValues = new Set<string>();
+  addCanonicalTechValues(selectedValues, selected);
+  return Array.from(selectedValues).some((value) => techValues.has(value));
 }
 
 function siteMatchesBandFilter(site: SiteSummary, selected?: string[]): boolean {
@@ -620,6 +635,8 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     bande: (dto as any).bande || null,
     lte_cells: dto.lte_cells || 0,
     nr_cells: dto.nr_cells || 0,
+    cells_2g: (dto as any).cells_2g || 0,
+    cells_3g: (dto as any).cells_3g || 0,
   };
 }
 
@@ -665,11 +682,11 @@ export async function fetchSitesByBbox(
       throw new Error('BBOX returned only invalid site coordinates');
     }
 
-    const filtered4G5G = filterSitesAllTech(sites);
-    bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
-    const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
-    console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
-    return { sites: filtered4G5G, total: filtered4G5G.length };
+    const filteredSites = filterSitesAllTech(sites);
+    bboxCache = { key, sites: filteredSites, total: filteredSites.length };
+    const withQoe = filteredSites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
+    console.log(`[TopoService] BBOX: ${filteredSites.length}/${resp.total} sites (${withQoe} with live QoE)`);
+    return { sites: filteredSites, total: filteredSites.length };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
