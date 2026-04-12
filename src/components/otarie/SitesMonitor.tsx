@@ -6374,10 +6374,84 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return br;
           };
 
+          // Pass 0a: 2G circles (pane2G — bottom-most)
+          const pass2G = (!enabledTechnos.has('2G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '2G') ? [] : circleSites.filter(site => {
+            const { has2G } = inferSiteTechState(site);
+            return has2G;
+          })).map(site => {
+            const isHov = hoveredSiteId === site.site_id;
+            const isSel = selectedSiteId === site.site_id;
+            const br = getRadius(site, isHov, isSel);
+            const colorOverride = getColorViewFill(site);
+            return (
+              <CircleMarker
+                key={`2g_${site.site_id}`}
+                center={site.coordinates}
+                radius={br}
+                pane="pane2G"
+                pathOptions={{
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['2G_GROUP'] || '#ef4444'))),
+                  fillColor: colorOverride || (bandColors['2G_GROUP'] || '#ef4444'),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          });
+
+          // Pass 0b: 3G circles (pane3G)
+          const pass3G = (!enabledTechnos.has('3G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '3G') ? [] : circleSites.filter(site => {
+            const { has3G } = inferSiteTechState(site);
+            return has3G;
+          })).map(site => {
+            const isHov = hoveredSiteId === site.site_id;
+            const isSel = selectedSiteId === site.site_id;
+            const br = getRadius(site, isHov, isSel);
+            const colorOverride = getColorViewFill(site);
+            return (
+              <CircleMarker
+                key={`3g_${site.site_id}`}
+                center={site.coordinates}
+                radius={br}
+                pane="pane3G"
+                pathOptions={{
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'))),
+                  fillColor: colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          });
+
           // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
-          const pass4G = (mapTechnoFilter === '5G' ? [] : circleSites.filter(site => {
+          const pass4G = (!enabledTechnos.has('4G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '4G') ? [] : circleSites.filter(site => {
             const { has4G } = inferSiteTechState(site);
-            return has4G && enabledTechnos.has('4G');
+            return has4G;
           })).map(site => {
             const { has5G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
@@ -6414,10 +6488,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           });
 
-          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G) — skip if filter is 4G-only
-          const pass5G = (mapTechnoFilter === '4G' ? [] : circleSites.filter(site => {
+          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G)
+          const pass5G = (!enabledTechnos.has('5G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '5G') ? [] : circleSites.filter(site => {
             const { has5G } = inferSiteTechState(site);
-            return has5G && enabledTechnos.has('5G');
+            return has5G;
           })).map(site => {
             const { has4G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
@@ -6456,8 +6530,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           // Pass 3: unknown tech fallback — hide when a specific techno filter is active
           const passUnknown = (mapTechnoFilter !== 'ALL' ? [] : circleSites.filter(site => {
-            const { has4G, has5G } = inferSiteTechState(site);
-            return !has4G && !has5G;
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            return !has2G && !has3G && !has4G && !has5G;
           })).map(site => {
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
@@ -6500,7 +6574,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Marker>
           ));
 
-          return <>{passUnknown}{pass4G}{pass5G}{labels}</>;
+          return <>{passUnknown}{pass2G}{pass3G}{pass4G}{pass5G}{labels}</>;
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
