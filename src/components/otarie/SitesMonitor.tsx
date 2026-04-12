@@ -3728,6 +3728,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
   });
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [kpiOverlayLocked, setKpiOverlayLocked] = useState(false);
   const setActiveDashboardId = useCallback((id: string | null) => {
     _setActiveDashboardId(id);
     // Reset active view when switching dashboard
@@ -7922,14 +7923,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {(['4G', '5G'] as const).map(t => (
                     <button
                       key={t}
-                      onClick={() => setKpiTechnoFilter(t)}
+                      onClick={() => !kpiOverlayLocked && setKpiTechnoFilter(t)}
+                      disabled={kpiOverlayLocked}
                       className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
                         kpiTechnoFilter === t
                           ? t === '5G'
                             ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40'
                             : 'bg-orange-500/20 text-orange-700 dark:text-orange-400 ring-1 ring-orange-500/40'
                           : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      }`}
+                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       {t}
                     </button>
@@ -7947,12 +7949,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ]).map(lvl => (
                     <button
                       key={lvl.key}
-                      onClick={() => setKpiAnalysisLevel(lvl.key)}
+                      onClick={() => !kpiOverlayLocked && setKpiAnalysisLevel(lvl.key)}
+                      disabled={kpiOverlayLocked}
                       className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
                         kpiAnalysisLevel === lvl.key
                           ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
                           : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      }`}
+                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       <span className="text-[8px]">{lvl.icon}</span>
                       {lvl.label}
@@ -8173,14 +8176,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {(['4G', '5G'] as const).map(t => (
                   <button
                     key={t}
-                    onClick={() => setKpiTechnoFilter(t)}
+                    onClick={() => !kpiOverlayLocked && setKpiTechnoFilter(t)}
+                    disabled={kpiOverlayLocked}
                     className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider transition-all ${
                       kpiTechnoFilter === t
                         ? t === '5G'
                           ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-b-2 border-emerald-500'
                           : 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-b-2 border-orange-500'
                         : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                    }`}
+                    } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                   >
                     {t}
                   </button>
@@ -9491,6 +9495,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const cfg = settings.kpiOverlayConfig;
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
+                      setKpiOverlayLocked(true);
                       // Apply KPI overlays from view config
                       const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
                       if (cfgOverlays.length > 0) {
@@ -9512,6 +9517,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                       }
                     } else {
+                      setKpiOverlayLocked(false);
                       // Restore techno and analysis level from view (legacy)
                       if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
                         setKpiTechnoFilter(settings.kpiTechno);
@@ -9527,6 +9533,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else if (settings._isDashboardOnly) {
                       setKpiOverlays([]);
                       setSectorColorMode('topo');
+                      setKpiOverlayLocked(false);
                     }
 
                     if (settings.mapLayer) setMapLayer(settings.mapLayer);
