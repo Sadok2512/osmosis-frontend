@@ -4215,14 +4215,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getKpiColor = (value: number): string => {
     if (isNaN(value) || value == null) return '#6b7280'; // gray for no data
     const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    const cGreen = t.colorGreen || '#22c55e';
+    const cOrange = t.colorOrange || '#f59e0b';
+    const cRed = t.colorRed || '#ef4444';
     if (t.invert) {
-      if (value <= t.green) return '#22c55e';
-      if (value <= t.orange) return '#f59e0b';
-      return '#ef4444';
+      if (value <= t.green) return cGreen;
+      if (value <= t.orange) return cOrange;
+      return cRed;
     }
-    if (value >= t.green) return '#22c55e';
-    if (value >= t.orange) return '#f59e0b';
-    return '#ef4444';
+    if (value >= t.green) return cGreen;
+    if (value >= t.orange) return cOrange;
+    return cRed;
   };
 
   const getKpiLevel = useCallback((value: number): 'green' | 'orange' | 'red' | 'gray' => {
