@@ -955,7 +955,10 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
           return true;
         });
 
-        // Compute synthetic azimuts based on sector index
+        // Detect if any row has a real (non-zero, non-null) azimut
+        const hasRealAzimut = uniqueRows.some((r: any) => r.azimut != null && r.azimut !== 0);
+
+        // Compute synthetic azimuts based on sector index (fallback)
         const sectorIndices = new Set<number>();
         for (const r of uniqueRows) {
           const cellName = r.cell_name || r.nom_cellule || '';
@@ -972,7 +975,10 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
           const cellName = r.cell_name || r.nom_cellule || '';
           const lastChar = cellName.slice(-1);
           const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
-          const azimut = r.azimut ?? sectorAzimutMap.get(sectorIdx) ?? 0;
+          // Use real azimut only if the site has real azimut data; otherwise use synthetic
+          const azimut = (hasRealAzimut && r.azimut != null && r.azimut !== 0)
+            ? r.azimut
+            : sectorAzimutMap.get(sectorIdx) ?? 0;
           const technoRaw = r.techno || '4G';
           const techno = technoRaw.toUpperCase().includes('5G') || technoRaw.toLowerCase() === '5g' || technoRaw.toLowerCase() === 'nr' ? '5G' : '4G';
           return buildCellProperties(
