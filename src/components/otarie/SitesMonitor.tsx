@@ -3427,7 +3427,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         for (const v of (stats.by_vendor || [])) {
-          result.vendorMap[v.vendor] = { '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
+          result.vendorMap[v.vendor] = { '2G': v.cells_2g || 0, '3G': v.cells_3g || 0, '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
         }
 
         // VPS returns cells but sites=0 → get site counts from DB RPC
