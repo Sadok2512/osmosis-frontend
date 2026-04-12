@@ -20,8 +20,8 @@ export const FRANCE_DEFAULT_ZOOM = 7;
 // ── Rendering caps ──
 export const MAX_RENDER_SITES = 5000;
 
-/** Allowed 4G/5G technology strings for sector filtering */
-export const ALLOWED_TECH_SET = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
+/** Allowed technology strings for sector filtering */
+export const ALLOWED_TECH_SET = new Set(['2G', '3G', '4G', '5G', 'GSM', 'UMTS', 'WCDMA', 'LTE', 'NR', '2g', '3g', '4g', '5g', 'gsm', 'umts', 'wcdma', 'lte', 'nr']);
 
 /** Determine if a techno string represents 5G */
 export const is5GTech = (techno?: string | null): boolean => {
@@ -35,7 +35,19 @@ export const is4GTech = (techno?: string | null): boolean => {
   return !is5GTech(tech) && (tech.includes('4G') || tech.includes('LTE'));
 };
 
-/** Filter cells to only 4G/5G */
+/** Determine if a techno string represents 3G */
+export const is3GTech = (techno?: string | null): boolean => {
+  const tech = String(techno || '').toUpperCase();
+  return !is5GTech(tech) && !is4GTech(tech) && (tech.includes('3G') || tech.includes('UMTS') || tech.includes('WCDMA'));
+};
+
+/** Determine if a techno string represents 2G */
+export const is2GTech = (techno?: string | null): boolean => {
+  const tech = String(techno || '').toUpperCase();
+  return !is5GTech(tech) && !is4GTech(tech) && !is3GTech(tech) && (tech.includes('2G') || tech.includes('GSM'));
+};
+
+/** Filter cells to only known technologies */
 export const filter4G5GCells = (cells: any[]): any[] =>
   cells.filter(c => !c.techno || ALLOWED_TECH_SET.has(String(c.techno).trim()));
 

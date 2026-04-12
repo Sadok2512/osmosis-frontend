@@ -5,11 +5,13 @@
 
 // ── Technology normalization ──
 
-/** Normalize any raw technology string to '4G' or '5G'. Defaults to '4G' if unrecognizable. */
-export function normalizeTech(raw: string | null | undefined): '4G' | '5G' {
+/** Normalize any raw technology string to '2G', '3G', '4G' or '5G'. Defaults to '4G' if unrecognizable. */
+export function normalizeTech(raw: string | null | undefined): '2G' | '3G' | '4G' | '5G' {
   const v = String(raw || '').trim().toUpperCase();
   if (v.includes('NR') || v.includes('5G')) return '5G';
   if (v.includes('LTE') || v.includes('4G')) return '4G';
+  if (v.includes('UMTS') || v.includes('WCDMA') || v.includes('3G')) return '3G';
+  if (v.includes('GSM') || v.includes('2G')) return '2G';
   return '4G';
 }
 
@@ -25,10 +27,24 @@ export function is4GTech(techno?: string | null): boolean {
   return !is5GTech(tech) && (tech.includes('4G') || tech.includes('LTE'));
 }
 
+/** Returns true if the technology string represents 3G/UMTS/WCDMA */
+export function is3GTech(techno?: string | null): boolean {
+  const tech = String(techno || '').toUpperCase();
+  return !is5GTech(tech) && !is4GTech(tech) && (tech.includes('3G') || tech.includes('UMTS') || tech.includes('WCDMA'));
+}
+
+/** Returns true if the technology string represents 2G/GSM */
+export function is2GTech(techno?: string | null): boolean {
+  const tech = String(techno || '').toUpperCase();
+  return !is5GTech(tech) && !is4GTech(tech) && !is3GTech(tech) && (tech.includes('2G') || tech.includes('GSM'));
+}
+
 /** Strict tech group classification — returns null for unknown tech */
-export function getCellTechGroup(techno?: string | null): '4G' | '5G' | null {
+export function getCellTechGroup(techno?: string | null): '2G' | '3G' | '4G' | '5G' | null {
   if (is5GTech(techno)) return '5G';
   if (is4GTech(techno)) return '4G';
+  if (is3GTech(techno)) return '3G';
+  if (is2GTech(techno)) return '2G';
   return null;
 }
 
@@ -69,6 +85,8 @@ export function stableCellKey(siteId: string, cell: any): string {
 export interface MapAggregation {
   uniqueSiteCount: number;
   uniqueCellCount: number;
+  unique2GCellCount: number;
+  unique3GCellCount: number;
   unique4GCellCount: number;
   unique5GCellCount: number;
   serverTotal?: number;
@@ -82,6 +100,8 @@ export function computeMapAggregation(
 ): MapAggregation {
   const siteSet = new Set<string>();
   const cellSet = new Set<string>();
+  let count2G = 0;
+  let count3G = 0;
   let count4G = 0;
   let count5G = 0;
 
@@ -95,7 +115,9 @@ export function computeMapAggregation(
         if (!cellSet.has(key)) {
           cellSet.add(key);
           const tech = getCellTechGroup(cell.techno);
-          if (tech === '4G') count4G++;
+          if (tech === '2G') count2G++;
+          else if (tech === '3G') count3G++;
+          else if (tech === '4G') count4G++;
           else if (tech === '5G') count5G++;
         }
       }
@@ -105,6 +127,8 @@ export function computeMapAggregation(
   return {
     uniqueSiteCount: siteSet.size,
     uniqueCellCount: cellSet.size,
+    unique2GCellCount: count2G,
+    unique3GCellCount: count3G,
     unique4GCellCount: count4G,
     unique5GCellCount: count5G,
     serverTotal,
@@ -135,12 +159,10 @@ export function getKpiSeverity(
   if (warningThreshold == null || criticalThreshold == null) return 'ok';
 
   if (higherIsBetter) {
-    // E.g. success rate: 100% is good, 90% is warning, 80% is critical
     if (value <= criticalThreshold) return 'critical';
     if (value <= warningThreshold) return 'warning';
     return 'ok';
   } else {
-    // E.g. drop rate: 0% is good, 2% is warning, 5% is critical
     if (value >= criticalThreshold) return 'critical';
     if (value >= warningThreshold) return 'warning';
     return 'ok';
@@ -159,10 +181,8 @@ export function worstFirstComparator(
   const a = aVal ?? (higherIsBetter ? Infinity : -Infinity);
   const b = bVal ?? (higherIsBetter ? Infinity : -Infinity);
   if (higherIsBetter) {
-    // Lower is worse → sort ascending
     return a - b;
   } else {
-    // Higher is worse → sort descending
     return b - a;
   }
 }
