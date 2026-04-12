@@ -138,14 +138,18 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
     }));
   };
 
-  const isValid = name.trim().length > 0 && (
+  const effectiveName = name.trim() || (viewType === 'kpi_overlay'
+    ? `KPI ${technology} – ${selectedKpis.map(k => k.label).join(', ') || 'Overlay'}`
+    : `Topo Search`);
+
+  const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
     (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim()))
   );
 
   const handleSave = () => {
     if (!viewType || !isValid) return;
-    const config: ViewConfig = { name: name.trim(), type: viewType };
+    const config: ViewConfig = { name: effectiveName, type: viewType };
     if (viewType === 'kpi_overlay') {
       config.technology = technology;
       config.level = level;
