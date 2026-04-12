@@ -7534,7 +7534,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   !activeViewId
                     ? 'text-muted-foreground/40 cursor-not-allowed'
-                    : sectorColorMode === 'kpi'
+                    : sectorColorMode === 'kpi' && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
