@@ -6136,7 +6136,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
                 const colorViewOverridePoint = getColorViewFill(site);
-                const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? (is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')) : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
+                const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3b82f6') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#ef4444') : (bandColors['4G_GROUP'] || '#f97316');
+                const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? techColor : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
                 const isHovered = hoveredSiteId === site.site_id;
                 const offsetDist = 0.0003;
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
@@ -6182,8 +6183,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
-          const { has4G, has5G } = inferSiteTechState(site);
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+          const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
           const color = colorViewOverride || topoColor;
