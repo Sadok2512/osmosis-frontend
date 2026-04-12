@@ -31,6 +31,7 @@ import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
+import { CreateViewModal, ViewConfig } from '@/components/sites-monitor/CreateViewModal';
 
 // Heatmap layer component using leaflet.heat
 const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.4 }: {
