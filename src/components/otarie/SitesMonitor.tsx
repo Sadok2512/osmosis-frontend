@@ -7914,55 +7914,69 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
 
-            {/* ── Techno + Analysis Level selectors ── */}
-            <div className="px-3 py-2 border-b border-border/20 space-y-2">
-              {/* Techno selector */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Techno</span>
-                <div className="flex gap-1 flex-1">
-                  {(['4G', '5G'] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => !kpiOverlayLocked && setKpiTechnoFilter(t)}
-                      disabled={kpiOverlayLocked}
-                      className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
-                        kpiTechnoFilter === t
-                          ? t === '5G'
-                            ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40'
-                            : 'bg-orange-500/20 text-orange-700 dark:text-orange-400 ring-1 ring-orange-500/40'
-                          : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+            {/* ── Techno + Analysis Level ── */}
+            <div className="px-3 py-2 border-b border-border/20">
+              {kpiOverlayLocked ? (
+                <div className="flex items-center gap-3 text-[10px]">
+                  <span className={`px-2.5 py-1 rounded-lg font-black ${
+                    kpiTechnoFilter === '5G'
+                      ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'
+                      : 'bg-orange-500/20 text-orange-700 dark:text-orange-400'
+                  }`}>{kpiTechnoFilter}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="px-2.5 py-1 rounded-lg font-bold bg-primary/15 text-primary">
+                    {kpiAnalysisLevel === 'site' ? '📍 Site' : kpiAnalysisLevel === 'cell' ? '📡 Cellule' : '📶 Bande'}
+                  </span>
                 </div>
-              </div>
-              {/* Analysis Level selector */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Niveau</span>
-                <div className="flex gap-1 flex-1">
-                  {([
-                    { key: 'site' as const, label: 'Site', icon: '📍' },
-                    { key: 'cell' as const, label: 'Cellule', icon: '📡' },
-                    { key: 'band' as const, label: 'Bande', icon: '📶' },
-                  ]).map(lvl => (
-                    <button
-                      key={lvl.key}
-                      onClick={() => !kpiOverlayLocked && setKpiAnalysisLevel(lvl.key)}
-                      disabled={kpiOverlayLocked}
-                      className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
-                        kpiAnalysisLevel === lvl.key
-                          ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
-                          : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
-                      <span className="text-[8px]">{lvl.icon}</span>
-                      {lvl.label}
-                    </button>
-                  ))}
+              ) : (
+                <div className="space-y-2">
+                  {/* Techno selector */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Techno</span>
+                    <div className="flex gap-1 flex-1">
+                      {(['4G', '5G'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setKpiTechnoFilter(t)}
+                          className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
+                            kpiTechnoFilter === t
+                              ? t === '5G'
+                                ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40'
+                                : 'bg-orange-500/20 text-orange-700 dark:text-orange-400 ring-1 ring-orange-500/40'
+                              : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Analysis Level selector */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Niveau</span>
+                    <div className="flex gap-1 flex-1">
+                      {([
+                        { key: 'site' as const, label: 'Site', icon: '📍' },
+                        { key: 'cell' as const, label: 'Cellule', icon: '📡' },
+                        { key: 'band' as const, label: 'Bande', icon: '📶' },
+                      ]).map(lvl => (
+                        <button
+                          key={lvl.key}
+                          onClick={() => setKpiAnalysisLevel(lvl.key)}
+                          className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                            kpiAnalysisLevel === lvl.key
+                              ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                              : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
+                          }`}
+                        >
+                          <span className="text-[8px]">{lvl.icon}</span>
+                          {lvl.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Gradient bar visualization */}
