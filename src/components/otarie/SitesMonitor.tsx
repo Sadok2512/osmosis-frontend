@@ -399,8 +399,10 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
   const siteTech = String(site.techno || '').trim();
   if (siteTech) fallback.push(siteTech);
 
-  const { has4G, has5G } = inferSiteTechState(site);
+  const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
   if (!siteTech) {
+    if (has2G) fallback.push('2G');
+    if (has3G) fallback.push('3G');
     if (has4G) fallback.push('4G');
     if (has5G) fallback.push('5G');
   }
