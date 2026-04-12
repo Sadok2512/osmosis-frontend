@@ -9328,27 +9328,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 })}
                               </div>
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#ef4444' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">2G</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#3b82f6' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">3G</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#f97316' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">4G</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <span className="w-3 h-3 rounded-full" style={{ background: '#22c55e' }} />
-                                  <span className="text-[10px] font-bold text-muted-foreground">5G</span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                                 {([['2G','#ef4444'],['3G','#3b82f6'],['4G','#f97316'],['5G','#22c55e']] as [string,string][]).map(([tech, color]) => {
                                   const isHidden = hiddenTechs.has(tech);
                                   return (
