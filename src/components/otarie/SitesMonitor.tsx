@@ -2469,11 +2469,29 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                                   {isViewActive && <span className="text-[7px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-bold uppercase">actif</span>}
                                   {hasOwnSettings && <span className="text-[7px] px-1 py-0.5 rounded bg-accent/10 text-accent-foreground font-bold uppercase">custom</span>}
                                   {condCount > 0 && <span className="text-[7px] px-1 py-0.5 rounded bg-primary/10 text-primary font-bold">{condCount} filtre{condCount > 1 ? 's' : ''}</span>}
+                                  {vs.viewType === 'kpi_overlay' && <span className="text-[7px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase">KPI</span>}
+                                  {vs.viewType === 'topology_search' && <span className="text-[7px] px-1 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold uppercase">Topo</span>}
                                 </div>
                                 <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
-                                  <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
-                                  <span>•</span>
-                                  <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
+                                  {vs.viewType === 'kpi_overlay' && vs.kpiOverlayConfig && (
+                                    <>
+                                      <span>{vs.kpiOverlayConfig.technology}</span>
+                                      <span>•</span>
+                                      <span>{vs.kpiOverlayConfig.level === 'site' ? 'Site' : vs.kpiOverlayConfig.level === 'cell' ? 'Cellule' : 'Bande'}</span>
+                                      <span>•</span>
+                                      <span>{vs.kpiOverlayConfig.kpis?.length || 0} KPI{(vs.kpiOverlayConfig.kpis?.length || 0) > 1 ? 's' : ''}</span>
+                                    </>
+                                  )}
+                                  {vs.viewType === 'topology_search' && (
+                                    <span>{Object.entries(vs.topoSearchConfig || {}).filter(([,v]: [string, any]) => v).length} critère(s)</span>
+                                  )}
+                                  {!vs.viewType && (
+                                    <>
+                                      <span>{SETTINGS_MAP_STYLES.find(l => l.value === (eff.mapStyle || eff.mapLayer))?.label || 'Street'}</span>
+                                      <span>•</span>
+                                      <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === eff.mapKpi)?.label || 'QoE'}</span>
+                                    </>
+                                  )}
                                 </div>
                               </div>
                               <div className="flex items-center gap-0.5 shrink-0">
