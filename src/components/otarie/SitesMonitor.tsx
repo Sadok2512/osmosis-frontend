@@ -9347,7 +9347,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
-                                if (!secCells.length) return null;
+                                const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
+                                if (!filteredCells.length) return null;
                                 return (
                                   <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
                                     <table className="w-full text-[11px]">
@@ -9363,7 +9364,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {secCells.map((cell) => {
+                                        {filteredCells.map((cell) => {
                                           const isSel = focusCellId === cell.cell_id;
                                           const sNum = getSectorNumber(cell.cell_id);
                                           const tilt = (cell as any).tilt as number | null;
@@ -9378,8 +9379,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>
-                                                  {cell.techno || '—'}
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#22c55e' : getCellTechGroup(cell.techno) === '3G' ? '#3b82f6' : getCellTechGroup(cell.techno) === '2G' ? '#ef4444' : '#f97316' }}>
+                                                  {getCellTechGroup(cell.techno) || '4G'}
                                                 </span>
                                               </td>
                                               <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
