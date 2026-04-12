@@ -3081,7 +3081,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
   const [kpiLoading, setKpiLoading] = useState(false);
-  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>(() => {
+  // ── KPI Overlay enhancements ──
+  const [kpiAnalysisLevel, setKpiAnalysisLevel] = useState<'site' | 'cell' | 'band'>('cell');
+  const [kpiTechnoFilter, setKpiTechnoFilter] = useState<'4G' | '5G'>('4G');
+  const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean; colorGreen?: string; colorOrange?: string; colorRed?: string }>>(() => {
     try {
       const saved = localStorage.getItem('osmosis_kpi_thresholds');
       if (saved) return JSON.parse(saved);
@@ -3098,6 +3101,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cqi_avg: { green: 10, orange: 7 },
     };
   });
+  const [catalogThresholds, setCatalogThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean }>>({});
   const [inventorySortOrder, setInventorySortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
@@ -4084,6 +4088,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
         if (Object.keys(thr).length > 0) {
+          setCatalogThresholds(thr);
           setKpiThresholds(prev => {
             // Catalog thresholds as base, user-saved overrides on top
             const merged = { ...thr, ...prev };
@@ -4130,11 +4135,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     const filters: any = {};
     if (localVendor !== 'ALL') filters.vendor = localVendor;
-    if (localTechno !== 'ALL') filters.techno = localTechno;
+    // Always apply KPI techno filter when in KPI mode
+    filters.techno = kpiTechnoFilter;
     if (localBande !== 'ALL') filters.band = localBande;
     if (localDor !== 'ALL') filters.dor = localDor;
     if (localPlaque !== 'ALL') filters.plaque = localPlaque;
     if (localZoneArcep !== 'ALL') filters.zone_arcep = localZoneArcep;
+    // Analysis level
+    filters.level = kpiAnalysisLevel;
 
     // Extract backend-compatible filters from structured view conditions
     if (activeViewConditions?.length) {
@@ -4181,7 +4189,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, localTechno, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions]);
+  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
@@ -4207,14 +4215,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getKpiColor = (value: number): string => {
     if (isNaN(value) || value == null) return '#6b7280'; // gray for no data
     const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+    const cGreen = t.colorGreen || '#22c55e';
+    const cOrange = t.colorOrange || '#f59e0b';
+    const cRed = t.colorRed || '#ef4444';
     if (t.invert) {
-      if (value <= t.green) return '#22c55e';
-      if (value <= t.orange) return '#f59e0b';
-      return '#ef4444';
+      if (value <= t.green) return cGreen;
+      if (value <= t.orange) return cOrange;
+      return cRed;
     }
-    if (value >= t.green) return '#22c55e';
-    if (value >= t.orange) return '#f59e0b';
-    return '#ef4444';
+    if (value >= t.green) return cGreen;
+    if (value >= t.orange) return cOrange;
+    return cRed;
   };
 
   const getKpiLevel = useCallback((value: number): 'green' | 'orange' | 'red' | 'gray' => {
@@ -7805,7 +7816,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               background: 'hsl(var(--card) / 0.92)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              minWidth: showKpiThresholdEditor ? 260 : 180,
+              minWidth: showKpiThresholdEditor ? 300 : 220,
             }}
           >
             {/* Header */}
@@ -7824,20 +7835,81 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
 
+            {/* ── Techno + Analysis Level selectors ── */}
+            <div className="px-3 py-2 border-b border-border/20 space-y-2">
+              {/* Techno selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Techno</span>
+                <div className="flex gap-1 flex-1">
+                  {(['4G', '5G'] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setKpiTechnoFilter(t)}
+                      className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
+                        kpiTechnoFilter === t
+                          ? t === '5G'
+                            ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40'
+                            : 'bg-orange-500/20 text-orange-700 dark:text-orange-400 ring-1 ring-orange-500/40'
+                          : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Analysis Level selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Niveau</span>
+                <div className="flex gap-1 flex-1">
+                  {([
+                    { key: 'site' as const, label: 'Site', icon: '📍' },
+                    { key: 'cell' as const, label: 'Cellule', icon: '📡' },
+                    { key: 'band' as const, label: 'Bande', icon: '📶' },
+                  ]).map(lvl => (
+                    <button
+                      key={lvl.key}
+                      onClick={() => setKpiAnalysisLevel(lvl.key)}
+                      className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                        kpiAnalysisLevel === lvl.key
+                          ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                          : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
+                      }`}
+                    >
+                      <span className="text-[8px]">{lvl.icon}</span>
+                      {lvl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Gradient bar visualization */}
+            <div className="px-3 py-1.5">
+              <div className="h-2 rounded-full overflow-hidden flex">
+                <div className="flex-1" style={{ background: currentThreshold.colorRed || '#ef4444' }} />
+                <div className="flex-1" style={{ background: currentThreshold.colorOrange || '#f59e0b' }} />
+                <div className="flex-1" style={{ background: currentThreshold.colorGreen || '#22c55e' }} />
+              </div>
+            </div>
+
             {/* Legend rows — click to filter */}
-            <div className="px-3 py-2 space-y-0.5">
+            <div className="px-3 py-1.5 space-y-0.5">
               {(() => {
+                const cGreen = currentThreshold.colorGreen || '#22c55e';
+                const cOrange = currentThreshold.colorOrange || '#f59e0b';
+                const cRed = currentThreshold.colorRed || '#ef4444';
                 const levels: { level: 'green' | 'orange' | 'red' | 'gray'; color: string; label: string; qualifier: string }[] = currentThreshold.invert
                   ? [
-                      { level: 'green', color: '#22c55e', label: `≤ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
-                      { level: 'orange', color: '#f59e0b', label: `${currentThreshold.green} – ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
-                      { level: 'red', color: '#ef4444', label: `> ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
+                      { level: 'green', color: cGreen, label: `≤ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
+                      { level: 'orange', color: cOrange, label: `${currentThreshold.green} – ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
+                      { level: 'red', color: cRed, label: `> ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
                       { level: 'gray', color: '#6b7280', label: 'No data', qualifier: '' },
                     ]
                   : [
-                      { level: 'green', color: '#22c55e', label: `≥ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
-                      { level: 'orange', color: '#f59e0b', label: `${currentThreshold.orange} – ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
-                      { level: 'red', color: '#ef4444', label: `< ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
+                      { level: 'green', color: cGreen, label: `≥ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
+                      { level: 'orange', color: cOrange, label: `${currentThreshold.orange} – ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Moyen' },
+                      { level: 'red', color: cRed, label: `< ${currentThreshold.orange}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Critique' },
                       { level: 'gray', color: '#6b7280', label: 'No data', qualifier: '' },
                     ];
                 return levels.map(({ level, color, label, qualifier }) => {
@@ -7860,12 +7932,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               })()}
             </div>
 
-            {/* Threshold Editor */}
+            {/* Enhanced Threshold Editor */}
             {showKpiThresholdEditor && (
               <div className="px-3 py-2.5 border-t border-border/30 space-y-2.5">
+                {/* Green threshold */}
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#22c55e' }} />
-                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="color"
+                    value={currentThreshold.colorGreen || '#22c55e'}
+                    onChange={e => {
+                      const next = { ...kpiThresholds };
+                      const cur = next[mapKpi] || { green: 80, orange: 60 };
+                      next[mapKpi] = { ...cur, colorGreen: e.target.value };
+                      setKpiThresholds(next);
+                      localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next));
+                    }}
+                    className="w-5 h-5 rounded-full border-0 cursor-pointer shrink-0 p-0"
+                    title="Couleur Bon"
+                  />
+                  <span className="text-[9px] font-bold text-muted-foreground w-8 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
                   <input
                     type="number"
                     value={currentThreshold.green}
@@ -7873,10 +7958,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
                     step="0.1"
                   />
+                  <span className="text-[9px] font-semibold text-emerald-600">Bon</span>
                 </div>
+                {/* Orange threshold */}
                 <div className="flex items-center gap-2">
-                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: '#f59e0b' }} />
-                  <span className="text-[9px] font-bold text-muted-foreground w-10 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
+                  <input
+                    type="color"
+                    value={currentThreshold.colorOrange || '#f59e0b'}
+                    onChange={e => {
+                      const next = { ...kpiThresholds };
+                      const cur = next[mapKpi] || { green: 80, orange: 60 };
+                      next[mapKpi] = { ...cur, colorOrange: e.target.value };
+                      setKpiThresholds(next);
+                      localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next));
+                    }}
+                    className="w-5 h-5 rounded-full border-0 cursor-pointer shrink-0 p-0"
+                    title="Couleur Moyen"
+                  />
+                  <span className="text-[9px] font-bold text-muted-foreground w-8 shrink-0">{currentThreshold.invert ? '≤' : '≥'}</span>
                   <input
                     type="number"
                     value={currentThreshold.orange}
@@ -7884,8 +7983,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     className="flex-1 px-2 py-1 rounded-lg border border-border/50 bg-background text-[10px] font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 w-16"
                     step="0.1"
                   />
+                  <span className="text-[9px] font-semibold text-amber-600">Moyen</span>
                 </div>
-                <div className="flex items-center justify-between">
+                {/* Red color picker */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={currentThreshold.colorRed || '#ef4444'}
+                    onChange={e => {
+                      const next = { ...kpiThresholds };
+                      const cur = next[mapKpi] || { green: 80, orange: 60 };
+                      next[mapKpi] = { ...cur, colorRed: e.target.value };
+                      setKpiThresholds(next);
+                      localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next));
+                    }}
+                    className="w-5 h-5 rounded-full border-0 cursor-pointer shrink-0 p-0"
+                    title="Couleur Critique"
+                  />
+                  <span className="text-[9px] font-bold text-muted-foreground w-8 shrink-0">{currentThreshold.invert ? '>' : '<'}</span>
+                  <span className="flex-1 text-[10px] text-muted-foreground italic">Critique</span>
+                  <span className="text-[9px] font-semibold text-red-500">Critique</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
                   <button
                     onClick={toggleInvert}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all ${
@@ -7895,8 +8015,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }`}
                   >
                     <ChevronsUpDown size={10} />
-                    {currentThreshold.invert ? 'Inversé (bas=bon)' : 'Normal (haut=bon)'}
+                    {currentThreshold.invert ? 'Inversé' : 'Normal'}
                   </button>
+                  {/* Reset to catalog button */}
+                  {catalogThresholds[mapKpi] && (
+                    <button
+                      onClick={() => {
+                        const cat = catalogThresholds[mapKpi];
+                        if (!cat) return;
+                        const next = { ...kpiThresholds };
+                        next[mapKpi] = { green: cat.green, orange: cat.orange, invert: cat.invert };
+                        setKpiThresholds(next);
+                        localStorage.setItem('osmosis_kpi_thresholds', JSON.stringify(next));
+                      }}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                      title="Restaurer les seuils du catalogue"
+                    >
+                      <RotateCcw size={9} />
+                      Catalogue
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -7949,9 +8087,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <>
             <div className="fixed inset-0 z-[1199]" onClick={() => setShowKpiDropdown(false)} />
             <div
-              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[280px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[300px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
               style={{ top, left }}
             >
+              {/* Techno tabs */}
+              <div className="flex border-b border-border/40">
+                {(['4G', '5G'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setKpiTechnoFilter(t)}
+                    className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider transition-all ${
+                      kpiTechnoFilter === t
+                        ? t === '5G'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-b-2 border-emerald-500'
+                          : 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-b-2 border-orange-500'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
               {/* Search */}
               <div className="px-3 py-2 border-b border-border/40">
                 <div className="relative">
@@ -7987,7 +8143,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
                                   const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
                                   const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next, kpiTechno: kpiTechnoFilter, kpiAnalysisLevel } })
                                     .then(() => setOverlayVersion(v => v + 1));
                                 }
                               });
@@ -9251,6 +9407,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       overlays.push(settings.mapKpi);
                     }
                     setKpiOverlays(overlays);
+                    // Restore techno and analysis level from view
+                    if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
+                      setKpiTechnoFilter(settings.kpiTechno);
+                    }
+                    if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
+                      setKpiAnalysisLevel(settings.kpiAnalysisLevel);
+                    }
                     if (overlays.length > 0) {
                       setMapKpi(overlays[overlays.length - 1]);
                       setSectorColorMode('kpi');
