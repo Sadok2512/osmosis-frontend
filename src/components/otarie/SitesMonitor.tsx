@@ -6685,6 +6685,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
                 az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
               }
+              if (tech === '2G' && !enabledTechnos.has('2G')) continue;
+              if (tech === '3G' && !enabledTechnos.has('3G')) continue;
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
               if (tech === '5G' && !enabledTechnos.has('5G')) continue;
               if (!isBandEnabled(cell.bande, cell.techno)) continue;
