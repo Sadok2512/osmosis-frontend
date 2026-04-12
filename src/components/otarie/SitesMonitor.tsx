@@ -3484,7 +3484,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getBandColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
     if (!key) {
-      return is5GTech(techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
+      if (is5GTech(techno)) return bandColors['5G_GROUP'] || '#22c55e';
+      if (is3GTech(techno)) return bandColors['3G_GROUP'] || '#3b82f6';
+      if (is2GTech(techno)) return bandColors['2G_GROUP'] || '#ef4444';
+      return bandColors['4G_GROUP'] || '#f97316';
     }
     return bandColors[key] || DEFAULT_BAND_COLORS[key];
   }, [bandColors]);
@@ -3492,7 +3495,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getBandStrokeColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
     if (!key) {
-      return deriveStrokeColor(is5GTech(techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
+      if (is5GTech(techno)) return deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e');
+      if (is3GTech(techno)) return deriveStrokeColor(bandColors['3G_GROUP'] || '#3b82f6');
+      if (is2GTech(techno)) return deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444');
+      return deriveStrokeColor(bandColors['4G_GROUP'] || '#f97316');
     }
     return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
   }, [bandColors]);
