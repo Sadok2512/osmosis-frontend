@@ -48,7 +48,6 @@ const DEFAULT_THRESHOLDS: KpiThreshold[] = [
 ];
 
 const TOPO_FILTER_KEYS = [
-  { key: 'pgoto', label: 'PGOTO' },
   { key: 'pci', label: 'PCI' },
   { key: 'eci', label: 'ECI' },
   { key: 'tac', label: 'TAC' },
@@ -72,7 +71,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
 
   // Topology Search state
   const [topoFilters, setTopoFilters] = useState<Record<string, string>>({});
-  const [activeTopoKeys, setActiveTopoKeys] = useState<string[]>(['pgoto']);
+  const [activeTopoKeys, setActiveTopoKeys] = useState<string[]>(['pci']);
 
   // Reset when closing
   const handleOpenChange = (o: boolean) => {
@@ -85,7 +84,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       setSelectedKpis([]);
       setKpiSearch('');
       setTopoFilters({});
-      setActiveTopoKeys(['pgoto']);
+      setActiveTopoKeys(['pci']);
     }
     onOpenChange(o);
   };
