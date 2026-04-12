@@ -4135,11 +4135,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     const filters: any = {};
     if (localVendor !== 'ALL') filters.vendor = localVendor;
-    if (localTechno !== 'ALL') filters.techno = localTechno;
+    // Always apply KPI techno filter when in KPI mode
+    filters.techno = kpiTechnoFilter;
     if (localBande !== 'ALL') filters.band = localBande;
     if (localDor !== 'ALL') filters.dor = localDor;
     if (localPlaque !== 'ALL') filters.plaque = localPlaque;
     if (localZoneArcep !== 'ALL') filters.zone_arcep = localZoneArcep;
+    // Analysis level
+    filters.level = kpiAnalysisLevel;
 
     // Extract backend-compatible filters from structured view conditions
     if (activeViewConditions?.length) {
