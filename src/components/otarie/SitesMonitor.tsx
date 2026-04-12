@@ -9510,25 +9510,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
                       setKpiOverlayLocked(true);
+                      setSectorColorMode('kpi');
                       // Apply KPI overlays from view config
                       const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
                       if (cfgOverlays.length > 0) {
                         setKpiOverlays(cfgOverlays);
                         setMapKpi(cfgOverlays[0]);
-                        setSectorColorMode('kpi');
-                        // Apply custom thresholds from view config
-                        const viewThresholds: Record<string, any> = {};
-                        for (const kpiCfg of cfg.kpis || []) {
-                          if (kpiCfg.thresholds?.length >= 2) {
-                            viewThresholds[kpiCfg.kpiKey] = {
-                              green: kpiCfg.thresholds[kpiCfg.thresholds.length - 1]?.min ?? 50,
-                              orange: kpiCfg.thresholds[1]?.min ?? 10,
-                            };
-                          }
+                      }
+                      // Apply custom thresholds from view config
+                      const viewThresholds: Record<string, any> = {};
+                      for (const kpiCfg of cfg.kpis || []) {
+                        if (kpiCfg.thresholds?.length >= 2) {
+                          viewThresholds[kpiCfg.kpiKey] = {
+                            green: kpiCfg.thresholds[kpiCfg.thresholds.length - 1]?.min ?? 50,
+                            orange: kpiCfg.thresholds[1]?.min ?? 10,
+                          };
                         }
-                        if (Object.keys(viewThresholds).length > 0) {
-                          setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
-                        }
+                      }
+                      if (Object.keys(viewThresholds).length > 0) {
+                        setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
                       }
                     } else {
                       setKpiOverlayLocked(false);
