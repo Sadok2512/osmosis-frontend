@@ -6607,8 +6607,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
-            const { has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
@@ -6763,8 +6763,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (!site.cells || site.cells.length === 0) {
             const kpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
             const colorViewOverrideFb = getColorViewFill(site);
-            const { has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
             const fbColor = colorViewOverrideFb || (sectorColorMode === 'kpi' ? getKpiColor(kpiVal) : topoColor);
             return (
               <CircleMarker
