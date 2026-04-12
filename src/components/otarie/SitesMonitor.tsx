@@ -5037,8 +5037,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
-  const toggleAllBands = useCallback((group: 'NR' | 'LTE') => {
-    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] : ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'];
+  const toggleAllBands = useCallback((group: 'NR' | 'LTE' | 'UMTS' | 'GSM') => {
+    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] : group === 'LTE' ? ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'] : group === 'UMTS' ? ['UMTS2100', 'UMTS900'] : ['GSM900', 'GSM1800'];
     setEnabledBands(prev => {
       const next = new Set(prev);
       const allOn = bands.every(b => next.has(b));
@@ -7858,7 +7858,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <>
                 {/* Tech filter: ALL / 5G / 4G / OFF */}
                 <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
-                  {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                  {(['ALL', '5G', '4G', '3G', '2G', 'OFF'] as const).map((tech) => (
                     <button
                       key={tech}
                       onClick={() => {
@@ -7895,6 +7895,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     ).concat(
                       mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
                         ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
+                        : []
+                    ).concat(
+                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '3G'
+                        ? ['UMTS2100', 'UMTS900']
+                        : []
+                    ).concat(
+                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '2G'
+                        ? ['GSM900', 'GSM1800']
                         : []
                     ).map((band) => (
                       <button
@@ -8475,7 +8483,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-              {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+              {(['ALL', '5G', '4G', '3G', '2G', 'OFF'] as const).map((tech) => (
                 <button
                   key={tech}
                   onClick={() => {
