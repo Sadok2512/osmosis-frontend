@@ -2639,6 +2639,32 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           </div>
         </div>
       )}
+      {/* Delete dashboard confirmation */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl p-5 mx-4 max-w-sm w-full space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Supprimer ce dashboard ?</h3>
+              <p className="text-[11px] text-muted-foreground mt-1">Cette action est irréversible.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { handleDeleteDashboard(showDeleteConfirm); setShowDeleteConfirm(null); }}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+              >
+                <Trash2 size={13} />
+                Supprimer
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
