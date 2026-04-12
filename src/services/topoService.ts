@@ -335,7 +335,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       }
       return buildCellProperties(
         cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
+        normalizeTechnoRaw(r.techno || r.rat),
         r.bande || r.band || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
@@ -1050,7 +1050,7 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
       }
       return buildCellProperties(
         cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
+        normalizeTechnoRaw(r.techno || r.rat),
         r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
