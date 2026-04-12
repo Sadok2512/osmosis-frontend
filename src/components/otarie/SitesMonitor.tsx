@@ -9345,6 +9345,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   <span className="text-[10px] font-bold text-muted-foreground">5G</span>
                                 </div>
                               </div>
+                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
+                                {([['2G','#ef4444'],['3G','#3b82f6'],['4G','#f97316'],['5G','#22c55e']] as [string,string][]).map(([tech, color]) => {
+                                  const isHidden = hiddenTechs.has(tech);
+                                  return (
+                                    <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
+                                      <span className={`w-3 h-3 rounded-full border-2 transition-all ${isHidden ? 'opacity-30 border-muted-foreground' : 'border-transparent'}`} style={{ background: isHidden ? '#9ca3af' : color }} />
+                                      <span className={`text-[10px] font-bold transition-all ${isHidden ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}>{tech}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               {expandedSectors.size > 0 && (() => {
                                 const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
                                 const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
