@@ -2005,6 +2005,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       viewConditions: vs.viewConditions || [],
       mapLabelFields: vs.mapLabelFields || dbSettings.mapLabelFields,
       kpiOverlays: Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays : [],
+      viewType: vs.viewType || null,
+      kpiOverlayConfig: vs.kpiOverlayConfig || null,
+      topoSearchConfig: vs.topoSearchConfig || null,
     };
   };
 
