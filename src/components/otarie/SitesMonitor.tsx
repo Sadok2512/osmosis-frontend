@@ -182,19 +182,19 @@ const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
 const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
   const stats: TopoNetworkStats = {
     ...EMPTY_TOPO_NETWORK_STATS,
+    bandMap2G: {},
+    bandMap3G: {},
     bandMap4G: {},
     bandMap5G: {},
     vendorMap: {},
   };
 
-  const siteTechMap = new Map<string, { has4G: boolean; has5G: boolean }>();
+  const siteTechMap = new Map<string, { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean }>();
 
   rows.forEach((row, index) => {
     const techno = row?.techno ?? row?.technology ?? row?.rat ?? null;
-    const is5G = is5GTech(techno);
-    const is4G = is4GTech(techno);
-
-    if (!is4G && !is5G) return;
+    const techGroup = getCellTechGroup(techno);
+    if (!techGroup) return;
 
     const siteKey = String(
       row?.code_nidt ?? row?.nom_site ?? row?.site_name ?? row?.site_id ?? row?.site ?? `site-${index}`,
@@ -203,17 +203,12 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
     const band = normalizeBandKey(rawBand, techno) || rawBand;
     const vendor = String(row?.constructeur ?? row?.vendor ?? row?.vendor_name ?? 'Unknown');
 
-    const siteEntry = siteTechMap.get(siteKey) ?? { has4G: false, has5G: false };
+    const siteEntry = siteTechMap.get(siteKey) ?? { has2G: false, has3G: false, has4G: false, has5G: false };
 
-    if (is5G) {
-      stats.cells5G += 1;
-      stats.bandMap5G[band] = (stats.bandMap5G[band] || 0) + 1;
-      siteEntry.has5G = true;
-    } else {
-      stats.cells4G += 1;
-      stats.bandMap4G[band] = (stats.bandMap4G[band] || 0) + 1;
-      siteEntry.has4G = true;
-    }
+    if (techGroup === '5G') { stats.cells5G += 1; stats.bandMap5G[band] = (stats.bandMap5G[band] || 0) + 1; siteEntry.has5G = true; }
+    else if (techGroup === '4G') { stats.cells4G += 1; stats.bandMap4G[band] = (stats.bandMap4G[band] || 0) + 1; siteEntry.has4G = true; }
+    else if (techGroup === '3G') { stats.cells3G += 1; stats.bandMap3G[band] = (stats.bandMap3G[band] || 0) + 1; siteEntry.has3G = true; }
+    else if (techGroup === '2G') { stats.cells2G += 1; stats.bandMap2G[band] = (stats.bandMap2G[band] || 0) + 1; siteEntry.has2G = true; }
 
     const normalizedVendor = (() => {
       const v = vendor.trim().toUpperCase();
@@ -226,15 +221,16 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
       return vendor.charAt(0).toUpperCase() + vendor.slice(1).toLowerCase();
     })();
     if (!stats.vendorMap[normalizedVendor]) {
-      stats.vendorMap[normalizedVendor] = { '4G': 0, '5G': 0 };
+      stats.vendorMap[normalizedVendor] = { '2G': 0, '3G': 0, '4G': 0, '5G': 0 };
     }
-    if (is5G) stats.vendorMap[normalizedVendor]['5G'] += 1;
-    if (is4G) stats.vendorMap[normalizedVendor]['4G'] += 1;
+    stats.vendorMap[normalizedVendor][techGroup] += 1;
 
     siteTechMap.set(siteKey, siteEntry);
   });
 
-  siteTechMap.forEach(({ has4G, has5G }) => {
+  siteTechMap.forEach(({ has2G, has3G, has4G, has5G }) => {
+    if (has2G) stats.sites2G += 1;
+    if (has3G) stats.sites3G += 1;
     if (has4G) stats.sites4G += 1;
     if (has5G) stats.sites5G += 1;
   });
