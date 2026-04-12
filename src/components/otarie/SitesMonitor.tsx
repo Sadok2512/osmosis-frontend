@@ -7529,7 +7529,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   !activeViewId
                     ? 'text-muted-foreground/40 cursor-not-allowed'
-                    : sectorColorMode === 'kpi' && !paramMode && !paramPanelOpen
+                    : sectorColorMode === 'kpi'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -7538,35 +7538,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 KPI
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setParamPanelOpen(false); if (paramMode) handleParamReset(); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                  sectorColorMode === 'topo' && !paramMode && !paramPanelOpen
+                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                  sectorColorMode === 'topo'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Radio size={11} />
                 Topo
-              </button>
-              <button
-                onClick={async () => {
-                  if (!paramPanelOpen && !paramMode) {
-                    // Entering param mode: save active dashboard but keep filters applied
-                    if (activeDashboardId) {
-                      await saveDashboardSettings(activeDashboardId);
-                    }
-                  }
-                  setParamPanelOpen(!paramPanelOpen);
-                }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  paramMode || paramPanelOpen
-                    ? 'bg-gradient-to-r from-emerald-500 to-green-500 text-white shadow-md shadow-emerald-500/20'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <MapPin size={11} />
-                Param
-                {paramConfirmed && <span className="text-[8px] opacity-70">({paramPoints.length})</span>}
               </button>
             </div>
 
@@ -8265,72 +8245,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         );
       })()}
 
-      {paramPanelOpen && (
-        <div className="absolute top-[80px] z-[1100] pointer-events-auto w-[320px] transition-all duration-300" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16 }}>
-          <div className="bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden">
-            <div className="p-3 border-b border-border">
-              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">Sélectionner un paramètre</div>
-              <div className="relative">
-                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  autoFocus
-                  value={paramSearch}
-                  onChange={e => setParamSearch(e.target.value)}
-                  placeholder="Rechercher..."
-                  className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            </div>
-            <div className="max-h-[240px] overflow-y-auto p-1">
-              {paramAvailableLoading ? (
-                <div className="flex items-center justify-center py-6"><RefreshCw className="w-4 h-4 animate-spin text-primary" /></div>
-              ) : paramFilteredList.length === 0 ? (
-                <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
-              ) : paramFilteredList.map(p => (
-                <button
-                  key={p}
-                  onClick={() => setParamSelected(p)}
-                  className={`w-full flex items-center gap-2 px-3 py-2 text-xs rounded-lg transition-colors ${
-                    paramSelected === p ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground hover:bg-accent'
-                  }`}
-                >
-                  <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    paramSelected === p ? 'border-primary bg-primary' : 'border-input'
-                  }`}>
-                    {paramSelected === p && <Check size={8} className="text-primary-foreground" />}
-                  </div>
-                  <span className="truncate">{p}</span>
-                </button>
-              ))}
-            </div>
-            <div className="p-3 border-t border-border flex items-center gap-2">
-              {paramSelected && paramSelected !== paramConfirmed && (
-                <span className="text-[9px] text-amber-500 font-bold uppercase mr-auto">Non appliqué</span>
-              )}
-              {!paramSelected && !paramConfirmed && (
-                <span className="text-[9px] text-muted-foreground mr-auto">Choisir un paramètre</span>
-              )}
-              {paramConfirmed && paramSelected === paramConfirmed && (
-                <span className="text-[9px] text-primary font-bold mr-auto truncate max-w-[120px]">✓ {paramConfirmed}</span>
-              )}
-              <button
-                onClick={handleParamReset}
-                className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-all"
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleParamConfirm}
-                disabled={!paramSelected || paramLoading}
-                className="px-4 py-1.5 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1.5"
-              >
-                {paramLoading ? <RefreshCw size={10} className="animate-spin" /> : <Check size={10} />}
-                Confirm
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
