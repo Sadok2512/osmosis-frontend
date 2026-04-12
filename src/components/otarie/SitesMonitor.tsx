@@ -6139,7 +6139,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has4G, has5G } = inferSiteTechState(site);
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : FADED_COLOR;
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
           const color = colorViewOverride || topoColor;
