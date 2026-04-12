@@ -4088,6 +4088,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
         }
         if (Object.keys(thr).length > 0) {
+          setCatalogThresholds(thr);
           setKpiThresholds(prev => {
             // Catalog thresholds as base, user-saved overrides on top
             const merged = { ...thr, ...prev };
