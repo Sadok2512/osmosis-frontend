@@ -9348,6 +9348,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
+                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
                                 {([['2G','#ef4444'],['3G','#3b82f6'],['4G','#f97316'],['5G','#22c55e']] as [string,string][]).map(([tech, color]) => {
                                   const isHidden = hiddenTechs.has(tech);
                                   return (
