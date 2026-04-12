@@ -410,7 +410,7 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
 
 const getRenderableCellsForSite = (
   site: SiteSummary,
-  mapTechnoFilter: 'ALL' | '4G' | '5G' | 'OFF',
+  mapTechnoFilter: 'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF',
   enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
 ) => {
@@ -543,6 +543,14 @@ const TechPanes: React.FC = () => {
   const map = useMap();
   // Use useLayoutEffect to create panes BEFORE first paint — ensures 5G is always on top from the start
   useLayoutEffect(() => {
+    if (!map.getPane('pane2G')) {
+      const p2 = map.createPane('pane2G');
+      p2.style.zIndex = '300';
+    }
+    if (!map.getPane('pane3G')) {
+      const p3 = map.createPane('pane3G');
+      p3.style.zIndex = '350';
+    }
     if (!map.getPane('pane4G')) {
       const p4 = map.createPane('pane4G');
       p4.style.zIndex = '400';
@@ -3380,7 +3388,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     },
   };
 
-  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
+  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
@@ -3476,7 +3484,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getBandColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
     if (!key) {
-      return is5GTech(techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316');
+      if (is5GTech(techno)) return bandColors['5G_GROUP'] || '#22c55e';
+      if (is3GTech(techno)) return bandColors['3G_GROUP'] || '#3b82f6';
+      if (is2GTech(techno)) return bandColors['2G_GROUP'] || '#ef4444';
+      return bandColors['4G_GROUP'] || '#f97316';
     }
     return bandColors[key] || DEFAULT_BAND_COLORS[key];
   }, [bandColors]);
@@ -3484,7 +3495,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const getBandStrokeColor = useCallback((bande: string, techno?: string): string => {
     const key = normalizeBandKey(bande, techno);
     if (!key) {
-      return deriveStrokeColor(is5GTech(techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316'));
+      if (is5GTech(techno)) return deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e');
+      if (is3GTech(techno)) return deriveStrokeColor(bandColors['3G_GROUP'] || '#3b82f6');
+      if (is2GTech(techno)) return deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444');
+      return deriveStrokeColor(bandColors['4G_GROUP'] || '#f97316');
     }
     return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
   }, [bandColors]);
@@ -6122,7 +6136,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
                 const colorViewOverridePoint = getColorViewFill(site);
-                const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? (is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316')) : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
+                const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3b82f6') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#ef4444') : (bandColors['4G_GROUP'] || '#f97316');
+                const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? techColor : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
                 const isHovered = hoveredSiteId === site.site_id;
                 const offsetDist = 0.0003;
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
@@ -6168,8 +6183,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
-          const { has4G, has5G } = inferSiteTechState(site);
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+          const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
           const color = colorViewOverride || topoColor;
@@ -6366,10 +6381,84 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return br;
           };
 
+          // Pass 0a: 2G circles (pane2G — bottom-most)
+          const pass2G = (!enabledTechnos.has('2G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '2G') ? [] : circleSites.filter(site => {
+            const { has2G } = inferSiteTechState(site);
+            return has2G;
+          })).map(site => {
+            const isHov = hoveredSiteId === site.site_id;
+            const isSel = selectedSiteId === site.site_id;
+            const br = getRadius(site, isHov, isSel);
+            const colorOverride = getColorViewFill(site);
+            return (
+              <CircleMarker
+                key={`2g_${site.site_id}`}
+                center={site.coordinates}
+                radius={br}
+                pane="pane2G"
+                pathOptions={{
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['2G_GROUP'] || '#ef4444'))),
+                  fillColor: colorOverride || (bandColors['2G_GROUP'] || '#ef4444'),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          });
+
+          // Pass 0b: 3G circles (pane3G)
+          const pass3G = (!enabledTechnos.has('3G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '3G') ? [] : circleSites.filter(site => {
+            const { has3G } = inferSiteTechState(site);
+            return has3G;
+          })).map(site => {
+            const isHov = hoveredSiteId === site.site_id;
+            const isSel = selectedSiteId === site.site_id;
+            const br = getRadius(site, isHov, isSel);
+            const colorOverride = getColorViewFill(site);
+            return (
+              <CircleMarker
+                key={`3g_${site.site_id}`}
+                center={site.coordinates}
+                radius={br}
+                pane="pane3G"
+                pathOptions={{
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'))),
+                  fillColor: colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'),
+                  fillOpacity: 1,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
+                }}
+                eventHandlers={{
+                  click: () => handleSiteClick(site),
+                  mouseover: () => setHoveredSiteId(site.site_id),
+                  mouseout: () => setHoveredSiteId(null),
+                }}
+              >
+                <Popup>
+                  <div className="p-1">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            );
+          });
+
           // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
-          const pass4G = (mapTechnoFilter === '5G' ? [] : circleSites.filter(site => {
+          const pass4G = (!enabledTechnos.has('4G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '4G') ? [] : circleSites.filter(site => {
             const { has4G } = inferSiteTechState(site);
-            return has4G && enabledTechnos.has('4G');
+            return has4G;
           })).map(site => {
             const { has5G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
@@ -6406,10 +6495,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           });
 
-          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G) — skip if filter is 4G-only
-          const pass5G = (mapTechnoFilter === '4G' ? [] : circleSites.filter(site => {
+          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G)
+          const pass5G = (!enabledTechnos.has('5G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '5G') ? [] : circleSites.filter(site => {
             const { has5G } = inferSiteTechState(site);
-            return has5G && enabledTechnos.has('5G');
+            return has5G;
           })).map(site => {
             const { has4G } = inferSiteTechState(site);
             const isHov = hoveredSiteId === site.site_id;
@@ -6448,8 +6537,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           // Pass 3: unknown tech fallback — hide when a specific techno filter is active
           const passUnknown = (mapTechnoFilter !== 'ALL' ? [] : circleSites.filter(site => {
-            const { has4G, has5G } = inferSiteTechState(site);
-            return !has4G && !has5G;
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            return !has2G && !has3G && !has4G && !has5G;
           })).map(site => {
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
@@ -6492,7 +6581,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Marker>
           ));
 
-          return <>{passUnknown}{pass4G}{pass5G}{labels}</>;
+          return <>{passUnknown}{pass2G}{pass3G}{pass4G}{pass5G}{labels}</>;
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
@@ -6518,8 +6607,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
-            const { has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
@@ -6555,18 +6644,57 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
           if (!site.cells || site.cells.length === 0) {
-            const { has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
-            // Respect techno filter: skip sites that don't match
+            const { has2G: fb2G, has3G: fb3G, has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
+            const show2G = fb2G && enabledTechnos.has('2G');
+            const show3G = fb3G && enabledTechnos.has('3G');
             const show4G = fb4G && enabledTechnos.has('4G');
             const show5G = fb5G && enabledTechnos.has('5G');
-            if (!show4G && !show5G) {
-              // If specific filter active and site doesn't match, skip entirely
+            if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
             const baseR = isHovered || isSelectedSite ? 7 : 5;
-            const fbMixed = show4G && show5G;
             return (
               <React.Fragment key={site.site_id}>
+                {show2G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane2G"
+                    fillColor={bandColors['2G_GROUP'] || '#ef4444'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
+                {show3G && (
+                  <CircleMarker
+                    center={site.coordinates}
+                    radius={baseR}
+                    pane="pane3G"
+                    fillColor={bandColors['3G_GROUP'] || '#3b82f6'}
+                    fillOpacity={0.85}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['3G_GROUP'] || '#3b82f6')}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -6]} opacity={0.95} permanent={false}>
+                      <span className="text-[10px] font-bold">{site.site_name}</span>
+                    </Tooltip>
+                  </CircleMarker>
+                )}
                 {show4G && (
                   <CircleMarker
                     center={site.coordinates}
@@ -6590,12 +6718,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {show5G && (
                   <CircleMarker
                     center={site.coordinates}
-                    radius={fbMixed ? Math.round(baseR * 0.65) : baseR}
+                    radius={Math.round(baseR * 0.65)}
                     pane="pane5G"
                     fillColor={bandColors['5G_GROUP'] || '#22c55e'}
                     fillOpacity={0.9}
-                    weight={isSelectedSite ? 3 : (fbMixed ? 0 : 1.5)}
-                    color={isSelectedSite ? '#fff' : (fbMixed ? 'transparent' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e'))}
+                    weight={isSelectedSite ? 3 : 1.5}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['5G_GROUP'] || '#22c55e')}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
                       mouseover: () => setHoveredSiteId(site.site_id),
@@ -6607,7 +6735,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </Tooltip>
                   </CircleMarker>
                 )}
-                {!show4G && !show5G && mapTechnoFilter === 'ALL' && (
+                {!show2G && !show3G && !show4G && !show5G && mapTechnoFilter === 'ALL' && (
                   <CircleMarker
                     center={site.coordinates}
                     radius={baseR}
@@ -6635,8 +6763,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (!site.cells || site.cells.length === 0) {
             const kpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
             const colorViewOverrideFb = getColorViewFill(site);
-            const { has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#22c55e') : has4G ? (bandColors['4G_GROUP'] || '#f97316') : has3G ? (bandColors['3G_GROUP'] || '#3b82f6') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'));
             const fbColor = colorViewOverrideFb || (sectorColorMode === 'kpi' ? getKpiColor(kpiVal) : topoColor);
             return (
               <CircleMarker
@@ -6677,6 +6805,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
                 az = heuristicAz[sNum] ?? ((sNum - 1) * 120) % 360;
               }
+              if (tech === '2G' && !enabledTechnos.has('2G')) continue;
+              if (tech === '3G' && !enabledTechnos.has('3G')) continue;
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
               if (tech === '5G' && !enabledTechnos.has('5G')) continue;
               if (!isBandEnabled(cell.bande, cell.techno)) continue;
