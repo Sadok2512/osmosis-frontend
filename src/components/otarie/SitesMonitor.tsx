@@ -543,6 +543,14 @@ const TechPanes: React.FC = () => {
   const map = useMap();
   // Use useLayoutEffect to create panes BEFORE first paint — ensures 5G is always on top from the start
   useLayoutEffect(() => {
+    if (!map.getPane('pane2G')) {
+      const p2 = map.createPane('pane2G');
+      p2.style.zIndex = '300';
+    }
+    if (!map.getPane('pane3G')) {
+      const p3 = map.createPane('pane3G');
+      p3.style.zIndex = '350';
+    }
     if (!map.getPane('pane4G')) {
       const p4 = map.createPane('pane4G');
       p4.style.zIndex = '400';
