@@ -939,11 +939,78 @@ export function invalidateSiteCellsCache() {
   siteCellsCache.clear();
 }
 
+function mapSiteDetailPayloadToCells(payload: any): CellProperties[] {
+  const rows: any[] = Array.isArray(payload?.cells) ? payload.cells : [];
+  if (rows.length === 0) return [];
+
+  const seen = new Set<string>();
+  const uniqueRows = rows.filter((row) => {
+    const cellName = String(row?.cell_name || row?.nom_cellule || row?.cell_id || '').trim();
+    if (!cellName || seen.has(cellName)) return false;
+    seen.add(cellName);
+    return true;
+  });
+
+  const hasRealAzimut = uniqueRows.some((row) => {
+    const azimut = Number(row?.azimut);
+    return Number.isFinite(azimut) && azimut !== 0;
+  });
+
+  let sectorAzimutMap: Map<number, number> | null = null;
+  if (!hasRealAzimut) {
+    const sectorIndices = new Set<number>();
+    uniqueRows.forEach((row) => {
+      const cellName = String(row?.cell_name || row?.nom_cellule || row?.cell_id || '');
+      sectorIndices.add(extractSectorIndex(cellName));
+    });
+    const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+    sectorAzimutMap = new Map();
+    sorted.forEach((idx, i) => {
+      sectorAzimutMap!.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
+    });
+  }
+
+  return uniqueRows.map((row) => {
+    const cellName = String(row?.cell_name || row?.nom_cellule || row?.cell_id || '');
+    const sectorIdx = extractSectorIndex(cellName);
+    const azimutRaw = Number(row?.azimut);
+    const azimut = hasRealAzimut && Number.isFinite(azimutRaw) && azimutRaw !== 0
+      ? azimutRaw
+      : (sectorAzimutMap?.get(sectorIdx) ?? 0);
+    const techno = normalizeTechnoRaw(row?.techno || row?.technology || row?.rat);
+    const bande = row?.band || row?.bande || inferBandFromCellName(cellName, techno);
+
+    return buildCellProperties(
+      cellName,
+      techno,
+      bande,
+      azimut,
+      Number(row?.hba ?? row?.height ?? 30) || 30,
+      {
+        ...row,
+        cell_name: cellName,
+        nom_cellule: cellName,
+        bande,
+        code_nidt: row?.code_nidt || row?.id_site || payload?.code_nidt || null,
+        nom_site: row?.site_name || payload?.site_name || null,
+        constructeur: row?.constructeur || row?.vendor || payload?.vendor || null,
+        plaque: row?.plaque || payload?.plaque || null,
+        zone_arcep: row?.zone_arcep || payload?.zone_arcep || null,
+        dor: row?.dor || row?.dr || payload?.region || null,
+        etat_cellule: row?.etat_cellule || row?.etat_fonctionnement || null,
+        latitude: row?.latitude ?? payload?.latitude ?? null,
+        longitude: row?.longitude ?? payload?.longitude ?? null,
+        tilt: row?.tilt ?? null,
+      },
+    );
+  });
+}
+
 /**
  * Fetch cells for a single site on demand.
  * Uses Supabase RPC get_site_cells, with local caching.
  */
-export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> {
+export async function fetchSiteCells(siteId: string, fallbackSiteName?: string): Promise<CellProperties[]> {
   const cached = siteCellsCache.get(siteId);
   if (cached && (Date.now() - cached.ts) < SITE_CELLS_CACHE_TTL) {
     return cached.cells;
@@ -1032,6 +1099,32 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
     }
   } catch (e) {
     console.warn('[TopoService] VPS /topo/cells failed:', e);
+  }
+
+  // ── 2) Fallback to VPS /topo/site/:id-or-name (returns complete site payload with cells) ──
+  try {
+    const lookupCandidates = [siteId, fallbackSiteName]
+      .map((value) => String(value || '').trim())
+      .filter((value, index, arr) => value.length > 0 && arr.indexOf(value) === index);
+
+    for (const lookup of lookupCandidates) {
+      const url = getVpsProxyUrl('parser', `/api/v1/topo/site/${encodeURIComponent(lookup)}`);
+      const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (!resp.ok) continue;
+
+      const payload = await resp.json();
+      const cells = mapSiteDetailPayloadToCells(payload);
+      if (cells.length > 0) {
+        siteCellsCache.set(siteId, { cells, ts: Date.now() });
+        if (lookup !== siteId) {
+          siteCellsCache.set(lookup, { cells, ts: Date.now() });
+        }
+        console.log(`[TopoService] Site cells (VPS/site): ${cells.length} cells for ${siteId} via ${lookup}`);
+        return cells;
+      }
+    }
+  } catch (e) {
+    console.warn('[TopoService] VPS /topo/site fallback failed:', e);
   }
 
   // Supabase RPC fallback

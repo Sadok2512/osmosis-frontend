@@ -4829,7 +4829,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(true);
         }
         try {
-          const cells = await fetchSiteCells(selectedSiteId);
+          const cells = await fetchSiteCells(selectedSiteId, bboxSite?.site_name || selectedSiteSnapshot?.site_name);
           const baseSite = bboxSite || {
             site_id: selectedSiteId,
             site_name: selectedSiteId,
@@ -5269,9 +5269,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   // Try site_id first, then site_name as fallback
-                  let cells = await fetchSiteCells(site.site_id);
+                  let cells = await fetchSiteCells(site.site_id, site.site_name);
                   if (cells.length === 0 && site.site_name && site.site_name !== site.site_id) {
-                    cells = await fetchSiteCells(site.site_name);
+                    cells = await fetchSiteCells(site.site_name, site.site_name);
                   }
                   return { site, cells };
                 } catch {
@@ -5723,7 +5723,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (site.site_id) {
       setLoadingCellsForSite(site.site_id);
       try {
-        const cells = await fetchSiteCells(site.site_id);
+        const cells = await fetchSiteCells(site.site_id, site.site_name);
         if (cells.length > 0) {
           siteWithCells = {
             ...site,
