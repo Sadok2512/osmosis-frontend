@@ -6432,8 +6432,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 radius={br}
                 pane="pane4G"
                 pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || FADED_COLOR)),
-                  fillColor: colorOverride || FADED_COLOR,
+                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316')))),
+                  fillColor: colorOverride || (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316')),
                   fillOpacity: 1,
                   weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
                 }}
@@ -6582,10 +6582,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     center={site.coordinates}
                     radius={baseR}
                     pane="pane4G"
-                    fillColor={FADED_COLOR}
+                    fillColor={sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316')}
                     fillOpacity={0.85}
                     weight={isSelectedSite ? 3 : 1.5}
-                    color={isSelectedSite ? '#fff' : deriveStrokeColor(FADED_COLOR)}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316'))}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
                       mouseover: () => setHoveredSiteId(site.site_id),
