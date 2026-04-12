@@ -7949,12 +7949,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   ]).map(lvl => (
                     <button
                       key={lvl.key}
-                      onClick={() => setKpiAnalysisLevel(lvl.key)}
+                      onClick={() => !kpiOverlayLocked && setKpiAnalysisLevel(lvl.key)}
+                      disabled={kpiOverlayLocked}
                       className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
                         kpiAnalysisLevel === lvl.key
                           ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
                           : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      }`}
+                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       <span className="text-[8px]">{lvl.icon}</span>
                       {lvl.label}
