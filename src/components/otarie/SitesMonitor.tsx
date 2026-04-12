@@ -9038,10 +9038,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 })}
                               </div>
 
-                              {expandedSectors.size > 0 && (() => {
-                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                              {(() => {
+                                const visibleSectorEntries = expandedSectors.size > 0
+                                  ? sortedSec.filter(([s]) => expandedSectors.has(s))
+                                  : sortedSec;
+                                const secCells = visibleSectorEntries.flatMap(([, cells]) => cells);
                                 const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
-                                if (!filteredCells.length) return null;
+                                if (!filteredCells.length) {
+                                  return (
+                                    <div className="rounded-xl border border-border bg-muted/10 px-4 py-5 text-center text-[11px] text-muted-foreground">
+                                      Aucune cellule visible — réactivez une techno ou sélectionnez un autre secteur.
+                                    </div>
+                                  );
+                                }
                                 return (
                                   <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
                                     <table className="w-full text-[11px]">
@@ -9338,10 +9347,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 })}
                               </div>
-                              {expandedSectors.size > 0 && (() => {
-                                const secCells = sortedSec.filter(([s]) => expandedSectors.has(s)).flatMap(([, cells]) => cells);
+                              {(() => {
+                                const visibleSectorEntries = expandedSectors.size > 0
+                                  ? sortedSec.filter(([s]) => expandedSectors.has(s))
+                                  : sortedSec;
+                                const secCells = visibleSectorEntries.flatMap(([, cells]) => cells);
                                 const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
-                                if (!filteredCells.length) return null;
+                                if (!filteredCells.length) {
+                                  return (
+                                    <div className="rounded-xl border border-border bg-muted/10 px-4 py-5 text-center text-[11px] text-muted-foreground">
+                                      Aucune cellule visible — réactivez une techno ou sélectionnez un autre secteur.
+                                    </div>
+                                  );
+                                }
                                 return (
                                   <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
                                     <table className="w-full text-[11px]">
