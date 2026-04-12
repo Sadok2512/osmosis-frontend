@@ -9407,6 +9407,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       overlays.push(settings.mapKpi);
                     }
                     setKpiOverlays(overlays);
+                    // Restore techno and analysis level from view
+                    if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
+                      setKpiTechnoFilter(settings.kpiTechno);
+                    }
+                    if (settings.kpiAnalysisLevel && ['site', 'cell', 'band'].includes(settings.kpiAnalysisLevel)) {
+                      setKpiAnalysisLevel(settings.kpiAnalysisLevel);
+                    }
                     if (overlays.length > 0) {
                       setMapKpi(overlays[overlays.length - 1]);
                       setSectorColorMode('kpi');
