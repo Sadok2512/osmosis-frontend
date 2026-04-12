@@ -4680,8 +4680,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Do NOT increment dashboardFitKey here — fitBounds was already triggered
           // on the first batch/cache load. Re-triggering it mid-download causes
           // unwanted zoom changes while the user is navigating.
-          // Pre-warm cells cache in background so sectors appear instantly on zoom-in
-          topoApi.prefetchCells(currentBboxFilters || undefined);
+          // Only pre-warm cells cache if user is already at sector-display zoom
+          // to avoid downloading 6M+ cells when the map shows only site dots.
+          if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
+            topoApi.prefetchCells(currentBboxFilters || undefined);
+          }
         } else {
           // Only clear if we had no prior data
           setSites(prev => prev.length > 0 ? prev : []);
