@@ -52,8 +52,20 @@ export function useSitesFilters() {
 
     topoApi.filters()
       .then(data => {
-        const defs = data.filters || [];
+        const defs: FilterDefinition[] = data.filters || [];
         if (defs.length > 0) {
+          // Ensure all standard filter keys are present — merge static fallbacks for missing ones
+          const existingIds = new Set(defs.map(d => d.id));
+          for (const key of FILTER_KEYS) {
+            if (!existingIds.has(key)) {
+              const values = resolveVals(key, []);
+              if (values.length > 0) {
+                defs.push({ id: key, label: FILTER_LABELS[key] || key, values: values.sort() });
+              }
+            }
+          }
+          // Sort to match FILTER_KEYS order
+          defs.sort((a, b) => FILTER_KEYS.indexOf(a.id) - FILTER_KEYS.indexOf(b.id));
           setFilterDefs(defs);
           setLoading(false);
           return;
