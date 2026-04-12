@@ -3732,6 +3732,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
   });
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [activeViewType, setActiveViewType] = useState<string | null>(null);
   const [kpiOverlayLocked, setKpiOverlayLocked] = useState(false);
   const setActiveDashboardId = useCallback((id: string | null) => {
     _setActiveDashboardId(id);
@@ -7533,7 +7534,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   !activeViewId
                     ? 'text-muted-foreground/40 cursor-not-allowed'
-                    : sectorColorMode === 'kpi'
+                    : sectorColorMode === 'kpi' && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -7543,14 +7544,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
               <button
                 onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  sectorColorMode === 'topo'
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+                  sectorColorMode === 'topo' && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <Radio size={11} />
                 Topo
+              </button>
+              <button
+                disabled
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                  activeViewType === 'parameter'
+                    ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
+                    : 'text-muted-foreground/40 cursor-not-allowed'
+                }`}
+              >
+                <MapPin size={11} />
+                Param
               </button>
             </div>
 
@@ -9406,8 +9418,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     // Track view activation
                     if (settings._viewId) {
                       setActiveViewId(settings._viewId);
+                      setActiveViewType(settings.viewType || null);
                     } else if (settings._isDashboardOnly) {
                       setActiveViewId(null);
+                      setActiveViewType(null);
                     }
 
                     // Restore KPI overlays from view settings
