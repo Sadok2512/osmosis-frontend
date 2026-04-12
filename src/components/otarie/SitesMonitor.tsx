@@ -98,6 +98,12 @@ const CELLS_TO_SITES_ZOOM = 8;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
+  // GSM (2G) — red tones
+  GSM900:  '#ef4444',
+  GSM1800: '#dc2626',
+  // UMTS (3G) — blue tones
+  UMTS900:  '#3b82f6',
+  UMTS2100: '#2563eb',
   // NR (5G) — green tones
   NR3500: '#22c55e',
   NR700:  '#16a34a',
@@ -109,6 +115,8 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   L800:   '#fdba74',
   L700:   '#c2410c',
   // Group header colors
+  '2G_GROUP': '#ef4444',
+  '3G_GROUP': '#3b82f6',
   '5G_GROUP': '#22c55e',
   '4G_GROUP': '#f97316',
 };
