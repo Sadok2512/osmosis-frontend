@@ -3388,7 +3388,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     },
   };
 
-  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
+  const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
