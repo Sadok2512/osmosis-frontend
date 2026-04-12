@@ -17,6 +17,7 @@ export interface ActiveFilter {
 
 const FILTER_LABELS: Record<string, string> = {
   dor: 'DOR',
+  dr: 'DR',
   plaque: 'Plaque',
   constructeur: 'Constructeur',
   techno: 'Technologie',
@@ -24,7 +25,7 @@ const FILTER_LABELS: Record<string, string> = {
   zone_arcep: 'Zone ARCEP',
 };
 
-const FILTER_KEYS = ['dor', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep'];
+const FILTER_KEYS = ['dor', 'dr', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep'];
 
 /** Build static fallback filter definitions from filterDimensions config */
 function buildStaticFilterDefs(): FilterDefinition[] {
@@ -91,6 +92,7 @@ export function useSitesFilters() {
 
         for (const s of sites) {
           if (s.dor) sets.dor.add(s.dor);
+          if (s.dr) sets.dr.add(s.dr);
           if (s.plaque) sets.plaque.add(s.plaque);
           if (s.constructeur) sets.constructeur.add(s.constructeur);
           if (s.zone_arcep) sets.zone_arcep.add(s.zone_arcep);
