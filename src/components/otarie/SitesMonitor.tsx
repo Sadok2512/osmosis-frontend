@@ -3732,6 +3732,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try { return localStorage.getItem('osmosis_active_dashboard_id') || null; } catch { return null; }
   });
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
+  const [activeViewType, setActiveViewType] = useState<string | null>(null);
   const [kpiOverlayLocked, setKpiOverlayLocked] = useState(false);
   const setActiveDashboardId = useCallback((id: string | null) => {
     _setActiveDashboardId(id);
