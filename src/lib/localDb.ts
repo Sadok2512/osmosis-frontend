@@ -58,31 +58,50 @@ function useLocal(): boolean {
 }
 
 async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise<T> {
-  const maxRetries = 2;
+  const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
-    if (resp.status === 503 && attempt < maxRetries) {
-      console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${300 * (attempt + 1)}ms...`);
-      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
-      continue;
+    try {
+      const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
+      if (resp.status === 503 && attempt < maxRetries) {
+        console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${500 * (attempt + 1)}ms...`);
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
+    } catch (err) {
+      if (attempt < maxRetries && (err instanceof TypeError || (err as Error).message?.includes('503'))) {
+        console.warn(`[localDb] Fetch error attempt ${attempt + 1}:`, (err as Error).message);
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
     }
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp.json();
   }
   throw new Error('HTTP 503 after retries');
 }
 
 async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal): Promise<T> {
-  const maxRetries = 2;
+  const maxRetries = 3;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
-    if (resp.status === 503 && attempt < maxRetries) {
-      console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${300 * (attempt + 1)}ms...`);
-      await new Promise(r => setTimeout(r, 300 * (attempt + 1)));
-      continue;
+    try {
+      const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
+      if (resp.status === 503 && attempt < maxRetries) {
+        console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${500 * (attempt + 1)}ms...`);
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return resp.json();
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      if (attempt < maxRetries && (err instanceof TypeError || (err as Error).message?.includes('503'))) {
+        console.warn(`[localDb] Fetch error attempt ${attempt + 1}:`, (err as Error).message);
+        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+        continue;
+      }
+      throw err;
     }
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    return resp.json();
   }
   throw new Error('HTTP 503 after retries');
 }
