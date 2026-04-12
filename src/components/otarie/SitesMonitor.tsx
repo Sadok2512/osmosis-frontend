@@ -2517,7 +2517,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             </div>
 
                             {/* KPI Overlay badges — active view uses live props, inactive reads from persisted settings */}
-                            {(() => {
+                            {vs.viewType !== 'parameter' && (() => {
                               const viewOverlays = isViewActive
                                 ? (kpiOverlays || [])
                                 : (Array.isArray(vs.kpiOverlays) ? vs.kpiOverlays.map((id: string) => ({ id, label: resolveKpiLabel?.(id) || id })) : []);
