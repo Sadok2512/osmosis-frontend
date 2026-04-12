@@ -7896,6 +7896,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
                         ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
                         : []
+                    ).concat(
+                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '3G'
+                        ? ['UMTS2100', 'UMTS900']
+                        : []
+                    ).concat(
+                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '2G'
+                        ? ['GSM900', 'GSM1800']
+                        : []
                     ).map((band) => (
                       <button
                         key={band}
