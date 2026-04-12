@@ -8087,9 +8087,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <>
             <div className="fixed inset-0 z-[1199]" onClick={() => setShowKpiDropdown(false)} />
             <div
-              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[280px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[300px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
               style={{ top, left }}
             >
+              {/* Techno tabs */}
+              <div className="flex border-b border-border/40">
+                {(['4G', '5G'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => setKpiTechnoFilter(t)}
+                    className={`flex-1 py-2.5 text-[11px] font-black uppercase tracking-wider transition-all ${
+                      kpiTechnoFilter === t
+                        ? t === '5G'
+                          ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-b-2 border-emerald-500'
+                          : 'bg-orange-500/15 text-orange-700 dark:text-orange-400 border-b-2 border-orange-500'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
               {/* Search */}
               <div className="px-3 py-2 border-b border-border/40">
                 <div className="relative">
@@ -8125,7 +8143,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const curSettings = typeof view.settings === 'object' ? view.settings : {};
                                   const existing: string[] = Array.isArray((curSettings as any).kpiOverlays) ? (curSettings as any).kpiOverlays : [];
                                   const next = existing.includes(kpi.id) ? existing : [...existing, kpi.id];
-                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next } })
+                                  mapViewsApi.update(activeViewId, { settings: { ...curSettings, kpiOverlays: next, kpiTechno: kpiTechnoFilter, kpiAnalysisLevel } })
                                     .then(() => setOverlayVersion(v => v + 1));
                                 }
                               });
