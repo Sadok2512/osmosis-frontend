@@ -5,16 +5,26 @@ import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
-// Only 4G (LTE) and 5G (NR) — ignore 2G/3G
-const ALLOWED_TECHNOS = new Set(['4G', '5G', 'LTE', 'NR', '4g', '5g', 'lte', 'nr']);
-function is4Gor5G(techno: string | null | undefined): boolean {
+// All supported technologies
+const ALLOWED_TECHNOS = new Set(['2G', '3G', '4G', '5G', 'LTE', 'NR', 'GSM', 'UMTS', 'WCDMA', '2g', '3g', '4g', '5g', 'lte', 'nr', 'gsm', 'umts', 'wcdma']);
+function isAllowedTechno(techno: string | null | undefined): boolean {
   if (!techno) return true; // include unknowns
   return ALLOWED_TECHNOS.has(techno.trim());
 }
-function filterSites4G5G(sites: SiteSummary[]): SiteSummary[] {
+
+/** Normalize raw techno string to canonical 2G/3G/4G/5G */
+function normalizeTechnoRaw(raw: string | null | undefined): string {
+  const v = String(raw || '').toUpperCase().trim();
+  if (v.includes('5G') || v === 'NR') return '5G';
+  if (v.includes('3G') || v === 'UMTS' || v === 'WCDMA') return '3G';
+  if (v.includes('2G') || v === 'GSM') return '2G';
+  return '4G';
+}
+
+function filterSitesAllTech(sites: SiteSummary[]): SiteSummary[] {
   return sites.map(site => {
     if (!site.cells || site.cells.length === 0) return site;
-    const filtered = site.cells.filter(c => is4Gor5G(c.techno));
+    const filtered = site.cells.filter(c => isAllowedTechno(c.techno));
     if (filtered.length === site.cells.length) return site;
     return { ...site, cells: filtered, cell_count: filtered.length };
   });
@@ -325,7 +335,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       }
       return buildCellProperties(
         cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
+        normalizeTechnoRaw(r.techno || r.rat),
         r.bande || r.band || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
@@ -655,7 +665,7 @@ export async function fetchSitesByBbox(
       throw new Error('BBOX returned only invalid site coordinates');
     }
 
-    const filtered4G5G = filterSites4G5G(sites);
+    const filtered4G5G = filterSitesAllTech(sites);
     bboxCache = { key, sites: filtered4G5G, total: filtered4G5G.length };
     const withQoe = filtered4G5G.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filtered4G5G.length}/${resp.total} sites (${withQoe} with live QoE)`);
@@ -700,7 +710,7 @@ export async function fetchCellsByBbox(
 
   if (!sitesFromEndpoint) return [];
 
-  return filterSites4G5G(sitesFromEndpoint);
+  return filterSitesAllTech(sitesFromEndpoint);
 }
 
 export function invalidateBboxCache() {
@@ -815,7 +825,7 @@ export async function fetchDashboardSites(
       .map(dtoToSiteSummary)
       .filter((site): site is SiteSummary => site !== null);
 
-    const filteredSites = filterSites4G5G(rawSites);
+    const filteredSites = filterSitesAllTech(rawSites);
 
     // Progressive: push raw sites immediately so map renders them
     if (onProgressiveBatch && filteredSites.length > 0) {
@@ -979,8 +989,13 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
           const azimut = (hasRealAzimut && r.azimut != null && r.azimut !== 0)
             ? r.azimut
             : sectorAzimutMap.get(sectorIdx) ?? 0;
-          const technoRaw = r.techno || '4G';
-          const techno = technoRaw.toUpperCase().includes('5G') || technoRaw.toLowerCase() === '5g' || technoRaw.toLowerCase() === 'nr' ? '5G' : '4G';
+          const technoRaw = r.techno || r.rat || '4G';
+          const techUpper = technoRaw.toUpperCase();
+          const techno = techUpper.includes('5G') || techUpper === 'NR' ? '5G'
+            : techUpper.includes('3G') || techUpper === 'UMTS' || techUpper === 'WCDMA' ? '3G'
+            : techUpper.includes('2G') || techUpper === 'GSM' ? '2G'
+            : techUpper.includes('4G') || techUpper === 'LTE' ? '4G'
+            : '4G';
           return buildCellProperties(
             cellName,
             techno,
@@ -1035,7 +1050,7 @@ export async function fetchSiteCells(siteId: string): Promise<CellProperties[]> 
       }
       return buildCellProperties(
         cellName,
-        (r.techno || '4G').toUpperCase().includes('5G') || (r.techno || '').toLowerCase() === '5g' ? '5G' : '4G',
+        normalizeTechnoRaw(r.techno || r.rat),
         r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
         r.hba || 30,
