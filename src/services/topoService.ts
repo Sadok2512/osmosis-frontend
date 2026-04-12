@@ -1030,13 +1030,17 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
       const data = await resp.json();
       const rows: any[] = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
       const normalizedSiteId = siteId.trim().toUpperCase();
+      const normalizedFallbackName = fallbackSiteName?.trim().toUpperCase() || '';
 
-      // Filter rows belonging to this site
+      // Filter rows belonging to this site (match by code_nidt OR site_name)
+      const matchTokens = new Set([normalizedSiteId]);
+      if (normalizedFallbackName) matchTokens.add(normalizedFallbackName);
+
       const siteRows = rows.filter((r: any) => {
         const ids = [r.code_nidt, r.site_id, r.site_name, r.nom_site]
           .filter(Boolean)
           .map((v: unknown) => String(v).trim().toUpperCase());
-        return ids.includes(normalizedSiteId);
+        return ids.some(id => matchTokens.has(id));
       });
 
       if (siteRows.length > 0) {
@@ -1099,6 +1103,67 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
     }
   } catch (e) {
     console.warn('[TopoService] VPS /topo/cells failed:', e);
+  }
+
+  // ── 1b) Retry VPS /topo/cells with site_name if siteId didn't match ──
+  if (fallbackSiteName && fallbackSiteName !== siteId) {
+    try {
+      const url = getVpsProxyUrl('parser', `/api/v1/topo/cells`, { search: fallbackSiteName, limit: '500' });
+      const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (resp && resp.ok) {
+        const data = await resp.json();
+        const rows: any[] = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
+        const normalizedName = fallbackSiteName.trim().toUpperCase();
+        const siteRows = rows.filter((r: any) => {
+          const name = String(r.site_name || r.nom_site || '').trim().toUpperCase();
+          return name === normalizedName;
+        });
+        if (siteRows.length > 0) {
+          const seen = new Set<string>();
+          const uniqueRows = siteRows.filter((r: any) => {
+            const key = r.cell_name || r.nom_cellule || '';
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+          const hasRealAzimut = uniqueRows.some((r: any) => r.azimut != null && r.azimut !== 0);
+          const sectorIndices = new Set<number>();
+          for (const r of uniqueRows) {
+            const cellName = r.cell_name || r.nom_cellule || '';
+            const lastChar = cellName.slice(-1);
+            sectorIndices.add(/^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1);
+          }
+          const sorted = Array.from(sectorIndices).sort((a, b) => a - b);
+          const sectorAzimutMap = new Map<number, number>();
+          sorted.forEach((idx, i) => {
+            sectorAzimutMap.set(idx, Math.round((360 / Math.max(sorted.length, 1)) * i));
+          });
+          const cells: CellProperties[] = uniqueRows.map((r: any) => {
+            const cellName = r.cell_name || r.nom_cellule || '';
+            const lastChar = cellName.slice(-1);
+            const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+            const azimut = (hasRealAzimut && r.azimut != null && r.azimut !== 0)
+              ? r.azimut
+              : sectorAzimutMap.get(sectorIdx) ?? 0;
+            const technoRaw = r.techno || r.rat || '4G';
+            const techUpper = technoRaw.toUpperCase();
+            const techno = techUpper.includes('5G') || techUpper === 'NR' ? '5G'
+              : techUpper.includes('3G') || techUpper === 'UMTS' || techUpper === 'WCDMA' ? '3G'
+              : techUpper.includes('2G') || techUpper === 'GSM' ? '2G'
+              : techUpper.includes('4G') || techUpper === 'LTE' ? '4G'
+              : '4G';
+            return buildCellProperties(cellName, techno, r.band || r.bande || inferBandFromCellName(cellName, techno), azimut, r.hba || 30, r);
+          });
+          if (cells.length > 0) {
+            siteCellsCache.set(siteId, { cells, ts: Date.now() });
+            console.log(`[TopoService] Site cells (VPS/cells by name): ${cells.length} cells for ${fallbackSiteName}`);
+            return cells;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[TopoService] VPS /topo/cells by name failed:', e);
+    }
   }
 
   // ── 2) Fallback to VPS /topo/site/:id-or-name (returns complete site payload with cells) ──
