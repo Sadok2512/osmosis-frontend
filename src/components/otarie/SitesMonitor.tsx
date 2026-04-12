@@ -7858,7 +7858,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <>
                 {/* Tech filter: ALL / 5G / 4G / OFF */}
                 <div className="flex items-center bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
-                  {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+                  {(['ALL', '5G', '4G', '3G', '2G', 'OFF'] as const).map((tech) => (
                     <button
                       key={tech}
                       onClick={() => {
@@ -8475,7 +8475,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
-              {(['ALL', '5G', '4G', 'OFF'] as const).map((tech) => (
+              {(['ALL', '5G', '4G', '3G', '2G', 'OFF'] as const).map((tech) => (
                 <button
                   key={tech}
                   onClick={() => {
