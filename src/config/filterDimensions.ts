@@ -68,6 +68,7 @@ export function loadFilterCache(): Promise<void> {
 // ── Dimension definitions ──
 export const FILTER_DIMENSIONS: DimensionDef[] = [
   { key: 'dor', label: 'DOR', type: 'enum', multi: true, depends_on: [] },
+  { key: 'dr', label: 'DR', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'constructeur', label: 'Constructeur', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'plaque', label: 'Plaque', type: 'enum', multi: true, depends_on: ['dor', 'constructeur'] },
   { key: 'site', label: 'Site', type: 'enum', multi: true, depends_on: ['plaque'], value_source: 'backend' },
