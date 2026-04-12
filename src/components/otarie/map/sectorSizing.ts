@@ -10,10 +10,6 @@ export const metersPerPixel = (lat: number, zoom: number): number => {
 
 /**
  * Sector radius in meters — adaptive to zoom, density, and viewport.
- * @param lat - Latitude of site
- * @param zoom - Current map zoom
- * @param densityFactor - 0..1 — lower = denser area = smaller sectors
- * @param viewportWidth - CSS px width of viewport
  */
 export const getZoomAwareRadius = (
   lat: number,
@@ -28,11 +24,9 @@ export const getZoomAwareRadius = (
   else if (zoom <= 12) targetPx = 38;
   else targetPx = 42;
 
-  // Viewport scaling
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
   targetPx *= vpScale;
 
-  // Density scaling: reduce size in crowded areas
   const densityScale = 0.5 + 0.5 * Math.max(0, Math.min(1, densityFactor));
   targetPx *= densityScale;
 
@@ -41,8 +35,7 @@ export const getZoomAwareRadius = (
 };
 
 /**
- * Tagged site radius with inverse zoom scaling:
- * larger at low zoom, normal at high zoom.
+ * Tagged site radius with inverse zoom scaling.
  */
 export const getTaggedRadius = (zoom: number): number => {
   const BASE = 350;
@@ -90,12 +83,19 @@ export const getSectorCoords = (
 
 /**
  * Band frequency priority — lower frequency = higher priority (bigger sector).
- * Returns a scale factor: 1.0 = largest, down to ~0.55 = smallest.
+ * Returns a scale factor: 1.0 = largest, down to ~0.45 = smallest.
  */
 const BAND_PRIORITY: Record<string, number> = {
+  // 2G bands — very small
+  GSM900:   0.45,
+  GSM1800:  0.40,
+  // 3G bands — small-medium
+  UMTS900:  0.60,
+  UMTS2100: 0.52,
   // 4G bands — low freq = big
   L700:   1.0,
   L800:   0.95,
+  L900:   0.90,
   L1800:  0.78,
   L2100:  0.68,
   L2600:  0.58,
@@ -113,12 +113,10 @@ export const getBandSizeScale = (bandKey: string | null): number => {
 
 /**
  * Get band sort priority for rendering order (lower value = render first = below).
- * Lower frequency bands get lower priority numbers so they render first (bigger, below).
  */
 export const getBandRenderOrder = (bandKey: string | null): number => {
   if (!bandKey) return 50;
   const scale = BAND_PRIORITY[bandKey] ?? 0.75;
-  // Invert: scale 1.0 → order 0 (render first/below), scale 0.55 → order 45 (render last/above)
   return Math.round((1 - scale) * 100);
 };
 

@@ -98,6 +98,12 @@ const CELLS_TO_SITES_ZOOM = 8;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
+  // GSM (2G) — red tones
+  GSM900:  '#ef4444',
+  GSM1800: '#dc2626',
+  // UMTS (3G) — blue tones
+  UMTS900:  '#3b82f6',
+  UMTS2100: '#2563eb',
   // NR (5G) — green tones
   NR3500: '#22c55e',
   NR700:  '#16a34a',
@@ -109,6 +115,8 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   L800:   '#fdba74',
   L700:   '#c2410c',
   // Group header colors
+  '2G_GROUP': '#ef4444',
+  '3G_GROUP': '#3b82f6',
   '5G_GROUP': '#22c55e',
   '4G_GROUP': '#f97316',
 };
@@ -135,21 +143,35 @@ const FADED_COLOR = '#94a3b8';
 const FRANCE_CENTER: [number, number] = [46.6, 2.2];
 const FRANCE_DEFAULT_ZOOM = 7;
 
+type TechGroup = '2G' | '3G' | '4G' | '5G';
+
 type TopoNetworkStats = {
+  sites2G: number;
+  sites3G: number;
   sites4G: number;
   sites5G: number;
+  cells2G: number;
+  cells3G: number;
   cells4G: number;
   cells5G: number;
+  bandMap2G: Record<string, number>;
+  bandMap3G: Record<string, number>;
   bandMap4G: Record<string, number>;
   bandMap5G: Record<string, number>;
-  vendorMap: Record<string, { '4G': number; '5G': number }>;
+  vendorMap: Record<string, { '2G': number; '3G': number; '4G': number; '5G': number }>;
 };
 
 const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
+  sites2G: 0,
+  sites3G: 0,
   sites4G: 0,
   sites5G: 0,
+  cells2G: 0,
+  cells3G: 0,
   cells4G: 0,
   cells5G: 0,
+  bandMap2G: {},
+  bandMap3G: {},
   bandMap4G: {},
   bandMap5G: {},
   vendorMap: {},
@@ -160,19 +182,19 @@ const EMPTY_TOPO_NETWORK_STATS: TopoNetworkStats = {
 const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
   const stats: TopoNetworkStats = {
     ...EMPTY_TOPO_NETWORK_STATS,
+    bandMap2G: {},
+    bandMap3G: {},
     bandMap4G: {},
     bandMap5G: {},
     vendorMap: {},
   };
 
-  const siteTechMap = new Map<string, { has4G: boolean; has5G: boolean }>();
+  const siteTechMap = new Map<string, { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean }>();
 
   rows.forEach((row, index) => {
     const techno = row?.techno ?? row?.technology ?? row?.rat ?? null;
-    const is5G = is5GTech(techno);
-    const is4G = is4GTech(techno);
-
-    if (!is4G && !is5G) return;
+    const techGroup = getCellTechGroup(techno);
+    if (!techGroup) return;
 
     const siteKey = String(
       row?.code_nidt ?? row?.nom_site ?? row?.site_name ?? row?.site_id ?? row?.site ?? `site-${index}`,
@@ -181,17 +203,12 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
     const band = normalizeBandKey(rawBand, techno) || rawBand;
     const vendor = String(row?.constructeur ?? row?.vendor ?? row?.vendor_name ?? 'Unknown');
 
-    const siteEntry = siteTechMap.get(siteKey) ?? { has4G: false, has5G: false };
+    const siteEntry = siteTechMap.get(siteKey) ?? { has2G: false, has3G: false, has4G: false, has5G: false };
 
-    if (is5G) {
-      stats.cells5G += 1;
-      stats.bandMap5G[band] = (stats.bandMap5G[band] || 0) + 1;
-      siteEntry.has5G = true;
-    } else {
-      stats.cells4G += 1;
-      stats.bandMap4G[band] = (stats.bandMap4G[band] || 0) + 1;
-      siteEntry.has4G = true;
-    }
+    if (techGroup === '5G') { stats.cells5G += 1; stats.bandMap5G[band] = (stats.bandMap5G[band] || 0) + 1; siteEntry.has5G = true; }
+    else if (techGroup === '4G') { stats.cells4G += 1; stats.bandMap4G[band] = (stats.bandMap4G[band] || 0) + 1; siteEntry.has4G = true; }
+    else if (techGroup === '3G') { stats.cells3G += 1; stats.bandMap3G[band] = (stats.bandMap3G[band] || 0) + 1; siteEntry.has3G = true; }
+    else if (techGroup === '2G') { stats.cells2G += 1; stats.bandMap2G[band] = (stats.bandMap2G[band] || 0) + 1; siteEntry.has2G = true; }
 
     const normalizedVendor = (() => {
       const v = vendor.trim().toUpperCase();
@@ -204,15 +221,16 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
       return vendor.charAt(0).toUpperCase() + vendor.slice(1).toLowerCase();
     })();
     if (!stats.vendorMap[normalizedVendor]) {
-      stats.vendorMap[normalizedVendor] = { '4G': 0, '5G': 0 };
+      stats.vendorMap[normalizedVendor] = { '2G': 0, '3G': 0, '4G': 0, '5G': 0 };
     }
-    if (is5G) stats.vendorMap[normalizedVendor]['5G'] += 1;
-    if (is4G) stats.vendorMap[normalizedVendor]['4G'] += 1;
+    stats.vendorMap[normalizedVendor][techGroup] += 1;
 
     siteTechMap.set(siteKey, siteEntry);
   });
 
-  siteTechMap.forEach(({ has4G, has5G }) => {
+  siteTechMap.forEach(({ has2G, has3G, has4G, has5G }) => {
+    if (has2G) stats.sites2G += 1;
+    if (has3G) stats.sites3G += 1;
     if (has4G) stats.sites4G += 1;
     if (has5G) stats.sites5G += 1;
   });
@@ -390,7 +408,7 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
 const getRenderableCellsForSite = (
   site: SiteSummary,
   mapTechnoFilter: 'ALL' | '4G' | '5G' | 'OFF',
-  enabledTechnos: Set<'4G' | '5G'>,
+  enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
 ) => {
   if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
@@ -3361,7 +3379,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const [mapTechnoFilter, setMapTechnoFilter] = useState<'ALL' | '5G' | '4G' | 'OFF'>('ALL');
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
-  const [enabledTechnos, setEnabledTechnos] = useState<Set<'4G' | '5G'>>(new Set(['5G', '4G']));
+  const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
   const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const [topoResetCounter, setTopoResetCounter] = useState(0);
@@ -3409,7 +3427,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
 
         for (const v of (stats.by_vendor || [])) {
-          result.vendorMap[v.vendor] = { '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
+          result.vendorMap[v.vendor] = { '2G': v.cells_2g || 0, '3G': v.cells_3g || 0, '4G': v.cells_4g || v.cells || 0, '5G': v.cells_5g || 0 };
         }
 
         // VPS returns cells but sites=0 → get site counts from DB RPC
@@ -10030,31 +10048,36 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const hasFastStats = ns && (ns.sites4G > 0 || ns.sites5G > 0 || ns.cells4G > 0 || ns.cells5G > 0);
             // Compute from loaded sites as fallback
             const computedStats: TopoNetworkStats = (() => {
-              const s4g = new Set<string>();
-              const s5g = new Set<string>();
-              let c4g = 0, c5g = 0;
-              const bm4g: Record<string, number> = {};
-              const bm5g: Record<string, number> = {};
-              const vm: Record<string, { '4G': number; '5G': number }> = {};
+              const s2g = new Set<string>(), s3g = new Set<string>(), s4g = new Set<string>(), s5g = new Set<string>();
+              let c2g = 0, c3g = 0, c4g = 0, c5g = 0;
+              const bm2g: Record<string, number> = {}, bm3g: Record<string, number> = {}, bm4g: Record<string, number> = {}, bm5g: Record<string, number> = {};
+              const vm: Record<string, { '2G': number; '3G': number; '4G': number; '5G': number }> = {};
               filteredSites.forEach(site => {
                 const inferredTechState = inferSiteTechState(site);
-                let has4g = inferredTechState.has4G, has5g = inferredTechState.has5G;
+                let has2g = inferredTechState.has2G, has3g = inferredTechState.has3G, has4g = inferredTechState.has4G, has5g = inferredTechState.has5G;
                 site.cells.forEach(c => {
-                  const is5g = c.techno?.includes('5G') || c.techno === 'NR';
+                  const tg = getCellTechGroup(c.techno);
                   const v = (c as any).vendor || site.vendor || 'Unknown';
-                  if (!vm[v]) vm[v] = { '4G': 0, '5G': 0 };
-                  if (is5g) { c5g++; has5g = true; const b = c.bande || 'Unknown'; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
-                  else { c4g++; has4g = true; const b = c.bande || 'Unknown'; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
+                  if (!vm[v]) vm[v] = { '2G': 0, '3G': 0, '4G': 0, '5G': 0 };
+                  const b = c.bande || 'Unknown';
+                  if (tg === '5G') { c5g++; has5g = true; bm5g[b] = (bm5g[b] || 0) + 1; vm[v]['5G']++; }
+                  else if (tg === '4G') { c4g++; has4g = true; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
+                  else if (tg === '3G') { c3g++; has3g = true; bm3g[b] = (bm3g[b] || 0) + 1; vm[v]['3G']++; }
+                  else if (tg === '2G') { c2g++; has2g = true; bm2g[b] = (bm2g[b] || 0) + 1; vm[v]['2G']++; }
+                  else { c4g++; has4g = true; bm4g[b] = (bm4g[b] || 0) + 1; vm[v]['4G']++; }
                 });
+                if (has2g) s2g.add(site.site_id);
+                if (has3g) s3g.add(site.site_id);
                 if (has4g) s4g.add(site.site_id);
                 if (has5g) s5g.add(site.site_id);
-                // If no cells loaded, use lte_cells/nr_cells counts
                 if (site.cells.length === 0) {
                   if ((site.lte_cells ?? 0) > 0) { s4g.add(site.site_id); c4g += site.lte_cells ?? 0; }
                   if ((site.nr_cells ?? 0) > 0) { s5g.add(site.site_id); c5g += site.nr_cells ?? 0; }
+                  if (((site as any).cells_2g ?? 0) > 0) { s2g.add(site.site_id); c2g += (site as any).cells_2g ?? 0; }
+                  if (((site as any).cells_3g ?? 0) > 0) { s3g.add(site.site_id); c3g += (site as any).cells_3g ?? 0; }
                 }
               });
-              return { sites4G: s4g.size, sites5G: s5g.size, cells4G: c4g, cells5G: c5g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
+              return { sites2G: s2g.size, sites3G: s3g.size, sites4G: s4g.size, sites5G: s5g.size, cells2G: c2g, cells3G: c3g, cells4G: c4g, cells5G: c5g, bandMap2G: bm2g, bandMap3G: bm3g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
             })();
             const displayStats: TopoNetworkStats = hasFastStats
               ? {
