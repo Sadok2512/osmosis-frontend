@@ -410,7 +410,7 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
 
 const getRenderableCellsForSite = (
   site: SiteSummary,
-  mapTechnoFilter: 'ALL' | '4G' | '5G' | 'OFF',
+  mapTechnoFilter: 'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF',
   enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
 ) => {
