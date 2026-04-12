@@ -5037,8 +5037,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
-  const toggleAllBands = useCallback((group: 'NR' | 'LTE') => {
-    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] : ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'];
+  const toggleAllBands = useCallback((group: 'NR' | 'LTE' | 'UMTS' | 'GSM') => {
+    const bands = group === 'NR' ? ['NR3500', 'NR700', 'NR2100', 'NR1800', 'NR2600', 'NR1400'] : group === 'LTE' ? ['L2600', 'L2100', 'L1800', 'L800', 'L700', 'L900'] : group === 'UMTS' ? ['UMTS2100', 'UMTS900'] : ['GSM900', 'GSM1800'];
     setEnabledBands(prev => {
       const next = new Set(prev);
       const allOn = bands.every(b => next.has(b));
