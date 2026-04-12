@@ -7523,7 +7523,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={() => {
                   if (!activeViewId) return;
-                  setSectorColorMode('kpi'); setParamPanelOpen(false); if (paramMode) handleParamReset();
+                  setSectorColorMode('kpi');
                 }}
                 title={!activeViewId ? 'Activez une Vue pour utiliser le mode KPI' : 'Mode KPI'}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
