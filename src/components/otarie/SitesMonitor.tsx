@@ -7923,14 +7923,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {(['4G', '5G'] as const).map(t => (
                     <button
                       key={t}
-                      onClick={() => setKpiTechnoFilter(t)}
+                      onClick={() => !kpiOverlayLocked && setKpiTechnoFilter(t)}
+                      disabled={kpiOverlayLocked}
                       className={`flex-1 py-1 text-[10px] font-black rounded-lg transition-all ${
                         kpiTechnoFilter === t
                           ? t === '5G'
                             ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 ring-1 ring-emerald-500/40'
                             : 'bg-orange-500/20 text-orange-700 dark:text-orange-400 ring-1 ring-orange-500/40'
                           : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
-                      }`}
+                      } ${kpiOverlayLocked ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
                       {t}
                     </button>
