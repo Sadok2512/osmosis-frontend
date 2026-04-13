@@ -648,6 +648,8 @@ const NetworkTopologyPage: React.FC = () => {
         try { mapRef.current.remove(); } catch { /* ignore */ }
         mapRef.current = null;
         markersRef.current = null;
+        neighborLayerRef.current = null;
+        highlightLayerRef.current = null;
         mapInitializing.current = false;
       }
       return;
