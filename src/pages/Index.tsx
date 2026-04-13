@@ -24,6 +24,7 @@ const KPIMonitorPage = lazy(() => import('../components/kpi-monitor/KPIMonitorPa
 const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
 const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
 const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
+const NetworkTopologyPage = lazy(() => import('../components/otarie/NetworkTopologyPage'));
 
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -52,7 +53,7 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, topology: true,
     };
   });
 
@@ -158,6 +159,8 @@ const Index: React.FC = () => {
         return <SentinelPage theme={theme} />;
       case 'investigator':
         return <InvestigatorPage />;
+      case 'topology':
+        return <NetworkTopologyPage />;
       default:
         return null;
     }
