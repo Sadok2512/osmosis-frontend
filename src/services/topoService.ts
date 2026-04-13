@@ -863,17 +863,21 @@ export async function fetchDashboardSites(
       dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
       return enrichedSites;
     }
-    // VPS /sites returned 0 — try /cells endpoint which may have data
+    // VPS /sites returned 0 — try /cells endpoint WITHOUT filters then filter locally
     console.warn('[TopoService] VPS /sites returned 0 sites, trying /cells fallback…');
     try {
       const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
-      const cellsResp = await topoApi.listCellsByBbox(fullWorldBbox, bboxFilters, 50000);
+      // Don't pass bboxFilters — VPS /cells may not support them; filter locally instead
+      const cellsResp = await topoApi.listCellsByBbox(fullWorldBbox, undefined, 50000);
       if (cellsResp.cells && cellsResp.cells.length > 0) {
         const rows = cellsResp.cells as TopoRow[];
         const builtSites = buildSitesFromRows(rows);
         const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
-        const cellsSites = filterSitesAllTech(builtSites.map(site => applyQoeData(site, qoeData)));
-        console.log(`[TopoService] Dashboard sites: ${cellsSites.length} sites via VPS /cells fallback`);
+        const enrichedSites = builtSites.map(site => applyQoeData(site, qoeData));
+        // Apply dashboard filters locally
+        const filtered = filterDashboardSitesLocally(enrichedSites, siteFilters, search);
+        const cellsSites = filterSitesAllTech(filtered);
+        console.log(`[TopoService] Dashboard sites: ${cellsSites.length} sites via VPS /cells fallback (from ${builtSites.length} total)`);
         if (cellsSites.length > 0) {
           dashboardSitesCache = { key, sites: cellsSites, ts: Date.now() };
           onProgressiveBatch?.(cellsSites);
