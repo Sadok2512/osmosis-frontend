@@ -1268,7 +1268,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     </div>
                   </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
+                <PopoverContent className="w-auto p-0 origin-top-left scale-[0.75]" align="start">
                   <div className="flex gap-0 divide-x divide-border">
                     {/* Start calendar */}
                     <div className="flex flex-col">
