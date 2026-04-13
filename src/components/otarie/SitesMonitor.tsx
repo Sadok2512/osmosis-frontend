@@ -6717,7 +6717,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <CircleMarker
                 key={site.site_id}
                 center={site.coordinates}
-                radius={isHovered || isSelectedSite ? 8 : 6}
+                radius={Math.max(2, Math.round((viewport.zoom >= 14 ? 14 : viewport.zoom >= 13 ? 12 : viewport.zoom >= 12 ? 10 : viewport.zoom >= 11 ? 9 : viewport.zoom >= 10 ? 7 : viewport.zoom >= 9 ? 6 : viewport.zoom >= 8 ? 5 : viewport.zoom >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)))}
                 pane="pane5G"
                 pathOptions={{
                   fillColor: fbColor,
