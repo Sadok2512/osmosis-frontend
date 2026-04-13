@@ -887,17 +887,32 @@ const NetworkTopologyPage: React.FC = () => {
                   {/* Header */}
                   <div className="p-3 border-b flex items-center justify-between">
                     <span className="font-bold text-sm truncate">{mapSidebar.site_name}</span>
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setMapSidebar(null)}>
-                      <X className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button variant="outline" size="sm" className="h-6 text-[9px] px-2" onClick={() => {
+                        setMapSidebar(null);
+                        if (neighborLayerRef.current && mapRef.current) { mapRef.current.removeLayer(neighborLayerRef.current); neighborLayerRef.current = null; }
+                        if (highlightLayerRef.current && mapRef.current) { mapRef.current.removeLayer(highlightLayerRef.current); highlightLayerRef.current = null; }
+                        mapRef.current?.setView([46.6, 2.5], 6);
+                      }}>
+                        All Sites
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setMapSidebar(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                   {/* Site info */}
                   <div className="p-3 text-xs space-y-1">
                     <div className="flex flex-wrap gap-1 mb-1">
                       <Badge variant={vendorVariant(mapSidebar.constructeur)} className="text-[9px]">{mapSidebar.constructeur || '—'}</Badge>
-                      {(mapSidebar.technos || []).map(t => (
-                        <span key={t} className={`text-[9px] px-1.5 py-0.5 rounded border ${technoClass(t)}`}>{t}</span>
-                      ))}
+                      {(() => {
+                        const ts = new Set<string>();
+                        (mapSidebar.technos || []).forEach(t => ts.add(normTechFn(t)));
+                        (mapSidebar.bandes || []).forEach(b => ts.add(normTechFn(b)));
+                        return TECH_ORDER.filter(t => ts.has(t)).map(t => (
+                          <span key={t} className={`text-[9px] px-1.5 py-0.5 rounded border ${technoClass(t)}`}>{t}</span>
+                        ));
+                      })()}
                     </div>
                     <div className="text-muted-foreground">{mapSidebar.cell_count} cells · {mapSidebar.plaque || ''} · {mapSidebar.dor || ''}</div>
                     <div className="text-muted-foreground">{(mapSidebar.bandes || []).slice(0, 5).join(', ')}</div>
