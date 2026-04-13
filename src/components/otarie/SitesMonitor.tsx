@@ -6598,7 +6598,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
-            const baseR = getBaseRadius(isHovered, isSelectedSite);
+            const zz = viewport.zoom;
+            const baseR = Math.max(2, Math.round((zz >= 14 ? 14 : zz >= 13 ? 12 : zz >= 12 ? 10 : zz >= 11 ? 9 : zz >= 10 ? 7 : zz >= 9 ? 6 : zz >= 8 ? 5 : zz >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)));
             return (
               <React.Fragment key={site.site_id}>
                 {show2G && (
