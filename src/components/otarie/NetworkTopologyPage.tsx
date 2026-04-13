@@ -461,6 +461,134 @@ const NetworkTopologyPage: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getL = (): any => (window as any).L;
 
+  const TECH_RING_COLORS: Record<string, string> = {
+    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#ef4444',
+  };
+  const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
+  const normTechFn = (t: string): string => {
+    const u = t.toUpperCase();
+    if (u.includes('NR') || u.includes('5G')) return '5G';
+    if (u.includes('LTE') || u.includes('4G') || /^L\d/.test(u)) return '4G';
+    if (u.includes('UMTS') || u.includes('WCDMA') || u.includes('3G')) return '3G';
+    if (u.includes('GSM') || u.includes('2G')) return '2G';
+    return '4G';
+  };
+
+  const buildSiteIcon = (s: MapSite, selected = false) => {
+    const L = getL(); if (!L) return null;
+    const techSet = new Set<string>();
+    (s.technos || []).forEach(t => techSet.add(normTechFn(t)));
+    (s.bandes || []).forEach(b => techSet.add(normTechFn(b)));
+    if (techSet.size === 0) techSet.add('4G');
+    const presentTechs = TECH_ORDER.filter(t => techSet.has(t));
+    const baseSize = selected ? 28 : 22;
+    const rings = presentTechs.length;
+    const svgSize = baseSize + (rings - 1) * 6;
+    const center = svgSize / 2;
+    let svgParts = '';
+    if (selected) {
+      svgParts += `<circle cx="${center}" cy="${center}" r="${svgSize / 2}" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-opacity="0.9"/>`;
+    }
+    presentTechs.forEach((tech, i) => {
+      const radius = (baseSize / 2) - (i * 3) - 1;
+      const color = TECH_RING_COLORS[tech] || '#f97316';
+      svgParts += `<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="1.2" stroke-opacity="0.85"/>`;
+    });
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">${svgParts}</svg>`;
+    return { icon: L.divIcon({ className: '', html: svg, iconSize: [svgSize, svgSize], iconAnchor: [svgSize / 2, svgSize / 2] }), presentTechs };
+  };
+
+  /** Haversine distance in km */
+  const haversineKm = (a: [number, number], b: [number, number]): number => {
+    const R = 6371;
+    const dLat = (b[0] - a[0]) * Math.PI / 180;
+    const dLng = (b[1] - a[1]) * Math.PI / 180;
+    const sinLat = Math.sin(dLat / 2);
+    const sinLng = Math.sin(dLng / 2);
+    const h = sinLat * sinLat + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * sinLng * sinLng;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+
+  /** Show selected site + neighbors on the map */
+  const showSiteWithNeighbors = (site: MapSite) => {
+    const L = getL();
+    if (!L || !mapRef.current) return;
+
+    // Clear previous neighbor/highlight layers
+    if (neighborLayerRef.current) { mapRef.current.removeLayer(neighborLayerRef.current); }
+    if (highlightLayerRef.current) { mapRef.current.removeLayer(highlightLayerRef.current); }
+
+    const neighborGroup = L.layerGroup();
+    const highlightGroup = L.layerGroup();
+
+    const siteCoords: [number, number] = [site.latitude, site.longitude];
+
+    // Draw selected site marker (larger, with selection ring)
+    const iconData = buildSiteIcon(site, true);
+    if (iconData) {
+      const marker = L.marker(siteCoords, { icon: iconData.icon, zIndexOffset: 1000 });
+      marker.bindTooltip(`<b>${site.site_name}</b> (selected)`, { className: 'map-tooltip', permanent: false });
+      highlightGroup.addLayer(marker);
+    }
+
+    // Find nearest neighbors from loaded sites
+    const allSites = allSitesRef.current;
+    const nearby = allSites
+      .filter(s => s.site_name !== site.site_name && s.latitude && s.longitude)
+      .map(s => ({
+        ...s,
+        dist: haversineKm(siteCoords, [s.latitude, s.longitude]),
+      }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 15);
+
+    // Draw neighbor sites and connection lines
+    const RELATION_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6'];
+    nearby.forEach((ns, idx) => {
+      const nCoords: [number, number] = [ns.latitude, ns.longitude];
+      const nIconData = buildSiteIcon(ns, false);
+      if (nIconData) {
+        const nMarker = L.marker(nCoords, { icon: nIconData.icon });
+        nMarker.bindTooltip(
+          `<b>${ns.site_name}</b><br>${ns.cell_count} cells · ${ns.dist.toFixed(1)} km`,
+          { className: 'map-tooltip' }
+        );
+        nMarker.on('click', () => {
+          setMapSidebar(ns);
+          setMapSidebarParams([]);
+          setMapParamSearch('');
+          fetchJson<{ cell_name: string; band?: string; techno?: string }[]>(
+            `topo/cells?search=${encodeURIComponent(ns.site_name)}&limit=50`
+          ).then(setMapSidebarCells).catch(() => setMapSidebarCells([]));
+        });
+        neighborGroup.addLayer(nMarker);
+      }
+      // Draw line
+      const color = RELATION_COLORS[idx % 3];
+      const line = L.polyline([siteCoords, nCoords], {
+        color,
+        weight: 2,
+        opacity: 0.6,
+        dashArray: '6 4',
+      });
+      line.bindTooltip(`${ns.site_name} · ${ns.dist.toFixed(1)} km`, { sticky: true, className: 'map-tooltip' });
+      neighborGroup.addLayer(line);
+    });
+
+    neighborLayerRef.current = neighborGroup;
+    highlightLayerRef.current = highlightGroup;
+    neighborGroup.addTo(mapRef.current);
+    highlightGroup.addTo(mapRef.current);
+
+    // Zoom to fit selected site + neighbors
+    const allPoints = [siteCoords, ...nearby.map(n => [n.latitude, n.longitude] as [number, number])];
+    if (allPoints.length > 1) {
+      mapRef.current.fitBounds(L.latLngBounds(allPoints), { padding: [60, 60], maxZoom: 12 });
+    } else {
+      mapRef.current.setView(siteCoords, 12);
+    }
+  };
+
   // Mutable ref for loadSites so callback ref can call latest version
   const loadSitesRef = useRef<(v: string, t: string) => void>();
   loadSitesRef.current = async (vend: string, tech: string) => {
@@ -472,49 +600,18 @@ const NetworkTopologyPage: React.FC = () => {
     if (tech) qp.set('techno', tech);
     try {
       const sites = await fetchJson<MapSite[]>(`topo/map-sites?${qp}`);
+      allSitesRef.current = sites;
       markersRef.current.clearLayers();
+      // Clear neighbor layers on fresh load
+      if (neighborLayerRef.current) { mapRef.current.removeLayer(neighborLayerRef.current); neighborLayerRef.current = null; }
+      if (highlightLayerRef.current) { mapRef.current.removeLayer(highlightLayerRef.current); highlightLayerRef.current = null; }
       let count = 0;
-      const TECH_RING_COLORS: Record<string, string> = {
-        '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#ef4444',
-      };
-      const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
-      const normTech = (t: string): string => {
-        const u = t.toUpperCase();
-        if (u.includes('NR') || u.includes('5G')) return '5G';
-        if (u.includes('LTE') || u.includes('4G') || /^L\d/.test(u)) return '4G';
-        if (u.includes('UMTS') || u.includes('WCDMA') || u.includes('3G')) return '3G';
-        if (u.includes('GSM') || u.includes('2G')) return '2G';
-        return '4G';
-      };
 
       sites.forEach((s: MapSite) => {
         if (s.latitude && s.longitude) {
-          // Determine which tech layers this site has – merge technos + bandes for robustness
-          const techSet = new Set<string>();
-          (s.technos || []).forEach(t => techSet.add(normTech(t)));
-          (s.bandes || []).forEach(b => techSet.add(normTech(b)));
-          if (techSet.size === 0) techSet.add('4G');
-          // Order: outer (lowest) → inner (highest)
-          const presentTechs = TECH_ORDER.filter(t => techSet.has(t));
-          // Build concentric circles SVG – outer ring = lowest tech, center = highest tech
-          const baseSize = 22;
-          const rings = presentTechs.length;
-          const svgSize = baseSize + (rings - 1) * 6;
-          const center = svgSize / 2;
-          let svgParts = '';
-          // Draw from outermost (lowest tech, first in array) to innermost (highest tech, last)
-          presentTechs.forEach((tech, i) => {
-            const radius = (svgSize / 2) - (i * 3) - 1;
-            const color = TECH_RING_COLORS[tech] || '#f97316';
-            svgParts += `<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="1.2" stroke-opacity="0.85"/>`;
-          });
-          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">${svgParts}</svg>`;
-          const icon = L.divIcon({
-            className: '',
-            html: svg,
-            iconSize: [svgSize, svgSize],
-            iconAnchor: [svgSize / 2, svgSize / 2],
-          });
+          const iconData = buildSiteIcon(s, false);
+          if (!iconData) return;
+          const { icon, presentTechs } = iconData;
           const m = L.marker([s.latitude, s.longitude], { icon });
           m.bindTooltip(
             `<b>${s.site_name}</b><br>${s.cell_count} cells · ${s.constructeur || ''}<br>${presentTechs.join(' / ')}`,
@@ -530,6 +627,8 @@ const NetworkTopologyPage: React.FC = () => {
             fetchJson<SiteParam[]>(
               `topo/site-params?site_name=${encodeURIComponent(s.site_name)}&limit=30`
             ).then(d => setMapSidebarParams(Array.isArray(d) ? d : [])).catch(() => setMapSidebarParams([]));
+            // Show site with neighbors
+            showSiteWithNeighbors(s);
           });
           markersRef.current.addLayer(m);
           count++;
