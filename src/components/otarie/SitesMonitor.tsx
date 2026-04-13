@@ -6375,177 +6375,112 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
 
-          const getRadius = (site: any, isHov: boolean, isSel: boolean) => {
+          const getBaseRadius = (isHov: boolean, isSel: boolean) => {
             const br = viewport.zoom >= 10
-              ? (isHov || isSel ? 7 : 5)
+              ? (isHov || isSel ? 9 : 7)
               : viewport.zoom >= 8
-                ? (isHov || isSel ? 6 : Math.round(4 * densityScale))
-                : (isHov || isSel ? 5 : Math.round(3.5 * densityScale));
+                ? (isHov || isSel ? 8 : Math.round(6 * densityScale))
+                : (isHov || isSel ? 7 : Math.round(5 * densityScale));
             return br;
           };
 
-          // Pass 0a: 2G circles (pane2G — bottom-most)
-          const pass2G = (!enabledTechnos.has('2G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '2G') ? [] : circleSites.filter(site => {
-            const { has2G } = inferSiteTechState(site);
-            return has2G;
-          })).map(site => {
-            const isHov = hoveredSiteId === site.site_id;
-            const isSel = selectedSiteId === site.site_id;
-            const br = getRadius(site, isHov, isSel);
-            const colorOverride = getColorViewFill(site);
-            return (
-              <CircleMarker
-                key={`2g_${site.site_id}`}
-                center={site.coordinates}
-                radius={br}
-                pane="pane2G"
-                pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['2G_GROUP'] || '#ef4444'))),
-                  fillColor: colorOverride || (bandColors['2G_GROUP'] || '#ef4444'),
-                  fillOpacity: 1,
-                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          });
+          // Concentric ring radii: outer→inner = 2G(100%) > 3G(75%) > 4G(55%) > 5G(35%)
+          const RING_SCALES: Record<string, number> = { '2G': 1.0, '3G': 0.75, '4G': 0.55, '5G': 0.35 };
+          const RING_OPACITY = 0.55;
+          const TECH_COLORS: Record<string, string> = {
+            '2G': bandColors['2G_GROUP'] || '#ef4444',
+            '3G': bandColors['3G_GROUP'] || '#3b82f6',
+            '4G': bandColors['4G_GROUP'] || '#f97316',
+            '5G': bandColors['5G_GROUP'] || '#22c55e',
+          };
+          // Render order: outermost first (2G), innermost last (5G) so center is on top
+          const TECH_ORDER: ('2G' | '3G' | '4G' | '5G')[] = ['2G', '3G', '4G', '5G'];
+          const TECH_PANES: Record<string, string> = { '2G': 'pane2G', '3G': 'pane3G', '4G': 'pane4G', '5G': 'pane5G' };
 
-          // Pass 0b: 3G circles (pane3G)
-          const pass3G = (!enabledTechnos.has('3G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '3G') ? [] : circleSites.filter(site => {
-            const { has3G } = inferSiteTechState(site);
-            return has3G;
-          })).map(site => {
-            const isHov = hoveredSiteId === site.site_id;
-            const isSel = selectedSiteId === site.site_id;
-            const br = getRadius(site, isHov, isSel);
-            const colorOverride = getColorViewFill(site);
-            return (
-              <CircleMarker
-                key={`3g_${site.site_id}`}
-                center={site.coordinates}
-                radius={br}
-                pane="pane3G"
-                pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'))),
-                  fillColor: colorOverride || (bandColors['3G_GROUP'] || '#3b82f6'),
-                  fillOpacity: 1,
-                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          });
+          const allRings: React.ReactNode[] = [];
 
-          // Pass 1: 4G circles (pane4G — bottom) — skip entirely if filter is 5G-only
-          const pass4G = (!enabledTechnos.has('4G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '4G') ? [] : circleSites.filter(site => {
-            const { has4G } = inferSiteTechState(site);
-            return has4G;
-          })).map(site => {
-            const { has5G } = inferSiteTechState(site);
-            const isHov = hoveredSiteId === site.site_id;
-            const isSel = selectedSiteId === site.site_id;
-            const isMixed = has5G;
-            const br = getRadius(site, isHov, isSel);
-            const r = isMixed ? Math.max(br, 4) : br;
-            const colorOverride = getColorViewFill(site);
-            return (
-              <CircleMarker
-                key={`4g_${site.site_id}`}
-                center={site.coordinates}
-                radius={r}
-                pane="pane4G"
-                pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (bandColors['4G_GROUP'] || '#f97316'))),
-                  fillColor: colorOverride || (bandColors['4G_GROUP'] || '#f97316'),
-                  fillOpacity: 1,
-                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          });
+          for (const tech of TECH_ORDER) {
+            if (!enabledTechnos.has(tech)) continue;
+            if (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== tech) continue;
 
-          // Pass 2: 5G circles (pane5G — top, always rendered AFTER 4G)
-          const pass5G = (!enabledTechnos.has('5G') || (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== '5G') ? [] : circleSites.filter(site => {
-            const { has5G } = inferSiteTechState(site);
-            return has5G;
-          })).map(site => {
-            const { has4G } = inferSiteTechState(site);
-            const isHov = hoveredSiteId === site.site_id;
-            const isSel = selectedSiteId === site.site_id;
-            const isMixed = has4G;
-            const br = getRadius(site, isHov, isSel);
-            const r = isMixed ? Math.max(Math.round(br * 0.6), 2.5) : br;
-            const colorOverride = getColorViewFill(site);
-            return (
-              <CircleMarker
-                key={`5g_${site.site_id}`}
-                center={site.coordinates}
-                radius={r}
-                pane="pane5G"
-                pathOptions={{
-                  color: isSel ? '#fff' : (isHov ? '#fff' : (isMixed && !colorOverride ? 'transparent' : deriveStrokeColor(colorOverride || (bandColors['5G_GROUP'] || '#22c55e')))),
-                  fillColor: colorOverride || (bandColors['5G_GROUP'] || '#22c55e'),
-                  fillOpacity: 1,
-                  weight: isSel ? 2.5 : (isHov ? 2 : (isMixed && !colorOverride ? 0 : 1.5)),
-                }}
-                eventHandlers={{
-                  click: () => handleSiteClick(site),
-                  mouseover: () => setHoveredSiteId(site.site_id),
-                  mouseout: () => setHoveredSiteId(null),
-                }}
-              >
-                <Popup>
-                  <div className="p-1">
-                    <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
-                  </div>
-                </Popup>
-              </CircleMarker>
-            );
-          });
+            const sitesForTech = circleSites.filter(site => {
+              const st = inferSiteTechState(site);
+              if (tech === '2G') return st.has2G;
+              if (tech === '3G') return st.has3G;
+              if (tech === '4G') return st.has4G;
+              if (tech === '5G') return st.has5G;
+              return false;
+            });
 
-          // Pass 3: unknown tech fallback — hide when a specific techno filter is active
+            for (const site of sitesForTech) {
+              const isHov = hoveredSiteId === site.site_id;
+              const isSel = selectedSiteId === site.site_id;
+              const br = getBaseRadius(isHov, isSel);
+              const colorOverride = getColorViewFill(site);
+
+              // Determine which techs this site has to compute proper concentric scale
+              const st = inferSiteTechState(site);
+              const siteTechs = TECH_ORDER.filter(t => {
+                if (t === '2G') return st.has2G;
+                if (t === '3G') return st.has3G;
+                if (t === '4G') return st.has4G;
+                if (t === '5G') return st.has5G;
+                return false;
+              });
+
+              // If single tech, use full radius; otherwise use concentric scale based on position
+              let ringRadius: number;
+              if (siteTechs.length <= 1) {
+                ringRadius = br;
+              } else {
+                // Position in the site's tech stack: outermost (lowest) = largest
+                const posIdx = siteTechs.indexOf(tech);
+                const scaleStep = 1.0 / siteTechs.length;
+                const scale = 1.0 - posIdx * scaleStep;
+                ringRadius = Math.max(Math.round(br * scale), 2);
+              }
+
+              const fillColor = colorOverride || TECH_COLORS[tech];
+              const strokeColor = isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(fillColor));
+
+              allRings.push(
+                <CircleMarker
+                  key={`${tech.toLowerCase()}_${site.site_id}`}
+                  center={site.coordinates}
+                  radius={ringRadius}
+                  pane={TECH_PANES[tech]}
+                  pathOptions={{
+                    color: strokeColor,
+                    fillColor,
+                    fillOpacity: siteTechs.length <= 1 ? 0.85 : RING_OPACITY,
+                    weight: isSel ? 2.5 : (isHov ? 2 : 1),
+                  }}
+                  eventHandlers={{
+                    click: () => handleSiteClick(site),
+                    mouseover: () => setHoveredSiteId(site.site_id),
+                    mouseout: () => setHoveredSiteId(null),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-1">
+                      <div className="font-bold text-sm">{site.site_name}</div>
+                      <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                      <div className="text-xs mt-0.5">{siteTechs.join(' / ')}</div>
+                    </div>
+                  </Popup>
+                </CircleMarker>
+              );
+            }
+          }
+
+          // Unknown tech fallback
           const passUnknown = (mapTechnoFilter !== 'ALL' ? [] : circleSites.filter(site => {
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
             return !has2G && !has3G && !has4G && !has5G;
           })).map(site => {
             const isHov = hoveredSiteId === site.site_id;
             const isSel = selectedSiteId === site.site_id;
-            const br = getRadius(site, isHov, isSel);
+            const br = getBaseRadius(isHov, isSel);
             const colorOverride = getColorViewFill(site);
             return (
               <CircleMarker
@@ -6556,8 +6491,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 pathOptions={{
                   color: isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(colorOverride || (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316')))),
                   fillColor: colorOverride || (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#f97316')),
-                  fillOpacity: 1,
-                  weight: isSel ? 2.5 : (isHov ? 2 : 1.5),
+                  fillOpacity: 0.85,
+                  weight: isSel ? 2.5 : (isHov ? 2 : 1),
                 }}
                 eventHandlers={{
                   click: () => handleSiteClick(site),
@@ -6575,7 +6510,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             );
           });
 
-          // Pass 4: labels
+          // Labels
           const labels = circleSites.filter(() => shouldShowLabels && viewport.zoom >= 8).map(site => (
             <Marker key={`lbl_${site.site_id}`} position={site.coordinates} icon={L.divIcon({ html: '<div></div>', className: '', iconSize: L.point(1, 1), iconAnchor: L.point(0, 0) })} interactive={false}>
               <Tooltip direction="bottom" offset={[0, 6]} permanent className="site-name-label-clean">
@@ -6584,7 +6519,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Marker>
           ));
 
-          return <>{passUnknown}{pass2G}{pass3G}{pass4G}{pass5G}{labels}</>;
+          return <>{passUnknown}{allRings}{labels}</>;
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
