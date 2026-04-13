@@ -444,7 +444,6 @@ const NetworkTopologyPage: React.FC = () => {
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any>(null);
-  const [mapLoaded, setMapLoaded] = useState(false);
   const [mapVendor, setMapVendor] = useState<string>('');
   const [mapTechno, setMapTechno] = useState<string>('');
   const [mapSiteCount, setMapSiteCount] = useState(0);
@@ -533,41 +532,48 @@ const NetworkTopologyPage: React.FC = () => {
     } catch (e) { console.error('mapReload', e); }
   }, []);
 
-  const initMap = useCallback(async () => {
-    if (mapRef.current || !mapContainerRef.current) return;
+  const initMap = useCallback(async (): Promise<boolean> => {
+    if (mapRef.current) return true;
+    if (!mapContainerRef.current) return false;
     await ensureLeaflet();
     const L = getL();
-    if (!L) return;
-    const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CARTO', maxZoom: 19,
-    }).addTo(map);
-    const markers = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
-    map.addLayer(markers);
-    mapRef.current = map;
-    markersRef.current = markers;
-    setMapLoaded(true);
+    if (!L) return false;
+    try {
+      const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO', maxZoom: 19,
+      }).addTo(map);
+      const markers = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
+      map.addLayer(markers);
+      mapRef.current = map;
+      markersRef.current = markers;
+      return true;
+    } catch (e) {
+      console.error('[map] initMap error', e);
+      return false;
+    }
   }, [ensureLeaflet]);
 
-  // Init map when tab becomes active
+  // Init map when tab becomes active, then load sites immediately
   useEffect(() => {
     if (activeTab !== 'livemap') return;
-    const timer = setTimeout(async () => {
+    let cancelled = false;
+    const boot = async () => {
+      // Wait for DOM to render the container
+      await new Promise(r => setTimeout(r, 200));
+      if (cancelled) return;
       if (!mapRef.current) {
-        await initMap();
+        const ok = await initMap();
+        if (!ok || cancelled) return;
       } else {
         mapRef.current.invalidateSize();
       }
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [activeTab, initMap]);
-
-  // Load sites once map is ready, and when filters change
-  useEffect(() => {
-    if (mapLoaded) {
+      // Always load/reload sites after map is ready
       loadMapSites(mapVendor, mapTechno);
-    }
-  }, [mapLoaded, mapVendor, mapTechno, loadMapSites]);
+    };
+    boot();
+    return () => { cancelled = true; };
+  }, [activeTab, initMap, loadMapSites, mapVendor, mapTechno]);
 
   const searchMapParams = useCallback(async () => {
     if (!mapSidebar) return;
