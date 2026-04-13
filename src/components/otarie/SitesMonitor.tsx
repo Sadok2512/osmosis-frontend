@@ -6598,7 +6598,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
-            const baseR = isHovered || isSelectedSite ? 7 : 5;
+            const baseR = getBaseRadius(isHovered, isSelectedSite);
             return (
               <React.Fragment key={site.site_id}>
                 {show2G && (
