@@ -504,7 +504,19 @@ const NetworkTopologyPage: React.FC = () => {
   // Callback ref: fires when React mounts/unmounts the map div
   const mapCallbackRef = useCallback((node: HTMLDivElement | null) => {
     mapContainerRef.current = node;
-    if (!node || mapRef.current || mapInitializing.current) return;
+
+    // Cleanup on unmount: destroy old map so we can re-init on remount
+    if (!node) {
+      if (mapRef.current) {
+        try { mapRef.current.remove(); } catch { /* ignore */ }
+        mapRef.current = null;
+        markersRef.current = null;
+        mapInitializing.current = false;
+      }
+      return;
+    }
+
+    if (mapRef.current || mapInitializing.current) return;
     mapInitializing.current = true;
 
     (async () => {
@@ -524,7 +536,6 @@ const NetworkTopologyPage: React.FC = () => {
       const loadScript = (src: string): Promise<void> => new Promise((resolve, reject) => {
         const existing = document.querySelector(`script[src="${src}"]`);
         if (existing) {
-          // Already loaded or loading — wait for window.L
           const poll = () => { if (getL()) resolve(); else setTimeout(poll, 50); };
           poll(); return;
         }
@@ -540,8 +551,11 @@ const NetworkTopologyPage: React.FC = () => {
       const L = getL();
       if (!L) { console.error('[map] L not available'); return; }
 
+      // Check node is still mounted
+      if (!mapContainerRef.current) { mapInitializing.current = false; return; }
+
       // Init map on the actual DOM node
-      const map = L.map(node).setView([46.6, 2.5], 6);
+      const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 19,
       }).addTo(map);
