@@ -469,13 +469,45 @@ const NetworkTopologyPage: React.FC = () => {
       const sites = await fetchJson<MapSite[]>(`topo/map-sites?${qp}`);
       markersRef.current.clearLayers();
       let count = 0;
+      const TECH_RING_COLORS: Record<string, string> = {
+        '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#ef4444',
+      };
+      const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
+      const normTech = (t: string): string => {
+        const u = t.toUpperCase();
+        if (u.includes('NR') || u.includes('5G')) return '5G';
+        if (u.includes('LTE') || u.includes('4G')) return '4G';
+        if (u.includes('UMTS') || u.includes('WCDMA') || u.includes('3G')) return '3G';
+        if (u.includes('GSM') || u.includes('2G')) return '2G';
+        return '4G';
+      };
+
       sites.forEach((s: MapSite) => {
         if (s.latitude && s.longitude) {
-          const color = vendorColor(s.constructeur);
+          // Determine which tech layers this site has
+          const techSet = new Set<string>();
+          (s.technos || []).forEach(t => techSet.add(normTech(t)));
+          if (techSet.size === 0) techSet.add('4G');
+          // Order: outer (lowest) → inner (highest)
+          const presentTechs = TECH_ORDER.filter(t => techSet.has(t));
+          // Build concentric circles SVG – outer ring = lowest tech, center = highest tech
+          const baseSize = 22;
+          const rings = presentTechs.length;
+          const svgSize = baseSize + (rings - 1) * 6;
+          const center = svgSize / 2;
+          let svgParts = '';
+          // Draw from outermost (lowest tech, first in array) to innermost (highest tech, last)
+          presentTechs.forEach((tech, i) => {
+            const radius = (svgSize / 2) - (i * 3) - 1;
+            const color = TECH_RING_COLORS[tech] || '#f97316';
+            svgParts += `<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="1.2" stroke-opacity="0.85"/>`;
+          });
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">${svgParts}</svg>`;
           const icon = L.divIcon({
             className: '',
-            html: `<div style="width:10px;height:10px;background:${color};border-radius:50%;border:2px solid rgba(255,255,255,.5)"></div>`,
-            iconSize: [10, 10], iconAnchor: [5, 5],
+            html: svg,
+            iconSize: [svgSize, svgSize],
+            iconAnchor: [svgSize / 2, svgSize / 2],
           });
           const m = L.marker([s.latitude, s.longitude], { icon });
           m.bindTooltip(
