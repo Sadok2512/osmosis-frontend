@@ -439,11 +439,12 @@ const NetworkTopologyPage: React.FC = () => {
   }, [activeTab, globalNet, loadGlobalNetwork]);
 
   /* ══════════════════ LIVE MAP ══════════════════ */
-  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any>(null);
+  const mapInitializing = useRef(false);
   const [mapVendor, setMapVendor] = useState<string>('');
   const [mapTechno, setMapTechno] = useState<string>('');
   const [mapSiteCount, setMapSiteCount] = useState(0);
@@ -452,52 +453,20 @@ const NetworkTopologyPage: React.FC = () => {
   const [mapParamSearch, setMapParamSearch] = useState('');
   const [mapSidebarCells, setMapSidebarCells] = useState<{ cell_name: string; band?: string; techno?: string }[]>([]);
 
-  // Leaflet dynamic import
-  const leafletReady = useRef(false);
-
-  const ensureLeaflet = useCallback(async () => {
-    if (leafletReady.current) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).L) {
-      leafletReady.current = true;
-      return;
-    }
-    const loadCss = (href: string) => {
-      if (document.querySelector(`link[href="${href}"]`)) return;
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    };
-    loadCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
-    loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
-    loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css');
-
-    const loadScript = (src: string): Promise<void> => new Promise((resolve, reject) => {
-      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-      const s = document.createElement('script');
-      s.src = src;
-      s.onload = () => resolve();
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
-    await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
-    await loadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js');
-    leafletReady.current = true;
-  }, []);
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getL = (): any => (window as any).L;
 
-  const loadMapSites = useCallback(async (vend: string, tech: string) => {
+  // Mutable ref for loadSites so callback ref can call latest version
+  const loadSitesRef = useRef<(v: string, t: string) => void>();
+  loadSitesRef.current = async (vend: string, tech: string) => {
     if (!mapRef.current || !markersRef.current) return;
     const L = getL();
     if (!L) return;
-    const params = new URLSearchParams({ limit: '5000' });
-    if (vend) params.set('vendor', vend);
-    if (tech) params.set('techno', tech);
+    const qp = new URLSearchParams({ limit: '5000' });
+    if (vend) qp.set('vendor', vend);
+    if (tech) qp.set('techno', tech);
     try {
-      const sites = await fetchJson<MapSite[]>(`topo/map-sites?${params}`);
+      const sites = await fetchJson<MapSite[]>(`topo/map-sites?${qp}`);
       markersRef.current.clearLayers();
       let count = 0;
       sites.forEach((s: MapSite) => {
@@ -529,17 +498,50 @@ const NetworkTopologyPage: React.FC = () => {
         }
       });
       setMapSiteCount(count);
-    } catch (e) { console.error('mapReload', e); }
-  }, []);
+    } catch (e) { console.error('[map] loadSites error', e); }
+  };
 
-  const initMap = useCallback(async (): Promise<boolean> => {
-    if (mapRef.current) return true;
-    if (!mapContainerRef.current) return false;
-    await ensureLeaflet();
-    const L = getL();
-    if (!L) return false;
-    try {
-      const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
+  // Callback ref: fires when React mounts/unmounts the map div
+  const mapCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    mapContainerRef.current = node;
+    if (!node || mapRef.current || mapInitializing.current) return;
+    mapInitializing.current = true;
+
+    (async () => {
+      // Load Leaflet CSS
+      const loadCss = (href: string) => {
+        if (!document.querySelector(`link[href="${href}"]`)) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet'; link.href = href;
+          document.head.appendChild(link);
+        }
+      };
+      loadCss('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+      loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
+      loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css');
+
+      // Load Leaflet JS sequentially
+      const loadScript = (src: string): Promise<void> => new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+          // Already loaded or loading — wait for window.L
+          const poll = () => { if (getL()) resolve(); else setTimeout(poll, 50); };
+          poll(); return;
+        }
+        const s = document.createElement('script');
+        s.src = src; s.onload = () => resolve(); s.onerror = reject;
+        document.head.appendChild(s);
+      });
+      try {
+        await loadScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js');
+        await loadScript('https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js');
+      } catch (e) { console.error('[map] Script load failed', e); return; }
+
+      const L = getL();
+      if (!L) { console.error('[map] L not available'); return; }
+
+      // Init map on the actual DOM node
+      const map = L.map(node).setView([46.6, 2.5], 6);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 19,
       }).addTo(map);
@@ -547,33 +549,25 @@ const NetworkTopologyPage: React.FC = () => {
       map.addLayer(markers);
       mapRef.current = map;
       markersRef.current = markers;
-      return true;
-    } catch (e) {
-      console.error('[map] initMap error', e);
-      return false;
-    }
-  }, [ensureLeaflet]);
 
-  // Init map when tab becomes active, then load sites immediately
+      // Load sites immediately
+      if (loadSitesRef.current) loadSitesRef.current('', '');
+    })();
+  }, []);
+
+  // Reload when vendor/techno filters change
   useEffect(() => {
-    if (activeTab !== 'livemap') return;
-    let cancelled = false;
-    const boot = async () => {
-      // Wait for DOM to render the container
-      await new Promise(r => setTimeout(r, 200));
-      if (cancelled) return;
-      if (!mapRef.current) {
-        const ok = await initMap();
-        if (!ok || cancelled) return;
-      } else {
-        mapRef.current.invalidateSize();
-      }
-      // Always load/reload sites after map is ready
-      loadMapSites(mapVendor, mapTechno);
-    };
-    boot();
-    return () => { cancelled = true; };
-  }, [activeTab, initMap, loadMapSites, mapVendor, mapTechno]);
+    if (mapRef.current && markersRef.current && loadSitesRef.current) {
+      loadSitesRef.current(mapVendor, mapTechno);
+    }
+  }, [mapVendor, mapTechno]);
+
+  // Invalidate size when switching back to livemap tab
+  useEffect(() => {
+    if (activeTab === 'livemap' && mapRef.current) {
+      setTimeout(() => mapRef.current?.invalidateSize(), 150);
+    }
+  }, [activeTab]);
 
   const searchMapParams = useCallback(async () => {
     if (!mapSidebar) return;
@@ -706,7 +700,7 @@ const NetworkTopologyPage: React.FC = () => {
             <div className="flex" style={{ height: 'calc(100vh - 340px)', minHeight: 400 }}>
               {/* Map */}
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
-                <div ref={mapContainerRef} className="w-full h-full bg-card" />
+                <div ref={mapCallbackRef} className="w-full h-full bg-card" />
                 {/* Map overlay filters */}
                 <div className="absolute top-3 left-14 z-[1000] flex gap-2">
                   <select
