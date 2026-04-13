@@ -512,7 +512,7 @@ const NetworkTopologyPage: React.FC = () => {
           });
           const m = L.marker([s.latitude, s.longitude], { icon });
           m.bindTooltip(
-            `<b>${s.site_name}</b><br>${s.cell_count} cells · ${s.constructeur || ''}<br>${(s.technos || []).join(', ')}`,
+            `<b>${s.site_name}</b><br>${s.cell_count} cells · ${s.constructeur || ''}<br>${presentTechs.join(' / ')}`,
             { className: 'map-tooltip' }
           );
           m.on('click', () => {
