@@ -444,6 +444,11 @@ const NetworkTopologyPage: React.FC = () => {
   const mapRef = useRef<any>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const markersRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const neighborLayerRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const highlightLayerRef = useRef<any>(null);
+  const allSitesRef = useRef<MapSite[]>([]);
   const mapInitializing = useRef(false);
   const [mapVendor, setMapVendor] = useState<string>('');
   const [mapTechno, setMapTechno] = useState<string>('');
