@@ -6376,12 +6376,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
 
           const getBaseRadius = (isHov: boolean, isSel: boolean) => {
-            const br = viewport.zoom >= 10
-              ? (isHov || isSel ? 9 : 7)
-              : viewport.zoom >= 8
-                ? (isHov || isSel ? 8 : Math.round(6 * densityScale))
-                : (isHov || isSel ? 7 : Math.round(5 * densityScale));
-            return br;
+            const z = viewport.zoom;
+            let base: number;
+            if (z >= 14) base = 14;
+            else if (z >= 13) base = 12;
+            else if (z >= 12) base = 10;
+            else if (z >= 11) base = 9;
+            else if (z >= 10) base = 7;
+            else if (z >= 9) base = 6;
+            else if (z >= 8) base = 5;
+            else if (z >= 7) base = 4;
+            else base = 3;
+            base = Math.round(base * densityScale);
+            if (isHov || isSel) base = Math.round(base * 1.4);
+            return Math.max(2, base);
           };
 
           // Concentric ring radii: outer→inner = 2G(100%) > 3G(75%) > 4G(55%) > 5G(35%)
@@ -6590,7 +6598,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
-            const baseR = isHovered || isSelectedSite ? 7 : 5;
+            const zz = viewport.zoom;
+            const baseR = Math.max(2, Math.round((zz >= 14 ? 14 : zz >= 13 ? 12 : zz >= 12 ? 10 : zz >= 11 ? 9 : zz >= 10 ? 7 : zz >= 9 ? 6 : zz >= 8 ? 5 : zz >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)));
             return (
               <React.Fragment key={site.site_id}>
                 {show2G && (
@@ -6708,7 +6717,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <CircleMarker
                 key={site.site_id}
                 center={site.coordinates}
-                radius={isHovered || isSelectedSite ? 8 : 6}
+                radius={Math.max(2, Math.round((viewport.zoom >= 14 ? 14 : viewport.zoom >= 13 ? 12 : viewport.zoom >= 12 ? 10 : viewport.zoom >= 11 ? 9 : viewport.zoom >= 10 ? 7 : viewport.zoom >= 9 ? 6 : viewport.zoom >= 8 ? 5 : viewport.zoom >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)))}
                 pane="pane5G"
                 pathOptions={{
                   fillColor: fbColor,
