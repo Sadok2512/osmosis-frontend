@@ -26,7 +26,7 @@ export const TECH = {
   '4G':  '#f97316',  // orange-500
   LTE:   '#f97316',
   '3G':  '#0ea5e9',  // sky-500
-  '2G':  '#a855f7',  // purple-500
+  '2G':  '#a855f7',  // purple-500 (mauve)
 } as const;
 
 // ── HSL equivalents (for inline style / popover use) ──
@@ -49,7 +49,7 @@ export const TECH_HSL: Record<string, string> = {
   '4G':  'hsl(25, 95%, 53%)',
   LTE:   'hsl(25, 95%, 53%)',
   '3G':  'hsl(199, 89%, 48%)',
-  '2G':  'hsl(271, 91%, 65%)',
+  '2G':  'hsl(271, 91%, 65%)',  // mauve
 };
 
 // ── Tailwind badge classes (bg + text) ──

@@ -6,7 +6,7 @@ import { is5GTech, is4GTech, is3GTech, is2GTech } from '@/utils/telecomHelpers';
 
 // ── Technology group colors ──
 export const TECH_COLORS = {
-  '2G': '#ef4444',
+  '2G': '#a855f7',
   '3G': '#3b82f6',
   '4G': '#f97316',
   '5G': '#22c55e',
@@ -16,8 +16,8 @@ export const TECH_COLORS = {
 // ── Band-based color mapping ──
 export const DEFAULT_BAND_COLORS: Record<string, string> = {
   // GSM (2G) — red tones
-  GSM900:  '#ef4444',
-  GSM1800: '#dc2626',
+  GSM900:  '#a855f7',
+  GSM1800: '#9333ea',
   // UMTS (3G) — blue tones
   UMTS900:  '#3b82f6',
   UMTS2100: '#2563eb',
@@ -36,7 +36,7 @@ export const DEFAULT_BAND_COLORS: Record<string, string> = {
   L700:   '#c2410c',
   L900:   '#d97706',
   // Group header colors
-  '2G_GROUP': '#ef4444',
+  '2G_GROUP': '#a855f7',
   '3G_GROUP': '#3b82f6',
   '4G_GROUP': '#f97316',
   '5G_GROUP': '#22c55e',
@@ -134,7 +134,7 @@ export const getTechBadgeBg = (techno: string | null | undefined): string => {
   if (is5GTech(techno)) return 'bg-[#22c55e]';
   if (is4GTech(techno)) return 'bg-[#f97316]';
   if (is3GTech(techno)) return 'bg-[#3b82f6]';
-  if (is2GTech(techno)) return 'bg-[#ef4444]';
+  if (is2GTech(techno)) return 'bg-[#a855f7]';
   return 'bg-[#f97316]';
 };
 
@@ -143,7 +143,7 @@ export const getTechDotColor = (techno: string | null | undefined): string => {
   if (is5GTech(techno)) return '#22c55e';
   if (is4GTech(techno)) return '#f97316';
   if (is3GTech(techno)) return '#3b82f6';
-  if (is2GTech(techno)) return '#ef4444';
+  if (is2GTech(techno)) return '#a855f7';
   return '#f97316';
 };
 
@@ -152,7 +152,7 @@ export const getTechChipClasses = (tech: string): string => {
   if (tech === '5G') return 'bg-green-500/15 text-green-500';
   if (tech === '4G') return 'bg-orange-500/15 text-orange-500';
   if (tech === '3G') return 'bg-blue-500/15 text-blue-500';
-  if (tech === '2G') return 'bg-red-500/15 text-red-500';
+  if (tech === '2G') return 'bg-purple-500/15 text-purple-500';
   return 'bg-orange-500/15 text-orange-500';
 };
 
