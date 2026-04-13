@@ -476,7 +476,7 @@ const NetworkTopologyPage: React.FC = () => {
       const normTech = (t: string): string => {
         const u = t.toUpperCase();
         if (u.includes('NR') || u.includes('5G')) return '5G';
-        if (u.includes('LTE') || u.includes('4G')) return '4G';
+        if (u.includes('LTE') || u.includes('4G') || /^L\d/.test(u)) return '4G';
         if (u.includes('UMTS') || u.includes('WCDMA') || u.includes('3G')) return '3G';
         if (u.includes('GSM') || u.includes('2G')) return '2G';
         return '4G';
@@ -484,9 +484,10 @@ const NetworkTopologyPage: React.FC = () => {
 
       sites.forEach((s: MapSite) => {
         if (s.latitude && s.longitude) {
-          // Determine which tech layers this site has
+          // Determine which tech layers this site has – merge technos + bandes for robustness
           const techSet = new Set<string>();
           (s.technos || []).forEach(t => techSet.add(normTech(t)));
+          (s.bandes || []).forEach(b => techSet.add(normTech(b)));
           if (techSet.size === 0) techSet.add('4G');
           // Order: outer (lowest) → inner (highest)
           const presentTechs = TECH_ORDER.filter(t => techSet.has(t));
@@ -511,7 +512,7 @@ const NetworkTopologyPage: React.FC = () => {
           });
           const m = L.marker([s.latitude, s.longitude], { icon });
           m.bindTooltip(
-            `<b>${s.site_name}</b><br>${s.cell_count} cells · ${s.constructeur || ''}<br>${(s.technos || []).join(', ')}`,
+            `<b>${s.site_name}</b><br>${s.cell_count} cells · ${s.constructeur || ''}<br>${presentTechs.join(' / ')}`,
             { className: 'map-tooltip' }
           );
           m.on('click', () => {
