@@ -695,11 +695,10 @@ const NetworkTopologyPage: React.FC = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="livemap" className="gap-1.5"><Map className="w-4 h-4" /> Live Map</TabsTrigger>
-            <TabsTrigger value="sites" className="gap-1.5"><Building2 className="w-4 h-4" /> Sites & Data</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="network" className="gap-1.5"><Globe className="w-4 h-4" /> Global Network</TabsTrigger>
-            <TabsTrigger value="dimensions" className="gap-1.5"><Boxes className="w-4 h-4" /> Dimensions</TabsTrigger>
+            <TabsTrigger value="sites" className="gap-1.5"><Building2 className="w-4 h-4" /> Sites & Data</TabsTrigger>
+            <TabsTrigger value="livemap" className="gap-1.5"><Map className="w-4 h-4" /> Live Map</TabsTrigger>
           </TabsList>
 
           {/* ═══════ TAB: Live Map ═══════ */}
@@ -1286,91 +1285,7 @@ const NetworkTopologyPage: React.FC = () => {
             )}
           </TabsContent>
 
-          {/* ═══════ TAB: Dimensions ═══════ */}
-          <TabsContent value="dimensions" className="mt-4 space-y-4">
 
-            {/* Dimension definitions */}
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Boxes className="w-5 h-5 text-violet-500" />
-                  <h2 className="text-sm font-bold uppercase tracking-wide">Dimension Definitions</h2>
-                </div>
-                <Button variant="outline" size="sm" onClick={loadDimensions} disabled={dimsLoading}>
-                  <RefreshCw className={`w-4 h-4 mr-1 ${dimsLoading ? 'animate-spin' : ''}`} /> Refresh
-                </Button>
-              </div>
-
-              {dimsLoading ? (
-                <div className="text-center py-8 text-muted-foreground"><Loader2 className="w-4 h-4 inline animate-spin mr-2" />Loading...</div>
-              ) : dimensions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">No dimensions defined. Import topology first to auto-detect dimensions.</div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Group by category */}
-                  {Object.entries(
-                    dimensions.reduce<Record<string, typeof dimensions>>((acc, d) => {
-                      const cat = d.category || 'General';
-                      (acc[cat] = acc[cat] || []).push(d);
-                      return acc;
-                    }, {})
-                  ).map(([cat, dims]) => (
-                    <div key={cat}>
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">{cat} ({dims.length})</div>
-                      <div className="flex flex-wrap gap-2">
-                        {dims.map(d => (
-                          <div key={d.code} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs ${d.is_active ? 'bg-muted/20' : 'bg-muted/5 opacity-50'}`}>
-                            <span className="font-semibold">{d.display_name || d.code}</span>
-                            {d.csv_column && <span className="text-[9px] text-muted-foreground">({d.csv_column})</span>}
-                            {d.rat && d.rat !== 'ALL' && (
-                              <span className={`text-[9px] px-1 rounded border ${technoClass(d.rat)}`}>{d.rat}</span>
-                            )}
-                            {d.is_filterable && <Badge variant="outline" className="text-[8px] h-4">Filter</Badge>}
-                            {d.is_aggregatable && <Badge variant="outline" className="text-[8px] h-4">Agg</Badge>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-
-            {/* Preview & Test */}
-            <Card className="p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Eye className="w-5 h-5 text-cyan-500" />
-                <h2 className="text-sm font-bold uppercase tracking-wide">Preview & Test</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Dimension</label>
-                  <Select value={dimPreviewField} onValueChange={f => { setDimPreviewField(f); previewDimension(f); }}>
-                    <SelectTrigger><SelectValue placeholder="Select dimension..." /></SelectTrigger>
-                    <SelectContent>
-                      {['plaque', 'dor', 'zone', 'band', 'techno', 'vendor'].map(f => (
-                        <SelectItem key={f} value={f}>{prettyLabel(f)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Distinct Values</label>
-                  {dimPreviewLoading ? (
-                    <div className="text-sm text-muted-foreground py-2"><Loader2 className="w-3 h-3 inline animate-spin mr-1" />Loading...</div>
-                  ) : dimPreviewValues.length > 0 ? (
-                    <div className="flex flex-wrap gap-1 max-h-[200px] overflow-y-auto">
-                      {dimPreviewValues.map(v => (
-                        <span key={v} className="text-[10px] px-2 py-0.5 rounded border bg-muted/20">{v}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground py-2">Select a dimension to preview values...</div>
-                  )}
-                </div>
-              </div>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
 
