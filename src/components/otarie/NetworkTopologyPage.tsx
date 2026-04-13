@@ -440,8 +440,10 @@ const NetworkTopologyPage: React.FC = () => {
 
   /* ══════════════════ LIVE MAP ══════════════════ */
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.MarkerClusterGroup | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markersRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapVendor, setMapVendor] = useState<string>('');
   const [mapTechno, setMapTechno] = useState<string>('');
@@ -456,12 +458,11 @@ const NetworkTopologyPage: React.FC = () => {
 
   const ensureLeaflet = useCallback(async () => {
     if (leafletReady.current) return;
-    // Check if already loaded
-    if ((window as unknown as Record<string, unknown>).L) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).L) {
       leafletReady.current = true;
       return;
     }
-    // Load CSS
     const loadCss = (href: string) => {
       if (document.querySelector(`link[href="${href}"]`)) return;
       const link = document.createElement('link');
@@ -473,7 +474,6 @@ const NetworkTopologyPage: React.FC = () => {
     loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css');
     loadCss('https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css');
 
-    // Load JS
     const loadScript = (src: string): Promise<void> => new Promise((resolve, reject) => {
       if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
       const s = document.createElement('script');
@@ -487,32 +487,21 @@ const NetworkTopologyPage: React.FC = () => {
     leafletReady.current = true;
   }, []);
 
-  const initMap = useCallback(async () => {
-    if (mapRef.current || !mapContainerRef.current) return;
-    await ensureLeaflet();
-    const L = (window as unknown as Record<string, unknown>).L as typeof import('leaflet');
-    const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; CARTO', maxZoom: 19,
-    }).addTo(map);
-    const markers = (L as unknown as Record<string, unknown>).markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true }) as L.MarkerClusterGroup;
-    map.addLayer(markers);
-    mapRef.current = map;
-    markersRef.current = markers;
-    setMapLoaded(true);
-  }, [ensureLeaflet]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getL = (): any => (window as any).L;
 
-  const mapReload = useCallback(async () => {
+  const loadMapSites = useCallback(async (vend: string, tech: string) => {
     if (!mapRef.current || !markersRef.current) return;
-    const L = (window as unknown as Record<string, unknown>).L as typeof import('leaflet');
+    const L = getL();
+    if (!L) return;
     const params = new URLSearchParams({ limit: '5000' });
-    if (mapVendor) params.set('vendor', mapVendor);
-    if (mapTechno) params.set('techno', mapTechno);
+    if (vend) params.set('vendor', vend);
+    if (tech) params.set('techno', tech);
     try {
       const sites = await fetchJson<MapSite[]>(`topo/map-sites?${params}`);
       markersRef.current.clearLayers();
       let count = 0;
-      sites.forEach(s => {
+      sites.forEach((s: MapSite) => {
         if (s.latitude && s.longitude) {
           const color = vendorColor(s.constructeur);
           const icon = L.divIcon({
@@ -529,35 +518,56 @@ const NetworkTopologyPage: React.FC = () => {
             setMapSidebar(s);
             setMapSidebarParams([]);
             setMapParamSearch('');
-            // Load cells
             fetchJson<{ cell_name: string; band?: string; techno?: string }[]>(
               `topo/cells?search=${encodeURIComponent(s.site_name)}&limit=50`
             ).then(setMapSidebarCells).catch(() => setMapSidebarCells([]));
-            // Load params
             fetchJson<SiteParam[]>(
               `topo/site-params?site_name=${encodeURIComponent(s.site_name)}&limit=30`
             ).then(d => setMapSidebarParams(Array.isArray(d) ? d : [])).catch(() => setMapSidebarParams([]));
           });
-          markersRef.current!.addLayer(m);
+          markersRef.current.addLayer(m);
           count++;
         }
       });
       setMapSiteCount(count);
     } catch (e) { console.error('mapReload', e); }
-  }, [mapVendor, mapTechno]);
+  }, []);
 
+  const initMap = useCallback(async () => {
+    if (mapRef.current || !mapContainerRef.current) return;
+    await ensureLeaflet();
+    const L = getL();
+    if (!L) return;
+    const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; CARTO', maxZoom: 19,
+    }).addTo(map);
+    const markers = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
+    map.addLayer(markers);
+    mapRef.current = map;
+    markersRef.current = markers;
+    setMapLoaded(true);
+  }, [ensureLeaflet]);
+
+  // Init map when tab becomes active
   useEffect(() => {
-    if (activeTab === 'livemap') {
-      setTimeout(() => {
-        if (!mapRef.current) initMap().then(mapReload);
-        else { mapRef.current.invalidateSize(); mapReload(); }
-      }, 100);
+    if (activeTab !== 'livemap') return;
+    const timer = setTimeout(async () => {
+      if (!mapRef.current) {
+        await initMap();
+      } else {
+        mapRef.current.invalidateSize();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [activeTab, initMap]);
+
+  // Load sites once map is ready, and when filters change
+  useEffect(() => {
+    if (mapLoaded) {
+      loadMapSites(mapVendor, mapTechno);
     }
-  }, [activeTab, initMap, mapReload]);
-
-  useEffect(() => {
-    if (mapLoaded) mapReload();
-  }, [mapVendor, mapTechno, mapLoaded, mapReload]);
+  }, [mapLoaded, mapVendor, mapTechno, loadMapSites]);
 
   const searchMapParams = useCallback(async () => {
     if (!mapSidebar) return;
