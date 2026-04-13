@@ -863,8 +863,30 @@ export async function fetchDashboardSites(
       dashboardSitesCache = { key, sites: enrichedSites, ts: Date.now() };
       return enrichedSites;
     }
-    // VPS returned 0 sites – fall through to RPC / embedded fallback
-    console.warn('[TopoService] VPS returned 0 sites, trying fallback…');
+    // VPS /sites returned 0 — try /cells endpoint WITHOUT filters then filter locally
+    console.warn('[TopoService] VPS /sites returned 0 sites, trying /cells fallback…');
+    try {
+      const fullWorldBbox = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
+      // Don't pass bboxFilters — VPS /cells may not support them; filter locally instead
+      const cellsResp = await topoApi.listCellsByBbox(fullWorldBbox, undefined, 50000);
+      if (cellsResp.cells && cellsResp.cells.length > 0) {
+        const rows = cellsResp.cells as TopoRow[];
+        const builtSites = buildSitesFromRows(rows);
+        const qoeData = await getQoeMapData().catch(() => ({} as Record<string, QoeMapSiteData>));
+        const enrichedSites = builtSites.map(site => applyQoeData(site, qoeData));
+        // Apply dashboard filters locally
+        const filtered = filterDashboardSitesLocally(enrichedSites, siteFilters, search);
+        const cellsSites = filterSitesAllTech(filtered);
+        console.log(`[TopoService] Dashboard sites: ${cellsSites.length} sites via VPS /cells fallback (from ${builtSites.length} total)`);
+        if (cellsSites.length > 0) {
+          dashboardSitesCache = { key, sites: cellsSites, ts: Date.now() };
+          onProgressiveBatch?.(cellsSites);
+          return cellsSites;
+        }
+      }
+    } catch (cellsErr) {
+      console.warn('[TopoService] VPS /cells fallback also failed', cellsErr);
+    }
   } catch (err) {
     console.warn('[TopoService] VPS dashboard fetch failed, trying RPC', err);
   }
@@ -915,8 +937,9 @@ export async function fetchDashboardSites(
     console.log(`[TopoService] Dashboard sites: ${sites.length} sites via RPC`);
     if (sites.length > 0) {
       dashboardSitesCache = { key, sites, ts: Date.now() };
+      return sites;
     }
-    return sites;
+    // RPC returned empty — fall through to embedded fallback
   } catch (err) {
     console.warn('[TopoService] Dashboard RPC also failed', err);
   }
