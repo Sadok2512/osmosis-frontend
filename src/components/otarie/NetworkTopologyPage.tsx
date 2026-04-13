@@ -540,7 +540,7 @@ const NetworkTopologyPage: React.FC = () => {
     if (!L) return false;
     try {
       const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 19,
       }).addTo(map);
       const markers = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
