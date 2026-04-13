@@ -6378,17 +6378,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const getBaseRadius = (isHov: boolean, isSel: boolean) => {
             const z = viewport.zoom;
             let base: number;
-            if (z >= 14) base = 14;
-            else if (z >= 13) base = 12;
-            else if (z >= 12) base = 10;
-            else if (z >= 11) base = 9;
-            else if (z >= 10) base = 7;
-            else if (z >= 9) base = 6;
-            else if (z >= 8) base = 5;
-            else if (z >= 7) base = 4;
-            else base = 3;
+            if (z >= 15) base = 12;
+            else if (z >= 14) base = 10;
+            else if (z >= 13) base = 8;
+            else if (z >= 12) base = 7;
+            else if (z >= 11) base = 6;
+            else if (z >= 10) base = 5;
+            else if (z >= 9) base = 4;
+            else if (z >= 8) base = 3;
+            else if (z >= 7) base = 3;
+            else base = 2;
             base = Math.round(base * densityScale);
-            if (isHov || isSel) base = Math.round(base * 1.4);
+            if (isHov || isSel) base = Math.round(base * 1.3);
             return Math.max(2, base);
           };
 
