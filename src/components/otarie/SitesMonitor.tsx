@@ -6376,12 +6376,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
 
           const getBaseRadius = (isHov: boolean, isSel: boolean) => {
-            const br = viewport.zoom >= 10
-              ? (isHov || isSel ? 9 : 7)
-              : viewport.zoom >= 8
-                ? (isHov || isSel ? 8 : Math.round(6 * densityScale))
-                : (isHov || isSel ? 7 : Math.round(5 * densityScale));
-            return br;
+            const z = viewport.zoom;
+            let base: number;
+            if (z >= 14) base = 14;
+            else if (z >= 13) base = 12;
+            else if (z >= 12) base = 10;
+            else if (z >= 11) base = 9;
+            else if (z >= 10) base = 7;
+            else if (z >= 9) base = 6;
+            else if (z >= 8) base = 5;
+            else if (z >= 7) base = 4;
+            else base = 3;
+            base = Math.round(base * densityScale);
+            if (isHov || isSel) base = Math.round(base * 1.4);
+            return Math.max(2, base);
           };
 
           // Concentric ring radii: outer→inner = 2G(100%) > 3G(75%) > 4G(55%) > 5G(35%)
