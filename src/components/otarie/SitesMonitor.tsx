@@ -5035,7 +5035,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // When cells are empty (bbox-loaded), rely on normalized site tech inference instead of hiding valid NR/LTE sites
       const matchesRat = filters.rat === 'ALL' || (siteCells.length > 0
         ? siteCells.some(c => getCellTechGroup(c.techno) === filters.rat)
-        : siteMatchesRequestedTech(s, filters.rat as '4G' | '5G'));
+        : siteMatchesRequestedTech(s, filters.rat as TechGroup));
       const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
       const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
       const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
