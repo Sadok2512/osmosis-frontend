@@ -4887,6 +4887,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               setSites(batchSites);
               setBboxTotal(batchSites.length);
               setLoading(false); // map is usable now
+              // Trigger fitBounds on first batch load so the map zooms to the sites
+              setDashboardFitKey(k => k + 1);
             }
           },
         );
