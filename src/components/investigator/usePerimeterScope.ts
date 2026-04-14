@@ -11,12 +11,11 @@
  *   - matchKpi / matchCounter         : predicate helpers for catalog entries
  *                                       that carry `vendor` and `techno` fields.
  *
- * Sites/cells are fetched once from /api/v1/topo/sites and /api/v1/topo/cells
- * (which already carry vendor / techno metadata) and cached in-module so the
- * hook is cheap to use across components.
+ * Sites/cells are fetched from VPS /topo/sites and /topo/cells with vendor/techno
+ * filters to keep the response small and fast. Results are cached per filter key.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 
 export type TopoSite = {
   site_name: string;
@@ -32,56 +31,91 @@ export type TopoCell = {
   techno?: string | null;
 };
 
-let sitesCache: TopoSite[] | null = null;
-let cellsCache: TopoCell[] | null = null;
-let sitesInFlight: Promise<TopoSite[]> | null = null;
-let cellsInFlight: Promise<TopoCell[]> | null = null;
+// Keyed caches — one per vendor+techno combination
+const sitesCacheMap = new Map<string, TopoSite[]>();
+const cellsCacheMap = new Map<string, TopoCell[]>();
+const inFlightSites = new Map<string, Promise<TopoSite[]>>();
+const inFlightCells = new Map<string, Promise<TopoCell[]>>();
 const listeners: Array<() => void> = [];
 
 function notify() {
   for (const l of listeners) l();
 }
 
-async function loadSites(): Promise<TopoSite[]> {
-  if (sitesCache) return sitesCache;
-  if (sitesInFlight) return sitesInFlight;
-  sitesInFlight = fetch(getApiUrl('topo/sites?limit=200000'), { headers: getApiHeaders() })
-    .then(r => (r.ok ? r.json() : []))
-    .then((data: any) => {
-      const list: TopoSite[] = Array.isArray(data) ? data : [];
-      sitesCache = list;
-      notify();
-      return list;
-    })
-    .catch(() => {
-      sitesCache = [];
-      return [];
-    })
-    .finally(() => {
-      sitesInFlight = null;
-    });
-  return sitesInFlight;
+function buildCacheKey(vendors: string[], technos: string[]): string {
+  return `v=${vendors.sort().join(',')}&t=${technos.sort().join(',')}`;
 }
 
-async function loadCells(): Promise<TopoCell[]> {
-  if (cellsCache) return cellsCache;
-  if (cellsInFlight) return cellsInFlight;
-  cellsInFlight = fetch(getApiUrl('topo/cells?limit=200000'), { headers: getApiHeaders() })
+async function loadSites(vendors: string[], technos: string[]): Promise<TopoSite[]> {
+  const key = buildCacheKey(vendors, technos);
+  if (sitesCacheMap.has(key)) return sitesCacheMap.get(key)!;
+  if (inFlightSites.has(key)) return inFlightSites.get(key)!;
+
+  // Build query with vendor/techno filters for smaller response
+  const extra: Record<string, string> = { limit: '50000' };
+  if (vendors.length === 1) extra.constructeur = vendors[0];
+  if (vendors.length > 1) extra.constructeur = vendors.join(',');
+
+  const url = getVpsProxyUrl('parser', '/api/v1/topo/sites', extra);
+  const headers = getVpsProxyHeaders();
+
+  const p = fetch(url, { headers })
     .then(r => (r.ok ? r.json() : []))
     .then((data: any) => {
-      const list: TopoCell[] = Array.isArray(data) ? data : [];
-      cellsCache = list;
+      const list: TopoSite[] = Array.isArray(data) ? data : (data?.sites || []);
+      sitesCacheMap.set(key, list);
       notify();
       return list;
     })
     .catch(() => {
-      cellsCache = [];
-      return [];
+      sitesCacheMap.set(key, []);
+      notify();
+      return [] as TopoSite[];
     })
     .finally(() => {
-      cellsInFlight = null;
+      inFlightSites.delete(key);
     });
-  return cellsInFlight;
+  inFlightSites.set(key, p);
+  return p;
+}
+
+async function loadCells(vendors: string[], technos: string[]): Promise<TopoCell[]> {
+  const key = buildCacheKey(vendors, technos);
+  if (cellsCacheMap.has(key)) return cellsCacheMap.get(key)!;
+  if (inFlightCells.has(key)) return inFlightCells.get(key)!;
+
+  const extra: Record<string, string> = { limit: '50000' };
+  if (vendors.length === 1) extra.constructeur = vendors[0];
+  if (vendors.length > 1) extra.constructeur = vendors.join(',');
+  if (technos.length > 0) extra.techno = technos.join(',');
+
+  const url = getVpsProxyUrl('parser', '/api/v1/topo/cells', extra);
+  const headers = getVpsProxyHeaders();
+
+  const p = fetch(url, { headers })
+    .then(r => (r.ok ? r.json() : []))
+    .then((data: any) => {
+      const raw = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
+      const list: TopoCell[] = raw.map((c: any) => ({
+        cell_name: c.nom_cellule || c.cell_name || '',
+        site_name: c.nom_site || c.site_name || null,
+        vendor: c.constructeur || c.vendor || null,
+        techno: c.techno || null,
+      }));
+      cellsCacheMap.set(key, list);
+      notify();
+      return list;
+    })
+    .catch(() => {
+      cellsCacheMap.set(key, []);
+      notify();
+      return [] as TopoCell[];
+    })
+    .finally(() => {
+      inFlightCells.delete(key);
+    });
+  inFlightCells.set(key, p);
+  return p;
 }
 
 export type PerimeterScope = {
@@ -112,10 +146,6 @@ const normalize = (v: unknown) => (typeof v === 'string' ? v.trim().toUpperCase(
  *  - If only vendor is selected   → item vendor must be in the set.
  *  - If only techno is selected   → item techno must be in the set.
  *  - If both are selected         → both must match.
- *
- * Catalog entries that don't carry a vendor or techno are treated as "unknown"
- * and excluded when the corresponding axis is constrained — we'd rather hide
- * an entry than mis-route a user.
  */
 function buildMatcher(vendorSet: Set<string>, technoSet: Set<string>) {
   if (vendorSet.size === 0 && technoSet.size === 0) return () => true;
@@ -150,14 +180,18 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
     let alive = true;
     const sub = () => { if (alive) forceUpdate(n => n + 1); };
     listeners.push(sub);
-    loadSites();
-    loadCells();
+    loadSites(vendorSelected, technoSelected);
+    loadCells(vendorSelected, technoSelected);
     return () => {
       alive = false;
       const i = listeners.indexOf(sub);
       if (i >= 0) listeners.splice(i, 1);
     };
   }, [vendorKey, technoKey]);
+
+  const cacheKey = buildCacheKey(vendorSelected, technoSelected);
+  const sitesCache = sitesCacheMap.get(cacheKey) || null;
+  const cellsCache = cellsCacheMap.get(cacheKey) || null;
 
   return useMemo<PerimeterScope>(() => {
     const vendorSet = new Set(vendorSelected.map(normalize).filter(Boolean));
@@ -209,7 +243,6 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
       matchKpi: matcher,
       matchCounter: matcher,
     };
-    // vendorKey/technoKey change trigger re-memo; forceUpdate covers async cache fill.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorKey, technoKey, sitesCache, cellsCache]);
 }
