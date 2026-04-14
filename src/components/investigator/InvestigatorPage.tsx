@@ -415,10 +415,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
   const filterKey = JSON.stringify(state.filters);
+  const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
+  fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
+
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
-    fetchSelectedCounterSeries().catch(() => {});
-  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId, fetchSelectedCounterSeries]);
+    fetchSelectedCounterSeriesRef.current().catch(() => {});
+  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
