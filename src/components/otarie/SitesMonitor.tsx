@@ -3975,6 +3975,46 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [linkClutterHeight, setLinkClutterHeight] = useState(0);
   const [linkActiveCoords, setLinkActiveCoords] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
 
+  // ── Terrain Profile for Measurements ──
+  const { loading: measProfileLoading, profilePoints: measProfilePoints, analysis: measProfileAnalysis, computeProfile: measProfileCompute } = useTerrainProfile();
+  const [showMeasProfile, setShowMeasProfile] = useState(false);
+  const [measProfileLabel, setMeasProfileLabel] = useState('');
+  const [measProfileHover, setMeasProfileHover] = useState<ProfileHoverData | null>(null);
+  const [measEnableCurvature, setMeasEnableCurvature] = useState(true);
+  const [measEnableFresnel, setMeasEnableFresnel] = useState(false);
+  const [measActiveCoords, setMeasActiveCoords] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
+
+  const measTotalDistance = useMemo(() => {
+    if (!measActiveCoords) return 0;
+    return haversineDistance(
+      { lat: measActiveCoords.from[0], lng: measActiveCoords.from[1] },
+      { lat: measActiveCoords.to[0], lng: measActiveCoords.to[1] }
+    );
+  }, [measActiveCoords]);
+
+  const measFresnel = useFresnel(measProfilePoints, measProfileAnalysis, measTotalDistance, 1.8, measEnableFresnel);
+
+  const recomputeMeasProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+    const fromLL = { lat: coords.from[0], lng: coords.from[1] };
+    const toLL = { lat: coords.to[0], lng: coords.to[1] };
+    const measBearing = Math.round(bearing(fromLL, toLL) * 10) / 10;
+    measProfileCompute(
+      fromLL,
+      toLL,
+      { hba: 1.5, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: measBearing, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 1.5, siteAltitude: 0, antennaAMSL: 1.5 },
+      curvature
+    );
+  }, [measProfileCompute]);
+
+  const openMeasurementProfile = useCallback((m: SavedMeasurement) => {
+    setSelectedMeasurementId(m.id);
+    setMeasProfileLabel(m.name);
+    setShowMeasProfile(true);
+    const coords = { from: m.from, to: m.to };
+    setMeasActiveCoords(coords);
+    recomputeMeasProfile(coords, measEnableCurvature);
+  }, [recomputeMeasProfile, measEnableCurvature]);
+
   const linkTotalDistance = useMemo(() => {
     if (!linkActiveCoords) return 0;
     return haversineDistance(
