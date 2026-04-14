@@ -286,16 +286,32 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   ) => {
     if (counterNames.length === 0) return 0;
 
+    // Find the slot to check its split config
+    const slot = state.graphSlots.find(s => s.id === slotId);
+    const splitPerKpi = slot?.config?.splitByPerKpi || {};
+    const counterSplitVal = counterNames.map(cn => splitPerKpi[cn]).find(v => v && v !== 'None');
+    const hasSplit = !!counterSplitVal;
+
     const body: Record<string, any> = {
       counter_names: counterNames,
       date_from: state.startDate.split('T')[0],
       date_to: state.endDate.split('T')[0],
       granularity: normalizeGranularity(state.granularity),
+      split_by_dimension: hasSplit,
     };
+
+    if (hasSplit) {
+      const splitUpper = counterSplitVal!.toUpperCase();
+      if (splitUpper !== 'CELL' && splitUpper !== 'SITE') {
+        body.split_by_field = counterSplitVal;
+      }
+    }
 
     for (const [dim, vals] of Object.entries(state.filters || {})) {
       if (vals && vals.length > 0) {
         const key = dim.toLowerCase().replace(/\s+/g, '_');
+        // For CELL split, skip site filter to get per-cell results
+        if (hasSplit && counterSplitVal!.toUpperCase() === 'CELL' && key === 'site') continue;
         body[key] = vals;
       }
     }
@@ -332,7 +348,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
 
     return counterPoints.length;
-  }, [instanceId, state.endDate, state.filters, state.granularity, state.startDate, ws]);
+  }, [instanceId, state.endDate, state.filters, state.granularity, state.graphSlots, state.startDate, ws]);
 
   const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
     return fetchCounterSeriesForSlot(
