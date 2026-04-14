@@ -6273,38 +6273,49 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             rings.push(currentRadius); // final ring = exact radius
           }
 
-          // Label every N rings to avoid clutter
-          const labelEveryKm = currentRadius / 1000 <= 20 ? 5 : currentRadius / 1000 <= 50 ? 10 : 25;
+          // Adaptive label density based on ring count
+          const totalKm = currentRadius / 1000;
+          const stepKm = totalKm <= 20 ? 1 : totalKm <= 50 ? 5 : totalKm <= 200 ? 10 : 25;
+          const labelEveryKm = totalKm <= 10 ? 1 : totalKm <= 20 ? 2 : totalKm <= 50 ? 5 : 10;
+
+          const RING_COLOR = '#0ea5e9'; // sky-500 — high contrast on any basemap
 
           return (
             <>
               {rings.map((r, i) => {
                 const isFinal = i === rings.length - 1;
                 const rKm = r / 1000;
-                const showLabel = isFinal || (rKm >= 1 && rKm % labelEveryKm === 0);
+                const showLabel = isFinal || (rKm >= stepKm && rKm % labelEveryKm === 0);
+                const labelText = isFinal && (rKm % 1 !== 0)
+                  ? `${rKm.toFixed(2)} km`
+                  : rKm >= 1 ? `${Math.round(rKm)} km` : `${Math.round(r)} m`;
                 return (
-                  <Circle
-                    key={`radius-ring-${i}`}
-                    center={radiusCenter}
-                    radius={r}
-                    pane="pane5G"
-                    pathOptions={{
-                      color: isFinal
-                        ? (radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0])
-                        : 'hsl(var(--muted-foreground))',
-                      fillColor: 'transparent',
-                      fillOpacity: 0,
-                      weight: isFinal ? 2 : 0.8,
-                      dashArray: isFinal && radiusConfirmed ? '10 6' : '6 8',
-                      opacity: isFinal ? 0.85 : 0.35,
-                    }}
-                  >
-                    {showLabel && (
-                      <Tooltip permanent direction="right" opacity={1} className="!bg-card/90 !border-border/40 !text-foreground !shadow-sm !rounded !px-1.5 !py-0.5">
-                        <span className="text-[8px] font-semibold">{rKm >= 1 ? `${rKm.toFixed(rKm % 1 === 0 ? 0 : 1)} km` : `${Math.round(r)} m`}</span>
-                      </Tooltip>
-                    )}
-                  </Circle>
+                  <React.Fragment key={`radius-ring-${i}`}>
+                    <Circle
+                      center={radiusCenter}
+                      radius={r}
+                      pane="pane5G"
+                      pathOptions={{
+                        color: isFinal ? '#f97316' : RING_COLOR,
+                        fillColor: 'transparent',
+                        fillOpacity: 0,
+                        weight: isFinal ? 2.5 : 1.5,
+                        dashArray: isFinal ? '12 6' : '8 6',
+                        opacity: isFinal ? 1 : 0.6,
+                      }}
+                    >
+                      {showLabel && (
+                        <Tooltip
+                          permanent
+                          direction="right"
+                          opacity={1}
+                          className="!bg-white/95 dark:!bg-zinc-900/95 !border !border-sky-400/60 dark:!border-sky-500/50 !text-zinc-800 dark:!text-zinc-100 !shadow-md !rounded-md !px-2 !py-0.5 !text-[9px] !font-bold"
+                        >
+                          {labelText}
+                        </Tooltip>
+                      )}
+                    </Circle>
+                  </React.Fragment>
                 );
               })}
 
@@ -6316,20 +6327,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   pane="pane5G"
                   pathOptions={{
                     color: 'transparent',
-                    fillColor: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
-                    fillOpacity: radiusConfirmed ? 0.04 : 0.03,
+                    fillColor: RING_COLOR,
+                    fillOpacity: radiusConfirmed ? 0.06 : 0.04,
                     weight: 0,
                     stroke: false,
                   }}
                 >
-                  <Tooltip permanent direction="center" opacity={1} className="!bg-card/95 !border-border !text-foreground shadow-lg !rounded-lg">
-                    <div className="flex items-center gap-2 text-[9px] font-semibold">
+                  <Tooltip permanent direction="center" opacity={1} className="!bg-white/95 dark:!bg-zinc-900/95 !border !border-sky-400/60 dark:!border-sky-500/50 !text-zinc-800 dark:!text-zinc-100 !shadow-lg !rounded-lg !px-3 !py-1.5">
+                    <div className="flex items-center gap-2 text-[10px] font-bold">
                       <span>📏 {fmtRadius}</span>
                       {radiusConfirmed && radiusStats && (
                         <>
-                          <span className="text-muted-foreground">•</span>
+                          <span className="opacity-40">•</span>
                           <span>{radiusStats.sitesInside} sites</span>
-                          <span className="text-muted-foreground">•</span>
+                          <span className="opacity-40">•</span>
                           <span>{radiusStats.cellsInside} cells</span>
                         </>
                       )}
@@ -6340,17 +6351,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               <CircleMarker
                 center={radiusCenter}
-                radius={5}
+                radius={6}
                 pane="pane5G"
                 pathOptions={{
-                  color: 'hsl(var(--background))',
-                  fillColor: 'hsl(var(--primary))',
+                  color: '#fff',
+                  fillColor: '#f97316',
                   fillOpacity: 1,
-                  weight: 2,
+                  weight: 2.5,
                 }}
               >
-                <Tooltip permanent direction="bottom" offset={[0, 8]} opacity={1} className="!bg-card/90 !border-border/50 !text-foreground !rounded !shadow-sm">
-                  <span className="text-[8px] font-mono text-muted-foreground">{radiusCenter[0].toFixed(5)}, {radiusCenter[1].toFixed(5)}</span>
+                <Tooltip permanent direction="bottom" offset={[0, 10]} opacity={1} className="!bg-white/95 dark:!bg-zinc-900/95 !border !border-border/50 !text-zinc-600 dark:!text-zinc-300 !rounded-md !shadow-sm !px-2 !py-0.5">
+                  <span className="text-[8px] font-mono">{radiusCenter[0].toFixed(5)}, {radiusCenter[1].toFixed(5)}</span>
                 </Tooltip>
               </CircleMarker>
             </>
