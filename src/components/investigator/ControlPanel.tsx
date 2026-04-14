@@ -1457,7 +1457,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </div>
               ) : !Object.values(state.filters).some(v => v.length > 0)
                 ? 'Ajouter un filtre'
-                : state.graphSlots.some(s => s.kpiIds.length > 0)
+                : (state.graphSlots.some(s => s.kpiIds.length > 0) || selectedCounters.length > 0)
                   ? 'Appliquer'
                   : 'Appliquer (ajoutez des KPIs)'}
             </Button>
