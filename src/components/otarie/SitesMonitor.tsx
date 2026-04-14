@@ -3457,6 +3457,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { azimuth, label };
   }, [distanceMeasurePoints]);
 
+  const livePreviewMeasurement = useMemo(() => {
+    if (distanceMeasurePoints.length !== 1 || !distanceCursorPos) return null;
+    const from = distanceMeasurePoints[0];
+    const fromLL = { lat: from[0], lng: from[1] };
+    const toLL = { lat: distanceCursorPos[0], lng: distanceCursorPos[1] };
+    const distanceMeters = haversineDistance(fromLL, toLL);
+    const azimuth = Math.round(bearing(fromLL, toLL));
+    const label = distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
+      : `${Math.round(distanceMeters)} m`;
+    return { azimuth, label };
+  }, [distanceMeasurePoints, distanceCursorPos]);
+
   const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius' | 'profile' | 'zoomarea') => {
     setDistanceMeasurePoints([]);
     setRadiusCenter(null);
@@ -6124,9 +6137,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               color: 'hsl(var(--primary))',
               weight: 2,
               dashArray: '6 6',
-              opacity: 0.5,
+              opacity: 0.7,
             }}
-          />
+          >
+            {livePreviewMeasurement && (
+              <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg !rounded-lg">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium">
+                  <span className="font-semibold">{livePreviewMeasurement.label}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{livePreviewMeasurement.azimuth}°</span>
+                </div>
+              </Tooltip>
+            )}
+          </Polyline>
         )}
 
         {activeMapTool === 'distance' && distanceMeasurePoints.map((point, index) => (
