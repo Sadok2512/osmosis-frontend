@@ -384,9 +384,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       setTsData([...otherData, ...taggedData]);
       setHasLoadedOnce(true);
 
-      const hasCounterData = (targetSlot.counterIds?.length ?? 0) > 0 &&
-        tsData.some((d: any) => d._isCounter && d._slotId === targetSlot.id);
-      if (taggedData.length === 0 && !hasCounterData) {
+      const slotHasCounters = (targetSlot.counterIds?.length ?? 0) > 0;
+      const counterDataExists = slotHasCounters && [...otherData, ...taggedData].some(
+        (d: any) => d._isCounter && (d._slotId == null || d._slotId === targetSlot.id)
+      );
+      if (taggedData.length === 0 && !counterDataExists) {
         setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
       }
 
