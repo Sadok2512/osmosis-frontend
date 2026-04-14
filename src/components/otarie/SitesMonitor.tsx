@@ -5978,11 +5978,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           active={activeMapTool === 'zoomarea'}
           onStart={(ll) => { setZoomAreaOrigin(ll); setZoomAreaCurrent(ll); }}
           onMove={(ll) => setZoomAreaCurrent(ll)}
-          onEnd={(bounds) => {
+          onEnd={() => {
             setZoomAreaOrigin(null);
             setZoomAreaCurrent(null);
-            setActiveMapTool(null);
-            // fitBounds is called inside the handler via useMap
           }}
           onCancel={() => { setZoomAreaOrigin(null); setZoomAreaCurrent(null); }}
         />
