@@ -1935,10 +1935,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       const hasSplitOptions = splitOptions.length > 0;
                       const buildCounterSplits = (val: string) => {
                         const allSplits: Record<string, string> = { ...(cfg.splitByPerKpi || {}) };
-                        // Apply to all KPIs + counters in the slot
-                        slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                        (slot.counterIds || []).forEach(cid => { allSplits[cid] = val; });
-                        selectedCounters.forEach((sc: any) => { allSplits[sc.counter_name] = val; });
+                        // Only apply split to THIS counter
+                        allSplits[c.counter_name] = val;
                         return allSplits;
                       };
                       return (
@@ -1974,9 +1972,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                   if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
                                   else {
                                     const allSplits2: Record<string, string> = { ...(cfg.splitByPerKpi2 || {}) };
-                                    slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
-                                    (slot.counterIds || []).forEach(cid => { allSplits2[cid] = val; });
-                                    selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = val; });
+                                    allSplits2[c.counter_name] = val;
                                     setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                                   }
                                 }}
@@ -1992,9 +1988,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                               const available = splitOptions.filter(s => s.key !== split1Val);
                               const firstKey = available[0]?.key || 'None';
                               if (firstKey === 'None') return;
-                              const allSplits2: Record<string, string> = {};
-                              slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
-                              (slot.counterIds || []).forEach(cid => { allSplits2[cid] = firstKey; });
+                              const allSplits2: Record<string, string> = { ...(cfg.splitByPerKpi2 || {}) };
+                              allSplits2[c.counter_name] = firstKey;
                               selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = firstKey; });
                               setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                             }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split 2</button>
