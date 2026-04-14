@@ -7957,6 +7957,92 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
+      {/* ── Measurement Terrain Profile Panel ── */}
+      {showMeasProfile && measProfileAnalysis && !measProfileLoading && (
+        <div
+          className="absolute bottom-4 right-4 z-[1001] overflow-hidden pointer-events-auto max-h-[50%] flex flex-col animate-fade-in"
+          style={{
+            left: `${(panelCollapsed ? 56 : 400) + 16}px`,
+            background: 'rgba(15,23,42,0.55)',
+            backdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: 24,
+            boxShadow: '0 12px 48px rgba(0,0,0,0.3)',
+          }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 pt-4 pb-2 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/15 flex items-center justify-center">
+                <Mountain size={16} className="text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-extrabold text-white tracking-tight">{measProfileLabel}</h3>
+                <p className="text-[10px] text-white/40">Profil terrain de la mesure · {measTotalDistance > 0 ? (measTotalDistance / 1000).toFixed(2) + ' km' : ''}</p>
+              </div>
+            </div>
+            {/* Controls */}
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: measEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={measEnableCurvature} onCheckedChange={(v) => {
+                  setMeasEnableCurvature(v);
+                  if (measActiveCoords) recomputeMeasProfile(measActiveCoords, v);
+                }} />
+                <Label className="text-[10px] text-white/60">k=4/3</Label>
+              </div>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{
+                  background: measEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <Switch checked={measEnableFresnel} onCheckedChange={setMeasEnableFresnel} />
+                <Label className="text-[10px] text-white/60">Fresnel</Label>
+              </div>
+              <button
+                onClick={() => { setShowMeasProfile(false); setMeasProfileHover(null); setMeasActiveCoords(null); }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          </div>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
+            {/* Chart */}
+            <div className="flex-1 h-[260px] min-w-0">
+              <ProfileChart
+                profilePoints={measProfilePoints}
+                analysis={measProfileAnalysis}
+                fresnel={measFresnel}
+                showFresnel={measEnableFresnel}
+                showCurvature={measEnableCurvature}
+                clutterHeight={0}
+                onHoverPoint={setMeasProfileHover}
+                showTilt={false}
+                siteName={measProfileLabel}
+              />
+            </div>
+            {/* Info panel */}
+            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
+              <InfoPanel
+                analysis={measProfileAnalysis}
+                totalDistance={measTotalDistance}
+                enableCurvature={measEnableCurvature}
+                fresnel={measFresnel}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Floating worst cells panel */}
       {highlightedCellData.length > 0 && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-auto">
