@@ -384,7 +384,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       setTsData([...otherData, ...taggedData]);
       setHasLoadedOnce(true);
 
-      if (taggedData.length === 0) {
+      const hasCounterData = (targetSlot.counterIds?.length ?? 0) > 0 &&
+        tsData.some((d: any) => d._isCounter && d._slotId === targetSlot.id);
+      if (taggedData.length === 0 && !hasCounterData) {
         setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
       }
 
