@@ -45,7 +45,7 @@ function notify() {
 async function loadSites(): Promise<TopoSite[]> {
   if (sitesCache) return sitesCache;
   if (sitesInFlight) return sitesInFlight;
-  sitesInFlight = fetch(getApiUrl('topo/sites'), { headers: getApiHeaders() })
+  sitesInFlight = fetch(getApiUrl('topo/sites?limit=200000'), { headers: getApiHeaders() })
     .then(r => (r.ok ? r.json() : []))
     .then((data: any) => {
       const list: TopoSite[] = Array.isArray(data) ? data : [];
