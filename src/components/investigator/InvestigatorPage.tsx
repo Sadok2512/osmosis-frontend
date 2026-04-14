@@ -382,6 +382,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       if (!current) return;
       const filtered = current.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
       ws.updateInstance(instanceId, { tsData: [...filtered, ...counterPoints] });
+      if (counterPoints.length > 0) {
+        ws.updateInstance(instanceId, { hasLoadedOnce: true });
+      }
     }).catch(() => {});
     return () => ctrl.abort();
   }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId]);
