@@ -615,10 +615,17 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
   return null;
 };
 
-const DistanceMeasureClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) => void }> = ({ active, onPick }) => {
+const DistanceMeasureClickHandler: React.FC<{
+  active: boolean;
+  onPick: (latlng: LatLng) => void;
+  onMouseMove?: (latlng: [number, number]) => void;
+}> = ({ active, onPick, onMouseMove }) => {
   useMapEvents({
     click(e) {
       if (active) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+    mousemove(e) {
+      if (active && onMouseMove) onMouseMove([e.latlng.lat, e.latlng.lng]);
     },
   });
   return null;
