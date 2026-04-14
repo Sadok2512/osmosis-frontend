@@ -5526,7 +5526,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells when needed for rendering/filtering logic
-    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
