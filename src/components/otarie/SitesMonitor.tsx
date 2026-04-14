@@ -7870,7 +7870,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Link Terrain Profile Panel ── */}
       {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
         <div
-          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[50%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[25%] flex flex-col animate-fade-in"
           style={{
             left: '50%',
             transform: 'translateX(-50%)',
@@ -7982,7 +7982,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Measurement Terrain Profile Panel ── */}
       {showMeasProfile && measProfileAnalysis && !measProfileLoading && (
         <div
-          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[50%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[25%] flex flex-col animate-fade-in"
           style={{
             left: '50%',
             transform: 'translateX(-50%)',
