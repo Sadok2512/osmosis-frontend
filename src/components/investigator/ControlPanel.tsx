@@ -338,9 +338,13 @@ const FilterChip: React.FC<{
   // Apply perimeter scope: when the scope provides an allow-set, keep only values
   // that are part of it (e.g. SITE list restricted to Ericsson+4G). `null` means
   // no scope is active so we pass backendValues through unchanged.
+  // If the intersection is empty but scopeAllowed has entries (e.g. Huawei Tunisia
+  // sites exist in topo but not yet in PM filter-values), fall back to scopeAllowed.
   const scopedValues = useMemo(() => {
     if (!scopeAllowed || scopeAllowed.size === 0) return backendValues;
-    return backendValues.filter(v => scopeAllowed.has(v));
+    const intersected = backendValues.filter(v => scopeAllowed.has(v));
+    if (intersected.length > 0) return intersected;
+    return Array.from(scopeAllowed).sort();
   }, [backendValues, scopeAllowed]);
 
   const filtered = search
