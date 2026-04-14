@@ -99,7 +99,7 @@ const CELLS_TO_SITES_ZOOM = 8;
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
   // GSM (2G) — red tones
-  GSM900:  '#ef4444',
+  GSM900:  '#8E44AD',
   GSM1800: '#dc2626',
   // UMTS (3G) — blue tones
   UMTS900:  '#3498DB',
@@ -115,7 +115,7 @@ const DEFAULT_BAND_COLORS: Record<string, string> = {
   L800:   '#F5B041',
   L700:   '#CA6F1E',
   // Group header colors
-  '2G_GROUP': '#ef4444',
+  '2G_GROUP': '#8E44AD',
   '3G_GROUP': '#3498DB',
   '5G_GROUP': '#27AE60',
   '4G_GROUP': '#F39C12',
@@ -3566,7 +3566,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!key) {
       if (is5GTech(techno)) return bandColors['5G_GROUP'] || '#27AE60';
       if (is3GTech(techno)) return bandColors['3G_GROUP'] || '#3498DB';
-      if (is2GTech(techno)) return bandColors['2G_GROUP'] || '#ef4444';
+      if (is2GTech(techno)) return bandColors['2G_GROUP'] || '#8E44AD';
       return bandColors['4G_GROUP'] || '#F39C12';
     }
     return bandColors[key] || DEFAULT_BAND_COLORS[key];
@@ -3577,7 +3577,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!key) {
       if (is5GTech(techno)) return deriveStrokeColor(bandColors['5G_GROUP'] || '#27AE60');
       if (is3GTech(techno)) return deriveStrokeColor(bandColors['3G_GROUP'] || '#3498DB');
-      if (is2GTech(techno)) return deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444');
+      if (is2GTech(techno)) return deriveStrokeColor(bandColors['2G_GROUP'] || '#8E44AD');
       return deriveStrokeColor(bandColors['4G_GROUP'] || '#F39C12');
     }
     return deriveStrokeColor(bandColors[key] || DEFAULT_BAND_COLORS[key]);
@@ -4421,7 +4421,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
     const cGreen = t.colorGreen || '#27AE60';
     const cOrange = t.colorOrange || '#f59e0b';
-    const cRed = t.colorRed || '#ef4444';
+    const cRed = t.colorRed || '#8E44AD';
     if (t.invert) {
       if (value <= t.green) return cGreen;
       if (value <= t.orange) return cOrange;
@@ -6247,7 +6247,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {cellsToRender.map((cell, idx) => {
                 const val = getCellKpiValue(cell);
                 const colorViewOverridePoint = getColorViewFill(site);
-                const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#27AE60') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3498DB') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#ef4444') : (bandColors['4G_GROUP'] || '#F39C12');
+                const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#27AE60') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3498DB') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12');
                 const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? techColor : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
                 const isHovered = hoveredSiteId === site.site_id;
                 const offsetDist = 0.0003;
@@ -6295,7 +6295,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
-          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
+          const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
           const color = colorViewOverride || topoColor;
@@ -6505,7 +6505,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const RING_SCALES: Record<string, number> = { '2G': 1.0, '3G': 0.75, '4G': 0.55, '5G': 0.35 };
           const RING_OPACITY = 0.55;
           const TECH_COLORS: Record<string, string> = {
-            '2G': bandColors['2G_GROUP'] || '#ef4444',
+            '2G': bandColors['2G_GROUP'] || '#8E44AD',
             '3G': bandColors['3G_GROUP'] || '#3498DB',
             '4G': bandColors['4G_GROUP'] || '#F39C12',
             '5G': bandColors['5G_GROUP'] || '#27AE60',
@@ -6663,7 +6663,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
             const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
@@ -6716,10 +6716,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     center={site.coordinates}
                     radius={baseR}
                     pane="pane2G"
-                    fillColor={bandColors['2G_GROUP'] || '#ef4444'}
+                    fillColor={bandColors['2G_GROUP'] || '#8E44AD'}
                     fillOpacity={0.85}
                     weight={isSelectedSite ? 3 : 1.5}
-                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['2G_GROUP'] || '#ef4444')}
+                    color={isSelectedSite ? '#fff' : deriveStrokeColor(bandColors['2G_GROUP'] || '#8E44AD')}
                     eventHandlers={{
                       click: () => handleSiteClick(site),
                       mouseover: () => setHoveredSiteId(site.site_id),
@@ -6820,7 +6820,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const kpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
             const colorViewOverrideFb = getColorViewFill(site);
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
-            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#ef4444') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
             const fbColor = colorViewOverrideFb || (sectorColorMode === 'kpi' ? getKpiColor(kpiVal) : topoColor);
             return (
               <CircleMarker
@@ -8204,7 +8204,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* Gradient bar visualization */}
             <div className="px-3 py-1.5">
               <div className="h-2 rounded-full overflow-hidden flex">
-                <div className="flex-1" style={{ background: currentThreshold.colorRed || '#ef4444' }} />
+                <div className="flex-1" style={{ background: currentThreshold.colorRed || '#8E44AD' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorOrange || '#f59e0b' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorGreen || '#27AE60' }} />
               </div>
@@ -8215,7 +8215,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {(() => {
                 const cGreen = currentThreshold.colorGreen || '#27AE60';
                 const cOrange = currentThreshold.colorOrange || '#f59e0b';
-                const cRed = currentThreshold.colorRed || '#ef4444';
+                const cRed = currentThreshold.colorRed || '#8E44AD';
                 const levels: { level: 'green' | 'orange' | 'red' | 'gray'; color: string; label: string; qualifier: string }[] = currentThreshold.invert
                   ? [
                       { level: 'green', color: cGreen, label: `≤ ${currentThreshold.green}${selectedKpiUnit ? ` ${selectedKpiUnit}` : ''}`, qualifier: 'Bon' },
@@ -8306,7 +8306,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={currentThreshold.colorRed || '#ef4444'}
+                    value={currentThreshold.colorRed || '#8E44AD'}
                     onChange={e => {
                       const next = { ...kpiThresholds };
                       const cur = next[mapKpi] || { green: 80, orange: 60 };
@@ -8597,7 +8597,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       { key: '5G_GROUP', tech: '5G' as const, label: '5G', defaultColor: '#27AE60' },
                       { key: '4G_GROUP', tech: '4G' as const, label: '4G', defaultColor: '#F39C12' },
                       { key: '3G_GROUP', tech: '3G' as const, label: '3G', defaultColor: '#3498DB' },
-                      { key: '2G_GROUP', tech: '2G' as const, label: '2G', defaultColor: '#ef4444' },
+                      { key: '2G_GROUP', tech: '2G' as const, label: '2G', defaultColor: '#8E44AD' },
                     ]).map(({ key, tech, label, defaultColor }) => {
                       const enabled = enabledTechnos.has(tech);
                       const color = bandColors[key] || defaultColor;
@@ -9066,7 +9066,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#ef4444' }} title="2G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8E44AD' }} title="2G" />}
                                               {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3498DB' }} title="3G" />}
                                               {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#F39C12' }} title="4G" />}
                                               {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#27AE60' }} title="5G" />}
@@ -9082,7 +9082,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                               {/* Techno legend */}
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                                {([['2G','#ef4444'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
+                                {([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
                                   const isHidden = hiddenTechs.has(tech);
                                   return (
                                     <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
@@ -9138,7 +9138,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#ef4444' : '#F39C12' }}>
+                                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
                                                   {getCellTechGroup(cell.techno) || '4G'}
                                                 </span>
                                               </td>
@@ -9377,7 +9377,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#ef4444' }} title="2G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8E44AD' }} title="2G" />}
                                               {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3498DB' }} title="3G" />}
                                               {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#F39C12' }} title="4G" />}
                                               {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#27AE60' }} title="5G" />}
@@ -9392,7 +9392,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 })}
                               </div>
                               <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                                {([['2G','#ef4444'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
+                                {([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
                                   const isHidden = hiddenTechs.has(tech);
                                   return (
                                     <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
@@ -9445,7 +9445,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             >
                                               <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                               <td className="px-2 py-2 text-center">
-                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#ef4444' : '#F39C12' }}>
+                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
                                                   {getCellTechGroup(cell.techno) || '4G'}
                                                 </span>
                                               </td>
@@ -10522,7 +10522,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {excellent > 0 && <div className="transition-all" style={{ width: `${(excellent / perfTotal) * 100}%`, background: '#27AE60' }} />}
                     {correct > 0 && <div className="transition-all" style={{ width: `${(correct / perfTotal) * 100}%`, background: '#f59e0b' }} />}
                     {degraded > 0 && <div className="transition-all" style={{ width: `${(degraded / perfTotal) * 100}%`, background: '#F39C12' }} />}
-                    {critical > 0 && <div className="transition-all" style={{ width: `${(critical / perfTotal) * 100}%`, background: '#ef4444' }} />}
+                    {critical > 0 && <div className="transition-all" style={{ width: `${(critical / perfTotal) * 100}%`, background: '#8E44AD' }} />}
                   </div>
                   <div className="grid grid-cols-4 gap-2 text-[11px]">
                     {[
