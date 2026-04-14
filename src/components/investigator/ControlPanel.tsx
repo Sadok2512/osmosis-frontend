@@ -961,7 +961,19 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
       .then(r => r.ok ? r.json() : []).then(d => setCounterCatalog(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 
-  // Data-driven PM dimension probe:
+  // Sync selectedCounters from active slot's counterIds when switching slots
+  useEffect(() => {
+    if (!counterCatalog.length) return;
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    const slotCounterIds = slot?.counterIds || [];
+    const currentNames = selectedCounters.map((c: any) => c.counter_name).sort().join(',');
+    const slotNames = [...slotCounterIds].sort().join(',');
+    if (currentNames !== slotNames) {
+      const resolved = slotCounterIds.map(k => counterCatalog.find((c: any) => c.counter_name === k)).filter(Boolean);
+      setSelectedCounters(resolved);
+    }
+  }, [activeSlotId, counterCatalog]);
+
   // Whenever the set of selected KPIs (or the Site filter) changes, ask the backend
   // which dimensions actually have rows in ClickHouse for those KPI's counters.
   // Result: only dimensions with > 0 rows are exposed in the filter row.
