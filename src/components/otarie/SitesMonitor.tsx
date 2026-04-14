@@ -2431,7 +2431,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.map(db => {
+          {filteredDashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
