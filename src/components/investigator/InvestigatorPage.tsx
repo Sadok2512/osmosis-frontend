@@ -279,6 +279,58 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     activeSlot ? buildSnapshot(activeSlot, state) : null
   , [activeSlot, state]);
 
+  const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
+    if (selectedCounters.length === 0) return 0;
+
+    const slotId = activeSlotId || 'global';
+    const body: Record<string, any> = {
+      counter_names: selectedCounters.map((c: any) => c.counter_name),
+      date_from: state.startDate.split('T')[0],
+      date_to: state.endDate.split('T')[0],
+      granularity: normalizeGranularity(state.granularity),
+    };
+
+    for (const [dim, vals] of Object.entries(state.filters || {})) {
+      if (vals && vals.length > 0) {
+        const key = dim.toLowerCase().replace(/\s+/g, '_');
+        body[key] = vals;
+      }
+    }
+
+    const response = await fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST',
+      headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+      if (options?.throwOnError) {
+        throw new Error(`Counter request failed with status ${response.status}`);
+      }
+      return 0;
+    }
+
+    const data = await response.json();
+    const counterPoints = (data.series || []).map((s: any) => ({
+      timestamp: s.ts,
+      kpi: s.counter,
+      value: s.value,
+      _isCounter: true,
+      _slotId: slotId,
+    }));
+
+    const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
+    if (!current) return counterPoints.length;
+
+    const filtered = current.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
+    ws.updateInstance(instanceId, {
+      tsData: [...filtered, ...counterPoints],
+      hasLoadedOnce: counterPoints.length > 0 || current.hasLoadedOnce,
+    });
+
+    return counterPoints.length;
+  }, [activeSlotId, instanceId, selectedCounters, state.endDate, state.filters, state.granularity, state.startDate, ws]);
+
   const handleApply = async () => {
     if (!hasFilters) {
       setApplyError('Veuillez sélectionner au moins un filtre (Site, Cell…) avant de lancer la requête.');
@@ -295,11 +347,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     }
 
     // Counter-only mode: counters are fetched reactively (useEffect on selectedCounters),
-    // so just mark as loaded and return.
+    // but clicking Apply should also force-refresh them.
     if (!targetSlot && selectedCounters.length > 0) {
       setApplyError(null);
-      setHasLoadedOnce(true);
-      ws.updateInstance(instanceId, { hasLoadedOnce: true });
+      setIsApplying(true);
+      try {
+        const pointCount = await fetchSelectedCounterSeries({ throwOnError: true });
+        if (pointCount === 0) {
+          setApplyError('Aucune donnée trouvée pour les Counters sélectionnés. Vérifiez la période, le grain et les filtres.');
+        }
+      } catch (e) {
+        console.error('[Investigator] Counter apply error:', e);
+        setApplyError('Erreur lors de la requête Counter. Veuillez réessayer.');
+      } finally {
+        setIsApplying(false);
+      }
       return;
     }
 
@@ -355,39 +417,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const filterKey = JSON.stringify(state.filters);
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
-    const slotId = activeSlotId || 'global';
-    const body: Record<string, any> = {
-      counter_names: selectedCounters.map((c: any) => c.counter_name),
-      date_from: state.startDate.split('T')[0],
-      date_to: state.endDate.split('T')[0],
-      granularity: normalizeGranularity(state.granularity),
-    };
-    // Propagate active filters (site, cell, plaque…) to counter query
-    if (state.filters) {
-      for (const [dim, vals] of Object.entries(state.filters)) {
-        if (vals && vals.length > 0) {
-          const key = dim.toLowerCase().replace(/\s+/g, '_');
-          body[key] = vals;
-        }
-      }
-    }
-    const ctrl = new AbortController();
-    fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal,
-    }).then(r => r.ok ? r.json() : {series:[]}).then(data => {
-      const counterPoints = (data.series || []).map((s: any) => ({
-        timestamp: s.ts, kpi: s.counter, value: s.value, _isCounter: true, _slotId: slotId,
-      }));
-      const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
-      if (!current) return;
-      const filtered = current.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
-      ws.updateInstance(instanceId, { tsData: [...filtered, ...counterPoints] });
-      if (counterPoints.length > 0) {
-        ws.updateInstance(instanceId, { hasLoadedOnce: true });
-      }
-    }).catch(() => {});
-    return () => ctrl.abort();
-  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId]);
+    fetchSelectedCounterSeries().catch(() => {});
+  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId, fetchSelectedCounterSeries]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
