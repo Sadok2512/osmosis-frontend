@@ -6383,12 +6383,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             }}
           >
             {livePreviewMeasurement && (
-              <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg !rounded-lg">
-                <div className="flex items-center gap-1.5 text-[10px] font-medium">
-                  <span className="font-semibold">{livePreviewMeasurement.label}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{livePreviewMeasurement.azimuth}°</span>
-                </div>
+              <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
+                <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(var(--primary))', textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
+                  {livePreviewMeasurement.label} · {livePreviewMeasurement.azimuth}°
+                </span>
               </Tooltip>
             )}
           </Polyline>
