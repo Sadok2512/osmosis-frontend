@@ -3339,6 +3339,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setProfileTarget(null);
       setProfileData(null);
     }
+    if (activeMapTool !== 'zoomarea') {
+      setZoomAreaOrigin(null);
+      setZoomAreaCurrent(null);
+    }
   }, [activeMapTool, distanceMeasurePoints.length]);
 
   const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
