@@ -324,8 +324,12 @@ const FilterChip: React.FC<{
   const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
+  const [liveSearchResults, setLiveSearchResults] = useState<string[]>([]);
+  const [liveSearching, setLiveSearching] = useState(false);
+  const liveSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPm = PM_DIMENSION_TYPES.has(dim);
   const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+  const isSearchableDim = dim === 'Site' || dim === 'Cell';
 
   // Helper: display label for a value (e.g. "PMQAP=9" → "QCI 9: Default Bearer")
   const displayLabel = (val: string) => labelMap[val] || val;
@@ -353,6 +357,39 @@ const FilterChip: React.FC<{
         return v.toLowerCase().includes(q) || (labelMap[v] || '').toLowerCase().includes(q);
       })
     : scopedValues;
+
+  // Live VPS search for Site/Cell when local results are empty
+  useEffect(() => {
+    if (!isSearchableDim || !search || search.length < 2 || filtered.length > 0) {
+      setLiveSearchResults([]);
+      setLiveSearching(false);
+      return;
+    }
+    if (liveSearchTimer.current) clearTimeout(liveSearchTimer.current);
+    liveSearchTimer.current = setTimeout(async () => {
+      setLiveSearching(true);
+      try {
+        const endpoint = dim === 'Site' ? '/api/v1/topo/sites' : '/api/v1/topo/cells';
+        const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
+        const url = getVpsProxyUrl('parser', endpoint, { search, limit: '50' });
+        const res = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data?.sites || data?.cells || []);
+          const names = list
+            .map((s: any) => s.site_name || s.nom_site || s.cell_name || s.nom_cellule || '')
+            .filter(Boolean);
+          // Deduplicate
+          setLiveSearchResults([...new Set<string>(names)].sort());
+        }
+      } catch { /* silent */ }
+      setLiveSearching(false);
+    }, 400);
+    return () => { if (liveSearchTimer.current) clearTimeout(liveSearchTimer.current); };
+  }, [search, filtered.length, isSearchableDim, dim]);
+
+  // Merge local filtered + live results (live results fill the gap when local is empty)
+  const displayValues = filtered.length > 0 ? filtered : liveSearchResults;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData('text').trim();
