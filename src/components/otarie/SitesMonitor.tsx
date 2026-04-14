@@ -6256,19 +6256,70 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {activeMapTool === 'radius' && radiusCenter && (() => {
           const currentRadius = radiusConfirmed ? radiusConfirmedMeters : radiusLiveMeters;
           const fmtRadius = currentRadius >= 1000 ? `${(currentRadius / 1000).toFixed(2)} km` : `${Math.round(currentRadius)} m`;
+
+          // Build concentric rings at 1km intervals (adaptive step for large radii)
+          const rings: number[] = [];
+          if (currentRadius > 0) {
+            const totalKm = currentRadius / 1000;
+            let stepKm: number;
+            if (totalKm <= 20) stepKm = 1;
+            else if (totalKm <= 50) stepKm = 5;
+            else if (totalKm <= 200) stepKm = 10;
+            else stepKm = 25;
+
+            for (let km = stepKm; km * 1000 < currentRadius; km += stepKm) {
+              rings.push(km * 1000);
+            }
+            rings.push(currentRadius); // final ring = exact radius
+          }
+
+          // Label every N rings to avoid clutter
+          const labelEveryKm = currentRadius / 1000 <= 20 ? 5 : currentRadius / 1000 <= 50 ? 10 : 25;
+
           return (
             <>
+              {rings.map((r, i) => {
+                const isFinal = i === rings.length - 1;
+                const rKm = r / 1000;
+                const showLabel = isFinal || (rKm >= 1 && rKm % labelEveryKm === 0);
+                return (
+                  <Circle
+                    key={`radius-ring-${i}`}
+                    center={radiusCenter}
+                    radius={r}
+                    pane="pane5G"
+                    pathOptions={{
+                      color: isFinal
+                        ? (radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0])
+                        : 'hsl(var(--muted-foreground))',
+                      fillColor: 'transparent',
+                      fillOpacity: 0,
+                      weight: isFinal ? 2 : 0.8,
+                      dashArray: isFinal && radiusConfirmed ? '10 6' : '6 8',
+                      opacity: isFinal ? 0.85 : 0.35,
+                    }}
+                  >
+                    {showLabel && (
+                      <Tooltip permanent direction="right" opacity={1} className="!bg-card/90 !border-border/40 !text-foreground !shadow-sm !rounded !px-1.5 !py-0.5">
+                        <span className="text-[8px] font-semibold">{rKm >= 1 ? `${rKm.toFixed(rKm % 1 === 0 ? 0 : 1)} km` : `${Math.round(r)} m`}</span>
+                      </Tooltip>
+                    )}
+                  </Circle>
+                );
+              })}
+
+              {/* Subtle fill on the outer ring */}
               {currentRadius > 0 && (
                 <Circle
                   center={radiusCenter}
                   radius={currentRadius}
                   pane="pane5G"
                   pathOptions={{
-                    color: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
+                    color: 'transparent',
                     fillColor: radiusConfirmed ? 'hsl(var(--primary))' : RADIUS_RING_COLORS[0],
-                    fillOpacity: radiusConfirmed ? 0.06 : 0.04,
-                    weight: radiusConfirmed ? 2 : 1.5,
-                    dashArray: radiusConfirmed ? undefined : '8 6',
+                    fillOpacity: radiusConfirmed ? 0.04 : 0.03,
+                    weight: 0,
+                    stroke: false,
                   }}
                 >
                   <Tooltip permanent direction="center" opacity={1} className="!bg-card/95 !border-border !text-foreground shadow-lg !rounded-lg">
@@ -6286,6 +6337,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </Tooltip>
                 </Circle>
               )}
+
               <CircleMarker
                 center={radiusCenter}
                 radius={5}
