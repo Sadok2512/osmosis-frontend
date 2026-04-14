@@ -3788,6 +3788,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
     try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
@@ -5663,6 +5664,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return siteMatchesRequestedTech(site, mapTechnoFilter as TechGroup);
     };
 
+    // Tagged-only mode: show only tagged sites
+    if (taggedDisplayMode === 'tagged-only') {
+      const result: SiteSummary[] = [];
+      for (const ts of taggedSites) {
+        if (!siteMatchesCurrentTechFilter(ts)) continue;
+        if (localZoneArcep !== 'ALL') {
+          const tsCells = ts.cells ?? [];
+          const tsZoneMatch = tsCells.length > 0
+            ? tsCells.some((c: any) => c.zone_arcep === localZoneArcep)
+            : (ts as any).zone_arcep === localZoneArcep;
+          if (!tsZoneMatch) continue;
+        }
+        result.push(ts);
+      }
+      if (selectedSiteId && selectedSiteSnapshot && siteMatchesCurrentTechFilter(selectedSiteSnapshot) && !result.some(s => s.site_id === selectedSiteId)) {
+        result.unshift(selectedSiteSnapshot);
+      }
+      return result;
+    }
+
     const merged = [...visibleSites];
 
     for (const ts of taggedSites) {
@@ -5688,7 +5709,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return [selectedSiteSnapshot, ...merged];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep]);
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep, taggedDisplayMode]);
 
   // ── Color View Mode: build a value→color map from visible sites ──
   const colorViewColorMap = useMemo(() => {
@@ -9390,6 +9411,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Tagged Sites tab ── */}
               {inventoryTab === 'tagged' && (
               <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Display mode toggle */}
+                <div className="px-4 pt-3 pb-2 shrink-0">
+                  <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/50">
+                    {([
+                      { id: 'all' as const, label: 'Display All', icon: <Globe size={11} /> },
+                      { id: 'tagged-only' as const, label: 'Tagged Only', icon: <Star size={11} /> },
+                    ]).map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setTaggedDisplayMode(opt.id)}
+                        disabled={opt.id === 'tagged-only' && taggedSites.length === 0}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
+                          taggedDisplayMode === opt.id
+                            ? opt.id === 'tagged-only'
+                              ? 'bg-yellow-500 text-white shadow-sm'
+                              : 'bg-primary text-primary-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex-1 overflow-y-auto px-4 pb-4">
                 {/* Search results shown as candidates in Tagged tab */}
                 {isSearchActive && searchModeSites.length > 0 ? (
