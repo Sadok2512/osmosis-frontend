@@ -298,9 +298,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     // so just mark as loaded and return.
     if (!targetSlot && selectedCounters.length > 0) {
       setApplyError(null);
-      setIsApplying(true);
       setHasLoadedOnce(true);
-      setIsApplying(false);
+      ws.updateInstance(instanceId, { hasLoadedOnce: true });
       return;
     }
 
@@ -332,8 +331,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       if (controller.signal.aborted) return;
       console.error('[Investigator] API error:', e);
       setApplyError('Erreur lors de la requête. Veuillez réessayer.');
+    } finally {
+      if (!controller.signal.aborted) setIsApplying(false);
     }
-    setIsApplying(false);
   };
 
   // ═══ Auto-apply for drill-down instances (name starts with "Drill:") ═══
