@@ -488,8 +488,34 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
     slotsWithCounters.forEach(slot => {
       const cIds = slot.counterIds!;
-      const body: any = { counter_names: cIds, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(investigatorState.granularity), split_by_dimension: false };
-      if (siteName) body.site_name = siteName;
+      const cfg = slot.config || {};
+      // Check if any counter in this slot has a split configured
+      const splitPerKpi = cfg.splitByPerKpi || {};
+      const counterSplitVal = cIds.map(cid => splitPerKpi[cid]).find(v => v && v !== 'None');
+      const hasSplit = !!counterSplitVal;
+
+      const body: any = {
+        counter_names: cIds,
+        date_from: dateFrom,
+        date_to: dateTo,
+        granularity: normalizeGranularity(investigatorState.granularity),
+        split_by_dimension: hasSplit,
+      };
+      if (hasSplit) {
+        const splitUpper = counterSplitVal!.toUpperCase();
+        // Map split dimension to the backend field
+        if (splitUpper !== 'CELL' && splitUpper !== 'SITE') {
+          body.split_by_field = counterSplitVal;
+        }
+        // For CELL split, remove site_name filter so backend returns per-cell data
+        if (splitUpper === 'CELL') {
+          // don't add site_name — let split work
+        } else if (siteName) {
+          body.site_name = siteName;
+        }
+      } else if (siteName) {
+        body.site_name = siteName;
+      }
       fetch(getApiUrl('pm/counters/timeseries'), {
         method: 'POST',
         headers: getApiHeaders(),
