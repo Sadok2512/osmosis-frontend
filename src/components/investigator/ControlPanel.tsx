@@ -324,8 +324,12 @@ const FilterChip: React.FC<{
   const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
+  const [liveSearchResults, setLiveSearchResults] = useState<string[]>([]);
+  const [liveSearching, setLiveSearching] = useState(false);
+  const liveSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPm = PM_DIMENSION_TYPES.has(dim);
   const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
+  const isSearchableDim = dim === 'Site' || dim === 'Cell';
 
   // Helper: display label for a value (e.g. "PMQAP=9" → "QCI 9: Default Bearer")
   const displayLabel = (val: string) => labelMap[val] || val;
@@ -353,6 +357,39 @@ const FilterChip: React.FC<{
         return v.toLowerCase().includes(q) || (labelMap[v] || '').toLowerCase().includes(q);
       })
     : scopedValues;
+
+  // Live VPS search for Site/Cell when local results are empty
+  useEffect(() => {
+    if (!isSearchableDim || !search || search.length < 2 || filtered.length > 0) {
+      setLiveSearchResults([]);
+      setLiveSearching(false);
+      return;
+    }
+    if (liveSearchTimer.current) clearTimeout(liveSearchTimer.current);
+    liveSearchTimer.current = setTimeout(async () => {
+      setLiveSearching(true);
+      try {
+        const endpoint = dim === 'Site' ? '/api/v1/topo/sites' : '/api/v1/topo/cells';
+        const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
+        const url = getVpsProxyUrl('parser', endpoint, { search, limit: '50' });
+        const res = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data : (data?.sites || data?.cells || []);
+          const names = list
+            .map((s: any) => s.site_name || s.nom_site || s.cell_name || s.nom_cellule || '')
+            .filter(Boolean);
+          // Deduplicate
+          setLiveSearchResults([...new Set<string>(names)].sort());
+        }
+      } catch { /* silent */ }
+      setLiveSearching(false);
+    }, 400);
+    return () => { if (liveSearchTimer.current) clearTimeout(liveSearchTimer.current); };
+  }, [search, filtered.length, isSearchableDim, dim]);
+
+  // Merge local filtered + live results (live results fill the gap when local is empty)
+  const displayValues = filtered.length > 0 ? filtered : liveSearchResults;
 
   const handlePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData('text').trim();
@@ -442,39 +479,46 @@ const FilterChip: React.FC<{
 
           {/* Values list */}
           <div className="max-h-[240px] overflow-y-auto px-2 pb-1">
-            {backendValues.length === 0 ? (
+            {backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Chargement...</div>
-            ) : filtered.length === 0 ? (
+            ) : liveSearching ? (
+              <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Recherche VPS...</div>
+            ) : displayValues.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">Aucun résultat pour "{search}"</div>
             ) : (
-              filtered.slice(0, 100).map(val => {
-                const isSelected = pendingValues.includes(val);
-                return (
-                  <button
-                    key={val}
-                    onClick={() => togglePending(val)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
-                      isSelected ? "bg-primary/8 text-primary" : "text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
-                      isSelected ? "bg-primary border-primary" : "border-border/60"
-                    )}>
-                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                    </div>
-                    <span className="truncate">{displayLabel(val)}</span>
-                  </button>
-                );
-              })
+              <>
+                {filtered.length === 0 && liveSearchResults.length > 0 && (
+                  <div className="px-3 py-1 text-[9px] text-primary font-semibold mb-1">🔍 Résultats VPS</div>
+                )}
+                {displayValues.slice(0, 100).map(val => {
+                  const isSelected = pendingValues.includes(val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => togglePending(val)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
+                        isSelected ? "bg-primary/8 text-primary" : "text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                        isSelected ? "bg-primary border-primary" : "border-border/60"
+                      )}>
+                        {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                      </div>
+                      <span className="truncate">{displayLabel(val)}</span>
+                    </button>
+                  );
+                })}
+              </>
             )}
           </div>
 
           {/* Footer with Reset / Confirm */}
           <div className="px-3 py-2.5 border-t border-border/30 bg-muted/20 flex items-center justify-between gap-2">
             <span className="text-[9px] text-muted-foreground">
-              {filtered.length > 100 ? `${filtered.length} éléments` : ''}
+              {displayValues.length > 100 ? `${displayValues.length} éléments` : ''}
             </span>
             <div className="flex items-center gap-2">
               <button
