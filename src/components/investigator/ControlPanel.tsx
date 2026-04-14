@@ -1917,7 +1917,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     {/* Y-Axis assignment */}
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
-                      <ToggleGroup type="single" value={cfg.yAxisAssignments?.[c.counter_name] || 'R'}
+                      <ToggleGroup type="single" value={String(cfg.yAxisAssignments?.[c.counter_name] || 'R')}
                         onValueChange={(value) => value && setSlotConfig({ yAxisAssignments: { ...(cfg.yAxisAssignments || {}), [c.counter_name]: value } })}
                         className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
                       >
