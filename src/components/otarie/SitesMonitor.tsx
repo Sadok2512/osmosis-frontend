@@ -4833,12 +4833,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           return { ...site, cells: prevSite.cells };
         });
 
+        // Deduplicate by site_id (VPS can return duplicate entries)
+        const seen = new Set<string>();
+        const deduped = mergedSites.filter(s => {
+          if (seen.has(s.site_id)) return false;
+          seen.add(s.site_id);
+          return true;
+        });
+
         const selectedId = selectedSiteIdRef.current;
         const selectedSite = selectedId ? prevById.get(selectedId) : null;
-        if (selectedSite && !mergedSites.some(s => s.site_id === selectedId)) {
-          return [selectedSite, ...mergedSites];
+        if (selectedSite && !deduped.some(s => s.site_id === selectedId)) {
+          return [selectedSite, ...deduped];
         }
-        return mergedSites;
+        return deduped;
       });
       setBboxTotal(total || 0);
       setBboxLoading(false);
