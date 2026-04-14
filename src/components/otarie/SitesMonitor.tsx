@@ -3324,6 +3324,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileData, setProfileData] = useState<{ points: any[]; analysis: any } | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
+  const [distanceCursorPos, setDistanceCursorPos] = useState<[number, number] | null>(null);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
   const [radiusLiveMeters, setRadiusLiveMeters] = useState(0);
@@ -3335,9 +3336,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
+  // ── Saved distance measurements ──
+  interface SavedMeasurement {
+    id: string;
+    name: string;
+    from: [number, number];
+    to: [number, number];
+    distanceMeters: number;
+    azimuth: number;
+    label: string;
+    createdAt: string;
+  }
+  const MEAS_KEY = 'osmosis_saved_measurements';
+  const loadMeasurements = (): SavedMeasurement[] => {
+    try { const s = localStorage.getItem(MEAS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  };
+  const persistMeasurements = (m: SavedMeasurement[]) => {
+    try { localStorage.setItem(MEAS_KEY, JSON.stringify(m)); } catch {}
+  };
+  const [savedMeasurements, setSavedMeasurements] = useState<SavedMeasurement[]>(loadMeasurements);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [renamingMeasurementId, setRenamingMeasurementId] = useState<string | null>(null);
+  const [measurementRenameValue, setMeasurementRenameValue] = useState('');
+  const measurementCounter = useRef(savedMeasurements.length + 1);
+
+  const addSavedMeasurement = useCallback((from: [number, number], to: [number, number]) => {
+    const fromLL = { lat: from[0], lng: from[1] };
+    const toLL = { lat: to[0], lng: to[1] };
+    const distanceMeters = haversineDistance(fromLL, toLL);
+    const az = Math.round(bearing(fromLL, toLL));
+    const label = distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
+      : `${Math.round(distanceMeters)} m`;
+    const num = measurementCounter.current++;
+    const m: SavedMeasurement = {
+      id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: `Measure ${String(num).padStart(2, '0')}`,
+      from, to, distanceMeters, azimuth: az, label,
+      createdAt: new Date().toISOString(),
+    };
+    setSavedMeasurements(prev => {
+      const next = [...prev, m];
+      persistMeasurements(next);
+      return next;
+    });
+    setSelectedMeasurementId(m.id);
+    setInventoryTab('tagged');
+  }, []);
+
+  const deleteSavedMeasurement = useCallback((id: string) => {
+    setSavedMeasurements(prev => {
+      const next = prev.filter(m => m.id !== id);
+      persistMeasurements(next);
+      return next;
+    });
+    if (selectedMeasurementId === id) setSelectedMeasurementId(null);
+  }, [selectedMeasurementId]);
+
+  const renameSavedMeasurement = useCallback((id: string, newName: string) => {
+    if (!newName.trim()) return;
+    setSavedMeasurements(prev => {
+      const next = prev.map(m => m.id === id ? { ...m, name: newName.trim() } : m);
+      persistMeasurements(next);
+      return next;
+    });
+    setRenamingMeasurementId(null);
+    setMeasurementRenameValue('');
+  }, []);
+
   useEffect(() => {
     if (activeMapTool !== 'distance' && distanceMeasurePoints.length > 0) {
       setDistanceMeasurePoints([]);
+      setDistanceCursorPos(null);
     }
     if (activeMapTool !== 'polygon') {
       setPolygonPoints([]);
@@ -3358,8 +3428,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
     const point: [number, number] = [latlng.lat, latlng.lng];
-    setDistanceMeasurePoints(prev => (prev.length >= 2 ? [point] : [...prev, point]));
-  }, []);
+    setDistanceMeasurePoints(prev => {
+      if (prev.length >= 2) {
+        // Start new measurement
+        return [point];
+      }
+      if (prev.length === 1) {
+        // Save measurement automatically
+        addSavedMeasurement(prev[0], point);
+        return [...prev, point];
+      }
+      return [point];
+    });
+  }, [addSavedMeasurement]);
 
   const distanceMeasurement = useMemo(() => {
     if (distanceMeasurePoints.length !== 2) return null;
