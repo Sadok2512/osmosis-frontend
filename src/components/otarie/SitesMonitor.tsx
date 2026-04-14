@@ -10490,142 +10490,224 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isTopoFocus = sectorColorMode === 'topo';
 
             return (
-            <div className="divide-y divide-border">
+            <div className="space-y-0">
 
-              {/* ── Site Header — Screenshot style ── */}
-              <div className="px-5 py-6">
-                <div className="flex items-center gap-4">
-                  {/* Dark icon block */}
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0" style={{ background: 'hsl(220 40% 13%)' }}>
-                    <BarChart2 size={24} className="text-primary" />
+              {/* ══════ SITE HEADER — Modern card with status ══════ */}
+              <div className="px-5 pt-5 pb-4">
+                <div className="flex items-start gap-3.5">
+                  {/* Antenna icon with tech-colored accent */}
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-muted to-muted/60 border border-border flex items-center justify-center">
+                      <Radio size={22} className="text-primary" />
+                    </div>
+                    {/* Online status dot */}
+                    <div className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-card" title="Active" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase truncate">
+                    <h3 className="text-[15px] font-extrabold text-foreground leading-tight tracking-tight truncate" title={siteDetail.site_name}>
                       {siteDetail.site_name}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-1.5 text-[12px]">
-                      <span className="font-mono text-muted-foreground">{siteDetail.site_id}</span>
-                      <span className="text-muted-foreground">•</span>
-                      <span className="font-semibold text-primary">{techBadgeStr}</span>
+                    <p className="text-[10px] font-mono text-muted-foreground mt-0.5 truncate">{siteDetail.site_id}</p>
+                    {/* Tech badges row */}
+                    <div className="flex flex-wrap items-center gap-1 mt-2">
+                      {uniqueTechs.map(tech => {
+                        const techColorMap: Record<string, string> = { '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7' };
+                        const bg = techColorMap[tech] || '#94a3b8';
+                        return (
+                          <span key={tech} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold text-white uppercase tracking-wider" style={{ backgroundColor: bg }}>
+                            <Signal size={8} /> {tech}
+                          </span>
+                        );
+                      })}
+                      {siteDetail.vendor && siteDetail.vendor !== 'Unknown' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold border border-border text-muted-foreground bg-muted/40 uppercase tracking-wider">
+                          {siteDetail.vendor}
+                        </span>
+                      )}
                     </div>
                   </div>
-                  {/* Close button */}
                   <button
                     onClick={(e) => { e.stopPropagation(); handleBackToGlobal(); }}
-                    className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                    className="shrink-0 w-7 h-7 rounded-lg flex items-center justify-center hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                     title="Fermer"
                   >
-                    <X size={16} />
+                    <X size={14} />
                   </button>
                 </div>
               </div>
 
-              {/* ── Site Detail Tabs ── */}
-              <div className="px-5 py-4 space-y-3">
+              {/* ══════ OVERVIEW CARDS ══════ */}
+              <div className="px-5 pb-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                    <div className="text-[18px] font-black text-foreground leading-none">{filteredCells.length}</div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Cells</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                    <div className="text-[18px] font-black text-primary leading-none">{sortedSectors.length}</div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Sectors</div>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                    <div className="text-[18px] font-black text-foreground leading-none">{uniqueTechs.length}</div>
+                    <div className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Techs</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Subtle divider */}
+              <div className="mx-5 border-t border-border/40" />
+
+              {/* ══════ SITE DETAIL TABS ══════ */}
+              <div className="px-4 pt-3 pb-4 space-y-3">
                 <Tabs defaultValue="design" className="w-full">
-                  <TabsList className="w-full h-auto p-1 bg-muted/30 rounded-lg flex gap-0.5 border border-border">
-                    <TabsTrigger value="design" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Site Design</TabsTrigger>
-                    <TabsTrigger value="conf" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Site Conf</TabsTrigger>
-                    <TabsTrigger value="alarm" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Alarm</TabsTrigger>
-                    <TabsTrigger value="cmhistory" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">CM History</TabsTrigger>
-                    <TabsTrigger value="params" className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Parameters</TabsTrigger>
+                  <TabsList className="w-full h-auto p-0.5 bg-muted/30 rounded-lg flex gap-0 border border-border">
+                    <TabsTrigger value="design" className="flex-1 text-[9px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Design</TabsTrigger>
+                    <TabsTrigger value="conf" className="flex-1 text-[9px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Config</TabsTrigger>
+                    <TabsTrigger value="alarm" className="flex-1 text-[9px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Alarms</TabsTrigger>
+                    <TabsTrigger value="cmhistory" className="flex-1 text-[9px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">CM</TabsTrigger>
+                    <TabsTrigger value="params" className="flex-1 text-[9px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Params</TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="design" className="mt-3 space-y-4">
 
-                {/* Site info summary */}
-                <div className="rounded-xl border border-border overflow-hidden bg-card">
-                  {[
-                    { label: 'Site Name', value: siteDetail.site_name },
-                    { label: 'Site ID', value: siteDetail.site_id },
-                    { label: 'Vendor', value: siteDetail.vendor },
-                    { label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
-                    { label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
-                    { label: 'Total Cells', value: `${filteredCells.length}${filteredCells.length !== siteDetail.cell_count ? ` / ${siteDetail.cell_count}` : ''}` },
-                    { label: 'Sectors', value: `${sortedSectors.length}` },
-                    { label: 'Technologies', value: techBadgeStr },
-                    { label: 'Terrain Type', value: (() => {
-                      const lat = siteDetail.coordinates[0];
-                      const hba = filteredCells[0]?.hba ?? 30;
-                      if (hba >= 40) return 'Dense Urban';
-                      if (hba >= 25) return 'Urban';
-                      if (hba >= 15) return 'Suburban';
-                      return 'Rural';
-                    })() },
-                    { label: 'Zone ARCEP', value: (() => {
-                      const zones = [...new Set(filteredCells.map(c => (c as any).zone_arcep).filter(Boolean))];
-                      return zones.length > 0 ? zones.join(', ') : (siteDetail as any).zone_arcep || '—';
-                    })() },
-                    { label: 'Profile', value: (() => {
-                      const hba = filteredCells[0]?.hba ?? 30;
-                      const bands = [...new Set(filteredCells.map(c => c.bande))];
-                      const has5G = filteredCells.some(c => getCellTechGroup(c.techno) === '5G');
-                      if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
-                      if (has5G) return 'Small Cell 5G + Macro 4G';
-                      if (bands.length >= 4) return 'Macro Multi-Band 4G';
-                      if (hba < 15) return 'Micro Cell';
-                      return 'Macro 4G Standard';
-                    })() },
-                  ].map((p, i) => (
-                    <div key={i} className={`flex items-center justify-between px-4 py-2 text-[11px] border-b border-border/40 last:border-0 ${i % 2 === 0 ? 'bg-muted/20' : ''}`}>
-                      <span className="text-muted-foreground font-medium">{p.label}</span>
-                      <span className="font-semibold text-foreground">{p.value}</span>
-                    </div>
-                  ))}
+                {/* ── Site Information Card ── */}
+                <div className="space-y-1">
+                  <h5 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 px-1">
+                    <MapPin size={10} /> Site Information
+                  </h5>
+                  <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
+                    {[
+                      { icon: <MapPin size={11} className="text-muted-foreground" />, label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
+                      { icon: <Signal size={11} className="text-muted-foreground" />, label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
+                      { icon: <Globe size={11} className="text-muted-foreground" />, label: 'Zone ARCEP', value: (() => {
+                        const zones = [...new Set(filteredCells.map(c => (c as any).zone_arcep).filter(Boolean))];
+                        return zones.length > 0 ? zones.join(', ') : (siteDetail as any).zone_arcep || '—';
+                      })() },
+                      { icon: <Radio size={11} className="text-muted-foreground" />, label: 'Terrain', value: (() => {
+                        const hba = filteredCells[0]?.hba ?? 30;
+                        if (hba >= 40) return 'Dense Urban';
+                        if (hba >= 25) return 'Urban';
+                        if (hba >= 15) return 'Suburban';
+                        return 'Rural';
+                      })() },
+                      { icon: <BarChart2 size={11} className="text-muted-foreground" />, label: 'Profile', value: (() => {
+                        const hba = filteredCells[0]?.hba ?? 30;
+                        const bands = [...new Set(filteredCells.map(c => c.bande))];
+                        const has5G = filteredCells.some(c => getCellTechGroup(c.techno) === '5G');
+                        if (has5G && hba >= 30) return 'Macro 5G/4G Co-located';
+                        if (has5G) return 'Small Cell 5G + Macro 4G';
+                        if (bands.length >= 4) return 'Macro Multi-Band 4G';
+                        if (hba < 15) return 'Micro Cell';
+                        return 'Macro 4G Standard';
+                      })() },
+                    ].map((p, i) => (
+                      <div key={i} className={`flex items-center gap-2.5 px-3.5 py-2 text-[11px] border-b border-border/30 last:border-0 transition-colors hover:bg-muted/20 ${i % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                        {p.icon}
+                        <span className="text-muted-foreground font-medium flex-1">{p.label}</span>
+                        <span className="font-semibold text-foreground text-right">{p.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
+                {/* ── Technologies & Bands ── */}
+                <div className="space-y-1">
+                  <h5 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 px-1">
+                    <Signal size={10} /> Technologies & Bands
+                  </h5>
+                  <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm p-3">
+                    <div className="flex flex-wrap gap-1.5">
+                      {(() => {
+                        const bandsByTech = new Map<string, Set<string>>();
+                        filteredCells.forEach(c => {
+                          const tg = getCellTechGroup(c.techno);
+                          if (!bandsByTech.has(tg)) bandsByTech.set(tg, new Set());
+                          if (c.bande) bandsByTech.get(tg)!.add(c.bande);
+                        });
+                        const techColorMap: Record<string, string> = { '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7' };
+                        return Array.from(bandsByTech.entries()).sort(([a], [b]) => {
+                          const order = ['5G', '4G', '3G', '2G'];
+                          return order.indexOf(a) - order.indexOf(b);
+                        }).flatMap(([tech, bands]) =>
+                          Array.from(bands).sort().map(band => (
+                            <span key={`${tech}-${band}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors hover:opacity-80" style={{ backgroundColor: `${techColorMap[tech] || '#94a3b8'}15`, color: techColorMap[tech] || '#94a3b8', border: `1px solid ${techColorMap[tech] || '#94a3b8'}30` }}>
+                              <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: techColorMap[tech] || '#94a3b8' }} />
+                              {band}
+                            </span>
+                          ))
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
 
-                {/* SECTORS & CELLS — tabbed */}
+                {/* ── SECTORS & CELLS — collapsible sector tabs ── */}
+                <div className="space-y-1">
+                  <h5 className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 px-1">
+                    <Radio size={10} /> Sectors & Cells
+                    <span className="ml-auto text-[9px] font-normal text-muted-foreground/60">{filteredCells.length} total</span>
+                  </h5>
                 {(() => {
                   const sectorNums = sortedSectors.map(([s]) => s);
                   const defaultSector = sectorNums[0] ?? '1';
                   return (
-                    <div>
-                      <h5 className="text-[10px] font-extrabold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-                        <Radio size={12} className="text-primary" /> SECTORS & CELLS
-                      </h5>
-                      <Tabs defaultValue={String(defaultSector)} className="w-full">
-                        <TabsList className="w-full h-auto p-1 bg-muted/30 rounded-lg flex gap-1 border border-border">
-                          {sortedSectors.map(([sNum, cells]) => (
-                            <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[11px] font-bold py-1.5 px-2 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm">
-                              SECTOR <span className="font-black ml-0.5">S{sNum}</span>
-                              <span className="text-[9px] font-normal ml-1 opacity-60">{cells.length} cells</span>
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
+                    <Tabs defaultValue={String(defaultSector)} className="w-full">
+                      <TabsList className="w-full h-auto p-0.5 bg-muted/20 rounded-lg flex gap-0.5 border border-border/50">
                         {sortedSectors.map(([sNum, cells]) => (
-                          <TabsContent key={sNum} value={String(sNum)} className="mt-2">
-                            <div className="rounded-lg border border-border overflow-hidden bg-card">
-                              {/* Table header */}
-                              <div className="grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 bg-muted/40 border-b border-border">
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Cell</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tech</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Band</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Az°</span>
-                                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider text-center">Tilt°</span>
-                              </div>
-                              {/* Rows */}
-                              <div className="divide-y divide-border/30">
-                                {cells.map((c) => {
-                                  const eTilt = (c as any).tilt as number | null;
-                                  return (
-                                    <div key={c.cell_id} onClick={() => handleCellClick(c.cell_id)} className={`grid grid-cols-[1fr_50px_70px_45px_45px] gap-1 px-3 py-2 items-center cursor-pointer transition-colors ${focusCellId === c.cell_id ? 'bg-primary/10' : 'hover:bg-muted/20'}`}>
-                                      <span className="text-[11px] font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors">{c.cell_id}</span>
-                                      <span className="text-[10px] font-bold text-center" style={{ color: is5GTech(c.techno) ? (bandColors['5G_GROUP'] || '#22c55e') : (bandColors['4G_GROUP'] || '#f97316') }}>{c.techno}</span>
-                                      <span className="text-[10px] text-muted-foreground text-center">{c.bande}</span>
-                                      <span className="text-[10px] font-semibold text-foreground text-center">{c.azimut ?? '—'}°</span>
-                                      <span className="text-[10px] font-semibold text-foreground text-center">{eTilt ?? '—'}°</span>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          </TabsContent>
+                          <TabsTrigger key={sNum} value={String(sNum)} className="flex-1 text-[10px] font-bold py-1.5 px-1 rounded-md data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm transition-all">
+                            S{sNum}
+                            <span className="text-[8px] font-normal ml-0.5 opacity-50">({cells.length})</span>
+                          </TabsTrigger>
                         ))}
-                      </Tabs>
-                    </div>
+                      </TabsList>
+                      {sortedSectors.map(([sNum, cells]) => (
+                        <TabsContent key={sNum} value={String(sNum)} className="mt-2">
+                          <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
+                            {/* Table header */}
+                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50">
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Cell ID</span>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tech</span>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Band</span>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Az</span>
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tilt</span>
+                            </div>
+                            {/* Cell rows */}
+                            <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto">
+                              {cells.map((c) => {
+                                const eTilt = (c as any).tilt as number | null;
+                                const isSelected = focusCellId === c.cell_id;
+                                const cellTechGroup = getCellTechGroup(c.techno);
+                                const techColorMap: Record<string, string> = { '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7' };
+                                const cellTechColor = techColorMap[cellTechGroup] || '#94a3b8';
+                                return (
+                                  <div
+                                    key={c.cell_id}
+                                    onClick={() => handleCellClick(c.cell_id)}
+                                    className={`grid grid-cols-[1fr_44px_64px_40px_40px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
+                                      isSelected
+                                        ? 'bg-primary/10 border-l-2 border-l-primary'
+                                        : 'hover:bg-muted/30 border-l-2 border-l-transparent'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cellTechColor }} />
+                                      <span className={`text-[10px] font-semibold truncate transition-colors ${isSelected ? 'text-primary' : 'text-foreground group-hover:text-primary'}`}>{c.cell_id}</span>
+                                    </div>
+                                    <span className="text-[9px] font-bold text-center rounded px-1 py-0.5" style={{ color: cellTechColor }}>{cellTechGroup}</span>
+                                    <span className="text-[9px] text-muted-foreground text-center font-medium">{c.bande}</span>
+                                    <span className="text-[9px] font-semibold text-foreground text-center tabular-nums">{c.azimut ?? '—'}°</span>
+                                    <span className="text-[9px] font-semibold text-foreground text-center tabular-nums">{eTilt ?? '—'}°</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </TabsContent>
+                      ))}
+                    </Tabs>
                   );
                 })()}
+                </div>
 
                   </TabsContent>
 
@@ -10634,14 +10716,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </TabsContent>
 
                   <TabsContent value="alarm" className="mt-3">
-                    <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">Alarms — coming soon</div>
+                    <div className="rounded-xl border border-border bg-card p-6 text-center">
+                      <Bell size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                      <p className="text-[11px] font-medium text-muted-foreground">No active alarms</p>
+                      <p className="text-[9px] text-muted-foreground/50 mt-1">Alarm monitoring coming soon</p>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="cmhistory" className="mt-3">
                     {siteDetail?.site_name ? (
                       <SiteChangesPanel siteName={siteDetail.site_name} days={90} />
                     ) : (
-                      <div className="rounded-xl border border-border bg-card p-4 text-center text-[11px] text-muted-foreground">No CM history available</div>
+                      <div className="rounded-xl border border-border bg-card p-6 text-center">
+                        <FileText size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                        <p className="text-[11px] font-medium text-muted-foreground">No CM history available</p>
+                      </div>
                     )}
                   </TabsContent>
 
@@ -10651,161 +10740,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </Tabs>
               </div>
 
-
-              {/* RF Spatial KPI Cards — only shown at cell level */}
-
-              {/* ── Selected Cell Detail (from left panel) ── */}
-              {focusCellId && (() => {
-                let cell: CellProperties | undefined;
-                if (siteDetail) cell = resolveCellFromDetail(siteDetail, focusCellId);
-                if (!cell && selectedSiteSnapshot) cell = resolveCellFromDetail(selectedSiteSnapshot as SiteDetail, focusCellId);
-                if (!cell && selectedSiteId) {
-                  const fromSites = sites.find(s => s.site_id === selectedSiteId);
-                  if (fromSites) cell = resolveCellFromDetail(fromSites as SiteDetail, focusCellId);
-                }
-                if (!cell) return null;
-                return (
-                  <div className="px-5 py-4 space-y-4">
-                    {/* Cell header */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getBandColor(cell.bande, cell.techno) }} />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-[14px] font-extrabold text-foreground font-mono truncate">{cell.cell_id}</h4>
-                        <div className="text-[11px] text-muted-foreground">{cell.techno} • {cell.bande} MHz • Az {cell.azimut}°</div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          handleMapToolToggle('profile');
-                        }}
-                        className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${
-                          activeMapTool === 'profile'
-                            ? 'bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/40'
-                            : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
-                        }`}
-                        title="Profil terrain depuis cette cellule"
-                      >
-                        <Mountain size={13} />
-                        Profil
-                      </button>
-                      <button onClick={handleBackToSite} className="text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
-                        ✕
-                      </button>
-                    </div>
-
-                    {/* RF Spatial KPIs for cell */}
-                    <div className="grid grid-cols-3 gap-2">
-                      {(() => {
-                        const overshoot = (cell as any).overshoot_factor;
-                        if (overshoot == null) return (
-                          <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                            <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
-                            <div className="text-[14px] font-extrabold text-muted-foreground">—</div>
-                          </div>
-                        );
-                        const pct = overshoot * 100;
-                        const sev = pct > 20 ? 'red' : pct > 12 ? 'orange' : 'green';
-                        const sevColor = sev === 'green' ? 'text-emerald-500' : sev === 'orange' ? 'text-orange-500' : 'text-destructive';
-                        return (
-                          <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                            <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Overshoot</div>
-                            <div className={`text-[14px] font-extrabold ${sevColor}`}>{pct.toFixed(1)}%</div>
-                          </div>
-                        );
-                      })()}
-                      <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">ISD</div>
-                        <div className="text-[14px] font-extrabold text-primary">
-                          {(cell as any).intersite_distance_m != null ? ((cell as any).intersite_distance_m / 1000).toFixed(2) : '—'}
-                          {(cell as any).intersite_distance_m != null && <span className="text-[10px] font-bold text-muted-foreground ml-0.5">km</span>}
-                        </div>
-                      </div>
-                      <div className="bg-muted/40 rounded-xl border border-border px-2 py-2.5 text-center">
-                        <div className="text-[8px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Tilt</div>
-                        <div className="text-[14px] font-extrabold text-foreground">
-                          {(cell as any).tilt != null ? `${(cell as any).tilt}°` : '—'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* RF Parameters */}
-                    <div>
-                      <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-wider mb-2">RF Parameters</h5>
-                      <div className="space-y-0 border border-border rounded-lg overflow-hidden">
-                        {[
-                          { label: 'Technology', value: cell.techno },
-                          { label: 'Band', value: `${cell.bande} MHz` },
-                          { label: 'Azimuth', value: `${cell.azimut}°` },
-                          { label: 'HBA', value: `${cell.hba ?? '—'} m` },
-                          { label: 'E-Tilt', value: `${cell.tilt ?? '—'}°` },
-                          { label: 'PCI', value: `${(cell as any).pci ?? '—'}` },
-                          { label: 'Status', value: (cell as any).etat_cellule ?? 'Active' },
-                          { label: 'Sessions', value: cell.sessions?.toLocaleString() ?? '—' },
-                        ].map((p, i) => (
-                          <div key={i} className={`flex items-center justify-between px-3 py-1.5 text-[11px] ${i > 0 ? 'border-t border-border/40' : ''}`}>
-                            <span className="text-muted-foreground">{p.label}</span>
-                            <span className="font-medium text-foreground">{p.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* ── Terrain Profile Chart ── */}
-                    {activeMapTool === 'profile' && profileTarget && cellProfilePoints.length > 0 && cellProfileAnalysis && (
-                      <div className="space-y-2">
-                        <h5 className="text-[10px] font-extrabold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                          <Mountain size={12} className="text-purple-400" />
-                          Profil Terrain
-                        </h5>
-                        <div className="rounded-xl border border-border overflow-hidden bg-card" style={{ height: 220 }}>
-                          <ProfileChart
-                            profilePoints={cellProfilePoints}
-                            analysis={cellProfileAnalysis}
-                            fresnel={cellProfileFresnel}
-                            showFresnel={true}
-                            showCurvature={true}
-                            siteName={cell.cell_id}
-                          />
-                        </div>
-                        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                          <span>LOS: <span className={`font-bold ${cellProfileAnalysis.isLOS ? 'text-emerald-500' : 'text-destructive'}`}>
-                            {cellProfileAnalysis.isLOS ? 'Dégagé' : 'Obstrué'}
-                          </span></span>
-                          <span>Clearance: <span className="font-bold text-foreground">{cellProfileAnalysis.clearanceMin?.toFixed(1) ?? '—'} m</span></span>
-                        </div>
-                      </div>
-                    )}
-                    {activeMapTool === 'profile' && cellProfileLoading && (
-                      <div className="flex items-center gap-2 py-4">
-                        <RefreshCw size={14} className="text-purple-400 animate-spin" />
-                        <span className="text-[11px] text-muted-foreground font-medium">Calcul du profil terrain...</span>
-                      </div>
-                    )}
-                    {activeMapTool === 'profile' && !profileTarget && (
-                      <div className="py-3 px-4 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-300 font-medium">
-                        ⛰️ Cliquez sur la carte pour tracer le profil terrain depuis cette cellule
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
-              {/* ── AI Diagnostic — Site Level ── */}
+              {/* ══════ AI DIAGNOSTIC — Site Level ══════ */}
               {onLaunchAI && siteDetail && (
-                <div className="px-5 py-4">
-                  <div className="rounded-2xl px-5 py-5 flex items-center gap-4" style={{ background: 'linear-gradient(135deg, hsl(220 40% 13%), hsl(220 50% 18%))' }}>
-                    <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'hsl(80 60% 45%)', boxShadow: '0 0 24px hsla(80, 60%, 45%, 0.3)' }}>
-                      <Settings2 size={22} className="text-white" />
+                <div className="px-5 pb-5">
+                  <div className="rounded-xl px-4 py-3.5 flex items-center gap-3 bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                      <Sparkles size={18} className="text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-extrabold text-white uppercase tracking-wide">AI Diagnostic</div>
-                      <div className="text-[11px] text-white/50 font-medium mt-0.5">RCA Analysis • {siteDetail.site_name}</div>
+                      <div className="text-[11px] font-bold text-foreground">AI Diagnostic</div>
+                      <div className="text-[9px] text-muted-foreground font-medium">Root Cause Analysis</div>
                     </div>
                     <button
                       onClick={() => onLaunchAI(siteDetail.site_name)}
-                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-white/90 transition-colors shrink-0"
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shrink-0 shadow-sm"
                     >
-                      <Zap size={14} />
-                      Lancer
+                      <Zap size={12} />
+                      Run
                     </button>
                   </div>
                 </div>
