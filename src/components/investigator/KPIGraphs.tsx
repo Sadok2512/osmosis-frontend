@@ -701,7 +701,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // Normalize all data point timestamps to match granularity format
         const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, slotGranularity) }));
         const matchesKpi = (dKpi: string, kpiId: string) => dKpi === kpiId || dKpi.startsWith(kpiId + '@');
-        const apiTimestamps = [...new Set(kpiIds.flatMap(id => normalizedData.filter(d => matchesKpi(d.kpi, id)).map(d => d.timestamp)))].sort();
+        // Include counter timestamps from tsData too
+        const counterDataFromTs = normalizedData.filter((d: any) => d._isCounter);
+        const kpiTimestamps = kpiIds.flatMap(id => normalizedData.filter(d => !d._isCounter && matchesKpi(d.kpi, id)).map(d => d.timestamp));
+        const counterTimestamps = counterDataFromTs.map(d => d.timestamp);
+        const apiTimestamps = [...new Set([...kpiTimestamps, ...counterTimestamps])].sort();
 
         const fullTimeline = buildTimeline(slotStartDate, slotEndDate, slotGranularity);
         // If buildTimeline returned empty (invalid dates), fall back to API timestamps
