@@ -5526,7 +5526,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells when needed for rendering/filtering logic
-    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
@@ -5729,7 +5729,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
-    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive;
+    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
 
     const unsub = onCellsCacheUpdate(() => {
@@ -5866,7 +5866,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors;
+  const showSectors = (displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && showBeamSectors && mapDisplayMode === 'sites');
 
   useEffect(() => {
     if (!showSectors) return;
