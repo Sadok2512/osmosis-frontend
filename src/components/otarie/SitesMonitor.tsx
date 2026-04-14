@@ -335,9 +335,13 @@ const inferSiteTechState = (site: SiteSummary): { has2G: boolean; has3G: boolean
   return { has2G, has3G, has4G, has5G };
 };
 
-const siteMatchesRequestedTech = (site: SiteSummary, tech: '5G' | '4G'): boolean => {
-  const { has4G, has5G } = inferSiteTechState(site);
-  return tech === '5G' ? has5G : has4G;
+const siteMatchesRequestedTech = (site: SiteSummary, tech: TechGroup): boolean => {
+  const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+  if (tech === '5G') return has5G;
+  if (tech === '4G') return has4G;
+  if (tech === '3G') return has3G;
+  if (tech === '2G') return has2G;
+  return false;
 };
 
 // getCellTechGroup is now imported from @/utils/telecomHelpers
@@ -5166,18 +5170,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let result: typeof filteredSites;
     if (mapTechnoFilter === 'ALL') {
       if (enabledTechnos.size === 0) return [];
-      if (enabledTechnos.size === 2) {
+      if (enabledTechnos.size === 4) {
         result = filteredSites;
       } else {
         result = filteredSites.filter(s => {
-          if (enabledTechnos.has('5G') && siteMatchesRequestedTech(s, '5G')) return true;
-          if (enabledTechnos.has('4G') && siteMatchesRequestedTech(s, '4G')) return true;
+          for (const t of enabledTechnos) {
+            if (siteMatchesRequestedTech(s, t)) return true;
+          }
           return false;
         });
       }
     } else {
-      const tech = mapTechnoFilter as '5G' | '4G';
-      result = filteredSites.filter(s => siteMatchesRequestedTech(s, tech));
+      result = filteredSites.filter(s => siteMatchesRequestedTech(s, mapTechnoFilter as TechGroup));
     }
 
     // When band filter is active, hide sites with no cells matching enabled bands
@@ -5545,11 +5549,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       if (mapTechnoFilter === 'ALL') {
         if (enabledTechnos.size === 0) return false;
-        if (enabledTechnos.size === 2) return true;
-        return (enabledTechnos.has('5G') && siteMatchesRequestedTech(site, '5G')) || (enabledTechnos.has('4G') && siteMatchesRequestedTech(site, '4G'));
+        if (enabledTechnos.size === 4) return true;
+        for (const t of enabledTechnos) {
+          if (siteMatchesRequestedTech(site, t)) return true;
+        }
+        return false;
       }
 
-      return siteMatchesRequestedTech(site, mapTechnoFilter as '5G' | '4G');
+      return siteMatchesRequestedTech(site, mapTechnoFilter as TechGroup);
     };
 
     const merged = [...visibleSites];
