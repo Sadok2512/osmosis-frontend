@@ -615,10 +615,17 @@ const CustomPointClickHandler: React.FC<{ active: boolean; onAdd: (lat: number, 
   return null;
 };
 
-const DistanceMeasureClickHandler: React.FC<{ active: boolean; onPick: (latlng: LatLng) => void }> = ({ active, onPick }) => {
+const DistanceMeasureClickHandler: React.FC<{
+  active: boolean;
+  onPick: (latlng: LatLng) => void;
+  onMouseMove?: (latlng: [number, number]) => void;
+}> = ({ active, onPick, onMouseMove }) => {
   useMapEvents({
     click(e) {
       if (active) onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
+    },
+    mousemove(e) {
+      if (active && onMouseMove) onMouseMove([e.latlng.lat, e.latlng.lng]);
     },
   });
   return null;
@@ -3317,6 +3324,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileData, setProfileData] = useState<{ points: any[]; analysis: any } | null>(null);
   const [distanceMeasurePoints, setDistanceMeasurePoints] = useState<[number, number][]>([]);
+  const [distanceCursorPos, setDistanceCursorPos] = useState<[number, number] | null>(null);
   const [radiusCenter, setRadiusCenter] = useState<[number, number] | null>(null);
   const [radiusConfirmed, setRadiusConfirmed] = useState(false);
   const [radiusLiveMeters, setRadiusLiveMeters] = useState(0);
@@ -3328,9 +3336,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [colorViewMode, setColorViewMode] = useState<ColorViewMode>('none');
   const [showColorViewDropdown, setShowColorViewDropdown] = useState(false);
 
+  // ── Saved distance measurements ──
+  interface SavedMeasurement {
+    id: string;
+    name: string;
+    from: [number, number];
+    to: [number, number];
+    distanceMeters: number;
+    azimuth: number;
+    label: string;
+    createdAt: string;
+  }
+  const MEAS_KEY = 'osmosis_saved_measurements';
+  const loadMeasurements = (): SavedMeasurement[] => {
+    try { const s = localStorage.getItem(MEAS_KEY); return s ? JSON.parse(s) : []; } catch { return []; }
+  };
+  const persistMeasurements = (m: SavedMeasurement[]) => {
+    try { localStorage.setItem(MEAS_KEY, JSON.stringify(m)); } catch {}
+  };
+  const [savedMeasurements, setSavedMeasurements] = useState<SavedMeasurement[]>(loadMeasurements);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
+  const [renamingMeasurementId, setRenamingMeasurementId] = useState<string | null>(null);
+  const [measurementRenameValue, setMeasurementRenameValue] = useState('');
+  const measurementCounter = useRef(savedMeasurements.length + 1);
+
+  const addSavedMeasurement = useCallback((from: [number, number], to: [number, number]) => {
+    const fromLL = { lat: from[0], lng: from[1] };
+    const toLL = { lat: to[0], lng: to[1] };
+    const distanceMeters = haversineDistance(fromLL, toLL);
+    const az = Math.round(bearing(fromLL, toLL));
+    const label = distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(distanceMeters >= 10000 ? 1 : 2)} km`
+      : `${Math.round(distanceMeters)} m`;
+    const num = measurementCounter.current++;
+    const m: SavedMeasurement = {
+      id: `meas-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: `Measure ${String(num).padStart(2, '0')}`,
+      from, to, distanceMeters, azimuth: az, label,
+      createdAt: new Date().toISOString(),
+    };
+    setSavedMeasurements(prev => {
+      const next = [...prev, m];
+      persistMeasurements(next);
+      return next;
+    });
+    setSelectedMeasurementId(m.id);
+    setInventoryTab('tagged');
+  }, []);
+
+  const deleteSavedMeasurement = useCallback((id: string) => {
+    setSavedMeasurements(prev => {
+      const next = prev.filter(m => m.id !== id);
+      persistMeasurements(next);
+      return next;
+    });
+    if (selectedMeasurementId === id) setSelectedMeasurementId(null);
+  }, [selectedMeasurementId]);
+
+  const renameSavedMeasurement = useCallback((id: string, newName: string) => {
+    if (!newName.trim()) return;
+    setSavedMeasurements(prev => {
+      const next = prev.map(m => m.id === id ? { ...m, name: newName.trim() } : m);
+      persistMeasurements(next);
+      return next;
+    });
+    setRenamingMeasurementId(null);
+    setMeasurementRenameValue('');
+  }, []);
+
   useEffect(() => {
     if (activeMapTool !== 'distance' && distanceMeasurePoints.length > 0) {
       setDistanceMeasurePoints([]);
+      setDistanceCursorPos(null);
     }
     if (activeMapTool !== 'polygon') {
       setPolygonPoints([]);
@@ -3351,8 +3428,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const handleDistanceMeasureClick = useCallback((latlng: LatLng) => {
     const point: [number, number] = [latlng.lat, latlng.lng];
-    setDistanceMeasurePoints(prev => (prev.length >= 2 ? [point] : [...prev, point]));
-  }, []);
+    setDistanceMeasurePoints(prev => {
+      if (prev.length >= 2) {
+        // Start new measurement
+        return [point];
+      }
+      if (prev.length === 1) {
+        // Save measurement automatically
+        addSavedMeasurement(prev[0], point);
+        return [...prev, point];
+      }
+      return [point];
+    });
+  }, [addSavedMeasurement]);
 
   const distanceMeasurement = useMemo(() => {
     if (distanceMeasurePoints.length !== 2) return null;
@@ -5970,7 +6058,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
         <LOSMapClickHandler onMapClick={handleLosMapClick} drawing={losDrawingMode} />
         <CustomPointClickHandler active={pointCreationMode} onAdd={addCustomPoint} />
-        <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} />
+        <DistanceMeasureClickHandler active={activeMapTool === 'distance'} onPick={handleDistanceMeasureClick} onMouseMove={(ll) => setDistanceCursorPos(ll)} />
         <RadiusClickHandler active={activeMapTool === 'radius'} center={radiusCenter} confirmed={radiusConfirmed} onSetCenter={handleRadiusSetCenter} onConfirm={handleRadiusConfirm} onPreview={handleRadiusPreview} />
         <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
         <DistanceMeasureClickHandler active={activeMapTool === 'profile'} onPick={handleProfileClick} />
@@ -6027,6 +6115,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </Marker>
         )}
 
+        {/* ── Live preview line from A to cursor ── */}
+        {activeMapTool === 'distance' && distanceMeasurePoints.length === 1 && distanceCursorPos && (
+          <Polyline
+            positions={[distanceMeasurePoints[0], distanceCursorPos]}
+            pane="pane5G"
+            pathOptions={{
+              color: 'hsl(var(--primary))',
+              weight: 2,
+              dashArray: '6 6',
+              opacity: 0.5,
+            }}
+          />
+        )}
+
         {activeMapTool === 'distance' && distanceMeasurePoints.map((point, index) => (
           <CircleMarker
             key={`distance-point-${index}-${point[0]}-${point[1]}`}
@@ -6065,6 +6167,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </Polyline>
         )}
+
+        {/* ── Saved measurements on map ── */}
+        {savedMeasurements.map(m => (
+          <React.Fragment key={m.id}>
+            <Polyline
+              positions={[m.from, m.to]}
+              pane="pane5G"
+              pathOptions={{
+                color: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))',
+                weight: selectedMeasurementId === m.id ? 4 : 2.5,
+                dashArray: '10 6',
+                opacity: selectedMeasurementId === m.id ? 1 : 0.7,
+              }}
+              eventHandlers={{
+                click: () => {
+                  setSelectedMeasurementId(m.id);
+                  setInventoryTab('tagged');
+                },
+              }}
+            >
+              <Tooltip permanent direction="center" opacity={0.9} className="!bg-card !border-border !text-foreground shadow-md">
+                <div className="flex items-center gap-1 text-[9px] font-medium">
+                  <span className="font-bold">{m.name}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{m.label}</span>
+                  <span className="text-muted-foreground">•</span>
+                  <span>{m.azimuth}°</span>
+                </div>
+              </Tooltip>
+            </Polyline>
+            <CircleMarker center={m.from} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))', fillOpacity: 1, weight: 2 }}>
+              <Tooltip permanent direction="top" offset={[0, -8]} opacity={0.9}><span className="text-[9px] font-bold">A</span></Tooltip>
+            </CircleMarker>
+            <CircleMarker center={m.to} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))', fillOpacity: 1, weight: 2 }}>
+              <Tooltip permanent direction="top" offset={[0, -8]} opacity={0.9}><span className="text-[9px] font-bold">B</span></Tooltip>
+            </CircleMarker>
+          </React.Fragment>
+        ))}
 
         {/* ── Profile tool line ── */}
         {activeMapTool === 'profile' && profileTarget && selectedSiteSnapshot && (() => {
@@ -9586,6 +9726,104 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Saved Measurements Section ── */}
+                {savedMeasurements.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                      📏 Mesures ({savedMeasurements.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {savedMeasurements.map(m => {
+                        const isSelected = selectedMeasurementId === m.id;
+                        return (
+                          <div
+                            key={m.id}
+                            className={`rounded-xl border transition-all overflow-hidden cursor-pointer ${
+                              isSelected ? 'border-primary/40 bg-primary/5 shadow-md' : 'border-border bg-card hover:border-primary/20'
+                            }`}
+                            onClick={() => {
+                              setSelectedMeasurementId(isSelected ? null : m.id);
+                              if (!isSelected) {
+                                // Fit map to measurement
+                                const midLat = (m.from[0] + m.to[0]) / 2;
+                                const midLng = (m.from[1] + m.to[1]) / 2;
+                                setFlyTarget([midLat, midLng]);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-2 px-3 py-2.5">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-primary text-primary-foreground' : 'bg-orange-500/10'
+                              }`}>
+                                <Ruler size={14} className={isSelected ? '' : 'text-orange-500'} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {renamingMeasurementId === m.id ? (
+                                  <form onSubmit={(e) => { e.preventDefault(); renameSavedMeasurement(m.id, measurementRenameValue); }} onClick={e => e.stopPropagation()}>
+                                    <input
+                                      autoFocus
+                                      value={measurementRenameValue}
+                                      onChange={e => setMeasurementRenameValue(e.target.value)}
+                                      onBlur={() => renameSavedMeasurement(m.id, measurementRenameValue)}
+                                      className="text-[11px] font-bold bg-muted rounded px-1.5 py-0.5 w-full outline-none border border-primary/30 text-foreground"
+                                    />
+                                  </form>
+                                ) : (
+                                  <>
+                                    <div className="text-[11px] font-bold text-foreground truncate">{m.name}</div>
+                                    <div className="text-[9px] text-muted-foreground mt-0.5">
+                                      {m.label} • {m.azimuth}°
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => { setRenamingMeasurementId(m.id); setMeasurementRenameValue(m.name); }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Renommer"
+                                >
+                                  <Pencil size={11} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const midLat = (m.from[0] + m.to[0]) / 2;
+                                    const midLng = (m.from[1] + m.to[1]) / 2;
+                                    setFlyTarget([midLat, midLng]);
+                                    setSelectedMeasurementId(m.id);
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                  title="View Profile"
+                                >
+                                  <Crosshair size={12} />
+                                </button>
+                                <button
+                                  onClick={() => deleteSavedMeasurement(m.id)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="px-3 pb-3 pt-1 border-t border-border/30 animate-fade-in">
+                                <div className="grid grid-cols-2 gap-2 text-[9px] font-mono text-muted-foreground">
+                                  <div><span className="font-bold text-foreground">A:</span> {m.from[0].toFixed(6)}, {m.from[1].toFixed(6)}</div>
+                                  <div><span className="font-bold text-foreground">B:</span> {m.to[0].toFixed(6)}, {m.to[1].toFixed(6)}</div>
+                                  <div><span className="font-bold text-foreground">Distance:</span> {m.label}</div>
+                                  <div><span className="font-bold text-foreground">Azimut:</span> {m.azimuth}°</div>
+                                  <div className="col-span-2"><span className="font-bold text-foreground">Créé:</span> {new Date(m.createdAt).toLocaleString('fr-FR')}</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
