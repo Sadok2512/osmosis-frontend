@@ -2010,6 +2010,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const loadDashboardFromPicker = (dbId: string) => {
     setShowLoadPicker(false);
+    addLoadedId(dbId);
     const db = allDashboards.find(d => d.id === dbId);
     if (db) {
       // Add to local list if not already there
