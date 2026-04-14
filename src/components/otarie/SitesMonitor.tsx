@@ -9840,6 +9840,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
                       cellLoadAttemptedRef.current.clear();
+                      // Force map to fit to new dashboard sites after loading
+                      setDashboardFitKey(k => k + 1);
                     }
 
                     setSelectedSiteId(null);
