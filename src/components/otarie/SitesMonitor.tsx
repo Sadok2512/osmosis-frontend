@@ -9729,6 +9729,104 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   </div>
                 )}
+
+                {/* ── Saved Measurements Section ── */}
+                {savedMeasurements.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2 px-1">
+                      📏 Mesures ({savedMeasurements.length})
+                    </div>
+                    <div className="space-y-1.5">
+                      {savedMeasurements.map(m => {
+                        const isSelected = selectedMeasurementId === m.id;
+                        return (
+                          <div
+                            key={m.id}
+                            className={`rounded-xl border transition-all overflow-hidden cursor-pointer ${
+                              isSelected ? 'border-primary/40 bg-primary/5 shadow-md' : 'border-border bg-card hover:border-primary/20'
+                            }`}
+                            onClick={() => {
+                              setSelectedMeasurementId(isSelected ? null : m.id);
+                              if (!isSelected) {
+                                // Fit map to measurement
+                                const midLat = (m.from[0] + m.to[0]) / 2;
+                                const midLng = (m.from[1] + m.to[1]) / 2;
+                                setFlyTarget([midLat, midLng]);
+                              }
+                            }}
+                          >
+                            <div className="flex items-center gap-2 px-3 py-2.5">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-primary text-primary-foreground' : 'bg-orange-500/10'
+                              }`}>
+                                <Ruler size={14} className={isSelected ? '' : 'text-orange-500'} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                {renamingMeasurementId === m.id ? (
+                                  <form onSubmit={(e) => { e.preventDefault(); renameSavedMeasurement(m.id, measurementRenameValue); }} onClick={e => e.stopPropagation()}>
+                                    <input
+                                      autoFocus
+                                      value={measurementRenameValue}
+                                      onChange={e => setMeasurementRenameValue(e.target.value)}
+                                      onBlur={() => renameSavedMeasurement(m.id, measurementRenameValue)}
+                                      className="text-[11px] font-bold bg-muted rounded px-1.5 py-0.5 w-full outline-none border border-primary/30 text-foreground"
+                                    />
+                                  </form>
+                                ) : (
+                                  <>
+                                    <div className="text-[11px] font-bold text-foreground truncate">{m.name}</div>
+                                    <div className="text-[9px] text-muted-foreground mt-0.5">
+                                      {m.label} • {m.azimuth}°
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 shrink-0" onClick={e => e.stopPropagation()}>
+                                <button
+                                  onClick={() => { setRenamingMeasurementId(m.id); setMeasurementRenameValue(m.name); }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                  title="Renommer"
+                                >
+                                  <Pencil size={11} />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const midLat = (m.from[0] + m.to[0]) / 2;
+                                    const midLng = (m.from[1] + m.to[1]) / 2;
+                                    setFlyTarget([midLat, midLng]);
+                                    setSelectedMeasurementId(m.id);
+                                  }}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                  title="View Profile"
+                                >
+                                  <Crosshair size={12} />
+                                </button>
+                                <button
+                                  onClick={() => deleteSavedMeasurement(m.id)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                            {isSelected && (
+                              <div className="px-3 pb-3 pt-1 border-t border-border/30 animate-fade-in">
+                                <div className="grid grid-cols-2 gap-2 text-[9px] font-mono text-muted-foreground">
+                                  <div><span className="font-bold text-foreground">A:</span> {m.from[0].toFixed(6)}, {m.from[1].toFixed(6)}</div>
+                                  <div><span className="font-bold text-foreground">B:</span> {m.to[0].toFixed(6)}, {m.to[1].toFixed(6)}</div>
+                                  <div><span className="font-bold text-foreground">Distance:</span> {m.label}</div>
+                                  <div><span className="font-bold text-foreground">Azimut:</span> {m.azimuth}°</div>
+                                  <div className="col-span-2"><span className="font-bold text-foreground">Créé:</span> {new Date(m.createdAt).toLocaleString('fr-FR')}</div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 </div>
 
                 {/* ── Sticky bottom buttons ── */}
