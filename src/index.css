@@ -252,15 +252,31 @@ All colors MUST be HSL.
   cursor: grabbing !important;
 }
 
-/* Minimal transparent measurement labels */
-.measurement-label-minimal {
-  background: transparent !important;
+/* Minimal transparent measurement labels — pure text on map */
+.measurement-label-minimal,
+.measurement-label-minimal .leaflet-tooltip-top,
+.measurement-label-minimal .leaflet-tooltip-bottom,
+.measurement-label-minimal .leaflet-tooltip-left,
+.measurement-label-minimal .leaflet-tooltip-right {
+  background: none !important;
+  background-color: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
   padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }
-.measurement-label-minimal::before {
+.measurement-label-minimal::before,
+.measurement-label-minimal::after,
+.measurement-label-minimal .leaflet-tooltip-top::before,
+.measurement-label-minimal .leaflet-tooltip-bottom::before {
   display: none !important;
+  border: none !important;
+  content: none !important;
 }
 
 
