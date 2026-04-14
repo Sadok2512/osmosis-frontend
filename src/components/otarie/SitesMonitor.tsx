@@ -6398,19 +6398,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <CircleMarker
             key={`distance-point-${index}-${point[0]}-${point[1]}`}
             center={point}
-            radius={7}
+            radius={4}
             pane="pane5G"
             pathOptions={{
               color: 'hsl(var(--background))',
               fillColor: 'hsl(var(--primary))',
               fillOpacity: 1,
-              weight: 2,
+              weight: 1.5,
             }}
-          >
-            <Tooltip permanent direction="top" offset={[0, -10]} opacity={1}>
-              <span className="text-[10px] font-semibold">{index === 0 ? 'A' : 'B'}</span>
-            </Tooltip>
-          </CircleMarker>
+          />
         ))}
         {activeMapTool === 'distance' && distanceMeasurePoints.length === 2 && distanceMeasurement && (
           <Polyline
@@ -6419,31 +6415,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             pathOptions={{
               color: 'hsl(var(--primary))',
               weight: 3,
-              dashArray: '10 8',
+              dashArray: '10 6',
               opacity: 0.95,
             }}
           >
-            <Tooltip permanent direction="center" opacity={1} className="!bg-card !border-border !text-foreground shadow-lg">
-              <div className="flex items-center gap-1.5 text-[10px] font-medium">
-                <span className="font-semibold">{distanceMeasurement.label}</span>
-                <span className="text-muted-foreground">•</span>
-                <span>{distanceMeasurement.azimuth}°</span>
-              </div>
+            <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
+              <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(var(--primary))', textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
+                {distanceMeasurement.label} · {distanceMeasurement.azimuth}°
+              </span>
             </Tooltip>
           </Polyline>
         )}
 
         {/* ── Saved measurements on map ── */}
-        {savedMeasurements.map(m => (
+        {savedMeasurements.map(m => {
+          const isSelected = selectedMeasurementId === m.id;
+          const lineColor = isSelected ? '#0096ff' : 'hsl(var(--primary))';
+          return (
           <React.Fragment key={m.id}>
             <Polyline
               positions={[m.from, m.to]}
               pane="pane5G"
               pathOptions={{
-                color: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))',
-                weight: selectedMeasurementId === m.id ? 4 : 2.5,
+                color: lineColor,
+                weight: isSelected ? 4 : 3,
                 dashArray: '10 6',
-                opacity: selectedMeasurementId === m.id ? 1 : 0.7,
+                opacity: isSelected ? 1 : 0.7,
               }}
               eventHandlers={{
                 click: () => {
@@ -6452,24 +6449,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 },
               }}
             >
-              <Tooltip permanent direction="center" opacity={0.9} className="!bg-card !border-border !text-foreground shadow-md">
-                <div className="flex items-center gap-1 text-[9px] font-medium">
-                  <span className="font-bold">{m.name}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{m.label}</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span>{m.azimuth}°</span>
-                </div>
+              <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
+                <span style={{ fontSize: '10px', fontWeight: 800, color: lineColor, textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
+                  {m.name} · {m.label} · {m.azimuth}°
+                </span>
               </Tooltip>
             </Polyline>
-            <CircleMarker center={m.from} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))', fillOpacity: 1, weight: 2 }}>
-              <Tooltip permanent direction="top" offset={[0, -8]} opacity={0.9}><span className="text-[9px] font-bold">A</span></Tooltip>
-            </CircleMarker>
-            <CircleMarker center={m.to} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: selectedMeasurementId === m.id ? '#0096ff' : 'hsl(var(--primary))', fillOpacity: 1, weight: 2 }}>
-              <Tooltip permanent direction="top" offset={[0, -8]} opacity={0.9}><span className="text-[9px] font-bold">B</span></Tooltip>
-            </CircleMarker>
+            <CircleMarker center={m.from} radius={3} pane="pane5G" pathOptions={{ color: '#fff', fillColor: lineColor, fillOpacity: 1, weight: 1.5 }} />
+            <CircleMarker center={m.to} radius={3} pane="pane5G" pathOptions={{ color: '#fff', fillColor: lineColor, fillOpacity: 1, weight: 1.5 }} />
           </React.Fragment>
-        ))}
+          );
+        })}
 
         {/* ── Profile tool line ── */}
         {activeMapTool === 'profile' && profileTarget && selectedSiteSnapshot && (() => {
