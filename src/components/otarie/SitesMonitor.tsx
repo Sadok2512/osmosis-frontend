@@ -2395,6 +2395,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 <div
                   onClick={() => {
                     if (!isExpanded) requestDashboardSwitch(db.id);
+                    else onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
