@@ -2443,8 +2443,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
-                    if (!isExpanded) requestDashboardSwitch(db.id);
-                    else onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
+                    if (!isExpanded) {
+                      requestDashboardSwitch(db.id);
+                    } else {
+                      setEditingDashboardId(isEditingDb ? null : db.id);
+                    }
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
@@ -2506,28 +2509,44 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <Settings2 size={12} />
                       </button>
                       <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // "Hide" — deactivate this dashboard
+                          setExpandedDashboardId(null);
+                          onDashboardActiveChange?.(false, null, null);
+                        }}
+                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
+                        title="Masquer"
+                      >
+                        <X size={12} />
+                      </button>
+                      <button
                         onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
-                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        title="Supprimer"
+                        className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
+                        title="Archiver"
                       >
                         <Archive size={12} />
                       </button>
                     </>
                   )}
-                  {/* Collapsed dashboard: owner indicator + quick actions */}
+                  {/* Collapsed dashboard: Display button + owner */}
                   {!isExpanded && (
-                    <div className="flex items-center gap-0.5 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0">
                       {db.owner_username && db.owner_username !== currentUsername && (
                         <span className="text-[7px] text-muted-foreground truncate max-w-[50px]" title={`Owner: ${db.owner_username}`}>
                           {db.owner_username}
                         </span>
                       )}
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
-                        className="p-1 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Supprimer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          requestDashboardSwitch(db.id);
+                        }}
+                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Afficher sur la carte"
                       >
-                        <Trash2 size={10} />
+                        <MapIcon size={10} />
+                        Display
                       </button>
                     </div>
                   )}
