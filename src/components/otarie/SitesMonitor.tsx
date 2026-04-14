@@ -2397,6 +2397,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         </>
                       )}
                     </div>
+                    {/* Inline filter badges for collapsed dashboards */}
+                    {!isExpanded && (() => {
+                      const dbFilters = extractSiteFilters(db);
+                      if (!dbFilters) return null;
+                      const entries = Object.entries(dbFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
+                      if (entries.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {entries.slice(0, 3).map(([key, vals]) => (
+                            <span key={key} className="px-1 py-0 rounded bg-muted text-[7px] font-semibold text-muted-foreground truncate max-w-[80px]">
+                              {key.toUpperCase()}: {Array.isArray(vals) ? vals.join(', ') : String(vals)}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {isExpanded && (
                     <>
