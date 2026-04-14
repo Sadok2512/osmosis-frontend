@@ -2396,14 +2396,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
-      {dashboards.length === 0 ? (
+      {filteredDashboards.length === 0 ? (
         <div className="px-3 py-6 text-center space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <LayoutGrid size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard</p>
-            <p className="text-[9px] text-muted-foreground mt-1">Créez ou chargez un dashboard pour afficher les sites sur la carte.</p>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+              {dashboards.length === 0 ? 'Aucun dashboard' : dashFilterMode === 'my' ? 'Aucun de vos dashboards' : 'Aucun dashboard chargé'}
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-1">
+              {dashboards.length === 0
+                ? 'Créez ou chargez un dashboard pour afficher les sites sur la carte.'
+                : dashFilterMode === 'my'
+                  ? 'Créez un nouveau dashboard ou passez en mode "All" pour voir les dashboards partagés.'
+                  : 'Chargez un dashboard partagé via le bouton "Charger".'
+              }
+            </p>
           </div>
           <div className="flex gap-2 justify-center">
             <button
