@@ -7941,6 +7941,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <span className="text-[9px] font-mono text-white/50">{linkClutterHeight}m</span>
                 </div>
               )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="Détails techniques">
+                    <Info size={16} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="w-[320px] p-0 border-white/10 bg-slate-900/95 backdrop-blur-xl">
+                  <InfoPanel
+                    analysis={linkProfileAnalysis}
+                    totalDistance={linkTotalDistance}
+                    enableCurvature={linkEnableCurvature}
+                    fresnel={linkFresnel}
+                  />
+                </PopoverContent>
+              </Popover>
               <button
                 onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); setLinkActiveCoords(null); }}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
@@ -7950,9 +7965,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
           </div>
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
-            {/* Chart */}
-            <div className="flex-1 h-[260px] min-w-0">
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Chart — full width */}
+            <div className="h-[260px] min-w-0">
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
@@ -7964,15 +7979,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 showTilt
                 remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
                 siteName={linkProfileLabel}
-              />
-            </div>
-            {/* Info panel */}
-            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
-              <InfoPanel
-                analysis={linkProfileAnalysis}
-                totalDistance={linkTotalDistance}
-                enableCurvature={linkEnableCurvature}
-                fresnel={linkFresnel}
               />
             </div>
           </div>
