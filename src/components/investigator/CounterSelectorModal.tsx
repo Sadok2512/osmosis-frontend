@@ -139,6 +139,10 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
   const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
+  const selectedKeysSignature = useMemo(
+    () => [...new Set(selectedKeys)].sort().join('||'),
+    [selectedKeys]
+  );
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeFamily, setActiveFamily] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -153,17 +157,20 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setSelected(new Set(selectedKeys));
-      setActiveFamily(null);
-      setSearch('');
-      setShowFavOnly(false);
-      setFilterVendor('');
-      setFilterTechno('');
-      loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
-      fetchFilterOptions().then(setFilterOptions);
-    }
-  }, [open, selectedKeys]);
+    if (!open) return;
+    setSelected(new Set(selectedKeys));
+  }, [open, selectedKeysSignature]);
+
+  useEffect(() => {
+    if (!open) return;
+    setActiveFamily(null);
+    setSearch('');
+    setShowFavOnly(false);
+    setFilterVendor('');
+    setFilterTechno('');
+    loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
+    fetchFilterOptions().then(setFilterOptions);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
