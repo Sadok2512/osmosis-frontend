@@ -148,26 +148,33 @@ const prettyLabel = (k: string): string =>
 
 const vendorColor = (v?: string | null): string => {
   const vu = (v || '').toUpperCase();
-  if (vu === 'NOKIA') return '#3b82f6';
-  if (vu === 'ERICSSON') return '#10b981';
-  if (vu === 'HUAWEI') return '#e11d48';
-  if (vu === 'SAMSUNG') return '#8b5cf6';
+  if (vu === 'NOKIA' || vu === 'NSN') return '#1e40af';
+  if (vu === 'ERICSSON') return '#60a5fa';
+  if (vu === 'HUAWEI') return '#dc2626';
+  if (vu === 'SAMSUNG') return '#7c3aed';
   return '#718096';
 };
 
 const vendorVariant = (v?: string | null): 'default' | 'secondary' | 'outline' => {
   const vu = (v || '').toUpperCase();
-  if (vu === 'NOKIA') return 'default';
+  if (vu === 'NOKIA' || vu === 'NSN') return 'default';
   if (vu === 'ERICSSON') return 'secondary';
   return 'outline';
 };
 
+const TECH_COLOR_MAP: Record<string, { bg: string; text: string; border: string; hex: string }> = {
+  '5G': { bg: 'bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30', hex: '#22c55e' },
+  '4G': { bg: 'bg-orange-500/15', text: 'text-orange-500', border: 'border-orange-500/30', hex: '#f97316' },
+  '3G': { bg: 'bg-blue-500/15', text: 'text-blue-500', border: 'border-blue-500/30', hex: '#3b82f6' },
+  '2G': { bg: 'bg-purple-500/15', text: 'text-purple-500', border: 'border-purple-500/30', hex: '#a855f7' },
+};
+
 const technoClass = (t: string): string => {
   const tu = t.toUpperCase();
-  if (tu === '5G' || tu === 'NR') return 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30';
-  if (tu === '4G' || tu === 'LTE') return 'bg-blue-500/15 text-blue-500 border-blue-500/30';
-  if (tu === '3G' || tu === 'UMTS' || tu === 'WCDMA') return 'bg-amber-500/15 text-amber-500 border-amber-500/30';
-  if (tu === '2G' || tu === 'GSM') return 'bg-rose-500/15 text-rose-500 border-rose-500/30';
+  if (tu === '5G' || tu === 'NR') return `${TECH_COLOR_MAP['5G'].bg} ${TECH_COLOR_MAP['5G'].text} ${TECH_COLOR_MAP['5G'].border}`;
+  if (tu === '4G' || tu === 'LTE') return `${TECH_COLOR_MAP['4G'].bg} ${TECH_COLOR_MAP['4G'].text} ${TECH_COLOR_MAP['4G'].border}`;
+  if (tu === '3G' || tu === 'UMTS' || tu === 'WCDMA') return `${TECH_COLOR_MAP['3G'].bg} ${TECH_COLOR_MAP['3G'].text} ${TECH_COLOR_MAP['3G'].border}`;
+  if (tu === '2G' || tu === 'GSM') return `${TECH_COLOR_MAP['2G'].bg} ${TECH_COLOR_MAP['2G'].text} ${TECH_COLOR_MAP['2G'].border}`;
   return 'bg-muted text-muted-foreground border-border';
 };
 
@@ -462,7 +469,7 @@ const NetworkTopologyPage: React.FC = () => {
   const getL = (): any => (window as any).L;
 
   const TECH_RING_COLORS: Record<string, string> = {
-    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#ef4444',
+    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7',
   };
   const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
   const normTechFn = (t: string): string => {
