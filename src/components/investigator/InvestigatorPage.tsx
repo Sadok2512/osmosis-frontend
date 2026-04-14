@@ -269,7 +269,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   }, [activeSlotId, state.graphSlots]);
 
   const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
-  const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0);
+  const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0);
 
   const activeSlot = useMemo(() => 
     state.graphSlots.find(s => s.id === activeSlotId) || null
@@ -286,11 +286,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     }
 
     const targetSlot = activeSlotId
-      ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
+      ? state.graphSlots.find(s => s.id === activeSlotId && (s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0))
       : null;
 
     if (!targetSlot && selectedCounters.length === 0) {
-      setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI.');
+      setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI ou Counter.');
       return;
     }
 
