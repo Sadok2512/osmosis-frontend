@@ -320,6 +320,7 @@ function resolveTopoSiteTechSummary(site: any): {
 let _cellsCache: { key: string; cells: any[]; ts: number } | null = null;
 const CELLS_CACHE_TTL = 10 * 60 * 1000; // 10 min
 const CHUNK_SIZE = 10000;
+const MAX_CELLS_CACHE = 50000; // Cap to avoid downloading 800K+ cells
 let _cellsCacheLoading = false;
 let _cellsCacheVersion = 0; // increments on every chunk arrival
 type CellsCacheListener = (version: number) => void;
