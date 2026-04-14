@@ -41,9 +41,9 @@ async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
   try {
     const params = vendor ? `?vendor=${encodeURIComponent(vendor)}` : '';
     const res = await fetch(getApiUrl(`pm/counters/filter-options${params}`), { headers: getApiHeaders() });
-    if (!res.ok) return { vendors: ['Nokia', 'Ericsson'], families: [], technos: [], object_types: [] };
+    if (!res.ok) return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [] };
     return res.json();
-  } catch { return { vendors: ['Nokia', 'Ericsson'], families: [], technos: [], object_types: [] }; }
+  } catch { return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [] }; }
 }
 
 async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<CounterDef[]> {
