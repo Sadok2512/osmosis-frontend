@@ -1866,7 +1866,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     }).catch(() => {});
   }, [overlayVersion]);
 
-  // ── Dashboard settings helpers ──
+  // ── Filtered & sorted dashboards ──
+  const filteredDashboards = useMemo(() => {
+    let list = dashboards;
+    if (dashFilterMode === 'my') {
+      list = dashboards.filter(d => d.owner_username === currentUsername || d.id === expandedDashboardId);
+    } else if (dashFilterMode === 'loaded') {
+      list = dashboards.filter(d => loadedDashIds.has(d.id) || d.owner_username === currentUsername || d.id === expandedDashboardId);
+    }
+    // Sort: active first, then by updated_at desc
+    return [...list].sort((a, b) => {
+      if (a.id === expandedDashboardId) return -1;
+      if (b.id === expandedDashboardId) return 1;
+      return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+    });
+  }, [dashboards, dashFilterMode, currentUsername, loadedDashIds, expandedDashboardId]);
+
+
   const getDashboardSettings = (db: any) => {
     const w = Array.isArray(db.widgets) ? db.widgets : [];
     const meta = w.find((wi: any) => wi?._type === 'dashboard_settings');
