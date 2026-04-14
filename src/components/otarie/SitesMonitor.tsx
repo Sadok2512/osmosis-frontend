@@ -3103,7 +3103,7 @@ const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => 
         <div className="px-3 py-2 border-b border-border bg-muted/30 text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Bandes</div>
         {sc.bands_4g && (
           <div className="px-3 py-2.5 text-[11px] border-b border-border/40 flex items-start gap-2">
-            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-orange-500">4G</span>
+            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-[#F39C12]">4G</span>
             <span className="text-foreground/80 leading-relaxed flex flex-wrap gap-1">
               {sc.bands_4g.split(',').map((b: string, i: number) => (
                 <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">{b.trim()}</span>
@@ -3113,7 +3113,7 @@ const SiteConfigTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => 
         )}
         {sc.bands_5g && (
           <div className="px-3 py-2.5 text-[11px] flex items-start gap-2">
-            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-green-500">5G</span>
+            <span className="inline-flex items-center justify-center rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white shadow-sm shrink-0 mt-0.5 bg-[#27AE60]">5G</span>
             <span className="text-foreground/80 leading-relaxed flex flex-wrap gap-1">
               {sc.bands_5g.split(',').map((b: string, i: number) => (
                 <span key={i} className="inline-block rounded bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground/70">{b.trim()}</span>
