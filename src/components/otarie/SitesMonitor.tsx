@@ -6384,7 +6384,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           >
             {livePreviewMeasurement && (
               <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#27AE60', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                   {livePreviewMeasurement.label} • {livePreviewMeasurement.azimuth}°
                 </span>
               </Tooltip>
@@ -6418,7 +6418,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             }}
           >
             <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#27AE60', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                 {distanceMeasurement.label} • {distanceMeasurement.azimuth}°
               </span>
             </Tooltip>
@@ -6448,7 +6448,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }}
             >
               <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#27AE60', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                   {m.label} • {m.azimuth}°
                 </span>
               </Tooltip>
