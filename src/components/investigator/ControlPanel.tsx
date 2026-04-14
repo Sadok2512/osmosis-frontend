@@ -1972,9 +1972,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                   if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
                                   else {
                                     const allSplits2: Record<string, string> = { ...(cfg.splitByPerKpi2 || {}) };
-                                    slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
-                                    (slot.counterIds || []).forEach(cid => { allSplits2[cid] = val; });
-                                    selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = val; });
+                                    allSplits2[c.counter_name] = val;
                                     setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                                   }
                                 }}
