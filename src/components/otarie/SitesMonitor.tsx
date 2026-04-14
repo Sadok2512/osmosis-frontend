@@ -2439,7 +2439,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             const dbViews = mapViews.filter(v => v.description === db.id);
 
             return (
-              <div key={db.id} className={`rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card'}`}>
+              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
