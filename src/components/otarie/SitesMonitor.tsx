@@ -10037,9 +10037,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     setSelectedMeasurementId(m.id);
                                   }}
                                   className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
-                                  title="View Profile"
+                                  title="Centrer"
                                 >
                                   <Crosshair size={12} />
+                                </button>
+                                <button
+                                  onClick={() => openMeasurementProfile(m)}
+                                  className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-emerald-500/10 text-muted-foreground hover:text-emerald-500 transition-colors"
+                                  title="Profil terrain"
+                                >
+                                  <Mountain size={12} />
                                 </button>
                                 <button
                                   onClick={() => deleteSavedMeasurement(m.id)}
