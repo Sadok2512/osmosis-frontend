@@ -8,8 +8,23 @@
 
 import type { CellProperties } from '@/types';
 
-/** Extract sector number from the last character of a cell name/id */
+/** Extract sector number from cell name/id.
+ * Tries multiple conventions:
+ * 1. Explicit _S{n}_ pattern (e.g. SITE_LTE_S2_L800 → 2)
+ * 2. Letter+digit before band suffix (e.g. SITE_TDF_Y1 → 1, SITE_F3 → 3)
+ * 3. Last digit fallback
+ */
 export const getSectorNumber = (cellId: string): number => {
+  // 1. Look for explicit _S{digit}_ or _S{digit} at end
+  const sMatch = cellId.match(/_S(\d)(?:_|$)/i);
+  if (sMatch) return parseInt(sMatch[1], 10);
+
+  // 2. Letter+digit pattern: find last occurrence of a letter followed by a single digit
+  //    that represents the sector (e.g. Y1, T3, F2)
+  const letterDigit = cellId.match(/[A-Za-z](\d)(?:_|$)/);
+  if (letterDigit) return parseInt(letterDigit[1], 10);
+
+  // 3. Fallback: last digit
   const lastChar = cellId.slice(-1);
   const n = parseInt(lastChar, 10);
   return isNaN(n) ? 0 : n;
