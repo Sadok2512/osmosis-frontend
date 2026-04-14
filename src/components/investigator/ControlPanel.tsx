@@ -479,39 +479,46 @@ const FilterChip: React.FC<{
 
           {/* Values list */}
           <div className="max-h-[240px] overflow-y-auto px-2 pb-1">
-            {backendValues.length === 0 ? (
+            {backendValues.length === 0 && !liveSearching && liveSearchResults.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Chargement...</div>
-            ) : filtered.length === 0 ? (
+            ) : liveSearching ? (
+              <div className="px-3 py-4 text-[10px] text-muted-foreground animate-pulse text-center">Recherche VPS...</div>
+            ) : displayValues.length === 0 ? (
               <div className="px-3 py-4 text-[10px] text-muted-foreground text-center">Aucun résultat pour "{search}"</div>
             ) : (
-              filtered.slice(0, 100).map(val => {
-                const isSelected = pendingValues.includes(val);
-                return (
-                  <button
-                    key={val}
-                    onClick={() => togglePending(val)}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
-                      isSelected ? "bg-primary/8 text-primary" : "text-foreground hover:bg-muted/50"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
-                      isSelected ? "bg-primary border-primary" : "border-border/60"
-                    )}>
-                      {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                    </div>
-                    <span className="truncate">{displayLabel(val)}</span>
-                  </button>
-                );
-              })
+              <>
+                {filtered.length === 0 && liveSearchResults.length > 0 && (
+                  <div className="px-3 py-1 text-[9px] text-primary font-semibold mb-1">🔍 Résultats VPS</div>
+                )}
+                {displayValues.slice(0, 100).map(val => {
+                  const isSelected = pendingValues.includes(val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => togglePending(val)}
+                      className={cn(
+                        "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium transition-all",
+                        isSelected ? "bg-primary/8 text-primary" : "text-foreground hover:bg-muted/50"
+                      )}
+                    >
+                      <div className={cn(
+                        "w-4 h-4 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                        isSelected ? "bg-primary border-primary" : "border-border/60"
+                      )}>
+                        {isSelected && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                      </div>
+                      <span className="truncate">{displayLabel(val)}</span>
+                    </button>
+                  );
+                })}
+              </>
             )}
           </div>
 
           {/* Footer with Reset / Confirm */}
           <div className="px-3 py-2.5 border-t border-border/30 bg-muted/20 flex items-center justify-between gap-2">
             <span className="text-[9px] text-muted-foreground">
-              {filtered.length > 100 ? `${filtered.length} éléments` : ''}
+              {displayValues.length > 100 ? `${displayValues.length} éléments` : ''}
             </span>
             <div className="flex items-center gap-2">
               <button
