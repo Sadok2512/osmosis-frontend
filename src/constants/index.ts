@@ -50,7 +50,7 @@ export const PLAQUES = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', 'DEPT_
 export const SERVICES = ['ALL', 'Streaming', 'Gaming', 'Web', 'Social'];
 export const RATS = ['ALL', '5G', '4G', '3G', '2G'];
 export const DEPARTMENTS = ['ALL', 'LITTORAL_DUNKERQUE', 'Zones_Blanches_A1', '57', '62', 'FREJUS', 'AUTRES41', 'BAYONNE'];
-export const VENDORS = ['ALL', 'Ericsson', 'Huawei', 'Nokia'];
+export const VENDORS = ['ALL', 'Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'];
 export const URS = ['ALL'];
 
 // ── PM Relation Type Labels ──

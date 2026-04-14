@@ -36,7 +36,7 @@ export function getFilterValues(key: string): CacheEntry {
 }
 
 const STATIC_FALLBACKS: Record<string, string[]> = {
-  VENDOR: ['Ericsson', 'Huawei', 'Nokia'],
+  VENDOR: ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'],
   TECHNO: ['2G', '3G', '4G', '5G'],
   BAND: ['700', '800', '1800', '2100', '2600', '3500'],
   DOR: [],

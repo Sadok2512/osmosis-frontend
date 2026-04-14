@@ -274,7 +274,10 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   if (!open) return null;
 
-  const vendorOptions = (filterOptions.vendors?.length || 0) > 0 ? filterOptions.vendors : ['Ericsson', 'Nokia'];
+  const ALL_VENDORS = ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'];
+  const vendorOptions = (filterOptions.vendors?.length || 0) > 0
+    ? [...new Set([...filterOptions.vendors, ...ALL_VENDORS])].sort()
+    : ALL_VENDORS;
   const technoOptions = (filterOptions.technos?.length || 0) > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
