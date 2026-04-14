@@ -9826,6 +9826,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const wasActive = dashboardActive;
 
                     setDashboardActive(active);
+                    if (active) setInventoryTab('sites');
                     setActiveSiteScope(scope || null);
                     setActiveDashboardFilters(siteFilters || null);
 
