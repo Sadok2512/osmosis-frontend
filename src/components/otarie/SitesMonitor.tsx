@@ -10304,22 +10304,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {sectorColorMode === 'topo' && focusMode === 'global' && (() => {
             // Use VPS global-network stats (full network, fetched once on mount)
             const dbStats = topoNetworkStats;
-            const hasDbStats = !!dbStats && (dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
+            const hasDbStats = !!dbStats && (dbStats.cells2G > 0 || dbStats.cells3G > 0 || dbStats.cells4G > 0 || dbStats.cells5G > 0 || dbStats.sites4G > 0 || dbStats.sites5G > 0);
+            const rawSites2G = hasDbStats ? dbStats!.sites2G : 0;
+            const rawSites3G = hasDbStats ? dbStats!.sites3G : 0;
             const rawSites4G = hasDbStats ? dbStats!.sites4G : 0;
             const rawSites5G = hasDbStats ? dbStats!.sites5G : 0;
+            const rawCells2G = hasDbStats ? dbStats!.cells2G : 0;
+            const rawCells3G = hasDbStats ? dbStats!.cells3G : 0;
             const rawCells4G = hasDbStats ? dbStats!.cells4G : 0;
             const rawCells5G = hasDbStats ? dbStats!.cells5G : 0;
+            const bandMap2G: Record<string, number> = hasDbStats ? dbStats!.bandMap2G : {};
+            const bandMap3G: Record<string, number> = hasDbStats ? dbStats!.bandMap3G : {};
             const bandMap4G: Record<string, number> = hasDbStats ? dbStats!.bandMap4G : {};
             const bandMap5G: Record<string, number> = hasDbStats ? dbStats!.bandMap5G : {};
 
             // Apply tech filter to inventory stats
+            const show2G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('2G') : mapTechnoFilter === '2G';
+            const show3G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('3G') : mapTechnoFilter === '3G';
             const show4G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('4G') : mapTechnoFilter === '4G';
             const show5G = mapTechnoFilter === 'ALL' ? enabledTechnos.has('5G') : mapTechnoFilter === '5G';
+            const sites2GCount = show2G ? rawSites2G : 0;
+            const sites3GCount = show3G ? rawSites3G : 0;
             const sites4GCount = show4G ? rawSites4G : 0;
             const sites5GCount = show5G ? rawSites5G : 0;
+            const cells2GCount = show2G ? rawCells2G : 0;
+            const cells3GCount = show3G ? rawCells3G : 0;
             const cells4GCount = show4G ? rawCells4G : 0;
             const cells5GCount = show5G ? rawCells5G : 0;
-            const vendorMap: Record<string, { '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
+            const vendorMap: Record<string, { '2G': number; '3G': number; '4G': number; '5G': number }> = hasDbStats ? dbStats!.vendorMap : {};
             return (
               <div className="divide-y divide-border">
                 {/* Header */}
@@ -10330,7 +10342,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-[18px] font-extrabold text-foreground leading-tight tracking-tight uppercase">Global Network</h3>
-                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau {show4G && show5G ? '4G / 5G' : show4G ? '4G' : '5G'}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1">Vue d'ensemble réseau {[show2G && '2G', show3G && '3G', show4G && '4G', show5G && '5G'].filter(Boolean).join(' / ')}</p>
                     </div>
                   </div>
                 </div>
@@ -10341,25 +10353,49 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {show4G && (
                       <div className="bg-muted/40 border border-border rounded-xl p-3">
                         <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 4G</div>
-                        <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount}</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{sites4GCount.toLocaleString('fr-FR')}</div>
                       </div>
                     )}
                     {show5G && (
                       <div className="bg-muted/40 border border-border rounded-xl p-3">
-                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Sites 5G</div>
-                        <div className="text-[22px] font-black text-primary leading-none">{sites5GCount}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#27AE60' }}>Sites 5G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#27AE60' }}>{sites5GCount.toLocaleString('fr-FR')}</div>
+                      </div>
+                    )}
+                    {show3G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#3498DB' }}>Sites 3G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#3498DB' }}>{sites3GCount.toLocaleString('fr-FR')}</div>
+                      </div>
+                    )}
+                    {show2G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#8E44AD' }}>Sites 2G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#8E44AD' }}>{sites2GCount.toLocaleString('fr-FR')}</div>
                       </div>
                     )}
                     {show4G && (
                       <div className="bg-muted/40 border border-border rounded-xl p-3">
                         <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 4G</div>
-                        <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount}</div>
+                        <div className="text-[22px] font-black text-foreground leading-none">{cells4GCount.toLocaleString('fr-FR')}</div>
                       </div>
                     )}
                     {show5G && (
                       <div className="bg-muted/40 border border-border rounded-xl p-3">
-                        <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cellules 5G</div>
-                        <div className="text-[22px] font-black text-primary leading-none">{cells5GCount}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#27AE60' }}>Cellules 5G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#27AE60' }}>{cells5GCount.toLocaleString('fr-FR')}</div>
+                      </div>
+                    )}
+                    {show3G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#3498DB' }}>Cellules 3G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#3498DB' }}>{cells3GCount.toLocaleString('fr-FR')}</div>
+                      </div>
+                    )}
+                    {show2G && (
+                      <div className="bg-muted/40 border border-border rounded-xl p-3">
+                        <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: '#8E44AD' }}>Cellules 2G</div>
+                        <div className="text-[22px] font-black leading-none" style={{ color: '#8E44AD' }}>{cells2GCount.toLocaleString('fr-FR')}</div>
                       </div>
                     )}
                   </div>
@@ -10369,16 +10405,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-4">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Technologie</h4>
                   {[
-                    ...(show4G ? [{ label: 'LTE (4G)', count: cells4GCount, color: bandColors['4G_GROUP'] || '#F39C12' }] : []),
-                    ...(show5G ? [{ label: 'NR (5G)', count: cells5GCount, color: bandColors['5G_GROUP'] || '#27AE60' }] : []),
+                    ...(show4G ? [{ label: 'LTE (4G)', count: cells4GCount, color: '#F39C12' }] : []),
+                    ...(show5G ? [{ label: 'NR (5G)', count: cells5GCount, color: '#27AE60' }] : []),
+                    ...(show3G ? [{ label: 'UMTS (3G)', count: cells3GCount, color: '#3498DB' }] : []),
+                    ...(show2G ? [{ label: 'GSM (2G)', count: cells2GCount, color: '#8E44AD' }] : []),
                   ].map(t => {
-                    const total = cells4GCount + cells5GCount || 1;
+                    const total = cells2GCount + cells3GCount + cells4GCount + cells5GCount || 1;
                     const pct = ((t.count / total) * 100).toFixed(1);
                     return (
                       <div key={t.label} className="flex items-center gap-2 py-1.5">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: t.color }} />
                         <span className="text-[11px] font-bold text-foreground flex-1">{t.label}</span>
-                        <span className="text-[11px] font-black text-foreground">{t.count}</span>
+                        <span className="text-[11px] font-black text-foreground">{t.count.toLocaleString('fr-FR')}</span>
                         <span className="text-[9px] text-muted-foreground w-12 text-right">{pct}%</span>
                       </div>
                     );
@@ -10393,7 +10431,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const maxCount4G = Math.max(...Object.values(bandMap4G));
                     return (
                       <div className="mb-4">
-                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['4G_GROUP'] || '#F39C12' }}>LTE (4G)</div>
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: '#F39C12' }}>LTE (4G)</div>
                         <div className="space-y-1.5">
                           {Object.entries(bandMap4G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
                             const pct = (count / total4G) * 100;
@@ -10418,8 +10456,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const total5G = Object.values(bandMap5G).reduce((a, b) => a + b, 0) || 1;
                     const maxCount5G = Math.max(...Object.values(bandMap5G));
                     return (
-                      <div>
-                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: bandColors['5G_GROUP'] || '#27AE60' }}>NR (5G)</div>
+                      <div className="mb-4">
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: '#27AE60' }}>NR (5G)</div>
                         <div className="space-y-1.5">
                           {Object.entries(bandMap5G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
                             const pct = (count / total5G) * 100;
@@ -10440,6 +10478,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                     );
                   })()}
+                  {show3G && Object.keys(bandMap3G).length > 0 && (() => {
+                    const total3G = Object.values(bandMap3G).reduce((a, b) => a + b, 0) || 1;
+                    const maxCount3G = Math.max(...Object.values(bandMap3G));
+                    return (
+                      <div className="mb-4">
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: '#3498DB' }}>UMTS (3G)</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(bandMap3G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                            const pct = (count / total3G) * 100;
+                            const barW = (count / maxCount3G) * 100;
+                            return (
+                              <div key={band} className="group flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#3498DB' }} />
+                                <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: '#3498DB', opacity: 0.7 }} />
+                                </div>
+                                <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {show2G && Object.keys(bandMap2G).length > 0 && (() => {
+                    const total2G = Object.values(bandMap2G).reduce((a, b) => a + b, 0) || 1;
+                    const maxCount2G = Math.max(...Object.values(bandMap2G));
+                    return (
+                      <div className="mb-4">
+                        <div className="text-[9px] font-extrabold uppercase tracking-wider mb-2" style={{ color: '#8E44AD' }}>GSM (2G)</div>
+                        <div className="space-y-1.5">
+                          {Object.entries(bandMap2G).sort((a, b) => b[1] - a[1]).map(([band, count]) => {
+                            const pct = (count / total2G) * 100;
+                            const barW = (count / maxCount2G) * 100;
+                            return (
+                              <div key={band} className="group flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#8E44AD' }} />
+                                <span className="text-[10px] font-semibold text-foreground w-16 shrink-0">{band}</span>
+                                <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
+                                  <div className="h-full rounded-full transition-all" style={{ width: `${barW}%`, background: '#8E44AD', opacity: 0.7 }} />
+                                </div>
+                                <span className="text-[10px] font-black text-foreground w-14 text-right tabular-nums">{count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[9px] font-semibold text-muted-foreground w-10 text-right tabular-nums">{pct.toFixed(1)}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Vendor Distribution */}
@@ -10447,11 +10537,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
                   {(() => {
                     const entries = Object.entries(vendorMap)
-                      .map(([v, c]) => ({ vendor: v, total: (show4G ? c['4G'] : 0) + (show5G ? c['5G'] : 0), c4g: show4G ? c['4G'] : 0, c5g: show5G ? c['5G'] : 0 }))
+                      .map(([v, c]) => ({
+                        vendor: v,
+                        total: (show2G ? c['2G'] : 0) + (show3G ? c['3G'] : 0) + (show4G ? c['4G'] : 0) + (show5G ? c['5G'] : 0),
+                        c2g: show2G ? c['2G'] : 0,
+                        c3g: show3G ? c['3G'] : 0,
+                        c4g: show4G ? c['4G'] : 0,
+                        c5g: show5G ? c['5G'] : 0,
+                      }))
                       .filter(e => e.total > 0)
                       .sort((a, b) => b.total - a.total);
                     const maxTotal = Math.max(...entries.map(e => e.total), 1);
-                    return entries.map(({ vendor, total, c4g, c5g }) => (
+                    return entries.map(({ vendor, total, c2g, c3g, c4g, c5g }) => (
                       <div key={vendor} className="flex items-center gap-2 py-1.5">
                         <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: vendorHex(vendor) }} />
                         <span className="text-[10px] font-bold text-foreground w-20 shrink-0 truncate">{vendor}</span>
@@ -10459,11 +10556,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           <div className="h-full rounded-full transition-all" style={{ width: `${(total / maxTotal) * 100}%`, background: vendorHex(vendor), opacity: 0.7 }} />
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {show4G && (
-                            <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">4G </span><span className="font-black text-foreground">{c4g.toLocaleString('fr-FR')}</span></span>
+                          {show4G && c4g > 0 && (
+                            <span className="text-[9px] tabular-nums"><span style={{ color: '#F39C12' }}>4G </span><span className="font-black text-foreground">{c4g.toLocaleString('fr-FR')}</span></span>
                           )}
-                          {show5G && (
-                            <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">5G </span><span className="font-black" style={{ color: '#27AE60' }}>{c5g.toLocaleString('fr-FR')}</span></span>
+                          {show5G && c5g > 0 && (
+                            <span className="text-[9px] tabular-nums"><span style={{ color: '#27AE60' }}>5G </span><span className="font-black" style={{ color: '#27AE60' }}>{c5g.toLocaleString('fr-FR')}</span></span>
+                          )}
+                          {show3G && c3g > 0 && (
+                            <span className="text-[9px] tabular-nums"><span style={{ color: '#3498DB' }}>3G </span><span className="font-black" style={{ color: '#3498DB' }}>{c3g.toLocaleString('fr-FR')}</span></span>
+                          )}
+                          {show2G && c2g > 0 && (
+                            <span className="text-[9px] tabular-nums"><span style={{ color: '#8E44AD' }}>2G </span><span className="font-black" style={{ color: '#8E44AD' }}>{c2g.toLocaleString('fr-FR')}</span></span>
                           )}
                         </div>
                       </div>
