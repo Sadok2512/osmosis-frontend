@@ -348,7 +348,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
 
     return counterPoints.length;
-  }, [instanceId, state.endDate, state.filters, state.granularity, state.startDate, ws]);
+  }, [instanceId, state.endDate, state.filters, state.granularity, state.graphSlots, state.startDate, ws]);
 
   const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
     return fetchCounterSeriesForSlot(
