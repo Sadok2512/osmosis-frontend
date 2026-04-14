@@ -180,10 +180,10 @@ const technoClass = (t: string): string => {
 
 const bandColor = (b: string): string => {
   const colors: Record<string, string> = {
-    GSM900: '#ef4444', GSM1800: '#dc2626',
-    UMTS900: '#f59e0b', UMTS2100: '#d97706',
-    LTE700: '#10b981', LTE800: '#3b82f6', LTE1800: '#f59e0b', LTE2100: '#8b5cf6', LTE2600: '#ef4444',
-    NR_700: '#06b6d4', NR_2100: '#d946ef', NR_3500: '#f97316',
+    GSM900: '#a855f7', GSM1800: '#9333ea',
+    UMTS900: '#3b82f6', UMTS2100: '#2563eb',
+    LTE700: '#c2410c', LTE800: '#fdba74', LTE1800: '#ea580c', LTE2100: '#fb923c', LTE2600: '#f97316',
+    NR_700: '#16a34a', NR_2100: '#15803d', NR_3500: '#22c55e',
   };
   return colors[b] || '#718096';
 };
@@ -1493,7 +1493,7 @@ const NetworkTopologyPage: React.FC = () => {
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                               <div className="h-full rounded-full transition-all"
-                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#10b981' : t.techno === '4G' || t.techno === 'LTE' ? '#3b82f6' : t.techno === '3G' ? '#f59e0b' : '#ef4444' }} />
+                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#22c55e' : t.techno === '4G' || t.techno === 'LTE' ? '#f97316' : t.techno === '3G' ? '#3b82f6' : '#a855f7' }} />
                             </div>
                           </div>
                         );
