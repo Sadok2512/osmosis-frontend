@@ -76,8 +76,9 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch, User, Clock
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch, User, Clock, Info
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
 import { vendorHex } from '@/constants/brandColors';
@@ -8037,6 +8038,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <Switch checked={measEnableFresnel} onCheckedChange={setMeasEnableFresnel} />
                 <Label className="text-[10px] text-white/60">Fresnel</Label>
               </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="Détails techniques">
+                    <Info size={16} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="w-[320px] p-0 border-white/10 bg-slate-900/95 backdrop-blur-xl">
+                  <InfoPanel
+                    analysis={measProfileAnalysis}
+                    totalDistance={measTotalDistance}
+                    enableCurvature={measEnableCurvature}
+                    fresnel={measFresnel}
+                  />
+                </PopoverContent>
+              </Popover>
               <button
                 onClick={() => { setShowMeasProfile(false); setMeasProfileHover(null); setMeasActiveCoords(null); }}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
@@ -8046,9 +8062,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
           </div>
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5 flex gap-5">
-            {/* Chart */}
-            <div className="flex-1 h-[260px] min-w-0">
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Chart — full width */}
+            <div className="h-[260px] min-w-0">
               <ProfileChart
                 profilePoints={measProfilePoints}
                 analysis={measProfileAnalysis}
@@ -8059,15 +8075,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 onHoverPoint={setMeasProfileHover}
                 showTilt={false}
                 siteName={measProfileLabel}
-              />
-            </div>
-            {/* Info panel */}
-            <div className="w-[300px] shrink-0 overflow-y-auto pr-1">
-              <InfoPanel
-                analysis={measProfileAnalysis}
-                totalDistance={measTotalDistance}
-                enableCurvature={measEnableCurvature}
-                fresnel={measFresnel}
               />
             </div>
           </div>
