@@ -2355,14 +2355,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
-
-      {dashboards.length === 0 || !expandedDashboardId ? (
+      {dashboards.length === 0 ? (
         <div className="px-3 py-6 text-center space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <LayoutGrid size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard actif</p>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard</p>
             <p className="text-[9px] text-muted-foreground mt-1">Créez ou chargez un dashboard pour afficher les sites sur la carte.</p>
           </div>
           <div className="flex gap-2 justify-center">
@@ -2382,7 +2381,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.filter(db => db.id === expandedDashboardId).map(db => {
+          {dashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
