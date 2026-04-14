@@ -148,35 +148,42 @@ const prettyLabel = (k: string): string =>
 
 const vendorColor = (v?: string | null): string => {
   const vu = (v || '').toUpperCase();
-  if (vu === 'NOKIA') return '#3b82f6';
-  if (vu === 'ERICSSON') return '#10b981';
-  if (vu === 'HUAWEI') return '#e11d48';
-  if (vu === 'SAMSUNG') return '#8b5cf6';
+  if (vu === 'NOKIA' || vu === 'NSN') return '#1e40af';
+  if (vu === 'ERICSSON') return '#60a5fa';
+  if (vu === 'HUAWEI') return '#dc2626';
+  if (vu === 'SAMSUNG') return '#7c3aed';
   return '#718096';
 };
 
 const vendorVariant = (v?: string | null): 'default' | 'secondary' | 'outline' => {
   const vu = (v || '').toUpperCase();
-  if (vu === 'NOKIA') return 'default';
+  if (vu === 'NOKIA' || vu === 'NSN') return 'default';
   if (vu === 'ERICSSON') return 'secondary';
   return 'outline';
 };
 
+const TECH_COLOR_MAP: Record<string, { bg: string; text: string; border: string; hex: string }> = {
+  '5G': { bg: 'bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30', hex: '#22c55e' },
+  '4G': { bg: 'bg-orange-500/15', text: 'text-orange-500', border: 'border-orange-500/30', hex: '#f97316' },
+  '3G': { bg: 'bg-blue-500/15', text: 'text-blue-500', border: 'border-blue-500/30', hex: '#3b82f6' },
+  '2G': { bg: 'bg-purple-500/15', text: 'text-purple-500', border: 'border-purple-500/30', hex: '#a855f7' },
+};
+
 const technoClass = (t: string): string => {
   const tu = t.toUpperCase();
-  if (tu === '5G' || tu === 'NR') return 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30';
-  if (tu === '4G' || tu === 'LTE') return 'bg-blue-500/15 text-blue-500 border-blue-500/30';
-  if (tu === '3G' || tu === 'UMTS' || tu === 'WCDMA') return 'bg-amber-500/15 text-amber-500 border-amber-500/30';
-  if (tu === '2G' || tu === 'GSM') return 'bg-rose-500/15 text-rose-500 border-rose-500/30';
+  if (tu === '5G' || tu === 'NR') return `${TECH_COLOR_MAP['5G'].bg} ${TECH_COLOR_MAP['5G'].text} ${TECH_COLOR_MAP['5G'].border}`;
+  if (tu === '4G' || tu === 'LTE') return `${TECH_COLOR_MAP['4G'].bg} ${TECH_COLOR_MAP['4G'].text} ${TECH_COLOR_MAP['4G'].border}`;
+  if (tu === '3G' || tu === 'UMTS' || tu === 'WCDMA') return `${TECH_COLOR_MAP['3G'].bg} ${TECH_COLOR_MAP['3G'].text} ${TECH_COLOR_MAP['3G'].border}`;
+  if (tu === '2G' || tu === 'GSM') return `${TECH_COLOR_MAP['2G'].bg} ${TECH_COLOR_MAP['2G'].text} ${TECH_COLOR_MAP['2G'].border}`;
   return 'bg-muted text-muted-foreground border-border';
 };
 
 const bandColor = (b: string): string => {
   const colors: Record<string, string> = {
-    GSM900: '#ef4444', GSM1800: '#dc2626',
-    UMTS900: '#f59e0b', UMTS2100: '#d97706',
-    LTE700: '#10b981', LTE800: '#3b82f6', LTE1800: '#f59e0b', LTE2100: '#8b5cf6', LTE2600: '#ef4444',
-    NR_700: '#06b6d4', NR_2100: '#d946ef', NR_3500: '#f97316',
+    GSM900: '#a855f7', GSM1800: '#9333ea',
+    UMTS900: '#3b82f6', UMTS2100: '#2563eb',
+    LTE700: '#c2410c', LTE800: '#fdba74', LTE1800: '#ea580c', LTE2100: '#fb923c', LTE2600: '#f97316',
+    NR_700: '#16a34a', NR_2100: '#15803d', NR_3500: '#22c55e',
   };
   return colors[b] || '#718096';
 };
@@ -462,7 +469,7 @@ const NetworkTopologyPage: React.FC = () => {
   const getL = (): any => (window as any).L;
 
   const TECH_RING_COLORS: Record<string, string> = {
-    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#ef4444',
+    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7',
   };
   const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
   const normTechFn = (t: string): string => {
@@ -883,84 +890,180 @@ const NetworkTopologyPage: React.FC = () => {
 
               {/* Sidebar */}
               {mapSidebar && (
-                <div className="w-[360px] bg-card border-y border-r rounded-r-lg overflow-y-auto">
-                  {/* Header */}
-                  <div className="p-3 border-b flex items-center justify-between">
-                    <span className="font-bold text-sm truncate">{mapSidebar.site_name}</span>
-                    <div className="flex gap-1">
-                      <Button variant="outline" size="sm" className="h-6 text-[9px] px-2" onClick={() => {
-                        setMapSidebar(null);
-                        if (neighborLayerRef.current && mapRef.current) { mapRef.current.removeLayer(neighborLayerRef.current); neighborLayerRef.current = null; }
-                        if (highlightLayerRef.current && mapRef.current) { mapRef.current.removeLayer(highlightLayerRef.current); highlightLayerRef.current = null; }
-                        mapRef.current?.setView([46.6, 2.5], 6);
-                      }}>
-                        All Sites
-                      </Button>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setMapSidebar(null)}>
-                        <X className="w-3.5 h-3.5" />
-                      </Button>
+                <div className="w-[380px] bg-card border-l border-border/60 overflow-y-auto shadow-lg flex flex-col">
+
+                  {/* ── Header ── */}
+                  <div className="p-4 pb-3 border-b border-border/40">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                          <Radio className="w-4.5 h-4.5 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-sm truncate leading-tight">{mapSidebar.site_name}</h3>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-[10px] text-muted-foreground font-medium">Live</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button variant="outline" size="sm" className="h-7 text-[10px] px-2 rounded-lg" onClick={() => {
+                          setMapSidebar(null);
+                          if (neighborLayerRef.current && mapRef.current) { mapRef.current.removeLayer(neighborLayerRef.current); neighborLayerRef.current = null; }
+                          if (highlightLayerRef.current && mapRef.current) { mapRef.current.removeLayer(highlightLayerRef.current); highlightLayerRef.current = null; }
+                          mapRef.current?.setView([46.6, 2.5], 6);
+                        }}>
+                          <Globe className="w-3 h-3 mr-1" /> All Sites
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 rounded-lg" onClick={() => setMapSidebar(null)}>
+                          <X className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  {/* Site info */}
-                  <div className="p-3 text-xs space-y-1">
-                    <div className="flex flex-wrap gap-1 mb-1">
-                      <Badge variant={vendorVariant(mapSidebar.constructeur)} className="text-[9px]">{mapSidebar.constructeur || '—'}</Badge>
+
+                    {/* Tech + Vendor badges */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-border bg-muted/40">
+                        <Building2 className="w-3 h-3 text-muted-foreground" />
+                        {mapSidebar.constructeur || '—'}
+                      </span>
                       {(() => {
                         const ts = new Set<string>();
                         (mapSidebar.technos || []).forEach(t => ts.add(normTechFn(t)));
                         (mapSidebar.bandes || []).forEach(b => ts.add(normTechFn(b)));
-                        return TECH_ORDER.filter(t => ts.has(t)).map(t => (
-                          <span key={t} className={`text-[9px] px-1.5 py-0.5 rounded border ${technoClass(t)}`}>{t}</span>
-                        ));
+                        return TECH_ORDER.filter(t => ts.has(t)).map(t => {
+                          const tc = TECH_COLOR_MAP[t] || TECH_COLOR_MAP['4G'];
+                          return (
+                            <span key={t} className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${tc.bg} ${tc.text} ${tc.border}`}>{t}</span>
+                          );
+                        });
                       })()}
                     </div>
-                    <div className="text-muted-foreground">{mapSidebar.cell_count} cells · {mapSidebar.plaque || ''} · {mapSidebar.dor || ''}</div>
-                    <div className="text-muted-foreground">{(mapSidebar.bandes || []).slice(0, 5).join(', ')}</div>
                   </div>
-                  {/* Cells */}
-                  <div className="px-3 pb-2">
-                    <div className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Cells</div>
-                    <div className="max-h-[120px] overflow-y-auto space-y-0.5">
-                      {mapSidebarCells.length === 0
-                        ? <span className="text-[10px] text-muted-foreground">No cells</span>
-                        : mapSidebarCells.map((c, i) => (
-                          <div key={i} className="text-[10px] flex justify-between">
-                            <span>{c.cell_name}</span>
-                            <span className="text-muted-foreground">{c.band || ''} <span className={`px-1 rounded border ${technoClass(c.techno || '')}`}>{c.techno || ''}</span></span>
-                          </div>
-                        ))}
+
+                  {/* ── Overview Stats ── */}
+                  <div className="p-4 pb-3 border-b border-border/40">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                        <div className="text-lg font-black leading-none">{mapSidebar.cell_count}</div>
+                        <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-1">Cells</div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                        <div className="text-lg font-black leading-none">{(mapSidebar.bandes || []).length}</div>
+                        <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-1">Bands</div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                        <div className="text-lg font-black leading-none">
+                          {(() => {
+                            const ts = new Set<string>();
+                            (mapSidebar.technos || []).forEach(t => ts.add(normTechFn(t)));
+                            return ts.size;
+                          })()}
+                        </div>
+                        <div className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground mt-1">Techs</div>
+                      </div>
+                    </div>
+                    {/* Meta row */}
+                    <div className="flex items-center gap-3 mt-2.5 text-[10px] text-muted-foreground">
+                      {mapSidebar.plaque && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{mapSidebar.plaque}</span>}
+                      {mapSidebar.dor && <span className="flex items-center gap-1"><Layers className="w-3 h-3" />{mapSidebar.dor}</span>}
                     </div>
                   </div>
-                  {/* Parameters */}
-                  <div className="px-3 pb-3 border-t pt-2">
-                    <div className="text-[10px] font-bold uppercase text-muted-foreground mb-1.5">Parameters</div>
-                    <div className="flex gap-1 mb-2">
-                      <Input
-                        value={mapParamSearch}
-                        onChange={e => setMapParamSearch(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && searchMapParams()}
-                        placeholder="Parameter name..."
-                        className="h-7 text-[11px]"
-                      />
-                      <Button variant="outline" size="sm" className="h-7 px-2" onClick={searchMapParams}>
-                        <Search className="w-3 h-3" />
+
+                  {/* ── Bands / Frequencies ── */}
+                  {(mapSidebar.bandes || []).length > 0 && (
+                    <div className="p-4 pb-3 border-b border-border/40">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                        <Wifi className="w-3.5 h-3.5" /> Bands & Frequencies
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(mapSidebar.bandes || []).map((b, i) => {
+                          const nt = normTechFn(b);
+                          const tc = TECH_COLOR_MAP[nt] || TECH_COLOR_MAP['4G'];
+                          return (
+                            <span key={i} className={`text-[10px] font-medium px-2 py-0.5 rounded-md border ${tc.bg} ${tc.text} ${tc.border}`}>
+                              {b}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Cells List ── */}
+                  <div className="p-4 pb-3 border-b border-border/40">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5"><Signal className="w-3.5 h-3.5" /> Cells ({mapSidebarCells.length})</span>
+                    </div>
+                    <div className="max-h-[180px] overflow-y-auto space-y-0.5 scrollbar-thin">
+                      {mapSidebarCells.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-4 text-muted-foreground">
+                          <Signal className="w-5 h-5 mb-1.5 opacity-40" />
+                          <span className="text-[10px]">No cells loaded</span>
+                        </div>
+                      ) : mapSidebarCells.map((c, i) => {
+                        const nt = normTechFn(c.techno || '');
+                        const tc = TECH_COLOR_MAP[nt] || TECH_COLOR_MAP['4G'];
+                        return (
+                          <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors group text-[11px]">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: tc.hex }} />
+                              <span className="font-medium truncate">{c.cell_name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {c.band && <span className="text-[9px] text-muted-foreground">{c.band}</span>}
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${tc.bg} ${tc.text} ${tc.border}`}>{c.techno || ''}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── Parameters ── */}
+                  <div className="p-4 flex-1 min-h-0 flex flex-col">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                      <Settings className="w-3.5 h-3.5" /> Parameters
+                    </div>
+                    <div className="flex gap-1.5 mb-2.5">
+                      <div className="relative flex-1">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={mapParamSearch}
+                          onChange={e => setMapParamSearch(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && searchMapParams()}
+                          placeholder="Search parameter name..."
+                          className="h-8 text-[11px] pl-8 rounded-lg"
+                        />
+                      </div>
+                      <Button variant="outline" size="sm" className="h-8 w-8 p-0 rounded-lg" onClick={searchMapParams}>
+                        <Search className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                    <div className="max-h-[300px] overflow-y-auto space-y-0">
-                      {mapSidebarParams.length === 0
-                        ? <span className="text-[10px] text-muted-foreground">No parameters found</span>
-                        : <>
-                          <div className="text-[10px] text-muted-foreground mb-1">{mapSidebarParams.length} parameters</div>
-                          {mapSidebarParams.map((p, i) => {
-                            const pname = p.parameter.includes('.') ? p.parameter.split('.').slice(1).join('.') : p.parameter;
-                            return (
-                              <div key={i} className="text-[10px] py-0.5 border-b border-border/40 flex justify-between gap-1">
-                                <span className="font-mono text-cyan-500 truncate flex-1" title={p.parameter}>{pname}</span>
-                                <span className="font-semibold text-blue-500 max-w-[80px] truncate" title={p.value || ''}>{p.value ?? <span className="text-muted-foreground">NULL</span>}</span>
-                              </div>
-                            );
-                          })}
-                        </>}
+                    <div className="flex-1 overflow-y-auto max-h-[300px] scrollbar-thin">
+                      {mapSidebarParams.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                          <Settings className="w-6 h-6 mb-2 opacity-30" />
+                          <span className="text-[11px] font-medium">No parameters found</span>
+                          <span className="text-[10px] mt-0.5 opacity-60">Search for a parameter name above</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="text-[10px] text-muted-foreground mb-1.5 font-medium">{mapSidebarParams.length} result{mapSidebarParams.length > 1 ? 's' : ''}</div>
+                          <div className="space-y-0">
+                            {mapSidebarParams.map((p, i) => {
+                              const pname = p.parameter.includes('.') ? p.parameter.split('.').slice(1).join('.') : p.parameter;
+                              return (
+                                <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-muted/40 transition-colors text-[11px] border-b border-border/30 last:border-0">
+                                  <span className="font-mono text-primary truncate flex-1 mr-2" title={p.parameter}>{pname}</span>
+                                  <span className="font-semibold text-foreground max-w-[100px] truncate shrink-0" title={p.value || ''}>{p.value ?? <span className="text-muted-foreground italic">NULL</span>}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1390,7 +1493,7 @@ const NetworkTopologyPage: React.FC = () => {
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                               <div className="h-full rounded-full transition-all"
-                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#10b981' : t.techno === '4G' || t.techno === 'LTE' ? '#3b82f6' : t.techno === '3G' ? '#f59e0b' : '#ef4444' }} />
+                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#22c55e' : t.techno === '4G' || t.techno === 'LTE' ? '#f97316' : t.techno === '3G' ? '#3b82f6' : '#a855f7' }} />
                             </div>
                           </div>
                         );
