@@ -384,12 +384,15 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     try {
       const slotCounterIds = targetSlot.counterIds || [];
+      // Merge slot counterIds + selectedCounters (global) to avoid missing any
+      const globalCounterNames = selectedCounters.map((c: any) => c.counter_name);
+      const allCounterNames = [...new Set([...slotCounterIds, ...globalCounterNames])];
       const hasSlotKpis = targetSlot.kpiIds.length > 0;
       const ctx = resolveSlotContext(targetSlot, state);
 
       const [result, counterPointCount] = await Promise.all([
         hasSlotKpis ? fetchTimeSeriesForSlot(ctx) : Promise.resolve({ data: [], hasUnfilteredFallback: false }),
-        slotCounterIds.length > 0 ? fetchCounterSeriesForSlot(slotCounterIds, targetSlot.id) : Promise.resolve(0),
+        allCounterNames.length > 0 ? fetchCounterSeriesForSlot(allCounterNames, targetSlot.id) : Promise.resolve(0),
       ]);
 
       if (controller.signal.aborted) return;
