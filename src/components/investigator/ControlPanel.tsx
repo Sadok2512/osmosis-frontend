@@ -1988,9 +1988,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                               const available = splitOptions.filter(s => s.key !== split1Val);
                               const firstKey = available[0]?.key || 'None';
                               if (firstKey === 'None') return;
-                              const allSplits2: Record<string, string> = {};
-                              slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
-                              (slot.counterIds || []).forEach(cid => { allSplits2[cid] = firstKey; });
+                              const allSplits2: Record<string, string> = { ...(cfg.splitByPerKpi2 || {}) };
+                              allSplits2[c.counter_name] = firstKey;
                               selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = firstKey; });
                               setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                             }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split 2</button>
