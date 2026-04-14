@@ -1843,14 +1843,102 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {/* Separator before counters */}
             {selectedCounters.length > 0 && <div className="h-4 w-px bg-border/60 shrink-0 mx-1" />}
 
-            {/* Counter chips */}
-            {selectedCounters.map((c: any, i: number) => (
-              <span key={c.counter_name} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full" style={{backgroundColor: ['#10b981','#06b6d4','#f59e0b','#8b5cf6','#ec4899'][i%5]}} />
-                {c.display_name || c.counter_name}
-                <button onClick={() => setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name))} className="hover:text-destructive"><X className="w-2.5 h-2.5" /></button>
-              </span>
-            ))}
+            {/* Counter chips — with popover settings like KPI chips */}
+            {selectedCounters.map((c: any, i: number) => {
+              const counterColor = ['#10b981','#06b6d4','#f59e0b','#8b5cf6','#ec4899'][i%5];
+              const slot = state.graphSlots.find(s => s.id === activeSlotId);
+              const cfg: GraphConfig = slot?.config || DEFAULT_GRAPH_CONFIG;
+              const setSlotConfig = (patch: Partial<GraphConfig>) => {
+                if (!slot) return;
+                setState(prev => ({
+                  ...prev,
+                  graphSlots: prev.graphSlots.map(s =>
+                    s.id === slot.id ? { ...s, config: { ...cfg, ...patch } } : s
+                  ),
+                }));
+              };
+              return (
+                <Popover key={c.counter_name}>
+                  <PopoverTrigger asChild>
+                    <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/15 transition-all">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: counterColor }} />
+                      <span className="truncate max-w-[140px]">{c.display_name || c.counter_name}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name)); }}
+                        className="ml-0.5 hover:text-destructive"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-2.5 space-y-2" align="start">
+                    {/* Header */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: counterColor }} />
+                      <span className="text-[11px] font-bold text-foreground truncate">{c.display_name || c.counter_name}</span>
+                      {c.family && <span className="text-[8px] text-muted-foreground ml-auto truncate">{c.family}</span>}
+                    </div>
+                    {/* Chart Type — compact icon row */}
+                    <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/40">
+                      {CHART_TYPES.map(ct => (
+                        <button key={ct.value}
+                          onClick={() => setSlotConfig({ chartTypePerKpi: { ...(cfg.chartTypePerKpi || {}), [c.counter_name]: ct.value } })}
+                          className={cn('flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[9px] font-semibold transition-all',
+                            (cfg.chartTypePerKpi?.[c.counter_name] || cfg.chartType) === ct.value
+                              ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                          )}
+                          title={ct.label}
+                        >
+                          <ct.icon className="w-3 h-3" />
+                          <span className="hidden sm:inline">{ct.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Toggles */}
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                      {([
+                        { label: 'Smooth', checked: cfg.smooth, onChange: (v: boolean) => setSlotConfig({ smooth: v }) },
+                        { label: 'Markers', checked: cfg.showSymbols, onChange: (v: boolean) => setSlotConfig({ showSymbols: v }) },
+                        { label: 'Area Fill', checked: cfg.showArea, onChange: (v: boolean) => setSlotConfig({ showArea: v }) },
+                        { label: 'Grid', checked: cfg.showGrid, onChange: (v: boolean) => setSlotConfig({ showGrid: v }) },
+                      ] as const).map(toggle => (
+                        <div key={toggle.label} className="flex items-center justify-between py-0.5">
+                          <span className="text-[9px] text-foreground">{toggle.label}</span>
+                          <Switch checked={toggle.checked} onCheckedChange={toggle.onChange} className="scale-[0.6]" />
+                        </div>
+                      ))}
+                    </div>
+                    {/* Line Width */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] text-foreground shrink-0">Width</span>
+                      <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
+                      <span className="text-[8px] text-muted-foreground font-mono w-6 text-right">{cfg.lineWidth}px</span>
+                    </div>
+                    {/* Y-Axis assignment */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
+                      <ToggleGroup type="single" value={cfg.yAxisAssignments?.[c.counter_name] || 'R'}
+                        onValueChange={(value) => value && setSlotConfig({ yAxisAssignments: { ...(cfg.yAxisAssignments || {}), [c.counter_name]: value } })}
+                        className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
+                      >
+                        {(['L', 'R'] as const).map(side => (
+                          <ToggleGroupItem key={side} value={side} size="sm"
+                            className="h-5 min-w-6 rounded-[4px] border-0 px-1.5 text-[8px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                          >{side}</ToggleGroupItem>
+                        ))}
+                      </ToggleGroup>
+                    </div>
+                    {/* Counter info */}
+                    <div className="pt-1 border-t border-border/40 space-y-0.5">
+                      <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
+                        <span className="font-mono">{c.counter_name}</span>
+                      </div>
+                      {c.techno && <span className="text-[8px] text-muted-foreground">{c.vendor} · {c.techno}</span>}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              );
+            })}
 
             <button onClick={() => setCounterSelectorOpen(true)} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-emerald-500 hover:bg-emerald-500/10 border border-dashed border-emerald-500/30 transition-colors">
               <Plus className="w-3 h-3" /> Add Counter
