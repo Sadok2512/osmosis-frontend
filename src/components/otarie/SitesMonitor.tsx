@@ -724,7 +724,9 @@ const ZoomAreaHandler: React.FC<{
       }
       const sw = L.latLng(Math.min(oLat, eLat), Math.min(oLng, eLng));
       const ne = L.latLng(Math.max(oLat, eLat), Math.max(oLng, eLng));
-      onEnd(L.latLngBounds(sw, ne));
+      const bounds = L.latLngBounds(sw, ne);
+      map.fitBounds(bounds, { animate: true, duration: 0.6, padding: [20, 20] });
+      onEnd(bounds);
       origin.current = null;
     },
   });
