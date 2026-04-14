@@ -2190,7 +2190,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       <div className="flex items-center gap-2 px-1 mb-1">
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboard</h3>
-        <span className="text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        <span className="text-[9px] font-bold text-muted-foreground">{filteredDashboards.length}/{dashboards.length}</span>
         <div className="ml-auto relative">
           <button
             onClick={() => setShowDashMenu(!showDashMenu)}
@@ -2216,6 +2216,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             </div>
           )}
         </div>
+      </div>
+
+      {/* Dashboard filter tabs */}
+      <div className="flex items-center gap-0.5 px-1 mb-2">
+        {([
+          { key: 'my' as const, label: 'My', icon: User },
+          { key: 'loaded' as const, label: 'Loaded', icon: FolderOpen },
+          { key: 'all' as const, label: 'All', icon: Globe },
+        ]).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setDashFilterMode(key)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+              dashFilterMode === key
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Icon size={10} />
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Create dashboard popup */}
