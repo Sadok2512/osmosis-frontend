@@ -5961,6 +5961,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <RadiusClickHandler active={activeMapTool === 'radius'} center={radiusCenter} confirmed={radiusConfirmed} onSetCenter={handleRadiusSetCenter} onConfirm={handleRadiusConfirm} onPreview={handleRadiusPreview} />
         <PolygonClickHandler active={activeMapTool === 'polygon'} closed={polygonClosed} onPick={handlePolygonClick} onClose={handlePolygonDblClick} />
         <DistanceMeasureClickHandler active={activeMapTool === 'profile'} onPick={handleProfileClick} />
+        <ZoomAreaHandler
+          active={activeMapTool === 'zoomarea'}
+          onStart={(ll) => { setZoomAreaOrigin(ll); setZoomAreaCurrent(ll); }}
+          onMove={(ll) => setZoomAreaCurrent(ll)}
+          onEnd={(bounds) => {
+            setZoomAreaOrigin(null);
+            setZoomAreaCurrent(null);
+            setActiveMapTool(null);
+            // fitBounds is called inside the handler via useMap
+          }}
+          onCancel={() => { setZoomAreaOrigin(null); setZoomAreaCurrent(null); }}
+        />
         {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
@@ -7555,6 +7567,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
             {activeMapTool === 'radius' && (!radiusCenter ? '🎯 Cliquez pour placer le centre' : !radiusConfirmed ? '🎯 Déplacez la souris et cliquez pour fixer le rayon' : '✅ Rayon fixé — cliquez pour recommencer')}
             {activeMapTool === 'profile' && (profileTarget ? '✅ Profil calculé — cliquez ailleurs pour recalculer' : '⛰️ Cliquez sur la carte pour tracer le profil terrain')}
+            {activeMapTool === 'zoomarea' && '🔍 Cliquez et glissez pour sélectionner la zone de zoom — ESC pour annuler'}
           </div>
         </div>
       )}
@@ -7620,6 +7633,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 { key: 'distance' as const, icon: Ruler, label: 'Distance', tip: 'Cliquez 2 points pour mesurer' },
                 { key: 'polygon' as const, icon: Pentagon, label: 'Polygon', tip: 'Cliquez pour tracer, double-clic pour fermer' },
                 { key: 'radius' as const, icon: Target, label: 'Radius+', tip: 'Cliquez pour placer le centre multi-rayon' },
+                { key: 'zoomarea' as const, icon: ScanSearch, label: 'Zoom', tip: 'Cliquez et glissez pour zoomer sur une zone' },
               ] as const).map(tool => {
                 const isActive = activeMapTool === tool.key;
                 return (
