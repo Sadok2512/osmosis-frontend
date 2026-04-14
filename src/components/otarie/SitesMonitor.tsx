@@ -5787,7 +5787,83 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
 
 
-  // Show labels only when explicitly toggled on by the user
+  // ── Enrich tagged sites with cells when in tagged-only mode ──
+  useEffect(() => {
+    if (taggedDisplayMode !== 'tagged-only') return;
+    const needCells = taggedSites.filter(s => s.cells.length === 0);
+    if (needCells.length === 0) return;
+
+    // First try to enrich from main sites array
+    let enriched = false;
+    const sitesMap = new Map(sites.map(s => [s.site_id, s]));
+    const updated = taggedSites.map(ts => {
+      if (ts.cells.length > 0) return ts;
+      const mainSite = sitesMap.get(ts.site_id);
+      if (mainSite && mainSite.cells.length > 0) {
+        enriched = true;
+        return { ...ts, cells: mainSite.cells };
+      }
+      // Try cache
+      const cachedCells = getCellsFromCacheForSite(ts.site_name || ts.site_id);
+      if (cachedCells.length > 0) {
+        enriched = true;
+        const cells = cachedCells.map((c: any) => {
+          const cellName = c.cell_name || c.nom_cellule || '';
+          const lastChar = cellName.slice(-1);
+          const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+          return {
+            cell_id: cellName, cell_name: cellName,
+            techno: c.techno || '4G', bande: c.band || c.bande || '',
+            vendor: c.vendor || c.constructeur || null,
+            azimut: c.azimut ?? Math.round((360 / 3) * (sectorIdx - 1)),
+            tilt: c.tilt ?? null, pci: c.pci ?? null, eci: c.eci ?? null,
+            nci: c.nci ?? null, cid: c.cid ?? null, tac: c.tac ?? null,
+            etat_cellule: c.etat_cellule ?? null, essentiel: c.essentiel ?? null,
+            zone_arcep: c.zone_arcep ?? null, plaque: c.plaque ?? null, dor: c.dor ?? null,
+          } as unknown as CellProperties;
+        });
+        return { ...ts, cells };
+      }
+      return ts;
+    });
+    if (enriched) {
+      persistTaggedSites(updated);
+      return;
+    }
+
+    // Fetch individually for remaining sites without cells
+    let cancelled = false;
+    (async () => {
+      const stillNeed = updated.filter(s => s.cells.length === 0);
+      if (stillNeed.length === 0) return;
+      const results = await Promise.all(
+        stillNeed.map(async s => {
+          try {
+            let cells = await fetchSiteCells(s.site_id, s.site_name);
+            if (cells.length === 0 && s.site_name && s.site_name !== s.site_id) {
+              cells = await fetchSiteCells(s.site_name, s.site_name);
+            }
+            return { siteId: s.site_id, cells };
+          } catch { return { siteId: s.site_id, cells: [] as any[] }; }
+        })
+      );
+      if (cancelled) return;
+      const cellMap = new Map(results.filter(r => r.cells.length > 0).map(r => [r.siteId, r.cells]));
+      if (cellMap.size === 0) return;
+      setTaggedSites(prev => {
+        const next = prev.map(ts => {
+          if (ts.cells.length > 0) return ts;
+          const cells = cellMap.get(ts.site_id);
+          return cells ? { ...ts, cells } : ts;
+        });
+        try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+        return next;
+      });
+    })();
+    return () => { cancelled = true; };
+  }, [taggedDisplayMode, taggedSites, sites]);
+
+
   const shouldShowLabels = showSiteLabels;
 
   const renderSites = useMemo(() => {
