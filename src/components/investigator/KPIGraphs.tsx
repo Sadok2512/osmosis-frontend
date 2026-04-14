@@ -530,7 +530,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         })
         .catch(() => {});
     });
-  }, [graphSlots.map(s => (s.counterIds || []).join(',')).join('|'), investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, siteName]);
+  }, [graphSlots.map(s => (s.counterIds || []).join(',') + JSON.stringify(s.config?.splitByPerKpi || {})).join('|'), investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, siteName]);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 
