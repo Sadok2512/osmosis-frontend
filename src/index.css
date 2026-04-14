@@ -39,6 +39,12 @@ All colors MUST be HSL.
 
     --radius: 0.75rem;
 
+    /* Technology colors */
+    --tech-2g: #8E44AD;
+    --tech-3g: #3498DB;
+    --tech-4g: #F39C12;
+    --tech-5g: #27AE60;
+
     --sidebar-background: 220 50% 12%;
     --sidebar-foreground: 210 30% 80%;
     --sidebar-primary: 170 70% 45%;
