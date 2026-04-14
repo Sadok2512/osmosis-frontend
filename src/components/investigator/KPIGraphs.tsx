@@ -543,6 +543,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 />
                 <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{wtDef.label}</span>
                 <span className="ml-auto" />
+                {isActive && (
+                  <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">Active</span>
+                )}
                 <button
                   onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
                   className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
