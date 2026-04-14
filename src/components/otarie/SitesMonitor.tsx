@@ -76,7 +76,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch, User, Clock
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -1728,6 +1728,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [dashFilterMode, setDashFilterMode] = useState<'my' | 'loaded' | 'all'>('my');
+
+  // Track explicitly loaded dashboard IDs in localStorage
+  const LOADED_KEY = 'osmosis_loaded_dashboard_ids';
+  const [loadedDashIds, setLoadedDashIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(LOADED_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const addLoadedId = (id: string) => {
+    setLoadedDashIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      try { localStorage.setItem(LOADED_KEY, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+  const removeLoadedId = (id: string) => {
+    setLoadedDashIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      try { localStorage.setItem(LOADED_KEY, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  // Get current user
+  const currentUsername = useMemo(() => {
+    try {
+      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+      return session?.username || null;
+    } catch { return null; }
+  }, []);
 
   // Create filter state for dashboard creation
   const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
@@ -1832,7 +1866,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     }).catch(() => {});
   }, [overlayVersion]);
 
-  // ── Dashboard settings helpers ──
+  // ── Filtered & sorted dashboards ──
+  const filteredDashboards = useMemo(() => {
+    let list = dashboards;
+    if (dashFilterMode === 'my') {
+      list = dashboards.filter(d => d.owner_username === currentUsername || d.id === expandedDashboardId);
+    } else if (dashFilterMode === 'loaded') {
+      list = dashboards.filter(d => loadedDashIds.has(d.id) || d.owner_username === currentUsername || d.id === expandedDashboardId);
+    }
+    // Sort: active first, then by updated_at desc
+    return [...list].sort((a, b) => {
+      if (a.id === expandedDashboardId) return -1;
+      if (b.id === expandedDashboardId) return 1;
+      return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+    });
+  }, [dashboards, dashFilterMode, currentUsername, loadedDashIds, expandedDashboardId]);
+
+
   const getDashboardSettings = (db: any) => {
     const w = Array.isArray(db.widgets) ? db.widgets : [];
     const meta = w.find((wi: any) => wi?._type === 'dashboard_settings');
@@ -1960,6 +2010,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const loadDashboardFromPicker = (dbId: string) => {
     setShowLoadPicker(false);
+    addLoadedId(dbId);
     const db = allDashboards.find(d => d.id === dbId);
     if (db) {
       // Add to local list if not already there
@@ -2139,7 +2190,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       <div className="flex items-center gap-2 px-1 mb-1">
         <LayoutGrid size={13} className="text-primary" />
         <h3 className="text-[10px] font-extrabold text-foreground uppercase tracking-widest">Dashboard</h3>
-        <span className="text-[9px] font-bold text-muted-foreground">{dashboards.length}</span>
+        <span className="text-[9px] font-bold text-muted-foreground">{filteredDashboards.length}/{dashboards.length}</span>
         <div className="ml-auto relative">
           <button
             onClick={() => setShowDashMenu(!showDashMenu)}
@@ -2165,6 +2216,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             </div>
           )}
         </div>
+      </div>
+
+      {/* Dashboard filter tabs */}
+      <div className="flex items-center gap-0.5 px-1 mb-2">
+        {([
+          { key: 'my' as const, label: 'My', icon: User },
+          { key: 'loaded' as const, label: 'Loaded', icon: FolderOpen },
+          { key: 'all' as const, label: 'All', icon: Globe },
+        ]).map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setDashFilterMode(key)}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
+              dashFilterMode === key
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <Icon size={10} />
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* Create dashboard popup */}
@@ -2323,14 +2396,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
-      {dashboards.length === 0 ? (
+      {filteredDashboards.length === 0 ? (
         <div className="px-3 py-6 text-center space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <LayoutGrid size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard</p>
-            <p className="text-[9px] text-muted-foreground mt-1">Créez ou chargez un dashboard pour afficher les sites sur la carte.</p>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+              {dashboards.length === 0 ? 'Aucun dashboard' : dashFilterMode === 'my' ? 'Aucun de vos dashboards' : 'Aucun dashboard chargé'}
+            </p>
+            <p className="text-[9px] text-muted-foreground mt-1">
+              {dashboards.length === 0
+                ? 'Créez ou chargez un dashboard pour afficher les sites sur la carte.'
+                : dashFilterMode === 'my'
+                  ? 'Créez un nouveau dashboard ou passez en mode "All" pour voir les dashboards partagés.'
+                  : 'Chargez un dashboard partagé via le bouton "Charger".'
+              }
+            </p>
           </div>
           <div className="flex gap-2 justify-center">
             <button
@@ -2349,7 +2431,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.map(db => {
+          {filteredDashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
@@ -2357,7 +2439,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             const dbViews = mapViews.filter(v => v.description === db.id);
 
             return (
-              <div key={db.id} className={`rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card'}`}>
+              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
@@ -2432,8 +2514,25 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       </button>
                     </>
                   )}
+                  {/* Collapsed dashboard: owner indicator + quick actions */}
+                  {!isExpanded && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {db.owner_username && db.owner_username !== currentUsername && (
+                        <span className="text-[7px] text-muted-foreground truncate max-w-[50px]" title={`Owner: ${db.owner_username}`}>
+                          {db.owner_username}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
+                        className="p-1 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  )}
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    {db.is_shared ? 'Public' : 'Privé'}
+                    {db.owner_username === currentUsername ? (db.is_shared ? 'Public' : 'Privé') : 'Shared'}
                   </span>
                 </div>
 
