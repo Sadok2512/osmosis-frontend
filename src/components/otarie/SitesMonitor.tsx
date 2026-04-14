@@ -6165,6 +6165,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             />
           )
         )}
+        {/* ── Zoom Area selection rectangle ── */}
+        {activeMapTool === 'zoomarea' && zoomAreaOrigin && zoomAreaCurrent && (
+          <Polygon
+            positions={[
+              [zoomAreaOrigin[0], zoomAreaOrigin[1]],
+              [zoomAreaOrigin[0], zoomAreaCurrent[1]],
+              [zoomAreaCurrent[0], zoomAreaCurrent[1]],
+              [zoomAreaCurrent[0], zoomAreaOrigin[1]],
+            ]}
+            pathOptions={{
+              color: '#0096ff',
+              fillColor: '#0096ff',
+              fillOpacity: 0.12,
+              weight: 2,
+              dashArray: '6 4',
+            }}
+          />
+        )}
         {activeMapTool === 'polygon' && polygonPoints.map((point, index) => (
           <CircleMarker
             key={`polygon-pt-${index}`}
