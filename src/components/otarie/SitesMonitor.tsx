@@ -2166,38 +2166,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           )}
         </div>
       </div>
-      {expandedDashboardId && (() => {
-        const activeName = dashboards.find(d => d.id === expandedDashboardId)?.name;
-        return activeName ? (
-          <div className="px-2 mb-2">
-            <span className="text-[11px] font-bold text-primary truncate block">{activeName}</span>
-            {/* Active filters summary */}
-            {(() => {
-              const db = dashboards.find(d => d.id === expandedDashboardId);
-              const dbFilters = db ? extractSiteFilters(db) : null;
-              const activeView = activeViewId ? mapViews.find(v => v.id === activeViewId) : null;
-              const viewFilters = activeView?.settings?.siteFilters || null;
-              const merged = mergeSiteFilters(dbFilters, viewFilters);
-              const entries = Object.entries(merged).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
-              if (entries.length === 0) return null;
-              return (
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {entries.map(([key, vals]) => (
-                    <span key={key} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
-                      {key.toUpperCase()}: {Array.isArray(vals) ? vals.join(', ') : String(vals)}
-                    </span>
-                  ))}
-                  {activeView && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-accent/20 text-[8px] font-semibold text-accent-foreground border border-accent/20">
-                      Vue: {activeView.name}
-                    </span>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
-        ) : null;
-      })()}
 
       {/* Create dashboard popup */}
       {showCreateDash && (
@@ -2355,14 +2323,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       )}
 
-
-      {dashboards.length === 0 || !expandedDashboardId ? (
+      {dashboards.length === 0 ? (
         <div className="px-3 py-6 text-center space-y-4">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
             <LayoutGrid size={20} className="text-primary" />
           </div>
           <div>
-            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard actif</p>
+            <p className="text-[11px] font-bold text-foreground uppercase tracking-wider">Aucun dashboard</p>
             <p className="text-[9px] text-muted-foreground mt-1">Créez ou chargez un dashboard pour afficher les sites sur la carte.</p>
           </div>
           <div className="flex gap-2 justify-center">
@@ -2382,7 +2349,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       ) : (
         <div className="space-y-1.5">
-          {dashboards.filter(db => db.id === expandedDashboardId).map(db => {
+          {dashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
@@ -2430,6 +2397,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         </>
                       )}
                     </div>
+                    {/* Inline filter badges for collapsed dashboards */}
+                    {!isExpanded && (() => {
+                      const dbFilters = extractSiteFilters(db);
+                      if (!dbFilters) return null;
+                      const entries = Object.entries(dbFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
+                      if (entries.length === 0) return null;
+                      return (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {entries.slice(0, 3).map(([key, vals]) => (
+                            <span key={key} className="px-1 py-0 rounded bg-muted text-[7px] font-semibold text-muted-foreground truncate max-w-[80px]">
+                              {key.toUpperCase()}: {Array.isArray(vals) ? vals.join(', ') : String(vals)}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   {isExpanded && (
                     <>
