@@ -1004,7 +1004,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   ],
                 },
               },
-              yAxisIndex: hasRightAxis ? 1 : 0,
+              yAxisIndex: series.length > 1 ? 1 : 0,
             });
             hasCounterSeries = true;
           }
