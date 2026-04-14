@@ -76,7 +76,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch, User, Clock
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
