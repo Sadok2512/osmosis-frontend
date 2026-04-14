@@ -252,7 +252,18 @@ All colors MUST be HSL.
   cursor: grabbing !important;
 }
 
-/* Hide react-grid-layout resize handle completely */
+/* Minimal transparent measurement labels */
+.measurement-label-minimal {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.measurement-label-minimal::before {
+  display: none !important;
+}
+
+
 .react-resizable-handle {
   display: none !important;
 }
