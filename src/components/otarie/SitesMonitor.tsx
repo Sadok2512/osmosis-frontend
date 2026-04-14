@@ -6396,11 +6396,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <CircleMarker
             key={`distance-point-${index}-${point[0]}-${point[1]}`}
             center={point}
-            radius={4}
+            radius={5}
             pane="pane5G"
             pathOptions={{
-              color: 'hsl(var(--background))',
-              fillColor: 'hsl(var(--primary))',
+              color: '#fff',
+              fillColor: '#27AE60',
               fillOpacity: 1,
               weight: 1.5,
             }}
@@ -6453,8 +6453,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </span>
               </Tooltip>
             </Polyline>
-            <CircleMarker center={m.from} radius={3} pane="pane5G" pathOptions={{ color: '#fff', fillColor: lineColor, fillOpacity: 1, weight: 1.5 }} />
-            <CircleMarker center={m.to} radius={3} pane="pane5G" pathOptions={{ color: '#fff', fillColor: lineColor, fillOpacity: 1, weight: 1.5 }} />
+            <CircleMarker center={m.from} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: isSelected ? '#0096ff' : '#27AE60', fillOpacity: 1, weight: 1.5 }} />
+            <CircleMarker center={m.to} radius={5} pane="pane5G" pathOptions={{ color: '#fff', fillColor: isSelected ? '#0096ff' : '#27AE60', fillOpacity: 1, weight: 1.5 }} />
           </React.Fragment>
           );
         })}
