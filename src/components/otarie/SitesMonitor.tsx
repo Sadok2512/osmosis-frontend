@@ -2541,7 +2541,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         onClick={(e) => {
                           e.stopPropagation();
                           requestDashboardSwitch(db.id);
-                          setInventoryTab('sites');
                         }}
                         className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
                         title="Afficher sur la carte"
