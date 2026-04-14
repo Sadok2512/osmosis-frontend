@@ -1320,11 +1320,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             onMouseDown={(e) => {
               // Only activate slot on direct click on the card chrome, not on chart canvas
               const target = e.target as HTMLElement;
-              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
             }}
             onClick={(e) => {
               const target = e.target as HTMLElement;
-              if (target.closest('canvas') || target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
+              if (target.closest('[data-radix-popper-content-wrapper]') || target.closest('[role="dialog"]')) return;
               onSlotClick?.(slot.id);
             }}
             className={cn(
