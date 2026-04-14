@@ -488,7 +488,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
     slotsWithCounters.forEach(slot => {
       const cIds = slot.counterIds!;
-      const cfg = slot.config || {};
+      const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
       // Check if any counter in this slot has a split configured
       const splitPerKpi = cfg.splitByPerKpi || {};
       const counterSplitVal = cIds.map(cid => splitPerKpi[cid]).find(v => v && v !== 'None');
