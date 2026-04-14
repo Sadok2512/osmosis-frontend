@@ -6384,8 +6384,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           >
             {livePreviewMeasurement && (
               <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-                <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(var(--primary))', textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
-                  {livePreviewMeasurement.label} · {livePreviewMeasurement.azimuth}°
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+                  {livePreviewMeasurement.label} • {livePreviewMeasurement.azimuth}°
                 </span>
               </Tooltip>
             )}
@@ -6418,8 +6418,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             }}
           >
             <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-              <span style={{ fontSize: '10px', fontWeight: 800, color: 'hsl(var(--primary))', textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
-                {distanceMeasurement.label} · {distanceMeasurement.azimuth}°
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+                {distanceMeasurement.label} • {distanceMeasurement.azimuth}°
               </span>
             </Tooltip>
           </Polyline>
@@ -6448,8 +6448,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }}
             >
               <Tooltip permanent direction="center" opacity={1} className="measurement-label-minimal">
-                <span style={{ fontSize: '10px', fontWeight: 800, color: lineColor, textShadow: '0 0 4px #fff, 0 0 8px #fff, 0 0 12px #fff' }}>
-                  {m.name} · {m.label} · {m.azimuth}°
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.7), 0 0 6px rgba(0,0,0,0.4)' }}>
+                  {m.label} • {m.azimuth}°
                 </span>
               </Tooltip>
             </Polyline>
