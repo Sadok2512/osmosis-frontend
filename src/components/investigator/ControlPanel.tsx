@@ -1935,10 +1935,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       const hasSplitOptions = splitOptions.length > 0;
                       const buildCounterSplits = (val: string) => {
                         const allSplits: Record<string, string> = { ...(cfg.splitByPerKpi || {}) };
-                        // Apply to all KPIs + counters in the slot
-                        slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
-                        (slot.counterIds || []).forEach(cid => { allSplits[cid] = val; });
-                        selectedCounters.forEach((sc: any) => { allSplits[sc.counter_name] = val; });
+                        // Only apply split to THIS counter
+                        allSplits[c.counter_name] = val;
                         return allSplits;
                       };
                       return (
