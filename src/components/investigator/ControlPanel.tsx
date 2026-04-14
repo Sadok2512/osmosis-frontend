@@ -1928,6 +1928,90 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         ))}
                       </ToggleGroup>
                     </div>
+                    {/* Split — same as KPI popover */}
+                    {(() => {
+                      const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
+                      const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
+                      const hasSplitOptions = splitOptions.length > 0;
+                      const buildCounterSplits = (val: string) => {
+                        const allSplits: Record<string, string> = { ...(cfg.splitByPerKpi || {}) };
+                        // Apply to all KPIs + counters in the slot
+                        slot.kpiIds.forEach(kid => { allSplits[kid] = val; });
+                        (slot.counterIds || []).forEach(cid => { allSplits[cid] = val; });
+                        selectedCounters.forEach((sc: any) => { allSplits[sc.counter_name] = val; });
+                        return allSplits;
+                      };
+                      return (
+                        <>
+                          {hasSplit1Active ? (
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
+                              <select value={cfg.splitByPerKpi?.[c.counter_name] || Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || 'None'}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
+                                  else setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildCounterSplits(val) } } : s) }));
+                                }}
+                                className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-medium"
+                              >
+                                <option value="None">Aucun</option>
+                                {splitOptions.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                              </select>
+                            </div>
+                          ) : hasSplitOptions ? (
+                            <button onClick={() => {
+                              const firstKey = splitOptions[0]?.key || 'None';
+                              if (firstKey === 'None') return;
+                              setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildCounterSplits(firstKey) } } : s) }));
+                            }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split</button>
+                          ) : null}
+                          {hasSplit1Active && hasSplit2Active ? (
+                            <div className="space-y-0.5">
+                              <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split 2</span>
+                              <select value={cfg.splitByPerKpi2?.[c.counter_name] || Object.values(cfg.splitByPerKpi2 || {}).find(v => v && v !== 'None') || 'None'}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: 'None', config: { ...cfg, splitByPerKpi2: {} } } : s) }));
+                                  else {
+                                    const allSplits2: Record<string, string> = { ...(cfg.splitByPerKpi2 || {}) };
+                                    slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
+                                    (slot.counterIds || []).forEach(cid => { allSplits2[cid] = val; });
+                                    selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = val; });
+                                    setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
+                                  }
+                                }}
+                                className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-medium"
+                              >
+                                <option value="None">Aucun</option>
+                                {splitOptions.filter(s => s.key !== (Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None'))).map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                              </select>
+                            </div>
+                          ) : hasSplit1Active && hasSplitOptions ? (
+                            <button onClick={() => {
+                              const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
+                              const available = splitOptions.filter(s => s.key !== split1Val);
+                              const firstKey = available[0]?.key || 'None';
+                              if (firstKey === 'None') return;
+                              const allSplits2: Record<string, string> = {};
+                              slot.kpiIds.forEach(kid => { allSplits2[kid] = firstKey; });
+                              (slot.counterIds || []).forEach(cid => { allSplits2[cid] = firstKey; });
+                              selectedCounters.forEach((sc: any) => { allSplits2[sc.counter_name] = firstKey; });
+                              setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: firstKey, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
+                            }} className="w-full text-[9px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 py-1 rounded-md transition-colors border border-dashed border-border">+ Ajouter Split 2</button>
+                          ) : null}
+                          {hasSplit1Active && (
+                            <Button
+                              size="sm"
+                              onClick={() => { onApply(); }}
+                              disabled={isApplying}
+                              className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
+                            >
+                              {isApplying ? 'Chargement…' : 'Appliquer'}
+                            </Button>
+                          )}
+                        </>
+                      );
+                    })()}
                     {/* Counter info */}
                     <div className="pt-1 border-t border-border/40 space-y-0.5">
                       <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
