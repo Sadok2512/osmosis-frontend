@@ -5748,8 +5748,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Build cell objects matching expected format
           const cells = cachedCells.map((c: any) => {
             const cellName = c.cell_name || c.nom_cellule || '';
-            const lastChar = cellName.slice(-1);
-            const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+            const sectorIdx = getSectorNumber(cellName) || 1;
             return {
               cell_id: cellName,
               cell_name: cellName,
@@ -5809,8 +5808,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         enriched = true;
         const cells = cachedCells.map((c: any) => {
           const cellName = c.cell_name || c.nom_cellule || '';
-          const lastChar = cellName.slice(-1);
-          const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
+          const sectorIdx = getSectorNumber(cellName) || 1;
           return {
             cell_id: cellName, cell_name: cellName,
             techno: c.techno || '4G', bande: c.band || c.bande || '',
