@@ -1728,6 +1728,40 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [dashFilterMode, setDashFilterMode] = useState<'my' | 'loaded' | 'all'>('my');
+
+  // Track explicitly loaded dashboard IDs in localStorage
+  const LOADED_KEY = 'osmosis_loaded_dashboard_ids';
+  const [loadedDashIds, setLoadedDashIds] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(LOADED_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch { return new Set(); }
+  });
+  const addLoadedId = (id: string) => {
+    setLoadedDashIds(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      try { localStorage.setItem(LOADED_KEY, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+  const removeLoadedId = (id: string) => {
+    setLoadedDashIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      try { localStorage.setItem(LOADED_KEY, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  // Get current user
+  const currentUsername = useMemo(() => {
+    try {
+      const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+      return session?.username || null;
+    } catch { return null; }
+  }, []);
 
   // Create filter state for dashboard creation
   const [createFilters, setCreateFilters] = useState<DashboardSiteFilters>({});
