@@ -289,8 +289,18 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       ? state.graphSlots.find(s => s.id === activeSlotId && s.kpiIds.length > 0)
       : null;
 
-    if (!targetSlot) {
+    if (!targetSlot && selectedCounters.length === 0) {
       setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI.');
+      return;
+    }
+
+    // Counter-only mode: counters are fetched reactively (useEffect on selectedCounters),
+    // so just mark as loaded and return.
+    if (!targetSlot && selectedCounters.length > 0) {
+      setApplyError(null);
+      setIsApplying(true);
+      setHasLoadedOnce(true);
+      setIsApplying(false);
       return;
     }
 
