@@ -76,7 +76,7 @@ import {
   PanelLeftClose, PanelLeftOpen, Filter, X, Maximize2, Minimize2,
   ChevronDown, ChevronUp, BarChart2, Signal, Settings2,
   Crosshair, MousePointerClick, Radio, Plus, Minus, Star, Trash2, Check, Play, RotateCcw, Save, FolderOpen, MoreVertical, Archive, CheckCircle2, Tag,
-  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles
+  Bell, FileText, AlertTriangle, Layers, Palette, Pencil, CircleDot, Ruler, Pentagon, Target, ChevronsUpDown, Copy, Mountain, Globe, Sparkles, ScanSearch
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
@@ -658,6 +658,74 @@ const PolygonClickHandler: React.FC<{ active: boolean; closed: boolean; onPick: 
         e.originalEvent.preventDefault();
         onClose();
       }
+    },
+  });
+  return null;
+};
+
+// Zoom-area selection handler — click+drag rectangle then fitBounds
+const ZoomAreaHandler: React.FC<{
+  active: boolean;
+  onStart: (latlng: [number, number]) => void;
+  onMove: (latlng: [number, number]) => void;
+  onEnd: (bounds: L.LatLngBoundsExpression) => void;
+  onCancel: () => void;
+}> = ({ active, onStart, onMove, onEnd, onCancel }) => {
+  const map = useMap();
+  const dragging = useRef(false);
+  const origin = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const container = map.getContainer();
+    container.style.cursor = 'crosshair';
+    // Disable map dragging while tool is active
+    map.dragging.disable();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        dragging.current = false;
+        origin.current = null;
+        onCancel();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      container.style.cursor = '';
+      map.dragging.enable();
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [active, map, onCancel]);
+
+  useMapEvents({
+    mousedown(e) {
+      if (!active) return;
+      (e as any).originalEvent?.preventDefault?.();
+      dragging.current = true;
+      origin.current = [e.latlng.lat, e.latlng.lng];
+      onStart([e.latlng.lat, e.latlng.lng]);
+    },
+    mousemove(e) {
+      if (!active || !dragging.current) return;
+      onMove([e.latlng.lat, e.latlng.lng]);
+    },
+    mouseup(e) {
+      if (!active || !dragging.current || !origin.current) return;
+      dragging.current = false;
+      const [oLat, oLng] = origin.current;
+      const eLat = e.latlng.lat;
+      const eLng = e.latlng.lng;
+      // Minimum drag threshold (~20px worth of degrees at current zoom)
+      const minSpan = 0.001;
+      if (Math.abs(eLat - oLat) < minSpan && Math.abs(eLng - oLng) < minSpan) {
+        onCancel();
+        return;
+      }
+      const sw = L.latLng(Math.min(oLat, eLat), Math.min(oLng, eLng));
+      const ne = L.latLng(Math.max(oLat, eLat), Math.max(oLng, eLng));
+      onEnd(L.latLngBounds(sw, ne));
+      origin.current = null;
     },
   });
   return null;
@@ -3236,7 +3304,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
-  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | 'profile' | null>(null);
+  const [activeMapTool, setActiveMapTool] = useState<'distance' | 'polygon' | 'radius' | 'profile' | 'zoomarea' | null>(null);
+  const [zoomAreaOrigin, setZoomAreaOrigin] = useState<[number, number] | null>(null);
+  const [zoomAreaCurrent, setZoomAreaCurrent] = useState<[number, number] | null>(null);
   const [profileTarget, setProfileTarget] = useState<[number, number] | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileData, setProfileData] = useState<{ points: any[]; analysis: any } | null>(null);
@@ -3289,7 +3359,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { azimuth, label };
   }, [distanceMeasurePoints]);
 
-  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius' | 'profile') => {
+  const handleMapToolToggle = useCallback((tool: 'distance' | 'polygon' | 'radius' | 'profile' | 'zoomarea') => {
     setDistanceMeasurePoints([]);
     setRadiusCenter(null);
     setRadiusConfirmed(false);
@@ -3299,6 +3369,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setPolygonClosed(false);
     setProfileTarget(null);
     setProfileData(null);
+    setZoomAreaOrigin(null);
+    setZoomAreaCurrent(null);
     setActiveMapTool(prev => (prev === tool ? null : tool));
   }, []);
 
