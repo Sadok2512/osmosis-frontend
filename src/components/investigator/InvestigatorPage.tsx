@@ -279,12 +279,15 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     activeSlot ? buildSnapshot(activeSlot, state) : null
   , [activeSlot, state]);
 
-  const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
-    if (selectedCounters.length === 0) return 0;
+  const fetchCounterSeriesForSlot = useCallback(async (
+    counterNames: string[],
+    slotId: string,
+    options?: { throwOnError?: boolean }
+  ) => {
+    if (counterNames.length === 0) return 0;
 
-    const slotId = activeSlotId || 'global';
     const body: Record<string, any> = {
-      counter_names: selectedCounters.map((c: any) => c.counter_name),
+      counter_names: counterNames,
       date_from: state.startDate.split('T')[0],
       date_to: state.endDate.split('T')[0],
       granularity: normalizeGranularity(state.granularity),
@@ -329,7 +332,15 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
 
     return counterPoints.length;
-  }, [activeSlotId, instanceId, selectedCounters, state.endDate, state.filters, state.granularity, state.startDate, ws]);
+  }, [instanceId, state.endDate, state.filters, state.granularity, state.startDate, ws]);
+
+  const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
+    return fetchCounterSeriesForSlot(
+      selectedCounters.map((c: any) => c.counter_name),
+      activeSlotId || 'global',
+      options,
+    );
+  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters]);
 
   const handleApply = async () => {
     if (!hasFilters) {
@@ -346,8 +357,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       return;
     }
 
-    // Counter-only mode: counters are fetched reactively (useEffect on selectedCounters),
-    // but clicking Apply should also force-refresh them.
     if (!targetSlot && selectedCounters.length > 0) {
       setApplyError(null);
       setIsApplying(true);
@@ -374,21 +383,25 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     setHasUnfilteredFallback(false);
 
     try {
+      const slotCounterIds = targetSlot.counterIds || [];
+      const hasSlotKpis = targetSlot.kpiIds.length > 0;
       const ctx = resolveSlotContext(targetSlot, state);
-      const result = await fetchTimeSeriesForSlot(ctx);
+
+      const [result, counterPointCount] = await Promise.all([
+        hasSlotKpis ? fetchTimeSeriesForSlot(ctx) : Promise.resolve({ data: [], hasUnfilteredFallback: false }),
+        slotCounterIds.length > 0 ? fetchCounterSeriesForSlot(slotCounterIds, targetSlot.id) : Promise.resolve(0),
+      ]);
 
       if (controller.signal.aborted) return;
 
       const taggedData = result.data.map(d => ({ ...d, _slotId: targetSlot.id }));
-      const otherData = tsData.filter((d: any) => d._slotId !== targetSlot.id);
-      setTsData([...otherData, ...taggedData]);
+      const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
+      const currentTsData = current?.tsData ?? tsData;
+      const otherData = currentTsData.filter((d: any) => d._slotId !== targetSlot.id || d._isCounter);
+      setTsData([...otherData.filter((d: any) => !(d._slotId === targetSlot.id && !d._isCounter)), ...taggedData]);
       setHasLoadedOnce(true);
 
-      const slotHasCounters = (targetSlot.counterIds?.length ?? 0) > 0;
-      const counterDataExists = slotHasCounters && [...otherData, ...taggedData].some(
-        (d: any) => d._isCounter && (d._slotId == null || d._slotId === targetSlot.id)
-      );
-      if (taggedData.length === 0 && !counterDataExists) {
+      if (taggedData.length === 0 && counterPointCount === 0) {
         setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
       }
 
