@@ -352,15 +352,25 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
+  const filterKey = JSON.stringify(state.filters);
   React.useEffect(() => {
     if (selectedCounters.length === 0) return;
     const slotId = activeSlotId || 'global';
-    const body = {
+    const body: Record<string, any> = {
       counter_names: selectedCounters.map((c: any) => c.counter_name),
       date_from: state.startDate.split('T')[0],
       date_to: state.endDate.split('T')[0],
       granularity: normalizeGranularity(state.granularity),
     };
+    // Propagate active filters (site, cell, plaque…) to counter query
+    if (state.filters) {
+      for (const [dim, vals] of Object.entries(state.filters)) {
+        if (vals && vals.length > 0) {
+          const key = dim.toLowerCase().replace(/\s+/g, '_');
+          body[key] = vals;
+        }
+      }
+    }
     const ctrl = new AbortController();
     fetch(getApiUrl('pm/counters/timeseries'), {
       method: 'POST', headers: { ...getApiHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctrl.signal,
@@ -374,7 +384,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       ws.updateInstance(instanceId, { tsData: [...filtered, ...counterPoints] });
     }).catch(() => {});
     return () => ctrl.abort();
-  }, [counterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId]);
+  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId, selectedCounters, instanceId]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
