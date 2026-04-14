@@ -683,7 +683,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             return { ...prev, graphSlots: [...prev.graphSlots, dup] };
           })}
           activeSlotId={activeSlotId}
-          onSlotClick={setActiveSlotId}
+          onSlotClick={(id) => {
+            setActiveSlotId(id);
+            // Clear global selectedCounters when switching slots so each slot starts fresh
+            setSelectedCounters([]);
+          }}
           isFullscreen={isGraphFullscreen}
           onActivateTab={(tab) => setAnalysisTab(tab)}
         />
