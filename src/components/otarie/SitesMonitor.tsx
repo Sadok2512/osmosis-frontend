@@ -7614,6 +7614,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </CircleMarker>
         )}
+        {/* Hover marker on measurement profile */}
+        {measProfileHover && showMeasProfile && (
+          <CircleMarker
+            center={[measProfileHover.lat, measProfileHover.lng]}
+            radius={8}
+            pathOptions={{ color: '#fff', fillColor: '#10b981', fillOpacity: 1, weight: 3 }}
+          >
+            <Tooltip direction="top" permanent>
+              <span className="text-[10px] font-bold">
+                {measProfileHover.distanceKm.toFixed(2)} km — {measProfileHover.elevationM.toFixed(0)} m
+              </span>
+            </Tooltip>
+          </CircleMarker>
+        )}
         {/* Neighbor visualization lines */}
         {showNeighborPanel && neighborData.filter(n => n.relationDirection === neighborDirection).map((n, i) => {
           const sourceCell = siteDetail?.cells.find(c => c.cell_id === neighborCellId);
