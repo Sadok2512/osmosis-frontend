@@ -6273,50 +6273,90 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             rings.push(currentRadius); // final ring = exact radius
           }
 
-          // Adaptive label density based on ring count
+          // Adaptive label density
           const totalKm = currentRadius / 1000;
-          const stepKm = totalKm <= 20 ? 1 : totalKm <= 50 ? 5 : totalKm <= 200 ? 10 : 25;
           const labelEveryKm = totalKm <= 10 ? 1 : totalKm <= 20 ? 2 : totalKm <= 50 ? 5 : 10;
+          const stepKm = totalKm <= 20 ? 1 : totalKm <= 50 ? 5 : totalKm <= 200 ? 10 : 25;
 
-          const RING_COLOR = '#0ea5e9'; // sky-500 — high contrast on any basemap
+          const RING_COLOR = '#0ea5e9';
+
+          // Helper: compute point on perimeter at a given bearing (degrees) and distance (meters)
+          const perimeterPoint = (bearingDeg: number, distM: number): [number, number] => {
+            const R = 6371000;
+            const lat1 = radiusCenter[0] * Math.PI / 180;
+            const lng1 = radiusCenter[1] * Math.PI / 180;
+            const brng = bearingDeg * Math.PI / 180;
+            const d = distM / R;
+            const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+            const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+            return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
+          };
+
+          // Label positions on perimeter: 0° = North (12h), 90° = East (3h)
+          const labelBearings = totalKm > 30 ? [0, 90, 180, 270] : totalKm > 10 ? [0, 180] : [0];
 
           return (
             <>
               {rings.map((r, i) => {
                 const isFinal = i === rings.length - 1;
+                return (
+                  <Circle
+                    key={`radius-ring-${i}`}
+                    center={radiusCenter}
+                    radius={r}
+                    pane="pane5G"
+                    pathOptions={{
+                      color: isFinal ? '#f97316' : RING_COLOR,
+                      fillColor: 'transparent',
+                      fillOpacity: 0,
+                      weight: isFinal ? 2.5 : 1.5,
+                      dashArray: isFinal ? '12 6' : '8 6',
+                      opacity: isFinal ? 1 : 0.55,
+                    }}
+                  />
+                );
+              })}
+
+              {/* Labels placed ON the perimeter of each ring */}
+              {rings.map((r, i) => {
+                const isFinal = i === rings.length - 1;
                 const rKm = r / 1000;
                 const showLabel = isFinal || (rKm >= stepKm && rKm % labelEveryKm === 0);
+                if (!showLabel) return null;
                 const labelText = isFinal && (rKm % 1 !== 0)
                   ? `${rKm.toFixed(2)} km`
                   : rKm >= 1 ? `${Math.round(rKm)} km` : `${Math.round(r)} m`;
-                return (
-                  <React.Fragment key={`radius-ring-${i}`}>
-                    <Circle
-                      center={radiusCenter}
-                      radius={r}
+
+                return labelBearings.map((bearing) => {
+                  const pos = perimeterPoint(bearing, r);
+                  const labelIcon = L.divIcon({
+                    className: '',
+                    html: `<div style="
+                      background: rgba(255,255,255,0.93);
+                      color: ${isFinal ? '#ea580c' : '#0c4a6e'};
+                      font-size: 10px;
+                      font-weight: 700;
+                      padding: 1px 6px;
+                      border-radius: 4px;
+                      border: 1px solid ${isFinal ? 'rgba(249,115,22,0.5)' : 'rgba(14,165,233,0.4)'};
+                      box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+                      white-space: nowrap;
+                      pointer-events: none;
+                      transform: translate(-50%, -50%);
+                    ">${labelText}</div>`,
+                    iconSize: [0, 0],
+                    iconAnchor: [0, 0],
+                  });
+                  return (
+                    <Marker
+                      key={`radius-label-${i}-${bearing}`}
+                      position={pos}
+                      icon={labelIcon}
+                      interactive={false}
                       pane="pane5G"
-                      pathOptions={{
-                        color: isFinal ? '#f97316' : RING_COLOR,
-                        fillColor: 'transparent',
-                        fillOpacity: 0,
-                        weight: isFinal ? 2.5 : 1.5,
-                        dashArray: isFinal ? '12 6' : '8 6',
-                        opacity: isFinal ? 1 : 0.6,
-                      }}
-                    >
-                      {showLabel && (
-                        <Tooltip
-                          permanent
-                          direction="right"
-                          opacity={1}
-                          className="!bg-white/95 dark:!bg-zinc-900/95 !border !border-sky-400/60 dark:!border-sky-500/50 !text-zinc-800 dark:!text-zinc-100 !shadow-md !rounded-md !px-2 !py-0.5 !text-[9px] !font-bold"
-                        >
-                          {labelText}
-                        </Tooltip>
-                      )}
-                    </Circle>
-                  </React.Fragment>
-                );
+                    />
+                  );
+                });
               })}
 
               {/* Subtle fill on the outer ring */}
