@@ -2514,8 +2514,25 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       </button>
                     </>
                   )}
+                  {/* Collapsed dashboard: owner indicator + quick actions */}
+                  {!isExpanded && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {db.owner_username && db.owner_username !== currentUsername && (
+                        <span className="text-[7px] text-muted-foreground truncate max-w-[50px]" title={`Owner: ${db.owner_username}`}>
+                          {db.owner_username}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
+                        className="p-1 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={10} />
+                      </button>
+                    </div>
+                  )}
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                    {db.is_shared ? 'Public' : 'Privé'}
+                    {db.owner_username === currentUsername ? (db.is_shared ? 'Public' : 'Privé') : 'Shared'}
                   </span>
                 </div>
 
