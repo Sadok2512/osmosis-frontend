@@ -99,7 +99,7 @@ function stableColorForCounter(counterName: string): string {
 }
 
 /** Wrapper — full replace on every update so legend stays in sync */
-const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void }>(({ option, height, onDataZoom }, ref) => {
+const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void; onChartClick?: () => void }>(({ option, height, onDataZoom, onChartClick }, ref) => {
   const onDataZoomRef = React.useRef(onDataZoom);
   onDataZoomRef.current = onDataZoom;
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -119,7 +119,7 @@ const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; 
   }), []);
 
   return (
-    <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+    <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()} onClick={() => onChartClick?.()}>
       <ReactECharts
         ref={ref}
         option={option}
@@ -1489,6 +1489,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 if (cfg.zoomWindow?.start === start && cfg.zoomWindow?.end === end) return;
                 onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
               }}
+              onChartClick={() => onSlotClick?.(slot.id)}
             />
 
 
