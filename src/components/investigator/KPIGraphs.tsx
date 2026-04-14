@@ -1489,6 +1489,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 if (cfg.zoomWindow?.start === start && cfg.zoomWindow?.end === end) return;
                 onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
               }}
+              onChartClick={() => onSlotClick?.(slot.id)}
             />
 
 
