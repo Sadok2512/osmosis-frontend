@@ -416,12 +416,12 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
   console.log(`[TopoApi] Cells chunk 1 cached: ${chunk1.length} cells`);
 
   // If first chunk is full, load remaining chunks in background
-  if (chunk1.length >= CHUNK_SIZE) {
+  if (chunk1.length >= CHUNK_SIZE && chunk1.length < MAX_CELLS_CACHE) {
     (async () => {
       try {
         const allCells = [...chunk1];
         let offset = CHUNK_SIZE;
-        while (true) {
+        while (allCells.length < MAX_CELLS_CACHE) {
           const qs = buildCellsQs(filters, CHUNK_SIZE, offset);
           const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
           const chunk = Array.isArray(data) ? data : (data?.rows || data?.cells || []);
@@ -434,9 +434,12 @@ async function getCachedCells(filters?: BboxFilters, signal?: AbortSignal): Prom
           _cellsCacheVersion++;
           // Notify listeners so SitesMonitor can re-merge
           emitCellsCacheUpdate();
-          console.log(`[TopoApi] Cells chunk cached: +${chunk.length} → ${allCells.length} total`);
+          console.log(`[TopoApi] Cells chunk cached: +${chunk.length} → ${allCells.length} total (cap ${MAX_CELLS_CACHE})`);
           if (chunk.length < CHUNK_SIZE) break;
           offset += CHUNK_SIZE;
+        }
+        if (allCells.length >= MAX_CELLS_CACHE) {
+          console.warn(`[TopoApi] Cells cache capped at ${MAX_CELLS_CACHE} — not downloading more`);
         }
       } catch (err: any) {
         if (err?.name !== 'AbortError') {
