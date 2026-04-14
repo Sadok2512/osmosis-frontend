@@ -5866,7 +5866,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  const showSectors = displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors;
+  const showSectors = (displayMode === 'cells' && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && showBeamSectors && mapDisplayMode === 'sites');
 
   useEffect(() => {
     if (!showSectors) return;
