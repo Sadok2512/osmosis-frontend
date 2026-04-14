@@ -163,10 +163,10 @@ const vendorVariant = (v?: string | null): 'default' | 'secondary' | 'outline' =
 };
 
 const TECH_COLOR_MAP: Record<string, { bg: string; text: string; border: string; hex: string }> = {
-  '5G': { bg: 'bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30', hex: '#27AE60' },
-  '4G': { bg: 'bg-orange-500/15', text: 'text-orange-500', border: 'border-orange-500/30', hex: '#F39C12' },
-  '3G': { bg: 'bg-blue-500/15', text: 'text-blue-500', border: 'border-blue-500/30', hex: '#3498DB' },
-  '2G': { bg: 'bg-purple-500/15', text: 'text-purple-500', border: 'border-purple-500/30', hex: '#8E44AD' },
+  '5G': { bg: 'bg-[#27AE60]/15', text: 'text-[#27AE60]', border: 'border-[#27AE60]/30', hex: '#27AE60' },
+  '4G': { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]', border: 'border-[#F39C12]/30', hex: '#F39C12' },
+  '3G': { bg: 'bg-[#3498DB]/15', text: 'text-[#3498DB]', border: 'border-[#3498DB]/30', hex: '#3498DB' },
+  '2G': { bg: 'bg-[#8E44AD]/15', text: 'text-[#8E44AD]', border: 'border-[#8E44AD]/30', hex: '#8E44AD' },
 };
 
 const technoClass = (t: string): string => {
