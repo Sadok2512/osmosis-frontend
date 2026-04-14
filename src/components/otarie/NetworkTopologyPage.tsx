@@ -163,10 +163,10 @@ const vendorVariant = (v?: string | null): 'default' | 'secondary' | 'outline' =
 };
 
 const TECH_COLOR_MAP: Record<string, { bg: string; text: string; border: string; hex: string }> = {
-  '5G': { bg: 'bg-green-500/15', text: 'text-green-500', border: 'border-green-500/30', hex: '#22c55e' },
-  '4G': { bg: 'bg-orange-500/15', text: 'text-orange-500', border: 'border-orange-500/30', hex: '#f97316' },
-  '3G': { bg: 'bg-blue-500/15', text: 'text-blue-500', border: 'border-blue-500/30', hex: '#3b82f6' },
-  '2G': { bg: 'bg-purple-500/15', text: 'text-purple-500', border: 'border-purple-500/30', hex: '#a855f7' },
+  '5G': { bg: 'bg-[#27AE60]/15', text: 'text-[#27AE60]', border: 'border-[#27AE60]/30', hex: '#27AE60' },
+  '4G': { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]', border: 'border-[#F39C12]/30', hex: '#F39C12' },
+  '3G': { bg: 'bg-[#3498DB]/15', text: 'text-[#3498DB]', border: 'border-[#3498DB]/30', hex: '#3498DB' },
+  '2G': { bg: 'bg-[#8E44AD]/15', text: 'text-[#8E44AD]', border: 'border-[#8E44AD]/30', hex: '#8E44AD' },
 };
 
 const technoClass = (t: string): string => {
@@ -180,10 +180,10 @@ const technoClass = (t: string): string => {
 
 const bandColor = (b: string): string => {
   const colors: Record<string, string> = {
-    GSM900: '#a855f7', GSM1800: '#9333ea',
-    UMTS900: '#3b82f6', UMTS2100: '#2563eb',
-    LTE700: '#c2410c', LTE800: '#fdba74', LTE1800: '#ea580c', LTE2100: '#fb923c', LTE2600: '#f97316',
-    NR_700: '#16a34a', NR_2100: '#15803d', NR_3500: '#22c55e',
+    GSM900: '#8E44AD', GSM1800: '#7D3C98',
+    UMTS900: '#3498DB', UMTS2100: '#2E86C1',
+    LTE700: '#CA6F1E', LTE800: '#F5B041', LTE1800: '#D68910', LTE2100: '#E67E22', LTE2600: '#F39C12',
+    NR_700: '#229954', NR_2100: '#1E8449', NR_3500: '#27AE60',
   };
   return colors[b] || '#718096';
 };
@@ -469,7 +469,7 @@ const NetworkTopologyPage: React.FC = () => {
   const getL = (): any => (window as any).L;
 
   const TECH_RING_COLORS: Record<string, string> = {
-    '5G': '#22c55e', '4G': '#f97316', '3G': '#3b82f6', '2G': '#a855f7',
+    '5G': '#27AE60', '4G': '#F39C12', '3G': '#3498DB', '2G': '#8E44AD',
   };
   const TECH_ORDER = ['2G', '3G', '4G', '5G'] as const;
   const normTechFn = (t: string): string => {
@@ -494,11 +494,11 @@ const NetworkTopologyPage: React.FC = () => {
     const center = svgSize / 2;
     let svgParts = '';
     if (selected) {
-      svgParts += `<circle cx="${center}" cy="${center}" r="${svgSize / 2}" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-opacity="0.9"/>`;
+      svgParts += `<circle cx="${center}" cy="${center}" r="${svgSize / 2}" fill="none" stroke="#3498DB" stroke-width="3" stroke-opacity="0.9"/>`;
     }
     presentTechs.forEach((tech, i) => {
       const radius = (baseSize / 2) - (i * 3) - 1;
-      const color = TECH_RING_COLORS[tech] || '#f97316';
+      const color = TECH_RING_COLORS[tech] || '#F39C12';
       svgParts += `<circle cx="${center}" cy="${center}" r="${radius}" fill="${color}" fill-opacity="0.55" stroke="${color}" stroke-width="1.2" stroke-opacity="0.85"/>`;
     });
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" viewBox="0 0 ${svgSize} ${svgSize}">${svgParts}</svg>`;
@@ -550,7 +550,7 @@ const NetworkTopologyPage: React.FC = () => {
       .slice(0, 15);
 
     // Draw neighbor sites and connection lines
-    const RELATION_COLORS = ['#3b82f6', '#f59e0b', '#8b5cf6'];
+    const RELATION_COLORS = ['#3498DB', '#f59e0b', '#8b5cf6'];
     nearby.forEach((ns, idx) => {
       const nCoords: [number, number] = [ns.latitude, ns.longitude];
       const nIconData = buildSiteIcon(ns, false);
@@ -806,7 +806,7 @@ const NetworkTopologyPage: React.FC = () => {
       <style>{`
         .map-tooltip { background: hsl(var(--card)) !important; color: hsl(var(--card-foreground)) !important; border: 1px solid hsl(var(--border)) !important; font-size: 11px !important; padding: 6px 10px !important; border-radius: 6px !important; }
         .marker-cluster { background: rgba(59,130,246,.3) !important; }
-        .marker-cluster div { background: #3b82f6 !important; color: #fff !important; font-size: 11px !important; }
+        .marker-cluster div { background: #3498DB !important; color: #fff !important; font-size: 11px !important; }
       `}</style>
 
       <div className="px-8 py-6 max-w-[1600px] mx-auto space-y-4">
@@ -1493,7 +1493,7 @@ const NetworkTopologyPage: React.FC = () => {
                             </div>
                             <div className="h-2 bg-muted rounded-full overflow-hidden">
                               <div className="h-full rounded-full transition-all"
-                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#22c55e' : t.techno === '4G' || t.techno === 'LTE' ? '#f97316' : t.techno === '3G' ? '#3b82f6' : '#a855f7' }} />
+                                style={{ width: `${pct}%`, background: t.techno === '5G' || t.techno === 'NR' ? '#27AE60' : t.techno === '4G' || t.techno === 'LTE' ? '#F39C12' : t.techno === '3G' ? '#3498DB' : '#8E44AD' }} />
                             </div>
                           </div>
                         );

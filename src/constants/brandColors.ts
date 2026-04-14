@@ -21,12 +21,12 @@ export const VENDOR = {
 } as const;
 
 export const TECH = {
-  '5G':  '#22c55e',  // green-500
-  NR:    '#22c55e',
-  '4G':  '#f97316',  // orange-500
-  LTE:   '#f97316',
-  '3G':  '#0ea5e9',  // sky-500
-  '2G':  '#a855f7',  // purple-500 (mauve)
+  '5G':  '#27AE60',
+  NR:    '#27AE60',
+  '4G':  '#F39C12',
+  LTE:   '#F39C12',
+  '3G':  '#3498DB',
+  '2G':  '#8E44AD',
 } as const;
 
 // ── HSL equivalents (for inline style / popover use) ──
@@ -44,12 +44,12 @@ export const VENDOR_HSL: Record<string, string> = {
 };
 
 export const TECH_HSL: Record<string, string> = {
-  '5G':  'hsl(142, 71%, 45%)',
-  NR:    'hsl(142, 71%, 45%)',
-  '4G':  'hsl(25, 95%, 53%)',
-  LTE:   'hsl(25, 95%, 53%)',
-  '3G':  'hsl(199, 89%, 48%)',
-  '2G':  'hsl(271, 91%, 65%)',  // mauve
+  '5G':  'hsl(145, 63%, 42%)',
+  NR:    'hsl(145, 63%, 42%)',
+  '4G':  'hsl(37, 91%, 51%)',
+  LTE:   'hsl(37, 91%, 51%)',
+  '3G':  'hsl(204, 70%, 53%)',
+  '2G':  'hsl(283, 59%, 47%)',
 };
 
 // ── Tailwind badge classes (bg + text) ──
@@ -65,12 +65,12 @@ export const VENDOR_BADGE: Record<string, { bg: string; text: string }> = {
 };
 
 export const TECH_BADGE: Record<string, { bg: string; text: string }> = {
-  '5G':  { bg: 'bg-green-500/15',  text: 'text-green-500' },
-  NR:    { bg: 'bg-green-500/15',  text: 'text-green-500' },
-  '4G':  { bg: 'bg-orange-500/15', text: 'text-orange-500' },
-  LTE:   { bg: 'bg-orange-500/15', text: 'text-orange-500' },
-  '3G':  { bg: 'bg-sky-500/15',    text: 'text-sky-500' },
-  '2G':  { bg: 'bg-purple-500/15', text: 'text-purple-500' },
+  '5G':  { bg: 'bg-[#27AE60]/15',  text: 'text-[#27AE60]' },
+  NR:    { bg: 'bg-[#27AE60]/15',  text: 'text-[#27AE60]' },
+  '4G':  { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]' },
+  LTE:   { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]' },
+  '3G':  { bg: 'bg-[#3498DB]/15',    text: 'text-[#3498DB]' },
+  '2G':  { bg: 'bg-[#8E44AD]/15', text: 'text-[#8E44AD]' },
   ALL:   { bg: 'bg-muted',         text: 'text-muted-foreground' },
 };
 

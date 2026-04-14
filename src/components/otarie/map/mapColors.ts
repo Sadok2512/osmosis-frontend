@@ -1,45 +1,45 @@
 /**
  * Single source of truth for technology colors across the entire map system.
- * 2G (GSM) = Red, 3G (UMTS) = Blue, 4G (LTE) = Orange, 5G (NR) = Green.
+ * 2G (GSM) = Purple, 3G (UMTS) = Blue, 4G (LTE) = Orange, 5G (NR) = Green.
  */
 import { is5GTech, is4GTech, is3GTech, is2GTech } from '@/utils/telecomHelpers';
 
 // ── Technology group colors ──
 export const TECH_COLORS = {
-  '2G': '#a855f7',
-  '3G': '#3b82f6',
-  '4G': '#f97316',
-  '5G': '#22c55e',
+  '2G': '#8E44AD',
+  '3G': '#3498DB',
+  '4G': '#F39C12',
+  '5G': '#27AE60',
   FADED: '#94a3b8',
 } as const;
 
 // ── Band-based color mapping ──
 export const DEFAULT_BAND_COLORS: Record<string, string> = {
-  // GSM (2G) — red tones
-  GSM900:  '#a855f7',
-  GSM1800: '#9333ea',
+  // GSM (2G) — purple tones
+  GSM900:  '#8E44AD',
+  GSM1800: '#7D3C98',
   // UMTS (3G) — blue tones
-  UMTS900:  '#3b82f6',
-  UMTS2100: '#2563eb',
+  UMTS900:  '#3498DB',
+  UMTS2100: '#2E86C1',
   // NR (5G) — green tones
-  NR3500: '#22c55e',
-  NR700:  '#16a34a',
-  NR2100: '#15803d',
-  NR1800: '#166534',
-  NR2600: '#059669',
-  NR1400: '#047857',
-  // LTE (4G) — orange tones
-  L2600:  '#f97316',
-  L2100:  '#fb923c',
-  L1800:  '#ea580c',
-  L800:   '#fdba74',
-  L700:   '#c2410c',
-  L900:   '#d97706',
+  NR3500: '#27AE60',
+  NR700:  '#229954',
+  NR2100: '#1E8449',
+  NR1800: '#196F3D',
+  NR2600: '#1ABC9C',
+  NR1400: '#17A589',
+  // LTE (4G) — orange/amber tones
+  L2600:  '#F39C12',
+  L2100:  '#E67E22',
+  L1800:  '#D68910',
+  L800:   '#F5B041',
+  L700:   '#CA6F1E',
+  L900:   '#D4AC0D',
   // Group header colors
-  '2G_GROUP': '#a855f7',
-  '3G_GROUP': '#3b82f6',
-  '4G_GROUP': '#f97316',
-  '5G_GROUP': '#22c55e',
+  '2G_GROUP': '#8E44AD',
+  '3G_GROUP': '#3498DB',
+  '4G_GROUP': '#F39C12',
+  '5G_GROUP': '#27AE60',
 };
 
 export const GSM_BANDS = ['GSM900', 'GSM1800'] as const;
@@ -131,29 +131,29 @@ export const getTechColor = (techGroup: string, bandColors?: Record<string, stri
 
 /** Get the CSS class for a tech badge */
 export const getTechBadgeBg = (techno: string | null | undefined): string => {
-  if (is5GTech(techno)) return 'bg-[#22c55e]';
-  if (is4GTech(techno)) return 'bg-[#f97316]';
-  if (is3GTech(techno)) return 'bg-[#3b82f6]';
-  if (is2GTech(techno)) return 'bg-[#a855f7]';
-  return 'bg-[#f97316]';
+  if (is5GTech(techno)) return 'bg-[#27AE60]';
+  if (is4GTech(techno)) return 'bg-[#F39C12]';
+  if (is3GTech(techno)) return 'bg-[#3498DB]';
+  if (is2GTech(techno)) return 'bg-[#8E44AD]';
+  return 'bg-[#F39C12]';
 };
 
 /** Get inline style background for a tech dot */
 export const getTechDotColor = (techno: string | null | undefined): string => {
-  if (is5GTech(techno)) return '#22c55e';
-  if (is4GTech(techno)) return '#f97316';
-  if (is3GTech(techno)) return '#3b82f6';
-  if (is2GTech(techno)) return '#a855f7';
-  return '#f97316';
+  if (is5GTech(techno)) return '#27AE60';
+  if (is4GTech(techno)) return '#F39C12';
+  if (is3GTech(techno)) return '#3498DB';
+  if (is2GTech(techno)) return '#8E44AD';
+  return '#F39C12';
 };
 
 /** Get filter chip colors for tech labels */
 export const getTechChipClasses = (tech: string): string => {
-  if (tech === '5G') return 'bg-green-500/15 text-green-500';
-  if (tech === '4G') return 'bg-orange-500/15 text-orange-500';
-  if (tech === '3G') return 'bg-blue-500/15 text-blue-500';
-  if (tech === '2G') return 'bg-purple-500/15 text-purple-500';
-  return 'bg-orange-500/15 text-orange-500';
+  if (tech === '5G') return 'bg-[#27AE60]/15 text-[#27AE60]';
+  if (tech === '4G') return 'bg-[#F39C12]/15 text-[#F39C12]';
+  if (tech === '3G') return 'bg-[#3498DB]/15 text-[#3498DB]';
+  if (tech === '2G') return 'bg-[#8E44AD]/15 text-[#8E44AD]';
+  return 'bg-[#F39C12]/15 text-[#F39C12]';
 };
 
 /** Get the group color key for a tech group string */
