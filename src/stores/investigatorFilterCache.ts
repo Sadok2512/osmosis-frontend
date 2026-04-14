@@ -43,16 +43,37 @@ const STATIC_FALLBACKS: Record<string, string[]> = {
   PLAQUE: [],
 };
 
-/** Try to enrich a dimension with values from VPS topo distinct endpoint */
+/** Try to enrich a dimension with values from VPS topo data */
 async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]> {
   const topoCol = TOPO_ENRICHABLE[dim];
   if (!topoCol) return existing;
   try {
-    const url = getVpsProxyUrl('parser', `/api/v1/topo/distinct`, { field: topoCol });
-    const res = await fetch(url, { headers: getVpsProxyHeaders() });
-    if (!res.ok) return existing;
-    const data = await res.json();
-    const topoValues: string[] = Array.isArray(data) ? data.filter((v: any) => typeof v === 'string' && v) : [];
+    let topoValues: string[] = [];
+
+    // For SITE, use /topo/sites which reliably returns site_name
+    // /topo/distinct?field=site_name often returns empty
+    if (dim === 'SITE') {
+      const url = getVpsProxyUrl('parser', '/api/v1/topo/sites', { limit: '50000' });
+      const res = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (!res.ok) return existing;
+      const data = await res.json();
+      const sites: any[] = Array.isArray(data) ? data : (data?.sites || []);
+      const nameSet = new Set<string>();
+      for (const s of sites) {
+        const name = s.site_name || s.nom_site;
+        if (typeof name === 'string' && name && !nameSet.has(name)) {
+          nameSet.add(name);
+          topoValues.push(name);
+        }
+      }
+    } else {
+      const url = getVpsProxyUrl('parser', '/api/v1/topo/distinct', { field: topoCol });
+      const res = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (!res.ok) return existing;
+      const data = await res.json();
+      topoValues = Array.isArray(data) ? data.filter((v: any) => typeof v === 'string' && v) : [];
+    }
+
     if (topoValues.length === 0) return existing;
     // Merge: add topo values not already present
     const existingSet = new Set(existing.map(v => v.toUpperCase()));
