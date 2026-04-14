@@ -966,7 +966,49 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           });
         }
         // Force right Y-axis if counters are present
-        const hasCounterSeries = counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0;
+        let hasCounterSeries = counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0;
+
+        // ── Also render counters from tsData (selectedCounters flow) ──
+        if (counterDataFromTs.length > 0) {
+          const tsCounterNames = [...new Set(counterDataFromTs.map((d: any) => d.kpi))];
+          // Avoid duplicating if already rendered via counterIds flow
+          const alreadyRendered = new Set(
+            counterIds.length > 0 && slotCounterData ? slotCounterData.series.map((d: any) => d.counter) : []
+          );
+          for (const counterName of tsCounterNames) {
+            if (alreadyRendered.has(counterName)) continue;
+            const color = stableColorForCounter(counterName);
+            const counterPoints = counterDataFromTs.filter((d: any) => d.kpi === counterName);
+            const counterData = allTimestamps.map(ts => {
+              const p = counterPoints.find((d: any) => d.timestamp === ts);
+              return p ? p.value : null;
+            });
+            const forceMarkers = cfg.showSymbols || counterData.filter(v => v != null).length <= 2;
+            series.push({
+              name: counterName,
+              _kpiId: `counter_${counterName}`,
+              connectNulls: true,
+              type: 'line' as any,
+              data: counterData,
+              smooth: true,
+              symbol: forceMarkers ? 'circle' : 'none',
+              symbolSize: forceMarkers ? 6 : 0,
+              lineStyle: { width: 2.5, color, type: 'solid' as const },
+              itemStyle: { color },
+              areaStyle: {
+                color: {
+                  type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: `${color}15` },
+                    { offset: 1, color: `${color}02` },
+                  ],
+                },
+              },
+              yAxisIndex: hasRightAxis ? 1 : 0,
+            });
+            hasCounterSeries = true;
+          }
+        }
 
         const markLineData = jalons.map(j => {
           // Normalize jalon date to match allTimestamps format
