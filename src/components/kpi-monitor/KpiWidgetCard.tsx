@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/select';
 import type { KpiWidgetConfig } from './KpiWidgetTypes';
 import type { KpiCatalogEntry, SplitDimension, Granularity } from './types';
-import { useTimeseriesQuery, useSummaryQuery, fetchDimensionValues, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
+import { useTimeseriesQuery, useSummaryQuery, fetchDimensionValues, downloadTimeseriesCsv, type TimeseriesRequest, type MonitorFilter } from './api/kpiMonitorApi';
 import { FILTER_DIMENSIONS, resolveAvailableValues } from '@/config/filterDimensions';
 import { exportElementToPNG, exportElementToPDF } from '@/lib/exportUtils';
 
@@ -368,6 +368,15 @@ const KpiWidgetCard: React.FC<Props> = ({
     await exportElementToPNG(chartRef.current, config.title.replace(/\s+/g, '_'));
   };
 
+  const handleExportCSV = async () => {
+    if (!tsRequest) return;
+    try {
+      await downloadTimeseriesCsv(tsRequest);
+    } catch (err) {
+      console.error('[CSV export]', err);
+    }
+  };
+
   return (
     <div
       className={cn(
@@ -443,6 +452,9 @@ const KpiWidgetCard: React.FC<Props> = ({
               </DropdownMenuItem>
               <DropdownMenuItem onClick={e => { e.stopPropagation(); handleExportPNG(); }} className="gap-2 text-xs">
                 <Image className="w-3.5 h-3.5" /> Export PNG
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={e => { e.stopPropagation(); handleExportCSV(); }} className="gap-2 text-xs">
+                <Download className="w-3.5 h-3.5" /> Download CSV
               </DropdownMenuItem>
               <DropdownMenuItem onClick={e => { e.stopPropagation(); onDuplicate(); }} className="gap-2 text-xs">
                 <Copy className="w-3.5 h-3.5" /> Dupliquer

@@ -204,6 +204,44 @@ export const fetchTimeseries = (req: TimeseriesRequest) =>
   monitorPost<TimeseriesResponse>('query/timeseries', req);
 export const fetchTable = (req: TableRequest) =>
   monitorPost<TableResponse>('query/table', req);
+
+// ── CSV full-data download helpers ──
+
+export async function downloadTableCsv(req: TableRequest): Promise<void> {
+  const url = getApiUrl('monitor/query/table/csv');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getApiHeaders(),
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`CSV export failed: ${res.status}`);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kpi_table_${req.date_from}_${req.date_to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
+
+export async function downloadTimeseriesCsv(req: TimeseriesRequest): Promise<void> {
+  const url = getApiUrl('monitor/query/timeseries/csv');
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: getApiHeaders(),
+    body: JSON.stringify(req),
+  });
+  if (!res.ok) throw new Error(`CSV export failed: ${res.status}`);
+  const blob = await res.blob();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `kpi_timeseries_${req.date_from}_${req.date_to}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+}
 export const fetchSummary = (req: SummaryRequest) =>
   monitorPost<SummaryItem[]>('query/summary', req);
 export const fetchExplain = (kpiKey: string) =>

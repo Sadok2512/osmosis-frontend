@@ -96,6 +96,7 @@ export const REF_DOR_TREE: {
     'UPR Nord-Est',
     'UPR Ouest',
     'UPR Sud-Est',
+    'UPR Maghreb',
   ],
   tree: {
     'UPR Sud-Ouest': {
@@ -114,6 +115,9 @@ export const REF_DOR_TREE: {
       ericsson: ['LILLE', 'REIMS', 'STRASBOURG'],
       nokia: ['FEMTO'],
       ransharing: ['Zones_Blanches_E1', 'DEPT_80'],
+    },
+    'UPR Maghreb': {
+      huawei: ['TUNIS'],
     },
     'UPR Ouest': {
       nokia: ['BREST', 'NANTES', 'RENNES', 'CAEN'],

@@ -11112,7 +11112,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   vendorMap: Object.keys(ns!.vendorMap || {}).length > 0 ? ns!.vendorMap : computedStats.vendorMap,
                 }
               : computedStats;
-            const hasAnyStats = displayStats.sites4G > 0 || displayStats.sites5G > 0 || displayStats.cells4G > 0 || displayStats.cells5G > 0;
+            const hasAnyStats = displayStats.sites2G > 0 || displayStats.sites3G > 0 || displayStats.sites4G > 0 || displayStats.sites5G > 0 || displayStats.cells2G > 0 || displayStats.cells3G > 0 || displayStats.cells4G > 0 || displayStats.cells5G > 0;
 
             return (
               <div className="divide-y divide-border">
@@ -11236,11 +11236,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
                         {(() => {
                           const entries = Object.entries(displayStats.vendorMap)
-                            .map(([v, c]) => ({ vendor: v, total: c['4G'] + c['5G'], c4g: c['4G'], c5g: c['5G'] }))
+                            .map(([v, c]) => ({ vendor: v, total: (c['2G'] || 0) + (c['3G'] || 0) + c['4G'] + c['5G'], c2g: c['2G'] || 0, c3g: c['3G'] || 0, c4g: c['4G'], c5g: c['5G'] }))
                             .filter(e => e.total > 0)
                             .sort((a, b) => b.total - a.total);
                           const maxTotal = Math.max(...entries.map(e => e.total), 1);
-                          return entries.map(({ vendor, total, c4g, c5g }) => (
+                          return entries.map(({ vendor, total, c2g, c3g, c4g, c5g }) => (
                             <div key={vendor} className="flex items-center gap-2 py-1.5">
                               <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: vendorHex(vendor) }} />
                               <span className="text-[10px] font-bold text-foreground w-20 shrink-0 truncate">{vendor}</span>
@@ -11248,6 +11248,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <div className="h-full rounded-full transition-all" style={{ width: `${(total / maxTotal) * 100}%`, background: vendorHex(vendor), opacity: 0.7 }} />
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
+                                {c2g > 0 && (
+                                  <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">2G </span><span className="font-black" style={{ color: '#f59e0b' }}>{c2g.toLocaleString('fr-FR')}</span></span>
+                                )}
+                                {c3g > 0 && (
+                                  <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">3G </span><span className="font-black" style={{ color: '#f97316' }}>{c3g.toLocaleString('fr-FR')}</span></span>
+                                )}
                                 <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">4G </span><span className="font-black text-foreground">{c4g.toLocaleString('fr-FR')}</span></span>
                                 <span className="text-[9px] tabular-nums"><span className="text-muted-foreground">5G </span><span className="font-black" style={{ color: '#27AE60' }}>{c5g.toLocaleString('fr-FR')}</span></span>
                               </div>
@@ -11265,12 +11271,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <div className="px-5 py-5">
                   <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-4">Technology Distribution</h4>
                   <div className="space-y-4">
-                    {techStats.map(ts => (
+                    {techStats.map(ts => {
+                      const techLabel: Record<string, string> = { '2G': '2G GSM', '3G': '3G UMTS', '4G': '4G LTE', '5G': '5G NR' };
+                      const techColor: Record<string, string> = { '2G': 'bg-yellow-500', '3G': 'bg-orange-500', '4G': 'bg-amber-500', '5G': 'bg-primary' };
+                      return (
                       <div key={ts.tech} className="flex items-start gap-3">
-                        <div className={`w-3 h-3 rounded-full mt-0.5 shrink-0 ${ts.tech === '5G' ? 'bg-primary' : 'bg-amber-500'}`} />
+                        <div className={`w-3 h-3 rounded-full mt-0.5 shrink-0 ${techColor[ts.tech] || 'bg-amber-500'}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between text-[13px]">
-                            <span className="font-bold text-foreground">{ts.tech === '5G' ? '5G NR' : '4G LTE'}</span>
+                            <span className="font-bold text-foreground">{techLabel[ts.tech] || ts.tech}</span>
                             <span className="font-bold" style={{ color: getKpiColor(ts.avgQoE) }}>{(ts.avgQoE ?? 0).toFixed(1)}%</span>
                           </div>
                           <div className="text-[11px] text-muted-foreground mt-1">
@@ -11278,7 +11287,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
 
