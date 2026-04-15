@@ -458,7 +458,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   }, [activeCounterNames, activeSlotId, fetchCounterSeriesForSlot, state.graphSlots]);
 
   const handleApply = async () => {
+    console.log('[Investigator] handleApply called', { hasFilters, activeSlotId, graphSlots: state.graphSlots.length, granularity: state.granularity });
     if (!hasFilters) {
+      console.log('[Investigator] handleApply: no filters, aborting');
       setApplyError('Veuillez sélectionner au moins un filtre (Site, Cell…) avant de lancer la requête.');
       return;
     }
@@ -467,7 +469,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       ? state.graphSlots.find(s => s.id === activeSlotId && (s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0))
       : state.graphSlots.find(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0) || null;
 
+    console.log('[Investigator] handleApply: targetSlot=', targetSlot?.id, 'kpis=', targetSlot?.kpiIds, 'counters=', targetSlot?.counterIds, 'selectedCounters=', selectedCounters.length);
+
     if (!targetSlot && selectedCounters.length === 0) {
+      console.log('[Investigator] handleApply: no targetSlot and no selectedCounters');
       setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI ou Counter.');
       return;
     }
