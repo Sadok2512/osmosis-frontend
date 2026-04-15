@@ -331,11 +331,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const data = await response.json();
     const counterPoints = (data.series || []).map((s: any) => {
-      const splitVal = s.cell || s.cell_name || s.site || s.site_name || s.split_value || s.dimension_value || '';
-      const counterName = s.counter || s.counter_name || counterNames[0];
+      // API may return counter as "L.CELL.AVAIL.DUR@SplitValue" with counter_id as clean name
+      const rawCounter = s.counter || s.counter_name || counterNames[0];
+      const cleanCounter = s.counter_id || (rawCounter.includes('@') ? rawCounter.split('@')[0] : rawCounter);
+      const splitVal = s.dimension_key || s.cell || s.cell_name || s.site || s.site_name || s.split_value || 
+        (rawCounter.includes('@') ? rawCounter.split('@').slice(1).join('@') : '');
       return {
         timestamp: s.ts,
-        kpi: splitVal ? `${counterName}@${splitVal}` : counterName,
+        kpi: splitVal ? `${cleanCounter}@${splitVal}` : cleanCounter,
         value: s.value,
         splitValue: splitVal || undefined,
         networkElement: splitVal || undefined,
