@@ -555,10 +555,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
   fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
 
+  // Counter series are fetched only via handleApply — no auto-fetch on granularity/date change
   React.useEffect(() => {
     if (activeCounterNames.length === 0) return;
     fetchSelectedCounterSeriesRef.current().catch(() => {});
-  }, [activeCounterNames.length, counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId]);
+  }, [activeCounterNames.length, counterKey, filterKey, activeSlotId]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
