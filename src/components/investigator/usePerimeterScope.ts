@@ -164,11 +164,13 @@ function buildMatcher(vendorSet: Set<string>, technoSet: Set<string>) {
   return (item: { vendor?: string | null; techno?: string | null }) => {
     if (vendorSet.size > 0) {
       const v = normalize(item.vendor);
-      if (!v || !vendorSet.has(v)) return false;
+      // KPIs without vendor metadata are treated as universal (match all vendors)
+      if (v && !vendorSet.has(v)) return false;
     }
     if (technoSet.size > 0) {
       const t = normalize(item.techno);
-      if (!t || !technoSet.has(t)) return false;
+      // KPIs without techno metadata are treated as universal (match all technos)
+      if (t && !technoSet.has(t)) return false;
     }
     return true;
   };
