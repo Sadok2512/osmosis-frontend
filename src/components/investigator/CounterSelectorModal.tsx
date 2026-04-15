@@ -35,9 +35,9 @@ interface Props {
   catalog: CounterDef[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
-  /** Locked perimeter vendor(s) — displayed but not changeable */
+  /** Default perimeter vendor(s) — pre-selected but editable */
   perimeterVendor?: string | string[];
-  /** Locked perimeter techno(s) — displayed but not changeable */
+  /** Default perimeter techno(s) — pre-selected but editable */
   perimeterTechno?: string | string[];
 }
 
@@ -142,11 +142,9 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 );
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm, perimeterVendor, perimeterTechno }) => {
-  // Normalize perimeter to arrays
+  // Normalize perimeter to arrays — used as defaults, NOT locked
   const perimVendors = useMemo(() => !perimeterVendor ? [] : Array.isArray(perimeterVendor) ? perimeterVendor.filter(Boolean) : [perimeterVendor].filter(Boolean), [perimeterVendor]);
   const perimTechnos = useMemo(() => !perimeterTechno ? [] : Array.isArray(perimeterTechno) ? perimeterTechno.filter(Boolean) : [perimeterTechno].filter(Boolean), [perimeterTechno]);
-  const hasLockedVendor = perimVendors.length > 0;
-  const hasLockedTechno = perimTechnos.length > 0;
 
   const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const selectedKeysSignature = useMemo(
@@ -159,7 +157,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
-  // Only used when perimeter is NOT locked — user can freely pick
+  // Vendor/Techno filters — initialized from perimeter defaults, fully editable
   const [filterVendor, setFilterVendor] = useState<string>('');
   const [filterTechno, setFilterTechno] = useState<string>('');
   const [filterDimType, setFilterDimType] = useState<string>('');
@@ -167,49 +165,60 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Effective vendor/techno for API calls — perimeter takes precedence
-  const effectiveVendor = hasLockedVendor ? (perimVendors.length === 1 ? perimVendors[0] : '') : filterVendor;
-  const effectiveTechno = hasLockedTechno ? (perimTechnos.length === 1 ? perimTechnos[0] : '') : filterTechno;
+  // Multi-select vendor/techno filters for perimeter defaults
+  const [activeVendors, setActiveVendors] = useState<Set<string>>(new Set());
+  const [activeTechnos, setActiveTechnos] = useState<Set<string>>(new Set());
+
+  // Effective filters for API calls
+  const effectiveVendor = activeVendors.size === 1 ? Array.from(activeVendors)[0] : '';
+  const effectiveTechno = activeTechnos.size === 1 ? Array.from(activeTechnos)[0] : '';
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Set(selectedKeys));
   }, [open, selectedKeysSignature]);
 
+  // Initialize filters from perimeter defaults when modal opens
   useEffect(() => {
     if (!open) return;
     setActiveFamily(null);
     setSearch('');
     setShowFavOnly(false);
-    if (!hasLockedVendor) setFilterVendor('');
-    if (!hasLockedTechno) setFilterTechno('');
+    setFilterDimType('');
+    // Set perimeter as default selections (editable)
+    setActiveVendors(new Set(perimVendors));
+    setActiveTechnos(new Set(perimTechnos));
+    setFilterVendor('');
+    setFilterTechno('');
     loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
-    fetchFilterOptions(effectiveVendor || undefined).then(setFilterOptions);
-  }, [open, hasLockedVendor, hasLockedTechno, effectiveVendor]);
+  }, [open, perimVendors.join(','), perimTechnos.join(',')]);
 
+  // Fetch catalog when vendor/techno selection changes
   useEffect(() => {
     if (!open) return;
     setIsLoading(true);
     setActiveFamily(null);
+    const apiVendor = effectiveVendor || undefined;
+    const apiTechno = effectiveTechno || undefined;
     Promise.all([
-      fetchFilteredCatalog(effectiveVendor || undefined, effectiveTechno || undefined),
-      fetchFilterOptions(effectiveVendor || undefined),
+      fetchFilteredCatalog(apiVendor, apiTechno),
+      fetchFilterOptions(apiVendor),
     ]).then(([data, opts]) => {
       let items = Array.isArray(data) ? data : [];
-      // Client-side filter when perimeter has multiple values (API only accepts single)
-      if (hasLockedVendor && perimVendors.length > 1) {
-        const vendorSet = new Set(perimVendors.map(v => v.toLowerCase()));
+      // Client-side filter when multiple vendors/technos selected (API only accepts single)
+      if (activeVendors.size > 1) {
+        const vendorSet = new Set(Array.from(activeVendors).map(v => v.toLowerCase()));
         items = items.filter(c => vendorSet.has((c.vendor || '').toLowerCase()));
       }
-      if (hasLockedTechno && perimTechnos.length > 1) {
-        const technoSet = new Set(perimTechnos.map(t => t.toLowerCase()));
+      if (activeTechnos.size > 1) {
+        const technoSet = new Set(Array.from(activeTechnos).map(t => t.toLowerCase()));
         items = items.filter(c => technoSet.has((c.techno || '').toLowerCase()));
       }
       setCatalog(items);
-      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [] }));
+      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [], vendors: opts?.vendors || prev.vendors }));
       setIsLoading(false);
     });
-  }, [open, effectiveVendor, effectiveTechno, hasLockedVendor, hasLockedTechno, perimVendors.join(','), perimTechnos.join(',')]);
+  }, [open, effectiveVendor, effectiveTechno, Array.from(activeVendors).sort().join(','), Array.from(activeTechnos).sort().join(',')]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
@@ -230,16 +239,16 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   const resetSelection = () => setSelected(new Set());
   const resetFilters = () => {
-    if (!hasLockedVendor) setFilterVendor('');
-    if (!hasLockedTechno) setFilterTechno('');
+    setActiveVendors(new Set());
+    setActiveTechnos(new Set());
     setFilterDimType('');
     setActiveFamily(null);
     setShowFavOnly(false);
   };
 
   const activeFilterCount = [
-    hasLockedVendor ? perimVendors.join(',') : filterVendor,
-    hasLockedTechno ? perimTechnos.join(',') : filterTechno,
+    activeVendors.size > 0 ? 'v' : '',
+    activeTechnos.size > 0 ? 't' : '',
     filterDimType,
     showFavOnly ? 'fav' : '',
   ].filter(Boolean).length;
@@ -327,9 +336,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
             <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
-            {(hasLockedVendor || hasLockedTechno) && (
+            {(activeVendors.size > 0 || activeTechnos.size > 0) && (
               <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                🔒 {[...perimVendors, ...perimTechnos].join(' · ')}
+                Périmètre: {[...Array.from(activeVendors), ...Array.from(activeTechnos)].join(' · ')}
               </span>
             )}
           </div>
@@ -343,18 +352,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-border/40 shrink-0 flex-wrap">
             <SlidersHorizontal className="w-3 h-3 text-primary" />
             <span className="text-[10px] text-muted-foreground">Filtres actifs :</span>
-            {hasLockedVendor && perimVendors.map(v => (
-              <span key={v} className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1">🔒 {v}</span>
+            {activeVendors.size > 0 && Array.from(activeVendors).map(v => (
+              <span key={v} className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{v}</span>
             ))}
-            {!hasLockedVendor && filterVendor && (
-              <span className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{filterVendor}</span>
-            )}
-            {hasLockedTechno && perimTechnos.map(t => (
-              <span key={t} className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold flex items-center gap-1">🔒 {t}</span>
+            {activeTechnos.size > 0 && Array.from(activeTechnos).map(t => (
+              <span key={t} className="text-[9px] px-2 py-[1px] rounded-full bg-accent/30 text-accent-foreground font-semibold">{t}</span>
             ))}
-            {!hasLockedTechno && filterTechno && (
-              <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
-            )}
             {filterDimType && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-amber-500/10 text-amber-600 font-semibold">{filterDimType}</span>
             )}
@@ -399,42 +402,43 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                   </button>
                 </div>
 
-                {/* Vendor */}
-                <CollapsibleSection title={hasLockedVendor ? '🔒 Vendor (périmètre)' : 'Vendor'}>
-                  {hasLockedVendor ? (
-                    perimVendors.map(v => (
-                      <FilterListItem key={v} label={v} active={true} onClick={() => {}} />
-                    ))
-                  ) : (
-                    <>
-                      <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
-                      {vendorOptions.map(v => (
-                        <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                      ))}
-                    </>
-                  )}
+                {/* Vendor (multi-select, editable) */}
+                <CollapsibleSection title="Vendor">
+                  <FilterListItem label="Tous" active={activeVendors.size === 0} onClick={() => setActiveVendors(new Set())} />
+                  {vendorOptions.map(v => (
+                    <FilterListItem
+                      key={v}
+                      label={v}
+                      active={activeVendors.has(v)}
+                      onClick={() => {
+                        setActiveVendors(prev => {
+                          const next = new Set(prev);
+                          if (next.has(v)) next.delete(v); else next.add(v);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
                 </CollapsibleSection>
 
-                {/* Technology */}
-                <CollapsibleSection title={hasLockedTechno ? '🔒 Technologie (périmètre)' : 'Technologie'}>
-                  {hasLockedTechno ? (
-                    perimTechnos.map(t => (
-                      <FilterListItem key={t} label={t} active={true} count={technoCounts.get(t)} onClick={() => {}} />
-                    ))
-                  ) : (
-                    <>
-                      <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                      {technoOptions.map(t => (
-                        <FilterListItem
-                          key={t}
-                          label={t}
-                          active={filterTechno === t}
-                          count={technoCounts.get(t)}
-                          onClick={() => setFilterTechno(t)}
-                        />
-                      ))}
-                    </>
-                  )}
+                {/* Technology (multi-select, editable) */}
+                <CollapsibleSection title="Technologie">
+                  <FilterListItem label="Tous" active={activeTechnos.size === 0} onClick={() => setActiveTechnos(new Set())} />
+                  {technoOptions.map(t => (
+                    <FilterListItem
+                      key={t}
+                      label={t}
+                      active={activeTechnos.has(t)}
+                      count={technoCounts.get(t)}
+                      onClick={() => {
+                        setActiveTechnos(prev => {
+                          const next = new Set(prev);
+                          if (next.has(t)) next.delete(t); else next.add(t);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
                 </CollapsibleSection>
 
                 {/* Dimension Type */}
