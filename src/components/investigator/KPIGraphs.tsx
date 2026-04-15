@@ -637,15 +637,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
       if (hasSplit) {
         const splitUpper = counterSplitVal!.toUpperCase();
         // Map split dimension to the backend field
-        if (splitUpper !== 'CELL' && splitUpper !== 'SITE') {
+        if (splitUpper === 'CELL') {
+          body.split_by_field = 'cell_name';
+        } else if (splitUpper === 'SITE') {
+          body.split_by_field = 'site_name';
+        } else {
           body.split_by_field = counterSplitVal;
         }
-        // For CELL split, remove site_name filter so backend returns per-cell data
-        if (splitUpper === 'CELL') {
-          // don't add site_name — let split work
-        } else if (siteName) {
-          body.site_name = siteName;
-        }
+        // Always keep site_name filter to scope results to the selected site
+        if (siteName) body.site_name = siteName;
       } else if (siteName) {
         body.site_name = siteName;
       }
