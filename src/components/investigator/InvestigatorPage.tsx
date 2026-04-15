@@ -198,7 +198,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
 
       if (targetIdx < 0) {
-        const newSlot = createSlot(1, [], 'timeseries', prev.filters);
+        const newSlot = createSlot(1, [], 'timeseries', {});
         newSlot.counterIds = counterNames;
         slots = [newSlot];
         setTimeout(() => setActiveSlotId(newSlot.id), 0);
@@ -794,7 +794,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           onAddEmptySlot={(widgetType) => {
             setState(prev => {
               const nextIndex = prev.graphSlots.length + 1;
-              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries', prev.filters)] };
+              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries', {})] };
             });
           }}
           onRenameSlot={(slotId, name) => setState(prev => ({
