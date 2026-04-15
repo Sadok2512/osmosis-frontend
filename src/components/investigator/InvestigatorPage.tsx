@@ -296,7 +296,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     // and perSlotAnalysisTab keeps each slot's state independent.
   }, [activeSlotId, state.graphSlots]);
 
-  const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
+  // Check if the active slot (or global fallback) has filters
+  const hasFilters = (() => {
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    const filters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    return Object.values(filters).some(vals => vals.length > 0);
+  })();
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0);
 
   const activeSlot = useMemo(() => 
