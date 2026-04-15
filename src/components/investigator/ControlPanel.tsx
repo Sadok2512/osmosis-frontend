@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getDimensionColor } from './dimensionColors';
 import { VENDOR_HSL, TECH_HSL, vendorHsl, techHsl } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
