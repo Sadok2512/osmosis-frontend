@@ -58,39 +58,37 @@ const cleanKpi = (k: string) => k.includes('@') ? k.split('@')[0] : k;
  * Build pivot table: one row per (timestamp, networkElement, cell)
  * with separate columns for each KPI metric.
  */
-/** Build a readable NE label from the active filters */
-function buildNeLabel(filterContext?: Record<string, string[]>, siteName?: string): string {
+/** Resolve the primary scope filter to display in the table */
+function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: string) {
   if (filterContext) {
-    // Priority: Site > Plaque > DOR > DR > Zone ARCEP > first available
-    const priority = ['Site', 'SITE', 'Plaque', 'PLAQUE', 'DOR', 'DR', 'Zone ARCEP', 'ZONE_ARCEP'];
+    const priority = ['Plaque', 'PLAQUE', 'Site', 'SITE', 'DOR', 'DR', 'Zone ARCEP', 'ZONE_ARCEP'];
     for (const key of priority) {
       const vals = filterContext[key];
       if (vals && vals.length > 0) {
-        return `${key}: ${vals.join(', ')}`;
+        return { label: key, value: vals.join(', ') };
       }
     }
-    // Fallback: first non-empty filter
+
     for (const [key, vals] of Object.entries(filterContext)) {
       if (vals && vals.length > 0) {
-        return `${key}: ${vals.join(', ')}`;
+        return { label: key, value: vals.join(', ') };
       }
     }
   }
-  return siteName || '—';
+
+  return { label: 'Network Element', value: siteName || '—' };
 }
 
 function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>) {
-  const neLabel = buildNeLabel(filterContext, siteName);
+  const scope = getPrimaryScope(filterContext, siteName);
 
-  // Discover unique KPI metrics
   const kpiSet = new Set<string>();
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
-  // Collect all unique timestamps and cells
   const timestampSet = new Set<string>();
   const cellSet = new Set<string>();
-  
+
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
     const cell = d.networkElement || d.splitValue || '';
@@ -100,7 +98,6 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
   const timestamps = [...timestampSet].sort();
   const cells = [...cellSet].sort();
 
-  // Build lookup: "timestamp||cell||kpi" → value
   const lookup = new Map<string, number | null>();
   for (const d of tsData) {
     const cell = d.networkElement || d.splitValue || '';
@@ -108,9 +105,8 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
     lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
   }
 
-  // Generate full cross-product: every timestamp × every cell
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
-  
+
   for (const ts of timestamps) {
     for (const cell of cells) {
       const kpiValues: Record<string, number | null> = {};
@@ -120,17 +116,16 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
       }
       rows.push({
         timestamp: fmt(ts),
-        ne: neLabel,
+        ne: scope.value,
         cell: cell || '—',
         kpiValues,
       });
     }
   }
 
-  // Determine if we have splits (cell-level data)
   const hasCells = tsData.some(d => d.splitValue || d.networkElement);
 
-  return { rows, kpiColumns, hasCells };
+  return { rows, kpiColumns, hasCells, scopeLabel: scope.label };
 }
 
 const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext }) => {
@@ -138,7 +133,6 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
-  // ── Source info ──
   const sourceInfo = useMemo(() => {
     const kpis = [...new Set(tsData.map(d => cleanKpi(d.kpi)))];
     return {
@@ -149,13 +143,11 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     };
   }, [tsData, activeSlot]);
 
-  // ── Build pivot table ──
-  const { rows, kpiColumns, hasCells } = useMemo(
+  const { rows, kpiColumns, hasCells, scopeLabel } = useMemo(
     () => buildPivotTable(tsData, siteName, filterContext),
     [tsData, siteName, filterContext]
   );
 
-  // ── Pagination ──
   const totalRows = rows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const safePage = Math.min(currentPage, totalPages - 1);
@@ -163,88 +155,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const endIdx = Math.min(startIdx + pageSize, totalRows);
   const pageRows = rows.slice(startIdx, endIdx);
 
-  // ── CSV export ──
   const exportCsv = () => {
-    const headerCols = ['Timestamp', 'Network Element'];
+    const headerCols = ['Timestamp', scopeLabel];
     if (hasCells) headerCols.push('Cell');
     headerCols.push(...kpiColumns);
     const header = headerCols.join(',');
-
-    const csvRows = rows.map(r => {
-      const baseCols = [r.timestamp, r.ne];
-      if (hasCells) baseCols.push(r.cell);
-      const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
-      return [...baseCols, ...kpiVals].join(',');
-    });
-
-    const csv = [header, ...csvRows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `table_data_${activeSlot?.name || 'export'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  if (tsData.length === 0) {
-    return (
-      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex items-center justify-center h-48">
-        <p className="text-xs text-muted-foreground">Aucune donnée — cliquez sur Appliquer</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col">
-      {/* ── Source Info Banner ── */}
-      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
-            📊 {sourceInfo.slotLabel}
-          </span>
-          <span className="text-muted-foreground">|</span>
-          <span className="text-muted-foreground font-medium">
-            KPIs: <span className="text-foreground">{sourceInfo.kpiNames}</span>
-          </span>
-          <span className="text-muted-foreground">|</span>
-          <span className="text-muted-foreground font-medium">
-            {totalRows} pivoted rows ({sourceInfo.rowCount} raw points)
-          </span>
-        </div>
-      </div>
-
-      {/* ── Toolbar ── */}
-      <div className="h-14 border-b border-border/30 flex items-center justify-between px-5 bg-muted/30">
-        <div className="flex items-center gap-3">
-          <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
-          <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
-          <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
-            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasCells ? 'Cell' : 'NE'}
-          </span>
-        </div>
-        <button
-          onClick={exportCsv}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
-        >
-          <Download className="w-5 h-5" />
-          CSV
-        </button>
-      </div>
-
-      {/* ── Table — Pivot Format ── */}
-      <div className="overflow-auto flex-grow relative" style={{ maxHeight: 500 }}>
-        <table className="w-full border-collapse text-[11px]">
-          <thead className="sticky top-0 z-20">
-            <tr className="bg-muted/80 backdrop-blur-md border-b border-border/30">
-              {/* Timestamp */}
-              <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                Timestamp
-              </th>
-
+...
               {/* NE — sticky */}
               <th className="text-left py-3 px-4 font-bold text-primary uppercase tracking-wider sticky left-0 bg-muted/95 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
-                Network Element
+                {scopeLabel}
               </th>
 
               {/* Cell — only when splits exist */}
