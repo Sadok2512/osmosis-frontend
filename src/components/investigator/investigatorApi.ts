@@ -113,7 +113,7 @@ async function fetchKpiComputeOnTheFly(
         } else if (dim === 'VENDOR' && f.values?.length) {
           body.vendor = f.values[0];
         } else if ((dim === 'TECHNOLOGY' || dim === 'TECHNO') && f.values?.length) {
-          body.object_type = f.values[0];
+          body.object_type = f.values.length === 1 ? f.values[0] : f.values;
         } else if (dim === 'KPI_LEVEL') {
           /* ignore, handled by kpi engine */
         } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
