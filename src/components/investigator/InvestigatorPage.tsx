@@ -340,7 +340,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       }
     }
 
-    for (const [dim, vals] of Object.entries(state.filters || {})) {
+    // Use slot-level filters merged with global
+    const slotFilters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    for (const [dim, vals] of Object.entries(slotFilters || {})) {
       if (vals && vals.length > 0) {
         const key = dim.toLowerCase().replace(/\s+/g, '_');
         // Keep site filter even for CELL split so we only get cells of selected site(s)
@@ -492,7 +494,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
-  const filterKey = JSON.stringify(state.filters);
+  const filterKey = JSON.stringify(activeSlot?.filters || state.filters);
   const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
   fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
 
@@ -510,7 +512,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const dateTo = state.endDate.split('T')[0];
 
       const allFilters = [...worstFilters];
-      const siteFromState = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0];
+      const slotFilters = activeSlot?.filters && Object.keys(activeSlot.filters).length > 0 ? activeSlot.filters : state.filters;
+      const siteFromState = slotFilters?.['Site']?.[0] || slotFilters?.['SITE']?.[0];
       if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
         allFilters.push({ dimension: 'SITE', op: 'IN', values: [siteFromState] });
       }
