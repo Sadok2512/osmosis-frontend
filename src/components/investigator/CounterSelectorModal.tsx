@@ -331,11 +331,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   if (!open) return null;
 
-  const ALL_VENDORS = ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'];
-  const vendorOptions = (filterOptions.vendors?.length || 0) > 0
-    ? [...new Set([...filterOptions.vendors, ...ALL_VENDORS])].sort()
-    : ALL_VENDORS;
-  const technoOptions = (filterOptions.technos?.length || 0) > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
+  // Only show vendors/technos that actually exist in the catalog data
+  const vendorOptions = useMemo(() => Array.from(vendorCounts.keys()).sort(), [vendorCounts]);
+  const technoOptions = useMemo(() => Array.from(technoCounts.keys()).sort(), [technoCounts]);
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
