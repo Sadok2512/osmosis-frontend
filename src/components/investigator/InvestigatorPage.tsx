@@ -403,7 +403,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const targetSlot = activeSlotId
       ? state.graphSlots.find(s => s.id === activeSlotId && (s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0))
-      : null;
+      : state.graphSlots.find(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0) || null;
 
     if (!targetSlot && selectedCounters.length === 0) {
       setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI ou Counter.');
