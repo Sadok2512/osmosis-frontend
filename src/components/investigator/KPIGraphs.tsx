@@ -1019,7 +1019,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               _kpiId: `counter_${counterName}`,
               _splitValue: splitLabel || undefined,
               connectNulls: true,
-              type: 'line' as any,
+              type: sp.seriesType as any,
               data: counterData,
               smooth: true,
               symbol: forceMarkers ? 'circle' : 'none',
