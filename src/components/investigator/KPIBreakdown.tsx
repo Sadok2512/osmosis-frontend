@@ -835,6 +835,7 @@ const KPIBreakdown: React.FC<Props> = ({
   splitBy,
   splitByPerKpi,
   timeSeriesData,
+  jalons = [],
 }) => {
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
