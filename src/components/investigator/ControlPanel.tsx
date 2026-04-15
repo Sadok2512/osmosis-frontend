@@ -1698,11 +1698,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
                         <span className="text-[8px] text-muted-foreground font-mono w-6 text-right">{cfg.lineWidth}px</span>
                       </div>
-                      {/* Y-Axis — compact */}
+                      {/* Y-Axis — compact: assigns this KPI to L or R axis */}
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
-                        <ToggleGroup type="single" value={(cfg as any).__activeYTab || 'L'}
-                          onValueChange={(value) => value && setSlotConfig({ __activeYTab: value } as any)}
+                        <ToggleGroup type="single" value={cfg.yAxisAssignments?.[kpiIdItem] === 1 ? 'R' : 'L'}
+                          onValueChange={(value) => {
+                            if (!value) return;
+                            const axisVal = value === 'R' ? 1 : 0;
+                            setSlotConfig({
+                              yAxisAssignments: { ...(cfg.yAxisAssignments || {}), [kpiIdItem]: axisVal },
+                              __activeYTab: value as any,
+                            } as any);
+                          }}
                           className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
                         >
                           {(['L', 'R'] as const).map(side => (
