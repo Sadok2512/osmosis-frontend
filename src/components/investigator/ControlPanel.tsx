@@ -996,8 +996,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const effectiveFilters = useMemo(() => {
     if (!activeSlotId) return state.filters;
     const slot = state.graphSlots.find(s => s.id === activeSlotId);
-    if (!slot) return state.filters;
-    return slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    return slot?.filters || {};
   }, [activeSlotId, state.graphSlots, state.filters]);
 
   const siteFilterForProbe = (effectiveFilters['Site'] || [])[0] || null;
@@ -1102,9 +1101,19 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     for (const dim of prev) {
       if (!current.has(dim) && PM_DIMENSION_TYPES.has(dim)) {
         setState(s => {
-          const nf = { ...s.filters };
-          delete nf[dim];
-          return { ...s, filters: nf };
+          const nextGlobalFilters = { ...s.filters };
+          delete nextGlobalFilters[dim];
+
+          return {
+            ...s,
+            filters: nextGlobalFilters,
+            graphSlots: s.graphSlots.map(slot => {
+              if (!slot.filters?.[dim]) return slot;
+              const nextSlotFilters = { ...slot.filters };
+              delete nextSlotFilters[dim];
+              return { ...slot, filters: nextSlotFilters };
+            }),
+          };
         });
       }
     }
@@ -1239,8 +1248,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         ...prev,
         graphSlots: prev.graphSlots.map(s => {
           if (s.id !== activeSlotId) return s;
-          const currentFilters = s.filters && Object.keys(s.filters).length > 0 ? s.filters : { ...prev.filters };
-          return { ...s, filters: updater(currentFilters) };
+          return { ...s, filters: updater({ ...(s.filters || {}) }) };
         }),
       };
     });
@@ -1572,10 +1580,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             {visibleFilterDims.length > 0 && (
               <button
                 onClick={() => {
-                  setState(prev => {
-                    const nf = { ...prev.filters };
-                    visibleFilterDims.forEach(d => delete nf[d]);
-                    return { ...prev, filters: nf };
+                  updateFilters(filters => {
+                    const nextFilters = { ...filters };
+                    visibleFilterDims.forEach(d => delete nextFilters[d]);
+                    return nextFilters;
                   });
                 }}
                 className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"

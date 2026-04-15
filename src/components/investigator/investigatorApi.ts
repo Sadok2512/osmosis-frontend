@@ -417,7 +417,7 @@ interface SlotRequestContext {
 }
 
 
-/** Resolve a slot's effective request context, using slot overrides with global fallback */
+/** Resolve a slot's effective request context, with filters isolated per slot */
 export function resolveSlotContext(
   slot: GraphSlot,
   globalState: {
@@ -491,11 +491,8 @@ export function resolveSlotContext(
     splitValue2 = undefined;
   }
 
-  // Use slot-level filters as primary source; fall back to global only if slot has no filters
-  const slotHasOwnFilters = slot.filters && Object.keys(slot.filters).length > 0;
-  const mergedFilters: Record<string, string[]> = slotHasOwnFilters
-    ? { ...slot.filters }
-    : { ...globalState.filters };
+  // Filters are isolated per slot; global filters are only a template for slot creation.
+  const mergedFilters: Record<string, string[]> = { ...(slot.filters || {}) };
   const activeFilters = Object.entries(mergedFilters)
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));

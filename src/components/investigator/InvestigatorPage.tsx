@@ -61,7 +61,7 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
     sourceGraphId: slot.id,
     sourceGraphTitle: slot.name,
     kpiIds: slot.kpiIds,
-    filters: { ...globalState.filters, ...slot.filters },
+    filters: { ...(slot.filters || {}) },
     startDate: slot.startDate || globalState.startDate,
     endDate: slot.endDate || globalState.endDate,
     granularity: slot.granularity || globalState.granularity,
@@ -318,7 +318,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   // Check if the active slot (or global fallback) has filters
   const hasFilters = (() => {
     const slot = state.graphSlots.find(s => s.id === activeSlotId);
-    const filters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    const filters = activeSlotId ? (slot?.filters || {}) : state.filters;
     return Object.values(filters).some(vals => vals.length > 0);
   })();
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0);
@@ -560,7 +560,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   // Counter timeseries
   const counterKey = activeCounterNames.join(',');
-  const filterKey = JSON.stringify(activeSlot?.filters && Object.keys(activeSlot.filters).length > 0 ? activeSlot.filters : state.filters);
+  const filterKey = JSON.stringify(activeSlotId ? (activeSlot?.filters || {}) : state.filters);
   const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
   fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
 
@@ -579,7 +579,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const dateTo = state.endDate.split('T')[0];
 
       const allFilters = [...worstFilters];
-      const slotFilters = activeSlot?.filters && Object.keys(activeSlot.filters).length > 0 ? activeSlot.filters : state.filters;
+      const slotFilters = activeSlotId ? (activeSlot?.filters || {}) : state.filters;
       const siteFromState = slotFilters?.['Site']?.[0] || slotFilters?.['SITE']?.[0];
       if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
         allFilters.push({ dimension: 'SITE', op: 'IN', values: [siteFromState] });
@@ -1146,8 +1146,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     <InvestigatorDataTable
                       tsData={slotData}
                       activeSlot={activeTableSlot}
-                      siteName={(activeSlot?.filters?.['Site'] || activeSlot?.filters?.['SITE'] || state.filters?.['Site'] || state.filters?.['SITE'] || [])[0] || undefined}
-                      filterContext={{ ...(state.filters || {}), ...(activeSlot?.filters || {}) }}
+                        siteName={((activeTableSlot?.filters?.['Site'] || activeTableSlot?.filters?.['SITE'] || (!activeTableSlot ? state.filters?.['Site'] || state.filters?.['SITE'] : []) || [])[0]) || undefined}
+                        filterContext={activeTableSlot ? { ...(activeTableSlot.filters || {}) } : { ...(state.filters || {}) }}
                     />
                   </>
                 );
@@ -1170,7 +1170,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       dateFrom={(slot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
                       dateTo={(slot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
                       granularity={slot.granularity || state.granularity}
-                      filters={Object.entries(slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters)
+                      filters={Object.entries(slot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
                       splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
