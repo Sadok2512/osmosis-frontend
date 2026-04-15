@@ -400,25 +400,41 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                 </div>
 
                 {/* Vendor */}
-                <CollapsibleSection title="Vendor">
-                  <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
-                  {vendorOptions.map(v => (
-                    <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                  ))}
+                <CollapsibleSection title={hasLockedVendor ? '🔒 Vendor (périmètre)' : 'Vendor'}>
+                  {hasLockedVendor ? (
+                    perimVendors.map(v => (
+                      <FilterListItem key={v} label={v} active={true} onClick={() => {}} />
+                    ))
+                  ) : (
+                    <>
+                      <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
+                      {vendorOptions.map(v => (
+                        <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
+                      ))}
+                    </>
+                  )}
                 </CollapsibleSection>
 
                 {/* Technology */}
-                <CollapsibleSection title="Technologie">
-                  <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                  {technoOptions.map(t => (
-                    <FilterListItem
-                      key={t}
-                      label={t}
-                      active={filterTechno === t}
-                      count={technoCounts.get(t)}
-                      onClick={() => setFilterTechno(t)}
-                    />
-                  ))}
+                <CollapsibleSection title={hasLockedTechno ? '🔒 Technologie (périmètre)' : 'Technologie'}>
+                  {hasLockedTechno ? (
+                    perimTechnos.map(t => (
+                      <FilterListItem key={t} label={t} active={true} count={technoCounts.get(t)} onClick={() => {}} />
+                    ))
+                  ) : (
+                    <>
+                      <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
+                      {technoOptions.map(t => (
+                        <FilterListItem
+                          key={t}
+                          label={t}
+                          active={filterTechno === t}
+                          count={technoCounts.get(t)}
+                          onClick={() => setFilterTechno(t)}
+                        />
+                      ))}
+                    </>
+                  )}
                 </CollapsibleSection>
 
                 {/* Dimension Type */}
