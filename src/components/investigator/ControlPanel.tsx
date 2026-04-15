@@ -1217,36 +1217,66 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   };
 
-  const addFilterDimension = (dim: string) => {
+  // ── Per-slot filter isolation ──────────────────────────────────────────
+  // Filters are stored per-slot. When an active slot exists, read/write from slot.filters.
+  // When no slot is active, fall back to state.filters (global template for new slots).
+  const effectiveFilters = useMemo(() => {
+    if (!activeSlotId) return state.filters;
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    if (!slot) return state.filters;
+    // Slot filters are the source of truth; return them (may be empty initially)
+    return slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+  }, [activeSlotId, state.graphSlots, state.filters]);
+
+  /** Helper: update filters on the active slot (or global if no slot) */
+  const updateFilters = (updater: (filters: Record<string, string[]>) => Record<string, string[]>) => {
     setState(prev => {
-      if (prev.filters[dim]) return prev; // already exists
-      return { ...prev, filters: { ...prev.filters, [dim]: [] } };
+      if (!activeSlotId) {
+        // No active slot — update global filters (template for new slots)
+        return { ...prev, filters: updater(prev.filters) };
+      }
+      // Update the active slot's filters
+      return {
+        ...prev,
+        graphSlots: prev.graphSlots.map(s => {
+          if (s.id !== activeSlotId) return s;
+          const currentFilters = s.filters && Object.keys(s.filters).length > 0 ? s.filters : { ...prev.filters };
+          return { ...s, filters: updater(currentFilters) };
+        }),
+      };
+    });
+  };
+
+  const addFilterDimension = (dim: string) => {
+    updateFilters(filters => {
+      if (filters[dim]) return filters;
+      return { ...filters, [dim]: [] };
     });
   };
 
   const toggleFilterValue = (dim: string, val: string) => {
-    setState(prev => {
-      const existing = prev.filters[dim] || [];
+    updateFilters(filters => {
+      const existing = filters[dim] || [];
       const newVals = existing.includes(val)
         ? existing.filter(v => v !== val)
         : [...existing, val];
-      return { ...prev, filters: { ...prev.filters, [dim]: newVals } };
+      return { ...filters, [dim]: newVals };
     });
   };
 
   const clearFilterValues = (dim: string) => {
-    setState(prev => ({ ...prev, filters: { ...prev.filters, [dim]: [] } }));
+    updateFilters(filters => ({ ...filters, [dim]: [] }));
   };
 
   const removeFilterDimension = (dim: string) => {
-    setState(prev => {
-      const newFilters = { ...prev.filters };
+    updateFilters(filters => {
+      const newFilters = { ...filters };
       delete newFilters[dim];
-      return { ...prev, filters: newFilters };
+      return newFilters;
     });
   };
 
-  const activeFilterDims = Object.keys(state.filters);
+  const activeFilterDims = Object.keys(effectiveFilters);
 
   return (
     <div className="sticky top-0 z-30">
