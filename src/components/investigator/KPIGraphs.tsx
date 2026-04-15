@@ -51,6 +51,137 @@ const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd 
   );
 };
 
+/** Reusable graph settings popover for all slot types */
+const SlotSettingsPopover: React.FC<{
+  slot: GraphSlot;
+  cfg: GraphConfig;
+  onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
+  onDuplicateSlot?: (slotId: string) => void;
+  onActivateTab?: (tab: any) => void;
+  chartRef?: ReactECharts | null;
+}> = ({ slot, cfg, onUpdateSlotConfig, onDuplicateSlot, onActivateTab, chartRef }) => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <button
+        onClick={(e) => e.stopPropagation()}
+        className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+      >
+        <Settings2 className="w-4 h-4" />
+      </button>
+    </PopoverTrigger>
+    <PopoverContent className="w-[260px] p-0 z-[200] overflow-hidden" align="end" side="bottom" sideOffset={4}>
+      <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph Settings</span>
+      </div>
+
+      {/* Quick actions bar */}
+      <div className="px-3 py-2 flex gap-2 border-b border-border/40">
+        {onDuplicateSlot && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDuplicateSlot(slot.id); }}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copy
+          </button>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); exportChartAsPng(chartRef ?? null, slot.name || 'chart'); }}
+          className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" /> Download
+        </button>
+      </div>
+
+      <div className="p-3 space-y-2.5">
+        {/* Background */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Background</span>
+          <span className="text-[9px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/40">White</span>
+        </div>
+
+        {/* Table View */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Table View</span>
+          <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
+        </div>
+
+        {/* Top Worst Cells */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Top Worst Cells</span>
+          <Switch checked={cfg.showTopWorst} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showTopWorst: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('top_worst'); }} className="scale-[0.65]" />
+        </div>
+
+        {/* Alarms */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Alarms</span>
+          <Switch checked={cfg.showAlarms} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showAlarms: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('alarms'); }} className="scale-[0.65]" />
+        </div>
+
+        {/* Neighbors */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Neighbors</span>
+          <Switch checked={cfg.showNeighbors} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showNeighbors: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('neighbors'); }} className="scale-[0.65]" />
+        </div>
+
+        {/* CM History */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">CM History</span>
+          <Switch checked={cfg.showCmHistory} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showCmHistory: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('cm_history'); }} className="scale-[0.65]" />
+        </div>
+
+        <div className="h-px bg-border/40" />
+
+        {/* Chart Style */}
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Chart Style</span>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-foreground">Smooth</span>
+            <Switch checked={cfg.smooth} onCheckedChange={v => onUpdateSlotConfig(slot.id, { smooth: v })} className="scale-[0.65]" />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-foreground">Markers</span>
+            <Switch checked={cfg.showSymbols} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showSymbols: v })} className="scale-[0.65]" />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-foreground">Area Fill</span>
+            <Switch checked={cfg.showArea} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showArea: v })} className="scale-[0.65]" />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-foreground">Grid Lines</span>
+            <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-[0.65]" />
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-foreground whitespace-nowrap">Line Width</span>
+          <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
+          <span className="text-[9px] text-muted-foreground font-mono w-8 text-right">{cfg.lineWidth}px</span>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
+        <button
+          onClick={(e) => {
+            if (cfg.showDataTable && onActivateTab) onActivateTab('table_data');
+            else if (cfg.showBreakdown && onActivateTab) onActivateTab('breakdown');
+            else if (cfg.showTopWorst && onActivateTab) onActivateTab('top_worst');
+            else if (cfg.showAlarms && onActivateTab) onActivateTab('alarms');
+            else if (cfg.showNeighbors && onActivateTab) onActivateTab('neighbors');
+            else if (cfg.showCmHistory && onActivateTab) onActivateTab('cm_history');
+            (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
+              new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+            );
+          }}
+          className="w-full text-[10px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 py-1.5 rounded-md transition-colors"
+        >
+          Appliquer
+        </button>
+      </div>
+    </PopoverContent>
+  </Popover>
+);
+
+
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Smooth', icon: TrendingUp },
   { value: 'line_straight', label: 'Straight', icon: TrendingUp },
@@ -581,6 +712,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
                 <div className="text-muted-foreground/40">
@@ -623,6 +755,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-500">Histogram</span>
                 <span className="ml-auto" />
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <HistogramWidget kpiIds={kpiIds} height={chartHeight} allKpis={allKpis} />
             </div>
@@ -642,6 +775,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <span className="ml-auto" />
                 <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <KpiCardWidget
                 kpiIds={kpiIds}
@@ -666,6 +800,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">Neighbors</span>
                 <span className="ml-auto" />
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
                 <div className="text-center space-y-2">
@@ -1447,126 +1582,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <X className="w-3.5 h-3.5" />
               </button>
 
-              {/* Config popover — unified settings */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
-                    <Settings2 className="w-4 h-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[260px] p-0 z-[200] overflow-hidden" align="end" side="bottom" sideOffset={4}>
-                  <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph Settings</span>
-                  </div>
-
-                  {/* Quick actions bar at top */}
-                  <div className="px-3 py-2 flex gap-2 border-b border-border/40">
-                    {onDuplicateSlot && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDuplicateSlot(slot.id); }}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
-                      >
-                        <Copy className="w-3.5 h-3.5" /> Copy
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); exportChartAsPng(chartRefsMap.current[slot.id], slot.name || 'chart'); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[10px] font-semibold border border-border/40 text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      <Download className="w-3.5 h-3.5" /> Download
-                    </button>
-                  </div>
-
-                  <div className="p-3 space-y-2.5">
-                    {/* Background */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Background</span>
-                      <span className="text-[9px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/40">White</span>
-                    </div>
-
-                    {/* Table View */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Table View</span>
-                      <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
-                    </div>
-
-                    {/* Top Worst Cells */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Top Worst Cells</span>
-                      <Switch checked={cfg.showTopWorst} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showTopWorst: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('top_worst'); }} className="scale-[0.65]" />
-                    </div>
-
-                    {/* Alarms */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Alarms</span>
-                      <Switch checked={cfg.showAlarms} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showAlarms: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('alarms'); }} className="scale-[0.65]" />
-                    </div>
-
-                    {/* Neighbors */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">Neighbors</span>
-                      <Switch checked={cfg.showNeighbors} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showNeighbors: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('neighbors'); }} className="scale-[0.65]" />
-                    </div>
-
-                    {/* CM History */}
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-foreground">CM History</span>
-                      <Switch checked={cfg.showCmHistory} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showCmHistory: v }); if (!v && onActivateTab) onActivateTab(null as any); else if (v && onActivateTab) onActivateTab('cm_history'); }} className="scale-[0.65]" />
-                    </div>
-
-                    <div className="h-px bg-border/40" />
-
-                    {/* Chart Style */}
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Chart Style</span>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-foreground">Smooth</span>
-                        <Switch checked={cfg.smooth} onCheckedChange={v => onUpdateSlotConfig(slot.id, { smooth: v })} className="scale-[0.65]" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-foreground">Markers</span>
-                        <Switch checked={cfg.showSymbols} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showSymbols: v })} className="scale-[0.65]" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-foreground">Area Fill</span>
-                        <Switch checked={cfg.showArea} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showArea: v })} className="scale-[0.65]" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-foreground">Grid Lines</span>
-                        <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-[0.65]" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-foreground whitespace-nowrap">Line Width</span>
-                      <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
-                      <span className="text-[9px] text-muted-foreground font-mono w-8 text-right">{cfg.lineWidth}px</span>
-                    </div>
-
-                  </div>
-
-                  {/* Footer — Apply */}
-                  <div className="px-3 py-2 border-t border-border/40 bg-muted/20">
-                    <button
-                      onClick={(e) => {
-                        // Activate corresponding bottom tab if toggle is on
-                        if (cfg.showDataTable && onActivateTab) onActivateTab('table_data');
-                        else if (cfg.showBreakdown && onActivateTab) onActivateTab('breakdown');
-                        else if (cfg.showTopWorst && onActivateTab) onActivateTab('top_worst');
-                        else if (cfg.showAlarms && onActivateTab) onActivateTab('alarms');
-                        else if (cfg.showNeighbors && onActivateTab) onActivateTab('neighbors');
-                        else if (cfg.showCmHistory && onActivateTab) onActivateTab('cm_history');
-                        // Close the popover
-                        (e.target as HTMLElement).closest('[data-radix-popper-content-wrapper]')?.dispatchEvent(
-                          new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
-                        );
-                      }}
-                      className="w-full text-[10px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 py-1.5 rounded-md transition-colors"
-                    >
-                      Appliquer
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} />
             </div>
             <SlotChart
               ref={(el) => { chartRefsMap.current[slot.id] = el; }}
