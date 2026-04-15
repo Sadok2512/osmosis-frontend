@@ -10,11 +10,10 @@ type CacheEntry = { values: string[]; labels: Record<string, string>; loading: b
 const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQUE', 'ARCEP'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
-/** Dimensions that can be enriched from VPS topo distinct values */
+/** Dimensions that can be enriched from VPS topo distinct values (only lightweight endpoints) */
 const TOPO_ENRICHABLE: Record<string, string> = {
   SITE: 'site_name',
   DOR: 'dor',
-  PLAQUE: 'plaque',
   VENDOR: 'constructeur',
   ARCEP: 'zone_arcep',
 };
@@ -39,29 +38,9 @@ const STATIC_FALLBACKS: Record<string, string[]> = {
   VENDOR: ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'],
   TECHNO: ['2G', '3G', '4G', '5G'],
   BAND: ['700', '800', '1800', '2100', '2600', '3500'],
-  DOR: [],
-  PLAQUE: [],
+  DOR: ['UPR Sud-Ouest', 'UPR Ile-De-France', 'UPR Nord-Est', 'UPR Ouest', 'UPR Sud-Est', 'UPR Maghreb'],
+  PLAQUE: ['BORDEAUX', 'TOULOUSE', 'PERPIGNAN', 'BAYONNE', 'ANGOULEME', 'TARBES', 'LILLE', 'REIMS', 'STRASBOURG', 'BREST', 'NANTES', 'RENNES', 'CAEN', 'LYON_CENTRE', 'GRENOBLE', 'NICE_CANNES', 'TUNIS', 'FEMTO'],
 };
-
-function extractSiteFieldValues(sites: any[], fields: string[]): string[] {
-  const values: string[] = [];
-  const seen = new Set<string>();
-
-  for (const site of sites) {
-    for (const field of fields) {
-      const value = site?.[field];
-      if (typeof value !== 'string') continue;
-      const trimmed = value.trim();
-      if (!trimmed) continue;
-      const key = trimmed.toUpperCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      values.push(trimmed);
-    }
-  }
-
-  return values;
-}
 
 /** Try to enrich a dimension with values from VPS topo data */
 async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]> {
@@ -70,16 +49,21 @@ async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]
   try {
     let topoValues: string[] = [];
 
-    // Some topo distinct fields are unreliable. For SITE and PLAQUE, use /topo/sites.
-    if (dim === 'SITE' || dim === 'PLAQUE') {
+    // For SITE, use /topo/sites which reliably returns site_name
+    if (dim === 'SITE') {
       const url = getVpsProxyUrl('parser', '/api/v1/topo/sites', { limit: '50000' });
       const res = await fetch(url, { headers: getVpsProxyHeaders() });
       if (!res.ok) return existing;
       const data = await res.json();
       const sites: any[] = Array.isArray(data) ? data : (data?.sites || []);
-      topoValues = dim === 'SITE'
-        ? extractSiteFieldValues(sites, ['site_name', 'nom_site'])
-        : extractSiteFieldValues(sites, ['plaque']);
+      const nameSet = new Set<string>();
+      for (const s of sites) {
+        const name = s.site_name || s.nom_site;
+        if (typeof name === 'string' && name && !nameSet.has(name)) {
+          nameSet.add(name);
+          topoValues.push(name);
+        }
+      }
     } else {
       const url = getVpsProxyUrl('parser', '/api/v1/topo/distinct', { field: topoCol });
       const res = await fetch(url, { headers: getVpsProxyHeaders() });
