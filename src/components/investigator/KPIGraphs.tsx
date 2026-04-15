@@ -1003,16 +1003,21 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           );
           for (const counterName of tsCounterNames) {
             if (alreadyRendered.has(counterName)) continue;
-            const color = stableColorForCounter(counterName);
+            const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
+            const splitLabel = counterName.includes('@') ? counterName.split('@').slice(1).join('@') : '';
+            const color = splitLabel ? stableColorForSplit(splitLabel) : stableColorForCounter(baseCounter);
             const counterPoints = counterDataFromTs.filter((d: any) => d.kpi === counterName);
             const counterData = allTimestamps.map(ts => {
               const p = counterPoints.find((d: any) => d.timestamp === ts);
               return p ? p.value : null;
             });
+            const displayName = splitLabel ? `${baseCounter} [${splitLabel}]` : counterName;
             const forceMarkers = cfg.showSymbols || counterData.filter(v => v != null).length <= 2;
+            const sp = getSeriesProps(baseCounter);
             series.push({
-              name: counterName,
+              name: displayName,
               _kpiId: `counter_${counterName}`,
+              _splitValue: splitLabel || undefined,
               connectNulls: true,
               type: 'line' as any,
               data: counterData,
