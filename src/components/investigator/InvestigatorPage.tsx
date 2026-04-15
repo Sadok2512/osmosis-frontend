@@ -330,13 +330,19 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     }
 
     const data = await response.json();
-    const counterPoints = (data.series || []).map((s: any) => ({
-      timestamp: s.ts,
-      kpi: s.counter,
-      value: s.value,
-      _isCounter: true,
-      _slotId: slotId,
-    }));
+    const counterPoints = (data.series || []).map((s: any) => {
+      const splitVal = s.cell || s.cell_name || s.site || s.site_name || s.split_value || s.dimension_value || '';
+      const counterName = s.counter || s.counter_name || counterNames[0];
+      return {
+        timestamp: s.ts,
+        kpi: splitVal ? `${counterName}@${splitVal}` : counterName,
+        value: s.value,
+        splitValue: splitVal || undefined,
+        networkElement: splitVal || undefined,
+        _isCounter: true,
+        _slotId: slotId,
+      };
+    });
 
     const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
     if (!current) return counterPoints.length;
