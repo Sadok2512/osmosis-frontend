@@ -315,7 +315,8 @@ const SingleKpiBreakdown: React.FC<{
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
+  jalons?: Jalon[];
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData, jalons = [] }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
