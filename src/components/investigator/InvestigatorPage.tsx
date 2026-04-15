@@ -39,7 +39,7 @@ const WIDGET_NAMES: Record<WidgetType, string> = {
   neighbors: 'Neighbors',
 };
 
-const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries'): GraphSlot => ({
+const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries', initialFilters: Record<string, string[]> = {}): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
   kpiIds,
   name: `${WIDGET_NAMES[widgetType]} ${index}`,
@@ -48,7 +48,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
     ...DEFAULT_GRAPH_CONFIG,
     ...(widgetType === 'timeseries' ? { showDataTable: true } : {}),
   },
-  filters: {},
+  filters: { ...initialFilters },
   startDate: '',
   endDate: '',
   granularity: '' as Granularity,
