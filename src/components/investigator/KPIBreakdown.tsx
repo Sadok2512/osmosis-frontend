@@ -637,9 +637,7 @@ const SingleKpiBreakdown: React.FC<{
           axisLine: { show: true, lineStyle: { color: 'rgba(59,130,246,0.3)' } },
         },
       ],
-      series,
-    };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements]);
+      series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
