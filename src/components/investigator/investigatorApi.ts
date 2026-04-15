@@ -266,6 +266,17 @@ async function fetchCounterTimeSeriesFallback(
   filters?: { dimension: string; values: string[] }[],
   splitByField?: string,
 ): Promise<{ data: DataPoint[]; isUnfiltered: boolean }> {
+  const normalizeRawSeries = (rawSeries: any[], fallbackSplitField?: string): DataPoint[] =>
+    rawSeries.map((s: any) => ({
+      timestamp: s.ts || s.timestamp || s.date,
+      kpi: (s.dimension_key ? s.counter_id : undefined) || s.counter_id || s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
+      value: s.value ?? s.kpi_value ?? s.val,
+      splitValue: s.dimension_key || s.split_value || s.split_field || s[fallbackSplitField || ''] || undefined,
+      splitValue2: s.split_field || s[fallbackSplitField || ''] || undefined,
+      networkElement: s.split_field || s[fallbackSplitField || ''] || undefined,
+      _isRawFallback: true,
+    }));
+
   try {
     const url = getApiUrl('pm/counters/timeseries');
     const body: any = {
@@ -275,11 +286,10 @@ async function fetchCounterTimeSeriesFallback(
       granularity,
     };
 
-    // Translate dimension filters to Parser format.
-    // Any filter not matching a structural column (SITE/CELL/VENDOR/TECH/KPI_LEVEL) is
-    // forwarded as a PM dimension_filter — values arrive already prefixed as "DIM=value".
-    if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
+    const splitByPmDim = splitBy?.startsWith('PM_DIM:');
+    if (splitByPmDim) body.split_by_dimension = true;
     if (splitByField) body.split_by_field = splitByField;
+
     const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
@@ -307,19 +317,58 @@ async function fetchCounterTimeSeriesFallback(
       }
       if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
     }
+
+    const executeRequest = async (requestBody: any, forcedSplitField?: string) => {
+      const res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify(requestBody),
+      });
+
+      log('[CounterFallback] Response status:', res.status);
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        warn('[CounterFallback] Failed:', res.status, errorText);
+        return { ok: false, status: res.status, errorText, rawSeries: [] as any[] };
+      }
+
+      const data = await res.json();
+      log('[CounterFallback] Response keys:', Object.keys(data), 'series count:', (data.series || []).length, 'data count:', (data.data || []).length);
+      const rawSeries = (data.series || data.data || data.timeseries || []).map((s: any) => ({
+        ...s,
+        ...(forcedSplitField && !s.split_field ? { split_field: s[forcedSplitField] || requestBody[forcedSplitField] } : {}),
+      }));
+      return { ok: true, status: res.status, errorText: '', rawSeries };
+    };
+
+    const fanOutField = Array.isArray(body.site_name) && body.site_name.length > 1
+      ? 'site_name'
+      : Array.isArray(body.cell_name) && body.cell_name.length > 1
+        ? 'cell_name'
+        : null;
+
+    if (fanOutField) {
+      const fanOutValues = body[fanOutField] as string[];
+      log('[CounterFallback] Fan-out request on', fanOutField, fanOutValues);
+      const results = await Promise.all(
+        fanOutValues.map((value) =>
+          executeRequest(
+            { ...body, [fanOutField]: value },
+            splitByField === fanOutField ? fanOutField : undefined,
+          )
+        )
+      );
+      const mergedSeries = results.flatMap((result) => result.rawSeries);
+      return {
+        data: normalizeRawSeries(mergedSeries, splitByField === fanOutField ? fanOutField : undefined),
+        isUnfiltered: false,
+      };
+    }
+
     log('[CounterFallback] Request:', url, JSON.stringify(body));
-
-    const res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: getApiHeaders(),
-      body: JSON.stringify(body),
-    });
-
-    log('[CounterFallback] Response status:', res.status);
-    if (!res.ok) {
-      warn('[CounterFallback] Failed:', res.status, await res.text().catch(() => ''));
-      // If endpoint doesn't support filters, retry without and mark as unfiltered
-      if (res.status === 400 || res.status === 422) {
+    const result = await executeRequest(body, splitByField);
+    if (!result.ok) {
+      if (result.status === 400 || result.status === 422) {
         const fallbackRes = await fetchWithTimeout(url, {
           method: 'POST',
           headers: getApiHeaders(),
@@ -341,20 +390,8 @@ async function fetchCounterTimeSeriesFallback(
       return { data: [], isUnfiltered: false };
     }
 
-    const data = await res.json();
-    log('[CounterFallback] Response keys:', Object.keys(data), 'series count:', (data.series || []).length, 'data count:', (data.data || []).length);
-    // Handle multiple response formats: { series: [...] } or { data: [...] } or { timeseries: [...] }
-    const rawSeries = data.series || data.data || data.timeseries || [];
     return {
-      data: rawSeries.map((s: any) => ({
-        timestamp: s.ts || s.timestamp || s.date,
-        kpi: (s.dimension_key ? s.counter_id : undefined) || s.counter_id || s.counter || s.kpi || s.counter_name || s.kpi_key || counterNames[0],
-        value: s.value ?? s.kpi_value ?? s.val,
-        splitValue: s.dimension_key || s.split_value || undefined,
-        splitValue2: s.split_field || undefined,
-        networkElement: s.split_field || undefined,
-        _isRawFallback: true,
-      })),
+      data: normalizeRawSeries(result.rawSeries, splitByField),
       isUnfiltered: false,
     };
   } catch (e) {
