@@ -437,9 +437,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     try {
       const slotCounterIds = targetSlot.counterIds || [];
-      // Merge slot counterIds + selectedCounters (global) to avoid missing any
-      const globalCounterNames = selectedCounters.map((c: any) => c.counter_name);
-      const allCounterNames = [...new Set([...slotCounterIds, ...globalCounterNames])];
+      // Use only the slot's own counterIds — do NOT merge global selectedCounters
+      // to avoid cross-slot contamination
+      const allCounterNames = [...new Set(slotCounterIds)];
       const hasSlotKpis = targetSlot.kpiIds.length > 0;
       const ctx = resolveSlotContext(targetSlot, state);
 
