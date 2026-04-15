@@ -1556,7 +1556,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
             return {
               ...s,
-              yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
+              yAxisIndex: hasRightAxis
+                ? (s.yAxisIndex != null ? s.yAxisIndex : getYAxisIndex(seriesKpiId))
+                : 0,
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
                 focus: 'series' as const,
