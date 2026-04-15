@@ -280,8 +280,8 @@ async function fetchCounterTimeSeriesFallback(
           body.site_name = f.values.length === 1 ? f.values[0] : f.values;
         } else if (dim === 'CELL' && f.values?.length) {
           body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
-        } else if (dim === 'TECHNO' && f.values?.length) {
-          body.object_type = f.values[0];
+        } else if ((dim === 'TECHNO' || dim === 'TECHNOLOGY') && f.values?.length) {
+          body.object_type = f.values.length === 1 ? f.values[0] : f.values;
         } else if (dim === 'VENDOR' && f.values?.length) {
           body.vendor = f.values[0];
         } else if (dim === 'KPI_LEVEL') {
