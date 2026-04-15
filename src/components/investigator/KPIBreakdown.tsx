@@ -3,7 +3,8 @@ import ReactECharts from 'echarts-for-react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { formatAxisLabel } from './timeUtils';
-import { DataPoint, Granularity } from './types';
+import { DataPoint, Granularity, Jalon } from './types';
+import { normalizeTimestamp } from './timeUtils';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
   Database, GitBranch, Cpu, TrendingUp, Filter,
@@ -23,6 +24,7 @@ interface Props {
   /** Per-KPI split dimension map (takes precedence over `splitBy`). */
   splitByPerKpi?: Record<string, string>;
   timeSeriesData?: DataPoint[];
+  jalons?: Jalon[];
 }
 
 interface KpiExplain {
@@ -74,6 +76,31 @@ const SPLIT_COLORS = [
 const SPLIT_TOP_N = 10;
 
 /** PM dimension types forwarded as `dimension_filter` in the counters/timeseries request. */
+
+/** Build ECharts markLine config from jalons for a given set of timestamps */
+function jalonMarkLine(timestamps: string[], jalons: Jalon[], granularity: Granularity) {
+  if (!jalons || jalons.length === 0) return undefined;
+  const data = jalons.map(j => {
+    const normDate = normalizeTimestamp(j.date, granularity);
+    let xVal = normDate;
+    if (!timestamps.includes(normDate) && timestamps.length > 0) {
+      const jTime = new Date(j.date).getTime();
+      let closest = timestamps[0];
+      let closestDiff = Math.abs(new Date(closest).getTime() - jTime);
+      for (const ts of timestamps) {
+        const diff = Math.abs(new Date(ts).getTime() - jTime);
+        if (diff < closestDiff) { closest = ts; closestDiff = diff; }
+      }
+      xVal = closest;
+    }
+    return {
+      xAxis: xVal,
+      label: { show: true, formatter: j.label, fontSize: 9, fontWeight: 'bold' as const, color: j.color, position: 'insideEndTop' as const },
+      lineStyle: { color: j.color, width: 2, type: 'dashed' as const },
+    };
+  });
+  return { silent: true, symbol: 'none', data };
+}
 const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
 
 const extractCounters = (formula: string): string[] => {
@@ -313,7 +340,8 @@ const SingleKpiBreakdown: React.FC<{
   filters: { dimension: string; values: string[] }[];
   splitBy?: string;
   timeSeriesData?: DataPoint[];
-}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData }) => {
+  jalons?: Jalon[];
+}> = ({ kpiId, dateFrom, dateTo, granularity, filters, splitBy, timeSeriesData, jalons = [] }) => {
   const [explain, setExplain] = useState<KpiExplain | null>(null);
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
@@ -634,9 +662,9 @@ const SingleKpiBreakdown: React.FC<{
           axisLine: { show: true, lineStyle: { color: 'rgba(59,130,246,0.3)' } },
         },
       ],
-      series,
+      series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, jalons]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -711,9 +739,9 @@ const SingleKpiBreakdown: React.FC<{
         splitLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.08)', type: 'dashed' as const } },
         axisLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.3)' } },
       },
-      series,
+      series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(sortedTs, jalons, granularity) } : s),
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, jalons]);
 
   return (
     <div className="space-y-4">
@@ -807,6 +835,7 @@ const KPIBreakdown: React.FC<Props> = ({
   splitBy,
   splitByPerKpi,
   timeSeriesData,
+  jalons = [],
 }) => {
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
@@ -868,6 +897,7 @@ const KPIBreakdown: React.FC<Props> = ({
           filters={filters}
           splitBy={getEffectiveSplit(activeKpiTab)}
           timeSeriesData={timeSeriesData}
+          jalons={jalons}
         />
       )}
     </div>

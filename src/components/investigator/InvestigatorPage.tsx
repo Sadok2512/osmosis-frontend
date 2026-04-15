@@ -1172,6 +1172,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
                       splitByPerKpi={slot.config?.splitByPerKpi}
                       timeSeriesData={tsData.filter((d: any) => d._slotId === slot.id)}
+                      jalons={state.jalons}
                     />
                   </section>
                 );
