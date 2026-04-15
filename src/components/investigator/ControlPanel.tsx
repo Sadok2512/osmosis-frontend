@@ -1872,11 +1872,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   ),
                 }));
               };
-              const counterSplitVal = cfg.splitByPerKpi?.[c.counter_name];
+              const counterSplitVal = cfg.splitByPerKpi?.[c.counter_name] || Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || null;
               const hasCounterSplit = counterSplitVal && counterSplitVal !== 'None';
               const isCounterPmSplit = hasCounterSplit && counterSplitVal.startsWith('PM_DIM:');
               const counterSplitLabel = hasCounterSplit ? (isCounterPmSplit ? counterSplitVal : (splitOptions.find(s => s.key === counterSplitVal)?.label || counterSplitVal)) : null;
-              const counterSplitVal2 = cfg.splitByPerKpi2?.[c.counter_name];
+              const counterSplitVal2 = cfg.splitByPerKpi2?.[c.counter_name] || Object.values(cfg.splitByPerKpi2 || {}).find(v => v && v !== 'None') || null;
               const hasCounterSplit2 = counterSplitVal2 && counterSplitVal2 !== 'None';
               const isCounterPmSplit2 = hasCounterSplit2 && counterSplitVal2.startsWith('PM_DIM:');
               const counterSplitLabel2 = hasCounterSplit2 ? (isCounterPmSplit2 ? counterSplitVal2 : (splitOptions.find(s => s.key === counterSplitVal2)?.label || counterSplitVal2)) : null;
