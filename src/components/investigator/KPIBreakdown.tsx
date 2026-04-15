@@ -76,6 +76,31 @@ const SPLIT_COLORS = [
 const SPLIT_TOP_N = 10;
 
 /** PM dimension types forwarded as `dimension_filter` in the counters/timeseries request. */
+
+/** Build ECharts markLine config from jalons for a given set of timestamps */
+function jalonMarkLine(timestamps: string[], jalons: Jalon[], granularity: Granularity) {
+  if (!jalons || jalons.length === 0) return undefined;
+  const data = jalons.map(j => {
+    const normDate = normalizeTimestamp(j.date, granularity);
+    let xVal = normDate;
+    if (!timestamps.includes(normDate) && timestamps.length > 0) {
+      const jTime = new Date(j.date).getTime();
+      let closest = timestamps[0];
+      let closestDiff = Math.abs(new Date(closest).getTime() - jTime);
+      for (const ts of timestamps) {
+        const diff = Math.abs(new Date(ts).getTime() - jTime);
+        if (diff < closestDiff) { closest = ts; closestDiff = diff; }
+      }
+      xVal = closest;
+    }
+    return {
+      xAxis: xVal,
+      label: { show: true, formatter: j.label, fontSize: 9, fontWeight: 'bold' as const, color: j.color, position: 'insideEndTop' as const },
+      lineStyle: { color: j.color, width: 2, type: 'dashed' as const },
+    };
+  });
+  return { silent: true, symbol: 'none', data };
+}
 const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
 
 const extractCounters = (formula: string): string[] => {
