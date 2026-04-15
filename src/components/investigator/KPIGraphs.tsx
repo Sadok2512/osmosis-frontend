@@ -1191,7 +1191,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             if (alreadyRendered.has(counterName)) continue;
             const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
             if (alreadyRendered.has(baseCounter)) continue;
-            const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
             const splitLabel = counterName.includes('@') ? counterName.split('@').slice(1).join('@') : '';
             const color = splitLabel ? stableColorForSplit(splitLabel) : stableColorForCounter(baseCounter);
             const counterPoints = counterDataFromTs.filter((d: any) => d.kpi === counterName);
