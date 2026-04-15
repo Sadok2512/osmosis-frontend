@@ -2248,8 +2248,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           const resolved = keys.map(k => counterCatalog.find((c: any) => c.counter_name === k)).filter(Boolean);
           setSelectedCounters(resolved);
         }}
-        perimeterVendor={(state.filters['Vendor'] || []).length === 1 ? state.filters['Vendor'][0] : undefined}
-        perimeterTechno={(state.filters['Technology'] || []).length === 1 ? state.filters['Technology'][0] : undefined}
+        perimeterVendor={state.filters['Vendor'] || []}
+        perimeterTechno={state.filters['Technology'] || []}
       />
     </div>
   );
