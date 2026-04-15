@@ -43,6 +43,26 @@ const STATIC_FALLBACKS: Record<string, string[]> = {
   PLAQUE: [],
 };
 
+function extractSiteFieldValues(sites: any[], fields: string[]): string[] {
+  const values: string[] = [];
+  const seen = new Set<string>();
+
+  for (const site of sites) {
+    for (const field of fields) {
+      const value = site?.[field];
+      if (typeof value !== 'string') continue;
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      const key = trimmed.toUpperCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      values.push(trimmed);
+    }
+  }
+
+  return values;
+}
+
 /** Try to enrich a dimension with values from VPS topo data */
 async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]> {
   const topoCol = TOPO_ENRICHABLE[dim];
@@ -50,22 +70,16 @@ async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]
   try {
     let topoValues: string[] = [];
 
-    // For SITE, use /topo/sites which reliably returns site_name
-    // /topo/distinct?field=site_name often returns empty
-    if (dim === 'SITE') {
+    // Some topo distinct fields are unreliable. For SITE and PLAQUE, use /topo/sites.
+    if (dim === 'SITE' || dim === 'PLAQUE') {
       const url = getVpsProxyUrl('parser', '/api/v1/topo/sites', { limit: '50000' });
       const res = await fetch(url, { headers: getVpsProxyHeaders() });
       if (!res.ok) return existing;
       const data = await res.json();
       const sites: any[] = Array.isArray(data) ? data : (data?.sites || []);
-      const nameSet = new Set<string>();
-      for (const s of sites) {
-        const name = s.site_name || s.nom_site;
-        if (typeof name === 'string' && name && !nameSet.has(name)) {
-          nameSet.add(name);
-          topoValues.push(name);
-        }
-      }
+      topoValues = dim === 'SITE'
+        ? extractSiteFieldValues(sites, ['site_name', 'nom_site'])
+        : extractSiteFieldValues(sites, ['plaque']);
     } else {
       const url = getVpsProxyUrl('parser', '/api/v1/topo/distinct', { field: topoCol });
       const res = await fetch(url, { headers: getVpsProxyHeaders() });
