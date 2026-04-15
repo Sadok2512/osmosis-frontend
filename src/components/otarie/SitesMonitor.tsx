@@ -9105,7 +9105,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating LEFT side: techno filter + band legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 120 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden animate-fade-in">
@@ -9153,7 +9153,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <Signal size={16} />
             </button>
             {showBandPanel && (
-              <div className="absolute left-14 bottom-0 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500] animate-scale-in">
+              <div className="absolute right-14 bottom-0 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500] animate-scale-in">
                 {mapTechnoFilter === 'ALL' ? (
                   /* ── ALL mode: show only 5G / 4G with group color pickers ── */
                   <div className="px-4 py-3 space-y-2.5">
@@ -9288,7 +9288,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating RIGHT side: action bar */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex flex-col gap-2 transition-all duration-500 ease-out animate-fade-in" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex flex-col gap-2 transition-all duration-500 ease-out animate-fade-in" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 120 }}>
           <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden">
             {([
               { key: 'layers', icon: <Layers size={16} />, title: 'Couches' },
