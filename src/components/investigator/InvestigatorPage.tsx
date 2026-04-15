@@ -1138,6 +1138,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       tsData={slotData}
                       activeSlot={activeTableSlot}
                       siteName={(activeSlot?.filters?.['Site'] || activeSlot?.filters?.['SITE'] || state.filters?.['Site'] || state.filters?.['SITE'] || [])[0] || undefined}
+                      filterContext={{ ...(state.filters || {}), ...(activeSlot?.filters || {}) }}
                     />
                   </>
                 );
