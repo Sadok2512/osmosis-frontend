@@ -499,7 +499,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
     try {
-      const kpiIds = activeSlot?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds);
+      const kpiIds = activeSlot?.kpiIds ?? [];
       if (!kpiIds.length) { setIsLoadingWorst(false); return; }
       const dateFrom = state.startDate.split('T')[0];
       const dateTo = state.endDate.split('T')[0];
@@ -731,7 +731,24 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           onDuplicateSlot={(slotId) => setState(prev => {
             const source = prev.graphSlots.find(s => s.id === slotId);
             if (!source) return prev;
-            const dup = { ...source, id: `slot-${Date.now()}-dup`, name: `${source.name} (copie)`, config: source.config ? { ...source.config } : undefined };
+            const dup = {
+              ...source,
+              id: `slot-${Date.now()}-dup`,
+              name: `${source.name} (copie)`,
+              config: source.config
+                ? {
+                    ...source.config,
+                    yAxisAssignments: { ...(source.config.yAxisAssignments || {}) },
+                    splitByPerKpi: { ...(source.config.splitByPerKpi || {}) },
+                    splitByPerKpi2: { ...(source.config.splitByPerKpi2 || {}) },
+                    chartTypePerKpi: { ...(source.config.chartTypePerKpi || {}) },
+                    zoomWindow: source.config.zoomWindow ? { ...source.config.zoomWindow } : undefined,
+                  }
+                : undefined,
+              filters: { ...(source.filters || {}) },
+              kpiIds: [...(source.kpiIds || [])],
+              counterIds: [...(source.counterIds || [])],
+            };
             return { ...prev, graphSlots: [...prev.graphSlots, dup] };
           })}
           activeSlotId={activeSlotId}
@@ -744,7 +761,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       )}
 
       {state.activeGraphTab === 'Histogram' && (
-        <KPIHistogram selectedKpis={state.graphSlots.flatMap(s => s.kpiIds)} layout={state.graphLayout} />
+        <KPIHistogram selectedKpis={activeSlot?.kpiIds ?? []} layout={state.graphLayout} />
       )}
 
       {state.activeGraphTab === 'Neighbors' && (

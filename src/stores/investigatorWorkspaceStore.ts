@@ -197,6 +197,8 @@ export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
           const s = get();
           const source = s.instances.find(i => i.instanceId === instanceId);
           if (!source) return s.activeInstanceId || '';
+          // Deep clone state to avoid shared references between tabs
+          const clonedState = structuredClone(source.state);
           const dup: InvestigatorInstance = {
             ...source,
             instanceId: `inv-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -205,6 +207,8 @@ export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
             saveStatus: 'idle',
             lastSavedAt: null,
             hasUnsavedChanges: true,
+            state: clonedState,
+            activeSlotId: source.activeSlotId,
             tsData: [...source.tsData],
             worstElements: [...source.worstElements],
           };
