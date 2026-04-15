@@ -1,0 +1,93 @@
+# Project Memory
+
+## Core
+- Semantic tokens over hardcoded Tailwind (e.g., `primary` vs `emerald-600`).
+- 15m/1h dates must be `YYYY-MM-DDTHH:mm:00` (include seconds) to avoid empty VPS responses.
+- VPS query limits: sequential calls, restrictive filters, short periods. `fact_counters_15min` is absent.
+- `vps-proxy` fallback payload `unavailable: true` requires `Array.isArray` UI checks to avoid crashes.
+- Tech inference rules: 4G (E/F/H/V/K/L), 5G (X/Y/Z/W/U). Unknowns default to 4G (orange).
+- Unified tech colors: 2G (#8E44AD), 3G (#3498DB), 4G (#F39C12), 5G (#27AE60).
+- AI conversations persist exclusively in `localStorage` (VPS endpoint deleted).
+- Deduplicate sites by `site_id` during data load to prevent React key collision.
+- Hybrid routing: Root `/` is Sites Monitor. Use internal state over URLs for view transitions to keep the map stable.
+- **STRICT: No backend request without clicking Apply.** Config changes stay pending. Only mount-time catalog loads allowed.
+
+## Memories
+- [OSMOSIS map integration](mem://features/integration-ia-carte) — Map link triggers Sites Monitor fitBounds and red numbered markers
+- [AI analytics & joins](mem://logic/ai-agent-routing/analytics-and-joins) — Cross-tab SQL join between qoe_metric and topo
+- [KPI Monitor sourcing](mem://features/kpi-monitor/catalog-sourcing-strategy) — API first, Supabase fallback, static hardcoded final fallback
+- [Admin auth persistence](mem://auth/admin-user-persistence) — admin_users table, user_profiles sync, localStorage fallback
+- [Unified ECharts](mem://tech/charting-stack/unified-echarts-strategy) — ECharts with replaceMerge for state, Leaflet for geospatial
+- [KPI Monitor filters](mem://logic/kpi-monitor/global-filter-propagation) — Global filters merged with local widget filters (local wins)
+- [Cell neighbors](mem://features/sites-monitor/cell-neighbors) — Intra/inter-freq visualization (Blue/Amber/Purple) up to 15 neighbors
+- [Smart search](mem://features/sites-monitor/view-filter-builder-and-search) — Advanced multi-criteria filter builder (17 dimensions)
+- [Dashboard view filtering](mem://logic/sites-monitor/dashboard-view-filtering-logic) — AND operation between global and view filters (intersection on conflict)
+- [Radio LOS profile](mem://features/sites-monitor/radio-profile-visualization) — k=4/3 curvature, Fresnel zone visualization for P2P analysis
+- [Inventory tech filtering](mem://logic/sites-monitor/inventory-tech-filtering-coherence) — Interactive legend acts as local filter for inventory
+- [Tagged P2P links](mem://features/sites-monitor/tagged-objects-behavior) — Link creation between custom points using true bearing
+- [Topo data fallback](mem://tech/backend-integration/topo-data-fallback) — Reconstructs sites from cells if backend fails
+- [High zoom visibility](mem://logic/sites-monitor/high-zoom-visibility-logic) — Cell pre-loading at zoom >= 9, gray color strictly for no-data
+- [Sentinel AI routing](mem://features/ml-detector/sentinel-routing-logic) — RCA routing based on z-scores (>3 Critical, >2 Major)
+- [BI assistant logic](mem://features/bi-studio/assistant-logic) — Streams chartContext to QOEBIT via Edge Function
+- [Date range sync](mem://logic/date-selection/range-and-sync-policy) — Mono-day default, backward constraint disabled
+- [VPS limits](mem://constraints/backend/vps-performance-limitations) — Query timeouts dictate restrictive filtering and sequential calls
+- [Vendor context](mem://project/telecom-context/vendor-distribution) — Ericsson (NE/SW/IDF) and Nokia (SE/W)
+- [VPS infrastructure](mem://architecture/vps-infrastructure-and-routing) — Cloudflare tunnel, exponential backoff for 503 BOOT_ERROR
+- [Spatial RF metrics](mem://features/sites-monitor/rf-spatial-analysis) — Overshooting factor severities, RACH histograms
+- [Tagging logic](mem://features/sites-monitor/search-and-tagging-logic) — Coordinate searches auto-convert to Custom Points
+- [Map persistence](mem://tech/ui-stability/map-persistence) — Maps mounted via display:none/flex, invalidated on view
+- [Dashboard activation](mem://logic/sites-monitor/dashboard-activation-and-filter-reset-logic) — Single active dashboard forces map recenter and filter reset
+- [View by color logic](mem://features/sites-monitor/color-coding-and-view-by-color-logic) — Dimensional coloring masks tech legend
+- [Lazy loading strategy](mem://tech/performance/lazy-loading-strategy) — React.lazy/Suspense for modules, keeping map instances alive
+- [KPI overlay workflow](mem://logic/sites-monitor/kpi-overlay-view-workflow) — Active view forces specific tech and analysis level
+- [Interactive map legend](mem://features/sites-monitor/interactive-legend) — Legend clicks toggle feature visibility
+- [Map navigation perf](mem://logic/sites-monitor/map-navigation-performance) — Instant setView >100km, smooth flyTo <100km
+- [KPI filter propagation](mem://logic/sites-monitor/kpi-fetch-filter-propagation) — Zone, region, and nidt passed to VPS overlay queries
+- [Neighbors API](mem://tech/backend-integration/neighbors-api-specification) — /api/neighbors/{cell_id} yields mobility metrics
+- [ML Detector UI](mem://features/ml-detector/overview-and-ai-assistant-ui) — Overview, Explorer, Clustering with offline fallback
+- [Unified timeseries](mem://features/investigator/unified-timeseries-overlay) — Multi-axis logic for KPIs (left) vs Counters (right)
+- [Unified brand colors](mem://style/brand/unified-vendor-tech-colors) — Defined Ericsson, Nokia, Huawei, and Samsung hex values
+- [Double split logic](mem://features/investigator/double-split-logic) — Splitting forced irrespective of dimension_type metadata
+- [Map performance](mem://tech/sites-monitor/map-performance-and-ux) — Max 3 parallel cell requests with 350ms offset
+- [Slot isolation](mem://features/investigator/data-fetching-and-slot-isolation) — Queries isolated by _slotId, merges PM Compute and KPI Engine
+- [Dimension colors](mem://style/investigator/dimension-color-consistency) — Centralized map for dimension-level theming (e.g. PMQAP)
+- [Per-KPI customization](mem://features/investigator/per-kpi-customization) — Granular override for chart type, axis, and splits
+- [AI routing split](mem://architecture/ai-infrastructure-and-agent-routing-split) — Distributed proxy models (Lovable/OpenRouter)
+- [Filter caching](mem://features/investigator/filter-management-and-caching) — STATIC_FALLBACKS for critical VPS filters, lazy-loaded
+- [Semantic UI policy](mem://style/ui/semantic-theming-policy) — Reliance on CSS variables rather than hardcoded tailwind
+- [Topo sync logic](mem://tech/backend-integration/topo-sync-logic) — 10k batch syncing from VPS via Edge Function
+- [Date normalization](mem://tech/backend-integration/query-date-normalization) — Enforces YYYY-MM-DDTHH:mm:00 for high-res grains
+- [Neighbors analysis](mem://features/investigator/neighbors-tab-analysis) — Tabular HO analysis with conditional severity coloring
+- [VPS proxy safe paths](mem://tech/backend-integration/vps-proxy-safe-paths) — Target whitelist for intercepting 405/500 backend errors
+- [Investigator persistence](mem://features/investigator/persistence-and-workspace-management) — 2s debounced context save to Supabase
+- [Split resolution](mem://logic/investigator/split-dimension-resolution) — Mapping CELL/SITE dimensional keywords to DB fields
+- [Drill down logic](mem://features/investigator/drill-down-logic) — Context-aware spawning of sub-workspaces
+- [KPI breakdown logic](mem://features/investigator/kpi-breakdown-logic) — Dynamic client-side analysis across entity dimensions
+- [Routing strategy](mem://architecture/routing-strategy/hybrid-navigation-model) — Internal state favored over URLs for main views
+- [Top worst severity](mem://logic/investigator/top-worst-severity-logic) — Criticality determined by higherIsBetter metadata
+- [AI conversation storage](mem://tech/backend-integration/ai-conversations-persistence-policy) — LocalStorage only; removed broken VPS backup
+- [Dashboard builder](mem://features/kpi-monitor/advanced-dashboard-builder-experience) — Full KPI monitor layout configuration and limits
+- [AI infrastructure](mem://architecture/ai-infrastructure-and-agent-routing-split) — Distributed proxy models (Lovable/OpenRouter)
+- [VPS data mismatch](mem://project/data-context/site-filtering-limitations-vps-data-mismatch) — 'dor' data missing impacts cross-filtering
+- [Band inference rules](mem://logic/sites-monitor/band-inference-rules) — Extrapolates NR/LTE/UMTS bands from string patterns
+- [VPS proxy retry](mem://tech/backend-integration/vps-proxy-resilience-retry) — Fallback to RPC(get_site_cells) on strict timeouts
+- [VPS proxy UI contract](mem://tech/backend-integration/vps-proxy-ui-contract) — Forcing type checks on API fallback payloads
+- [Filter sourcing](mem://logic/sites-monitor/filter-dimensions-and-sourcing) — DR dimension depends on DOR mapping tree
+- [View management system](mem://features/sites-monitor/view-management-system) — Modal creation for Topology Search vs Parameter views
+- [Map rendering standards](mem://tech/sites-monitor/map-ux-and-rendering-standards) — Callback refs for safe leaf-node mapping in React
+- [Topo mode logic](mem://features/sites-monitor/topo-mode-logic) — Stack rules for hybrid 2G-5G presentation
+- [Sector visualization](mem://logic/sites-monitor/sector-visualization-and-assignment-logic) — Radial coverage logic per tech layer
+- [Topology module](mem://architecture/sidebar/topology-module-reorganization) — 3-tab network reference with light basemap
+- [Site neighbors](mem://features/topology/site-neighbor-analysis) — Inter-site Haversine connections in Live Map
+- [Visual alerts](mem://features/sites-monitor/diagnostic-visual-alerts) — Pulsing marker rings for RCA alerts
+- [Unified marker design](mem://style/map/unified-marker-design-system) — Concentric layout rules and dynamic resizing
+- [Distance tool](mem://features/sites-monitor/distance-and-measurement-tool) — Plain styling for interactive geometric profiling
+- [Tagged display filter](mem://features/sites-monitor/tagged-display-filter) — Isolation mode for favorite sets
+- [Visibility policy](mem://logic/sites-monitor/tagged-only-visibility-policy) — Forces explicit entity enrichment in isolation view
+- [VPS search fallback](mem://features/investigator/live-vps-search-fallback) — Remote autocomplete on local miss
+- [Data loading limits](mem://constraints/performance/data-loading-optimization) — Bounding sync limits (50k) to prevent OOM errors
+- [Sector extraction](mem://logic/sites-monitor/sector-extraction-logic) — String parsing logic for finding antenna ordinals
+- [Site deduplication](mem://logic/sites-monitor/site-deduplication-logic) — Stripping duplicate keys pre-render
+- [Counter management](mem://logic/investigator/counter-management-policy) — PM configuration limits bounding chart complexity
+- [Per-slot filter isolation](mem://logic/investigator/per-slot-filter-isolation) — Filters stored per-slot, state.filters serves as template for new slots
+- [Apply-only execution](mem://constraints/investigator/apply-only-backend-execution) — No backend data request without explicit Apply click

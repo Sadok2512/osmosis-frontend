@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { getDimensionColor } from './dimensionColors';
 import { VENDOR_HSL, TECH_HSL, vendorHsl, techHsl } from '@/constants/brandColors';
 import { createPortal } from 'react-dom';
@@ -1001,22 +1001,18 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   const siteFilterForProbe = (effectiveFilters['Site'] || [])[0] || null;
 
-  useEffect(() => {
+  // KPI dimension probe — only triggered by handleApply via refreshKpiDimensions()
+  // No auto-fetch on KPI selection or filter change.
+  const refreshKpiDimensions = useCallback(() => {
     const kpiIds = selectedKpiIdsKey ? selectedKpiIdsKey.split(',').filter(Boolean) : [];
-    if (kpiIds.length === 0) {
-      setKpiDimData(new Map());
-      return;
-    }
-    let cancelled = false;
+    if (kpiIds.length === 0) { setKpiDimData(new Map()); return; }
     Promise.all(kpiIds.map(id => fetchKpiDimensions(id, siteFilterForProbe))).then(results => {
-      if (cancelled) return;
       const next = new Map<string, KpiDimensionsResponse>();
       for (const r of results) {
         if (r && r.kpi_code) next.set(r.kpi_code, r);
       }
       setKpiDimData(next);
     });
-    return () => { cancelled = true; };
   }, [selectedKpiIdsKey, siteFilterForProbe]);
 
   // Detect PM dimension types that ACTUALLY have data for the current selection.
@@ -1121,32 +1117,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   }, [activePmDimensions]);
 
   const currentSiteFilter = (effectiveFilters['Site'] || [])[0] || '';
-  useEffect(() => {
-    setPmDimValues([]);
-    if (!primaryKpiDimType) return;
-    setPmDimLoading(true);
-    import('@/lib/apiConfig').then(({ getApiUrl, getApiHeaders }) => {
-      const params = new URLSearchParams({ dimension_type: primaryKpiDimType, limit: '50' });
-      if (currentSiteFilter) params.set('site_name', currentSiteFilter);
-      fetch(getApiUrl(`pm/counters/dimension-values?${params.toString()}`), { headers: getApiHeaders() })
-        .then(r => r.ok ? r.json() : { labeled_values: [] })
-        .then(d => { setPmDimValues(d.labeled_values || (d.values || []).map((v: string) => ({ value: v, label: v }))); setPmDimLoading(false); })
-        .catch(() => setPmDimLoading(false));
-    });
-  }, [primaryKpiDimType, currentSiteFilter]);
-
-  // Load KPIs with data when Site/Cell filter is active
-  useEffect(() => {
-    const siteVals = effectiveFilters['Site'] || [];
-    const cellVals = effectiveFilters['Cell'] || [];
-    if (siteVals.length === 1) {
-      fetchKpisWithData('SITE', siteVals[0]).then(setKpisWithData);
-    } else if (cellVals.length === 1) {
-      fetchKpisWithData('CELL', cellVals[0]).then(setKpisWithData);
-    } else {
-      setKpisWithData(null);
-    }
-  }, [effectiveFilters]);
+  // PM dimension values and KPIs-with-data are refreshed only via Apply — no auto-fetch.
 
   // (activePmDimensions already declared above)
 
