@@ -166,23 +166,41 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [selectedCounters, setSelectedCountersRaw] = React.useState<any[]>([]);
+  const [selectedCounterCatalog, setSelectedCounterCatalog] = React.useState<any[]>([]);
+
+  const mergeCounterCatalog = useCallback((current: any[], incoming: any[]) => {
+    const byName = new Map<string, any>();
+    [...current, ...incoming].forEach((counter) => {
+      const name = counter?.counter_name;
+      if (name) byName.set(name, counter);
+    });
+    return Array.from(byName.values());
+  }, []);
+
+  const selectedCounters = useMemo(() => {
+    const activeCounterNames = state.graphSlots.find((slot) => slot.id === activeSlotId)?.counterIds || [];
+    if (activeCounterNames.length === 0) return [];
+
+    return activeCounterNames.map((counterName) => {
+      return selectedCounterCatalog.find((counter) => counter?.counter_name === counterName) || { counter_name: counterName };
+    });
+  }, [activeSlotId, selectedCounterCatalog, state.graphSlots]);
+
   /** Wrap setSelectedCounters to also sync counterIds to the active (or auto-created) slot */
   const setSelectedCounters = useCallback((counters: any[]) => {
-    setSelectedCountersRaw(counters);
+    setSelectedCounterCatalog((prev) => mergeCounterCatalog(prev, counters));
     const counterNames = counters.map((c: any) => c.counter_name).filter(Boolean);
-    setState(prev => {
+    setState((prev) => {
       let slots = [...prev.graphSlots];
       const currentActive = activeSlotId;
-      // Find the target slot — active slot, or first slot, or create a new one
-      let targetIdx = slots.findIndex(s => s.id === currentActive);
+      let targetIdx = slots.findIndex((s) => s.id === currentActive);
+
       if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
+
       if (targetIdx < 0) {
-        // No slots exist — create one with current global filters
         const newSlot = createSlot(1, [], 'timeseries', prev.filters);
         newSlot.counterIds = counterNames;
         slots = [newSlot];
-        // Also set this new slot as active
         setTimeout(() => setActiveSlotId(newSlot.id), 0);
       } else {
         slots = slots.map((s, i) =>
@@ -192,9 +210,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           setTimeout(() => setActiveSlotId(slots[targetIdx].id), 0);
         }
       }
+
       return { ...prev, graphSlots: slots };
     });
-  }, [activeSlotId, setActiveSlotId]);
+  }, [activeSlotId, mergeCounterCatalog, setActiveSlotId, setState]);
   type AnalysisTabKey = 'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history';
   /** Global analysis tab — persists when switching between graph slots */
   const [analysisTab, setAnalysisTabRaw] = React.useState<AnalysisTabKey | null>(null);
@@ -319,35 +338,68 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   ) => {
     if (counterNames.length === 0) return 0;
 
-    // Find the slot to check its split config
-    const slot = state.graphSlots.find(s => s.id === slotId);
+    const slot = state.graphSlots.find((s) => s.id === slotId);
+    const ctx = slot
+      ? resolveSlotContext(slot, state)
+      : {
+          dateFrom: state.startDate.split('T')[0],
+          dateTo: state.endDate.split('T')[0],
+          granularity: normalizeGranularity(state.granularity),
+          filters: Object.entries(state.filters)
+            .filter(([, vals]) => vals.length > 0)
+            .map(([dimension, values]) => ({ dimension: dimension.toUpperCase(), values })),
+        };
+
     const splitPerKpi = slot?.config?.splitByPerKpi || {};
-    const counterSplitVal = counterNames.map(cn => splitPerKpi[cn]).find(v => v && v !== 'None');
-    const hasSplit = !!counterSplitVal;
+    const counterSplitVal = counterNames.map((cn) => splitPerKpi[cn]).find((v) => v && v !== 'None');
+    const FIELD_MAP: Record<string, string> = {
+      Cell: 'cell_name',
+      CELL: 'cell_name',
+      Site: 'site_name',
+      SITE: 'site_name',
+    };
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
 
     const body: Record<string, any> = {
       counter_names: counterNames,
-      date_from: state.startDate.split('T')[0],
-      date_to: state.endDate.split('T')[0],
-      granularity: normalizeGranularity(state.granularity),
-      split_by_dimension: hasSplit,
+      date_from: ctx.dateFrom,
+      date_to: ctx.dateTo,
+      granularity: normalizeGranularity(ctx.granularity),
     };
 
-    if (hasSplit) {
-      const splitUpper = counterSplitVal!.toUpperCase();
-      if (splitUpper !== 'CELL' && splitUpper !== 'SITE') {
-        body.split_by_field = counterSplitVal;
+    if (counterSplitVal && counterSplitVal !== 'None') {
+      const normalizedSplit = counterSplitVal.startsWith('PM_DIM:')
+        ? counterSplitVal.replace('PM_DIM:', '')
+        : counterSplitVal;
+
+      if (FIELD_MAP[normalizedSplit]) {
+        body.split_by_field = FIELD_MAP[normalizedSplit];
+      } else {
+        body.split_by_dimension = true;
       }
     }
 
-    // Use slot-level filters merged with global
-    const slotFilters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
-    for (const [dim, vals] of Object.entries(slotFilters || {})) {
-      if (vals && vals.length > 0) {
-        const key = dim.toLowerCase().replace(/\s+/g, '_');
-        // Keep site filter even for CELL split so we only get cells of selected site(s)
-        body[key] = vals;
+    const dimensionFilterValues: string[] = [];
+    for (const filter of ctx.filters || []) {
+      const dim = (filter.dimension || '').toUpperCase();
+      const values = filter.values || [];
+      if (values.length === 0) continue;
+
+      if (dim === 'SITE') {
+        body.site_name = values.length === 1 ? values[0] : values;
+      } else if (dim === 'CELL') {
+        body.cell_name = values.length === 1 ? values[0] : values;
+      } else if (dim === 'VENDOR') {
+        body.vendor = values.length === 1 ? values[0] : values;
+      } else if (dim === 'TECHNOLOGY' || dim === 'TECHNO') {
+        body.object_type = values.length === 1 ? values[0] : values;
+      } else if (!STRUCTURAL_DIMS.has(dim)) {
+        dimensionFilterValues.push(...values);
       }
+    }
+
+    if (dimensionFilterValues.length > 0) {
+      body.dimension_filter = dimensionFilterValues.length === 1 ? dimensionFilterValues[0] : dimensionFilterValues;
     }
 
     const response = await fetch(getApiUrl('pm/counters/timeseries'), {
@@ -365,10 +417,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const data = await response.json();
     const counterPoints = (data.series || []).map((s: any) => {
-      // API may return counter as "L.CELL.AVAIL.DUR@SplitValue" with counter_id as clean name
       const rawCounter = s.counter || s.counter_name || counterNames[0];
       const cleanCounter = s.counter_id || (rawCounter.includes('@') ? rawCounter.split('@')[0] : rawCounter);
-      const splitVal = s.dimension_key || s.cell || s.cell_name || s.site || s.site_name || s.split_value || 
+      const splitVal = s.dimension_key || s.split_field || s.cell || s.cell_name || s.site || s.site_name || s.split_value ||
         (rawCounter.includes('@') ? rawCounter.split('@').slice(1).join('@') : '');
       return {
         timestamp: s.ts,
@@ -384,23 +435,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
     if (!current) return counterPoints.length;
 
-    const filtered = current.tsData.filter((d: any) => !(d._isCounter && d._slotId === slotId));
+    const filtered = current.tsData.filter((d: any) => d._slotId != null && !(d._isCounter && d._slotId === slotId));
     ws.updateInstance(instanceId, {
       tsData: [...filtered, ...counterPoints],
       hasLoadedOnce: counterPoints.length > 0 || current.hasLoadedOnce,
     });
 
     return counterPoints.length;
-  }, [instanceId, state.endDate, state.filters, state.granularity, state.graphSlots, state.startDate, ws]);
+  }, [instanceId, state, ws]);
+
+  const activeCounterNames = useMemo(() => activeSlot?.counterIds || [], [activeSlot]);
 
   const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
     const slotId = activeSlotId || state.graphSlots[0]?.id || 'global';
-    return fetchCounterSeriesForSlot(
-      selectedCounters.map((c: any) => c.counter_name),
-      slotId,
-      options,
-    );
-  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters, state.graphSlots]);
+    return fetchCounterSeriesForSlot(activeCounterNames, slotId, options);
+  }, [activeCounterNames, activeSlotId, fetchCounterSeriesForSlot, state.graphSlots]);
 
   const handleApply = async () => {
     if (!hasFilters) {
@@ -444,8 +493,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     try {
       const slotCounterIds = targetSlot.counterIds || [];
-      // Use only the slot's own counterIds — do NOT merge global selectedCounters
-      // to avoid cross-slot contamination
       const allCounterNames = [...new Set(slotCounterIds)];
       const hasSlotKpis = targetSlot.kpiIds.length > 0;
       const ctx = resolveSlotContext(targetSlot, state);
@@ -460,8 +507,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const taggedData = result.data.map(d => ({ ...d, _slotId: targetSlot.id }));
       const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
       const currentTsData = current?.tsData ?? tsData;
-      const otherData = currentTsData.filter((d: any) => d._slotId !== targetSlot.id || d._isCounter);
-      setTsData([...otherData.filter((d: any) => !(d._slotId === targetSlot.id && !d._isCounter)), ...taggedData]);
+      const otherData = currentTsData.filter((d: any) => d._slotId != null && (d._slotId !== targetSlot.id || d._isCounter));
+      setTsData([...otherData, ...taggedData]);
       setHasLoadedOnce(true);
 
       if (taggedData.length === 0 && counterPointCount === 0) {
@@ -487,21 +534,20 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     if (inst.hasLoadedOnce) return;
     if (!hasFilters || !hasKpis) return;
     autoAppliedRef.current = true;
-    // Delay slightly to let state settle
     const timer = setTimeout(() => handleApply(), 300);
     return () => clearTimeout(timer);
   }, [inst?.name, hasFilters, hasKpis, inst?.hasLoadedOnce]);
 
   // Counter timeseries
-  const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
-  const filterKey = JSON.stringify(activeSlot?.filters || state.filters);
+  const counterKey = activeCounterNames.join(',');
+  const filterKey = JSON.stringify(activeSlot?.filters && Object.keys(activeSlot.filters).length > 0 ? activeSlot.filters : state.filters);
   const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
   fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
 
   React.useEffect(() => {
-    if (selectedCounters.length === 0) return;
+    if (activeCounterNames.length === 0) return;
     fetchSelectedCounterSeriesRef.current().catch(() => {});
-  }, [counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId]);
+  }, [activeCounterNames.length, counterKey, filterKey, state.startDate, state.endDate, state.granularity, activeSlotId]);
 
   const handleFindWorst = async () => {
     setIsLoadingWorst(true);
