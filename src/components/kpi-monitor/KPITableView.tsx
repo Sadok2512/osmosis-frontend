@@ -39,15 +39,17 @@ const KPITableView: React.FC<Props> = ({ rows }) => {
                     <span className="text-muted-foreground text-[9px]">({cat?.unit})</span>
                   </span>
                 </td>
-                <td className="text-right px-3 py-2 font-mono font-bold">{row.avg}</td>
-                <td className="text-right px-3 py-2 font-mono text-muted-foreground">{row.min}</td>
-                <td className="text-right px-3 py-2 font-mono text-muted-foreground">{row.max}</td>
-                <td className="text-right px-3 py-2 font-mono font-bold">{row.last}</td>
-                <td className={`text-right px-3 py-2 font-mono font-bold ${deltaColor}`}>
-                  <span className="inline-flex items-center gap-0.5">
-                    <DeltaIcon className="w-3 h-3" />
-                    {row.delta_pct > 0 ? '+' : ''}{row.delta_pct}%
-                  </span>
+                <td className="text-right px-3 py-2 font-mono font-bold">{row.avg != null && row.avg !== 0 ? row.avg : ''}</td>
+                <td className="text-right px-3 py-2 font-mono text-muted-foreground">{row.min != null && row.min !== 0 ? row.min : ''}</td>
+                <td className="text-right px-3 py-2 font-mono text-muted-foreground">{row.max != null && row.max !== 0 ? row.max : ''}</td>
+                <td className="text-right px-3 py-2 font-mono font-bold">{row.last != null && row.last !== 0 ? row.last : ''}</td>
+                <td className={`text-right px-3 py-2 font-mono font-bold ${row.delta_pct != null && row.delta_pct !== 0 ? deltaColor : ''}`}>
+                  {row.delta_pct != null && row.delta_pct !== 0 ? (
+                    <span className="inline-flex items-center gap-0.5">
+                      <DeltaIcon className="w-3 h-3" />
+                      {row.delta_pct > 0 ? '+' : ''}{row.delta_pct}%
+                    </span>
+                  ) : ''}
                 </td>
               </tr>
             );
