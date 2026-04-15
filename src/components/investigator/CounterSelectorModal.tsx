@@ -35,6 +35,8 @@ interface Props {
   catalog: CounterDef[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
+  perimeterVendor?: string;
+  perimeterTechno?: string;
 }
 
 async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
@@ -137,7 +139,7 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
   </span>
 );
 
-const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm }) => {
+const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm, perimeterVendor, perimeterTechno }) => {
   const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const selectedKeysSignature = useMemo(
     () => [...new Set(selectedKeys)].sort().join('||'),
@@ -149,8 +151,8 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
-  const [filterVendor, setFilterVendor] = useState<string>('');
-  const [filterTechno, setFilterTechno] = useState<string>('');
+  const [filterVendor, setFilterVendor] = useState<string>(perimeterVendor || '');
+  const [filterTechno, setFilterTechno] = useState<string>(perimeterTechno || '');
   const [filterDimType, setFilterDimType] = useState<string>('');
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({ vendors: [], families: [], technos: [], object_types: [], dimension_types: [] });
   const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
@@ -166,25 +168,28 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     setActiveFamily(null);
     setSearch('');
     setShowFavOnly(false);
-    setFilterVendor('');
-    setFilterTechno('');
+    setFilterVendor(perimeterVendor || '');
+    setFilterTechno(perimeterTechno || '');
     loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
-    fetchFilterOptions().then(setFilterOptions);
-  }, [open]);
+    fetchFilterOptions(perimeterVendor || undefined).then(setFilterOptions);
+  }, [open, perimeterVendor, perimeterTechno]);
 
   useEffect(() => {
     if (!open) return;
+    // Use perimeterVendor/Techno as base, override with user's manual filter selection
+    const effectiveVendor = filterVendor || perimeterVendor || '';
+    const effectiveTechno = filterTechno || perimeterTechno || '';
     setIsLoading(true);
     setActiveFamily(null);
     Promise.all([
-      fetchFilteredCatalog(filterVendor || undefined, filterTechno || undefined),
-      fetchFilterOptions(filterVendor || undefined),
+      fetchFilteredCatalog(effectiveVendor || undefined, effectiveTechno || undefined),
+      fetchFilterOptions(effectiveVendor || undefined),
     ]).then(([data, opts]) => {
       setCatalog(Array.isArray(data) ? data : []);
       setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [] }));
       setIsLoading(false);
     });
-  }, [open, filterVendor, filterTechno]);
+  }, [open, filterVendor, filterTechno, perimeterVendor, perimeterTechno]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
@@ -297,6 +302,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
             <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
+            {(perimeterVendor || perimeterTechno) && (
+              <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-medium">
+                {[perimeterVendor, perimeterTechno].filter(Boolean).join(' · ')}
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/15 transition-colors">
             <X className="w-4 h-4" />
