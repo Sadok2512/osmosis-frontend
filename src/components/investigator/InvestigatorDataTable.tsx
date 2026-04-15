@@ -48,7 +48,7 @@ const fmt = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') 
 const fmtVal = (v: number | null | undefined) =>
   v != null
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '—';
+    : '';
 
 /** Clean KPI key: remove @splitValue suffix */
 const cleanKpi = (k: string) => k.includes('@') ? k.split('@')[0] : k;
@@ -63,36 +63,46 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string) {
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
-  // Build row key → values map
-  const rowMap = new Map<string, {
-    timestamp: string;
-    ne: string;
-    cell: string;
-    kpiValues: Record<string, number | null>;
-  }>();
-
+  // Collect all unique timestamps and cells
+  const timestampSet = new Set<string>();
+  const cellSet = new Set<string>();
+  
   for (const d of tsData) {
+    timestampSet.add(d.timestamp);
     const cell = d.networkElement || d.splitValue || '';
-    const ne = siteName || '—';
-    const rowKey = `${d.timestamp}||${ne}||${cell}`;
-    const kpi = cleanKpi(d.kpi);
-
-    if (!rowMap.has(rowKey)) {
-      rowMap.set(rowKey, {
-        timestamp: fmt(d.timestamp),
-        ne,
-        cell: cell || '—',
-        kpiValues: {},
-      });
-    }
-    const row = rowMap.get(rowKey)!;
-    row.kpiValues[kpi] = d.value;
+    cellSet.add(cell);
   }
 
-  // Sort rows by timestamp, then cell
-  const rows = [...rowMap.values()].sort((a, b) =>
-    a.timestamp.localeCompare(b.timestamp) || a.cell.localeCompare(b.cell)
-  );
+  const timestamps = [...timestampSet].sort();
+  const cells = [...cellSet].sort();
+  const ne = siteName || '—';
+
+  // Build lookup: "timestamp||cell||kpi" → value
+  const lookup = new Map<string, number | null>();
+  for (const d of tsData) {
+    const cell = d.networkElement || d.splitValue || '';
+    const kpi = cleanKpi(d.kpi);
+    lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
+  }
+
+  // Generate full cross-product: every timestamp × every cell
+  const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
+  
+  for (const ts of timestamps) {
+    for (const cell of cells) {
+      const kpiValues: Record<string, number | null> = {};
+      for (const kpi of kpiColumns) {
+        const key = `${ts}||${cell}||${kpi}`;
+        kpiValues[kpi] = lookup.has(key) ? lookup.get(key)! : null;
+      }
+      rows.push({
+        timestamp: fmt(ts),
+        ne,
+        cell: cell || '—',
+        kpiValues,
+      });
+    }
+  }
 
   // Determine if we have splits (cell-level data)
   const hasCells = tsData.some(d => d.splitValue || d.networkElement);
