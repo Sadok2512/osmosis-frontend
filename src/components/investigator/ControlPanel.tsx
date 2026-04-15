@@ -1869,12 +1869,38 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   ),
                 }));
               };
+              const counterSplitVal = cfg.splitByPerKpi?.[c.counter_name];
+              const hasCounterSplit = counterSplitVal && counterSplitVal !== 'None';
+              const isCounterPmSplit = hasCounterSplit && counterSplitVal.startsWith('PM_DIM:');
+              const counterSplitLabel = hasCounterSplit ? (isCounterPmSplit ? counterSplitVal : (splitOptions.find(s => s.key === counterSplitVal)?.label || counterSplitVal)) : null;
+              const counterSplitVal2 = cfg.splitByPerKpi2?.[c.counter_name];
+              const hasCounterSplit2 = counterSplitVal2 && counterSplitVal2 !== 'None';
+              const isCounterPmSplit2 = hasCounterSplit2 && counterSplitVal2.startsWith('PM_DIM:');
+              const counterSplitLabel2 = hasCounterSplit2 ? (isCounterPmSplit2 ? counterSplitVal2 : (splitOptions.find(s => s.key === counterSplitVal2)?.label || counterSplitVal2)) : null;
               return (
                 <Popover key={c.counter_name}>
                   <PopoverTrigger asChild>
                     <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/15 transition-all">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: counterColor }} />
                       <span className="truncate max-w-[140px]">{c.display_name || c.counter_name}</span>
+                      {hasCounterSplit && (() => {
+                        const dc = getDimensionColor(counterSplitVal);
+                        return (
+                          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc.bg, dc.text, dc.textDark, dc.border)}>
+                            <GitBranch className="w-2.5 h-2.5" />
+                            {counterSplitLabel}
+                          </span>
+                        );
+                      })()}
+                      {hasCounterSplit2 && (() => {
+                        const dc2 = getDimensionColor(counterSplitVal2);
+                        return (
+                          <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc2.bg, dc2.text, dc2.textDark, dc2.border)}>
+                            <GitBranch className="w-2.5 h-2.5" />
+                            {counterSplitLabel2}
+                          </span>
+                        );
+                      })()}
                       <button
                         onClick={(e) => { e.stopPropagation(); setSelectedCounters(selectedCounters.filter((x: any) => x.counter_name !== c.counter_name)); }}
                         className="ml-0.5 hover:text-destructive"
