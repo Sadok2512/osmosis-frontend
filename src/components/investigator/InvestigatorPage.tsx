@@ -351,7 +351,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         };
 
     const splitPerKpi = slot?.config?.splitByPerKpi || {};
-    const counterSplitVal = counterNames.map((cn) => splitPerKpi[cn]).find((v) => v && v !== 'None');
+    const counterSplitVal = counterNames.map((cn) => splitPerKpi[cn]).find((v) => v && v !== 'None')
+      || slot?.splitBy || state.splitBy || undefined;
     const FIELD_MAP: Record<string, string> = {
       Cell: 'cell_name',
       CELL: 'cell_name',
