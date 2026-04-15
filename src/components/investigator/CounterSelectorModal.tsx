@@ -142,11 +142,9 @@ const Badge: React.FC<{ children: React.ReactNode; className?: string }> = ({ ch
 );
 
 const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initialCatalog, selectedKeys, onConfirm, perimeterVendor, perimeterTechno }) => {
-  // Normalize perimeter to arrays
+  // Normalize perimeter to arrays — used as defaults, NOT locked
   const perimVendors = useMemo(() => !perimeterVendor ? [] : Array.isArray(perimeterVendor) ? perimeterVendor.filter(Boolean) : [perimeterVendor].filter(Boolean), [perimeterVendor]);
   const perimTechnos = useMemo(() => !perimeterTechno ? [] : Array.isArray(perimeterTechno) ? perimeterTechno.filter(Boolean) : [perimeterTechno].filter(Boolean), [perimeterTechno]);
-  const hasLockedVendor = perimVendors.length > 0;
-  const hasLockedTechno = perimTechnos.length > 0;
 
   const safeCatalog = Array.isArray(initialCatalog) ? initialCatalog : [];
   const selectedKeysSignature = useMemo(
@@ -159,7 +157,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showFavOnly, setShowFavOnly] = useState(false);
 
-  // Only used when perimeter is NOT locked — user can freely pick
+  // Vendor/Techno filters — initialized from perimeter defaults, fully editable
   const [filterVendor, setFilterVendor] = useState<string>('');
   const [filterTechno, setFilterTechno] = useState<string>('');
   const [filterDimType, setFilterDimType] = useState<string>('');
@@ -167,49 +165,60 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Effective vendor/techno for API calls — perimeter takes precedence
-  const effectiveVendor = hasLockedVendor ? (perimVendors.length === 1 ? perimVendors[0] : '') : filterVendor;
-  const effectiveTechno = hasLockedTechno ? (perimTechnos.length === 1 ? perimTechnos[0] : '') : filterTechno;
+  // Multi-select vendor/techno filters for perimeter defaults
+  const [activeVendors, setActiveVendors] = useState<Set<string>>(new Set());
+  const [activeTechnos, setActiveTechnos] = useState<Set<string>>(new Set());
+
+  // Effective filters for API calls
+  const effectiveVendor = activeVendors.size === 1 ? Array.from(activeVendors)[0] : '';
+  const effectiveTechno = activeTechnos.size === 1 ? Array.from(activeTechnos)[0] : '';
 
   useEffect(() => {
     if (!open) return;
     setSelected(new Set(selectedKeys));
   }, [open, selectedKeysSignature]);
 
+  // Initialize filters from perimeter defaults when modal opens
   useEffect(() => {
     if (!open) return;
     setActiveFamily(null);
     setSearch('');
     setShowFavOnly(false);
-    if (!hasLockedVendor) setFilterVendor('');
-    if (!hasLockedTechno) setFilterTechno('');
+    setFilterDimType('');
+    // Set perimeter as default selections (editable)
+    setActiveVendors(new Set(perimVendors));
+    setActiveTechnos(new Set(perimTechnos));
+    setFilterVendor('');
+    setFilterTechno('');
     loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
-    fetchFilterOptions(effectiveVendor || undefined).then(setFilterOptions);
-  }, [open, hasLockedVendor, hasLockedTechno, effectiveVendor]);
+  }, [open, perimVendors.join(','), perimTechnos.join(',')]);
 
+  // Fetch catalog when vendor/techno selection changes
   useEffect(() => {
     if (!open) return;
     setIsLoading(true);
     setActiveFamily(null);
+    const apiVendor = effectiveVendor || undefined;
+    const apiTechno = effectiveTechno || undefined;
     Promise.all([
-      fetchFilteredCatalog(effectiveVendor || undefined, effectiveTechno || undefined),
-      fetchFilterOptions(effectiveVendor || undefined),
+      fetchFilteredCatalog(apiVendor, apiTechno),
+      fetchFilterOptions(apiVendor),
     ]).then(([data, opts]) => {
       let items = Array.isArray(data) ? data : [];
-      // Client-side filter when perimeter has multiple values (API only accepts single)
-      if (hasLockedVendor && perimVendors.length > 1) {
-        const vendorSet = new Set(perimVendors.map(v => v.toLowerCase()));
+      // Client-side filter when multiple vendors/technos selected (API only accepts single)
+      if (activeVendors.size > 1) {
+        const vendorSet = new Set(Array.from(activeVendors).map(v => v.toLowerCase()));
         items = items.filter(c => vendorSet.has((c.vendor || '').toLowerCase()));
       }
-      if (hasLockedTechno && perimTechnos.length > 1) {
-        const technoSet = new Set(perimTechnos.map(t => t.toLowerCase()));
+      if (activeTechnos.size > 1) {
+        const technoSet = new Set(Array.from(activeTechnos).map(t => t.toLowerCase()));
         items = items.filter(c => technoSet.has((c.techno || '').toLowerCase()));
       }
       setCatalog(items);
-      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [] }));
+      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [], vendors: opts?.vendors || prev.vendors }));
       setIsLoading(false);
     });
-  }, [open, effectiveVendor, effectiveTechno, hasLockedVendor, hasLockedTechno, perimVendors.join(','), perimTechnos.join(',')]);
+  }, [open, effectiveVendor, effectiveTechno, Array.from(activeVendors).sort().join(','), Array.from(activeTechnos).sort().join(',')]);
 
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
