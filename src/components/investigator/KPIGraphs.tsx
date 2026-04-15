@@ -1347,7 +1347,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           },
           splitLine: {
             show: cfg.showGrid,
-            lineStyle: { color: 'rgba(148,163,184,0.25)', type: 'dashed' as const },
+            lineStyle: { color: 'rgba(148,163,184,0.35)', type: 'dashed' as const },
           },
           axisLine: { show: false },
           axisTick: { show: false },

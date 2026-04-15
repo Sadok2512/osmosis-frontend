@@ -171,7 +171,7 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
         yAxis: {
           type: 'value' as const,
           axisLabel: { fontSize: 9, color: '#a1a1aa', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1) },
-          splitLine: { show: showGrid, lineStyle: { color: 'rgba(148,163,184,0.25)', type: 'dashed' as const } },
+          splitLine: { show: showGrid, lineStyle: { color: 'rgba(148,163,184,0.35)', type: 'dashed' as const } },
           axisLine: { show: false },
           axisTick: { show: false },
         },
