@@ -1172,11 +1172,25 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         if (counterDataFromTs.length > 0) {
           const tsCounterNames = [...new Set(counterDataFromTs.map((d: any) => d.kpi))];
           // Avoid duplicating if already rendered via counterIds flow
-          const alreadyRendered = new Set(
-            counterIds.length > 0 && slotCounterData ? slotCounterData.series.map((d: any) => d.counter) : []
-          );
+          const alreadyRendered = new Set<string>();
+          if (counterIds.length > 0 && slotCounterData) {
+            for (const d of slotCounterData.series) {
+              alreadyRendered.add(d.counter);
+              // Also mark the base name (without split suffix) as rendered
+              const base = d.counter_id || d.counter.split('@')[0];
+              alreadyRendered.add(base);
+            }
+          }
+          // Also skip counters already in series array
+          for (const s of series) {
+            if ((s as any)._isCounter && (s as any)._kpiId) {
+              alreadyRendered.add((s as any)._kpiId.replace('counter_', ''));
+            }
+          }
           for (const counterName of tsCounterNames) {
             if (alreadyRendered.has(counterName)) continue;
+            const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
+            if (alreadyRendered.has(baseCounter)) continue;
             const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
             const splitLabel = counterName.includes('@') ? counterName.split('@').slice(1).join('@') : '';
             const color = splitLabel ? stableColorForSplit(splitLabel) : stableColorForCounter(baseCounter);
