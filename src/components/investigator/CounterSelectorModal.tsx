@@ -230,14 +230,19 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   const resetSelection = () => setSelected(new Set());
   const resetFilters = () => {
-    setFilterVendor('');
-    setFilterTechno('');
+    if (!hasLockedVendor) setFilterVendor('');
+    if (!hasLockedTechno) setFilterTechno('');
     setFilterDimType('');
     setActiveFamily(null);
     setShowFavOnly(false);
   };
 
-  const activeFilterCount = [filterVendor, filterTechno, filterDimType, showFavOnly ? 'fav' : ''].filter(Boolean).length;
+  const activeFilterCount = [
+    hasLockedVendor ? perimVendors.join(',') : filterVendor,
+    hasLockedTechno ? perimTechnos.join(',') : filterTechno,
+    filterDimType,
+    showFavOnly ? 'fav' : '',
+  ].filter(Boolean).length;
 
   /* ── Single source of truth: base dataset filtered by vendor/techno (from API) + local dim filter ── */
   const baseFiltered = useMemo(() => {
