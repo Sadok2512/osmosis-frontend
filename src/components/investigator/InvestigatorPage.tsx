@@ -39,7 +39,7 @@ const WIDGET_NAMES: Record<WidgetType, string> = {
   neighbors: 'Neighbors',
 };
 
-const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries'): GraphSlot => ({
+const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries', initialFilters: Record<string, string[]> = {}): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
   kpiIds,
   name: `${WIDGET_NAMES[widgetType]} ${index}`,
@@ -48,7 +48,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
     ...DEFAULT_GRAPH_CONFIG,
     ...(widgetType === 'timeseries' ? { showDataTable: true } : {}),
   },
-  filters: {},
+  filters: { ...initialFilters },
   startDate: '',
   endDate: '',
   granularity: '' as Granularity,
@@ -178,8 +178,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       let targetIdx = slots.findIndex(s => s.id === currentActive);
       if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
       if (targetIdx < 0) {
-        // No slots exist — create one
-        const newSlot = createSlot(1, [], 'timeseries');
+        // No slots exist — create one with current global filters
+        const newSlot = createSlot(1, [], 'timeseries', prev.filters);
         newSlot.counterIds = counterNames;
         slots = [newSlot];
         // Also set this new slot as active
@@ -296,7 +296,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     // and perSlotAnalysisTab keeps each slot's state independent.
   }, [activeSlotId, state.graphSlots]);
 
-  const hasFilters = Object.values(state.filters).some(vals => vals.length > 0);
+  // Check if the active slot (or global fallback) has filters
+  const hasFilters = (() => {
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    const filters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    return Object.values(filters).some(vals => vals.length > 0);
+  })();
   const hasKpis = state.graphSlots.some(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0);
 
   const activeSlot = useMemo(() => 
@@ -335,7 +340,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       }
     }
 
-    for (const [dim, vals] of Object.entries(state.filters || {})) {
+    // Use slot-level filters merged with global
+    const slotFilters = slot?.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+    for (const [dim, vals] of Object.entries(slotFilters || {})) {
       if (vals && vals.length > 0) {
         const key = dim.toLowerCase().replace(/\s+/g, '_');
         // Keep site filter even for CELL split so we only get cells of selected site(s)
@@ -487,7 +494,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   // Counter timeseries
   const counterKey = selectedCounters.map((c: any) => c.counter_name).join(',');
-  const filterKey = JSON.stringify(state.filters);
+  const filterKey = JSON.stringify(activeSlot?.filters || state.filters);
   const fetchSelectedCounterSeriesRef = useRef(fetchSelectedCounterSeries);
   fetchSelectedCounterSeriesRef.current = fetchSelectedCounterSeries;
 
@@ -505,7 +512,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const dateTo = state.endDate.split('T')[0];
 
       const allFilters = [...worstFilters];
-      const siteFromState = state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0];
+      const slotFilters = activeSlot?.filters && Object.keys(activeSlot.filters).length > 0 ? activeSlot.filters : state.filters;
+      const siteFromState = slotFilters?.['Site']?.[0] || slotFilters?.['SITE']?.[0];
       if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
         allFilters.push({ dimension: 'SITE', op: 'IN', values: [siteFromState] });
       }
@@ -719,7 +727,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           onAddEmptySlot={(widgetType) => {
             setState(prev => {
               const nextIndex = prev.graphSlots.length + 1;
-              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
+              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries', prev.filters)] };
             });
           }}
           onRenameSlot={(slotId, name) => setState(prev => ({
@@ -1071,7 +1079,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     <InvestigatorDataTable
                       tsData={slotData}
                       activeSlot={activeTableSlot}
-                      siteName={state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || undefined}
+                      siteName={(activeSlot?.filters?.['Site'] || activeSlot?.filters?.['SITE'] || state.filters?.['Site'] || state.filters?.['SITE'] || [])[0] || undefined}
                     />
                   </>
                 );
@@ -1094,7 +1102,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       dateFrom={(slot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
                       dateTo={(slot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
                       granularity={slot.granularity || state.granularity}
-                      filters={Object.entries({ ...state.filters, ...slot.filters })
+                      filters={Object.entries(slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters)
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
                       splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}

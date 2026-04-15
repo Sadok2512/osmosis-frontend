@@ -439,13 +439,11 @@ export function resolveSlotContext(
     splitValue2 = undefined;
   }
 
-  // Merge slot filters with global filters (slot overrides global for same dimension)
-  const mergedFilters: Record<string, string[]> = { ...globalState.filters };
-  if (slot.filters) {
-    for (const [dim, vals] of Object.entries(slot.filters)) {
-      if (vals.length > 0) mergedFilters[dim] = vals;
-    }
-  }
+  // Use slot-level filters as primary source; fall back to global only if slot has no filters
+  const slotHasOwnFilters = slot.filters && Object.keys(slot.filters).length > 0;
+  const mergedFilters: Record<string, string[]> = slotHasOwnFilters
+    ? { ...slot.filters }
+    : { ...globalState.filters };
   const activeFilters = Object.entries(mergedFilters)
     .filter(([, vals]) => vals.length > 0)
     .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
