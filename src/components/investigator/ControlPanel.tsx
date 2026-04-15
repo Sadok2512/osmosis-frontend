@@ -1539,6 +1539,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 scopeAllowed={
                   dim === 'Site' ? perimeter.siteAllowed
                   : dim === 'Cell' ? perimeter.cellAllowed
+                  : dim === 'Plaque' ? perimeter.plaqueAllowed
+                  : dim === 'DOR' || dim === 'DR' ? perimeter.dorAllowed
+                  : dim === 'Band' ? perimeter.bandAllowed
                   : null
                 }
               />

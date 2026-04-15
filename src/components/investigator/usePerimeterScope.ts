@@ -29,6 +29,9 @@ export type TopoCell = {
   site_name?: string | null;
   vendor?: string | null;
   techno?: string | null;
+  band?: string | null;
+  plaque?: string | null;
+  dor?: string | null;
 };
 
 // Keyed caches — one per vendor+techno combination
@@ -101,6 +104,9 @@ async function loadCells(vendors: string[], technos: string[]): Promise<TopoCell
         site_name: c.nom_site || c.site_name || null,
         vendor: c.constructeur || c.vendor || null,
         techno: c.techno || null,
+        band: c.bande || c.band || null,
+        plaque: c.plaque || c.plaque_site || null,
+        dor: c.dor || c.nom_dr || c.region || null,
       }));
       cellsCacheMap.set(key, list);
       notify();
@@ -124,6 +130,9 @@ export type PerimeterScope = {
   hasScope: boolean;
   siteAllowed: Set<string> | null;
   cellAllowed: Set<string> | null;
+  plaqueAllowed: Set<string> | null;
+  dorAllowed: Set<string> | null;
+  bandAllowed: Set<string> | null;
   matchKpi: (item: { vendor?: string | null; techno?: string | null }) => boolean;
   matchCounter: (item: { vendor?: string | null; techno?: string | null }) => boolean;
 };
@@ -134,6 +143,9 @@ const EMPTY_SCOPE: PerimeterScope = {
   hasScope: false,
   siteAllowed: null,
   cellAllowed: null,
+  plaqueAllowed: null,
+  dorAllowed: null,
+  bandAllowed: null,
   matchKpi: () => true,
   matchCounter: () => true,
 };
@@ -224,13 +236,25 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
     }
 
     let cellAllowed: Set<string> | null = null;
+    let plaqueAllowed: Set<string> | null = null;
+    let dorAllowed: Set<string> | null = null;
+    let bandAllowed: Set<string> | null = null;
     if (cellsCache && cellsCache.length > 0) {
       cellAllowed = new Set();
+      const plaques = new Set<string>();
+      const dors = new Set<string>();
+      const bands = new Set<string>();
       for (const c of cellsCache) {
         if (vendorSet.size > 0 && (!c.vendor || !vendorSet.has(normalize(c.vendor)))) continue;
         if (technoSet.size > 0 && (!c.techno || !technoSet.has(normalize(c.techno)))) continue;
         cellAllowed.add(c.cell_name);
+        if (c.plaque) plaques.add(c.plaque);
+        if (c.dor) dors.add(c.dor);
+        if (c.band) bands.add(c.band);
       }
+      if (plaques.size > 0) plaqueAllowed = plaques;
+      if (dors.size > 0) dorAllowed = dors;
+      if (bands.size > 0) bandAllowed = bands;
     }
 
     const matcher = buildMatcher(vendorSet, technoSet);
@@ -240,6 +264,9 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
       hasScope,
       siteAllowed,
       cellAllowed,
+      plaqueAllowed,
+      dorAllowed,
+      bandAllowed,
       matchKpi: matcher,
       matchCounter: matcher,
     };
