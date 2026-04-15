@@ -286,14 +286,25 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     return items;
   }, [baseFiltered, activeFamily, search]);
 
-  /* ── Techno counts from base filtered ── */
+  /* ── Vendor counts from catalog (to show only vendors with data) ── */
+  const vendorCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const items = Array.isArray(catalog) ? catalog : [];
+    for (const c of items) {
+      if (c.vendor) counts.set(c.vendor, (counts.get(c.vendor) || 0) + 1);
+    }
+    return counts;
+  }, [catalog]);
+
+  /* ── Techno counts from catalog (to show only technos with data) ── */
   const technoCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const c of baseFiltered) {
+    const items = Array.isArray(catalog) ? catalog : [];
+    for (const c of items) {
       if (c.techno) counts.set(c.techno, (counts.get(c.techno) || 0) + 1);
     }
     return counts;
-  }, [baseFiltered]);
+  }, [catalog]);
 
   /* ── Dimension type counts from catalog (not filtered by dimType itself) ── */
   const dimTypeCounts = useMemo(() => {
