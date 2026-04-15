@@ -739,9 +739,9 @@ const SingleKpiBreakdown: React.FC<{
         splitLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.08)', type: 'dashed' as const } },
         axisLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.3)' } },
       },
-      series,
+      series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(sortedTs, jalons, granularity) } : s),
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, jalons]);
 
   return (
     <div className="space-y-4">
@@ -896,6 +896,7 @@ const KPIBreakdown: React.FC<Props> = ({
           filters={filters}
           splitBy={getEffectiveSplit(activeKpiTab)}
           timeSeriesData={timeSeriesData}
+          jalons={jalons}
         />
       )}
     </div>
