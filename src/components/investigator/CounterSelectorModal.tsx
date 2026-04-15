@@ -352,18 +352,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
           <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-border/40 shrink-0 flex-wrap">
             <SlidersHorizontal className="w-3 h-3 text-primary" />
             <span className="text-[10px] text-muted-foreground">Filtres actifs :</span>
-            {hasLockedVendor && perimVendors.map(v => (
-              <span key={v} className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1">🔒 {v}</span>
+            {activeVendors.size > 0 && Array.from(activeVendors).map(v => (
+              <span key={v} className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{v}</span>
             ))}
-            {!hasLockedVendor && filterVendor && (
-              <span className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{filterVendor}</span>
-            )}
-            {hasLockedTechno && perimTechnos.map(t => (
-              <span key={t} className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold flex items-center gap-1">🔒 {t}</span>
+            {activeTechnos.size > 0 && Array.from(activeTechnos).map(t => (
+              <span key={t} className="text-[9px] px-2 py-[1px] rounded-full bg-accent/30 text-accent-foreground font-semibold">{t}</span>
             ))}
-            {!hasLockedTechno && filterTechno && (
-              <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
-            )}
             {filterDimType && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-amber-500/10 text-amber-600 font-semibold">{filterDimType}</span>
             )}
