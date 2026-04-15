@@ -1142,6 +1142,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             series.push({
               name: label,
               _kpiId: `counter_${counter}`,
+              _isCounter: true,
               connectNulls: true,
               type: 'line' as any,
               data: counterData,
@@ -1159,7 +1160,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   ],
                 },
               } : undefined,
-              // Put counters on right Y-axis by default
+              // yAxisIndex will be set later based on hasRightAxis
               yAxisIndex: 1,
             });
           });
@@ -1190,6 +1191,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             series.push({
               name: displayName,
               _kpiId: `counter_${counterName}`,
+              _isCounter: true,
               _splitValue: splitLabel || undefined,
               connectNulls: true,
               type: sp.seriesType as any,
@@ -1554,7 +1556,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
             return {
               ...s,
-              yAxisIndex: s.yAxisIndex != null ? s.yAxisIndex : (hasRightAxis ? getYAxisIndex(seriesKpiId) : 0),
+              yAxisIndex: hasRightAxis
+                ? (s.yAxisIndex != null ? s.yAxisIndex : getYAxisIndex(seriesKpiId))
+                : 0,
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
                 focus: 'series' as const,
