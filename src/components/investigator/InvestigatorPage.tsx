@@ -387,12 +387,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   }, [instanceId, state.endDate, state.filters, state.granularity, state.graphSlots, state.startDate, ws]);
 
   const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
+    const slotId = activeSlotId || state.graphSlots[0]?.id || 'global';
     return fetchCounterSeriesForSlot(
       selectedCounters.map((c: any) => c.counter_name),
-      activeSlotId || 'global',
+      slotId,
       options,
     );
-  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters]);
+  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters, state.graphSlots]);
 
   const handleApply = async () => {
     if (!hasFilters) {
