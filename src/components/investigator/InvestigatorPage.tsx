@@ -310,8 +310,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     for (const [dim, vals] of Object.entries(state.filters || {})) {
       if (vals && vals.length > 0) {
         const key = dim.toLowerCase().replace(/\s+/g, '_');
-        // For CELL split, skip site filter to get per-cell results
-        if (hasSplit && counterSplitVal!.toUpperCase() === 'CELL' && key === 'site') continue;
+        // Keep site filter even for CELL split so we only get cells of selected site(s)
         body[key] = vals;
       }
     }
