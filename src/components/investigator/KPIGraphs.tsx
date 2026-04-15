@@ -1114,12 +1114,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               connectNulls: true,
               type: 'line' as any,
               data: counterData,
-              smooth: true,
+              smooth: cfg.smooth !== undefined ? cfg.smooth : true,
               symbol: forceMarkers ? 'circle' : 'none',
               symbolSize: forceMarkers ? 5 : 0,
-              lineStyle: { width: 2.5, color, type: 'solid' as const },
+              lineStyle: { width: cfg.lineWidth || 2.5, color, type: 'solid' as const },
               itemStyle: { color },
-              areaStyle: {
+              areaStyle: cfg.showArea ? {
                 color: {
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
@@ -1127,7 +1127,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                     { offset: 1, color: `${color}02` },
                   ],
                 },
-              },
+              } : undefined,
               // Put counters on right Y-axis by default
               yAxisIndex: 1,
             });
