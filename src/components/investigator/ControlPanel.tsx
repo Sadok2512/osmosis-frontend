@@ -1784,6 +1784,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                     else {
                                       const allSplits2: Record<string, string> = {};
                                       slot.kpiIds.forEach(kid => { allSplits2[kid] = val; });
+                                      (selectedCounters || []).forEach((c: any) => { allSplits2[c.counter_name] = val; });
                                       setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy2: val, config: { ...cfg, splitByPerKpi2: allSplits2 } } : s) }));
                                     }
                                   }}
