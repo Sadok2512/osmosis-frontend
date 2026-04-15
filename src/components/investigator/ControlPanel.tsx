@@ -1740,10 +1740,12 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             })();
                         const buildSplits = (val: string) => {
                           const allSplits: Record<string, string> = {};
-                          // Apply selected split to ALL KPIs in the slot.
-                          // User explicitly chose this dimension — don't gate on dimension_type match.
+                          // Apply selected split to ALL KPIs AND counters in the slot.
                           slot.kpiIds.forEach(kid => {
                             allSplits[kid] = val;
+                          });
+                          (selectedCounters || []).forEach((c: any) => {
+                            allSplits[c.counter_name] = val;
                           });
                           return allSplits;
                         };
