@@ -35,9 +35,9 @@ interface Props {
   catalog: CounterDef[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
-  /** Locked perimeter vendor(s) — displayed but not changeable */
+  /** Default perimeter vendor(s) — pre-selected but editable */
   perimeterVendor?: string | string[];
-  /** Locked perimeter techno(s) — displayed but not changeable */
+  /** Default perimeter techno(s) — pre-selected but editable */
   perimeterTechno?: string | string[];
 }
 
