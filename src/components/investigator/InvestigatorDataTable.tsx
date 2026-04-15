@@ -133,7 +133,7 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
   return { rows, kpiColumns, hasCells };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
@@ -151,8 +151,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName }
 
   // ── Build pivot table ──
   const { rows, kpiColumns, hasCells } = useMemo(
-    () => buildPivotTable(tsData, siteName),
-    [tsData, siteName]
+    () => buildPivotTable(tsData, siteName, filterContext),
+    [tsData, siteName, filterContext]
   );
 
   // ── Pagination ──
