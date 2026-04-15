@@ -14,6 +14,7 @@ interface Props {
   tsData: DataPoint[];
   activeSlot?: GraphSlot | null;
   siteName?: string;
+  filterContext?: Record<string, string[]>;
 }
 
 // Same palette & hash as KPIGraphs.tsx so cell colors match the graph
@@ -57,47 +58,70 @@ const cleanKpi = (k: string) => k.includes('@') ? k.split('@')[0] : k;
  * Build pivot table: one row per (timestamp, networkElement, cell)
  * with separate columns for each KPI metric.
  */
-function buildPivotTable(tsData: DataPoint[], siteName?: string) {
+/** Build a readable NE label from the active filters */
+function buildNeLabel(filterContext?: Record<string, string[]>, siteName?: string): string {
+  if (filterContext) {
+    // Priority: Site > Plaque > DOR > DR > Zone ARCEP > first available
+    const priority = ['Site', 'SITE', 'Plaque', 'PLAQUE', 'DOR', 'DR', 'Zone ARCEP', 'ZONE_ARCEP'];
+    for (const key of priority) {
+      const vals = filterContext[key];
+      if (vals && vals.length > 0) {
+        return `${key}: ${vals.join(', ')}`;
+      }
+    }
+    // Fallback: first non-empty filter
+    for (const [key, vals] of Object.entries(filterContext)) {
+      if (vals && vals.length > 0) {
+        return `${key}: ${vals.join(', ')}`;
+      }
+    }
+  }
+  return siteName || '—';
+}
+
+function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>) {
+  const neLabel = buildNeLabel(filterContext, siteName);
+
   // Discover unique KPI metrics
   const kpiSet = new Set<string>();
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
-  // Collect all unique timestamps and network elements
+  // Collect all unique timestamps and cells
   const timestampSet = new Set<string>();
-  const neSet = new Set<string>();
+  const cellSet = new Set<string>();
   
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
-    const ne = d.networkElement || d.splitValue || siteName || '';
-    neSet.add(ne);
+    const cell = d.networkElement || d.splitValue || '';
+    cellSet.add(cell);
   }
 
   const timestamps = [...timestampSet].sort();
-  const networkElements = [...neSet].sort();
+  const cells = [...cellSet].sort();
 
-  // Build lookup: "timestamp||ne||kpi" → value
+  // Build lookup: "timestamp||cell||kpi" → value
   const lookup = new Map<string, number | null>();
   for (const d of tsData) {
-    const ne = d.networkElement || d.splitValue || siteName || '';
+    const cell = d.networkElement || d.splitValue || '';
     const kpi = cleanKpi(d.kpi);
-    lookup.set(`${d.timestamp}||${ne}||${kpi}`, d.value);
+    lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
   }
 
-  // Generate full cross-product: every timestamp × every NE
+  // Generate full cross-product: every timestamp × every cell
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
   
   for (const ts of timestamps) {
-    for (const ne of networkElements) {
+    for (const cell of cells) {
       const kpiValues: Record<string, number | null> = {};
       for (const kpi of kpiColumns) {
-        const key = `${ts}||${ne}||${kpi}`;
+        const key = `${ts}||${cell}||${kpi}`;
         kpiValues[kpi] = lookup.has(key) ? lookup.get(key)! : null;
       }
       rows.push({
         timestamp: fmt(ts),
-        ne: ne || '—',
-        cell: ne || '—',
+        ne: neLabel,
+        cell: cell || '—',
         kpiValues,
       });
     }
