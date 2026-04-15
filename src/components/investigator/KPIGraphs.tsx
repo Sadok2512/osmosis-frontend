@@ -779,7 +779,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               </div>
               <KpiCardWidget
                 kpiIds={kpiIds}
-                data={data.filter((d: any) => d._slotId == null || d._slotId === slot.id)}
+                data={data.filter((d: any) => d._slotId === slot.id)}
                 allKpis={allKpis}
               />
             </div>
@@ -822,7 +822,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel" or "kpi@split1@split2")
         // and keep slot isolation when Apply fetched multiple slots at once.
         const slotData = data.filter((d: any) => {
-          const matchesSlot = d._slotId == null || d._slotId === slot.id;
+          const matchesSlot = d._slotId === slot.id;
           const matchesKpi = kpiIds.includes(d.kpi) || kpiIds.some(id => d.kpi.startsWith(id + '@'));
           if (d._isCounter && matchesSlot) return true;
           return matchesSlot && matchesKpi;
