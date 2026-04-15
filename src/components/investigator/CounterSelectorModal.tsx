@@ -286,14 +286,25 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     return items;
   }, [baseFiltered, activeFamily, search]);
 
-  /* ── Techno counts from base filtered ── */
+  /* ── Vendor counts from catalog (to show only vendors with data) ── */
+  const vendorCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const items = Array.isArray(catalog) ? catalog : [];
+    for (const c of items) {
+      if (c.vendor) counts.set(c.vendor, (counts.get(c.vendor) || 0) + 1);
+    }
+    return counts;
+  }, [catalog]);
+
+  /* ── Techno counts from catalog (to show only technos with data) ── */
   const technoCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const c of baseFiltered) {
+    const items = Array.isArray(catalog) ? catalog : [];
+    for (const c of items) {
       if (c.techno) counts.set(c.techno, (counts.get(c.techno) || 0) + 1);
     }
     return counts;
-  }, [baseFiltered]);
+  }, [catalog]);
 
   /* ── Dimension type counts from catalog (not filtered by dimType itself) ── */
   const dimTypeCounts = useMemo(() => {
@@ -317,14 +328,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     onConfirm(Array.from(selected));
     onClose();
   };
+  // Only show vendors/technos that actually exist in the catalog data
+  const vendorOptions = useMemo(() => Array.from(vendorCounts.keys()).sort(), [vendorCounts]);
+  const technoOptions = useMemo(() => Array.from(technoCounts.keys()).sort(), [technoCounts]);
 
   if (!open) return null;
-
-  const ALL_VENDORS = ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'];
-  const vendorOptions = (filterOptions.vendors?.length || 0) > 0
-    ? [...new Set([...filterOptions.vendors, ...ALL_VENDORS])].sort()
-    : ALL_VENDORS;
-  const technoOptions = (filterOptions.technos?.length || 0) > 0 ? filterOptions.technos : ['4G', '5G', 'LTE', 'NR', 'SRAN'];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
