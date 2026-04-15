@@ -9286,33 +9286,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating RIGHT side: action bar */}
-      {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex flex-col gap-2 transition-all duration-500 ease-out animate-fade-in" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 120 }}>
-          <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden">
-            {([
-              { key: 'layers', icon: <Layers size={16} />, title: 'Couches' },
-              { key: 'filter', icon: <Filter size={16} />, title: 'Filtres' },
-              { key: 'palette', icon: <Palette size={16} />, title: 'Couleurs' },
-              { key: 'settings', icon: <Settings2 size={16} />, title: 'Paramètres' },
-            ] as const).map(({ key, icon, title }) => (
-              <button
-                key={key}
-                onClick={() => {
-                  if (key === 'layers') setShowBandPanel(!showBandPanel);
-                  if (key === 'filter') setPanelCollapsed(!panelCollapsed);
-                  if (key === 'palette') setColorViewMode(colorViewMode === 'none' ? 'vendor' : 'none');
-                  if (key === 'settings') setShowBandPanel(!showBandPanel);
-                }}
-                className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-200 active:scale-95"
-                title={title}
-              >
-                {icon}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* ── Color View Legend — rendered outside the band panel container ── */}
       {viewMode === 'map' && colorViewMode !== 'none' && Object.keys(colorViewColorMap).length > 0 && (
