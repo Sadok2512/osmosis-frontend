@@ -992,7 +992,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return Array.from(new Set(ids)).sort().join(',');
   }, [state.graphSlots]);
 
-  const siteFilterForProbe = (state.filters['Site'] || [])[0] || null;
+  const siteFilterForProbe = (effectiveFilters['Site'] || [])[0] || null;
 
   useEffect(() => {
     const kpiIds = selectedKpiIdsKey ? selectedKpiIdsKey.split(',').filter(Boolean) : [];
@@ -1103,7 +1103,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     prevPmDimsRef.current = new Set(current);
   }, [activePmDimensions]);
 
-  const currentSiteFilter = (state.filters['Site'] || [])[0] || '';
+  const currentSiteFilter = (effectiveFilters['Site'] || [])[0] || '';
   useEffect(() => {
     setPmDimValues([]);
     if (!primaryKpiDimType) return;
@@ -1120,8 +1120,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   // Load KPIs with data when Site/Cell filter is active
   useEffect(() => {
-    const siteVals = state.filters['Site'] || [];
-    const cellVals = state.filters['Cell'] || [];
+    const siteVals = effectiveFilters['Site'] || [];
+    const cellVals = effectiveFilters['Cell'] || [];
     if (siteVals.length === 1) {
       fetchKpisWithData('SITE', siteVals[0]).then(setKpisWithData);
     } else if (cellVals.length === 1) {
@@ -1129,7 +1129,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     } else {
       setKpisWithData(null);
     }
-  }, [state.filters]);
+  }, [effectiveFilters]);
 
   // (activePmDimensions already declared above)
 
@@ -1147,7 +1147,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   // Vendor / Technology selected via the "Périmètre" popover drive client-side
   // filtering of the KPI catalog, counter catalog, Site list and Cell list.
   // See ./usePerimeterScope for the full derivation.
-  const perimeter: PerimeterScope = usePerimeterScope(state.filters);
+  const perimeter: PerimeterScope = usePerimeterScope(effectiveFilters);
 
   // KPI catalog filtered by perimeter. Entries without vendor/techno metadata
   // are hidden once a perimeter is active (fail closed).
@@ -1313,7 +1313,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           <div className="flex items-center gap-2 2xl:gap-3 flex-wrap">
             {/* Scope filter (Vendor + Tech) — first position */}
             <ScopeFilterPopover
-              filters={state.filters}
+              filters={effectiveFilters}
               onToggle={(dim, val) => toggleFilterValue(dim, val)}
               onClear={(dim) => clearFilterValues(dim)}
             />
@@ -1498,7 +1498,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <Button
               onClick={onApply}
               size="sm"
-              disabled={!Object.values(state.filters).some(v => v.length > 0) || isApplying}
+              disabled={!Object.values(effectiveFilters).some(v => v.length > 0) || isApplying}
               className={cn(
                 "h-7 2xl:h-8 px-4 2xl:px-6 text-[10px] 2xl:text-[11px] font-bold uppercase tracking-wider rounded-lg shadow-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all",
                 isApplying && "animate-pulse"
@@ -1509,7 +1509,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <div className="w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   <span>Chargement...</span>
                 </div>
-              ) : !Object.values(state.filters).some(v => v.length > 0)
+              ) : !Object.values(effectiveFilters).some(v => v.length > 0)
                 ? 'Ajouter un filtre'
                 : (state.graphSlots.some(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0) || selectedCounters.length > 0)
                   ? 'Appliquer'
@@ -1553,11 +1553,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <FilterChip
                 key={dim}
                 dim={dim}
-                values={state.filters[dim] || []}
+                values={effectiveFilters[dim] || []}
                 onToggleValue={(val) => toggleFilterValue(dim, val)}
                 onClear={() => clearFilterValues(dim)}
                 onRemove={() => removeFilterDimension(dim)}
-                siteFilter={(state.filters['Site'] || [])[0]}
+                siteFilter={(effectiveFilters['Site'] || [])[0]}
                 scopeAllowed={
                   dim === 'Site' ? perimeter.siteAllowed
                   : dim === 'Cell' ? perimeter.cellAllowed
@@ -2147,7 +2147,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <FilterChip
                     key={dim}
                     dim={dim}
-                    values={state.filters[dim] || []}
+                    values={effectiveFilters[dim] || []}
                     onToggleValue={(val) => toggleFilterValue(dim, val)}
                     onClear={() => clearFilterValues(dim)}
                     onRemove={() => removeFilterDimension(dim)}
