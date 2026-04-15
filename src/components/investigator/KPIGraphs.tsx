@@ -1099,7 +1099,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             const baseCounter = sample?.counter_id || counter.split('@')[0];
             const cDef = counterCatalog.find(c => c.counter_name === baseCounter);
             const baseName = cDef?.display_name || cNameMap[baseCounter] || baseCounter;
-            const label = dimKey ? `${baseName}@${dimKey}` : (cDef?.display_name ? `${baseName} (${baseCounter})` : (cNameMap[baseCounter] ? `${cNameMap[baseCounter]} (${baseCounter})` : counter));
+            const label = dimKey ? `${baseName} [${dimKey}]` : (cDef?.display_name ? `${baseName} (${baseCounter})` : (cNameMap[baseCounter] ? `${cNameMap[baseCounter]} (${baseCounter})` : counter));
             const color = stableColorForCounter(counter);
 
             const counterData = allTimestamps.map(ts => {
