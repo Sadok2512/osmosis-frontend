@@ -63,42 +63,41 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string) {
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
-  // Collect all unique timestamps and cells
+  // Collect all unique timestamps and network elements
   const timestampSet = new Set<string>();
-  const cellSet = new Set<string>();
+  const neSet = new Set<string>();
   
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
-    const cell = d.networkElement || d.splitValue || '';
-    cellSet.add(cell);
+    const ne = d.networkElement || d.splitValue || siteName || '';
+    neSet.add(ne);
   }
 
   const timestamps = [...timestampSet].sort();
-  const cells = [...cellSet].sort();
-  const ne = siteName || '—';
+  const networkElements = [...neSet].sort();
 
-  // Build lookup: "timestamp||cell||kpi" → value
+  // Build lookup: "timestamp||ne||kpi" → value
   const lookup = new Map<string, number | null>();
   for (const d of tsData) {
-    const cell = d.networkElement || d.splitValue || '';
+    const ne = d.networkElement || d.splitValue || siteName || '';
     const kpi = cleanKpi(d.kpi);
-    lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
+    lookup.set(`${d.timestamp}||${ne}||${kpi}`, d.value);
   }
 
-  // Generate full cross-product: every timestamp × every cell
+  // Generate full cross-product: every timestamp × every NE
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
   
   for (const ts of timestamps) {
-    for (const cell of cells) {
+    for (const ne of networkElements) {
       const kpiValues: Record<string, number | null> = {};
       for (const kpi of kpiColumns) {
-        const key = `${ts}||${cell}||${kpi}`;
+        const key = `${ts}||${ne}||${kpi}`;
         kpiValues[kpi] = lookup.has(key) ? lookup.get(key)! : null;
       }
       rows.push({
         timestamp: fmt(ts),
-        ne,
-        cell: cell || '—',
+        ne: ne || '—',
+        cell: ne || '—',
         kpiValues,
       });
     }
