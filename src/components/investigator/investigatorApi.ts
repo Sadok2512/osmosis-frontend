@@ -102,7 +102,7 @@ async function fetchKpiComputeOnTheFly(
     // is treated as a PM dimension_filter passthrough. Values from the UI come already
     // formatted as "DIM=value" by /pm/counters/dimension-values, so no remapping is
     // needed — we just forward them straight to the compute endpoint.
-    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
     if (filters && filters.length > 0) {
       for (const f of filters) {
         const dim = (f.dimension || '').toUpperCase();
@@ -113,9 +113,18 @@ async function fetchKpiComputeOnTheFly(
         } else if (dim === 'VENDOR' && f.values?.length) {
           body.vendor = f.values[0];
         } else if ((dim === 'TECHNOLOGY' || dim === 'TECHNO') && f.values?.length) {
-          body.object_type = f.values.length === 1 ? f.values[0] : f.values;
+          // Don't send object_type when all 4 techs selected (equivalent to no filter)
+          const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
+          const allSelected = f.values.length >= 4 && f.values.every(v => ALL_TECHS.has(v));
+          if (!allSelected) {
+            body.object_type = f.values.length === 1 ? f.values[0] : f.values;
+          }
         } else if (dim === 'KPI_LEVEL') {
           /* ignore, handled by kpi engine */
+        } else if (dim === 'PLAQUE' && f.values?.length) {
+          // Geographic filter — ignored by PM compute, but kept for context
+        } else if ((dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') && f.values?.length) {
+          // Geographic/structural filters — not PM dimensions
         } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
           // PM dimension passthrough — covers PMQAP, FLEX_*, NEIGHBOR, SLICE, 5QI,
           // RANSHARE, TRANSPORT, CA_REL, QCI_IDX, and any future dimension type.
@@ -271,7 +280,7 @@ async function fetchCounterTimeSeriesFallback(
     // forwarded as a PM dimension_filter — values arrive already prefixed as "DIM=value".
     if (splitBy && splitBy !== 'None') body.split_by_dimension = true;
     if (splitByField) body.split_by_field = splitByField;
-    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
       for (const f of filters) {
@@ -281,11 +290,17 @@ async function fetchCounterTimeSeriesFallback(
         } else if (dim === 'CELL' && f.values?.length) {
           body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
         } else if ((dim === 'TECHNO' || dim === 'TECHNOLOGY') && f.values?.length) {
-          body.object_type = f.values.length === 1 ? f.values[0] : f.values;
+          const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
+          const allSelected = f.values.length >= 4 && f.values.every(v => ALL_TECHS.has(v));
+          if (!allSelected) {
+            body.object_type = f.values.length === 1 ? f.values[0] : f.values;
+          }
         } else if (dim === 'VENDOR' && f.values?.length) {
           body.vendor = f.values[0];
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
+        } else if (dim === 'PLAQUE' || dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+          /* geographic filters — not PM dimensions, skip */
         } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
           dimFilterValues.push(...f.values);
         }

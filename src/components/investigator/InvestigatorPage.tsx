@@ -358,7 +358,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       Site: 'site_name',
       SITE: 'site_name',
     };
-    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL']);
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
 
     const body: Record<string, any> = {
       counter_names: counterNames,
@@ -392,7 +392,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       } else if (dim === 'VENDOR') {
         body.vendor = values.length === 1 ? values[0] : values;
       } else if (dim === 'TECHNOLOGY' || dim === 'TECHNO') {
-        body.object_type = values.length === 1 ? values[0] : values;
+        const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
+        const allSelected = values.length >= 4 && values.every(v => ALL_TECHS.has(v));
+        if (!allSelected) {
+          body.object_type = values.length === 1 ? values[0] : values;
+        }
+      } else if (dim === 'PLAQUE' || dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+        /* geographic filters — not PM dimensions, skip */
       } else if (!STRUCTURAL_DIMS.has(dim)) {
         dimensionFilterValues.push(...values);
       }
