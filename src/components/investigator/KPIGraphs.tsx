@@ -1021,7 +1021,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               connectNulls: true,
               type: sp.seriesType as any,
               data: counterData,
-              smooth: true,
+              smooth: sp.isSmooth,
               symbol: forceMarkers ? 'circle' : 'none',
               symbolSize: forceMarkers ? 6 : 0,
               lineStyle: { width: 2.5, color, type: 'solid' as const },
