@@ -1225,16 +1225,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   };
 
-  // ── Per-slot filter isolation ──────────────────────────────────────────
-  // Filters are stored per-slot. When an active slot exists, read/write from slot.filters.
-  // When no slot is active, fall back to state.filters (global template for new slots).
-  const effectiveFilters = useMemo(() => {
-    if (!activeSlotId) return state.filters;
-    const slot = state.graphSlots.find(s => s.id === activeSlotId);
-    if (!slot) return state.filters;
-    // Slot filters are the source of truth; return them (may be empty initially)
-    return slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
-  }, [activeSlotId, state.graphSlots, state.filters]);
+  // (effectiveFilters memo is declared earlier, before siteFilterForProbe)
 
   /** Helper: update filters on the active slot (or global if no slot) */
   const updateFilters = (updater: (filters: Record<string, string[]>) => Record<string, string[]>) => {
