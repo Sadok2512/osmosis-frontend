@@ -239,16 +239,16 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
   const resetSelection = () => setSelected(new Set());
   const resetFilters = () => {
-    if (!hasLockedVendor) setFilterVendor('');
-    if (!hasLockedTechno) setFilterTechno('');
+    setActiveVendors(new Set());
+    setActiveTechnos(new Set());
     setFilterDimType('');
     setActiveFamily(null);
     setShowFavOnly(false);
   };
 
   const activeFilterCount = [
-    hasLockedVendor ? perimVendors.join(',') : filterVendor,
-    hasLockedTechno ? perimTechnos.join(',') : filterTechno,
+    activeVendors.size > 0 ? 'v' : '',
+    activeTechnos.size > 0 ? 't' : '',
     filterDimType,
     showFavOnly ? 'fav' : '',
   ].filter(Boolean).length;
