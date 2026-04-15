@@ -65,7 +65,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showAverage: false,
   showGrid: true,
   showArea: false,
-  showDataTable: false,
+  showDataTable: true,
   showBreakdown: false,
   showTopWorst: false,
   showAlarms: false,
