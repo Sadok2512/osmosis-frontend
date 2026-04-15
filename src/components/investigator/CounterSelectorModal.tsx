@@ -328,12 +328,11 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     onConfirm(Array.from(selected));
     onClose();
   };
-
-  if (!open) return null;
-
   // Only show vendors/technos that actually exist in the catalog data
   const vendorOptions = useMemo(() => Array.from(vendorCounts.keys()).sort(), [vendorCounts]);
   const technoOptions = useMemo(() => Array.from(technoCounts.keys()).sort(), [technoCounts]);
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm pl-[240px]" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
