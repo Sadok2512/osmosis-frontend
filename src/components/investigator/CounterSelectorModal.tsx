@@ -336,9 +336,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
             <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
-            {(hasLockedVendor || hasLockedTechno) && (
+            {(activeVendors.size > 0 || activeTechnos.size > 0) && (
               <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                🔒 {[...perimVendors, ...perimTechnos].join(' · ')}
+                Périmètre: {[...Array.from(activeVendors), ...Array.from(activeTechnos)].join(' · ')}
               </span>
             )}
           </div>
