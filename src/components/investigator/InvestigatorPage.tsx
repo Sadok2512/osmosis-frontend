@@ -397,8 +397,16 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         if (!allSelected) {
           body.object_type = values.length === 1 ? values[0] : values;
         }
-      } else if (dim === 'PLAQUE' || dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
-        /* geographic filters — not PM dimensions, skip */
+      } else if (dim === 'PLAQUE') {
+        body.plaque = values.length === 1 ? values[0] : values;
+      } else if (dim === 'DOR') {
+        body.dor = values.length === 1 ? values[0] : values;
+      } else if (dim === 'DR') {
+        body.dr = values.length === 1 ? values[0] : values;
+      } else if (dim === 'BAND' || dim === 'BANDE') {
+        body.band = values.length === 1 ? values[0] : values;
+      } else if (dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+        body.zone_arcep = values.length === 1 ? values[0] : values;
       } else if (!STRUCTURAL_DIMS.has(dim)) {
         dimensionFilterValues.push(...values);
       }
