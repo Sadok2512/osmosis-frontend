@@ -1287,8 +1287,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 return acc;
               }, {} as Record<string, 0 | 1>);
 
-        const hasRightAxis =
-          Object.values(effectiveYAxisAssignments).includes(1) || !!hasCounterSeries;
+        // Only show right axis when KPIs are explicitly assigned to it,
+        // or when we have BOTH KPI series and counter series (different scales)
+        const hasExplicitRight = Object.values(effectiveYAxisAssignments).includes(1);
+        const hasKpiSeries = series.some((s: any) => !s._isCounter);
+        const hasRightAxis = hasExplicitRight || (!!hasCounterSeries && hasKpiSeries);
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
