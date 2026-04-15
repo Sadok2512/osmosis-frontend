@@ -178,8 +178,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       let targetIdx = slots.findIndex(s => s.id === currentActive);
       if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
       if (targetIdx < 0) {
-        // No slots exist — create one
-        const newSlot = createSlot(1, [], 'timeseries');
+        // No slots exist — create one with current global filters
+        const newSlot = createSlot(1, [], 'timeseries', prev.filters);
         newSlot.counterIds = counterNames;
         slots = [newSlot];
         // Also set this new slot as active
@@ -719,7 +719,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           onAddEmptySlot={(widgetType) => {
             setState(prev => {
               const nextIndex = prev.graphSlots.length + 1;
-              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries')] };
+              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries', prev.filters)] };
             });
           }}
           onRenameSlot={(slotId, name) => setState(prev => ({
