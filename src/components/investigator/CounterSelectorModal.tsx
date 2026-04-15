@@ -327,9 +327,9 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
             <BarChart3 className="w-4.5 h-4.5" />
             <h2 className="text-[13px] font-bold tracking-wide">Sélectionner des Counters PM</h2>
             <span className="text-[10px] opacity-60 tabular-nums">{(Array.isArray(catalog) ? catalog : []).length} disponibles</span>
-            {(perimeterVendor || perimeterTechno) && (
-              <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-medium">
-                {[perimeterVendor, perimeterTechno].filter(Boolean).join(' · ')}
+            {(hasLockedVendor || hasLockedTechno) && (
+              <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                🔒 {[...perimVendors, ...perimTechnos].join(' · ')}
               </span>
             )}
           </div>
@@ -340,13 +340,19 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
 
         {/* ── Active filters summary ── */}
         {activeFilterCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-border/40 shrink-0">
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-primary/5 border-b border-border/40 shrink-0 flex-wrap">
             <SlidersHorizontal className="w-3 h-3 text-primary" />
             <span className="text-[10px] text-muted-foreground">Filtres actifs :</span>
-            {filterVendor && (
+            {hasLockedVendor && perimVendors.map(v => (
+              <span key={v} className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold flex items-center gap-1">🔒 {v}</span>
+            ))}
+            {!hasLockedVendor && filterVendor && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-primary/10 text-primary font-semibold">{filterVendor}</span>
             )}
-            {filterTechno && (
+            {hasLockedTechno && perimTechnos.map(t => (
+              <span key={t} className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold flex items-center gap-1">🔒 {t}</span>
+            ))}
+            {!hasLockedTechno && filterTechno && (
               <span className="text-[9px] px-2 py-[1px] rounded-full bg-purple-500/10 text-purple-600 font-semibold">{filterTechno}</span>
             )}
             {filterDimType && (
