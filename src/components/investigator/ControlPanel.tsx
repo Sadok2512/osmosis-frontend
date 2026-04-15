@@ -1719,7 +1719,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           ))}
                         </ToggleGroup>
                         {(() => {
-                          const isRight = (cfg as any).__activeYTab === 'R';
+                          const isRight = cfg.yAxisAssignments?.[kpiIdItem] === 1;
                           const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
                           const axisKey = isRight ? 'yAxisRight' : 'yAxis';
                           return (
@@ -1735,7 +1735,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         })()}
                       </div>
                       {(() => {
-                        const isRight = (cfg as any).__activeYTab === 'R';
+                        const isRight = cfg.yAxisAssignments?.[kpiIdItem] === 1;
                         const axisCfg = isRight ? cfg.yAxisRight : cfg.yAxis;
                         const axisKey = isRight ? 'yAxisRight' : 'yAxis';
                         if (axisCfg?.mode !== 'manual') return null;
