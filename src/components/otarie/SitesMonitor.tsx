@@ -9103,12 +9103,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       )}
 
-      {/* Floating bottom-left: techno filter + band legend */}
+      {/* Floating LEFT side: techno filter + band legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 120 }}>
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
-            <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
+            <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden animate-fade-in">
               {(['ALL', '5G', '4G', '3G', '2G', 'OFF'] as const).map((tech) => (
                 <button
                   key={tech}
@@ -9126,10 +9126,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setEnabledBands(new Set());
                     }
                   }}
-                  className={`w-10 h-10 flex items-center justify-center text-[10px] font-black tracking-wider transition-all ${
+                  className={`w-11 h-11 flex items-center justify-center text-[10px] font-black tracking-wider transition-all duration-200 ${
                     mapTechnoFilter === tech
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      ? 'bg-primary text-primary-foreground scale-110 shadow-md'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 active:scale-95'
                   }`}
                 >
                   {tech}
@@ -9143,17 +9143,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <div className="relative">
             <button
               onClick={() => setShowBandPanel(!showBandPanel)}
-              className={`w-10 h-10 flex items-center justify-center rounded-full shadow-lg transition-all ${
+              className={`w-11 h-11 flex items-center justify-center rounded-2xl shadow-xl transition-all duration-200 active:scale-95 ${
                 showBandPanel
                   ? 'bg-primary text-primary-foreground'
-                  : 'bg-card/95 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                  : 'bg-card/95 backdrop-blur-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted/80'
               }`}
               title="Band Layers"
             >
               <Signal size={16} />
             </button>
             {showBandPanel && (
-              <div className="absolute right-12 bottom-0 bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500]">
+              <div className="absolute left-14 bottom-0 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500] animate-scale-in">
                 {mapTechnoFilter === 'ALL' ? (
                   /* ── ALL mode: show only 5G / 4G with group color pickers ── */
                   <div className="px-4 py-3 space-y-2.5">
@@ -9283,6 +9283,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             )}
           </div>
           )}
+        </div>
+      )}
+
+      {/* Floating RIGHT side: action bar */}
+      {viewMode === 'map' && (
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex flex-col gap-2 transition-all duration-500 ease-out animate-fade-in" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
+          <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden">
+            {([
+              { key: 'layers', icon: <Layers size={16} />, title: 'Couches' },
+              { key: 'filter', icon: <Filter size={16} />, title: 'Filtres' },
+              { key: 'palette', icon: <Palette size={16} />, title: 'Couleurs' },
+              { key: 'settings', icon: <Settings2 size={16} />, title: 'Paramètres' },
+            ] as const).map(({ key, icon, title }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  if (key === 'layers') setShowBandPanel(!showBandPanel);
+                  if (key === 'filter') setPanelCollapsed(!panelCollapsed);
+                  if (key === 'palette') setColorViewMode(colorViewMode === 'none' ? 'vendor' : 'none');
+                  if (key === 'settings') setShowBandPanel(!showBandPanel);
+                }}
+                className="w-11 h-11 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all duration-200 active:scale-95"
+                title={title}
+              >
+                {icon}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
