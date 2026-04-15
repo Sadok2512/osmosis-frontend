@@ -165,9 +165,13 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const [catalog, setCatalog] = useState<CounterDef[]>(safeCatalog);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Multi-select vendor/techno filters for perimeter defaults
-  const [activeVendors, setActiveVendors] = useState<Set<string>>(new Set());
-  const [activeTechnos, setActiveTechnos] = useState<Set<string>>(new Set());
+  // Multi-select vendor/techno filters — initialized from perimeter
+  const [activeVendors, setActiveVendors] = useState<Set<string>>(() => new Set(
+    !perimeterVendor ? [] : Array.isArray(perimeterVendor) ? perimeterVendor.filter(Boolean) : [perimeterVendor].filter(Boolean)
+  ));
+  const [activeTechnos, setActiveTechnos] = useState<Set<string>>(() => new Set(
+    !perimeterTechno ? [] : Array.isArray(perimeterTechno) ? perimeterTechno.filter(Boolean) : [perimeterTechno].filter(Boolean)
+  ));
 
   // Effective filters for API calls
   const effectiveVendor = activeVendors.size === 1 ? Array.from(activeVendors)[0] : '';
@@ -205,12 +209,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       fetchFilterOptions(apiVendor),
     ]).then(([data, opts]) => {
       let items = Array.isArray(data) ? data : [];
-      // Client-side filter when multiple vendors/technos selected (API only accepts single)
-      if (activeVendors.size > 1) {
+      // Always apply client-side vendor/techno filter for strict consistency
+      if (activeVendors.size > 0) {
         const vendorSet = new Set(Array.from(activeVendors).map(v => v.toLowerCase()));
         items = items.filter(c => vendorSet.has((c.vendor || '').toLowerCase()));
       }
-      if (activeTechnos.size > 1) {
+      if (activeTechnos.size > 0) {
         const technoSet = new Set(Array.from(activeTechnos).map(t => t.toLowerCase()));
         items = items.filter(c => technoSet.has((c.techno || '').toLowerCase()));
       }
