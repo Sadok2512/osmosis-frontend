@@ -209,12 +209,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
       fetchFilterOptions(apiVendor),
     ]).then(([data, opts]) => {
       let items = Array.isArray(data) ? data : [];
-      // Client-side filter when multiple vendors/technos selected (API only accepts single)
-      if (activeVendors.size > 1) {
+      // Always apply client-side vendor/techno filter for strict consistency
+      if (activeVendors.size > 0) {
         const vendorSet = new Set(Array.from(activeVendors).map(v => v.toLowerCase()));
         items = items.filter(c => vendorSet.has((c.vendor || '').toLowerCase()));
       }
-      if (activeTechnos.size > 1) {
+      if (activeTechnos.size > 0) {
         const technoSet = new Set(Array.from(activeTechnos).map(t => t.toLowerCase()));
         items = items.filter(c => technoSet.has((c.techno || '').toLowerCase()));
       }
