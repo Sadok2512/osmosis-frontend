@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity, InvestigationState } from './types';
 import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs, smartXInterval } from './timeUtils';
@@ -454,9 +454,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
   const chartRefsMap = useRef<Record<string, ReactECharts | null>>({});
   // Counter data per slot: { [slotId]: { series, nameMap } }
-  const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; value: number }[]; nameMap: Record<string, string> }>>({});
+  const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; counter_id?: string; value: number; dimension_key?: string }[]; nameMap: Record<string, string> }>>({});
 
   const siteName = investigatorState.filters?.['Site']?.[0] || investigatorState.filters?.['SITE']?.[0] || null;
+
+  const slotsCounterKey = useMemo(() => graphSlots.map(s => (s.counterIds || []).join(',')).join('|'), [graphSlots]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -944,7 +946,6 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         if (counterIds.length > 0 && slotCounterData && slotCounterData.series.length > 0) {
           const cSeries = slotCounterData.series;
           const cNameMap = slotCounterData.nameMap;
-          const cCounters = [...new Set(cSeries.map(d => d.counter))];
           // Add counter timestamps to allTimestamps
           const cTimestamps = [...new Set(cSeries.map(d => d.ts))].sort();
           const tsSet = new Set(allTimestamps);
@@ -953,12 +954,18 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           }
           allTimestamps.sort();
 
+          // Build unique series: backend returns split data with counter="name@dimKey"
+          // and dimension_key="dimKey", so unique counters already cover splits.
+          const cCounters = [...new Set(cSeries.map(d => d.counter))];
           cCounters.forEach((counter) => {
+            // For split series like "L.CELL.AVAIL.DUR@CELL_K1_L8", extract base + dim
+            const sample = cSeries.find(d => d.counter === counter);
+            const dimKey = sample?.dimension_key || '';
+            const baseCounter = sample?.counter_id || counter.split('@')[0];
+            const cDef = counterCatalog.find(c => c.counter_name === baseCounter);
+            const baseName = cDef?.display_name || cNameMap[baseCounter] || baseCounter;
+            const label = dimKey ? `${baseName}@${dimKey}` : (cDef?.display_name ? `${baseName} (${baseCounter})` : (cNameMap[baseCounter] ? `${cNameMap[baseCounter]} (${baseCounter})` : counter));
             const color = stableColorForCounter(counter);
-            const idFromName = Object.entries(cNameMap).find(([, name]) => name === counter)?.[0];
-            const displayName = idFromName ? `${counter} (${idFromName})` : counter;
-            const cDef = counterCatalog.find(c => c.counter_name === counter);
-            const label = cDef?.display_name ? `${cDef.display_name} (${counter})` : displayName;
 
             const counterData = allTimestamps.map(ts => {
               const p = cSeries.find(d => d.ts === ts && d.counter === counter);

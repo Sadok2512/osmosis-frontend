@@ -133,7 +133,7 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
       setTsData(data.series || []);
       setLoading(false);
     }).catch(() => { setTsData([]); setLoading(false); });
-  }, [selectedCounters.map(c => c.counter_name).join(','), dateFrom, dateTo, globalGran, splitByDimension, dimensionFilter]);
+  }, [selectedCounters.map(c => c.counter_name).join(','), dateFrom, dateTo, globalGran, splitByDimension, dimensionFilter.join(',')]);
 
   const removeCounter = (name: string) => {
     setSelectedCounters(prev => prev.filter(c => c.counter_name !== name));

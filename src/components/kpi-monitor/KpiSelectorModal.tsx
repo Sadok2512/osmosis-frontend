@@ -422,7 +422,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Rechercher un KPI..."
+                  placeholder="Rechercher par nom ou KPI Code…"
                   className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                   autoFocus
                 />
@@ -479,8 +479,18 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                             {isSelected && <Check className="w-2 h-2 text-primary-foreground" />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-medium text-foreground truncate">{k.display_name}</p>
-                            <p className="text-[9px] text-muted-foreground truncate">{k.description || k.kpi_key}</p>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <p className="text-[11px] font-medium text-foreground truncate">{k.display_name}</p>
+                              <span
+                                className="text-[8px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold shrink-0 border border-primary/20"
+                                title={`KPI Code: ${k.kpi_key}`}
+                              >
+                                {k.kpi_key}
+                              </span>
+                            </div>
+                            {k.description && (
+                              <p className="text-[9px] text-muted-foreground truncate">{k.description}</p>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             {(k as any).dimension_type && (
@@ -533,14 +543,14 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
             {Array.from(selected).slice(0, 8).map(key => {
               const k = catalog.find(c => c.kpi_key === key);
               return (
-                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
+                <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold" title={key}>
                   <span className={cn(
                     'w-3 h-3 rounded text-[7px] font-black flex items-center justify-center',
                     (axisMap[key] || 'left') === 'left' ? 'bg-primary/20' : 'bg-accent/50'
                   )}>
                     {(axisMap[key] || 'left') === 'left' ? 'L' : 'R'}
                   </span>
-                  {k?.display_name || key}
+                  <span className="font-mono">{key}</span>
                   <button onClick={() => toggle(key)} className="ml-0.5 hover:text-destructive">
                     <X className="w-2.5 h-2.5" />
                   </button>

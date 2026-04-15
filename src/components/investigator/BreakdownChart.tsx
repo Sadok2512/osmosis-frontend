@@ -88,7 +88,7 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => { setTsData(data.series || []); setLoading(false); })
       .catch(() => { setTsData([]); setLoading(false); });
-  }, [counterNames, dateFrom, dateTo, granularity, siteName, filters]);
+  }, [counterNames.join(','), dateFrom, dateTo, granularity, siteName, JSON.stringify(filters)]);
 
   const { option, hasData } = useMemo(() => {
     if (tsData.length === 0) return { option: null, hasData: false };

@@ -461,7 +461,7 @@ const SingleKpiBreakdown: React.FC<{
       })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos, dateFrom, dateTo, granularity, filters, splitActive, splitBy]);
+  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters), splitActive, splitBy]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {

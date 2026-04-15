@@ -934,9 +934,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   };
 
   useEffect(() => {
-    fetchKpiCatalog().then(data => {
+    let alive = true;
+    const mapCatalog = (data: any) => {
       const items = Array.isArray(data) ? data : (data as any)?.kpis || (data as any)?.items || [];
-      if (items.length > 0) {
+      if (items.length > 0 && alive) {
         const mapped = items.map((k: any) => ({
           kpi_id: k.kpi_key, kpi_key: k.kpi_key, display_name: k.display_name || k.kpi_key,
           description: k.description || '', techno_scope: 'both' as const, unit: k.unit || '',
@@ -951,8 +952,16 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         }));
         setCatalog(mapped);
       }
-    }).catch(() => {});
-    fetchKpiDefinitions().then(k => { if (k.length > 0) setKpiDefs(k); }).catch(() => {});
+    };
+    const load = (attempt: number) => {
+      fetchKpiCatalog().then(mapCatalog).catch(err => {
+        console.error(`[ControlPanel] fetchKpiCatalog failed (attempt ${attempt}):`, err);
+        if (attempt < 3 && alive) setTimeout(() => load(attempt + 1), 2000 * attempt);
+      });
+    };
+    load(1);
+    fetchKpiDefinitions().then(k => { if (k.length > 0 && alive) setKpiDefs(k); }).catch(() => {});
+    return () => { alive = false; };
   }, []);
 
   // Load counter catalog for counter selector

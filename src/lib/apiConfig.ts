@@ -27,7 +27,7 @@ const isOnTunnel = typeof window !== 'undefined' && (
 export const VPS_ENDPOINTS = {
   parser:  isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:8000`,
   kpi:     isOnTunnel ? CF_KPI : `http://${VPS_HOST}:8001`,
-  agent:   isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:8000`,
+  agent:   isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:1000`,
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
