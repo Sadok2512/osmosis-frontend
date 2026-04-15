@@ -17,12 +17,11 @@ interface Props {
   filterContext?: Record<string, string[]>;
 }
 
-// Same palette & hash as KPIGraphs.tsx so cell colors match the graph
 const SPLIT_COLORS = [
-  '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
-  '#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6',
-  '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24',
-  '#fb7185','#2dd4bf','#818cf8','#facc15','#34d399',
+  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
+  '#ec4899', '#84cc16', '#ef4444', '#6366f1', '#14b8a6',
+  '#f97316', '#a855f7', '#22d3ee', '#4ade80', '#fbbf24',
+  '#fb7185', '#2dd4bf', '#818cf8', '#facc15', '#34d399',
 ];
 
 function stableHash(key: string): number {
@@ -51,27 +50,38 @@ const fmtVal = (v: number | null | undefined) =>
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '';
 
-/** Clean KPI key: remove @splitValue suffix */
-const cleanKpi = (k: string) => k.includes('@') ? k.split('@')[0] : k;
+const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 
-/**
- * Build pivot table: one row per (timestamp, networkElement, cell)
- * with separate columns for each KPI metric.
- */
-/** Resolve the primary scope filter to display in the table */
+function normalizeScopeLabel(key: string): string {
+  const normalized = key.toUpperCase();
+  if (normalized === 'SITE') return 'Site';
+  if (normalized === 'PLAQUE') return 'Plaque';
+  if (normalized === 'DOR') return 'DOR';
+  if (normalized === 'DR') return 'DR';
+  if (normalized === 'ZONE_ARCEP' || normalized === 'ZONE ARCEP') return 'Zone ARCEP';
+  return key;
+}
+
 function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: string) {
   if (filterContext) {
     const priority = ['Plaque', 'PLAQUE', 'Site', 'SITE', 'DOR', 'DR', 'Zone ARCEP', 'ZONE_ARCEP'];
+
     for (const key of priority) {
       const vals = filterContext[key];
       if (vals && vals.length > 0) {
-        return { label: key, value: vals.join(', ') };
+        return {
+          label: normalizeScopeLabel(key),
+          value: vals.join(', '),
+        };
       }
     }
 
     for (const [key, vals] of Object.entries(filterContext)) {
       if (vals && vals.length > 0) {
-        return { label: key, value: vals.join(', ') };
+        return {
+          label: normalizeScopeLabel(key),
+          value: vals.join(', '),
+        };
       }
     }
   }
@@ -91,8 +101,7 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
 
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
-    const cell = d.networkElement || d.splitValue || '';
-    cellSet.add(cell);
+    cellSet.add(d.networkElement || d.splitValue || '');
   }
 
   const timestamps = [...timestampSet].sort();
@@ -114,6 +123,7 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
         const key = `${ts}||${cell}||${kpi}`;
         kpiValues[kpi] = lookup.has(key) ? lookup.get(key)! : null;
       }
+
       rows.push({
         timestamp: fmt(ts),
         ne: scope.value,
@@ -160,20 +170,85 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     if (hasCells) headerCols.push('Cell');
     headerCols.push(...kpiColumns);
     const header = headerCols.join(',');
-...
-              {/* NE — sticky */}
+
+    const csvRows = rows.map(r => {
+      const baseCols = [r.timestamp, r.ne];
+      if (hasCells) baseCols.push(r.cell);
+      const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
+      return [...baseCols, ...kpiVals].join(',');
+    });
+
+    const csv = [header, ...csvRows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `table_data_${activeSlot?.name || 'export'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (tsData.length === 0) {
+    return (
+      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex items-center justify-center h-48">
+        <p className="text-xs text-muted-foreground">Aucune donnée — cliquez sur Appliquer</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col">
+      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
+            📊 {sourceInfo.slotLabel}
+          </span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground font-medium">
+            KPIs: <span className="text-foreground">{sourceInfo.kpiNames}</span>
+          </span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground font-medium">
+            {totalRows} pivoted rows ({sourceInfo.rowCount} raw points)
+          </span>
+        </div>
+      </div>
+
+      <div className="h-14 border-b border-border/30 flex items-center justify-between px-5 bg-muted/30">
+        <div className="flex items-center gap-3">
+          <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
+          <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
+          <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
+            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasCells ? 'Cell' : 'NE'}
+          </span>
+        </div>
+        <button
+          onClick={exportCsv}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+        >
+          <Download className="w-5 h-5" />
+          CSV
+        </button>
+      </div>
+
+      <div className="overflow-auto flex-grow relative" style={{ maxHeight: 500 }}>
+        <table className="w-full border-collapse text-[11px]">
+          <thead className="sticky top-0 z-20">
+            <tr className="bg-muted/80 backdrop-blur-md border-b border-border/30">
+              <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                Timestamp
+              </th>
+
               <th className="text-left py-3 px-4 font-bold text-primary uppercase tracking-wider sticky left-0 bg-muted/95 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
                 {scopeLabel}
               </th>
 
-              {/* Cell — only when splits exist */}
               {hasCells && (
                 <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                   Cell
                 </th>
               )}
 
-              {/* KPI Columns */}
               {kpiColumns.map((kpi, i) => (
                 <th
                   key={kpi}
@@ -204,12 +279,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     isOdd && 'bg-muted/20',
                   )}
                 >
-                  {/* Timestamp */}
                   <td className="py-2.5 px-4 tabular-nums text-muted-foreground whitespace-nowrap">
                     {row.timestamp}
                   </td>
 
-                  {/* NE — sticky */}
                   <td
                     className={cn(
                       'py-2.5 px-4 font-semibold text-primary sticky left-0 transition-colors shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap',
@@ -219,7 +292,6 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     {row.ne}
                   </td>
 
-                  {/* Cell — with color dot matching graph series */}
                   {hasCells && (
                     <td className="py-2.5 px-4 whitespace-nowrap text-foreground">
                       <span className="inline-flex items-center gap-1.5">
@@ -232,7 +304,6 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     </td>
                   )}
 
-                  {/* KPI values */}
                   {kpiColumns.map((kpi) => (
                     <td
                       key={kpi}
@@ -248,7 +319,6 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         </table>
       </div>
 
-      {/* ── Pagination ── */}
       <div className="h-10 border-t border-border/20 flex items-center justify-between px-4 bg-muted/30">
         <div className="flex items-center gap-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
           <span>
