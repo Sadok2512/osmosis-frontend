@@ -402,42 +402,43 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                   </button>
                 </div>
 
-                {/* Vendor */}
-                <CollapsibleSection title={hasLockedVendor ? '🔒 Vendor (périmètre)' : 'Vendor'}>
-                  {hasLockedVendor ? (
-                    perimVendors.map(v => (
-                      <FilterListItem key={v} label={v} active={true} onClick={() => {}} />
-                    ))
-                  ) : (
-                    <>
-                      <FilterListItem label="Tous" active={filterVendor === ''} onClick={() => { setFilterVendor(''); setFilterTechno(''); }} />
-                      {vendorOptions.map(v => (
-                        <FilterListItem key={v} label={v} active={filterVendor === v} onClick={() => { setFilterVendor(v); setFilterTechno(''); }} />
-                      ))}
-                    </>
-                  )}
+                {/* Vendor (multi-select, editable) */}
+                <CollapsibleSection title="Vendor">
+                  <FilterListItem label="Tous" active={activeVendors.size === 0} onClick={() => setActiveVendors(new Set())} />
+                  {vendorOptions.map(v => (
+                    <FilterListItem
+                      key={v}
+                      label={v}
+                      active={activeVendors.has(v)}
+                      onClick={() => {
+                        setActiveVendors(prev => {
+                          const next = new Set(prev);
+                          if (next.has(v)) next.delete(v); else next.add(v);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
                 </CollapsibleSection>
 
-                {/* Technology */}
-                <CollapsibleSection title={hasLockedTechno ? '🔒 Technologie (périmètre)' : 'Technologie'}>
-                  {hasLockedTechno ? (
-                    perimTechnos.map(t => (
-                      <FilterListItem key={t} label={t} active={true} count={technoCounts.get(t)} onClick={() => {}} />
-                    ))
-                  ) : (
-                    <>
-                      <FilterListItem label="Tous" active={filterTechno === ''} onClick={() => setFilterTechno('')} />
-                      {technoOptions.map(t => (
-                        <FilterListItem
-                          key={t}
-                          label={t}
-                          active={filterTechno === t}
-                          count={technoCounts.get(t)}
-                          onClick={() => setFilterTechno(t)}
-                        />
-                      ))}
-                    </>
-                  )}
+                {/* Technology (multi-select, editable) */}
+                <CollapsibleSection title="Technologie">
+                  <FilterListItem label="Tous" active={activeTechnos.size === 0} onClick={() => setActiveTechnos(new Set())} />
+                  {technoOptions.map(t => (
+                    <FilterListItem
+                      key={t}
+                      label={t}
+                      active={activeTechnos.has(t)}
+                      count={technoCounts.get(t)}
+                      onClick={() => {
+                        setActiveTechnos(prev => {
+                          const next = new Set(prev);
+                          if (next.has(t)) next.delete(t); else next.add(t);
+                          return next;
+                        });
+                      }}
+                    />
+                  ))}
                 </CollapsibleSection>
 
                 {/* Dimension Type */}
