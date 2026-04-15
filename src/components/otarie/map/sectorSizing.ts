@@ -18,20 +18,22 @@ export const getZoomAwareRadius = (
   viewportWidth: number = 1400,
 ): number => {
   let targetPx: number;
-  if (zoom <= 9) targetPx = 22;
-  else if (zoom <= 10) targetPx = 28;
-  else if (zoom <= 11) targetPx = 34;
-  else if (zoom <= 12) targetPx = 38;
-  else targetPx = 42;
+  if (zoom <= 9) targetPx = 14;
+  else if (zoom <= 10) targetPx = 18;
+  else if (zoom <= 11) targetPx = 22;
+  else if (zoom <= 12) targetPx = 26;
+  else if (zoom <= 13) targetPx = 30;
+  else targetPx = 34;
 
-  const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
+  // Dynamic viewport scaling — smaller screens get proportionally smaller beams
+  const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
   targetPx *= vpScale;
 
-  const densityScale = 0.5 + 0.5 * Math.max(0, Math.min(1, densityFactor));
+  const densityScale = 0.45 + 0.55 * Math.max(0, Math.min(1, densityFactor));
   targetPx *= densityScale;
 
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(30, Math.min(1200, targetPx * mpp));
+  return Math.max(20, Math.min(800, targetPx * mpp));
 };
 
 /**
