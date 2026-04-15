@@ -3,7 +3,8 @@ import ReactECharts from 'echarts-for-react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { formatAxisLabel } from './timeUtils';
-import { DataPoint, Granularity } from './types';
+import { DataPoint, Granularity, Jalon } from './types';
+import { normalizeTimestamp } from './timeUtils';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
   Database, GitBranch, Cpu, TrendingUp, Filter,
@@ -23,6 +24,7 @@ interface Props {
   /** Per-KPI split dimension map (takes precedence over `splitBy`). */
   splitByPerKpi?: Record<string, string>;
   timeSeriesData?: DataPoint[];
+  jalons?: Jalon[];
 }
 
 interface KpiExplain {
