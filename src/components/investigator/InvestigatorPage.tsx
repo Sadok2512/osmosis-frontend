@@ -166,7 +166,35 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
-  const [selectedCounters, setSelectedCounters] = React.useState<any[]>([]);
+  const [selectedCounters, setSelectedCountersRaw] = React.useState<any[]>([]);
+  /** Wrap setSelectedCounters to also sync counterIds to the active (or auto-created) slot */
+  const setSelectedCounters = useCallback((counters: any[]) => {
+    setSelectedCountersRaw(counters);
+    const counterNames = counters.map((c: any) => c.counter_name).filter(Boolean);
+    setState(prev => {
+      let slots = [...prev.graphSlots];
+      const currentActive = activeSlotId;
+      // Find the target slot — active slot, or first slot, or create a new one
+      let targetIdx = slots.findIndex(s => s.id === currentActive);
+      if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
+      if (targetIdx < 0) {
+        // No slots exist — create one
+        const newSlot = createSlot(1, [], 'timeseries');
+        newSlot.counterIds = counterNames;
+        slots = [newSlot];
+        // Also set this new slot as active
+        setTimeout(() => setActiveSlotId(newSlot.id), 0);
+      } else {
+        slots = slots.map((s, i) =>
+          i === targetIdx ? { ...s, counterIds: counterNames } : s
+        );
+        if (!currentActive && slots[targetIdx]) {
+          setTimeout(() => setActiveSlotId(slots[targetIdx].id), 0);
+        }
+      }
+      return { ...prev, graphSlots: slots };
+    });
+  }, [activeSlotId, setActiveSlotId]);
   type AnalysisTabKey = 'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history';
   /** Global analysis tab — persists when switching between graph slots */
   const [analysisTab, setAnalysisTabRaw] = React.useState<AnalysisTabKey | null>(null);
@@ -359,12 +387,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   }, [instanceId, state.endDate, state.filters, state.granularity, state.graphSlots, state.startDate, ws]);
 
   const fetchSelectedCounterSeries = useCallback(async (options?: { throwOnError?: boolean }) => {
+    const slotId = activeSlotId || state.graphSlots[0]?.id || 'global';
     return fetchCounterSeriesForSlot(
       selectedCounters.map((c: any) => c.counter_name),
-      activeSlotId || 'global',
+      slotId,
       options,
     );
-  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters]);
+  }, [activeSlotId, fetchCounterSeriesForSlot, selectedCounters, state.graphSlots]);
 
   const handleApply = async () => {
     if (!hasFilters) {
@@ -374,7 +403,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const targetSlot = activeSlotId
       ? state.graphSlots.find(s => s.id === activeSlotId && (s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0))
-      : null;
+      : state.graphSlots.find(s => s.kpiIds.length > 0 || (s.counterIds?.length ?? 0) > 0) || null;
 
     if (!targetSlot && selectedCounters.length === 0) {
       setApplyError('Veuillez sélectionner un graphe actif avec au moins un KPI ou Counter.');
