@@ -1079,7 +1079,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     <InvestigatorDataTable
                       tsData={slotData}
                       activeSlot={activeTableSlot}
-                      siteName={state.filters?.['Site']?.[0] || state.filters?.['SITE']?.[0] || undefined}
+                      siteName={(activeSlot?.filters?.['Site'] || activeSlot?.filters?.['SITE'] || state.filters?.['Site'] || state.filters?.['SITE'] || [])[0] || undefined}
                     />
                   </>
                 );
@@ -1102,7 +1102,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       dateFrom={(slot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
                       dateTo={(slot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
                       granularity={slot.granularity || state.granularity}
-                      filters={Object.entries({ ...state.filters, ...slot.filters })
+                      filters={Object.entries(slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters)
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
                       splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
