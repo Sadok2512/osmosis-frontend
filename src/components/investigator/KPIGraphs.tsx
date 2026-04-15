@@ -6,7 +6,7 @@ import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
-import { fetchKpiDefinitions } from './investigatorApi';
+import { fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
 import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
@@ -587,9 +587,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
   // Counter data per slot: { [slotId]: { series, nameMap } }
   const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; counter_id?: string; value: number; dimension_key?: string }[]; nameMap: Record<string, string> }>>({});
 
-  const siteName = investigatorState.filters?.['Site']?.[0] || investigatorState.filters?.['SITE']?.[0] || null;
-
-  const slotsCounterKey = useMemo(() => graphSlots.map(s => (s.counterIds || []).join(',')).join('|'), [graphSlots]);
+  const slotsCounterKey = useMemo(() => graphSlots.map((slot) => JSON.stringify({
+    id: slot.id,
+    counterIds: slot.counterIds || [],
+    splitByPerKpi: slot.config?.splitByPerKpi || {},
+    filters: slot.filters || {},
+    startDate: slot.startDate || '',
+    endDate: slot.endDate || '',
+    granularity: slot.granularity || '',
+  })).join('|'), [graphSlots]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -614,14 +620,22 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
   useEffect(() => {
     const slotsWithCounters = graphSlots.filter(s => s.counterIds && s.counterIds.length > 0);
     if (slotsWithCounters.length === 0) return;
-    const today = new Date().toISOString().split('T')[0];
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
-    const dateFrom = investigatorState.startDate?.split('T')[0] || thirtyDaysAgo;
-    const dateTo = investigatorState.endDate?.split('T')[0] || today;
 
     slotsWithCounters.forEach(slot => {
       const cIds = slot.counterIds!;
       const cfg: GraphConfig = slot.config || DEFAULT_GRAPH_CONFIG;
+      const slotContext = resolveSlotContext(slot, {
+        startDate: investigatorState.startDate,
+        endDate: investigatorState.endDate,
+        granularity: investigatorState.granularity,
+        splitBy: investigatorState.splitBy,
+        filters: investigatorState.filters,
+        kpiLevel: investigatorState.kpiLevel,
+        profileQci: investigatorState.profileQci,
+        profileArp: investigatorState.profileArp,
+        neighborType: investigatorState.neighborType,
+      });
+
       // Check if any counter in this slot has a split configured
       const splitPerKpi = cfg.splitByPerKpi || {};
       const counterSplitVal = cIds.map(cid => splitPerKpi[cid]).find(v => v && v !== 'None');
@@ -629,11 +643,31 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
       const body: any = {
         counter_names: cIds,
-        date_from: dateFrom,
-        date_to: dateTo,
-        granularity: normalizeGranularity(investigatorState.granularity),
+        date_from: slotContext.dateFrom,
+        date_to: slotContext.dateTo,
+        granularity: slotContext.granularity,
         split_by_dimension: hasSplit,
       };
+
+      for (const filter of slotContext.filters) {
+        const dim = (filter.dimension || '').toUpperCase();
+        if (!filter.values?.length) continue;
+
+        if (dim === 'SITE') {
+          body.site_name = filter.values.length === 1 ? filter.values[0] : filter.values;
+        } else if (dim === 'CELL') {
+          body.cell_name = filter.values.length === 1 ? filter.values[0] : filter.values;
+        } else if (dim === 'VENDOR') {
+          body.vendor = filter.values[0];
+        } else if (dim === 'TECHNOLOGY' || dim === 'TECHNO') {
+          const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
+          const allSelected = filter.values.length >= 4 && filter.values.every(v => ALL_TECHS.has(v));
+          if (!allSelected) {
+            body.object_type = filter.values.length === 1 ? filter.values[0] : filter.values;
+          }
+        }
+      }
+
       if (hasSplit) {
         const splitUpper = counterSplitVal!.toUpperCase();
         // Map split dimension to the backend field
@@ -644,11 +678,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         } else {
           body.split_by_field = counterSplitVal;
         }
-        // Always keep site_name filter to scope results to the selected site
-        if (siteName) body.site_name = siteName;
-      } else if (siteName) {
-        body.site_name = siteName;
       }
+
       fetch(getApiUrl('pm/counters/timeseries'), {
         method: 'POST',
         headers: getApiHeaders(),
@@ -663,7 +694,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         })
         .catch(() => {});
     });
-  }, [graphSlots.map(s => (s.counterIds || []).join(',') + JSON.stringify(s.config?.splitByPerKpi || {})).join('|'), investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, siteName]);
+  }, [slotsCounterKey, investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, investigatorState.splitBy, investigatorState.filters, investigatorState.kpiLevel, investigatorState.profileQci, investigatorState.profileArp, investigatorState.neighborType]);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 
