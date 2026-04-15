@@ -35,8 +35,10 @@ interface Props {
   catalog: CounterDef[];
   selectedKeys: string[];
   onConfirm: (keys: string[]) => void;
-  perimeterVendor?: string;
-  perimeterTechno?: string;
+  /** Locked perimeter vendor(s) — displayed but not changeable */
+  perimeterVendor?: string | string[];
+  /** Locked perimeter techno(s) — displayed but not changeable */
+  perimeterTechno?: string | string[];
 }
 
 async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
