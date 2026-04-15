@@ -992,6 +992,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return Array.from(new Set(ids)).sort().join(',');
   }, [state.graphSlots]);
 
+  // ── Per-slot filter isolation (moved early — consumed by hooks below) ──
+  const effectiveFilters = useMemo(() => {
+    if (!activeSlotId) return state.filters;
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    if (!slot) return state.filters;
+    return slot.filters && Object.keys(slot.filters).length > 0 ? slot.filters : state.filters;
+  }, [activeSlotId, state.graphSlots, state.filters]);
+
   const siteFilterForProbe = (effectiveFilters['Site'] || [])[0] || null;
 
   useEffect(() => {
