@@ -1115,7 +1115,35 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           })()}
 
           {/* ═══ Analysis Panel Content — all panels stay mounted, visibility via CSS ═══ */}
-          <div className="relative">
+          {/* If active tab is selected but its flag is OFF on the active slot, show a friendly disabled message */}
+          {(() => {
+            if (!analysisTab || !activeSlot) return null;
+            const flagMap: Record<string, keyof GraphConfig> = {
+              table_data: 'showDataTable',
+              breakdown: 'showBreakdown',
+              top_worst: 'showTopWorst',
+              alarms: 'showAlarms',
+              neighbors: 'showNeighbors',
+              cm_history: 'showCmHistory',
+            };
+            const flag = flagMap[analysisTab];
+            if (!flag) return null;
+            const enabled = analysisTab === 'table_data'
+              ? isSectionEnabled(activeSlot, 'showDataTable')
+              : Boolean((activeSlot.config || DEFAULT_GRAPH_CONFIG)[flag]);
+            if (enabled) return null;
+            return (
+              <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 px-4 py-8 text-center animate-in fade-in duration-200">
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Cette section est désactivée pour ce graphe.
+                </p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                  Activez-la dans les réglages du graphe (icône ⚙️) pour voir les données.
+                </p>
+              </div>
+            );
+          })()}
+          <div className="relative animate-in fade-in duration-200" key={`panel-${activeSlotId ?? 'none'}-${analysisTab ?? 'none'}`}>
 
             {/* Table Data — only render for slots with showDataTable === true */}
             <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
