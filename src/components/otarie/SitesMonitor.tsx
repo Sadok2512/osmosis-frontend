@@ -1811,25 +1811,18 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const confirmSwitchWithSave = () => {
     if (expandedDashboardId && onSaveDashboard) onSaveDashboard(expandedDashboardId);
-    setExpandedDashboardId(pendingSwitchId);
-    if (pendingSwitchId && onApplyView) {
-      const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) {
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
+    if (pendingSwitchId) {
+      activateDashboard(pendingSwitchId);
+      setExpandedDashboardId(pendingSwitchId);
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
   };
 
   const confirmSwitchWithoutSave = () => {
-    setExpandedDashboardId(pendingSwitchId);
-    if (pendingSwitchId && onApplyView) {
-      const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) {
-        onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
+    if (pendingSwitchId) {
+      activateDashboard(pendingSwitchId);
+      setExpandedDashboardId(pendingSwitchId);
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
