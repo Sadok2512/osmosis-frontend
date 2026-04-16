@@ -61,6 +61,7 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
     sourceGraphId: slot.id,
     sourceGraphTitle: slot.name,
     kpiIds: slot.kpiIds,
+    counterIds: slot.counterIds || [],
     filters: { ...(slot.filters || {}) },
     startDate: slot.startDate || globalState.startDate,
     endDate: slot.endDate || globalState.endDate,

@@ -5,6 +5,7 @@ export interface TabContextSnapshot {
   sourceGraphId: string;
   sourceGraphTitle: string;
   kpiIds: string[];
+  counterIds?: string[];
   filters: Record<string, string[]>;
   startDate: string;
   endDate: string;

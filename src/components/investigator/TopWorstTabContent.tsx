@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import WorstElementsTable from './WorstElementsTable';
 import { fetchWorstCellsDirect, fetchCellDetails, fetchKpiDefinitions } from './investigatorApi';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -24,7 +24,13 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ctx = contextSnapshot;
-  const limit = ctx?.kpiIds?.length ? 50 : 10;
+  const effectiveKpiIds = useMemo(() => {
+    const ctxCounterIds = ctx?.counterIds || [];
+    if (ctx?.kpiIds?.length) return ctx.kpiIds;
+    if (ctxCounterIds.length) return ctxCounterIds;
+    return state.graphSlots.flatMap(s => [...(s.kpiIds || []), ...(s.counterIds || [])]);
+  }, [ctx, state.graphSlots]);
+  const limit = effectiveKpiIds.length ? 50 : 10;
   const kpiMetaRef = useRef<Map<string, KpiDefinition>>(new Map());
   const fetchedRef = useRef(false);
 
@@ -40,9 +46,9 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
 
-    const kpiIds = ctx?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds);
+    const kpiIds = effectiveKpiIds;
     if (!kpiIds.length) {
-      setError('Aucun KPI sélectionné.');
+      setError('Aucun KPI ni compteur sélectionné.');
       return;
     }
 
@@ -96,9 +102,9 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
 
   /** Open a new workspace tab prefilled with the clicked cell's context */
   const handleDrillDown = useCallback((cellName: string, el: WorstElement) => {
-    const kpiIds = ctx?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds);
+    const kpiIds = effectiveKpiIds;
     if (!kpiIds.length) {
-      toast.warning('Aucun KPI actif pour le drill-down.');
+      toast.warning('Aucun KPI ni compteur actif pour le drill-down.');
       return;
     }
 
