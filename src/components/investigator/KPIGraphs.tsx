@@ -1646,7 +1646,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <X className="w-3.5 h-3.5" />
               </button>
 
-              <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={slotData.length > 0} />
+              <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={(series || []).some((s: any) => Array.isArray(s.data) && s.data.some((v: any) => v != null && (typeof v !== 'number' || isFinite(v))))} />
             </div>
             <SlotChart
               ref={(el) => { chartRefsMap.current[slot.id] = el; }}
