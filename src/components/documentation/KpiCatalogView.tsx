@@ -294,7 +294,7 @@ const KpiCatalogView: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, categoryFilter]);
+  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, categoryFilter, statusFilter]);
 
   const handleCreate = async (data: Record<string, any>) => {
     try { const r = await catalogPost('/kpis', data); toast.success(`KPI ${data.kpi_code || r.kpi_key || ''} created`); setShowCreate(false); loadCatalog(); }
