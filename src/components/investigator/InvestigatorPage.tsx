@@ -1074,8 +1074,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             {/* Table Data — only render for slots with showDataTable === true */}
             <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
               {(() => {
-                // Only slots that explicitly opted in
-                const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showDataTable);
+                // Keep the same enablement logic as the tab bar: timeseries slots
+                // default to showDataTable=true even if the flag is missing in config.
+                const enabledSlots = state.graphSlots.filter(s => isSectionEnabled(s, 'showDataTable'));
                 if (enabledSlots.length === 0) {
                   return (
                     <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">
