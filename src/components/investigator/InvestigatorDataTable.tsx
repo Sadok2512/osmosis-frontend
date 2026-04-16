@@ -15,6 +15,7 @@ interface Props {
   activeSlot?: GraphSlot | null;
   siteName?: string;
   filterContext?: Record<string, string[]>;
+  forceSplitOff?: boolean;
 }
 
 const SPLIT_COLORS = [
