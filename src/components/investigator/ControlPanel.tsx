@@ -1137,11 +1137,28 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   // See ./usePerimeterScope for the full derivation.
   const perimeter: PerimeterScope = usePerimeterScope(effectiveFilters);
 
-  // KPI catalog filtered by perimeter. Entries without vendor/techno metadata
-  // are hidden once a perimeter is active (fail closed).
+  // KPI catalog filtered by perimeter. If the selected vendor has dedicated KPIs,
+  // show only those. If no KPIs exist for that vendor (e.g. Huawei), show all KPIs
+  // (they may still be applicable via universal formulas).
   const perimeterFilteredCatalog = useMemo(() => {
     if (!perimeter.hasScope) return catalog;
-    return catalog.filter((entry: any) => perimeter.matchKpi({ vendor: entry.vendor, techno: entry.techno }));
+    const filtered = catalog.filter((entry: any) => perimeter.matchKpi({ vendor: entry.vendor, techno: entry.techno }));
+    console.log(`[Perimeter KPI] catalog=${catalog.length} filtered=${filtered.length} vendorSet=${[...perimeter.vendorSet]} technoSet=${[...perimeter.technoSet]}`);
+    // Fallback: if vendor filter yields 0 KPIs, the vendor has no dedicated KPIs
+    // → show all KPIs (filter only by techno if set)
+    if (filtered.length === 0 && perimeter.vendorSet.size > 0) {
+      if (perimeter.technoSet.size > 0) {
+        // Vendor has no dedicated KPIs — filter by techno only
+        const techFiltered = catalog.filter((entry: any) =>
+          perimeter.matchKpi({ vendor: null, techno: entry.techno })
+        );
+        console.log(`[Perimeter KPI] fallback techno-only: ${techFiltered.length}`);
+        return techFiltered;
+      }
+      console.log(`[Perimeter KPI] fallback all: ${catalog.length}`);
+      return catalog;
+    }
+    return filtered;
   }, [catalog, perimeter]);
 
   // Counter catalog filtered by perimeter — consumed by CounterSelectorModal

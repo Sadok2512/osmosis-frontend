@@ -152,6 +152,16 @@ const EMPTY_SCOPE: PerimeterScope = {
 
 const normalize = (v: unknown) => (typeof v === 'string' ? v.trim().toUpperCase() : '');
 
+/** Normalize technology name to canonical form (2G/3G/4G/5G) */
+const TECHNO_NORM: Record<string, string> = {
+  'GSM': '2G', 'GPRS': '2G', 'EDGE': '2G',
+  'UMTS': '3G', 'WCDMA': '3G', 'HSPA': '3G',
+  'LTE': '4G', 'LTE-A': '4G',
+  'NR': '5G', 'NR-SA': '5G', 'NR-NSA': '5G',
+  '2G': '2G', '3G': '3G', '4G': '4G', '5G': '5G',
+};
+const normTechno = (t: string) => TECHNO_NORM[t.toUpperCase()] || t.toUpperCase();
+
 /**
  * Build a vendor/techno match predicate. Rules:
  *  - If no perimeter is selected → always true.
@@ -161,16 +171,18 @@ const normalize = (v: unknown) => (typeof v === 'string' ? v.trim().toUpperCase(
  */
 function buildMatcher(vendorSet: Set<string>, technoSet: Set<string>) {
   if (vendorSet.size === 0 && technoSet.size === 0) return () => true;
+  // Normalize techno set to canonical form (handles both "4G" and "LTE" inputs)
+  const normTechnoSet = new Set([...technoSet].map(normTechno));
   return (item: { vendor?: string | null; techno?: string | null }) => {
     if (vendorSet.size > 0) {
       const v = normalize(item.vendor);
       // KPIs without vendor metadata are treated as universal (match all vendors)
       if (v && !vendorSet.has(v)) return false;
     }
-    if (technoSet.size > 0) {
-      const t = normalize(item.techno);
+    if (normTechnoSet.size > 0) {
+      const t = item.techno ? normTechno(item.techno.trim()) : '';
       // KPIs without techno metadata are treated as universal (match all technos)
-      if (t && !technoSet.has(t)) return false;
+      if (t && !normTechnoSet.has(t)) return false;
     }
     return true;
   };
@@ -217,9 +229,10 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
       if (vendorSet.size === 0) return true;
       return candidates.some(c => vendorSet.has(normalize(c)));
     };
+    const normTechnoSet = new Set([...technoSet].map(normTechno));
     const matchTechno = (candidates: string[]) => {
       if (technoSet.size === 0) return true;
-      return candidates.some(c => technoSet.has(normalize(c)));
+      return candidates.some(c => normTechnoSet.has(normTechno(c.trim())));
     };
 
     let siteAllowed: Set<string> | null = null;
@@ -248,7 +261,7 @@ export function usePerimeterScope(filters: Record<string, string[] | undefined>)
       const bands = new Set<string>();
       for (const c of cellsCache) {
         if (vendorSet.size > 0 && (!c.vendor || !vendorSet.has(normalize(c.vendor)))) continue;
-        if (technoSet.size > 0 && (!c.techno || !technoSet.has(normalize(c.techno)))) continue;
+        if (technoSet.size > 0 && (!c.techno || !normTechnoSet.has(normTechno(c.techno.trim())))) continue;
         cellAllowed.add(c.cell_name);
         if (c.plaque) plaques.add(c.plaque);
         if (c.dor) dors.add(c.dor);

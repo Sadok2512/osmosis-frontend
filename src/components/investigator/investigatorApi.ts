@@ -309,8 +309,14 @@ async function fetchCounterTimeSeriesFallback(
           body.vendor = f.values[0];
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
-        } else if (dim === 'PLAQUE' || dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
-          /* geographic filters — not PM dimensions, skip */
+        } else if (dim === 'PLAQUE' && f.values?.length) {
+          body.plaque = f.values[0];
+        } else if ((dim === 'DOR' || dim === 'DR') && f.values?.length) {
+          body.dor = f.values[0];
+        } else if (dim === 'BAND' && f.values?.length) {
+          body.band = f.values[0];
+        } else if (dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+          /* zone arcep — skip for now */
         } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
           dimFilterValues.push(...f.values);
         }
