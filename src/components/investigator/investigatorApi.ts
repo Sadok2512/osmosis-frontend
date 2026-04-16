@@ -122,9 +122,13 @@ async function fetchKpiComputeOnTheFly(
         } else if (dim === 'KPI_LEVEL') {
           /* ignore, handled by kpi engine */
         } else if (dim === 'PLAQUE' && f.values?.length) {
-          // Geographic filter — ignored by PM compute, but kept for context
-        } else if ((dim === 'DOR' || dim === 'DR' || dim === 'BAND' || dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') && f.values?.length) {
-          // Geographic/structural filters — not PM dimensions
+          body.plaque = f.values.length === 1 ? f.values[0] : f.values;
+        } else if ((dim === 'DOR' || dim === 'DR') && f.values?.length) {
+          body.dor = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'BAND' && f.values?.length) {
+          body.band = f.values.length === 1 ? f.values[0] : f.values;
+        } else if (dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+          /* zone arcep — skip for now */
         } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
           // PM dimension passthrough — covers PMQAP, FLEX_*, NEIGHBOR, SLICE, 5QI,
           // RANSHARE, TRANSPORT, CA_REL, QCI_IDX, and any future dimension type.
