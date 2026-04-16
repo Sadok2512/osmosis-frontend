@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   ChevronLeft,
@@ -17,6 +17,10 @@ interface Props {
   filterContext?: Record<string, string[]>;
   forceSplitOff?: boolean;
 }
+
+type RuntimeDataPoint = DataPoint & {
+  _slotId?: string;
+};
 
 const SPLIT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
@@ -90,7 +94,34 @@ function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: st
   return { label: 'Network Element', value: siteName || '—' };
 }
 
-function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>, forceSplitOff?: boolean) {
+function escapeCsv(value: string | number | null | undefined): string {
+  const text = value == null ? '' : String(value);
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): RuntimeDataPoint[] {
+  const runtimeData = tsData as RuntimeDataPoint[];
+  if (!activeSlot) return runtimeData;
+
+  const slotKeys = new Set([
+    ...(activeSlot.kpiIds || []),
+    ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+  ]);
+  const hasTaggedRows = runtimeData.some(point => point._slotId != null);
+
+  const keyMatches = (point: DataPoint) => slotKeys.size === 0 || slotKeys.has(cleanKpi(point.kpi));
+
+  if (hasTaggedRows) {
+    return runtimeData.filter(point => point._slotId === activeSlot.id && keyMatches(point));
+  }
+
+  return runtimeData.filter(keyMatches);
+}
+
+function buildPivotTable(tsData: RuntimeDataPoint[], siteName?: string, filterContext?: Record<string, string[]>, forceSplitOff?: boolean) {
   const scope = getPrimaryScope(filterContext, siteName);
 
   const kpiSet = new Set<string>();
@@ -110,13 +141,13 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
   const timestamps = [...timestampSet].sort();
   const cells = forceSplitOff ? [''] : [...cellSet].sort();
 
-  const lookup = new Map<string, number | null>();
+  const lookup = new Map<string, { sum: number; count: number }>();
   for (const d of tsData) {
     const cell = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
     const kpi = cleanKpi(d.kpi);
     const key = `${d.timestamp}||${cell}||${kpi}`;
-    // When forceSplitOff, keep last value per timestamp+kpi (or could average)
-    lookup.set(key, d.value);
+    const current = lookup.get(key) || { sum: 0, count: 0 };
+    lookup.set(key, { sum: current.sum + d.value, count: current.count + 1 });
   }
 
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
@@ -126,7 +157,8 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
       const kpiValues: Record<string, number | null> = {};
       for (const kpi of kpiColumns) {
         const key = `${ts}||${cell}||${kpi}`;
-        kpiValues[kpi] = lookup.has(key) ? lookup.get(key)! : null;
+        const aggregate = lookup.get(key);
+        kpiValues[kpi] = aggregate ? aggregate.sum / aggregate.count : null;
       }
 
       rows.push({
@@ -148,19 +180,27 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
 
+  const tableData = useMemo(
+    () => sanitizeTableData(tsData, activeSlot),
+    [tsData, activeSlot]
+  );
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [pageSize, tableData.length, activeSlot?.id]);
+
   const sourceInfo = useMemo(() => {
-    const kpis = [...new Set(tsData.map(d => cleanKpi(d.kpi)))];
+    const kpis = [...new Set(tableData.map(d => cleanKpi(d.kpi)))];
     return {
-      slotLabel: (activeSlot as any)?.label || activeSlot?.name || activeSlot?.id || 'Timeseries',
-      kpiCount: kpis.length,
+      slotLabel: (activeSlot as GraphSlot & { label?: string } | null)?.label || activeSlot?.name || activeSlot?.id || 'Timeseries',
       kpiNames: kpis.join(', '),
-      rowCount: tsData.length,
+      rowCount: tableData.length,
     };
-  }, [tsData, activeSlot]);
+  }, [tableData, activeSlot]);
 
   const { rows, kpiColumns, hasCells, scopeLabel } = useMemo(
-    () => buildPivotTable(tsData, siteName, filterContext, forceSplitOff),
-    [tsData, siteName, filterContext, forceSplitOff]
+    () => buildPivotTable(tableData, siteName, filterContext, forceSplitOff),
+    [tableData, siteName, filterContext, forceSplitOff]
   );
 
   const totalRows = rows.length;
@@ -174,13 +214,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     const headerCols = ['Timestamp', scopeLabel];
     if (hasCells) headerCols.push('Cell');
     headerCols.push(...kpiColumns);
-    const header = headerCols.join(',');
+    const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = rows.map(r => {
       const baseCols = [r.timestamp, r.ne];
       if (hasCells) baseCols.push(r.cell);
       const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
-      return [...baseCols, ...kpiVals].join(',');
+      return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
 
     const csv = [header, ...csvRows].join('\n');
@@ -193,10 +233,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     URL.revokeObjectURL(url);
   };
 
-  if (tsData.length === 0) {
+  if (tableData.length === 0) {
     return (
       <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex items-center justify-center h-48">
-        <p className="text-xs text-muted-foreground">Aucune donnée — cliquez sur Appliquer</p>
+        <p className="text-xs text-muted-foreground">Aucune donnée pour ce graphe — cliquez sur Appliquer</p>
       </div>
     );
   }
