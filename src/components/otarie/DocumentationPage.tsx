@@ -147,8 +147,6 @@ const DocumentationPage: React.FC = () => {
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
-    { id: 'kpi', label: 'KPI Legacy', icon: <BarChart3 className="w-4 h-4" /> },
-    { id: 'dimensions', label: 'Dimensions', icon: <Layers className="w-4 h-4" /> },
     { id: 'parameters_hub', label: 'Parameters HUB', icon: <Sliders className="w-4 h-4" /> },
     { id: 'alarms', label: 'Alarms', icon: <Bell className="w-4 h-4" /> },
     { id: 'cm_history', label: 'CM History', icon: <History className="w-4 h-4" /> },
