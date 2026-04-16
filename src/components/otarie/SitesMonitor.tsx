@@ -2470,8 +2470,6 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     </div>
                     <div className="flex items-center gap-2 text-[8px] text-muted-foreground mt-0.5">
                       <span>{SETTINGS_MAP_STYLES.find(l => l.value === (dbSettings.mapStyle || dbSettings.mapLayer || 'street'))?.label || 'Street'}</span>
-                      <span>•</span>
-                      <span>{SETTINGS_KPI_OPTIONS.find(k => k.value === (dbSettings.mapKpi || 'qoe_score_avg'))?.label || 'QoE'}</span>
                       {dbViews.length > 0 && (
                         <>
                           <span>•</span>
