@@ -1228,28 +1228,54 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               })()}
             </div>
 
-            {/* KPI Breakdown — only for slots with showBreakdown === true */}
+            {/* KPI Breakdown — strictly tied to the currently active graph slot */}
             <div style={{ display: analysisTab === 'breakdown' ? undefined : 'none' }}>
               {(() => {
-                const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showBreakdown && s.kpiIds.length > 0);
-                if (enabledSlots.length === 0) {
-                  return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « KPI Breakdown ».</div>;
+                // 1. No active graph selected
+                if (!activeSlot) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                      <span>Aucun graphe sélectionné.</span>
+                      <span className="text-[10px] opacity-70">Sélectionnez un graphe pour voir son KPI Breakdown.</span>
+                    </div>
+                  );
                 }
-                const slot = (activeSlot && enabledSlots.find(s => s.id === activeSlot.id)) || enabledSlots[0];
+                // 2. Section disabled on the active graph
+                const isEnabled = (activeSlot.config || DEFAULT_GRAPH_CONFIG).showBreakdown;
+                if (!isEnabled) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                      <span>« KPI Breakdown » est désactivé pour ce graphe.</span>
+                      <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                    </div>
+                  );
+                }
+                // 3. No KPI on the active graph
+                if (!activeSlot.kpiIds || activeSlot.kpiIds.length === 0) {
+                  return (
+                    <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">
+                      Aucun KPI sélectionné sur ce graphe.
+                    </div>
+                  );
+                }
+                // 4. Render breakdown for the active slot's KPIs only.
+                //    `key` forces a fresh mount when the active graph changes,
+                //    so internal state (formula cache, fetched series) is reset.
                 return (
                   <section>
                     <KPIBreakdown
-                      selectedKpis={slot.kpiIds}
+                      key={activeSlot.id}
+                      selectedKpis={activeSlot.kpiIds}
                       layout={state.graphLayout}
-                      dateFrom={(slot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
-                      dateTo={(slot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
-                      granularity={slot.granularity || state.granularity}
-                      filters={Object.entries(slot.filters || {})
+                      dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
+                      dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
+                      granularity={activeSlot.granularity || state.granularity}
+                      filters={Object.entries(activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                      splitBy={slot.splitBy !== 'None' ? slot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
-                      splitByPerKpi={slot.config?.splitByPerKpi}
-                      timeSeriesData={tsData.filter((d: any) => d._slotId === slot.id)}
+                      splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+                      splitByPerKpi={activeSlot.config?.splitByPerKpi}
+                      timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
                       jalons={state.jalons}
                     />
                   </section>
