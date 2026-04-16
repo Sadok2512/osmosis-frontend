@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import WorstElementsTable from './WorstElementsTable';
 import { fetchWorstCellsDirect, fetchCellDetails, fetchKpiDefinitions } from './investigatorApi';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -24,12 +24,12 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ctx = contextSnapshot;
-  const ctxCounterIds = ctx?.counterIds || [];
-  const effectiveKpiIds = ctx?.kpiIds?.length
-    ? ctx.kpiIds
-    : ctxCounterIds.length
-      ? ctxCounterIds
-      : state.graphSlots.flatMap(s => [...(s.kpiIds || []), ...(s.counterIds || [])]);
+  const effectiveKpiIds = useMemo(() => {
+    const ctxCounterIds = ctx?.counterIds || [];
+    if (ctx?.kpiIds?.length) return ctx.kpiIds;
+    if (ctxCounterIds.length) return ctxCounterIds;
+    return state.graphSlots.flatMap(s => [...(s.kpiIds || []), ...(s.counterIds || [])]);
+  }, [ctx, state.graphSlots]);
   const limit = effectiveKpiIds.length ? 50 : 10;
   const kpiMetaRef = useRef<Map<string, KpiDefinition>>(new Map());
   const fetchedRef = useRef(false);
