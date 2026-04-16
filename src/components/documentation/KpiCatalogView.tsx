@@ -223,6 +223,7 @@ const KpiCatalogView: React.FC = () => {
   const [techFilter, setTechFilter] = useState('ALL');
   const [vendorFilter, setVendorFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | KpiStatus>('ALL');
   const [selectedKpi, setSelectedKpi] = useState<KpiCatalogEntry | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editingKpi, setEditingKpi] = useState<KpiCatalogEntry | null>(null);
@@ -277,6 +278,7 @@ const KpiCatalogView: React.FC = () => {
     if (techFilter !== 'ALL') list = list.filter(k => k.technology?.toUpperCase() === techFilter.toUpperCase());
     if (vendorFilter !== 'ALL') list = list.filter(k => k.vendor?.toLowerCase() === vendorFilter.toLowerCase());
     if (categoryFilter !== 'ALL') list = list.filter(k => k.category?.toLowerCase() === categoryFilter.toLowerCase());
+    if (statusFilter !== 'ALL') list = list.filter(k => (k.status || 'active') === statusFilter);
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
@@ -287,12 +289,12 @@ const KpiCatalogView: React.FC = () => {
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
     return list;
-  }, [kpis, debouncedSearch, sortField, sortDir, techFilter, vendorFilter, categoryFilter]);
+  }, [kpis, debouncedSearch, sortField, sortDir, techFilter, vendorFilter, categoryFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, categoryFilter]);
+  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, categoryFilter, statusFilter]);
 
   const handleCreate = async (data: Record<string, any>) => {
     try { const r = await catalogPost('/kpis', data); toast.success(`KPI ${data.kpi_code || r.kpi_key || ''} created`); setShowCreate(false); loadCatalog(); }
@@ -379,6 +381,15 @@ const KpiCatalogView: React.FC = () => {
             className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
             <option value="ALL">Category: All</option>
             {filterOptions.categories.map(c => <option key={c} value={c}>Category: {c}</option>)}
+          </select>
+
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'ALL' | KpiStatus)}
+            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
+            <option value="ALL">Status: All</option>
+            {(Object.keys(STATUS_CONFIG) as KpiStatus[]).map(s => (
+              <option key={s} value={s}>Status: {STATUS_CONFIG[s].label}</option>
+            ))}
           </select>
 
           {/* Refresh */}
