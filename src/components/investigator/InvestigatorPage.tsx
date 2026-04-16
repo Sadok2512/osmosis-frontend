@@ -431,7 +431,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     }
 
     const data = await response.json();
-    const counterPoints = (data.series || []).map((s: any) => {
+    const rawSeries = data.series || data.data || data.timeseries || data.results || [];
+    const counterPoints = rawSeries.map((s: any) => {
       const rawCounter = s.counter || s.counter_name || counterNames[0];
       const cleanCounter = s.counter_id || (rawCounter.includes('@') ? rawCounter.split('@')[0] : rawCounter);
       const splitVal = s.dimension_key || s.split_field || s.cell || s.cell_name || s.site || s.site_name || s.split_value ||
