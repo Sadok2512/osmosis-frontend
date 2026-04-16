@@ -1223,13 +1223,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const setStartTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.startDate || '').split('T')[0];
-      return { ...prev, startDate: `${dateOnly}T${time}` };
+      const fullStart = `${dateOnly}T${time}`;
+      return propagateDatesToSlots(fullStart, prev.endDate)(prev);
     });
   };
   const setEndTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.endDate || '').split('T')[0];
-      return { ...prev, endDate: `${dateOnly}T${time}` };
+      const fullEnd = `${dateOnly}T${time}`;
+      return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
     });
   };
 
