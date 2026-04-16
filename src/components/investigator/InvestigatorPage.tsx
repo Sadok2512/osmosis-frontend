@@ -1185,10 +1185,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 const slotDataById = new Map(enabledSlots.map((slot) => [slot.id, getSlotData(slot)]));
                 // STRICT: active table slot follows the currently selected graph (activeSlotId)
                 // when it has Table Data enabled. Otherwise the user can switch via the picker.
+                // STRICT: table follows the currently selected graph (activeSlotId).
+                // The per-section picker (tableDataSlotId) is only used when the active
+                // graph does NOT have Table Data enabled, allowing the user to pick a
+                // different enabled slot without changing the selected graph.
                 const activeIsEnabled = !!activeSlotId && enabledSlots.some(s => s.id === activeSlotId);
                 const effectiveSlotId =
-                  (tableDataSlotId && enabledSlots.some(s => s.id === tableDataSlotId) ? tableDataSlotId : null)
-                  || (activeIsEnabled ? activeSlotId : null)
+                  (activeIsEnabled ? activeSlotId : null)
+                  || (tableDataSlotId && enabledSlots.some(s => s.id === tableDataSlotId) ? tableDataSlotId : null)
                   || enabledSlots[0]?.id
                   || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
