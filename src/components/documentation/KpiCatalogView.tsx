@@ -223,6 +223,7 @@ const KpiCatalogView: React.FC = () => {
   const [techFilter, setTechFilter] = useState('ALL');
   const [vendorFilter, setVendorFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | KpiStatus>('ALL');
   const [selectedKpi, setSelectedKpi] = useState<KpiCatalogEntry | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editingKpi, setEditingKpi] = useState<KpiCatalogEntry | null>(null);
