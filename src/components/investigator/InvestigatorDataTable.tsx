@@ -15,6 +15,7 @@ interface Props {
   activeSlot?: GraphSlot | null;
   siteName?: string;
   filterContext?: Record<string, string[]>;
+  forceSplitOff?: boolean;
 }
 
 const SPLIT_COLORS = [
@@ -89,7 +90,7 @@ function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: st
   return { label: 'Network Element', value: siteName || '—' };
 }
 
-function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>) {
+function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>, forceSplitOff?: boolean) {
   const scope = getPrimaryScope(filterContext, siteName);
 
   const kpiSet = new Set<string>();
@@ -101,17 +102,21 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
 
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
-    cellSet.add(d.networkElement || d.splitValue || '');
+    if (!forceSplitOff) {
+      cellSet.add(d.networkElement || d.splitValue || '');
+    }
   }
 
   const timestamps = [...timestampSet].sort();
-  const cells = [...cellSet].sort();
+  const cells = forceSplitOff ? [''] : [...cellSet].sort();
 
   const lookup = new Map<string, number | null>();
   for (const d of tsData) {
-    const cell = d.networkElement || d.splitValue || '';
+    const cell = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
     const kpi = cleanKpi(d.kpi);
-    lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
+    const key = `${d.timestamp}||${cell}||${kpi}`;
+    // When forceSplitOff, keep last value per timestamp+kpi (or could average)
+    lookup.set(key, d.value);
   }
 
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
@@ -133,12 +138,12 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
     }
   }
 
-  const hasCells = tsData.some(d => d.splitValue || d.networkElement);
+  const hasCells = !forceSplitOff && tsData.some(d => d.splitValue || d.networkElement);
 
   return { rows, kpiColumns, hasCells, scopeLabel: scope.label };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
@@ -154,8 +159,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   }, [tsData, activeSlot]);
 
   const { rows, kpiColumns, hasCells, scopeLabel } = useMemo(
-    () => buildPivotTable(tsData, siteName, filterContext),
-    [tsData, siteName, filterContext]
+    () => buildPivotTable(tsData, siteName, filterContext, forceSplitOff),
+    [tsData, siteName, filterContext, forceSplitOff]
   );
 
   const totalRows = rows.length;
