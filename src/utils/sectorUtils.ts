@@ -19,10 +19,13 @@ export const getSectorNumber = (cellId: string): number => {
   const sMatch = cellId.match(/_S(\d)(?:_|$)/i);
   if (sMatch) return parseInt(sMatch[1], 10);
 
-  // 2. Letter+digit pattern: find last occurrence of a letter followed by a single digit
-  //    that represents the sector (e.g. Y1, T3, F2)
-  const letterDigit = cellId.match(/[A-Za-z](\d)(?:_|$)/);
-  if (letterDigit) return parseInt(letterDigit[1], 10);
+  // 2. Letter+digit pattern: find the LAST occurrence of a letter followed by a single digit
+  //    that represents the sector (e.g. Y1, T3, F2, ENB1_E2 → picks E2 not B1)
+  const allMatches = [...cellId.matchAll(/[A-Za-z](\d)(?:_|$)/g)];
+  if (allMatches.length > 0) {
+    const lastMatch = allMatches[allMatches.length - 1];
+    return parseInt(lastMatch[1], 10);
+  }
 
   // 3. Fallback: last digit
   const lastChar = cellId.slice(-1);
