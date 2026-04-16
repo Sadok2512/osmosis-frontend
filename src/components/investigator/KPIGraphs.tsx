@@ -429,7 +429,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       containLabel: false,
     },
     dataZoom: [
-      { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+      { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
       {
         type: 'slider' as const,
         xAxisIndex: 0,
