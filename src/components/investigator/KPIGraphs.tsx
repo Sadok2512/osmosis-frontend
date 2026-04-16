@@ -1425,6 +1425,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               filterMode: 'none' as const,
               start: cfg.zoomWindow?.start,
               end: cfg.zoomWindow?.end,
+              zoomOnMouseWheel: false,
+              moveOnMouseWheel: false,
+              moveOnMouseMove: true,
             },
             {
               type: 'slider' as const,

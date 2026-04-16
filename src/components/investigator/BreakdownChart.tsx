@@ -129,7 +129,7 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
         backgroundColor: '#ffffff',
         grid: { top: 28, right: 28, bottom: legendRows + 30, left: 62, containLabel: false },
         dataZoom: [
-          { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+          { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
           {
             type: 'slider' as const, xAxisIndex: 0, height: 18,
             bottom: legendRows - 8, filterMode: 'none' as const,

@@ -610,7 +610,7 @@ const SingleKpiBreakdown: React.FC<{
       backgroundColor: 'transparent',
       grid: { top: 40, right: 70, bottom: 80, left: 70, containLabel: false },
       dataZoom: [
-        { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const },
+        { type: 'inside' as const, xAxisIndex: 0, filterMode: 'none' as const, zoomOnMouseWheel: false, moveOnMouseWheel: false, moveOnMouseMove: true },
         {
           type: 'slider' as const, xAxisIndex: 0, height: 18, bottom: 38,
           filterMode: 'none' as const,
