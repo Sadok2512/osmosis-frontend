@@ -59,7 +59,8 @@ const SlotSettingsPopover: React.FC<{
   onDuplicateSlot?: (slotId: string) => void;
   onActivateTab?: (tab: any) => void;
   chartRef?: ReactECharts | null;
-}> = ({ slot, cfg, onUpdateSlotConfig, onDuplicateSlot, onActivateTab, chartRef }) => (
+  hasTableData?: boolean;
+}> = ({ slot, cfg, onUpdateSlotConfig, onDuplicateSlot, onActivateTab, chartRef, hasTableData = true }) => (
   <Popover>
     <PopoverTrigger asChild>
       <button
@@ -99,10 +100,22 @@ const SlotSettingsPopover: React.FC<{
           <span className="text-[9px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/40">White</span>
         </div>
 
-        {/* Table View */}
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-foreground">Table View</span>
-          <Switch checked={cfg.showDataTable} onCheckedChange={v => { onUpdateSlotConfig(slot.id, { showDataTable: v }); if (!v && onActivateTab) onActivateTab(null); else if (v && onActivateTab) onActivateTab('table_data'); }} className="scale-[0.65]" />
+        {/* Table View — disabled when no table data available */}
+        <div className={cn('flex items-center justify-between', !hasTableData && 'opacity-50')}>
+          <span className="text-[10px] text-foreground" title={!hasTableData ? 'Aucune donnée disponible' : undefined}>
+            Table View {!hasTableData && <span className="text-muted-foreground">(no data)</span>}
+          </span>
+          <Switch
+            checked={hasTableData && cfg.showDataTable}
+            disabled={!hasTableData}
+            onCheckedChange={v => {
+              if (!hasTableData) return;
+              onUpdateSlotConfig(slot.id, { showDataTable: v });
+              if (!v && onActivateTab) onActivateTab(null);
+              else if (v && onActivateTab) onActivateTab('table_data');
+            }}
+            className="scale-[0.65]"
+          />
         </div>
 
         {/* Top Worst Cells */}
