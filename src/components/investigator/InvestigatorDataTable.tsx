@@ -110,13 +110,13 @@ function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): 
     ...(activeSlot.kpiIds || []),
     ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
   ]);
-  const hasTaggedRows = runtimeData.some(point => point._slotId != null);
 
   const keyMatches = (point: DataPoint) => slotKeys.size === 0 || slotKeys.has(cleanKpi(point.kpi));
+  const taggedForSlot = runtimeData.filter(point => point._slotId === activeSlot.id && keyMatches(point));
+  if (taggedForSlot.length > 0) return taggedForSlot;
 
-  if (hasTaggedRows) {
-    return runtimeData.filter(point => point._slotId === activeSlot.id && keyMatches(point));
-  }
+  const untaggedMatches = runtimeData.filter(point => point._slotId == null && keyMatches(point));
+  if (untaggedMatches.length > 0) return untaggedMatches;
 
   return runtimeData.filter(keyMatches);
 }
