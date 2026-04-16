@@ -278,6 +278,7 @@ const KpiCatalogView: React.FC = () => {
     if (techFilter !== 'ALL') list = list.filter(k => k.technology?.toUpperCase() === techFilter.toUpperCase());
     if (vendorFilter !== 'ALL') list = list.filter(k => k.vendor?.toLowerCase() === vendorFilter.toLowerCase());
     if (categoryFilter !== 'ALL') list = list.filter(k => k.category?.toLowerCase() === categoryFilter.toLowerCase());
+    if (statusFilter !== 'ALL') list = list.filter(k => (k.status || 'active') === statusFilter);
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
