@@ -1178,15 +1178,26 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   }, [perimeterFilteredCatalog, kpisWithData]);
 
+  // Propagate global date to every existing slot so per-slot overrides
+  // do not silently shadow the user's new global selection.
+  const propagateDatesToSlots = (nextStart: string, nextEnd: string) => (prev: any) => ({
+    ...prev,
+    startDate: nextStart,
+    endDate: nextEnd,
+    graphSlots: (prev.graphSlots || []).map((s: any) => ({
+      ...s,
+      startDate: nextStart,
+      endDate: nextEnd,
+    })),
+  });
+
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - days);
-    setState(prev => ({
-      ...prev,
-      startDate: formatDateTime(start),
-      endDate: formatDateTime(end),
-    }));
+    const ns = formatDateTime(start);
+    const ne = formatDateTime(end);
+    setState(propagateDatesToSlots(ns, ne));
   };
 
   // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
@@ -1212,13 +1223,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const setStartTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.startDate || '').split('T')[0];
-      return { ...prev, startDate: `${dateOnly}T${time}` };
+      const fullStart = `${dateOnly}T${time}`;
+      return propagateDatesToSlots(fullStart, prev.endDate)(prev);
     });
   };
   const setEndTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.endDate || '').split('T')[0];
-      return { ...prev, endDate: `${dateOnly}T${time}` };
+      const fullEnd = `${dateOnly}T${time}`;
+      return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
     });
   };
 
@@ -1382,7 +1395,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           const newEnd = keepEnd
                             ? (showTimePickers ? `${prevEndOnly}T${endTimePart}` : prevEndOnly)
                             : fullStart;
-                          return { ...prev, startDate: fullStart, endDate: newEnd };
+                          return propagateDatesToSlots(fullStart, newEnd)(prev);
                         })}
                         initialFocus
                         className="p-3 pointer-events-auto"
@@ -1399,7 +1412,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         onSelect={(d) => d && setState(prev => {
                           const nextEnd = format(d, 'yyyy-MM-dd');
                           const timePart = parseTime(prev.endDate);
-                          return { ...prev, endDate: showTimePickers ? `${nextEnd}T${timePart}` : nextEnd };
+                          const fullEnd = showTimePickers ? `${nextEnd}T${timePart}` : nextEnd;
+                          return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
                         })}
                         today={undefined}
                         modifiers={startDate ? { rangeStart: startDate } : undefined}
