@@ -1963,6 +1963,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setCreateFilters({});
       await fetchAll();
       setExpandedDashboardId(id);
+      // Auto-activate newly created dashboard
+      onActiveDashboardIdChange(id);
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
     } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
@@ -2014,14 +2016,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         if (prev.find(d => d.id === dbId)) return prev;
         return [...prev, db];
       });
-      // Apply directly using the db object (don't rely on stale dashboards state)
+      // Only expand — do NOT activate automatically
       setExpandedDashboardId(dbId);
-      if (onApplyView) {
-        onApplyView(getDashboardSettings(db));
-      }
-      onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
     } else {
-      requestDashboardSwitch(dbId);
+      setExpandedDashboardId(dbId);
     }
   };
   const handleCreateView = async (dashboardId: string) => {
