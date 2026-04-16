@@ -96,7 +96,7 @@ function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: st
 
 function escapeCsv(value: string | number | null | undefined): string {
   const text = value == null ? '' : String(value);
-  if (/[",\n]/.test(text)) {
+  if (/[,"\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
@@ -121,7 +121,26 @@ function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): 
   return runtimeData.filter(keyMatches);
 }
 
-function buildPivotTable(tsData: RuntimeDataPoint[], siteName?: string, filterContext?: Record<string, string[]>, forceSplitOff?: boolean) {
+function getSplitColumnLabel(activeSlot?: GraphSlot | null, tsData: RuntimeDataPoint[] = []): string {
+  const rawSplit = activeSlot?.splitBy;
+  if (rawSplit && rawSplit !== 'None') {
+    return normalizeScopeLabel(rawSplit);
+  }
+
+  if (tsData.some(d => d.splitValue)) {
+    return 'Split';
+  }
+
+  return 'Cell';
+}
+
+function buildPivotTable(
+  tsData: RuntimeDataPoint[],
+  siteName?: string,
+  filterContext?: Record<string, string[]>,
+  forceSplitOff?: boolean,
+  activeSlot?: GraphSlot | null,
+) {
   const scope = getPrimaryScope(filterContext, siteName);
 
   const kpiSet = new Set<string>();
@@ -129,34 +148,34 @@ function buildPivotTable(tsData: RuntimeDataPoint[], siteName?: string, filterCo
   const kpiColumns = [...kpiSet];
 
   const timestampSet = new Set<string>();
-  const cellSet = new Set<string>();
+  const splitValueSet = new Set<string>();
 
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
     if (!forceSplitOff) {
-      cellSet.add(d.networkElement || d.splitValue || '');
+      splitValueSet.add(d.networkElement || d.splitValue || '');
     }
   }
 
   const timestamps = [...timestampSet].sort();
-  const cells = forceSplitOff ? [''] : [...cellSet].sort();
+  const splitValues = forceSplitOff ? [''] : [...splitValueSet].sort();
 
   const lookup = new Map<string, { sum: number; count: number }>();
   for (const d of tsData) {
-    const cell = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
+    const splitValue = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
     const kpi = cleanKpi(d.kpi);
-    const key = `${d.timestamp}||${cell}||${kpi}`;
+    const key = `${d.timestamp}||${splitValue}||${kpi}`;
     const current = lookup.get(key) || { sum: 0, count: 0 };
     lookup.set(key, { sum: current.sum + d.value, count: current.count + 1 });
   }
 
-  const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
+  const rows: { timestamp: string; ne: string; splitValue: string; kpiValues: Record<string, number | null> }[] = [];
 
   for (const ts of timestamps) {
-    for (const cell of cells) {
+    for (const splitValue of splitValues) {
       const kpiValues: Record<string, number | null> = {};
       for (const kpi of kpiColumns) {
-        const key = `${ts}||${cell}||${kpi}`;
+        const key = `${ts}||${splitValue}||${kpi}`;
         const aggregate = lookup.get(key);
         kpiValues[kpi] = aggregate ? aggregate.sum / aggregate.count : null;
       }
@@ -164,15 +183,21 @@ function buildPivotTable(tsData: RuntimeDataPoint[], siteName?: string, filterCo
       rows.push({
         timestamp: fmt(ts),
         ne: scope.value,
-        cell: cell || '—',
+        splitValue: splitValue || '—',
         kpiValues,
       });
     }
   }
 
-  const hasCells = !forceSplitOff && tsData.some(d => d.splitValue || d.networkElement);
+  const hasSplitValues = !forceSplitOff && tsData.some(d => d.splitValue || d.networkElement);
 
-  return { rows, kpiColumns, hasCells, scopeLabel: scope.label };
+  return {
+    rows,
+    kpiColumns,
+    hasSplitValues,
+    scopeLabel: scope.label,
+    splitLabel: getSplitColumnLabel(activeSlot, tsData),
+  };
 }
 
 const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff }) => {
@@ -198,9 +223,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     };
   }, [tableData, activeSlot]);
 
-  const { rows, kpiColumns, hasCells, scopeLabel } = useMemo(
-    () => buildPivotTable(tableData, siteName, filterContext, forceSplitOff),
-    [tableData, siteName, filterContext, forceSplitOff]
+  const { rows, kpiColumns, hasSplitValues, scopeLabel, splitLabel } = useMemo(
+    () => buildPivotTable(tableData, siteName, filterContext, forceSplitOff, activeSlot),
+    [tableData, siteName, filterContext, forceSplitOff, activeSlot]
   );
 
   const totalRows = rows.length;
@@ -212,13 +237,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
   const exportCsv = () => {
     const headerCols = ['Timestamp', scopeLabel];
-    if (hasCells) headerCols.push('Cell');
+    if (hasSplitValues) headerCols.push(splitLabel);
     headerCols.push(...kpiColumns);
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = rows.map(r => {
       const baseCols = [r.timestamp, r.ne];
-      if (hasCells) baseCols.push(r.cell);
+      if (hasSplitValues) baseCols.push(r.splitValue);
       const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
@@ -264,7 +289,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
           <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
           <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
-            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasCells ? 'Cell' : 'NE'}
+            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasSplitValues ? splitLabel : 'NE'}
           </span>
         </div>
         <button
@@ -288,9 +313,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                 {scopeLabel}
               </th>
 
-              {hasCells && (
+              {hasSplitValues && (
                 <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
-                  Cell
+                  {splitLabel}
                 </th>
               )}
 
@@ -337,14 +362,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     {row.ne}
                   </td>
 
-                  {hasCells && (
+                  {hasSplitValues && (
                     <td className="py-2.5 px-4 whitespace-nowrap text-foreground">
                       <span className="inline-flex items-center gap-1.5">
                         <span
                           className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10"
-                          style={{ backgroundColor: stableColorForSplit(row.cell) }}
+                          style={{ backgroundColor: stableColorForSplit(row.splitValue) }}
                         />
-                        <span className="font-medium">{row.cell}</span>
+                        <span className="font-medium">{row.splitValue}</span>
                       </span>
                     </td>
                   )}
