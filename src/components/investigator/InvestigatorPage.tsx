@@ -1200,29 +1200,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
                 return (
                   <>
-                    {/* Only show slot picker if multiple slots have table enabled */}
-                    {enabledSlots.length > 1 && (
-                      <div className="flex items-center gap-1 px-1 py-1 border-b border-border/40 bg-muted/20 rounded-lg mb-2">
-                        {enabledSlots.map((slot) => (
-                          <button
-                            key={slot.id}
-                            onClick={() => setTableDataSlotId(slot.id)}
-                            className={cn(
-                              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all whitespace-nowrap',
-                              effectiveSlotId === slot.id
-                                ? 'bg-card text-primary shadow-sm border border-primary/30'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
-                            )}
-                          >
-                            <Table2 className="w-3 h-3" />
-                            {slot.name}
-                            <span className="text-[8px] opacity-50 ml-0.5">
-                              ({slot.kpiIds.length} KPI{slot.kpiIds.length !== 1 ? 's' : ''})
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                    {/* Slot picker removed — table strictly follows the currently selected graph */}
 
                     {activeTableSlot && (
                       <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground mb-2">
