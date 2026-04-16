@@ -1086,14 +1086,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 // Filter data by slot AND only include KPIs/counters configured in that slot
                 const slotKpiIds = new Set(activeTableSlot?.kpiIds || []);
                 const slotCounterIds = new Set(activeTableSlot?.counterIds || []);
-                const slotData = effectiveSlotId
+                let slotData = effectiveSlotId
                   ? tsData.filter((d: any) => {
                       if (d._slotId !== effectiveSlotId) return false;
                       if (d._isCounter) {
                         const baseCounter = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
                         return slotCounterIds.size === 0 || slotCounterIds.has(baseCounter);
                       }
-                      // If slot has configured KPIs, only include matching data
                       if (slotKpiIds.size > 0) {
                         const baseKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
                         return slotKpiIds.has(baseKpi);
@@ -1101,6 +1100,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       return true;
                     })
                   : [];
+                // Fallback: if strict slot filtering yields nothing but data exists,
+                // try matching by KPI/counter names regardless of _slotId
+                if (slotData.length === 0 && tsData.length > 0 && activeTableSlot) {
+                  const allKpis = new Set([...(activeTableSlot.kpiIds || []), ...(activeTableSlot.counterIds || [])]);
+                  if (allKpis.size > 0) {
+                    slotData = tsData.filter((d: any) => {
+                      const baseKpi = d.kpi?.includes('@') ? d.kpi.split('@')[0] : d.kpi;
+                      return allKpis.has(baseKpi);
+                    });
+                  } else {
+                    // No KPI/counter config — show all data for this slot or all data
+                    slotData = tsData.filter((d: any) => d._slotId === effectiveSlotId);
+                    if (slotData.length === 0) slotData = tsData;
+                  }
+                }
 
                 return (
                   <>
