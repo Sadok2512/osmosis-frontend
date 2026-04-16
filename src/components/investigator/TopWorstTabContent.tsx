@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import WorstElementsTable from './WorstElementsTable';
 import { fetchWorstCellsDirect, fetchCellDetails, fetchKpiDefinitions } from './investigatorApi';
-import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
 import type { WorstElement, KpiDefinition, Granularity, InvestigationState } from './types';
 import type { TabContextSnapshot } from './useAnalysisTabs';
@@ -9,129 +8,158 @@ import { Info } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Props {
+  instanceId: string;
   tabId: string;
   contextSnapshot?: TabContextSnapshot | null;
 }
 
 /**
  * Self-contained Top Worst Cells panel for a single analysis tab.
- * Reads from contextSnapshot (frozen at tab creation) — NOT from global state.
+ * Reads from a frozen context snapshot when present, otherwise falls back to the current workspace instance.
  */
-const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
-  const { state } = useInvestigatorStore();
+const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId, contextSnapshot }) => {
   const ws = useInvestigatorWorkspace();
+  const instance = useInvestigatorWorkspace(state => state.getInstance(instanceId));
+  const workspaceState = instance?.state;
   const [elements, setElements] = useState<WorstElement[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState(10);
+  const [kpiMetaMap, setKpiMetaMap] = useState<Map<string, KpiDefinition>>(new Map());
   const ctx = contextSnapshot;
+
+  const fallbackKpiIds = useMemo(() => {
+    if (!workspaceState) return [] as string[];
+    return workspaceState.graphSlots.flatMap(s => [...(s.kpiIds || []), ...(s.counterIds || [])]);
+  }, [workspaceState]);
+
   const effectiveKpiIds = useMemo(() => {
     const ctxCounterIds = ctx?.counterIds || [];
     if (ctx?.kpiIds?.length) return ctx.kpiIds;
     if (ctxCounterIds.length) return ctxCounterIds;
-    return state.graphSlots.flatMap(s => [...(s.kpiIds || []), ...(s.counterIds || [])]);
-  }, [ctx, state.graphSlots]);
-  const limit = effectiveKpiIds.length ? 50 : 10;
-  const kpiMetaRef = useRef<Map<string, KpiDefinition>>(new Map());
-  const fetchedRef = useRef(false);
+    return fallbackKpiIds;
+  }, [ctx, fallbackKpiIds]);
 
   useEffect(() => {
+    let cancelled = false;
     fetchKpiDefinitions().then(kpis => {
-      const m = new Map<string, KpiDefinition>();
-      for (const k of kpis) m.set(k.id, k);
-      kpiMetaRef.current = m;
+      if (cancelled) return;
+      const map = new Map<string, KpiDefinition>();
+      for (const k of kpis) map.set(k.id, k);
+      setKpiMetaMap(map);
     });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    const kpiIds = effectiveKpiIds;
-    if (!kpiIds.length) {
+    if (effectiveKpiIds.length === 0) {
+      setElements([]);
       setError('Aucun KPI ni compteur sélectionné.');
       return;
     }
 
-    const dateFrom = (ctx?.startDate || state.startDate).split('T')[0];
-    const dateTo = (ctx?.endDate || state.endDate).split('T')[0];
-    const rawFilters = ctx?.filters || state.filters;
-    const filters = Object.entries(rawFilters)
-      .filter(([, v]) => v.length > 0)
-      .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), op: 'IN', values: vals }));
+    const sourceState = workspaceState;
+    if (!ctx && !sourceState) {
+      setElements([]);
+      setError('Contexte Investigator introuvable.');
+      return;
+    }
 
+    const dateFrom = (ctx?.startDate || sourceState?.startDate || '').split('T')[0];
+    const dateTo = (ctx?.endDate || sourceState?.endDate || '').split('T')[0];
+    const rawFilters = ctx?.filters || sourceState?.filters || {};
+    const filters = Object.entries(rawFilters)
+      .filter(([, values]) => values.length > 0)
+      .map(([dimension, values]) => ({ dimension: dimension.toUpperCase(), op: 'IN', values }));
+
+    let cancelled = false;
     setLoading(true);
     setError(null);
 
     (async () => {
       try {
-        const byDOR = await fetchWorstCellsDirect(kpiIds, limit, dateFrom, dateTo, filters, kpiMetaRef.current);
-        const allCells = Object.values(byDOR).flat();
+        const byDOR = await fetchWorstCellsDirect(effectiveKpiIds, limit, dateFrom, dateTo, filters, kpiMetaMap);
+        if (cancelled) return;
 
+        const allCells = Object.values(byDOR).flat();
         let finalCells = allCells;
+
         try {
           const cellNames = allCells.map(c => c.name).filter(Boolean);
           const details = cellNames.length > 0 ? await fetchCellDetails(cellNames) : [];
+          if (cancelled) return;
+
           const detailMap: Record<string, any> = {};
-          for (const d of details) detailMap[d.cell_name] = d;
-          finalCells = allCells.map(el => {
-            const detail = detailMap[el.name];
+          for (const detail of details) detailMap[detail.cell_name] = detail;
+          finalCells = allCells.map(element => {
+            const detail = detailMap[element.name];
             return detail ? {
-              ...el,
-              vendor: detail.vendor || el.vendor,
-              dor: detail.dor || el.dor,
-              plaque: detail.plaque || el.plaque || '',
-              band: detail.band || el.band || '',
-              site_name: detail.site_name || el.site_name || '',
+              ...element,
+              vendor: detail.vendor || element.vendor,
+              dor: detail.dor || element.dor,
+              plaque: detail.plaque || element.plaque || '',
+              band: detail.band || element.band || '',
+              site_name: detail.site_name || element.site_name || '',
               alarms: detail.alarms,
               latest_alarms: detail.latest_alarms,
-            } : el;
+            } : element;
           });
-        } catch { /* enrichment is best-effort */ }
+        } catch {
+          // Enrichment is best-effort.
+        }
 
+        if (cancelled) return;
         setElements(finalCells as WorstElement[]);
-        if (finalCells.length === 0) setError('Aucune cellule dégradée trouvée.');
+        setError(finalCells.length === 0 ? 'Aucune cellule dégradée trouvée.' : null);
+        ws.updateInstance(instanceId, { worstElements: finalCells as WorstElement[] });
       } catch (e) {
+        if (cancelled) return;
         console.error('[TopWorstTab] Error:', e);
+        setElements([]);
         setError('Erreur lors du calcul des pires cellules.');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-      setLoading(false);
     })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const { setState: setGlobalState } = useInvestigatorStore();
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx, effectiveKpiIds, instanceId, kpiMetaMap, limit, workspaceState, ws]);
 
   /** Open a new workspace tab prefilled with the clicked cell's context */
-  const handleDrillDown = useCallback((cellName: string, el: WorstElement) => {
+  const handleDrillDown = useCallback((cellName: string, element: WorstElement) => {
+    const sourceState = workspaceState;
     const kpiIds = effectiveKpiIds;
     if (!kpiIds.length) {
       toast.warning('Aucun KPI ni compteur actif pour le drill-down.');
       return;
     }
 
-    const startDate = (ctx?.startDate || state.startDate).split('T')[0];
-    const endDate = (ctx?.endDate || state.endDate).split('T')[0];
-    const granularity = (ctx?.granularity || state.granularity) as Granularity;
-    const parentSplitBy = ctx?.splitBy || state.splitBy || 'None';
+    const startDate = (ctx?.startDate || sourceState?.startDate || '').split('T')[0];
+    const endDate = (ctx?.endDate || sourceState?.endDate || '').split('T')[0];
+    const granularity = (ctx?.granularity || sourceState?.granularity || '1d') as Granularity;
+    const parentSplitBy = ctx?.splitBy || sourceState?.splitBy || 'None';
 
-    // Build filters: cell + context from the element
-    const filters: Record<string, string[]> = {};
-    filters['Cell'] = [cellName];
-    if (el.site_name) filters['Site'] = [el.site_name];
-    if (el.vendor) filters['Vendor'] = [el.vendor];
-    if (el.dor) filters['DOR'] = [el.dor];
-    if (el.band) filters['Band'] = [el.band];
-    if (el.plaque) filters['Plaque'] = [el.plaque];
-    if (el.technology || el.techno) filters['Technologie'] = [el.technology || el.techno || ''];
+    const filters: Record<string, string[]> = {
+      Cell: [cellName],
+    };
+    if (element.site_name) filters.Site = [element.site_name];
+    if (element.vendor) filters.Vendor = [element.vendor];
+    if (element.dor) filters.DOR = [element.dor];
+    if (element.band) filters.Band = [element.band];
+    if (element.plaque) filters.Plaque = [element.plaque];
+    if (element.technology || element.techno) filters.Technology = [element.technology || element.techno || ''];
 
-    // Merge existing context filters (except Cell which we override)
-    const existingFilters = ctx?.filters || state.filters;
-    for (const [dim, vals] of Object.entries(existingFilters)) {
-      if (dim !== 'Cell' && vals.length > 0 && !filters[dim]) {
-        filters[dim] = [...vals];
+    const existingFilters = ctx?.filters || sourceState?.filters || {};
+    for (const [dimension, values] of Object.entries(existingFilters)) {
+      if (dimension !== 'Cell' && values.length > 0 && !filters[dimension]) {
+        filters[dimension] = [...values];
       }
     }
 
-    // Create graph slot
     const slotId = `slot-drill-${Date.now()}`;
     const drillState: InvestigationState = {
       dimension: 'Cell',
@@ -179,7 +207,6 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
       neighborType: null,
     };
 
-    // Create a new workspace tab with prefilled state
     const newTabId = ws.addNewTab(`Drill: ${cellName}`);
     ws.updateInstanceState(newTabId, drillState);
     ws.updateInstance(newTabId, {
@@ -189,7 +216,18 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
     });
 
     toast.success(`Drill-down ouvert: ${cellName}`);
-  }, [ctx, state, ws]);
+  }, [ctx, effectiveKpiIds, workspaceState, ws]);
+
+  const handleRowClick = useCallback((cellName: string) => {
+    ws.updateInstanceState(instanceId, prev => ({
+      ...prev,
+      filters: {
+        ...prev.filters,
+        Cell: [cellName],
+      },
+    }));
+    toast.info(`Filtre Cell appliqué: ${cellName}`);
+  }, [instanceId, ws]);
 
   return (
     <div>
@@ -218,16 +256,14 @@ const TopWorstTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
         <WorstElementsTable
           elements={elements}
           limit={limit}
-          onLimitChange={() => {}}
-          onRowClick={(id) => {
-            setGlobalState(prev => ({ ...prev, filters: { ...prev.filters, Cell: [id] } }));
-          }}
+          onLimitChange={setLimit}
+          onRowClick={handleRowClick}
           drilldownContext={{
-            kpiIds: ctx?.kpiIds || state.graphSlots.flatMap(s => s.kpiIds),
-            startDate: ctx?.startDate || state.startDate,
-            endDate: ctx?.endDate || state.endDate,
-            granularity: ctx?.granularity || state.granularity,
-            filters: ctx?.filters || state.filters,
+            kpiIds: effectiveKpiIds,
+            startDate: ctx?.startDate || workspaceState?.startDate || '',
+            endDate: ctx?.endDate || workspaceState?.endDate || '',
+            granularity: ctx?.granularity || workspaceState?.granularity || '1d',
+            filters: ctx?.filters || workspaceState?.filters || {},
           }}
           onDrillDown={handleDrillDown}
         />
