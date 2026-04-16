@@ -1687,6 +1687,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           }
           setCounterSelectorSlotId(null);
         }}
+        perimeterVendor={investigatorState?.filters?.['Vendor'] || []}
+        perimeterTechno={investigatorState?.filters?.['Technology'] || []}
       />
     </div>
   );

@@ -72,6 +72,8 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const globalGran = useInvestigatorStore(s => normalizeGranularity(s.state.granularity));
+  const perimeterVendor = useInvestigatorStore(s => s.state.filters?.['Vendor'] || []);
+  const perimeterTechno = useInvestigatorStore(s => s.state.filters?.['Technology'] || []);
   const [catalog, setCatalog] = React.useState<CounterDef[]>([]);
   const [selectedCounters, setSelectedCounters] = React.useState<CounterDef[]>([]);
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);
@@ -315,6 +317,8 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
           const resolved = keys.map(k => catalog.find(c => c.counter_name === k)).filter((c): c is CounterDef => !!c);
           setSelectedCounters(resolved);
         }}
+        perimeterVendor={perimeterVendor}
+        perimeterTechno={perimeterTechno}
       />
     </section>
   );
