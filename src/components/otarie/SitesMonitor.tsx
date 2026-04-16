@@ -1976,8 +1976,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handleDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
-    if (expandedDashboardId === dbId) {
-      setExpandedDashboardId(null);
+    setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) {
+      onActiveDashboardIdChange(null);
       onDashboardActiveChange?.(false, null, null);
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
@@ -1986,8 +1987,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
-    if (expandedDashboardId === dbId) {
-      setExpandedDashboardId(null);
+    setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) {
+      onActiveDashboardIdChange(null);
       onDashboardActiveChange?.(false, null, null);
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
