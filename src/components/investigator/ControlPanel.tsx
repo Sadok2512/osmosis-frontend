@@ -1393,7 +1393,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           const newEnd = keepEnd
                             ? (showTimePickers ? `${prevEndOnly}T${endTimePart}` : prevEndOnly)
                             : fullStart;
-                          return { ...prev, startDate: fullStart, endDate: newEnd };
+                          return propagateDatesToSlots(fullStart, newEnd)(prev);
                         })}
                         initialFocus
                         className="p-3 pointer-events-auto"
