@@ -273,6 +273,16 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     return items;
   }, [catalog, showFavOnly, favorites, filterDimType]);
 
+  /* ── In-perimeter favorites count (intersect favs with catalog visible after vendor/techno scope) ── */
+  const favsInScopeCount = useMemo(() => {
+    if (!favorites.length) return 0;
+    const items = Array.isArray(catalog) ? catalog : [];
+    const favSet = new Set(favorites);
+    let n = 0;
+    for (const c of items) if (favSet.has(c.counter_name)) n++;
+    return n;
+  }, [catalog, favorites]);
+
   /* ── Categories computed from base filtered data ── */
   const familyCategories = useMemo(() => {
     const fams = new Map<string, number>();
@@ -417,7 +427,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
                     <Star className={cn('w-3 h-3', showFavOnly ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground/40')} />
                     <span>Favoris</span>
                     <span className={cn('ml-auto text-[10px] tabular-nums', showFavOnly ? 'text-amber-600/70' : 'text-muted-foreground/50')}>
-                      {favorites.length}
+                      {favsInScopeCount}{favsInScopeCount !== favorites.length ? `/${favorites.length}` : ''}
                     </span>
                   </button>
                 </div>

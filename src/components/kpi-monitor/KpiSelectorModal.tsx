@@ -307,11 +307,19 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                   <span className={cn('text-[10px] font-bold uppercase tracking-wider', showFavOnly ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
                     Favoris
                   </span>
-                  {favorites.length > 0 && (
-                    <span className="ml-auto text-[8px] font-bold text-muted-foreground bg-muted rounded-full w-4 h-4 flex items-center justify-center">
-                      {favorites.length}
-                    </span>
-                  )}
+                  {favorites.length > 0 && (() => {
+                    const favSet = new Set(favorites);
+                    const inScope = uniqueCatalog.reduce((n, k) => n + (favSet.has(k.kpi_key) ? 1 : 0), 0);
+                    const label = inScope !== favorites.length ? `${inScope}/${favorites.length}` : `${favorites.length}`;
+                    return (
+                      <span
+                        className="ml-auto text-[8px] font-bold text-muted-foreground bg-muted rounded-full px-1.5 h-4 min-w-4 flex items-center justify-center"
+                        title={inScope !== favorites.length ? `${inScope} dans le périmètre · ${favorites.length - inScope} hors périmètre` : 'Favoris'}
+                      >
+                        {label}
+                      </span>
+                    );
+                  })()}
                 </button>
               </div>
 
