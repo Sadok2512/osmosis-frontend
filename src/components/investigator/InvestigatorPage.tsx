@@ -216,11 +216,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
   }, [activeSlotId, mergeCounterCatalog, setActiveSlotId, setState]);
   type AnalysisTabKey = 'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history';
-  /** Global analysis tab — persists when switching between graph slots */
-  const [analysisTab, setAnalysisTabRaw] = React.useState<AnalysisTabKey | null>(null);
+  /** Per-slot active analysis tab — each graph remembers its own selected tab during the session. */
+  const [perSlotAnalysisTab, setPerSlotAnalysisTab] = React.useState<Record<string, AnalysisTabKey | null>>({});
+  const analysisTab: AnalysisTabKey | null = activeSlotId ? (perSlotAnalysisTab[activeSlotId] ?? null) : null;
   const setAnalysisTab = React.useCallback((tab: AnalysisTabKey | null) => {
-    setAnalysisTabRaw(tab);
-  }, []);
+    if (!activeSlotId) return;
+    setPerSlotAnalysisTab(prev => ({ ...prev, [activeSlotId]: tab }));
+  }, [activeSlotId]);
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
