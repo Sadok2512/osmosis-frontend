@@ -1084,42 +1084,43 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     </div>
                   );
                 }
-                // Pick effective slot: prefer tableDataSlotId if it's among enabled slots
-                const effectiveSlotId = (tableDataSlotId && enabledSlots.find(s => s.id === tableDataSlotId))
-                  ? tableDataSlotId
-                  : (activeSlotId && enabledSlots.find(s => s.id === activeSlotId))
-                    ? activeSlotId
-                    : enabledSlots[0]?.id || null;
-                const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
-                // Filter data by slot AND only include KPIs/counters configured in that slot.
-                // Strategy:
-                //  1) If any point in tsData carries _slotId, prefer strict slot match.
-                //  2) Otherwise (or if strict match yields 0), fall back to KPI/counter-name match.
-                //  3) Otherwise, show all data (legacy / unsplit fetch).
-                const slotKpiIds = new Set(activeTableSlot?.kpiIds || []);
-                const slotCounterIds = new Set(activeTableSlot?.counterIds || []);
-                const allSlotKeys = new Set<string>([...slotKpiIds, ...slotCounterIds]);
+                const hasSlotTags = tsData.some((d: any) => d._slotId);
                 const baseKey = (k: string | undefined | null) => (k && k.includes('@') ? k.split('@')[0] : (k || ''));
-                const matchesSlotConfig = (d: any) => {
-                  if (allSlotKeys.size === 0) return true;
-                  return allSlotKeys.has(baseKey(d.kpi));
+                const getSlotData = (slot: GraphSlot | null) => {
+                  if (!slot) return [] as any[];
+
+                  const slotKpiIds = new Set(slot.kpiIds || []);
+                  const slotCounterIds = new Set(slot.counterIds || []);
+                  const allSlotKeys = new Set<string>([...slotKpiIds, ...slotCounterIds]);
+                  const matchesSlotConfig = (d: any) => {
+                    if (allSlotKeys.size === 0) return true;
+                    return allSlotKeys.has(baseKey(d.kpi));
+                  };
+
+                  let data: any[] = [];
+                  if (slot.id && hasSlotTags) {
+                    data = tsData.filter((d: any) => d._slotId === slot.id && matchesSlotConfig(d));
+                  }
+
+                  if (data.length === 0 && tsData.length > 0 && allSlotKeys.size > 0) {
+                    data = tsData.filter((d: any) => allSlotKeys.has(baseKey(d.kpi)));
+                  }
+
+                  if (data.length === 0 && tsData.length > 0) {
+                    data = tsData;
+                  }
+
+                  return data;
                 };
 
-                const hasSlotTags = tsData.some((d: any) => d._slotId);
-                let slotData: any[] = [];
-                if (effectiveSlotId && hasSlotTags) {
-                  slotData = tsData.filter((d: any) =>
-                    d._slotId === effectiveSlotId && matchesSlotConfig(d)
-                  );
-                }
-                // Fallback: KPI/counter-name match regardless of _slotId
-                if (slotData.length === 0 && tsData.length > 0 && activeTableSlot && allSlotKeys.size > 0) {
-                  slotData = tsData.filter((d: any) => allSlotKeys.has(baseKey(d.kpi)));
-                }
-                // Last resort: show all available data so the user always sees something
-                if (slotData.length === 0 && tsData.length > 0) {
-                  slotData = tsData;
-                }
+                const slotDataById = new Map(enabledSlots.map((slot) => [slot.id, getSlotData(slot)]));
+                const firstSlotWithData = enabledSlots.find((slot) => (slotDataById.get(slot.id)?.length || 0) > 0);
+                const preferredSlotId = [tableDataSlotId, activeSlotId].find(
+                  (slotId) => !!slotId && (slotDataById.get(slotId as string)?.length || 0) > 0
+                );
+                const effectiveSlotId = preferredSlotId || firstSlotWithData?.id || tableDataSlotId || activeSlotId || enabledSlots[0]?.id || null;
+                const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
+                const slotData = activeTableSlot ? slotDataById.get(activeTableSlot.id) || [] : [];
 
                 return (
                   <>
