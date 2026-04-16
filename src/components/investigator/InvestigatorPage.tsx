@@ -433,6 +433,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const data = await response.json();
     const rawSeries = data.series || data.data || data.timeseries || data.results || [];
+    const topologyCells = data?.meta?.topology_cells;
     const counterPoints = rawSeries.map((s: any) => {
       const rawCounter = s.counter || s.counter_name || counterNames[0];
       const cleanCounter = s.counter_id || (rawCounter.includes('@') ? rawCounter.split('@')[0] : rawCounter);
@@ -450,7 +451,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
 
     const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
-    if (!current) return counterPoints.length;
+    if (!current) {
+      (fetchCounterSeriesForSlot as any)._lastTopologyCells = topologyCells;
+      return counterPoints.length;
+    }
 
     const filtered = current.tsData.filter((d: any) => d._slotId != null && !(d._isCounter && d._slotId === slotId));
     ws.updateInstance(instanceId, {
@@ -458,6 +462,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       hasLoadedOnce: counterPoints.length > 0 || current.hasLoadedOnce,
     });
 
+    (fetchCounterSeriesForSlot as any)._lastTopologyCells = topologyCells;
     return counterPoints.length;
   }, [instanceId, state, ws]);
 
@@ -494,7 +499,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       try {
         const pointCount = await fetchSelectedCounterSeries({ throwOnError: true });
         if (pointCount === 0) {
-          setApplyError('Aucune donnée trouvée pour les Counters sélectionnés. Vérifiez la période, le grain et les filtres.');
+          const topo = (fetchCounterSeriesForSlot as any)._lastTopologyCells;
+          if (topo === 0) {
+            setApplyError('Aucune cellule ne correspond aux filtres (Vendor / Plaque / Techno). Vérifiez la cohérence du périmètre.');
+          } else {
+            setApplyError('Aucune donnée trouvée pour les Counters sélectionnés. Vérifiez la période, le grain et les filtres.');
+          }
         }
       } catch (e) {
         console.error('[Investigator] Counter apply error:', e);
@@ -534,7 +544,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       setHasLoadedOnce(true);
 
       if (taggedData.length === 0 && counterPointCount === 0) {
-        setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
+        const topo = (fetchCounterSeriesForSlot as any)._lastTopologyCells;
+        if (topo === 0) {
+          setApplyError(`Aucune cellule ne correspond aux filtres pour « ${targetSlot.name} » (Vendor / Plaque / Techno incohérents). Ajustez le périmètre.`);
+        } else {
+          setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
+        }
       }
 
       if (result.hasUnfilteredFallback) setHasUnfilteredFallback(true);
