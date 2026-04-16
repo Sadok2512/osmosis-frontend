@@ -1792,17 +1792,20 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   const requestDashboardSwitch = (newId: string | null) => {
-    setExpandedDashboardId(newId);
-    // Reset active view when switching dashboard
+    // Only expand/collapse — do NOT activate or display sites
+    setExpandedDashboardId(prev => prev === newId ? null : newId);
+  };
+
+  // Explicit activation: user clicks "Activer"
+  const activateDashboard = (dbId: string) => {
+    onActiveDashboardIdChange(dbId);
     onActiveViewIdChange(null);
-    if (newId && onApplyView) {
-      const db = dashboards.find(d => d.id === newId);
-      if (db) {
-        onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
-    } else {
-      onDashboardActiveChange?.(false, null, null);
+    const db = dashboards.find(d => d.id === dbId);
+    if (db && onApplyView) {
+      onApplyView(getDashboardSettings(db));
+    }
+    if (db) {
+      onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
     }
   };
 
