@@ -244,8 +244,55 @@ export async function downloadTimeseriesCsv(req: TimeseriesRequest): Promise<voi
 }
 export const fetchSummary = (req: SummaryRequest) =>
   monitorPost<SummaryItem[]>('query/summary', req);
-export const fetchExplain = (kpiKey: string) =>
-  monitorGet<ExplainResponse>(`explain/kpi/${kpiKey}`);
+/**
+ * Fetch KPI explain (formula + counters).
+ * Tries the KPI Engine monitor endpoint first, then falls back to the Parser
+ * endpoint when the monitor returns an empty/null formula. Some KPIs (e.g.
+ * EN-DC_SETUP_SuccessSR) only have their definition in the parser catalog.
+ */
+export const fetchExplain = async (kpiKey: string): Promise<ExplainResponse> => {
+  let monitorResp: any = null;
+  try {
+    monitorResp = await monitorGet<ExplainResponse>(`explain/kpi/${kpiKey}`);
+    const hasFormula =
+      monitorResp &&
+      ((monitorResp.numerator && String(monitorResp.numerator).trim()) ||
+        (monitorResp.denominator && String(monitorResp.denominator).trim()) ||
+        (monitorResp.formula && String(monitorResp.formula).trim()) ||
+        (Array.isArray(monitorResp.counters) && monitorResp.counters.length > 0));
+    if (hasFormula) return monitorResp;
+  } catch {
+    /* fall through to parser */
+  }
+
+  // Fallback: parser /api/v1/pm/kpi/explain/<key>
+  try {
+    const url = getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiKey)}`);
+    const res = await fetch(url, { headers: getApiHeaders() });
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data && !data.unavailable) {
+        // Normalize parser shape into ExplainResponse-compatible object
+        return {
+          ...(monitorResp || {}),
+          ...data,
+          kpi_key: data.kpi_key || kpiKey,
+          display_name: data.display_name || monitorResp?.display_name || kpiKey,
+          numerator: data.numerator ?? monitorResp?.numerator ?? '',
+          denominator: data.denominator ?? monitorResp?.denominator ?? '',
+          formula_type: data.formula_type ?? monitorResp?.formula_type ?? '',
+          unit: data.unit ?? monitorResp?.unit ?? '',
+          counters: data.counters ?? monitorResp?.counters ?? [],
+        } as ExplainResponse;
+      }
+    }
+  } catch (e) {
+    console.warn(`[fetchExplain] Parser fallback failed for ${kpiKey}:`, e);
+  }
+
+  // Return whatever monitor gave us (possibly empty) so UI shows something
+  return (monitorResp || { kpi_key: kpiKey, display_name: kpiKey }) as ExplainResponse;
+};
 
 // ── React Query Hooks ──
 
