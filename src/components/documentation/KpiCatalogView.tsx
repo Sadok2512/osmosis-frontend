@@ -243,24 +243,18 @@ const KpiCatalogView: React.FC = () => {
 
   const loadCatalog = useCallback(() => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (debouncedSearch) params.search = debouncedSearch;
-    if (techFilter !== 'ALL') params.technology = techFilter;
-    if (vendorFilter !== 'ALL') params.vendor = vendorFilter;
-    if (categoryFilter !== 'ALL') params.category = categoryFilter;
-
-    catalogGet<any>('/kpis', params)
+    catalogGet<any>('/kpis')
       .then(data => { const arr = Array.isArray(data) ? data : (data.kpis || []); setKpis(arr.map(mapToEntry)); })
       .catch(async (err) => {
         console.warn('VPS catalog unavailable, falling back to database:', err.message);
         try {
-          const rows = await loadKpisFromSupabase(params);
+          const rows = await loadKpisFromSupabase({});
           setKpis(rows.map(mapToEntry));
           if (rows.length === 0) toast.info('No KPIs found in database');
         } catch (fallbackErr) { console.error('Supabase fallback also failed:', fallbackErr); toast.error('Failed to load KPI catalog'); }
       })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, techFilter, vendorFilter, categoryFilter]);
+  }, []);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
 
