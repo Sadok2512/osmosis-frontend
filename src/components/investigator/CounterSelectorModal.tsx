@@ -182,20 +182,28 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     setSelected(new Set(selectedKeys));
   }, [open, selectedKeysSignature]);
 
-  // Initialize filters from perimeter defaults when modal opens
+  // Reset transient UI state on open
   useEffect(() => {
     if (!open) return;
     setActiveFamily(null);
     setSearch('');
     setShowFavOnly(false);
     setFilterDimType('');
-    // Set perimeter as default selections (editable)
-    setActiveVendors(new Set(perimVendors));
-    setActiveTechnos(new Set(perimTechnos));
     setFilterVendor('');
     setFilterTechno('');
     loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
-  }, [open, perimVendors.join(','), perimTechnos.join(',')]);
+  }, [open]);
+
+  // Sync perimeter → active filters whenever the perimeter changes
+  // (also fires on open). This guarantees the modal always reflects the
+  // current Investigator scope, even if the modal stays mounted.
+  const perimVendorKey = perimVendors.join('|');
+  const perimTechnoKey = perimTechnos.join('|');
+  useEffect(() => {
+    setActiveVendors(new Set(perimVendors));
+    setActiveTechnos(new Set(perimTechnos));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perimVendorKey, perimTechnoKey, open]);
 
   // Fetch catalog when vendor/techno selection changes
   useEffect(() => {
