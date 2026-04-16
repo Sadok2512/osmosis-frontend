@@ -2427,13 +2427,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <div className="space-y-1.5">
           {filteredDashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
+            const isActive = activeDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
             const isEditingDb = editingDashboardId === db.id;
             const dbViews = mapViews.filter(v => v.description === db.id);
 
             return (
-              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card hover:border-primary/20'}`}>
+              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isActive ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : isExpanded ? 'border-primary/30 bg-card' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
@@ -2458,7 +2459,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[12px] font-bold truncate ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
-                      {isExpanded && (
+                      {isActive && (
                         <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Actif
@@ -2495,6 +2496,17 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
                   {isExpanded && (
                     <>
+                      {/* Activer button — only if not already active */}
+                      {!isActive && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); activateDashboard(db.id); }}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shrink-0"
+                          title="Activer et afficher les sites"
+                        >
+                          <MapIcon size={10} />
+                          Activer
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
@@ -2505,25 +2517,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // "Hide" — deactivate this dashboard
+                          // "Fermer" — collapse without deactivating
                           setExpandedDashboardId(null);
-                          onDashboardActiveChange?.(false, null, null);
                         }}
                         className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                        title="Masquer"
+                        title="Fermer"
                       >
                         <X size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
                         className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                        title="Archiver"
+                        title="Supprimer"
                       >
                         <Archive size={12} />
                       </button>
                     </>
                   )}
-                  {/* Collapsed dashboard: Display button + owner */}
+                  {/* Collapsed dashboard: owner info */}
                   {!isExpanded && (
                     <div className="flex items-center gap-1 shrink-0">
                       {db.owner_username && db.owner_username !== currentUsername && (
@@ -2531,17 +2542,12 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           {db.owner_username}
                         </span>
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          requestDashboardSwitch(db.id);
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Afficher sur la carte"
-                      >
-                        <MapIcon size={10} />
-                        Display
-                      </button>
+                      {isActive && (
+                        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Actif
+                        </span>
+                      )}
                     </div>
                   )}
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
