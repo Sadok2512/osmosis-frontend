@@ -58,6 +58,11 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
     if (onDrillDown) onDrillDown(cellName, el);
   };
 
+  const handleRowSelect = (cellName: string, rowId: string) => {
+    onRowClick(cellName);
+    setExpandedRow(prev => prev === rowId ? null : rowId);
+  };
+
   // Get all KPI keys from elements
   const allKpiKeys = Array.from(new Set(elements.flatMap(el => Object.keys(el.kpiValues))));
 
@@ -149,7 +154,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                       'border-b border-border/20 hover:bg-muted/20 transition-colors cursor-pointer group',
                       expandedRow === el.id && 'bg-muted/10'
                     )}
-                    onClick={() => setExpandedRow(expandedRow === el.id ? null : el.id)}
+                    onClick={() => handleRowSelect(el.name, el.id)}
                   >
                     <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{i + 1}</td>
                     <td className="px-3 py-2.5">
