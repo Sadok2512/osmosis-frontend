@@ -155,8 +155,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   }, [tsData, activeSlot]);
 
   const { rows, kpiColumns, hasCells, scopeLabel } = useMemo(
-    () => buildPivotTable(tsData, siteName, filterContext),
-    [tsData, siteName, filterContext]
+    () => buildPivotTable(tsData, siteName, filterContext, forceSplitOff),
+    [tsData, siteName, filterContext, forceSplitOff]
   );
 
   const totalRows = rows.length;
