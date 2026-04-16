@@ -1091,37 +1091,34 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     ? activeSlotId
                     : enabledSlots[0]?.id || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
-                // Filter data by slot AND only include KPIs/counters configured in that slot
+                // Filter data by slot AND only include KPIs/counters configured in that slot.
+                // Strategy:
+                //  1) If any point in tsData carries _slotId, prefer strict slot match.
+                //  2) Otherwise (or if strict match yields 0), fall back to KPI/counter-name match.
+                //  3) Otherwise, show all data (legacy / unsplit fetch).
                 const slotKpiIds = new Set(activeTableSlot?.kpiIds || []);
                 const slotCounterIds = new Set(activeTableSlot?.counterIds || []);
-                let slotData = effectiveSlotId
-                  ? tsData.filter((d: any) => {
-                      if (d._slotId !== effectiveSlotId) return false;
-                      if (d._isCounter) {
-                        const baseCounter = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
-                        return slotCounterIds.size === 0 || slotCounterIds.has(baseCounter);
-                      }
-                      if (slotKpiIds.size > 0) {
-                        const baseKpi = d.kpi.includes('@') ? d.kpi.split('@')[0] : d.kpi;
-                        return slotKpiIds.has(baseKpi);
-                      }
-                      return true;
-                    })
-                  : [];
-                // Fallback: if strict slot filtering yields nothing but data exists,
-                // try matching by KPI/counter names regardless of _slotId
-                if (slotData.length === 0 && tsData.length > 0 && activeTableSlot) {
-                  const allKpis = new Set([...(activeTableSlot.kpiIds || []), ...(activeTableSlot.counterIds || [])]);
-                  if (allKpis.size > 0) {
-                    slotData = tsData.filter((d: any) => {
-                      const baseKpi = d.kpi?.includes('@') ? d.kpi.split('@')[0] : d.kpi;
-                      return allKpis.has(baseKpi);
-                    });
-                  } else {
-                    // No KPI/counter config — show all data for this slot or all data
-                    slotData = tsData.filter((d: any) => d._slotId === effectiveSlotId);
-                    if (slotData.length === 0) slotData = tsData;
-                  }
+                const allSlotKeys = new Set<string>([...slotKpiIds, ...slotCounterIds]);
+                const baseKey = (k: string | undefined | null) => (k && k.includes('@') ? k.split('@')[0] : (k || ''));
+                const matchesSlotConfig = (d: any) => {
+                  if (allSlotKeys.size === 0) return true;
+                  return allSlotKeys.has(baseKey(d.kpi));
+                };
+
+                const hasSlotTags = tsData.some((d: any) => d._slotId);
+                let slotData: any[] = [];
+                if (effectiveSlotId && hasSlotTags) {
+                  slotData = tsData.filter((d: any) =>
+                    d._slotId === effectiveSlotId && matchesSlotConfig(d)
+                  );
+                }
+                // Fallback: KPI/counter-name match regardless of _slotId
+                if (slotData.length === 0 && tsData.length > 0 && activeTableSlot && allSlotKeys.size > 0) {
+                  slotData = tsData.filter((d: any) => allSlotKeys.has(baseKey(d.kpi)));
+                }
+                // Last resort: show all available data so the user always sees something
+                if (slotData.length === 0 && tsData.length > 0) {
+                  slotData = tsData;
                 }
 
                 return (
