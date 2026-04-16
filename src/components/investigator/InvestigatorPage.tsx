@@ -813,7 +813,23 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           onAddEmptySlot={(widgetType) => {
             setState(prev => {
               const nextIndex = prev.graphSlots.length + 1;
-              return { ...prev, graphSlots: [...prev.graphSlots, createSlot(nextIndex, [], widgetType || 'timeseries', {})] };
+              // Inherit perimeter / period / granularity / split from active slot, fallback to global state
+              const source = prev.graphSlots.find(s => s.id === activeSlotId) || null;
+              const inheritedFilters: Record<string, string[]> = source?.filters && Object.keys(source.filters).length > 0
+                ? Object.fromEntries(Object.entries(source.filters).map(([k, v]) => [k, [...(v as string[])]]))
+                : Object.fromEntries(Object.entries(prev.filters || {}).map(([k, v]) => [k, [...(v as string[])]]));
+              const inheritedStart = source?.startDate || prev.startDate || '';
+              const inheritedEnd = source?.endDate || prev.endDate || '';
+              const inheritedGran = (source?.granularity || prev.granularity || '1d') as Granularity;
+              const inheritedSplit = source?.splitBy && source.splitBy !== 'None'
+                ? source.splitBy
+                : (prev.splitBy && prev.splitBy !== 'None' ? prev.splitBy : 'None');
+              const newSlot = createSlot(nextIndex, [], widgetType || 'timeseries', inheritedFilters);
+              newSlot.startDate = inheritedStart;
+              newSlot.endDate = inheritedEnd;
+              newSlot.granularity = inheritedGran;
+              newSlot.splitBy = inheritedSplit;
+              return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
             });
           }}
           onRenameSlot={(slotId, name) => setState(prev => ({
