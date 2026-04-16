@@ -655,6 +655,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         return s.id === slotId ? { ...s, config: { ...baseConfig, ...updates } } : s;
       }),
     }));
+
+    if (updates.showDataTable === true) {
+      setTableDataSlotId(slotId);
+    } else if (updates.showDataTable === false && tableDataSlotId === slotId) {
+      setTableDataSlotId(null);
+    }
   };
 
   // ═══ Save / Load handlers ═══
