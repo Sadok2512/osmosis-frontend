@@ -1235,7 +1235,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 })
                 .map(inst2 => (
                   <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
-                    <TopWorstTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
+                    <TopWorstTabContent instanceId={instanceId} tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
                   </div>
                 ));
             })()}
