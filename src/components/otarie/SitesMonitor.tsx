@@ -9666,9 +9666,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
                                   : sortedSec;
-                                const secCells = visibleSectorEntries.flatMap(([, cells]) => cells);
-                                const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
-                                if (!filteredCells.length) {
+                                const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
+                                  sNum,
+                                  cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
+                                })).filter(g => g.cells.length > 0);
+                                if (!allFiltered.length) {
                                   return (
                                     <div className="rounded-xl border border-border bg-muted/10 px-4 py-5 text-center text-[11px] text-muted-foreground">
                                       Aucune cellule visible — réactivez une techno ou sélectionnez un autre secteur.
@@ -9676,51 +9678,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 }
                                 return (
-                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
-                                    <table className="w-full text-[11px]">
-                                      <thead>
-                                        <tr className="bg-muted/40 border-b border-border">
-                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {filteredCells.map((cell) => {
-                                          const isSel = focusCellId === cell.cell_id;
-                                          const sNum = getSectorNumber(cell.cell_id);
-                                          const tilt = (cell as any).tilt as number | null;
-                                          const hba = (cell as any).hba as number | null;
-                                          return (
-                                            <tr
-                                              key={cell.cell_id}
-                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
-                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
-                                                isSel
-                                                  ? 'bg-primary/10'
-                                                  : 'hover:bg-muted/30'
-                                              }`}
-                                            >
-                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
-                                              <td className="px-2 py-2 text-center">
-                                                <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
-                                                  {getCellTechGroup(cell.techno) || '4G'}
-                                                </span>
-                                              </td>
-                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                  <div className="space-y-3 animate-fade-in">
+                                    {allFiltered.map(({ sNum, cells: sectorCells }) => (
+                                      <div key={sNum} className="rounded-xl border border-border overflow-hidden">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
+                                          <span className="text-[11px] font-black text-primary">S{sNum}</span>
+                                          <span className="text-[9px] font-semibold text-muted-foreground">{sectorCells.length} cellule{sectorCells.length > 1 ? 's' : ''}</span>
+                                        </div>
+                                        <table className="w-full text-[11px]">
+                                          <thead>
+                                            <tr className="bg-muted/40 border-b border-border">
+                                              <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
                                             </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
+                                          </thead>
+                                          <tbody>
+                                            {sectorCells.map((cell) => {
+                                              const isSel = focusCellId === cell.cell_id;
+                                              const tilt = (cell as any).tilt as number | null;
+                                              const hba = (cell as any).hba as number | null;
+                                              return (
+                                                <tr
+                                                  key={cell.cell_id}
+                                                  onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                                  className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${isSel ? 'bg-primary/10' : 'hover:bg-muted/30'}`}
+                                                >
+                                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                                  <td className="px-2 py-2 text-center">
+                                                    <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
+                                                      {getCellTechGroup(cell.techno) || '4G'}
+                                                    </span>
+                                                  </td>
+                                                  <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ))}
                                   </div>
                                 );
                               })()}
@@ -10000,9 +10003,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
                                   : sortedSec;
-                                const secCells = visibleSectorEntries.flatMap(([, cells]) => cells);
-                                const filteredCells = secCells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G'));
-                                if (!filteredCells.length) {
+                                const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
+                                  sNum,
+                                  cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
+                                })).filter(g => g.cells.length > 0);
+                                if (!allFiltered.length) {
                                   return (
                                     <div className="rounded-xl border border-border bg-muted/10 px-4 py-5 text-center text-[11px] text-muted-foreground">
                                       Aucune cellule visible — réactivez une techno ou sélectionnez un autre secteur.
@@ -10010,49 +10015,52 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 }
                                 return (
-                                  <div className="rounded-xl border border-border overflow-hidden animate-fade-in">
-                                    <table className="w-full text-[11px]">
-                                      <thead>
-                                        <tr className="bg-muted/40 border-b border-border">
-                                          <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
-                                          <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Sec</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {filteredCells.map((cell) => {
-                                          const isSel = focusCellId === cell.cell_id;
-                                          const sNum = getSectorNumber(cell.cell_id);
-                                          const tilt = (cell as any).tilt as number | null;
-                                          const hba = (cell as any).hba as number | null;
-                                          return (
-                                            <tr
-                                              key={cell.cell_id}
-                                              onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
-                                              className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${
-                                                isSel ? 'bg-primary/10' : 'hover:bg-muted/30'
-                                              }`}
-                                            >
-                                              <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
-                                              <td className="px-2 py-2 text-center">
-                                                <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
-                                                  {getCellTechGroup(cell.techno) || '4G'}
-                                                </span>
-                                              </td>
-                                              <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
-                                              <td className="px-2 py-2 text-center font-extrabold text-primary">S{sNum}</td>
+                                  <div className="space-y-3 animate-fade-in">
+                                    {allFiltered.map(({ sNum, cells: sectorCells }) => (
+                                      <div key={sNum} className="rounded-xl border border-border overflow-hidden">
+                                        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
+                                          <span className="text-[11px] font-black text-primary">S{sNum}</span>
+                                          <span className="text-[9px] font-semibold text-muted-foreground">{sectorCells.length} cellule{sectorCells.length > 1 ? 's' : ''}</span>
+                                        </div>
+                                        <table className="w-full text-[11px]">
+                                          <thead>
+                                            <tr className="bg-muted/40 border-b border-border">
+                                              <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
                                             </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
+                                          </thead>
+                                          <tbody>
+                                            {sectorCells.map((cell) => {
+                                              const isSel = focusCellId === cell.cell_id;
+                                              const tilt = (cell as any).tilt as number | null;
+                                              const hba = (cell as any).hba as number | null;
+                                              return (
+                                                <tr
+                                                  key={cell.cell_id}
+                                                  onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
+                                                  className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${isSel ? 'bg-primary/10' : 'hover:bg-muted/30'}`}
+                                                >
+                                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                                  <td className="px-2 py-2 text-center">
+                                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
+                                                      {getCellTechGroup(cell.techno) || '4G'}
+                                                    </span>
+                                                  </td>
+                                                  <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                                  <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    ))}
                                   </div>
                                 );
                               })()}
