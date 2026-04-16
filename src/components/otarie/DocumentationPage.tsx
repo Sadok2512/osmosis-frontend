@@ -126,9 +126,9 @@ const DocumentationPage: React.FC = () => {
   const [kpiCatalog, setKpiCatalog] = useState<KPIEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadCatalog = useCallback(() => {
+  const loadCatalog = useCallback((forceRefresh = false) => {
     setLoading(true);
-    monitorGet<any[]>('catalog/kpis')
+    monitorGet<any[]>('catalog/kpis', forceRefresh)
       .then(data => {
         setKpiCatalog(data.map((k: any) => ({
           kpi_key: k.kpi_key,
