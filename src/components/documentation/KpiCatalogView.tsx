@@ -383,6 +383,15 @@ const KpiCatalogView: React.FC = () => {
             {filterOptions.categories.map(c => <option key={c} value={c}>Category: {c}</option>)}
           </select>
 
+          {/* Status filter */}
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'ALL' | KpiStatus)}
+            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
+            <option value="ALL">Status: All</option>
+            {(Object.keys(STATUS_CONFIG) as KpiStatus[]).map(s => (
+              <option key={s} value={s}>Status: {STATUS_CONFIG[s].label}</option>
+            ))}
+          </select>
+
           {/* Refresh */}
           <button onClick={loadCatalog} className="p-2 rounded-lg border border-border/30 bg-white/70 text-muted-foreground hover:bg-white transition-colors backdrop-blur-sm" title="Refresh">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
