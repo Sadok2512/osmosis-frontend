@@ -383,9 +383,13 @@ const KpiCatalogView: React.FC = () => {
             {filterOptions.categories.map(c => <option key={c} value={c}>Category: {c}</option>)}
           </select>
 
-          {/* Status filter */}
-          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'ALL' | KpiStatus)}
-            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
+          {/* Status filter — disabled: no status column in DB yet */}
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value as 'ALL' | KpiStatus)}
+            disabled
+            title="Filtre désactivé : la colonne status n'est pas encore disponible en base"
+            className="px-3 py-2 rounded-full border border-border/30 bg-muted/40 text-xs font-medium text-muted-foreground/60 focus:outline-none appearance-none cursor-not-allowed backdrop-blur-sm opacity-60">
             <option value="ALL">Status: All</option>
             {(Object.keys(STATUS_CONFIG) as KpiStatus[]).map(s => (
               <option key={s} value={s}>Status: {STATUS_CONFIG[s].label}</option>
