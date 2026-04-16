@@ -53,12 +53,23 @@ interface KPIEntry {
   supported_levels: string[];
 }
 
+/* ─────────── MODULE-LEVEL CACHE ─────────── */
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const apiCache: Record<string, { data: any; ts: number }> = {};
+
 /* ─────────── API HELPERS ─────────── */
-async function monitorGet<T>(path: string): Promise<T> {
-  const url = getApiUrl(`monitor/${path}`);
+async function monitorGet<T>(path: string, skipCache = false): Promise<T> {
+  const key = `monitor/${path}`;
+  const cached = apiCache[key];
+  if (!skipCache && cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data as T;
+  }
+  const url = getApiUrl(key);
   const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) throw new Error(`API ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  apiCache[key] = { data, ts: Date.now() };
+  return data;
 }
 
 async function monitorPost(path: string, body: any) {
@@ -115,9 +126,9 @@ const DocumentationPage: React.FC = () => {
   const [kpiCatalog, setKpiCatalog] = useState<KPIEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadCatalog = useCallback(() => {
+  const loadCatalog = useCallback((forceRefresh = false) => {
     setLoading(true);
-    monitorGet<any[]>('catalog/kpis')
+    monitorGet<any[]>('catalog/kpis', forceRefresh)
       .then(data => {
         setKpiCatalog(data.map((k: any) => ({
           kpi_key: k.kpi_key,
@@ -192,7 +203,7 @@ const DocumentationPage: React.FC = () => {
                   </select>
                 </div>
               )}
-              <button onClick={loadCatalog} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+              <button onClick={() => loadCatalog(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <Database className="w-4 h-4" /> Refresh
               </button>
             </div>
@@ -235,7 +246,7 @@ const DocumentationPage: React.FC = () => {
         ) : (
           <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
-            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
+            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={() => loadCatalog(true)} />}
             {activeTab === 'dimensions' && <DimensionsSection search={search} />}
             {activeTab === 'alarms' && <AlarmsSection search={search} />}
             {activeTab === 'cm_history' && <CMHistorySection search={search} />}
