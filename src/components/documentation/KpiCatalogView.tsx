@@ -3,9 +3,9 @@ import {
   Search, Filter, Plus, Database, RefreshCw, ArrowUpDown,
   MoreVertical, Edit2, Trash2, BookOpen, Sigma, BarChart3,
   ArrowUp, ArrowDown, Hash, Copy, Check, Clock, User, Shield,
-  Layers, Gauge, Info, FlaskConical, AlertTriangle, X
+  Layers, Gauge, Info, FlaskConical, AlertTriangle, X,
+  Eye, ChevronLeft, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
