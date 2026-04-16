@@ -216,11 +216,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
   }, [activeSlotId, mergeCounterCatalog, setActiveSlotId, setState]);
   type AnalysisTabKey = 'breakdown' | 'table_data' | 'top_worst' | 'counters' | 'histograms' | 'slicing' | 'alarms' | 'neighbors' | 'cm_history';
-  /** Global analysis tab — persists when switching between graph slots */
-  const [analysisTab, setAnalysisTabRaw] = React.useState<AnalysisTabKey | null>(null);
+  /** Per-slot active analysis tab — each graph remembers its own selected tab during the session. */
+  const [perSlotAnalysisTab, setPerSlotAnalysisTab] = React.useState<Record<string, AnalysisTabKey | null>>({});
+  const analysisTab: AnalysisTabKey | null = activeSlotId ? (perSlotAnalysisTab[activeSlotId] ?? null) : null;
   const setAnalysisTab = React.useCallback((tab: AnalysisTabKey | null) => {
-    setAnalysisTabRaw(tab);
-  }, []);
+    if (!activeSlotId) return;
+    setPerSlotAnalysisTab(prev => ({ ...prev, [activeSlotId]: tab }));
+  }, [activeSlotId]);
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
@@ -1001,7 +1003,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         {/* ═══ ZONE 2: Stable Analysis Area — always mounted, stable height ═══ */}
         <div className="shrink-0 mt-6" style={{ minHeight: 360 }}>
 
-          {/* Analysis Tab Bar — always visible when there are enabled tabs */}
+          {/* Analysis Tab Bar — ALWAYS visible per graph (all 6 sections shown, disabled when flag is off) */}
           {(() => {
             const activeConfig = activeSlot
               ? {
@@ -1026,53 +1028,65 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
             ];
-            const visibleTabs = allTabs.filter(tab => {
-              const cfgKey = configKeyMap[tab.key];
-              if (!cfgKey) return true;
-              return (activeConfig as any)[cfgKey];
-            });
-
-            if (visibleTabs.length === 0) return null;
 
             return (
               <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm mb-4">
-                <div className="flex items-center gap-1 px-1 py-1">
-                  {visibleTabs.map((tab) => (
-                    <button
-                      key={`analysis-tab-${tab.key}`}
-                      data-analysis-tab={tab.key}
-                      onClick={() => {
-                        const newTab = analysisTab === tab.key ? null : tab.key;
-                        setAnalysisTab(newTab);
-                        if (newTab && activeSlot) {
-                          const snap = buildSnapshot(activeSlot, state);
-                          analysisTabs.ensureTab(newTab, activeSlotId, snap);
-                        }
-                        if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
-                          handleFindWorst();
-                        }
-                      }}
-                      className={cn(
-                        'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap',
-                        analysisTab === tab.key
-                          ? 'bg-card text-foreground shadow-sm border border-border/60'
-                          : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                      )}
-                    >
-                      <tab.icon className={cn('w-3.5 h-3.5', analysisTab === tab.key ? tab.color : '')} />
-                      {tab.label}
-                      {analysisTab === tab.key && (
-                        <>
-                          <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                          {analysisTabs.getSection(tab.key).instances.length > 0 && (
-                            <span className="ml-1 text-[9px] opacity-60">
-                              ({analysisTabs.getSection(tab.key).instances.length})
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-1 px-1 py-1 overflow-x-auto">
+                  {!activeSlot && (
+                    <span className="px-3 py-2 text-[10px] text-muted-foreground italic">
+                      Sélectionnez un graphe pour voir ses sections d'analyse
+                    </span>
+                  )}
+                  {activeSlot && allTabs.map((tab) => {
+                    const cfgKey = configKeyMap[tab.key];
+                    const enabled = cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true;
+                    const isActive = analysisTab === tab.key;
+                    return (
+                      <button
+                        key={`analysis-tab-${tab.key}`}
+                        data-analysis-tab={tab.key}
+                        data-enabled={enabled}
+                        onClick={() => {
+                          const newTab = isActive ? null : tab.key;
+                          setAnalysisTab(newTab);
+                          if (newTab && enabled && activeSlot) {
+                            const snap = buildSnapshot(activeSlot, state);
+                            analysisTabs.ensureTab(newTab, activeSlotId, snap);
+                          }
+                          if (newTab === 'top_worst' && enabled && worstElements.length === 0 && !isLoadingWorst) {
+                            handleFindWorst();
+                          }
+                        }}
+                        title={enabled ? tab.label : `${tab.label} — désactivé. Activez-le dans les réglages du graphe.`}
+                        className={cn(
+                          'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all duration-200 whitespace-nowrap',
+                          isActive
+                            ? 'bg-card text-foreground shadow-sm border border-border/60'
+                            : enabled
+                              ? 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                              : 'text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20'
+                        )}
+                      >
+                        <tab.icon className={cn('w-3.5 h-3.5 transition-colors', isActive && enabled ? tab.color : enabled ? '' : 'opacity-60')} />
+                        <span className={cn(!enabled && 'opacity-70')}>{tab.label}</span>
+                        {!enabled && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-muted/40 text-muted-foreground/70 uppercase tracking-wider">
+                            off
+                          </span>
+                        )}
+                        {isActive && enabled && (
+                          <>
+                            <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
+                            {analysisTabs.getSection(tab.key).instances.length > 0 && (
+                              <span className="ml-1 text-[9px] opacity-60">
+                                ({analysisTabs.getSection(tab.key).instances.length})
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1101,7 +1115,35 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           })()}
 
           {/* ═══ Analysis Panel Content — all panels stay mounted, visibility via CSS ═══ */}
-          <div className="relative">
+          {/* If active tab is selected but its flag is OFF on the active slot, show a friendly disabled message */}
+          {(() => {
+            if (!analysisTab || !activeSlot) return null;
+            const flagMap: Record<string, keyof GraphConfig> = {
+              table_data: 'showDataTable',
+              breakdown: 'showBreakdown',
+              top_worst: 'showTopWorst',
+              alarms: 'showAlarms',
+              neighbors: 'showNeighbors',
+              cm_history: 'showCmHistory',
+            };
+            const flag = flagMap[analysisTab];
+            if (!flag) return null;
+            const enabled = analysisTab === 'table_data'
+              ? isSectionEnabled(activeSlot, 'showDataTable')
+              : Boolean((activeSlot.config || DEFAULT_GRAPH_CONFIG)[flag]);
+            if (enabled) return null;
+            return (
+              <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 px-4 py-8 text-center animate-in fade-in duration-200">
+                <p className="text-[11px] font-semibold text-muted-foreground">
+                  Cette section est désactivée pour ce graphe.
+                </p>
+                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                  Activez-la dans les réglages du graphe (icône ⚙️) pour voir les données.
+                </p>
+              </div>
+            );
+          })()}
+          <div className="relative animate-in fade-in duration-200" key={`panel-${activeSlotId ?? 'none'}-${analysisTab ?? 'none'}`}>
 
             {/* Table Data — only render for slots with showDataTable === true */}
             <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
