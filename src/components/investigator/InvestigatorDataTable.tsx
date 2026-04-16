@@ -134,12 +134,12 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
     }
   }
 
-  const hasCells = tsData.some(d => d.splitValue || d.networkElement);
+  const hasCells = !forceSplitOff && tsData.some(d => d.splitValue || d.networkElement);
 
   return { rows, kpiColumns, hasCells, scopeLabel: scope.label };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
