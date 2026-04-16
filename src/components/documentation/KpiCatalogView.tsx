@@ -3,9 +3,9 @@ import {
   Search, Filter, Plus, Database, RefreshCw, ArrowUpDown,
   MoreVertical, Edit2, Trash2, BookOpen, Sigma, BarChart3,
   ArrowUp, ArrowDown, Hash, Copy, Check, Clock, User, Shield,
-  Layers, Gauge, Info, FlaskConical, AlertTriangle, X
+  Layers, Gauge, Info, FlaskConical, AlertTriangle, X,
+  Eye, ChevronLeft, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -204,6 +204,18 @@ const CounterGroup: React.FC<{
 /* ══════════════════════════════════════════════════════════ */
 /*  MAIN COMPONENT                                           */
 /* ══════════════════════════════════════════════════════════ */
+const ITEMS_PER_PAGE = 12;
+
+const TECH_BADGE: Record<string, { label: string; bg: string; text: string }> = {
+  LTE: { label: '4G', bg: 'bg-blue-100', text: 'text-blue-700' },
+  NR: { label: '5G', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  '4G': { label: '4G', bg: 'bg-blue-100', text: 'text-blue-700' },
+  '5G': { label: '5G', bg: 'bg-emerald-100', text: 'text-emerald-700' },
+  '3G': { label: '3G', bg: 'bg-orange-100', text: 'text-orange-700' },
+  '2G': { label: '2G', bg: 'bg-amber-100', text: 'text-amber-700' },
+  ALL: { label: 'All', bg: 'bg-muted', text: 'text-muted-foreground' },
+};
+
 const KpiCatalogView: React.FC = () => {
   const [kpis, setKpis] = useState<KpiCatalogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,6 +231,8 @@ const KpiCatalogView: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sortField, setSortField] = useState<'name' | 'category' | 'technology'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [actionMenuId, setActionMenuId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const [filterOptions, setFilterOptions] = useState<{ technologies: string[]; vendors: string[]; categories: string[] }>({
     technologies: ['LTE', 'NR'], vendors: ['Nokia', 'Ericsson', 'Huawei'],
@@ -260,15 +274,11 @@ const KpiCatalogView: React.FC = () => {
 
   const filtered = useMemo(() => {
     let list = kpis;
-    // Client-side filters
     if (techFilter !== 'ALL') list = list.filter(k => k.technology?.toUpperCase() === techFilter.toUpperCase());
     if (vendorFilter !== 'ALL') list = list.filter(k => k.vendor?.toLowerCase() === vendorFilter.toLowerCase());
     if (categoryFilter !== 'ALL') list = list.filter(k => k.category?.toLowerCase() === categoryFilter.toLowerCase());
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
-      list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
-    } else if (search) {
-      const q = search.toLowerCase();
       list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
     }
     list = [...list].sort((a, b) => {
@@ -277,7 +287,12 @@ const KpiCatalogView: React.FC = () => {
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
     return list;
-  }, [kpis, search, debouncedSearch, sortField, sortDir, techFilter, vendorFilter, categoryFilter]);
+  }, [kpis, debouncedSearch, sortField, sortDir, techFilter, vendorFilter, categoryFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
+  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, categoryFilter]);
 
   const handleCreate = async (data: Record<string, any>) => {
     try { const r = await catalogPost('/kpis', data); toast.success(`KPI ${data.kpi_code || r.kpi_key || ''} created`); setShowCreate(false); loadCatalog(); }
@@ -298,335 +313,361 @@ const KpiCatalogView: React.FC = () => {
     else { setSortField(field); setSortDir('asc'); }
   };
 
-  // Auto-select first KPI when list loads
-  useEffect(() => {
-    if (!selectedKpi && filtered.length > 0) setSelectedKpi(filtered[0]);
-  }, [filtered]);
-
   const kpi = selectedKpi;
   const statusCfg = kpi ? (STATUS_CONFIG[kpi.status] || STATUS_CONFIG.active) : null;
   const hasThresholds = kpi?.thresholds && (kpi.thresholds.green != null || kpi.thresholds.orange != null || kpi.thresholds.red != null);
 
+  const allTechs = ['ALL', ...filterOptions.technologies];
+
+  // Stats
+  const categoryDistribution = useMemo(() => {
+    const dist: Record<string, number> = {};
+    kpis.forEach(k => { dist[k.category] = (dist[k.category] || 0) + 1; });
+    return dist;
+  }, [kpis]);
+
+  const techDistribution = useMemo(() => {
+    const dist: Record<string, number> = {};
+    kpis.forEach(k => { const t = k.technology || 'ALL'; dist[t] = (dist[t] || 0) + 1; });
+    return dist;
+  }, [kpis]);
+
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-background">
-      {/* ── HEADER ── */}
-      <div className="shrink-0 border-b border-border bg-card">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-lg font-black tracking-tight text-foreground">KPI Management</h1>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Multi-vendor Network KPI Repository • {kpis.length} KPIs</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input type="text" placeholder="Search KPIs…" value={search} onChange={e => setSearch(e.target.value)}
-                  className="w-56 pl-10 pr-4 py-2 rounded-full border border-border bg-muted/40 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-              <select value={techFilter} onChange={e => setTechFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-border bg-background text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
-                <option value="ALL">All Tech</option>
-                {filterOptions.technologies.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-border bg-background text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
-                <option value="ALL">All Vendors</option>
-                {filterOptions.vendors.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 rounded-xl border border-border bg-background text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer">
-                <option value="ALL">All Categories</option>
-                {filterOptions.categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <button onClick={loadCatalog} className="p-2 rounded-xl border border-border hover:bg-muted transition-colors" title="Refresh">
-                <RefreshCw className={`w-4 h-4 text-muted-foreground ${loading ? 'animate-spin' : ''}`} />
+    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(220 60% 97%), hsl(220 40% 95%))' }}>
+
+      {/* ── TOP BAR ── */}
+      <div className="shrink-0 px-6 py-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Create KPI button */}
+          {userRole === 'creator' && (
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all">
+              <Plus className="w-4 h-4" /> Nouveau KPI
+            </button>
+          )}
+
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px] max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
+            <input type="text" placeholder="Rechercher un KPI…" value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-full border border-border/40 bg-white/80 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all backdrop-blur-sm" />
+          </div>
+
+          {/* Tech filter chips */}
+          <div className="flex items-center gap-1.5">
+            {allTechs.map(t => (
+              <button key={t} onClick={() => setTechFilter(t)}
+                className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
+                  techFilter === t
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'bg-white/70 text-muted-foreground border border-border/30 hover:bg-white hover:border-primary/30'
+                }`}>
+                {t === 'ALL' ? 'All' : t}
               </button>
-              {userRole === 'creator' && (
-                <button onClick={() => setShowCreate(true)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
-                  <Plus className="w-4 h-4" /> Create KPI
-                </button>
-              )}
+            ))}
+          </div>
+
+          {/* Vendor filter */}
+          <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
+            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
+            <option value="ALL">Vendor: All</option>
+            {filterOptions.vendors.map(v => <option key={v} value={v}>Vendor: {v}</option>)}
+          </select>
+
+          {/* Category filter */}
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
+            <option value="ALL">Category: All</option>
+            {filterOptions.categories.map(c => <option key={c} value={c}>Category: {c}</option>)}
+          </select>
+
+          {/* Refresh */}
+          <button onClick={loadCatalog} className="p-2 rounded-lg border border-border/30 bg-white/70 text-muted-foreground hover:bg-white transition-colors backdrop-blur-sm" title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── TABLE ── */}
+      <div className="flex-1 mx-6 mb-4 rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 shadow-sm flex flex-col overflow-hidden">
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
+            <span className="ml-2 text-sm text-muted-foreground">Loading catalog…</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-16">
+            <Database className="w-12 h-12 mb-3 opacity-20" />
+            <p className="text-base font-semibold">No KPIs found</p>
+            <p className="text-xs mt-1 opacity-60">Try adjusting your filters or search</p>
+            {userRole === 'creator' && (
+              <button onClick={() => setShowCreate(true)}
+                className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
+                <Plus className="w-4 h-4" /> Create KPI
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Header */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
+              {['NOM', 'TECHNOLOGY', 'CATEGORY', 'VENDOR', 'UNIT', 'STATUS', 'ACTIONS'].map(h => (
+                <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{h}</span>
+              ))}
             </div>
+
+            {/* Rows */}
+            <div className="flex-1 overflow-y-auto divide-y divide-border/10">
+              {paginated.map(row => {
+                const tBadge = TECH_BADGE[row.technology] || TECH_BADGE.ALL;
+                const sCfg = STATUS_CONFIG[row.status] || STATUS_CONFIG.active;
+
+                return (
+                  <div key={row.kpi_key || row.id}
+                    onClick={() => setSelectedKpi(row)}
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
+
+                    {/* Name */}
+                    <div className="min-w-0">
+                      <span className="text-[13px] font-bold text-foreground truncate block">{row.display_name}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/60 truncate block">{row.kpi_code}</span>
+                    </div>
+
+                    {/* Technology */}
+                    <div>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${tBadge.bg} ${tBadge.text}`}>{tBadge.label}</span>
+                    </div>
+
+                    {/* Category */}
+                    <span className="text-xs text-foreground truncate">{row.category}</span>
+
+                    {/* Vendor */}
+                    <span className="text-xs text-muted-foreground font-medium truncate">{row.vendor === 'ALL' ? '—' : row.vendor}</span>
+
+                    {/* Unit */}
+                    <span className="text-xs text-muted-foreground truncate">{row.unit || '—'}</span>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full ${row.status === 'active' ? 'bg-green-500' : row.status === 'validated' ? 'bg-emerald-500' : row.status === 'pending_review' ? 'bg-blue-500' : 'bg-amber-500'}`} />
+                      <span className={`text-[10px] font-medium ${sCfg.color}`}>{sCfg.label}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="relative flex justify-end">
+                      <button
+                        onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === (row.kpi_key || row.id) ? null : (row.kpi_key || row.id)); }}
+                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted/60 transition-all">
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </button>
+
+                      {actionMenuId === (row.kpi_key || row.id) && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-border/30 bg-white shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <button onClick={() => { setSelectedKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                              <Eye className="w-3.5 h-3.5" /> Voir détails
+                            </button>
+                            <button onClick={() => { setEditingKpi(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                              <Edit2 className="w-3.5 h-3.5" /> Modifier
+                            </button>
+                            <div className="border-t border-border/20 my-1" />
+                            <button onClick={() => { handleDelete(row); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors">
+                              <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Pagination footer */}
+            <div className="shrink-0 px-5 py-3 border-t border-border/20 flex items-center justify-between bg-muted/10">
+              <span className="text-[11px] text-muted-foreground">
+                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}–{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} KPIs
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                  className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                  <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map(p => (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                      page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
+                    }`}>
+                    {p}
+                  </button>
+                ))}
+                {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">…</span>}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                  className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── STATS FOOTER ── */}
+      <div className="shrink-0 mx-6 mb-4 grid grid-cols-3 gap-4">
+        {/* Total KPIs */}
+        <div className="rounded-2xl bg-primary p-5 text-primary-foreground shadow-md shadow-primary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <BookOpen className="w-4 h-4 opacity-80" />
+            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">CATALOG</span>
+          </div>
+          <p className="text-3xl font-black">{kpis.length}</p>
+          <p className="text-[11px] opacity-70 mt-0.5">Total KPIs in repository</p>
+        </div>
+
+        {/* Tech distribution */}
+        <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Distribution par technologie</p>
+          <div className="space-y-2">
+            {Object.entries(techDistribution).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tech, count]) => {
+              const pct = kpis.length > 0 ? Math.round((count / kpis.length) * 100) : 0;
+              const badge = TECH_BADGE[tech];
+              return (
+                <div key={tech} className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-muted-foreground w-16">{tech} ({pct}%)</span>
+                  <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">
+                    <div className={`h-full rounded-full ${badge?.bg || 'bg-primary/30'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Top categories */}
+        <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">TOP CATEGORIES</p>
+          <div className="space-y-1.5">
+            {Object.entries(categoryDistribution).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([cat, count]) => (
+              <div key={cat} className="flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground truncate">{cat}</span>
+                <span className="text-[10px] font-bold text-muted-foreground">{count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ── WORKSPACE: Table + Detail ── */}
-      <ResizablePanelGroup direction="horizontal" className="flex-1 overflow-hidden">
-
-        {/* ── TABLE ── */}
-        <ResizablePanel defaultSize={65} minSize={40} className="flex flex-col min-w-0 border-r border-border">
-          {/* Table controls */}
-          <div className="shrink-0 flex items-center justify-between px-5 py-2.5 border-b border-border bg-muted/20">
-            <div className="flex items-center gap-2">
-              <button onClick={() => toggleSort('name')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-muted transition-colors">
-                <Filter className="w-3 h-3" /> Filter
-              </button>
-              <button onClick={() => toggleSort(sortField)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:bg-muted transition-colors">
-                <ArrowUpDown className="w-3 h-3" /> Sort
-              </button>
+      {/* ── DETAIL DRAWER ── */}
+      {selectedKpi && statusCfg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/30 backdrop-blur-[2px]" onClick={() => setSelectedKpi(null)}>
+          <div className="w-[460px] h-full bg-card shadow-2xl animate-in slide-in-from-right duration-200 flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Drawer Header */}
+            <div className="px-6 pt-5 pb-4 border-b border-border bg-gradient-to-b from-muted/30 to-transparent shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>{statusCfg.label}</span>
+                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).bg} ${(TECH_BADGE[selectedKpi.technology] || TECH_BADGE.ALL).text}`}>{selectedKpi.technology}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => setEditingKpi(selectedKpi)} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => setSelectedKpi(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
+                    <X className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+              <h3 className="text-xl font-black text-foreground leading-tight tracking-tight">{selectedKpi.display_name}</h3>
+              <p className="text-[11px] font-mono text-muted-foreground/60 mt-1 tracking-wide">{selectedKpi.kpi_code}</p>
             </div>
-            <span className="text-[10px] text-muted-foreground font-medium">{filtered.length} KPIs Loaded</span>
-          </div>
 
-          {/* Table */}
-          <div className="flex-1 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-32">
-                <RefreshCw className="w-5 h-5 text-muted-foreground animate-spin" />
-                <span className="ml-2 text-sm text-muted-foreground">Loading catalog…</span>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-                <Database className="w-8 h-8 mb-2 opacity-40" />
-                <p className="text-sm">No KPIs match your filters</p>
-              </div>
-            ) : (
-              <table className="w-full text-left">
-                <thead className="sticky top-0 z-10 bg-card border-b border-border">
-                  <tr>
-                    <th className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors" onClick={() => toggleSort('name')}>
-                      KPI Name & Identity
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors hidden lg:table-cell" onClick={() => toggleSort('technology')}>
-                      Technology
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
-                      Vendor
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
-                      Normalized
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">
-                      Status
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">
-                      Category
-                    </th>
-                    <th className="px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-10">
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.slice(0, 300).map(row => {
-                    const isSelected = selectedKpi?.kpi_key === row.kpi_key;
-                    const sCfg = STATUS_CONFIG[row.status] || STATUS_CONFIG.active;
-                    const tCfg = TECH_COLORS[row.technology] || TECH_COLORS.ALL;
-                    const catColor = CATEGORY_COLORS[row.category] || CATEGORY_COLORS.Other;
-                    return (
-                      <tr key={row.kpi_key || row.id}
-                        onClick={() => setSelectedKpi(row)}
-                        className={`cursor-pointer transition-colors group ${isSelected ? 'bg-primary/5' : 'hover:bg-muted/40'}`}
-                      >
-                        <td className="px-5 py-3">
-                          <p className="text-sm font-bold text-foreground truncate">{row.display_name}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[10px] font-mono text-muted-foreground truncate">{row.kpi_code}</span>
-                            <span className="text-muted-foreground/40">•</span>
-                            <span className="text-[10px] text-muted-foreground">{row.unit}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 hidden lg:table-cell">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tCfg.bg} ${tCfg.text}`}>{row.technology}</span>
-                        </td>
-                        <td className="px-3 py-3 hidden lg:table-cell">
-                          {row.vendor && row.vendor !== 'ALL' ? (() => {
-                            const vBadge = VENDOR_COLORS[row.vendor] || VENDOR_COLORS[row.vendor.toUpperCase()];
-                            return vBadge
-                              ? <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${vBadge.bg} ${vBadge.text}`}>{row.vendor}</span>
-                              : <span className="text-xs text-foreground">{row.vendor}</span>;
-                          })() : <span className="text-[10px] text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-3 py-3 hidden lg:table-cell">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${row.is_normalized ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'}`}>
-                            {row.is_normalized ? 'Yes' : 'No'}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3 hidden lg:table-cell">
-                          <div className="flex items-center gap-1.5">
-                            <div className={`w-1.5 h-1.5 rounded-full ${row.status === 'active' ? 'bg-green-500' : row.status === 'validated' ? 'bg-emerald-500' : row.status === 'pending_review' ? 'bg-blue-500' : 'bg-amber-500'}`} />
-                            <span className={`text-[10px] font-medium ${sCfg.color}`}>{sCfg.label}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 hidden xl:table-cell">
-                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: catColor }}>{row.category}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <button className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted transition-all">
-                            <MoreVertical className="w-3.5 h-3.5 text-muted-foreground" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-            {filtered.length > 300 && (
-              <div className="py-3 text-center text-[10px] text-muted-foreground">
-                Showing 300 of {filtered.length} — use search to narrow results
-              </div>
-            )}
-          </div>
-
-          {/* Footer stats */}
-          <div className="shrink-0 px-5 py-2 border-t border-border bg-muted/20 flex items-center justify-between">
-            <span className="text-[10px] text-muted-foreground">{filtered.length} / {kpis.length} KPIs</span>
-            <div className="flex items-center gap-3">
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-                const count = filtered.filter(k => k.status === key).length;
-                if (!count) return null;
-                return <span key={key} className={`text-[9px] font-bold ${cfg.color}`}>{count} {cfg.label}</span>;
-              })}
-            </div>
-          </div>
-        </ResizablePanel>
-
-        <ResizableHandle withHandle className="hidden md:flex" />
-
-        {/* ── DETAIL PANEL ── */}
-        <ResizablePanel defaultSize={35} minSize={25} maxSize={60} className="flex flex-col overflow-hidden bg-card hidden md:flex">
-          {kpi && statusCfg ? (
-            <div className="flex-1 overflow-y-auto">
-              {/* Panel Header */}
-              <div className="px-6 pt-5 pb-4 border-b border-border bg-gradient-to-b from-muted/30 to-transparent">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${statusCfg.bg} ${statusCfg.color}`}>{statusCfg.label}</span>
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${(TECH_COLORS[kpi.technology] || TECH_COLORS.ALL).bg} ${(TECH_COLORS[kpi.technology] || TECH_COLORS.ALL).text}`}>{kpi.technology}</span>
+            {/* Drawer Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+              {/* General */}
+              <div>
+                <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" /> General Information
+                </h4>
+                <div className="h-px bg-border mb-3" />
+                <div className="space-y-1">
+                  <InfoItem label="Description" value={selectedKpi.description} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoItem label="Category" value={selectedKpi.category} />
+                    <InfoItem label="Unit" value={selectedKpi.unit} />
                   </div>
-                  <div className="flex items-center gap-1">
-                    {(userRole === 'editor' || userRole === 'creator') && (
-                      <button onClick={() => setEditingKpi(kpi)} className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit">
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    {userRole === 'creator' && (
-                      <button onClick={() => setShowDeleteConfirm(true)} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                    <button onClick={() => setSelectedKpi(null)} className="p-2 rounded-lg hover:bg-muted transition-colors">
-                      <X className="w-4 h-4 text-muted-foreground" />
-                    </button>
+                  <div className="grid grid-cols-2 gap-3">
+                    <InfoItem label="Technology" value={selectedKpi.technology} />
+                    <InfoItem label="Vendor" value={selectedKpi.vendor} />
                   </div>
                 </div>
-                <h3 className="text-xl font-black text-foreground leading-tight tracking-tight">{kpi.display_name}</h3>
-                <p className="text-[11px] font-mono text-muted-foreground/60 mt-1 tracking-wide">{kpi.kpi_code}</p>
               </div>
 
-              {/* Content */}
-              <div className="px-6 py-4 space-y-5">
-                {/* General Information */}
+              {/* Formula */}
+              <div>
+                <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
+                  <Sigma className="w-4 h-4 text-primary" /> Calculation Formula
+                </h4>
+                <div className="h-px bg-border mb-3" />
+                <FormulaBlock formula={selectedKpi.formula || `${selectedKpi.display_name} = Numerator / Denominator`} />
+              </div>
+
+              {/* Counters */}
+              <div className="space-y-3">
+                <CounterGroup title="Numerator" count={selectedKpi.numerator.counters.length} items={selectedKpi.numerator.counters}
+                  icon={<Database className="w-3.5 h-3.5 text-emerald-600" />} onCounterClick={setSelectedCounter} />
+                <CounterGroup title="Denominator" count={selectedKpi.denominator.counters.length} items={selectedKpi.denominator.counters}
+                  icon={<Database className="w-3.5 h-3.5 text-sky-600" />} secondary onCounterClick={setSelectedCounter} />
+              </div>
+
+              {/* Thresholds */}
+              {hasThresholds && (
                 <div>
                   <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-primary" /> General Information
+                    <Gauge className="w-4 h-4 text-primary" /> Thresholds
                   </h4>
                   <div className="h-px bg-border mb-3" />
-                  <div className="space-y-1">
-                    <InfoItem label="Description" value={kpi.description} />
-                    <div className="grid grid-cols-2 gap-3">
-                      <InfoItem label="Category" value={kpi.category} />
-                      <InfoItem label="Unit" value={kpi.unit} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <InfoItem label="Technology" value={kpi.technology} />
-                      <InfoItem label="Vendor" value={kpi.vendor} />
-                    </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {selectedKpi.thresholds.green != null && (
+                      <div className="px-3 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">Green</span>
+                        <p className="text-sm font-bold text-green-700 mt-0.5">{selectedKpi.thresholds.green}{selectedKpi.unit === '%' ? '%' : ''}</p>
+                      </div>
+                    )}
+                    {selectedKpi.thresholds.orange != null && (
+                      <div className="px-3 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600">Orange</span>
+                        <p className="text-sm font-bold text-orange-700 mt-0.5">{selectedKpi.thresholds.orange}{selectedKpi.unit === '%' ? '%' : ''}</p>
+                      </div>
+                    )}
+                    {selectedKpi.thresholds.red != null && (
+                      <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">Red</span>
+                        <p className="text-sm font-bold text-red-700 mt-0.5">{selectedKpi.thresholds.red}{selectedKpi.unit === '%' ? '%' : ''}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
 
-                {/* Formula */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground flex items-center gap-2">
-                      <Sigma className="w-4 h-4 text-primary" /> Calculation Formula
-                    </h4>
-                  </div>
-                  <div className="h-px bg-border mb-3" />
-                  <FormulaBlock formula={kpi.formula || `${kpi.display_name} = Numerator / Denominator`} />
-                </div>
-
-                {/* Numerator & Denominator */}
-                <div className="space-y-3">
-                  <CounterGroup
-                    title="Numerator" count={kpi.numerator.counters.length}
-                    items={kpi.numerator.counters}
-                    icon={<Database className="w-3.5 h-3.5 text-emerald-600" />}
-                    onCounterClick={setSelectedCounter}
-                  />
-                  <CounterGroup
-                    title="Denominator" count={kpi.denominator.counters.length}
-                    items={kpi.denominator.counters}
-                    icon={<Database className="w-3.5 h-3.5 text-sky-600" />}
-                    secondary
-                    onCounterClick={setSelectedCounter}
-                  />
-                </div>
-
-                {/* Thresholds */}
-                {hasThresholds && (
+              {/* Metadata */}
+              <div className="pt-3 border-t border-border">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
-                      <Gauge className="w-4 h-4 text-primary" /> Thresholds
-                    </h4>
-                    <div className="h-px bg-border mb-3" />
-                    <div className="grid grid-cols-3 gap-3">
-                      {kpi.thresholds.green != null && (
-                        <div className="px-3 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">Green</span>
-                          <p className="text-sm font-bold text-green-700 mt-0.5">{kpi.thresholds.green}{kpi.unit === '%' ? '%' : ''}</p>
-                        </div>
-                      )}
-                      {kpi.thresholds.orange != null && (
-                        <div className="px-3 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600">Orange</span>
-                          <p className="text-sm font-bold text-orange-700 mt-0.5">{kpi.thresholds.orange}{kpi.unit === '%' ? '%' : ''}</p>
-                        </div>
-                      )}
-                      {kpi.thresholds.red != null && (
-                        <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">Red</span>
-                          <p className="text-sm font-bold text-red-700 mt-0.5">{kpi.thresholds.red}{kpi.unit === '%' ? '%' : ''}</p>
-                        </div>
-                      )}
-                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Updated</span>
+                    <p className="text-xs text-foreground mt-0.5">{selectedKpi.last_updated}</p>
                   </div>
-                )}
-
-                {/* Metadata footer */}
-                <div className="pt-3 border-t border-border">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Created</span>
-                      <p className="text-xs text-foreground mt-0.5">{kpi.last_updated}</p>
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Owner</span>
-                      <p className="text-xs text-foreground mt-0.5">{kpi.created_by}</p>
-                    </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Owner</span>
+                    <p className="text-xs text-foreground mt-0.5">{selectedKpi.created_by}</p>
                   </div>
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-              <BarChart3 className="w-10 h-10 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Select a KPI</p>
-              <p className="text-xs opacity-60 mt-1">Details will appear here</p>
-            </div>
-          )}
-        </ResizablePanel>
-      </ResizablePanelGroup>
+          </div>
+        </div>
+      )}
 
       {/* Counter Modal */}
       {selectedCounter && <CounterModal counter={selectedCounter} onClose={() => setSelectedCounter(null)} />}
@@ -656,7 +697,7 @@ const KpiCatalogView: React.FC = () => {
         </div>
       )}
 
-      {/* Create Wizard */}
+      {/* Create / Edit Wizard */}
       {showCreate && <KpiCreateWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
       {editingKpi && <KpiCreateWizard onSubmit={handleEdit} onClose={() => setEditingKpi(null)} initialData={editingKpi} mode="edit" />}
     </div>
