@@ -1410,7 +1410,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         onSelect={(d) => d && setState(prev => {
                           const nextEnd = format(d, 'yyyy-MM-dd');
                           const timePart = parseTime(prev.endDate);
-                          return { ...prev, endDate: showTimePickers ? `${nextEnd}T${timePart}` : nextEnd };
+                          const fullEnd = showTimePickers ? `${nextEnd}T${timePart}` : nextEnd;
+                          return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
                         })}
                         today={undefined}
                         modifiers={startDate ? { rangeStart: startDate } : undefined}
