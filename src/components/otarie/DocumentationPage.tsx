@@ -246,7 +246,7 @@ const DocumentationPage: React.FC = () => {
         ) : (
           <div className="px-8 py-6 max-w-7xl overflow-y-auto h-full">
             {activeTab === 'topo' && <TopoSection search={search} />}
-            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={loadCatalog} />}
+            {activeTab === 'kpi' && <KPISection kpis={kpiCatalog} search={search} groupFilter={groupFilter} loading={loading} onRefresh={() => loadCatalog(true)} />}
             {activeTab === 'dimensions' && <DimensionsSection search={search} />}
             {activeTab === 'alarms' && <AlarmsSection search={search} />}
             {activeTab === 'cm_history' && <CMHistorySection search={search} />}
