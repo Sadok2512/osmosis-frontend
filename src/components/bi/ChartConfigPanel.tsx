@@ -8,13 +8,14 @@ import {
 } from 'lucide-react';
 import {
   ChartConfig, YMetricConfig, XAxisConfig, FilterConfig,
-  BI_DIMENSIONS, BI_KPIS, CHART_COLORS, BIDimension, BIKPI,
+  BI_DIMENSIONS, BI_KPIS, BI_KPI_CATALOG, CHART_COLORS, BIDimension, BIKPI,
   Aggregation, ChartType, Granularity, AxisSide, LineStyle, getKpiDisplayName
 } from './biTypes';
 import BIKpiSelectorModal from './BIKpiSelectorModal';
 import { getDimensionValues } from './mockBIData';
 import { useCSVData } from './CSVDataStore';
 import { biQueryApi } from '@/lib/localDb';
+import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 
 interface Props {
   config: ChartConfig;
@@ -68,6 +69,41 @@ const DATE_PRESETS = [
   { label: '30D', days: 30 },
   { label: '90D', days: 90 },
 ];
+
+const normalizeTechValue = (value: string): string | null => {
+  const normalized = value.trim().toUpperCase();
+  if (normalized.includes('5G') || normalized === 'NR') return '5G';
+  if (normalized.includes('4G') || normalized === 'LTE') return '4G';
+  if (normalized.includes('3G') || normalized === 'UMTS') return '3G';
+  if (normalized.includes('2G') || normalized === 'GSM') return '2G';
+  if (normalized.includes('WIFI')) return 'WIFI';
+  return null;
+};
+
+const matchesScopedTech = (
+  kpiKey: string,
+  selectedTechs: Set<string>,
+  kpiScopeByKey: Map<string, string>
+) => {
+  if (selectedTechs.size === 0) return true;
+
+  const scopedTech = kpiScopeByKey.get(kpiKey);
+  if (scopedTech === '4G' || scopedTech === '5G') return selectedTechs.has(scopedTech);
+  if (scopedTech === 'both') return true;
+
+  const normalizedKey = kpiKey.toUpperCase();
+  const is5gSpecific = normalizedKey.includes('5G');
+  const is4gSpecific = normalizedKey.includes('4G');
+  const is3g2gSpecific = normalizedKey.includes('3G2G');
+  const isWifiSpecific = normalizedKey.includes('WIFI');
+
+  if (!is5gSpecific && !is4gSpecific && !is3g2gSpecific && !isWifiSpecific) return true;
+  if (is5gSpecific) return selectedTechs.has('5G');
+  if (is4gSpecific) return selectedTechs.has('4G');
+  if (is3g2gSpecific) return selectedTechs.has('3G') || selectedTechs.has('2G');
+  if (isWifiSpecific) return selectedTechs.has('WIFI');
+  return true;
+};
 
 /* ─── FilterValuePicker ─── */
 const FilterValuePicker: React.FC<{
@@ -132,6 +168,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   const [draft, setDraft] = useState<ChartConfig>(() => JSON.parse(JSON.stringify(config)));
   const [dirty, setDirty] = useState(false);
   const [availableDateRange, setAvailableDateRange] = useState<{ min_date: string | null; max_date: string | null }>({ min_date: null, max_date: null });
+  const [kpiScopes, setKpiScopes] = useState<Array<{ kpi_key: string; techno_scope: string }>>([]);
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [kpiModalTarget, setKpiModalTarget] = useState<{ type: 'metric'; index: number } | { type: 'xAxis' } | { type: 'sizeBy' } | null>(null);
   const [expandedMetrics, setExpandedMetrics] = useState<Set<number>>(new Set());
@@ -173,9 +210,47 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    fetchKpiCatalogFromDB()
+      .then((entries) => {
+        if (cancelled) return;
+        setKpiScopes(
+          entries.map((entry) => ({
+            kpi_key: entry.kpi_key,
+            techno_scope: entry.techno_scope,
+          }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setKpiScopes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     setDraft(JSON.parse(JSON.stringify(config)));
     setDirty(false);
   }, [config.id]);
+
+  const availableKpiKeys = useMemo(() => {
+    const ratFilter = draft.filters.find(f => f.dimension === 'RAT' && f.values.length > 0);
+    if (!ratFilter) return undefined;
+
+    const selectedTechs = new Set(
+      ratFilter.values
+        .map(normalizeTechValue)
+        .filter((value): value is string => Boolean(value))
+    );
+
+    if (selectedTechs.size === 0) return undefined;
+
+    const kpiScopeByKey = new Map(kpiScopes.map(entry => [entry.kpi_key, entry.techno_scope]));
+    return BI_KPI_CATALOG
+      .filter(kpi => matchesScopedTech(kpi.key, selectedTechs, kpiScopeByKey))
+      .map(kpi => kpi.key);
+  }, [draft.filters, kpiScopes]);
 
   const update = (partial: Partial<ChartConfig>) => {
     setDraft(prev => ({ ...prev, ...partial }));
@@ -719,6 +794,7 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
       <BIKpiSelectorModal
         open={kpiModalOpen}
         onClose={() => { setKpiModalOpen(false); setKpiModalTarget(null); }}
+        availableKeys={availableKpiKeys}
         selectedKeys={
           kpiModalTarget?.type === 'metric'
             ? draft.yMetrics.map(m => m.kpi)

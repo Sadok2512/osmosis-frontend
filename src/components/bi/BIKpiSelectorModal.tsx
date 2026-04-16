@@ -20,12 +20,19 @@ interface Props {
   onConfirm: (keys: string[]) => void;
   /** If true, single-select mode */
   single?: boolean;
+  availableKeys?: string[];
 }
 
-const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onConfirm, single }) => {
+const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onConfirm, single, availableKeys }) => {
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  const scopedCatalog = useMemo(() => {
+    if (!availableKeys || availableKeys.length === 0) return BI_KPI_CATALOG;
+    const allowed = new Set(availableKeys);
+    return BI_KPI_CATALOG.filter(k => allowed.has(k.key));
+  }, [availableKeys]);
 
   useEffect(() => {
     if (open) {
@@ -37,14 +44,14 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const k of BI_KPI_CATALOG) {
+    for (const k of scopedCatalog) {
       counts.set(k.category, (counts.get(k.category) || 0) + 1);
     }
     return counts;
-  }, []);
+  }, [scopedCatalog]);
 
   const filteredItems = useMemo(() => {
-    let items = BI_KPI_CATALOG;
+    let items = scopedCatalog;
     if (activeCategory) items = items.filter(k => k.category === activeCategory);
     if (search) {
       const q = search.toLowerCase();
@@ -55,7 +62,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       );
     }
     return items;
-  }, [activeCategory, search]);
+  }, [activeCategory, scopedCatalog, search]);
 
   const toggle = (key: string) => {
     if (single) {
@@ -116,7 +123,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
                 <span>Tous</span>
                 <div className="flex items-center gap-1.5">
                   <span className={`text-[9px] ${activeCategory === null ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                    {BI_KPI_CATALOG.length}
+                      {scopedCatalog.length}
                   </span>
                   <ChevronRight className="w-3 h-3" />
                 </div>
