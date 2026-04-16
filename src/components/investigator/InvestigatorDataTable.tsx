@@ -102,17 +102,21 @@ function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?:
 
   for (const d of tsData) {
     timestampSet.add(d.timestamp);
-    cellSet.add(d.networkElement || d.splitValue || '');
+    if (!forceSplitOff) {
+      cellSet.add(d.networkElement || d.splitValue || '');
+    }
   }
 
   const timestamps = [...timestampSet].sort();
-  const cells = [...cellSet].sort();
+  const cells = forceSplitOff ? [''] : [...cellSet].sort();
 
   const lookup = new Map<string, number | null>();
   for (const d of tsData) {
-    const cell = d.networkElement || d.splitValue || '';
+    const cell = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
     const kpi = cleanKpi(d.kpi);
-    lookup.set(`${d.timestamp}||${cell}||${kpi}`, d.value);
+    const key = `${d.timestamp}||${cell}||${kpi}`;
+    // When forceSplitOff, keep last value per timestamp+kpi (or could average)
+    lookup.set(key, d.value);
   }
 
   const rows: { timestamp: string; ne: string; cell: string; kpiValues: Record<string, number | null> }[] = [];
