@@ -1160,6 +1160,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 }
                 const hasSlotTags = tsData.some((d: any) => d._slotId);
                 const baseKey = (k: string | undefined | null) => (k && k.includes('@') ? k.split('@')[0] : (k || ''));
+                // STRICT per-slot isolation: only return data tagged with this slot's _slotId
+                // (or matching its KPI/counter keys when no slot tags exist at all in the dataset).
+                // No cross-slot fallback — if the selected slot has no data, the table is empty.
                 const getSlotData = (slot: GraphSlot | null) => {
                   if (!slot) return [] as any[];
 
@@ -1167,32 +1170,31 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   const slotCounterIds = new Set(slot.counterIds || []);
                   const allSlotKeys = new Set<string>([...slotKpiIds, ...slotCounterIds]);
                   const matchesSlotConfig = (d: any) => {
-                    if (allSlotKeys.size === 0) return true;
+                    if (allSlotKeys.size === 0) return false;
                     return allSlotKeys.has(baseKey(d.kpi));
                   };
 
-                  let data: any[] = [];
-                  if (slot.id && hasSlotTags) {
-                    data = tsData.filter((d: any) => d._slotId === slot.id && matchesSlotConfig(d));
+                  if (hasSlotTags) {
+                    // Strict slot tag match
+                    return tsData.filter((d: any) => d._slotId === slot.id && matchesSlotConfig(d));
                   }
-
-                  if (data.length === 0 && tsData.length > 0 && allSlotKeys.size > 0) {
-                    data = tsData.filter((d: any) => allSlotKeys.has(baseKey(d.kpi)));
-                  }
-
-                  if (data.length === 0 && tsData.length > 0) {
-                    data = tsData;
-                  }
-
-                  return data;
+                  // No slot tags in dataset → fall back to KPI/counter key match for this slot only
+                  return tsData.filter((d: any) => matchesSlotConfig(d));
                 };
 
                 const slotDataById = new Map(enabledSlots.map((slot) => [slot.id, getSlotData(slot)]));
-                const firstSlotWithData = enabledSlots.find((slot) => (slotDataById.get(slot.id)?.length || 0) > 0);
-                const preferredSlotId = [tableDataSlotId, activeSlotId].find(
-                  (slotId) => !!slotId && (slotDataById.get(slotId as string)?.length || 0) > 0
-                );
-                const effectiveSlotId = preferredSlotId || firstSlotWithData?.id || tableDataSlotId || activeSlotId || enabledSlots[0]?.id || null;
+                // STRICT: active table slot follows the currently selected graph (activeSlotId)
+                // when it has Table Data enabled. Otherwise the user can switch via the picker.
+                // STRICT: table follows the currently selected graph (activeSlotId).
+                // The per-section picker (tableDataSlotId) is only used when the active
+                // graph does NOT have Table Data enabled, allowing the user to pick a
+                // different enabled slot without changing the selected graph.
+                const activeIsEnabled = !!activeSlotId && enabledSlots.some(s => s.id === activeSlotId);
+                const effectiveSlotId =
+                  (activeIsEnabled ? activeSlotId : null)
+                  || (tableDataSlotId && enabledSlots.some(s => s.id === tableDataSlotId) ? tableDataSlotId : null)
+                  || enabledSlots[0]?.id
+                  || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
                 const slotData = activeTableSlot ? slotDataById.get(activeTableSlot.id) || [] : [];
 
