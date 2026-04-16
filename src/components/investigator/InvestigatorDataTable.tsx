@@ -90,7 +90,7 @@ function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: st
   return { label: 'Network Element', value: siteName || '—' };
 }
 
-function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>) {
+function buildPivotTable(tsData: DataPoint[], siteName?: string, filterContext?: Record<string, string[]>, forceSplitOff?: boolean) {
   const scope = getPrimaryScope(filterContext, siteName);
 
   const kpiSet = new Set<string>();
