@@ -2585,6 +2585,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                     onLoadDashboard={() => { if (onLoadDashboard) onLoadDashboard(db.id); }}
                     isSaving={isSaving}
                     onClose={() => { setEditingDashboardId(null); setEditingViewId(null); }}
+                    onActivate={() => activateDashboard(db.id)}
                     onSetDashboards={setDashboards}
                     backendFilterDefs={backendFilterDefs}
                     onSiteFiltersChange={(filters) => {
