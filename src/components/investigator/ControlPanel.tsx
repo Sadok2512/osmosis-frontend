@@ -1178,15 +1178,26 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   }, [perimeterFilteredCatalog, kpisWithData]);
 
+  // Propagate global date to every existing slot so per-slot overrides
+  // do not silently shadow the user's new global selection.
+  const propagateDatesToSlots = (nextStart: string, nextEnd: string) => (prev: any) => ({
+    ...prev,
+    startDate: nextStart,
+    endDate: nextEnd,
+    graphSlots: (prev.graphSlots || []).map((s: any) => ({
+      ...s,
+      startDate: nextStart,
+      endDate: nextEnd,
+    })),
+  });
+
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
     start.setDate(end.getDate() - days);
-    setState(prev => ({
-      ...prev,
-      startDate: formatDateTime(start),
-      endDate: formatDateTime(end),
-    }));
+    const ns = formatDateTime(start);
+    const ne = formatDateTime(end);
+    setState(propagateDatesToSlots(ns, ne));
   };
 
   // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
