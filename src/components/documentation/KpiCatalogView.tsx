@@ -243,30 +243,31 @@ const KpiCatalogView: React.FC = () => {
 
   const loadCatalog = useCallback(() => {
     setLoading(true);
-    const params: Record<string, string> = {};
-    if (debouncedSearch) params.search = debouncedSearch;
-    if (techFilter !== 'ALL') params.technology = techFilter;
-    if (vendorFilter !== 'ALL') params.vendor = vendorFilter;
-    if (categoryFilter !== 'ALL') params.category = categoryFilter;
-
-    catalogGet<any>('/kpis', params)
+    catalogGet<any>('/kpis')
       .then(data => { const arr = Array.isArray(data) ? data : (data.kpis || []); setKpis(arr.map(mapToEntry)); })
       .catch(async (err) => {
         console.warn('VPS catalog unavailable, falling back to database:', err.message);
         try {
-          const rows = await loadKpisFromSupabase(params);
+          const rows = await loadKpisFromSupabase({});
           setKpis(rows.map(mapToEntry));
           if (rows.length === 0) toast.info('No KPIs found in database');
         } catch (fallbackErr) { console.error('Supabase fallback also failed:', fallbackErr); toast.error('Failed to load KPI catalog'); }
       })
       .finally(() => setLoading(false));
-  }, [debouncedSearch, techFilter, vendorFilter, categoryFilter]);
+  }, []);
 
   useEffect(() => { loadCatalog(); }, [loadCatalog]);
 
   const filtered = useMemo(() => {
     let list = kpis;
-    if (search && search !== debouncedSearch) {
+    // Client-side filters
+    if (techFilter !== 'ALL') list = list.filter(k => k.technology?.toUpperCase() === techFilter.toUpperCase());
+    if (vendorFilter !== 'ALL') list = list.filter(k => k.vendor?.toLowerCase() === vendorFilter.toLowerCase());
+    if (categoryFilter !== 'ALL') list = list.filter(k => k.category?.toLowerCase() === categoryFilter.toLowerCase());
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
+      list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
+    } else if (search) {
       const q = search.toLowerCase();
       list = list.filter(k => k.kpi_code.toLowerCase().includes(q) || k.display_name.toLowerCase().includes(q) || k.category.toLowerCase().includes(q));
     }
@@ -276,7 +277,7 @@ const KpiCatalogView: React.FC = () => {
       return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
     });
     return list;
-  }, [kpis, search, debouncedSearch, sortField, sortDir]);
+  }, [kpis, search, debouncedSearch, sortField, sortDir, techFilter, vendorFilter, categoryFilter]);
 
   const handleCreate = async (data: Record<string, any>) => {
     try { const r = await catalogPost('/kpis', data); toast.success(`KPI ${data.kpi_code || r.kpi_key || ''} created`); setShowCreate(false); loadCatalog(); }
