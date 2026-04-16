@@ -53,12 +53,23 @@ interface KPIEntry {
   supported_levels: string[];
 }
 
+/* ─────────── MODULE-LEVEL CACHE ─────────── */
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const apiCache: Record<string, { data: any; ts: number }> = {};
+
 /* ─────────── API HELPERS ─────────── */
-async function monitorGet<T>(path: string): Promise<T> {
-  const url = getApiUrl(`monitor/${path}`);
+async function monitorGet<T>(path: string, skipCache = false): Promise<T> {
+  const key = `monitor/${path}`;
+  const cached = apiCache[key];
+  if (!skipCache && cached && Date.now() - cached.ts < CACHE_TTL) {
+    return cached.data as T;
+  }
+  const url = getApiUrl(key);
   const res = await fetch(url, { headers: getApiHeaders() });
   if (!res.ok) throw new Error(`API ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  apiCache[key] = { data, ts: Date.now() };
+  return data;
 }
 
 async function monitorPost(path: string, body: any) {
