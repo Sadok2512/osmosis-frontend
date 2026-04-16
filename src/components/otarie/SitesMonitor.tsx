@@ -4291,25 +4291,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // Auto-activate: restore persisted dashboard OR auto-select first available
+        // Restore persisted active dashboard (but only mark it active if it was previously activated)
         const persistedId = activeDashboardId;
-        let targetDb: any = null;
         if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
-          targetDb = cleaned.find((d: any) => d.id === persistedId);
-        } else if (cleaned.length > 0) {
-          // No persisted dashboard — auto-activate the first one
-          targetDb = cleaned[0];
-          setActiveDashboardId(targetDb.id);
+          const targetDb = cleaned.find((d: any) => d.id === persistedId);
+          if (targetDb) {
+            setDashboardActive(true);
+            const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
+            const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
+            const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
+            setActiveSiteScope(scope);
+            setActiveDashboardFilters(siteFilters);
+          }
         }
-        if (targetDb) {
-          setDashboardActive(true);
-          const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
-          const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
-          const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
-          const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
-          setActiveSiteScope(scope);
-          setActiveDashboardFilters(siteFilters);
-        }
+        // Do NOT auto-activate the first dashboard — user must explicitly click "Activer"
       } catch (err) { console.warn('[SitesMonitor] fetchDashboards failed', err); }
     };
     fetchDashboards();
