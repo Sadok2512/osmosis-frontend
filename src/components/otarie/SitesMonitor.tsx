@@ -1715,8 +1715,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [newViewName, setNewViewName] = useState('');
   const [newViewFilters, setNewViewFilters] = useState<DashboardSiteFilters>({});
   const [creating, setCreating] = useState(false);
-  const expandedDashboardId = activeDashboardId;
-  const setExpandedDashboardId = onActiveDashboardIdChange;
+  const [expandedDashboardId, setExpandedDashboardId] = useState<string | null>(null);
   const [editingDashboardId, setEditingDashboardId] = useState<string | null>(null);
   const [editingViewId, setEditingViewId] = useState<string | null>(null);
   const [showDashMenu, setShowDashMenu] = useState(false);
@@ -1793,41 +1792,37 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   const requestDashboardSwitch = (newId: string | null) => {
-    setExpandedDashboardId(newId);
-    // Reset active view when switching dashboard
+    // Only expand/collapse — do NOT activate or display sites
+    setExpandedDashboardId(prev => prev === newId ? null : newId);
+  };
+
+  // Explicit activation: user clicks "Activer"
+  const activateDashboard = (dbId: string) => {
+    onActiveDashboardIdChange(dbId);
     onActiveViewIdChange(null);
-    if (newId && onApplyView) {
-      const db = dashboards.find(d => d.id === newId);
-      if (db) {
-        onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
-    } else {
-      onDashboardActiveChange?.(false, null, null);
+    const db = dashboards.find(d => d.id === dbId);
+    if (db && onApplyView) {
+      onApplyView(getDashboardSettings(db));
+    }
+    if (db) {
+      onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
     }
   };
 
   const confirmSwitchWithSave = () => {
     if (expandedDashboardId && onSaveDashboard) onSaveDashboard(expandedDashboardId);
-    setExpandedDashboardId(pendingSwitchId);
-    if (pendingSwitchId && onApplyView) {
-      const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) {
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
+    if (pendingSwitchId) {
+      activateDashboard(pendingSwitchId);
+      setExpandedDashboardId(pendingSwitchId);
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
   };
 
   const confirmSwitchWithoutSave = () => {
-    setExpandedDashboardId(pendingSwitchId);
-    if (pendingSwitchId && onApplyView) {
-      const db = dashboards.find(d => d.id === pendingSwitchId);
-      if (db) {
-        onApplyView(getDashboardSettings(db));
-        onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
-      }
+    if (pendingSwitchId) {
+      activateDashboard(pendingSwitchId);
+      setExpandedDashboardId(pendingSwitchId);
     }
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
@@ -1968,6 +1963,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       setCreateFilters({});
       await fetchAll();
       setExpandedDashboardId(id);
+      // Auto-activate newly created dashboard
+      onActiveDashboardIdChange(id);
       onDashboardActiveChange?.(true, finalScope, cleanFilters);
     } catch (err) { console.warn('[SitesMonitor] createDashboard failed', err); }
     setCreatingDash(false);
@@ -1979,8 +1976,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handleDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
-    if (expandedDashboardId === dbId) {
-      setExpandedDashboardId(null);
+    setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) {
+      onActiveDashboardIdChange(null);
       onDashboardActiveChange?.(false, null, null);
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
@@ -1989,8 +1987,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
-    if (expandedDashboardId === dbId) {
-      setExpandedDashboardId(null);
+    setExpandedDashboardId(null);
+    if (activeDashboardId === dbId) {
+      onActiveDashboardIdChange(null);
       onDashboardActiveChange?.(false, null, null);
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
@@ -2019,14 +2018,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         if (prev.find(d => d.id === dbId)) return prev;
         return [...prev, db];
       });
-      // Apply directly using the db object (don't rely on stale dashboards state)
+      // Only expand — do NOT activate automatically
       setExpandedDashboardId(dbId);
-      if (onApplyView) {
-        onApplyView(getDashboardSettings(db));
-      }
-      onDashboardActiveChange?.(true, extractScope(db), extractSiteFilters(db));
     } else {
-      requestDashboardSwitch(dbId);
+      setExpandedDashboardId(dbId);
     }
   };
   const handleCreateView = async (dashboardId: string) => {
@@ -2434,13 +2429,14 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         <div className="space-y-1.5">
           {filteredDashboards.map(db => {
             const isExpanded = expandedDashboardId === db.id;
+            const isActive = activeDashboardId === db.id;
             const dbSettings = getDashboardSettings(db);
             const dbColor = dbSettings.color || '';
             const isEditingDb = editingDashboardId === db.id;
             const dbViews = mapViews.filter(v => v.description === db.id);
 
             return (
-              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isExpanded ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : 'border-border bg-card hover:border-primary/20'}`}>
+              <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isActive ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : isExpanded ? 'border-primary/30 bg-card' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
                 <div
                   onClick={() => {
@@ -2465,7 +2461,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className={`text-[12px] font-bold truncate ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
-                      {isExpanded && (
+                      {isActive && (
                         <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           Actif
@@ -2502,6 +2498,17 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
                   {isExpanded && (
                     <>
+                      {/* Activer button — only if not already active */}
+                      {!isActive && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); activateDashboard(db.id); }}
+                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shrink-0"
+                          title="Activer et afficher les sites"
+                        >
+                          <MapIcon size={10} />
+                          Activer
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
@@ -2512,25 +2519,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          // "Hide" — deactivate this dashboard
+                          // "Fermer" — collapse without deactivating
                           setExpandedDashboardId(null);
-                          onDashboardActiveChange?.(false, null, null);
                         }}
                         className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground hover:text-amber-600 hover:bg-amber-500/10"
-                        title="Masquer"
+                        title="Fermer"
                       >
                         <X size={12} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(db.id); }}
                         className="p-1.5 rounded-lg transition-colors shrink-0 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10"
-                        title="Archiver"
+                        title="Supprimer"
                       >
                         <Archive size={12} />
                       </button>
                     </>
                   )}
-                  {/* Collapsed dashboard: Display button + owner */}
+                  {/* Collapsed dashboard: owner info */}
                   {!isExpanded && (
                     <div className="flex items-center gap-1 shrink-0">
                       {db.owner_username && db.owner_username !== currentUsername && (
@@ -2538,17 +2544,12 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           {db.owner_username}
                         </span>
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          requestDashboardSwitch(db.id);
-                        }}
-                        className="flex items-center gap-1 px-2 py-1 rounded-lg text-[9px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100"
-                        title="Afficher sur la carte"
-                      >
-                        <MapIcon size={10} />
-                        Display
-                      </button>
+                      {isActive && (
+                        <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          Actif
+                        </span>
+                      )}
                     </div>
                   )}
                   <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase shrink-0 ${db.is_shared ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
@@ -4292,25 +4293,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // Auto-activate: restore persisted dashboard OR auto-select first available
+        // Restore persisted active dashboard (but only mark it active if it was previously activated)
         const persistedId = activeDashboardId;
-        let targetDb: any = null;
         if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
-          targetDb = cleaned.find((d: any) => d.id === persistedId);
-        } else if (cleaned.length > 0) {
-          // No persisted dashboard — auto-activate the first one
-          targetDb = cleaned[0];
-          setActiveDashboardId(targetDb.id);
+          const targetDb = cleaned.find((d: any) => d.id === persistedId);
+          if (targetDb) {
+            setDashboardActive(true);
+            const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
+            const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
+            const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
+            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
+            setActiveSiteScope(scope);
+            setActiveDashboardFilters(siteFilters);
+          }
         }
-        if (targetDb) {
-          setDashboardActive(true);
-          const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
-          const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
-          const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
-          const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
-          setActiveSiteScope(scope);
-          setActiveDashboardFilters(siteFilters);
-        }
+        // Do NOT auto-activate the first dashboard — user must explicitly click "Activer"
       } catch (err) { console.warn('[SitesMonitor] fetchDashboards failed', err); }
     };
     fetchDashboards();
