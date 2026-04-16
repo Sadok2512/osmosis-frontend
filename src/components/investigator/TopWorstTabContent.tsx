@@ -18,8 +18,10 @@ interface Props {
  * Reads from a frozen context snapshot when present, otherwise falls back to the current workspace instance.
  */
 const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contextSnapshot }) => {
-  const ws = useInvestigatorWorkspace();
   const instance = useInvestigatorWorkspace(state => state.getInstance(instanceId));
+  const updateInstance = useInvestigatorWorkspace(state => state.updateInstance);
+  const updateInstanceState = useInvestigatorWorkspace(state => state.updateInstanceState);
+  const addNewTab = useInvestigatorWorkspace(state => state.addNewTab);
   const workspaceState = instance?.state;
   const [elements, setElements] = useState<WorstElement[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,6 +59,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
     if (effectiveKpiIds.length === 0) {
       setElements([]);
       setError('Aucun KPI ni compteur sélectionné.');
+      setLoading(false);
       return;
     }
 
@@ -64,6 +67,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
     if (!ctx && !sourceState) {
       setElements([]);
       setError('Contexte Investigator introuvable.');
+      setLoading(false);
       return;
     }
 
@@ -113,7 +117,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
         if (cancelled) return;
         setElements(finalCells as WorstElement[]);
         setError(finalCells.length === 0 ? 'Aucune cellule dégradée trouvée.' : null);
-        ws.updateInstance(instanceId, { worstElements: finalCells as WorstElement[] });
+        updateInstance(instanceId, { worstElements: finalCells as WorstElement[] });
       } catch (e) {
         if (cancelled) return;
         console.error('[TopWorstTab] Error:', e);
@@ -127,7 +131,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
     return () => {
       cancelled = true;
     };
-  }, [ctx, effectiveKpiIds, instanceId, kpiMetaMap, limit, workspaceState, ws]);
+  }, [ctx, effectiveKpiIds, instanceId, kpiMetaMap, limit, workspaceState, updateInstance]);
 
   /** Open a new workspace tab prefilled with the clicked cell's context */
   const handleDrillDown = useCallback((cellName: string, element: WorstElement) => {
@@ -207,19 +211,19 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
       neighborType: null,
     };
 
-    const newTabId = ws.addNewTab(`Drill: ${cellName}`);
-    ws.updateInstanceState(newTabId, drillState);
-    ws.updateInstance(newTabId, {
+    const newTabId = addNewTab(`Drill: ${cellName}`);
+    updateInstanceState(newTabId, drillState);
+    updateInstance(newTabId, {
       activeSlotId: slotId,
       hasLoadedOnce: false,
       hasUnsavedChanges: false,
     });
 
     toast.success(`Drill-down ouvert: ${cellName}`);
-  }, [ctx, effectiveKpiIds, workspaceState, ws]);
+  }, [addNewTab, ctx, effectiveKpiIds, updateInstance, updateInstanceState, workspaceState]);
 
   const handleRowClick = useCallback((cellName: string) => {
-    ws.updateInstanceState(instanceId, prev => ({
+    updateInstanceState(instanceId, prev => ({
       ...prev,
       filters: {
         ...prev.filters,
@@ -227,7 +231,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
       },
     }));
     toast.info(`Filtre Cell appliqué: ${cellName}`);
-  }, [instanceId, ws]);
+  }, [instanceId, updateInstanceState]);
 
   return (
     <div>
