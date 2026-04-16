@@ -872,7 +872,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           return matchesSlot && matchesKpi;
         });
 
-        // Per-KPI split detection — only split if user explicitly configured it
+        // Per-KPI split detection — explicit config OR auto-detected from data
         const splitByPerKpi = cfg.splitByPerKpi || {};
         const splitByPerKpi2 = cfg.splitByPerKpi2 || {};
         const globalSplitBy = investigatorState.splitBy;
@@ -886,16 +886,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const p = splitByPerKpi2[id];
           return p && p !== 'None';
         });
-        const hasSplit = slotSplit || hasPerKpiSplit;
-        const hasDoubleSplit = (slotSplit && slotSplit2) || (hasPerKpiSplit && hasPerKpiSplit2);
+        // Auto-detect: if backend returned per-dimension data points (splitValue set),
+        // honor them as separate series even when the user didn't explicitly configure splitBy.
+        // This keeps the chart consistent with the table view.
+        const dataCarriesSplit = slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        const dataCarriesSplit2 = slotData.some(d => d.splitValue2 && d.splitValue2 !== 'ALL');
+        const hasSplit = slotSplit || hasPerKpiSplit || dataCarriesSplit;
+        const hasDoubleSplit = (slotSplit && slotSplit2) || (hasPerKpiSplit && hasPerKpiSplit2) || dataCarriesSplit2;
         const getKpiHasSplit = (kpiId: string) => {
           if (slotSplit) return true;
           const perKpi = splitByPerKpi[kpiId];
-          return perKpi != null && perKpi !== 'None';
+          if (perKpi != null && perKpi !== 'None') return true;
+          // Auto-honor backend-provided split for this KPI
+          return slotData.some(d => matchesKpi(d.kpi, kpiId) && d.splitValue && d.splitValue !== 'ALL');
         };
 
-        // Filter data: if no split configured, aggregate (ignore splitValue)
-        const hasSplitData = hasSplit && slotData.some(d => d.splitValue && d.splitValue !== 'ALL');
+        // Filter data: if no split configured AND no split data present, aggregate (ignore splitValue)
+        const hasSplitData = hasSplit && dataCarriesSplit;
         const hasDoubleSplitData = hasDoubleSplit && slotData.some(d => d.splitValue2);
         const effectiveData = hasSplitData
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
