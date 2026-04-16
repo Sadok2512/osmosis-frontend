@@ -1165,7 +1165,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       activeSlot={activeTableSlot}
                       siteName={((activeTableSlot?.filters?.['Site'] || activeTableSlot?.filters?.['SITE'] || (!activeTableSlot ? state.filters?.['Site'] || state.filters?.['SITE'] : []) || [])[0]) || undefined}
                       filterContext={activeTableSlot ? { ...(activeTableSlot.filters || {}) } : { ...(state.filters || {}) }}
-                      forceSplitOff={!activeTableSlot?.splitBy || activeTableSlot.splitBy === 'None'}
+                      forceSplitOff={
+                        (!activeTableSlot?.splitBy || activeTableSlot.splitBy === 'None') &&
+                        !slotData.some((d: any) => d.networkElement || d.splitValue)
+                      }
                     />
                   </>
                 );
