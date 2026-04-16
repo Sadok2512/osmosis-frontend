@@ -17,7 +17,7 @@ interface Props {
  * Self-contained Top Worst Cells panel for a single analysis tab.
  * Reads from a frozen context snapshot when present, otherwise falls back to the current workspace instance.
  */
-const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId, contextSnapshot }) => {
+const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contextSnapshot }) => {
   const ws = useInvestigatorWorkspace();
   const instance = useInvestigatorWorkspace(state => state.getInstance(instanceId));
   const workspaceState = instance?.state;
