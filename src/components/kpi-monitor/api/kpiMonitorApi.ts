@@ -192,9 +192,23 @@ export interface FilterValuesResponse {
   values: string[];
 }
 
+export interface CatalogFiltersResponse {
+  families: string[];
+  technos: string[];
+  vendors: string[];
+  units: string[];
+}
+
 export const fetchKpiCatalog = () => monitorGet<MonitorKpiCatalogEntry[]>('catalog/kpis');
 export const fetchCounterCatalog = () => monitorGet<CounterCatalogEntry[]>('catalog/counters');
 export const fetchFilterCatalog = () => monitorGet<MonitorFilterDef[]>('catalog/filters');
+export async function fetchCatalogFilterOptions(): Promise<CatalogFiltersResponse> {
+  // Routes directly to KPI Engine :8001/catalog/filters (not /monitor/catalog/filters)
+  const url = getApiUrl('catalog/filters');
+  const res = await fetch(url, { headers: getApiHeaders() });
+  if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
+  return res.json();
+}
 export const fetchDateRange = () => monitorGet<DateRangeResponse>('date-range');
 export const fetchDimensionValues = (dimension: string) =>
   monitorGet<FilterValuesResponse>(`filters/values?dimension=${encodeURIComponent(dimension)}`);
@@ -333,6 +347,24 @@ export function useFilterCatalog() {
     queryKey: ['monitor', 'catalog', 'filters'],
     queryFn: fetchFilterCatalog,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+const EMPTY_CATALOG_FILTERS: CatalogFiltersResponse = { families: [], technos: [], vendors: [], units: [] };
+
+export function useCatalogFilters() {
+  return useQuery({
+    queryKey: ['catalog', 'filter-options'],
+    queryFn: async () => {
+      try {
+        return await fetchCatalogFilterOptions();
+      } catch (err) {
+        console.warn('[useCatalogFilters] Backend unavailable:', err);
+        return EMPTY_CATALOG_FILTERS;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
   });
 }
 

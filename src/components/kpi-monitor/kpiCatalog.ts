@@ -38,6 +38,7 @@ function dbRowToCatalog(row: any): KpiCatalogEntry {
           }
         : undefined,
     category: FAMILLE_TO_CATEGORY[row.famille] || 'Other',
+    famille: row.famille || undefined,
     color: row.color || '#64748b',
     vendor: row.vendor || undefined,
     techno: row.techno || undefined,

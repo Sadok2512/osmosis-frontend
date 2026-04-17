@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Search, Plus, Filter as FilterIcon, SlidersHorizontal,
   MoreVertical, Eye, Pencil, Copy, Trash2, Star, Share2,
-  ChevronLeft, ChevronRight, BarChart3, User
+  ChevronLeft, ChevronRight, BarChart3, User, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { NetworkFilter, FilterStatus } from './filterTypes';
-import { MOCK_FILTERS, FILTER_STATUS_CONFIG } from './filterTypes';
+import { FILTER_STATUS_CONFIG } from './filterTypes';
 import FilterDetailsDrawer from './FilterDetailsDrawer';
 import CreateFilterWizard from './CreateFilterWizard';
+import { fetchFilters, createFilter, updateFilter, deleteFilter, duplicateFilter, countFilterMatching } from '@/services/filterService';
 
 const TECH_BADGE: Record<string, { label: string; bg: string; text: string }> = {
   '2G': { label: '2G', bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -53,7 +54,8 @@ function inferRegion(filter: NetworkFilter): string {
 }
 
 const FilterRepositoryView: React.FC = () => {
-  const [filters, setFilters] = useState<NetworkFilter[]>(MOCK_FILTERS);
+  const [filters, setFilters] = useState<NetworkFilter[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [techFilter, setTechFilter] = useState<string>('All');
   const [vendorFilter, setVendorFilter] = useState<string>('All');
@@ -62,6 +64,21 @@ const FilterRepositoryView: React.FC = () => {
   const [editFilter, setEditFilter] = useState<NetworkFilter | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  const loadFilters = useCallback(async () => {
+    try {
+      setLoading(true);
+      const resp = await fetchFilters({ limit: 500 });
+      setFilters(resp.filters);
+    } catch (err) {
+      console.warn('[FilterRepository] Failed to load filters:', err);
+      toast.error('Impossible de charger les filtres');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadFilters(); }, [loadFilters]);
 
   const allVendors = useMemo(() => {
     const s = new Set<string>();
@@ -89,48 +106,70 @@ const FilterRepositoryView: React.FC = () => {
 
   React.useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter]);
 
-  const handleCreate = (data: any) => {
-    const newFilter: NetworkFilter = {
-      id: `f-${Date.now()}`, name: data.name, description: data.description, status: data.status,
-      permission: 'editable', visibility: 'private',
-      created_by: 'Ali B.', created_at: new Date().toISOString().slice(0, 10),
-      updated_at: new Date().toISOString().slice(0, 10), updated_by: 'Ali B.',
-      topology: data.topology, parameters: data.parameters, logic: data.logic,
-      condition_count: data.topology.length + data.parameters.length, matching_objects: Math.floor(Math.random() * 2000),
-    };
-    setFilters(prev => [newFilter, ...prev]);
-    setShowCreate(false);
-    toast.success(`Filtre "${data.name}" créé`);
+  const handleCreate = async (data: any) => {
+    try {
+      const created = await createFilter({
+        name: data.name,
+        description: data.description,
+        status: data.status,
+        topology: data.topology,
+        parameters: data.parameters,
+        logic: data.logic,
+      });
+      setShowCreate(false);
+      toast.success(`Filtre "${data.name}" créé`);
+      // Auto-count matching objects
+      if (data.topology?.length > 0) {
+        countFilterMatching(created.id).catch(() => {});
+      }
+      loadFilters();
+    } catch (err) {
+      toast.error('Erreur lors de la création du filtre');
+    }
   };
 
-  const handleEdit = (data: any) => {
+  const handleEdit = async (data: any) => {
     if (!editFilter) return;
-    setFilters(prev => prev.map(f => f.id === editFilter.id ? {
-      ...f, ...data, updated_at: new Date().toISOString().slice(0, 10), updated_by: 'Ali B.',
-      condition_count: data.topology.length + data.parameters.length,
-    } : f));
-    setEditFilter(null);
-    setSelectedFilter(null);
-    toast.success(`Filtre "${data.name}" mis à jour`);
+    try {
+      await updateFilter(editFilter.id, {
+        name: data.name,
+        description: data.description,
+        status: data.status,
+        topology: data.topology,
+        parameters: data.parameters,
+        logic: data.logic,
+      });
+      setEditFilter(null);
+      setSelectedFilter(null);
+      toast.success(`Filtre "${data.name}" mis à jour`);
+      loadFilters();
+    } catch (err) {
+      toast.error('Erreur lors de la mise à jour du filtre');
+    }
   };
 
-  const handleDuplicate = (filter: NetworkFilter) => {
-    const dup: NetworkFilter = {
-      ...filter, id: `f-${Date.now()}`, name: `${filter.name} (Copy)`,
-      status: 'draft', permission: 'editable', created_at: new Date().toISOString().slice(0, 10),
-      updated_at: new Date().toISOString().slice(0, 10),
-    };
-    setFilters(prev => [dup, ...prev]);
-    toast.success(`Filtre dupliqué`);
-    setActionMenuId(null);
+  const handleDuplicate = async (filter: NetworkFilter) => {
+    try {
+      await duplicateFilter(filter.id);
+      toast.success(`Filtre dupliqué`);
+      setActionMenuId(null);
+      loadFilters();
+    } catch (err) {
+      toast.error('Erreur lors de la duplication');
+    }
   };
 
-  const handleDelete = (filter: NetworkFilter) => {
+  const handleDelete = async (filter: NetworkFilter) => {
     if (!confirm(`Supprimer le filtre "${filter.name}" ?`)) return;
-    setFilters(prev => prev.filter(f => f.id !== filter.id));
-    if (selectedFilter?.id === filter.id) setSelectedFilter(null);
-    toast.success(`Filtre supprimé`);
-    setActionMenuId(null);
+    try {
+      await deleteFilter(filter.id);
+      if (selectedFilter?.id === filter.id) setSelectedFilter(null);
+      toast.success(`Filtre supprimé`);
+      setActionMenuId(null);
+      loadFilters();
+    } catch (err) {
+      toast.error('Erreur lors de la suppression');
+    }
   };
 
   // Stats
@@ -157,7 +196,8 @@ const FilterRepositoryView: React.FC = () => {
   }, [filters]);
 
   const fmtDate = (iso: string) => {
-    const d = new Date(iso + 'T00:00:00');
+    if (!iso) return '—';
+    const d = new Date(iso);
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
@@ -227,8 +267,8 @@ const FilterRepositoryView: React.FC = () => {
         ) : (
           <>
             {/* Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
-              {['NOM', 'TECHNOLOGY', 'VENDOR', 'REGION', 'CREATED BY', 'CREATION DATE', 'ACTIONS'].map(h => (
+            <div className="grid grid-cols-[2fr_0.7fr_1fr_1fr_1fr_0.8fr_0.8fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
+              {['NOM', 'MATCHING', 'TECHNOLOGY', 'VENDOR', 'REGION', 'CREATED BY', 'DATE', 'ACTIONS'].map(h => (
                 <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{h}</span>
               ))}
             </div>
@@ -244,11 +284,20 @@ const FilterRepositoryView: React.FC = () => {
                 return (
                   <div key={filter.id}
                     onClick={() => setSelectedFilter(filter)}
-                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
+                    className="grid grid-cols-[2fr_0.7fr_1fr_1fr_1fr_0.8fr_0.8fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
 
                     {/* Name */}
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[13px] font-bold text-foreground truncate">{filter.name}</span>
+                    </div>
+
+                    {/* Matching objects */}
+                    <div className="flex items-center gap-1">
+                      {filter.matching_objects != null ? (
+                        <span className="text-xs font-bold text-primary tabular-nums">{filter.matching_objects.toLocaleString('fr-FR')} cells</span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+                      )}
                     </div>
 
                     {/* Tech badges */}
@@ -300,6 +349,16 @@ const FilterRepositoryView: React.FC = () => {
                             <button onClick={() => { if (filter.permission !== 'locked') { setEditFilter(filter); setActionMenuId(null); } }}
                               className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${filter.permission === 'locked' ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-muted/40'}`}>
                               <Pencil className="w-3.5 h-3.5" /> Modifier
+                            </button>
+                            <button onClick={async () => {
+                              setActionMenuId(null);
+                              try {
+                                const result = await countFilterMatching(filter.id);
+                                toast.success(`${result.cells.toLocaleString('fr-FR')} cells, ${result.sites.toLocaleString('fr-FR')} sites`);
+                                loadFilters();
+                              } catch { toast.error('Erreur lors du calcul'); }
+                            }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
+                              <BarChart3 className="w-3.5 h-3.5" /> Recalculer matching
                             </button>
                             <button onClick={() => handleDuplicate(filter)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
                               <Copy className="w-3.5 h-3.5" /> Dupliquer

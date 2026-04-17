@@ -26,6 +26,7 @@ export interface KpiCatalogEntry {
   is_map_supported: boolean;
   thresholds?: { warning: number; critical: number };
   category: string;
+  famille?: string;
   color: string;
   vendor?: string;
   techno?: string;

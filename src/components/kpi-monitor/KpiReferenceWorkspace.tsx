@@ -18,7 +18,7 @@ import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchKpiCatalogFromDB } from './kpiCatalog';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
-import { useKpiExplain } from './api/kpiMonitorApi';
+import { useKpiExplain, useCatalogFilters } from './api/kpiMonitorApi';
 
 type DetailTab = 'overview' | 'formula' | 'thresholds' | 'source';
 type FilterStatus = 'all' | 'active' | 'inactive';
@@ -50,7 +50,7 @@ const CATEGORY_TO_FAMILLE: Record<string, string> = {
 const DEFAULT_COLOR = '#3b82f6';
 const VALUE_TYPES: ValueType[] = ['ratio', 'counter', 'gauge'];
 const AGGREGATIONS: AggFunc[] = ['avg', 'sum', 'max', 'min', 'p95', 'p50', 'last', 'count'];
-const TECHNO_OPTIONS: TechnoScope[] = ['4G', '5G', 'both'];
+// TECHNO_OPTIONS now fetched from backend via useCatalogFilters()
 
 function toDraft(kpi: KpiCatalogEntry): KpiDraft {
   return {
@@ -111,7 +111,7 @@ const KpiReferenceWorkspace: React.FC = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [techFilter, setTechFilter] = useState<'all' | TechnoScope>('all');
+  const [techFilter, setTechFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [selectedKpiKey, setSelectedKpiKey] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>('overview');
@@ -125,7 +125,7 @@ const KpiReferenceWorkspace: React.FC = () => {
       const parsed = JSON.parse(saved) as {
         search?: string;
         categoryFilter?: string;
-        techFilter?: 'all' | TechnoScope;
+        techFilter?: string;
         statusFilter?: FilterStatus;
       };
       setSearch(parsed.search || '');
@@ -148,7 +148,22 @@ const KpiReferenceWorkspace: React.FC = () => {
   });
 
   const catalog = catalogQuery.data || [];
-  const categories = useMemo(() => Array.from(new Set(catalog.map(item => item.category).filter(Boolean))).sort(), [catalog]);
+
+  // Backend-driven filter options
+  const filtersQuery = useCatalogFilters();
+  const backendFilters = filtersQuery.data;
+
+  // Categories: backend families are the source of truth.
+  // Fallback to catalog-derived categories only if backend is unavailable.
+  const categories = useMemo(() => {
+    if (backendFilters?.families && backendFilters.families.length > 0) {
+      return backendFilters.families;
+    }
+    return Array.from(new Set(catalog.map(item => item.category).filter(Boolean))).sort();
+  }, [catalog, backendFilters]);
+
+  // Techno: backend values map directly to techno_scope on catalog entries
+  const technoOptions = useMemo(() => backendFilters?.technos ?? ['4G', '5G'], [backendFilters]);
 
   const filteredCatalog = useMemo(() => {
     return catalog.filter(item => {
@@ -158,7 +173,9 @@ const KpiReferenceWorkspace: React.FC = () => {
         item.display_name.toLowerCase().includes(query) ||
         item.kpi_key.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query);
-      const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
+      const matchesCategory = categoryFilter === 'all' ||
+        item.category === categoryFilter ||
+        (item.famille && item.famille.toLowerCase() === categoryFilter.toLowerCase());
       const matchesTech = techFilter === 'all' || item.techno_scope === techFilter;
       const isOperationalFocus = item.is_map_supported || Boolean(item.thresholds?.warning) || Boolean(item.thresholds?.critical);
       const matchesStatus =
@@ -298,9 +315,9 @@ const KpiReferenceWorkspace: React.FC = () => {
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
-            <select value={techFilter} onChange={event => setTechFilter(event.target.value as 'all' | TechnoScope)} className="h-12 rounded-2xl border border-border/60 bg-background px-4 text-sm outline-none transition-all focus:border-primary/40">
+            <select value={techFilter} onChange={event => setTechFilter(event.target.value)} className="h-12 rounded-2xl border border-border/60 bg-background px-4 text-sm outline-none transition-all focus:border-primary/40">
               <option value="all">All technologies</option>
-              {TECHNO_OPTIONS.map(option => (
+              {technoOptions.map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
@@ -495,7 +512,7 @@ const KpiReferenceWorkspace: React.FC = () => {
                         <div>
                           <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Technology</label>
                           <select value={draft.techno_scope} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, techno_scope: event.target.value as TechnoScope } : prev)} className="h-11 w-full rounded-2xl border border-border/60 bg-card px-4 text-sm outline-none transition-all focus:border-primary/40 disabled:opacity-75">
-                            {TECHNO_OPTIONS.map(option => (
+                            {technoOptions.map(option => (
                               <option key={option} value={option}>{option}</option>
                             ))}
                           </select>
