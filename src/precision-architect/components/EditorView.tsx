@@ -294,8 +294,23 @@ export default function EditorView({
         <PAToolbar />
 
         <div className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
-          {widgets.length === 0 && (
-            <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {sections.length > 0 && (
+              <div className="space-y-4">
+                {sections.map((s) => (
+                  <SectionBlock
+                    key={s.id}
+                    section={s}
+                    editable
+                    isActive={activeSectionId === s.id}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                    onRemove={() => removeSection(s.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
                   <Plus className="w-7 h-7" />
@@ -303,42 +318,42 @@ export default function EditorView({
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">Empty canvas</h3>
                   <p className="text-xs font-bold text-on-surface-variant max-w-md">
-                    Use the floating toolbox on the right to add a Chart, Map, KPI Card or Table. Drag the header to move, drag the bottom-right corner to resize.
+                    Add a section from the sidebar to write notes, or use the floating toolbox to add a Chart, Map, KPI Card or Table.
                   </p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {widgets.length > 0 && (
-            <GridLayout
-              className="layout"
-              layout={layout}
-              cols={COLS}
-              rowHeight={ROW_HEIGHT}
-              margin={[16, 16]}
-              containerPadding={[0, 0]}
-              draggableHandle=".widget-drag-handle"
-              isDraggable
-              isResizable
-              compactType="vertical"
-              preventCollision={false}
-              onLayoutChange={handleLayoutChange}
-            >
-              {widgets.map(w => (
-                <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
-                  <button
-                    onClick={() => removeWidget(w.id)}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
-                    aria-label="Remove widget"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                  <WidgetRenderer widget={w} />
-                </div>
-              ))}
-            </GridLayout>
-          )}
+            {widgets.length > 0 && (
+              <GridLayout
+                className="layout"
+                layout={layout}
+                cols={COLS}
+                rowHeight={ROW_HEIGHT}
+                margin={[16, 16]}
+                containerPadding={[0, 0]}
+                draggableHandle=".widget-drag-handle"
+                isDraggable
+                isResizable
+                compactType="vertical"
+                preventCollision={false}
+                onLayoutChange={handleLayoutChange}
+              >
+                {widgets.map(w => (
+                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
+                    <button
+                      onClick={() => removeWidget(w.id)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
+                      aria-label="Remove widget"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <WidgetRenderer widget={w} />
+                  </div>
+                ))}
+              </GridLayout>
+            )}
+          </div>
         </div>
 
         <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
