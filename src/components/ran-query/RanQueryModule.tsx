@@ -44,11 +44,13 @@ type Tech = '2G' | '3G' | '4G' | '5G';
 type RelativeUnit = 'minutes' | 'hours' | 'days';
 
 type RelativePreset = '1h' | '24h' | '7d' | '30d' | '90d' | 'custom';
+type Granularity = '5min' | '15min' | '30min' | '1h' | '1d' | '1w';
 
 interface AbsoluteTimeConfig {
   timeMode: 'absolute';
   start: string;
   end: string;
+  granularity: Granularity;
 }
 
 interface RelativeTimeConfig {
@@ -56,9 +58,19 @@ interface RelativeTimeConfig {
   value: number;
   unit: RelativeUnit;
   end: 'now';
+  granularity: Granularity;
 }
 
 type TimeConfig = AbsoluteTimeConfig | RelativeTimeConfig;
+
+const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
+  { value: '5min', label: '5 min' },
+  { value: '15min', label: '15 min' },
+  { value: '30min', label: '30 min' },
+  { value: '1h', label: '1 hour' },
+  { value: '1d', label: '1 day' },
+  { value: '1w', label: '1 week' },
+];
 
 interface ReportResultRow {
   kpi: string;
@@ -112,6 +124,7 @@ interface CreateFormState {
   zoneArcep: string[];
   aggregation: AggregationLevel;
   dimensions: string[];
+  granularity: Granularity;
 }
 
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
@@ -168,6 +181,7 @@ const DEFAULT_FORM = (): CreateFormState => {
     zoneArcep: [],
     aggregation: 'cell',
     dimensions: [],
+    granularity: '1h',
   };
 };
 
@@ -217,11 +231,12 @@ function formatDateTime(value: string | null): string {
 }
 
 function describeTimeConfig(config: TimeConfig): string {
+  const granLabel = GRANULARITY_OPTIONS.find(g => g.value === config.granularity)?.label ?? config.granularity;
   if (config.timeMode === 'absolute') {
-    return `${formatDateTime(config.start)} → ${formatDateTime(config.end)}`;
+    return `${formatDateTime(config.start)} → ${formatDateTime(config.end)} · ${granLabel}`;
   }
   const unitLabel = config.unit === 'minutes' ? 'min' : config.unit === 'hours' ? 'h' : 'd';
-  return `Last ${config.value}${unitLabel} up to now`;
+  return `Last ${config.value}${unitLabel} up to now · ${granLabel}`;
 }
 
 function statusClasses(status: ReportStatus): string {
@@ -245,6 +260,7 @@ function buildTimeConfig(form: CreateFormState): TimeConfig {
       timeMode: 'absolute',
       start: form.absoluteStart,
       end: form.absoluteEnd,
+      granularity: form.granularity,
     };
   }
   return {
@@ -252,6 +268,7 @@ function buildTimeConfig(form: CreateFormState): TimeConfig {
     value: form.relativeValue,
     unit: form.relativeUnit,
     end: 'now',
+    granularity: form.granularity,
   };
 }
 
@@ -654,6 +671,7 @@ const RanQueryModule: React.FC = () => {
       zoneArcep: r.zoneArcep ?? [],
       aggregation: r.aggregation ?? 'cell',
       dimensions: r.dimensions ?? [],
+      granularity: r.timeConfig.granularity ?? '1h',
     });
     setEditingReportId(reportId);
     setView('create');
@@ -1069,6 +1087,31 @@ const RanQueryModule: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Time Granularity</label>
+                    <div className="flex flex-wrap gap-2">
+                      {GRANULARITY_OPTIONS.map(opt => {
+                        const active = form.granularity === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => updateForm('granularity', opt.value)}
+                            className={cn(
+                              'rounded-xl border px-3 py-2 text-xs font-bold transition-all',
+                              active
+                                ? 'border-primary/40 bg-primary/8 text-primary'
+                                : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">Resolution at which KPI / counter values are aggregated over time.</p>
+                  </div>
                 </div>
               </SectionCard>
             </div>
