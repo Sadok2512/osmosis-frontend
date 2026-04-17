@@ -67,10 +67,10 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showArea: false,
   showDataTable: true,
   showBreakdown: false,
-  showTopWorst: false,
-  showAlarms: false,
-  showNeighbors: false,
-  showCmHistory: false,
+  showTopWorst: true,
+  showAlarms: true,
+  showNeighbors: true,
+  showCmHistory: true,
 };
 
 export interface GraphSlot {

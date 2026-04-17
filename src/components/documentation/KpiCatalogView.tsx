@@ -236,7 +236,7 @@ const KpiCatalogView: React.FC = () => {
   const [page, setPage] = useState(1);
 
   const [filterOptions, setFilterOptions] = useState<{ technologies: string[]; vendors: string[]; categories: string[] }>({
-    technologies: ['LTE', 'NR'], vendors: ['Nokia', 'Ericsson', 'Huawei'],
+    technologies: ['2G', '3G', '4G', '5G'], vendors: ['Nokia', 'Ericsson', 'Huawei'],
     categories: ['Accessibility', 'Retainability', 'Throughput', 'Traffic', 'Mobility', 'Radio Quality', 'VoLTE', 'Latency', 'Integrity'],
   });
 
