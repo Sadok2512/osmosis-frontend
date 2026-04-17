@@ -107,7 +107,7 @@ interface RanReport {
 
 interface CreateFormState {
   name: string;
-  vendor: string;
+  vendors: string[];
   technologies: Tech[];
   timeMode: TimeMode;
   absoluteStart: string;
@@ -165,7 +165,7 @@ const DEFAULT_FORM = (): CreateFormState => {
   const start = toLocalDateTimeInput(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   return {
     name: '',
-    vendor: 'Ericsson',
+    vendors: ['Ericsson'],
     technologies: ['4G'],
     timeMode: 'relative',
     absoluteStart: start,
@@ -602,7 +602,7 @@ const RanQueryModule: React.FC = () => {
       setReports(prev => prev.map(r => r.id === editingReportId ? {
         ...r,
         name: form.name.trim(),
-        vendor: form.vendor,
+        vendor: form.vendors.join(', ') || 'Multi-Vendor',
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
@@ -627,7 +627,7 @@ const RanQueryModule: React.FC = () => {
     const report: RanReport = {
       id: `ran-report-${Date.now()}`,
       name: form.name.trim(),
-      vendor: form.vendor,
+      vendor: form.vendors.join(', ') || 'Multi-Vendor',
       technologies: form.technologies,
       kpis: form.selectedKpis,
       timeConfig: buildTimeConfig(form),
@@ -655,7 +655,7 @@ const RanQueryModule: React.FC = () => {
     const tc = r.timeConfig;
     setForm({
       name: r.name,
-      vendor: r.vendor,
+      vendors: r.vendor ? r.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
       technologies: r.technologies,
       timeMode: tc.timeMode,
       absoluteStart: tc.timeMode === 'absolute' ? tc.start : DEFAULT_FORM().absoluteStart,
@@ -984,7 +984,7 @@ const RanQueryModule: React.FC = () => {
                 <div className="rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Report preview</p>
                   <p className="mt-2 text-sm font-semibold text-foreground">{form.name.trim() || 'Untitled report'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{form.vendor} · {form.technologies.join(' / ') || 'No technology selected'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{form.vendors.join(' / ') || 'No vendor selected'} · {form.technologies.join(' / ') || 'No technology selected'}</p>
                 </div>
               </div>
             </SectionCard>
@@ -992,14 +992,14 @@ const RanQueryModule: React.FC = () => {
             <div className="grid gap-6 xl:grid-cols-2">
               <SectionCard title="Scope Selection" description="Sélectionnez les critères pour affiner l'analyse.">
                 <div className="space-y-5">
-                  {/* Vendor — chips style (single-select) */}
+                  {/* Vendor — chips style (multi-select) */}
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</span>
-                      {form.vendor && (
+                      {form.vendors.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => updateForm('vendor', '')}
+                          onClick={() => updateForm('vendors', [])}
                           className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
                         >
                           Effacer
@@ -1008,13 +1008,13 @@ const RanQueryModule: React.FC = () => {
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {VENDOR_OPTIONS.map(vendor => {
-                        const isActive = form.vendor === vendor;
+                        const isActive = form.vendors.includes(vendor);
                         const accent = VENDOR_HSL[vendor.toUpperCase()] || 'hsl(var(--primary))';
                         return (
                           <button
                             key={vendor}
                             type="button"
-                            onClick={() => updateForm('vendor', isActive ? '' : vendor)}
+                            onClick={() => updateForm('vendors', isActive ? form.vendors.filter(v => v !== vendor) : [...form.vendors, vendor])}
                             className={cn(
                               'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border',
                               isActive
@@ -1071,20 +1071,25 @@ const RanQueryModule: React.FC = () => {
                   </div>
 
                   {/* Active summary */}
-                  {(form.vendor || form.technologies.length > 0) && (
+                  {(form.vendors.length > 0 || form.technologies.length > 0) && (
                     <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {form.vendor && (
+                        {form.vendors.map(v => (
                           <span
+                            key={v}
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
-                            style={{ backgroundColor: VENDOR_HSL[form.vendor.toUpperCase()] || 'hsl(var(--primary))' }}
+                            style={{ backgroundColor: VENDOR_HSL[v.toUpperCase()] || 'hsl(var(--primary))' }}
                           >
-                            {form.vendor}
-                            <button type="button" onClick={() => updateForm('vendor', '')} className="hover:opacity-70">
+                            {v}
+                            <button
+                              type="button"
+                              onClick={() => updateForm('vendors', form.vendors.filter(x => x !== v))}
+                              className="hover:opacity-70"
+                            >
                               <XCircle className="w-3 h-3" />
                             </button>
                           </span>
-                        )}
+                        ))}
                         {form.technologies.map(t => (
                           <span
                             key={t}
@@ -1104,7 +1109,7 @@ const RanQueryModule: React.FC = () => {
                       </div>
                       <button
                         type="button"
-                        onClick={() => { updateForm('vendor', ''); updateForm('technologies', []); }}
+                        onClick={() => { updateForm('vendors', []); updateForm('technologies', []); }}
                         className="text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       >
                         Tout effacer
