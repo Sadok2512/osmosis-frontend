@@ -1,12 +1,19 @@
 import { KpiCatalogEntry } from './types';
 import { supabase } from '@/integrations/supabase/client';
 
-// ── Map famille → category ──
 const FAMILLE_TO_CATEGORY: Record<string, KpiCatalogEntry['category']> = {
-  ACCESSIBILITY: 'Access', RETAINABILITY: 'Retainability', MOBILITY: 'Access',
-  THROUGHPUT: 'Throughput', TRAFFIC: 'Traffic', Corporate: 'Other',
-  CAPACITY: 'Traffic', AVAILABILITY: 'Access', INTERFERENCE: 'TCP',
+  ACCESSIBILITY: 'Access',
+  RETAINABILITY: 'Retainability',
+  MOBILITY: 'Access',
+  THROUGHPUT: 'Throughput',
+  TRAFFIC: 'Traffic',
+  Corporate: 'Other',
+  CAPACITY: 'Traffic',
+  AVAILABILITY: 'Access',
+  INTERFERENCE: 'TCP',
 };
+
+const PAGE_SIZE = 1000;
 
 function dbRowToCatalog(row: any): KpiCatalogEntry {
   return {
@@ -23,31 +30,55 @@ function dbRowToCatalog(row: any): KpiCatalogEntry {
     denominator_counter: row.denominator || undefined,
     formula_sql: row.formula_sql || undefined,
     is_map_supported: row.is_map_supported ?? false,
-    thresholds: row.threshold_warning ? { warning: row.threshold_warning, critical: row.threshold_critical || row.threshold_warning * 0.8 } : undefined,
+    thresholds:
+      row.threshold_warning != null
+        ? {
+            warning: row.threshold_warning,
+            critical: row.threshold_critical ?? row.threshold_warning * 0.8,
+          }
+        : undefined,
     category: FAMILLE_TO_CATEGORY[row.famille] || 'Other',
     color: row.color || '#64748b',
+    vendor: row.vendor || undefined,
+    techno: row.techno || undefined,
+    supported_levels: Array.isArray(row.supported_levels) ? row.supported_levels : undefined,
+    is_normalized: row.is_normalized ?? undefined,
+    dimension_type: row.dimension_type ?? null,
+    dimension_prefix: row.dimension_prefix ?? null,
   };
 }
 
-// ── Fetch from DB only — no static fallback ──
 export async function fetchKpiCatalogFromDB(): Promise<KpiCatalogEntry[]> {
-  const { data, error } = await supabase
-    .from('kpi_catalog')
-    .select('*')
-    .order('famille', { ascending: true })
-    .order('display_name', { ascending: true });
+  const rows: any[] = [];
+  let from = 0;
 
-  if (error) {
-    console.error('[kpi_catalog] Supabase error:', error.message);
-    return [];
+  while (true) {
+    const to = from + PAGE_SIZE - 1;
+    const { data, error } = await supabase
+      .from('kpi_catalog')
+      .select('*')
+      .order('famille', { ascending: true })
+      .order('display_name', { ascending: true })
+      .range(from, to);
+
+    if (error) {
+      console.error('[kpi_catalog] Supabase error:', error.message);
+      return [];
+    }
+
+    const chunk = data || [];
+    rows.push(...chunk);
+
+    if (chunk.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
   }
 
-  const entries = (data || []).map(dbRowToCatalog);
-  console.log(`[kpi_catalog] Loaded ${entries.length} KPIs from database`);
-  return entries;
+  return rows.map(dbRowToCatalog);
 }
 
-// ── Compat exports ──
 export const KPI_CATALOG: KpiCatalogEntry[] = [];
 export const KPI_CATALOG_MAP: Record<string, KpiCatalogEntry> = {};
 export const KPI_CATALOG_STATIC: KpiCatalogEntry[] = [];
