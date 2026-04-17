@@ -50,10 +50,26 @@ const PAGE_SIZES = [25, 50, 100, 200];
 
 const fmt = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts);
 
-const fmtVal = (v: number | null | undefined) =>
-  v != null
-    ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '—';
+const fmtVal = (v: number | null | undefined) => {
+  if (v == null) return '—';
+  const num = Number(v);
+  if (!isFinite(num)) return '—';
+  if (num === 0) return '0';
+  const abs = Math.abs(num);
+  // Adaptive precision: keep small values visible (e.g. 0.000234 GBytes)
+  // instead of rounding them to "0,00".
+  let fractionDigits = 2;
+  if (abs > 0 && abs < 0.01) {
+    // Show enough digits to surface the first 2 significant figures
+    fractionDigits = Math.min(8, Math.max(2, 2 - Math.floor(Math.log10(abs))));
+  } else if (abs < 1) {
+    fractionDigits = 4;
+  }
+  return num.toLocaleString('fr-FR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: fractionDigits,
+  });
+};
 
 const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 
