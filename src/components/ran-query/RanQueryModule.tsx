@@ -345,6 +345,18 @@ const RanQueryModule: React.FC = () => {
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [counterModalOpen, setCounterModalOpen] = useState(false);
 
+  // ── Backend-driven Filter Area / Dimension options ──
+  const [topoOpts, setTopoOpts] = useState<{ plaque: string[]; dor: string[]; zone_arcep: string[] }>({ plaque: [], dor: [], zone_arcep: [] });
+  const [topoLoading, setTopoLoading] = useState(true);
+  const [topoError, setTopoError] = useState<string | null>(null);
+  const [dimensionOpts, setDimensionOpts] = useState<string[]>(DEFAULT_DIMENSIONS);
+  const [dimensionLoading, setDimensionLoading] = useState(true);
+
+  // Site search (live debounced)
+  const [siteSearch, setSiteSearch] = useState('');
+  const [siteResults, setSiteResults] = useState<string[]>([]);
+  const [siteSearching, setSiteSearching] = useState(false);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
@@ -357,6 +369,69 @@ const RanQueryModule: React.FC = () => {
       .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
       .catch(() => setCounterCatalog([]));
   }, []);
+
+  // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) from backend
+  useEffect(() => {
+    setTopoLoading(true);
+    setTopoError(null);
+    topoApi.filters()
+      .then((resp) => {
+        const map: Record<string, string[]> = {};
+        for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
+        setTopoOpts({
+          plaque: map.plaque ?? [],
+          dor: map.dor ?? [],
+          zone_arcep: map.zone_arcep ?? [],
+        });
+      })
+      .catch((err) => {
+        console.warn('[RanQueryModule] Failed to load topo filters', err);
+        setTopoError('Unable to load filter options from backend');
+      })
+      .finally(() => setTopoLoading(false));
+  }, []);
+
+  // Load dimensions list from backend — fallback to defaults
+  useEffect(() => {
+    setDimensionLoading(true);
+    fetch(getApiUrl('qoe/dimensions?table=qoe_metric'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const arr = Array.isArray(data) ? data : (data?.values || []);
+        const extra = arr.filter((s: any) => typeof s === 'string');
+        const merged = Array.from(new Set([...DEFAULT_DIMENSIONS, ...extra]));
+        setDimensionOpts(merged.length ? merged : DEFAULT_DIMENSIONS);
+      })
+      .catch(() => setDimensionOpts(DEFAULT_DIMENSIONS))
+      .finally(() => setDimensionLoading(false));
+  }, []);
+
+  // Live site search (debounced) — narrowed by current Plaque / DOR selection
+  useEffect(() => {
+    const q = siteSearch.trim();
+    if (q.length < 2) { setSiteResults([]); setSiteSearching(false); return; }
+    setSiteSearching(true);
+    const handle = window.setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams();
+        qs.set('search', q);
+        qs.set('limit', '40');
+        if (form.plaques.length > 0) qs.set('plaque', form.plaques.join(','));
+        if (form.dors.length > 0) qs.set('dor', form.dors.join(','));
+        const rows = await topoApi.filteredSites(qs.toString());
+        const names = (Array.isArray(rows) ? rows : [])
+          .map((r: any) => r.nom_site || r.site_name)
+          .filter(Boolean);
+        setSiteResults(Array.from(new Set(names)).slice(0, 40));
+      } catch (err) {
+        console.warn('[RanQueryModule] site search failed', err);
+        setSiteResults([]);
+      } finally {
+        setSiteSearching(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [siteSearch, form.plaques, form.dors]);
 
   // Split current selection into KPI keys vs counter keys
   const kpiKeySet = useMemo(() => new Set(kpiCatalog.map(k => k.kpi_key)), [kpiCatalog]);
