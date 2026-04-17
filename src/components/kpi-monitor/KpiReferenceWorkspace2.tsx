@@ -396,7 +396,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
           </div>
         </Panel>
 
-        <div className="mt-6">
+        <div ref={reviewRef} className="mt-6 scroll-mt-6">
           <Panel title={selectedKpi ? `Review Workspace — ${selectedKpi.display_name}` : 'Review Workspace'} description={selectedKpi ? 'Open, review, and edit the selected KPI in the lower panel.' : 'Select a KPI above to open its lower review workspace.'}>
             {!selectedKpi || !draft ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
