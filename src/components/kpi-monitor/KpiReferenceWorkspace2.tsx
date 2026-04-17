@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowDownRight,
-  BarChart3,
   BookOpen,
   CheckCircle2,
   Eye,
@@ -195,8 +194,26 @@ const KpiReferenceWorkspace2: React.FC = () => {
         threshold_critical: draft.critical.trim() === '' ? null : Number(draft.critical),
       };
 
-      const { error } = await supabase.from('kpi_catalog').update(updateBody).eq('id', Number(kpi.kpi_id));
-      if (error) throw error;
+      let updateError: any = null;
+
+      if (kpi.kpi_id && !Number.isNaN(Number(kpi.kpi_id))) {
+        const { error } = await supabase.from('kpi_catalog').update(updateBody).eq('id', Number(kpi.kpi_id));
+        updateError = error;
+      }
+
+      if (updateError) {
+        const { error: fallbackError } = await supabase.from('kpi_catalog').update(updateBody).eq('kpi_key', kpi.kpi_key);
+        updateError = fallbackError;
+      }
+
+      if (updateError) {
+        const message = String(updateError.message || 'Unable to update KPI metadata.');
+        if (/permission|policy|denied|row-level security|rls/i.test(message)) {
+          throw new Error('Save blocked by backend permissions on kpi_catalog. A backend update endpoint or relaxed RLS policy is required.');
+        }
+        throw updateError;
+      }
+
       return true;
     },
     onSuccess: async () => {
@@ -314,7 +331,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
           <div className="mb-5 flex flex-col gap-3 rounded-[24px] border border-slate-200 bg-slate-50/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="inline-flex items-center rounded-full border border-teal-200 bg-teal-50 px-3 py-1 font-bold text-teal-700">
-                {filteredCatalog.length} result{filteredCatalog.length === 1 ? '' : 's'}
+                {catalogQuery.isLoading ? 'Loading catalog...' : `${filteredCatalog.length} result${filteredCatalog.length === 1 ? '' : 's'}`}
               </span>
               {activeFilterCount > 0 ? (
                 <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-900">
@@ -351,7 +368,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
             </div>
             <div className="divide-y divide-slate-200 bg-white">
               {catalogQuery.isLoading ? (
-                <div className="px-6 py-12 text-sm text-slate-500">Loading KPI reference...</div>
+                <div className="px-6 py-12 text-sm text-slate-500">Loading full KPI catalog from backend...</div>
               ) : filteredCatalog.length > 0 ? filteredCatalog.map(item => {
                 const isSelected = selectedKpiKey === item.kpi_key;
                 const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
