@@ -133,7 +133,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
 
   const catalogQuery = useQuery({
     queryKey: ['kpi-reference2-catalog'],
-    queryFn: fetchKpiCatalogFromDB,
+    queryFn: fetchKpiCatalogFromVps,
     staleTime: 60_000,
   });
 
