@@ -1665,9 +1665,41 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                               e.stopPropagation();
                               setState(prev => ({
                                 ...prev,
-                                graphSlots: prev.graphSlots.map(s =>
-                                  s.id === slot.id ? { ...s, kpiIds: s.kpiIds.filter(k => k !== kpiIdItem) } : s
-                                ),
+                                graphSlots: prev.graphSlots.map(s => {
+                                  if (s.id !== slot.id) return s;
+                                  const nextKpiIds = s.kpiIds.filter(k => k !== kpiIdItem);
+                                  const prevCfg = s.config || DEFAULT_GRAPH_CONFIG;
+                                  // Drop the removed KPI from yAxisAssignments
+                                  const { [kpiIdItem]: _removed, ...remainingAssign } = prevCfg.yAxisAssignments || {};
+                                  // Determine which axes still have KPIs/counters assigned
+                                  const usedAxes = new Set<number>();
+                                  for (const kid of nextKpiIds) {
+                                    usedAxes.add(remainingAssign[kid] === 1 ? 1 : 0);
+                                  }
+                                  for (const [key, val] of Object.entries(remainingAssign)) {
+                                    if (key.startsWith('counter_')) usedAxes.add(val === 1 ? 1 : 0);
+                                  }
+                                  // Reset Y axis side(s) with no remaining series back to auto
+                                  const nextYAxis = usedAxes.has(0) ? prevCfg.yAxis : { mode: 'auto' as const };
+                                  const nextYAxisRight = usedAxes.has(1) ? prevCfg.yAxisRight : { mode: 'auto' as const };
+                                  // Also drop per-KPI overrides for the removed KPI
+                                  const { [kpiIdItem]: _s1, ...splitByPerKpi } = prevCfg.splitByPerKpi || {};
+                                  const { [kpiIdItem]: _s2, ...splitByPerKpi2 } = prevCfg.splitByPerKpi2 || {};
+                                  const { [kpiIdItem]: _ct, ...chartTypePerKpi } = prevCfg.chartTypePerKpi || {};
+                                  return {
+                                    ...s,
+                                    kpiIds: nextKpiIds,
+                                    config: {
+                                      ...prevCfg,
+                                      yAxisAssignments: remainingAssign,
+                                      yAxis: nextYAxis,
+                                      yAxisRight: nextYAxisRight,
+                                      splitByPerKpi,
+                                      splitByPerKpi2,
+                                      chartTypePerKpi,
+                                    },
+                                  };
+                                }),
                               }));
                             }}
                             className="ml-0.5 hover:text-destructive"
