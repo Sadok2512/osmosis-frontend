@@ -1197,6 +1197,17 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
                 const slotData = activeTableSlot ? slotDataById.get(activeTableSlot.id) || [] : [];
+                if (typeof window !== 'undefined') {
+                  console.log('[TableData DEBUG]', {
+                    tsDataLen: tsData.length,
+                    hasSlotTags,
+                    activeTableSlotId: activeTableSlot?.id,
+                    slotKpiIds: activeTableSlot?.kpiIds,
+                    slotCounterIds: activeTableSlot?.counterIds,
+                    slotDataLen: slotData.length,
+                    sampleTsData: tsData.slice(0, 3).map((d: any) => ({ kpi: d.kpi, _slotId: d._slotId })),
+                  });
+                }
 
                 return (
                   <>
