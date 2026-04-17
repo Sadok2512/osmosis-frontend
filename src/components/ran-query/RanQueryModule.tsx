@@ -138,6 +138,14 @@ const KPI_LIBRARY = [
   'RACH_SR',
   'CSFB_SR',
 ];
+const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string; description: string }[] = [
+  { value: 'cell', label: 'Cell', description: 'Per-cell granularity (highest detail).' },
+  { value: 'band', label: 'Band', description: 'Aggregated by frequency band.' },
+  { value: 'site', label: 'Site', description: 'Per-site totals across all cells.' },
+  { value: 'plaque', label: 'Plaque', description: 'Aggregated by operational plaque.' },
+];
+const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
+
 const DEFAULT_FORM = (): CreateFormState => {
   const now = new Date();
   const end = toLocalDateTimeInput(now);
@@ -154,6 +162,12 @@ const DEFAULT_FORM = (): CreateFormState => {
     relativeUnit: 'hours',
     manualInput: '',
     selectedKpis: [],
+    plaques: [],
+    dors: [],
+    sites: [],
+    zoneArcep: [],
+    aggregation: 'cell',
+    dimensions: [],
   };
 };
 
