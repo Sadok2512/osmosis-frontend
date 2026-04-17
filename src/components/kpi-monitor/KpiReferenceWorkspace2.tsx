@@ -19,8 +19,9 @@ import { toast } from '@/hooks/use-toast';
 import { fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
 import { useKpiExplain } from './api/kpiMonitorApi';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-type DetailTab = 'overview' | 'formula' | 'thresholds' | 'source';
+type DetailSection = 'overview' | 'formula' | 'thresholds' | 'source';
 type FilterStatus = 'all' | 'active' | 'inactive';
 
 interface KpiDraft {
