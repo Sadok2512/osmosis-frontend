@@ -3,11 +3,9 @@ import { CSVDataProvider } from '../components/bi/CSVDataStore';
 import AppSidebar from '../components/otarie/AppSidebar';
 import DashboardOverview from '../components/otarie/DashboardOverview';
 
-// Lazy load all heavy page components
 const SitesMonitor = lazy(() => import('../components/otarie/SitesMonitor'));
 const GlobalDashboard = lazy(() => import('../components/otarie/GlobalDashboard'));
 const AdvancedAnalytics = lazy(() => import('../components/otarie/AdvancedAnalytics'));
-
 const RadioMobility = lazy(() => import('../components/otarie/RadioMobility'));
 const AnalyticBIStudio = lazy(() => import('../components/otarie/AnalyticBIStudio'));
 const SubscriberExperience = lazy(() => import('../components/otarie/SubscriberExperience'));
@@ -21,6 +19,7 @@ const TopologiePage = lazy(() => import('../components/otarie/TopologiePage'));
 const ParametersPage = lazy(() => import('../components/otarie/ParametersPage'));
 const AgentHubPage = lazy(() => import('../components/otarie/AgentHubPage'));
 const KPIMonitorPage = lazy(() => import('../components/kpi-monitor/KpiReferenceWorkspace'));
+const KpiReference2Page = lazy(() => import('../components/kpi-monitor/KpiReferenceWorkspace2'));
 const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
 const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
 const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
@@ -28,10 +27,8 @@ const RanQueryModule = lazy(() => import('../components/ran-query/RanQueryModule
 const NetworkTopologyPage = lazy(() => import('../components/otarie/NetworkTopologyPage'));
 const PrecisionArchitectPage = lazy(() => import('./PrecisionArchitect'));
 
-import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
-import { fetchSites, generateMapFeatures } from '../services/mockData';
-import { Search, MapPin, Filter, LayoutGrid, ChevronRight } from 'lucide-react';
-import { getQoEColor, VENDORS, URS, DEPARTMENTS, PLAQUES } from '../constants';
+import { Filters, KPIType, SiteSummary, AppTab } from '../types';
+import { fetchSites } from '../services/mockData';
 
 export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
@@ -53,10 +50,25 @@ const Index: React.FC = () => {
     const saved = localStorage.getItem('osmosis_enabled_modules');
     if (saved) return JSON.parse(saved);
     return {
-      dashboard_overview: true, list: true, sites: true, traffic: true,
-      alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true,
-      pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, topology: true,
+      dashboard_overview: true,
+      list: true,
+      sites: true,
+      traffic: true,
+      alerts: true,
+      detector: true,
+      ai_assistant: true,
+      radio_profile: true,
+      topologie: true,
+      rag: true,
+      docs: true,
+      backend_admin: true,
+      kpi_monitor: true,
+      kpi_reference2: true,
+      pm_dashboard: true,
+      parameters: true,
+      pulse_report: true,
+      sentinel: true,
+      topology: true,
       ran_query: true,
     };
   });
@@ -112,10 +124,6 @@ const Index: React.FC = () => {
     });
   }, [sites, siteSearch, filters]);
 
-  const updateFilter = (key: keyof Filters, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
   const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : '';
 
   const renderContent = () => {
@@ -128,7 +136,7 @@ const Index: React.FC = () => {
         return <AdvancedAnalytics filters={filters} theme={theme} />;
       case 'sites':
       case 'list':
-        return null; // SitesMonitor is always mounted, rendered separately
+        return null;
       case 'alerts':
         return null;
       case 'radio':
@@ -153,6 +161,8 @@ const Index: React.FC = () => {
         return <TopologiePage />;
       case 'kpi_monitor':
         return <KPIMonitorPage />;
+      case 'kpi_reference2':
+        return <KpiReference2Page />;
       case 'pm_dashboard':
         return <PmDashboardPage />;
       case 'parameters':
@@ -182,44 +192,33 @@ const Index: React.FC = () => {
 
   return (
     <CSVDataProvider>
-    <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
-      <AppSidebar
-        filters={filters}
-        setFilters={setFilters}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        isCollapsed={isSidebarCollapsed}
-        setIsCollapsed={setIsSidebarCollapsed}
-        theme={theme}
-        setTheme={setTheme}
-        enabledModules={enabledModules}
-      />
-      <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-        {/* SitesMonitor in its own Suspense to prevent re-mount when other lazy components suspend */}
-        <Suspense fallback={<LazyFallback />}>
-          <div style={{ display: (activeTab === 'sites' || activeTab === 'list') ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-            <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
-          </div>
-        </Suspense>
-        {activeTab !== 'sites' && activeTab !== 'list' && (
+      <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
+        <AppSidebar
+          filters={filters}
+          setFilters={setFilters}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCollapsed={isSidebarCollapsed}
+          setIsCollapsed={setIsSidebarCollapsed}
+          theme={theme}
+          setTheme={setTheme}
+          enabledModules={enabledModules}
+        />
+        <div className="flex-1 flex flex-col overflow-hidden relative z-0">
           <Suspense fallback={<LazyFallback />}>
-            {renderContent()}
+            <div style={{ display: activeTab === 'sites' || activeTab === 'list' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <SitesMonitor isVisible={activeTab === 'sites' || activeTab === 'list'} filters={filters} onFilterChange={setFilters} onCellSelect={(id) => { setSelectedCellId(id); }} highlightedCellIds={highlightedCellIds} onClearHighlights={() => setHighlightedCellIds([])} onLaunchAI={(siteName) => { setAiInitialPrompt(`Analyse RCA complète du site ${siteName} : identifie les problèmes de QoE, throughput, latence et propose des actions correctives.`); setActiveTab('ai_assistant'); }} />
+            </div>
           </Suspense>
-        )}
+          {activeTab !== 'sites' && activeTab !== 'list' && (
+            <Suspense fallback={<LazyFallback />}>
+              {renderContent()}
+            </Suspense>
+          )}
+        </div>
       </div>
-    </div>
     </CSVDataProvider>
   );
 };
-
-const FilterSelect = ({ label, value, options, onChange }: any) => (
-  <div className="flex flex-col gap-2 text-left">
-    <span className="text-[8px] font-black uppercase text-slate-400 tracking-[0.15em] ml-1">{label}</span>
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3 py-2.5 rounded-xl border border-slate-100 bg-white text-slate-600 text-[10px] font-black uppercase outline-none focus:border-blue-300 transition-all shadow-sm">
-      {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-    </select>
-  </div>
-);
 
 export default Index;
