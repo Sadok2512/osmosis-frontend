@@ -86,7 +86,21 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
       body: JSON.stringify(body),
     })
       .then(r => r.ok ? r.json() : { series: [] })
-      .then(data => { setTsData(data.series || []); setLoading(false); })
+      .then(data => {
+        const raw = data.series || data.data || [];
+        const normalized = raw.flatMap((s: any) => {
+          const ts = s.ts || s.timestamp || s.date;
+          const counterId = s.counter_id || s.counter_name || '';
+          if (counterId) {
+            return [{ ts, counter: counterId, value: s.value ?? s.kpi_value ?? s.val ?? 0 }];
+          }
+          return counterNames
+            .filter((name) => Object.prototype.hasOwnProperty.call(s, name))
+            .map((name) => ({ ts, counter: name, value: s[name] ?? 0 }));
+        });
+        setTsData(normalized);
+        setLoading(false);
+      })
       .catch(() => { setTsData([]); setLoading(false); });
   }, [counterNames.join(','), dateFrom, dateTo, granularity, siteName, JSON.stringify(filters)]);
 
