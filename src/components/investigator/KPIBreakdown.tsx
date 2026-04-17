@@ -21,7 +21,7 @@ interface Props {
   granularity?: Granularity;
   filters?: { dimension: string; values: string[] }[];
   splitBy?: string;
-  /** Per-KPI split dimension map (takes precedence over `splitBy`). */
+  /** Per-KPI split dimension map (kept for compatibility, ignored by Breakdown). */
   splitByPerKpi?: Record<string, string>;
   timeSeriesData?: DataPoint[];
   jalons?: Jalon[];
@@ -56,11 +56,6 @@ interface CounterTsPoint {
   ne?: string;
   dimension_key?: string;
 }
-
-
-
-
-
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
 const DEN_COLORS = ['#3b82f6', '#2563eb', '#60a5fa', '#93c5fd', '#1d4ed8'];
@@ -450,22 +445,12 @@ const SingleKpiBreakdown: React.FC<{
     setLoading(true);
     const body: any = { counter_names: names, date_from: dateFrom, date_to: dateTo, granularity };
 
-    // Always use split_by_dimension for any split type — the PM counters backend
-    // returns dimension_key for all split modes (CELL, SITE, PMQAP, etc.).
-    let suppressCellFilter = false;
-    if (splitActive) {
-      body.split_by_dimension = true;
-      const sb = (splitBy || '').toUpperCase();
-      if (sb === 'CELL') {
-        suppressCellFilter = true;              // don't restrict to a single cell when splitting
-      }
-    }
-
+    // Breakdown stays at perimeter level. Ignore chart split-by here and only use base filters.
     const dimFilterValues: string[] = [];
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
       if (dim === 'SITE' && f.values?.length) body.site_name = f.values.length === 1 ? f.values[0] : f.values;
-      else if (dim === 'CELL' && f.values?.length && !suppressCellFilter) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
+      else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
       else if (PM_DIM_TYPES.has(dim) && f.values?.length) dimFilterValues.push(...f.values);
     }
     if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
@@ -513,7 +498,7 @@ const SingleKpiBreakdown: React.FC<{
       })
       .catch(() => { setCounterTsData([]); setLoading(false); });
     return () => ctrl.abort();
-  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters), splitActive, splitBy]);
+  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters)]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
@@ -693,7 +678,7 @@ const SingleKpiBreakdown: React.FC<{
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
 
-  /* ── KPI Timeseries by Cell chart (uses timeSeriesData from KPI Engine) ── */
+  /* ─── KPI Timeseries by Cell chart (uses timeSeriesData from KPI Engine) ─── */
   const kpiSplitChart = useMemo(() => {
     if (!splitActive || !timeSeriesData || timeSeriesData.length === 0) return null;
 
@@ -864,13 +849,8 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Resolve split for each KPI: per-KPI map > slot-level
-  const getEffectiveSplit = useCallback((kpiId: string) => {
-    const perKpi = splitByPerKpi?.[kpiId];
-    if (perKpi && perKpi !== 'None') return perKpi;
-    if (splitBy && splitBy !== 'None') return splitBy;
-    return undefined;
-  }, [splitByPerKpi, splitBy]);
+  // Breakdown is perimeter-level only. Ignore graph split metadata.
+  const getEffectiveSplit = useCallback((_kpiId: string) => undefined, []);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
