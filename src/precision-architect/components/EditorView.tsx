@@ -137,83 +137,21 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
 
         <div className="flex-grow p-12 relative overflow-y-auto blueprint-grid custom-scrollbar">
           <div className="grid grid-cols-12 gap-6 relative z-10 max-w-7xl mx-auto">
-            {[
-              { label: 'Accessibility', value: '98.2%', trend: '+0.4%', active: true },
-              { label: 'Retainability', value: '99.1%', trend: '+0.1%', active: false },
-            ].map((kpi) => (
-              <div key={kpi.label} className="col-span-12 md:col-span-6 lg:col-span-3">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-outline-variant/10 group relative">
-                  <div className="absolute -top-3 -right-3 hidden group-hover:flex gap-1 z-20">
-                    <button
-                      onClick={() => setShowSettings(true)}
-                      className="w-8 h-8 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-outline hover:text-primary transition-colors"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </button>
-                    <button className="w-8 h-8 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-outline hover:text-primary transition-colors cursor-grab">
-                      <GripHorizontal className="w-3.5 h-3.5" />
-                    </button>
+            {widgets.length === 0 && (
+              <div className="col-span-12">
+                <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+                  <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
+                    <Plus className="w-7 h-7" />
                   </div>
-                  <div className="flex justify-between items-start mb-6">
-                    <h3 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{kpi.label}</h3>
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-primary/40" />
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-black font-headline tracking-tighter text-on-surface">{kpi.value}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <div className="col-span-12 md:col-span-6 row-span-2">
-              <div className="bg-white p-6 rounded-2xl shadow-xl border-2 border-primary ring-8 ring-primary/5 group relative h-full flex flex-col min-h-[300px]">
-                <div className="absolute -top-3 -right-3 flex gap-1 z-20">
-                  <button
-                    onClick={() => setShowSettings(!showSettings)}
-                    className="w-8 h-8 rounded-full bg-primary text-white shadow-lg flex items-center justify-center"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-white shadow-lg border border-outline-variant/20 flex items-center justify-center text-outline cursor-grab">
-                    <GripHorizontal className="w-4 h-4" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full bg-white shadow-lg border border-outline-variant/20 flex items-center justify-center text-error">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="flex justify-between items-center mb-8">
                   <div>
-                    <h3 className="text-2xl font-black text-on-surface font-headline">{activeWidget}</h3>
-                    <p className="text-xs font-bold text-on-surface-variant uppercase tracking-widest mt-1">Real-time throughput (Gbps)</p>
-                  </div>
-                </div>
-
-                <div className="flex-grow flex items-center justify-center">
-                  <div className="w-full h-64 relative">
-                    <PAEChart variant="editor" height="100%" />
+                    <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">Empty canvas</h3>
+                    <p className="text-xs font-bold text-on-surface-variant max-w-md">
+                      Use the floating toolbox on the right to add a Chart, Map, KPI Card or Table.
+                    </p>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <div className="col-span-12 md:col-span-6">
-              <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 h-full flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-on-surface font-headline">Network Map</h3>
-                  <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Live geo-distribution</p>
-                </div>
-                <div className="flex-1 min-h-[280px]">
-                  <PAMapWidget height="100%" />
-                </div>
-              </div>
-            </div>
-
-            <div className="col-span-12">
-              <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4">
-                <PATableWidget height={340} />
-              </div>
-            </div>
+            )}
 
             {widgets.map(w => (
               <div key={w.id} className={cn(
