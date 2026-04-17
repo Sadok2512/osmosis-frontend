@@ -110,7 +110,15 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       <div className="relative w-[720px] max-w-[90vw] h-[540px] max-h-[80vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 bg-primary text-primary-foreground">
-          <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-80" />}
+            {!loading && error && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-primary-foreground/90" title={error}>
+                catalogue local
+              </span>
+            )}
+          </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -150,7 +158,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
                   <ChevronRight className="w-3 h-3" />
                 </div>
               </button>
-              {BI_KPI_CATEGORIES.map(cat => (
+              {dynamicCategories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
