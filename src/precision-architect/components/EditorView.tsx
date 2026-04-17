@@ -381,14 +381,16 @@ export default function EditorView({
                 { label: 'Appearance' },
                 { label: 'Interactions' },
                 { label: 'Alerting' },
+                { label: 'Chat', icon: MessageSquare },
               ].map((tab) => (
                 <button
                   key={tab.label}
                   className={cn(
-                    "w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
+                    "w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
                     tab.active ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
                   )}
                 >
+                  {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
                   {tab.label}
                 </button>
               ))}
