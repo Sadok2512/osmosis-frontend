@@ -162,6 +162,8 @@ const Index: React.FC = () => {
         return <InvestigatorPage />;
       case 'topology':
         return <NetworkTopologyPage />;
+      case 'precision_architect':
+        return <PrecisionArchitectPage />;
       default:
         return null;
     }
