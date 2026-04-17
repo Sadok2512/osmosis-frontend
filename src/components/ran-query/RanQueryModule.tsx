@@ -706,15 +706,15 @@ const RanQueryModule: React.FC = () => {
                         <p className="font-bold text-foreground">{report.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">Updated {formatDateTime(report.updatedAt)}</p>
                       </div>
-                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-medium', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text, vendorBadge(report.vendor).border)}>{report.vendor}</span>
-                      <div className="flex flex-wrap gap-1">
+                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text, vendorBadge(report.vendor).border)}>{report.vendor}</span>
+                      <div className="flex flex-wrap items-center gap-1">
                         {report.technologies.map(t => (
-                          <span key={t} className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
+                          <span key={t} className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
                         ))}
                       </div>
                       <span className="text-xs text-muted-foreground">{describeTimeConfig(report.timeConfig)}</span>
                       <span className="font-semibold">{report.kpis.length}</span>
-                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-bold', statusClasses(report.status))}>{report.status}</span>
+                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', statusClasses(report.status))}>{report.status}</span>
                       <span className="text-xs text-muted-foreground">{formatDateTime(report.createdAt)}</span>
                       <div className="flex flex-nowrap items-center gap-1.5 justify-end">
                         <button
