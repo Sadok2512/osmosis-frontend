@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Layout as LayoutIcon,
   Edit3,
@@ -14,9 +14,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
+import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+
+const GridLayout = WidthProvider(ReactGridLayout);
 import { ViewMode, PAPage, WidgetKind, DynWidget, WidgetLayout } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
@@ -60,21 +62,9 @@ export default function EditorView({
 }: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasWidth, setCanvasWidth] = useState(1200);
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setCanvasWidth(w);
-    });
-    obs.observe(canvasRef.current);
-    return () => obs.disconnect();
-  }, []);
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
@@ -227,7 +217,7 @@ export default function EditorView({
 
         <PAToolbar />
 
-        <div ref={canvasRef} className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
+        <div className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
           {widgets.length === 0 && (
             <div className="max-w-7xl mx-auto">
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
@@ -244,13 +234,12 @@ export default function EditorView({
             </div>
           )}
 
-          {widgets.length > 0 && canvasWidth > 0 && (
+          {widgets.length > 0 && (
             <GridLayout
               className="layout"
               layout={layout}
               cols={COLS}
               rowHeight={ROW_HEIGHT}
-              width={canvasWidth - 64}
               margin={[16, 16]}
               containerPadding={[0, 0]}
               draggableHandle=".widget-drag-handle"
