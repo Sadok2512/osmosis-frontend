@@ -237,7 +237,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
         <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
           <div className="flex flex-wrap gap-1 max-w-[400px] overflow-hidden">
             {Array.from(selected).slice(0, 6).map(key => {
-              const k = BI_KPI_CATALOG.find(c => c.key === key);
+              const k = catalog.find(c => c.key === key);
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[k?.category || ''] }} />
