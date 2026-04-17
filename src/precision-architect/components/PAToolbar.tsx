@@ -53,8 +53,67 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
   return (
     <div className="bg-surface-container-low/40 border-b border-outline-variant/20">
+      {/* Scope / date row */}
+      <div className="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-outline-variant/10">
+        {/* Périmètre */}
+        <Pill icon={<Filter className="w-3.5 h-3.5 text-on-surface-variant" />}>
+          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Périmètre</span>
+          <div className="flex items-center gap-1 ml-1">
+            {TECHS.map(t => (
+              <span key={t.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
+                {t.label}
+              </span>
+            ))}
+          </div>
+          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">4</span>
+        </Pill>
+
+        {/* Date start */}
+        <Pill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
+          <span>13/04/2026</span>
+          <span className="text-on-surface-variant/60 font-medium">00:00</span>
+        </Pill>
+
+        <span className="text-on-surface-variant/60 font-bold">—</span>
+
+        {/* Date end */}
+        <Pill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
+          <span>15/04/2026</span>
+          <span className="text-on-surface-variant/60 font-medium">00:00</span>
+        </Pill>
+
+        {/* Période */}
+        <Pill icon={<Clock className="w-3.5 h-3.5 text-on-surface-variant" />}>
+          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Période</span>
+          <span className="font-black">3j</span>
+          <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+        </Pill>
+
+        {/* Grain */}
+        <Pill>
+          <span className="text-emerald-600 uppercase tracking-wide text-[11px]">Grain :</span>
+          <span className="text-emerald-700 font-black">15 min</span>
+          <ChevronDown className="w-3 h-3 text-emerald-600" />
+        </Pill>
+
+        {/* Jalons */}
+        <Pill icon={<Flag className="w-3.5 h-3.5 text-rose-500" />}>
+          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
+          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
+        </Pill>
+
+        <div className="ml-auto">
+          <button
+            onClick={onApply}
+            className="h-9 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all"
+          >
+            Appliquer
+          </button>
+        </div>
+      </div>
+
       {/* Filter chips row */}
-      <div className="px-6 py-2.5 flex flex-wrap items-center gap-2 border-b border-outline-variant/10">
+      <div className="px-6 py-2.5 flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
           <Filter className="w-3.5 h-3.5" />
           <span>Filtres</span>
@@ -139,65 +198,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
             <span>Effacer filtres</span>
           </button>
         )}
-      </div>
-
-      {/* Existing scope/date row */}
-      <div className="px-6 py-3 flex flex-wrap items-center gap-3">
-        {/* Périmètre */}
-        <Pill icon={<Filter className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Périmètre</span>
-          <div className="flex items-center gap-1 ml-1">
-            {TECHS.map(t => (
-              <span key={t.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
-                {t.label}
-              </span>
-            ))}
-          </div>
-          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">4</span>
-        </Pill>
-
-        {/* Date start */}
-        <Pill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span>13/04/2026</span>
-          <span className="text-on-surface-variant/60 font-medium">00:00</span>
-        </Pill>
-
-        <span className="text-on-surface-variant/60 font-bold">—</span>
-
-        {/* Date end */}
-        <Pill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span>15/04/2026</span>
-          <span className="text-on-surface-variant/60 font-medium">00:00</span>
-        </Pill>
-
-        {/* Période */}
-        <Pill icon={<Clock className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Période</span>
-          <span className="font-black">3j</span>
-          <ChevronDown className="w-3 h-3 text-on-surface-variant" />
-        </Pill>
-
-        {/* Grain */}
-        <Pill>
-          <span className="text-emerald-600 uppercase tracking-wide text-[11px]">Grain :</span>
-          <span className="text-emerald-700 font-black">15 min</span>
-          <ChevronDown className="w-3 h-3 text-emerald-600" />
-        </Pill>
-
-        {/* Jalons */}
-        <Pill icon={<Flag className="w-3.5 h-3.5 text-rose-500" />}>
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
-          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
-        </Pill>
-
-        <div className="ml-auto">
-          <button
-            onClick={onApply}
-            className="h-9 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all"
-          >
-            Appliquer
-          </button>
-        </div>
       </div>
     </div>
   );
