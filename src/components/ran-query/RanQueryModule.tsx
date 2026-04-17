@@ -107,7 +107,7 @@ interface RanReport {
 
 interface CreateFormState {
   name: string;
-  vendor: string;
+  vendors: string[];
   technologies: Tech[];
   timeMode: TimeMode;
   absoluteStart: string;
@@ -165,7 +165,7 @@ const DEFAULT_FORM = (): CreateFormState => {
   const start = toLocalDateTimeInput(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   return {
     name: '',
-    vendor: 'Ericsson',
+    vendors: ['Ericsson'],
     technologies: ['4G'],
     timeMode: 'relative',
     absoluteStart: start,
