@@ -106,7 +106,7 @@ const agents: SubAgent[] = [
     icon: <ShieldCheck className="w-6 h-6" />,
     color: 'border-red-500/40 ring-red-500/20',
     gradient: 'from-red-500/15 to-red-600/5',
-    status: 'standby',
+    status: 'active',
     tasks: [
       'Surveillance proactive des seuils critiques',
       'Détection précoce des dégradations de QoE',
@@ -116,6 +116,24 @@ const agents: SubAgent[] = [
     ],
     dataSources: ['kpi_qoe_aggregated', 'ml_features', 'kpi_catalog'],
     capabilities: ['Threshold monitoring', 'Anomaly detection', 'Predictive alerts', 'Auto-escalation'],
+  },
+  {
+    id: 'ANALYTIC',
+    name: 'ANALYTIC',
+    role: 'Reporting & Synthesis',
+    icon: <Brain className="w-6 h-6" />,
+    color: 'border-cyan-500/40 ring-cyan-500/20',
+    gradient: 'from-cyan-500/15 to-cyan-600/5',
+    status: 'active',
+    tasks: [
+      'Génération de rapports hebdomadaires et exécutifs',
+      'Synthèse multi-agents avec traçabilité des sources',
+      'Diagnostics cellule complets (KPIs + params + alarmes + RCA)',
+      'Rapports comparatifs inter-vendor et inter-région',
+      'Recommandations actionnables avec priorisation P1/P2/P3',
+    ],
+    dataSources: ['pm_15m', 'kpi_definition', 'param_dump', 'cm_history_nokia', 'fm_alarms_nokia'],
+    capabilities: ['Weekly reports', 'Cell diagnostic', 'Executive summary', 'Cross-agent synthesis', 'Actionable recommendations'],
   },
 ];
 
@@ -134,6 +152,8 @@ const connections: Connection[] = [
   { from: 'TOPO', to: 'PARMY', label: 'Contexte réseau', type: 'data' },
   { from: 'TRACE', to: 'PARMY', label: 'Corrélation paramètres', type: 'data' },
   { from: 'SENTINEL', to: 'PULSE', label: 'Alerte KPI', type: 'escalation' },
+  { from: 'PULSE', to: 'ANALYTIC', label: 'Données KPI', type: 'data' },
+  { from: 'TRACE', to: 'ANALYTIC', label: 'Résultats RCA', type: 'data' },
 ];
 
 const connectionColors: Record<Connection['type'], string> = {

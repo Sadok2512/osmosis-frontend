@@ -25,7 +25,7 @@ import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
 import { getStoredSession } from '@/services/adminAuth';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'OSMOSIS';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
 type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
@@ -34,6 +34,7 @@ const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string 
   SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
   PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
+  ANALYTIC: { emoji: '📊', label: 'ANALYTIC', color: 'hsl(190, 70%, 50%)' },
   OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
 };
 
