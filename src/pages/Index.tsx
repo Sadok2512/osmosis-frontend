@@ -25,6 +25,7 @@ const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboar
 const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
 const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
 const NetworkTopologyPage = lazy(() => import('../components/otarie/NetworkTopologyPage'));
+const PrecisionArchitectPage = lazy(() => import('./PrecisionArchitect'));
 
 import { Filters, KPIType, SiteSummary, GeoJSONFeature, AppTab } from '../types';
 import { fetchSites, generateMapFeatures } from '../services/mockData';
@@ -161,6 +162,8 @@ const Index: React.FC = () => {
         return <InvestigatorPage />;
       case 'topology':
         return <NetworkTopologyPage />;
+      case 'precision_architect':
+        return <PrecisionArchitectPage />;
       default:
         return null;
     }
