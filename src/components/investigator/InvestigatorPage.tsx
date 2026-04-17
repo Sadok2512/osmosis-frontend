@@ -1165,20 +1165,28 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 const getSlotData = (slot: GraphSlot | null) => {
                   if (!slot) return [] as any[];
 
-                  const slotKpiIds = new Set(slot.kpiIds || []);
+                  const slotKpiIds = slot.kpiIds || [];
                   const slotCounterIds = new Set((slot as any).counterIds || []);
-                  const allSlotKeys = new Set<string>([...slotKpiIds, ...slotCounterIds]);
+                  const hasConfiguredKeys = slotKpiIds.length > 0 || slotCounterIds.size > 0;
                   const matchesSlotConfig = (d: any) => {
-                    if (allSlotKeys.size === 0) return true; // no slot keys → accept anything
-                    return allSlotKeys.has(baseKey(d.kpi));
+                    if (!hasConfiguredKeys) return true;
+                    const key = typeof d?.kpi === 'string' ? d.kpi : '';
+                    if (slotCounterIds.has(baseKey(key))) return true;
+                    return slotKpiIds.some((id) => key === id || key.startsWith(`${id}@`));
                   };
 
                   if (hasSlotTags) {
                     // Strict slot tag match first
                     const tagged = tsData.filter((d: any) => d._slotId === slot.id && matchesSlotConfig(d));
                     if (tagged.length > 0) return tagged;
+                    // If the slot has tagged data but the key matcher is too strict
+                    // (legacy aliases / backend naming drift), still show that slot's data.
+                    const taggedAny = tsData.filter((d: any) => d._slotId === slot.id);
+                    if (taggedAny.length > 0) return taggedAny;
                     // Fallback: untagged points that match this slot's KPIs/counters
-                    return tsData.filter((d: any) => d._slotId == null && matchesSlotConfig(d));
+                    const untagged = tsData.filter((d: any) => d._slotId == null && matchesSlotConfig(d));
+                    if (untagged.length > 0) return untagged;
+                    return [] as any[];
                   }
                   // No slot tags in dataset → pure KPI/counter key match
                   return tsData.filter((d: any) => matchesSlotConfig(d));
