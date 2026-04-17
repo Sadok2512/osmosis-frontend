@@ -730,6 +730,9 @@ const RanQueryModule: React.FC = () => {
                         <button onClick={() => downloadCsv(report)} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                           <Download className="h-3.5 w-3.5" /> Download
                         </button>
+                        <button onClick={() => editReport(report.id)} className="rounded-xl border border-border/60 p-2 text-muted-foreground transition-all hover:border-primary/30 hover:text-primary" title="Edit">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                         <button onClick={() => duplicateReport(report.id)} className="rounded-xl border border-border/60 p-2 text-muted-foreground transition-all hover:border-primary/30 hover:text-primary" title="Duplicate">
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -881,7 +884,7 @@ const RanQueryModule: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-3">
-              <button onClick={() => { resetForm(); setView('list'); }} className="rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
+              <button onClick={() => { resetForm(); setEditingReportId(null); setView(editingReportId ? 'detail' : 'list'); }} className="rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                 Cancel
               </button>
               <button
@@ -889,7 +892,7 @@ const RanQueryModule: React.FC = () => {
                 disabled={!form.name.trim() || form.selectedKpis.length === 0 || form.technologies.length === 0}
                 className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90 disabled:opacity-50"
               >
-                <CheckCircle2 className="h-4 w-4" /> Create Report
+                <CheckCircle2 className="h-4 w-4" /> {editingReportId ? 'Save changes' : 'Create Report'}
               </button>
             </div>
           </div>
