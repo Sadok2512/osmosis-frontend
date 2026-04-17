@@ -298,6 +298,7 @@ const RanQueryModule: React.FC = () => {
   const [reports, setReports] = useState<RanReport[]>(() => fromStoredReports(localStorage.getItem(STORAGE_KEY)));
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [vendorFilter, setVendorFilter] = useState('ALL');
   const [techFilter, setTechFilter] = useState<'ALL' | Tech>('ALL');
