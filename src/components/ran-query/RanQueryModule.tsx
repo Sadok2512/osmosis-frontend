@@ -602,7 +602,7 @@ const RanQueryModule: React.FC = () => {
       setReports(prev => prev.map(r => r.id === editingReportId ? {
         ...r,
         name: form.name.trim(),
-        vendor: form.vendor,
+        vendor: form.vendors.join(', ') || 'Multi-Vendor',
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
@@ -627,7 +627,7 @@ const RanQueryModule: React.FC = () => {
     const report: RanReport = {
       id: `ran-report-${Date.now()}`,
       name: form.name.trim(),
-      vendor: form.vendor,
+      vendor: form.vendors.join(', ') || 'Multi-Vendor',
       technologies: form.technologies,
       kpis: form.selectedKpis,
       timeConfig: buildTimeConfig(form),
@@ -655,7 +655,7 @@ const RanQueryModule: React.FC = () => {
     const tc = r.timeConfig;
     setForm({
       name: r.name,
-      vendor: r.vendor,
+      vendors: r.vendor ? r.vendor.split(',').map(s => s.trim()).filter(Boolean) : [],
       technologies: r.technologies,
       timeMode: tc.timeMode,
       absoluteStart: tc.timeMode === 'absolute' ? tc.start : DEFAULT_FORM().absoluteStart,
@@ -984,7 +984,7 @@ const RanQueryModule: React.FC = () => {
                 <div className="rounded-2xl border border-border/60 bg-background/60 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Report preview</p>
                   <p className="mt-2 text-sm font-semibold text-foreground">{form.name.trim() || 'Untitled report'}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{form.vendor} · {form.technologies.join(' / ') || 'No technology selected'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{form.vendors.join(' / ') || 'No vendor selected'} · {form.technologies.join(' / ') || 'No technology selected'}</p>
                 </div>
               </div>
             </SectionCard>
