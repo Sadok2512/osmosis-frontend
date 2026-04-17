@@ -14,6 +14,7 @@ import {
   Trash2,
   FileText,
   MessageSquare,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
@@ -342,13 +343,23 @@ export default function EditorView({
               >
                 {widgets.map(w => (
                   <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
-                    <button
-                      onClick={() => removeWidget(w.id)}
-                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
-                      aria-label="Remove widget"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                      <button
+                        onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
+                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-white shadow-md border border-outline-variant/20 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+                        aria-label="Widget options"
+                      >
+                        <SlidersHorizontal className="w-3 h-3" />
+                        Options
+                      </button>
+                      <button
+                        onClick={() => removeWidget(w.id)}
+                        className="w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors"
+                        aria-label="Remove widget"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                     <WidgetRenderer widget={w} />
                   </div>
                 ))}
