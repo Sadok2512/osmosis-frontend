@@ -415,16 +415,19 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   // Smart x-axis interval
   const xInterval = smartXInterval(timestamps.length);
 
-  const legendHeight = 28; // scroll legend = single row
+  // Estimate legend rows from number of counter series (avg ~5 items per row at typical width)
+  const legendItemsCount = Array.isArray(counters) ? counters.length : 0;
+  const legendRows = Math.min(4, Math.max(1, Math.ceil(legendItemsCount / 5)));
+  const legendHeight = 18 + (legendRows - 1) * 16; // ~18px first row + 16px per extra
   const sliderHeight = 22;
 
   const option = {
     animation: false,
     backgroundColor: '#ffffff',
     grid: {
-      top: 32,
+      top: 16,
       right: 28,
-      bottom: legendHeight + sliderHeight + 20,
+      bottom: legendHeight + sliderHeight + 16,
       left: 62,
       containLabel: false,
     },
@@ -434,7 +437,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         type: 'slider' as const,
         xAxisIndex: 0,
         height: sliderHeight,
-        bottom: legendHeight - 4,
+        bottom: legendHeight - 2,
         filterMode: 'none' as const,
         borderColor: 'rgba(128,128,128,0.2)',
         backgroundColor: 'rgba(128,128,128,0.06)',
@@ -457,14 +460,15 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     legend: {
       show: true,
       bottom: 0,
+      left: 0,
+      right: 8,
       icon: 'roundRect',
-      itemWidth: 14,
+      itemWidth: 12,
       itemHeight: 4,
-      itemGap: 10,
-      type: 'scroll' as any,
-      pageIconSize: 10,
-      pageTextStyle: { fontSize: 9, color: '#6b7280' },
-      textStyle: { fontSize: 9, fontWeight: 500, color: '#4b5563', padding: [0, 0, 0, 2], overflow: 'truncate' as any, width: 180 },
+      itemGap: 12,
+      type: 'plain' as any,
+      align: 'left' as const,
+      textStyle: { fontSize: 9, fontWeight: 500, color: '#4b5563', padding: [0, 0, 0, 2] },
       tooltip: { show: true },
     },
     tooltip: {
@@ -1417,15 +1421,18 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        const legendHeight = 28; // scroll legend = single row
+        // Estimate legend rows from total series count (avg ~5 items per row)
+        const legendItemsCount = Array.isArray(series) ? series.length : 0;
+        const legendRows = Math.min(4, Math.max(1, Math.ceil(legendItemsCount / 5)));
+        const legendHeight = 18 + (legendRows - 1) * 16;
 
         const option: any = {
           animation: false,
           toolbox: { show: false },
           grid: {
-            top: 32,
+            top: 16,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendHeight + sliderHeight + 20,
+            bottom: legendHeight + sliderHeight + 16,
             left: 62,
             containLabel: false,
           },
@@ -1444,7 +1451,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               type: 'slider' as const,
               xAxisIndex: 0,
               height: sliderHeight,
-              bottom: legendHeight - 4,
+              bottom: legendHeight - 2,
               filterMode: 'none' as const,
               start: cfg.zoomWindow?.start,
               end: cfg.zoomWindow?.end,
@@ -1469,20 +1476,19 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           legend: {
             show: true,
             bottom: 0,
+            left: 0,
+            right: 8,
             icon: 'roundRect',
-            itemWidth: 14,
+            itemWidth: 12,
             itemHeight: 4,
-            itemGap: 10,
-            type: 'scroll' as any,
-            pageIconSize: 10,
-            pageTextStyle: { fontSize: 9, color: '#6b7280' },
+            itemGap: 12,
+            type: 'plain' as any,
+            align: 'left' as const,
             textStyle: {
               fontSize: 9,
               fontWeight: 500,
               color: '#4b5563',
               padding: [0, 0, 0, 2],
-              overflow: 'truncate' as any,
-              width: 180,
             },
             tooltip: { show: true },
           },
