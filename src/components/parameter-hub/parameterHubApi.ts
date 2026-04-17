@@ -1,12 +1,12 @@
-import { supabase } from '@/integrations/supabase/client';
+// ── Parameter Hub API — connected to parser /api/v1/dump ──
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 export interface ParameterRow {
-  id?: number;
   parameter: string;
   value: string | null;
   site_name: string | null;
   cell_name: string | null;
-  cell_dn: string | null;
+  cell_dn?: string | null;
   dn: string | null;
   vendor: string | null;
   bande: string | null;
@@ -14,13 +14,15 @@ export interface ParameterRow {
   plaque: string | null;
   dor: string | null;
   zone_arcep: string | null;
-  enodeb_id: number | null;
-  gnodeb_id: number | null;
-  mrbts_id: number | null;
+  enodeb_id?: number | null;
+  gnodeb_id?: number | null;
+  mrbts_id?: number | null;
   latitude: number | null;
   longitude: number | null;
-  netact: string | null;
-  version: string | null;
+  netact?: string | null;
+  version?: string | null;
+  node_id?: number | null;
+  object_type?: string | null;
 }
 
 export type AggregationLevel = 'cell' | 'sector' | 'band' | 'site' | 'plaque' | 'dor';
@@ -49,73 +51,75 @@ export const EMPTY_FILTERS: ParameterHubFilters = {
   bande: [],
 };
 
-const SELECT_COLS =
-  'parameter,value,site_name,cell_name,cell_dn,dn,vendor,bande,plaque,dor,zone_arcep,enodeb_id,gnodeb_id,mrbts_id,latitude,longitude,netact,version';
+async function dumpGet<T>(path: string): Promise<T> {
+  const url = getApiUrl(`dump/${path}`);
+  const res = await fetch(url, { headers: getApiHeaders() });
+  if (!res.ok) throw new Error(`Dump API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
 
-/** Distinct parameters list (for selector). */
+/** Distinct parameter names for the selector. */
 export async function fetchAvailableParameters(): Promise<string[]> {
-  const { data, error } = await (supabase as any)
-    .from('parameter_dump')
-    .select('parameter')
-    .limit(20000);
-  if (error) throw error;
-  return Array.from(new Set((data ?? []).map((r: any) => r.parameter).filter(Boolean))).sort() as string[];
+  return dumpGet<string[]>('params/distinct?column=parameter_raw&limit=20000');
 }
 
-/** Distinct values for a single dimension column. */
+/** Distinct values for a dimension column. */
 export async function fetchDistinctValues(column: keyof ParameterRow): Promise<string[]> {
-  const { data, error } = await (supabase as any)
-    .from('parameter_dump')
-    .select(column)
-    .not(column as string, 'is', null)
-    .limit(20000);
-  if (error) throw error;
-  const set = new Set<string>();
-  for (const r of data ?? []) {
-    const v = (r as any)[column];
-    if (v != null && String(v).trim() !== '') set.add(String(v));
+  // For topo-enriched dimensions, use topo/filters
+  if (['bande', 'plaque', 'dor', 'zone_arcep', 'site_name', 'cell_name'].includes(column)) {
+    try {
+      const resp = await fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() });
+      if (resp.ok) {
+        const data = await resp.json();
+        const filterMap: Record<string, string> = {
+          bande: 'bande', plaque: 'plaque', dor: 'dor',
+          zone_arcep: 'zone_arcep', site_name: 'site', cell_name: 'cell',
+        };
+        const filterId = filterMap[column];
+        const filter = (data.filters ?? []).find((f: any) => f.id === filterId);
+        return (filter?.values ?? []).filter(Boolean).sort();
+      }
+    } catch { /* fallback below */ }
+    return [];
   }
-  return Array.from(set).sort();
+
+  // For param_dump native columns
+  const colMap: Record<string, string> = {
+    vendor: 'vendor', parameter: 'parameter_raw',
+    object_type: 'object_type_normalized',
+  };
+  const backendCol = colMap[column] || column;
+  return dumpGet<string[]>(`params/distinct?column=${encodeURIComponent(backendCol)}&limit=5000`);
 }
 
-/** Apply filters to the query builder. */
-function applyFilters(q: any, f: ParameterHubFilters) {
-  if (f.parameters.length) q = q.in('parameter', f.parameters);
-  if (f.plaque.length) q = q.in('plaque', f.plaque);
-  if (f.site.length) q = q.in('site_name', f.site);
-  if (f.cell.length) q = q.in('cell_name', f.cell);
-  if (f.dor.length) q = q.in('dor', f.dor);
-  if (f.zone_arcep.length) q = q.in('zone_arcep', f.zone_arcep);
-  if (f.vendor.length) q = q.in('vendor', f.vendor);
-  if (f.bande.length) q = q.in('bande', f.bande);
-  return q;
+function buildQueryString(filters: ParameterHubFilters, limit: number, page = 1): string {
+  const qs = new URLSearchParams();
+  qs.set('limit', String(limit));
+  qs.set('page', String(page));
+  if (filters.parameters.length === 1) qs.set('parameter', filters.parameters[0]);
+  if (filters.vendor.length === 1) qs.set('vendor', filters.vendor[0]);
+  if (filters.dor.length === 1) qs.set('dor', filters.dor[0]);
+  if (filters.plaque.length === 1) qs.set('plaque', filters.plaque[0]);
+  if (filters.bande.length === 1) qs.set('bande', filters.bande[0]);
+  if (filters.site.length === 1) qs.set('site_name', filters.site[0]);
+  return qs.toString();
 }
 
-/** Fetch raw parameter rows matching the filters. */
+/** Fetch enriched parameter rows matching the filters. */
 export async function fetchParameterRows(
   filters: ParameterHubFilters,
-  limit = 5000,
+  limit = 200,
 ): Promise<ParameterRow[]> {
-  let q = (supabase as any).from('parameter_dump').select(SELECT_COLS).limit(limit);
-  q = applyFilters(q, filters);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []) as ParameterRow[];
+  const qs = buildQueryString(filters, limit);
+  const resp = await dumpGet<{ items: ParameterRow[] }>(`params/enriched?${qs}`);
+  return resp.items ?? [];
 }
 
 /** Fetch rows that have lat/lng for map view. */
 export async function fetchParameterMapRows(
   filters: ParameterHubFilters,
-  limit = 10000,
+  limit = 1000,
 ): Promise<ParameterRow[]> {
-  let q = (supabase as any)
-    .from('parameter_dump')
-    .select(SELECT_COLS)
-    .not('latitude', 'is', null)
-    .not('longitude', 'is', null)
-    .limit(limit);
-  q = applyFilters(q, filters);
-  const { data, error } = await q;
-  if (error) throw error;
-  return ((data ?? []) as ParameterRow[]).filter((r) => r.latitude != null && r.longitude != null);
+  const rows = await fetchParameterRows(filters, limit);
+  return rows.filter((r) => r.latitude != null && r.longitude != null);
 }
