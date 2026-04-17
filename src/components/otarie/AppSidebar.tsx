@@ -124,6 +124,16 @@ const AppSidebar: React.FC<SidebarProps> = ({
               {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
             </button>
           ))}
+
+          {/* External route: Precision Architect */}
+          <button
+            onClick={() => navigate('/precision-architect')}
+            className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} text-sidebar-foreground hover:bg-sidebar-accent hover:text-white`}
+            title={isCollapsed ? 'Precision Architect' : undefined}
+          >
+            <span className="text-sidebar-foreground group-hover:text-sidebar-primary"><Wand2 className="w-5 h-5" /></span>
+            {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">Precision Architect</span>}
+          </button>
         </div>
 
       </div>
