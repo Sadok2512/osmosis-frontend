@@ -345,11 +345,14 @@ const KpiReferenceWorkspace2: React.FC = () => {
           </div>
 
           <div className="overflow-hidden rounded-[28px] border border-slate-200">
-            <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_0.8fr_1fr_1.2fr] gap-3 bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1.6fr_1fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr_0.9fr_1.1fr] gap-3 bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
               <span>KPI</span>
               <span>Category</span>
               <span>Tech</span>
               <span>Unit</span>
+              <span>Vendor</span>
+              <span>Normalized</span>
+              <span>Status</span>
               <span>Coverage</span>
               <span>Actions</span>
             </div>
@@ -360,7 +363,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
                 const isSelected = selectedKpiKey === item.kpi_key;
                 const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
                 return (
-                  <div key={item.kpi_key} className={cn('grid grid-cols-[1.8fr_1.1fr_0.8fr_0.8fr_1fr_1.2fr] gap-3 px-4 py-4 text-sm transition-all', isSelected ? 'bg-teal-50/70 shadow-[inset_4px_0_0_0_rgba(15,118,110,0.9)]' : 'hover:bg-slate-50')}>
+                  <div key={item.kpi_key} className={cn('grid grid-cols-[1.6fr_1fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr_0.9fr_1.1fr] gap-3 px-4 py-4 text-sm transition-all', isSelected ? 'bg-teal-50/70 shadow-[inset_4px_0_0_0_rgba(15,118,110,0.9)]' : 'hover:bg-slate-50')}>
                     <button className="min-w-0 text-left" onClick={() => openView(item)}>
                       <p className="truncate font-bold text-slate-950">{item.display_name}</p>
                       <p className="mt-1 truncate text-xs text-slate-500">{item.kpi_key}</p>
@@ -368,6 +371,21 @@ const KpiReferenceWorkspace2: React.FC = () => {
                     <span className="text-slate-800">{item.category}</span>
                     <span className="font-semibold text-slate-900">{item.techno_scope}</span>
                     <span className="text-slate-800">{item.unit || '—'}</span>
+                    <span className="text-slate-800">{item.vendor || '—'}</span>
+                    <span>
+                      {item.is_normalized ? (
+                        <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">Yes</span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold text-slate-500">No</span>
+                      )}
+                    </span>
+                    <span>
+                      {hasThresholds || item.is_map_supported ? (
+                        <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Active</span>
+                      ) : (
+                        <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">Draft</span>
+                      )}
+                    </span>
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold', item.is_map_supported ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600')}>
                         {item.is_map_supported ? 'Map ready' : 'Catalog only'}
