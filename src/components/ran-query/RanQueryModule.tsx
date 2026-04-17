@@ -25,6 +25,7 @@ import CounterSelectorModal from '@/components/investigator/CounterSelectorModal
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { topoApi } from '@/lib/localDb';
 import {
   Bar,
   BarChart,
