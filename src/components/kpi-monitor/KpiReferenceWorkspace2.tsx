@@ -16,8 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { fetchKpiCatalogFromDB } from './kpiCatalog';
+import { fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
 import { useKpiExplain } from './api/kpiMonitorApi';
 
