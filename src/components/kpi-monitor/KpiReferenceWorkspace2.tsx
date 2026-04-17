@@ -96,7 +96,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [techFilter, setTechFilter] = useState<'all' | TechnoScope>('all');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [selectedKpiKey, setSelectedKpiKey] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
 
