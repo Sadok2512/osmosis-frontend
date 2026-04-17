@@ -15,7 +15,7 @@ import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizati
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
 import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monitor/AIKpiCards';
-import { getAgentHeaders, isLocalMode, getVpsProxyUrl } from '@/lib/apiConfig';
+import { getAgentHeaders, isLocalMode, getVpsProxyUrl, getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage, type ProgressEvent } from '@/stores/chatSessionStore';
 import AgentTimeline from './chat-visualizations/AgentTimeline';
 import ChatInput from './ChatInput';
@@ -259,11 +259,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
-    // All queries go through VPS orchestrator :1000 via proxy
-    const url = isLocalMode()
-      ? getVpsProxyUrl('agent', '/orchestrator/stream')
-      : getVpsProxyUrl('agent', '/orchestrator/stream');
-    const headers = getAgentHeaders();
+    // Route through parser :8000/api/v1/agent/orchestrator/stream (proxied to :1000)
+    const url = getApiUrl('agent/orchestrator/stream');
+    const headers = getApiHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
     addDebugLog(`URL: ${url}`);
