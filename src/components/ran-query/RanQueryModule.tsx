@@ -12,10 +12,17 @@ import {
   Play,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   XCircle,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
+import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
+import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import {
   Bar,
   BarChart,
@@ -298,9 +305,30 @@ const RanQueryModule: React.FC = () => {
   const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
   const [showKpiLibrary, setShowKpiLibrary] = useState(false);
 
+  // ── Catalogs (Investigator-themed selectors) ──
+  const [kpiCatalog, setKpiCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [counterModalOpen, setCounterModalOpen] = useState(false);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
+
+  // Load KPI catalog (DB) + counter catalog (VPS) once
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(setKpiCatalog).catch(() => setKpiCatalog([]));
+    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
+      .catch(() => setCounterCatalog([]));
+  }, []);
+
+  // Split current selection into KPI keys vs counter keys
+  const kpiKeySet = useMemo(() => new Set(kpiCatalog.map(k => k.kpi_key)), [kpiCatalog]);
+  const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
+  const counterKeySet = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
+  const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
 
   const selectedReport = useMemo(
     () => reports.find(report => report.id === selectedReportId) || null,
@@ -443,76 +471,98 @@ const RanQueryModule: React.FC = () => {
 
   const KPISelectionBlock = (
     <div className="space-y-4">
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
-          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Manual selection</label>
-          <textarea
-            value={form.manualInput}
-            onChange={(event) => updateForm('manualInput', event.target.value)}
-            placeholder="Search or paste KPI / counter names separated by comma, semicolon, or line break"
-            className="min-h-[130px] w-full rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm outline-none transition-all focus:border-primary/50"
-          />
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <button
-              onClick={addManualKpis}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90"
-            >
-              <Plus className="h-3.5 w-3.5" /> Add selection
-            </button>
-            <button
-              onClick={() => setShowKpiLibrary(prev => !prev)}
-              className="rounded-xl border border-border/60 px-4 py-2 text-xs font-bold text-muted-foreground transition-all hover:border-primary/30 hover:text-foreground"
-            >
-              {showKpiLibrary ? 'Hide KPI library' : 'Open KPI library'}
-            </button>
+      {/* ── Two themed selectors: KPIs (Investigator) + Counters PM (Investigator) ── */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <button
+          onClick={() => setKpiModalOpen(true)}
+          className="group flex flex-col items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-5 text-left transition-all hover:border-primary/40 hover:bg-primary/5"
+        >
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">KPI Catalog</p>
+                <p className="text-[11px] text-muted-foreground">{kpiCatalog.length} KPIs available</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+              {selectedKpiKeys.length} selected
+            </span>
           </div>
-        </div>
+          <p className="text-xs text-muted-foreground">Browse and select KPIs from the unified catalog (Investigator-style).</p>
+        </button>
 
-        <div className="rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4">
-          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Upload list</label>
-          <label className="flex min-h-[130px] cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-primary/30 bg-card px-4 py-6 text-center transition-all hover:border-primary/50 hover:bg-primary/5">
-            <FileUp className="mb-3 h-7 w-7 text-primary" />
-            <span className="text-sm font-semibold text-foreground">Drop CSV / TXT or click to upload</span>
-            <span className="mt-1 text-xs text-muted-foreground">One KPI or counter per line, comma, or semicolon</span>
-            <input
-              type="file"
-              accept=".csv,.txt"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) handleFileUpload(file);
-                event.currentTarget.value = '';
-              }}
-            />
-          </label>
-        </div>
+        <button
+          onClick={() => setCounterModalOpen(true)}
+          className="group flex flex-col items-start gap-3 rounded-2xl border border-border/60 bg-background/70 p-5 text-left transition-all hover:border-primary/40 hover:bg-primary/5"
+        >
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/30 text-accent-foreground">
+                <Activity className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">PM Counters</p>
+                <p className="text-[11px] text-muted-foreground">{counterCatalog.length} counters available</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">
+              {selectedCounterKeys.length} selected
+            </span>
+          </div>
+          <p className="text-xs text-muted-foreground">Browse PM counters by vendor / techno / family with full Investigator filters.</p>
+        </button>
       </div>
 
-      {showKpiLibrary && (
-        <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Suggested KPI library</span>
-            <span className="text-xs text-muted-foreground">Click to add</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {KPI_LIBRARY.map(kpi => (
-              <button
-                key={kpi}
-                onClick={() => updateForm('selectedKpis', Array.from(new Set([...form.selectedKpis, kpi])))}
-                className="rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:border-primary/40 hover:text-primary"
-              >
-                {kpi}
-              </button>
-            ))}
+      {/* ── Manual / file fallback (compact) ── */}
+      <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+        <div className="rounded-2xl border border-border/60 bg-background/70 p-4">
+          <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Add manually</label>
+          <div className="flex gap-2">
+            <input
+              value={form.manualInput}
+              onChange={(event) => updateForm('manualInput', event.target.value)}
+              placeholder="Paste KPI / counter names (comma, semicolon, line break)"
+              className="h-10 flex-1 rounded-xl border border-border/60 bg-card px-3 text-sm outline-none transition-all focus:border-primary/50"
+            />
+            <button
+              onClick={addManualKpis}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add
+            </button>
           </div>
         </div>
-      )}
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-primary/30 bg-primary/5 p-4 text-center transition-all hover:border-primary/50">
+          <FileUp className="h-5 w-5 text-primary" />
+          <span className="text-xs font-semibold text-foreground">Upload CSV / TXT</span>
+          <input
+            type="file"
+            accept=".csv,.txt"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) handleFileUpload(file);
+              event.currentTarget.value = '';
+            }}
+          />
+        </label>
+      </div>
 
+      {/* ── Selection summary ── */}
       <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Selected KPI list</p>
-            <p className="mt-1 text-sm font-semibold text-foreground">{form.selectedKpis.length} KPI / counter selected</p>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Selected list</p>
+            <p className="mt-1 text-sm font-semibold text-foreground">
+              {form.selectedKpis.length} item{form.selectedKpis.length === 1 ? '' : 's'}
+              {' · '}
+              <span className="text-primary">{selectedKpiKeys.length} KPI</span>
+              {' · '}
+              <span className="text-accent-foreground">{selectedCounterKeys.length} counter</span>
+            </p>
           </div>
           {form.selectedKpis.length > 0 && (
             <button
@@ -526,7 +576,7 @@ const RanQueryModule: React.FC = () => {
         <div className="flex flex-wrap gap-2">
           {form.selectedKpis.length > 0 ? form.selectedKpis.map(kpi => (
             <MetricPill key={kpi} label={kpi} onRemove={() => updateForm('selectedKpis', form.selectedKpis.filter(item => item !== kpi))} />
-          )) : <p className="text-sm text-muted-foreground">No KPI selected yet.</p>}
+          )) : <p className="text-sm text-muted-foreground">No KPI or counter selected yet.</p>}
         </div>
       </div>
     </div>
@@ -910,6 +960,35 @@ const RanQueryModule: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Investigator-themed selectors ── */}
+      <KpiSelectorModal
+        open={kpiModalOpen}
+        onClose={() => setKpiModalOpen(false)}
+        catalog={kpiCatalog}
+        selectedKeys={selectedKpiKeys}
+        onConfirm={(keys) => {
+          // Replace KPI portion, keep counters
+          const next = Array.from(new Set([...selectedCounterKeys, ...keys]));
+          updateForm('selectedKpis', next);
+          setKpiModalOpen(false);
+        }}
+      />
+
+      <CounterSelectorModal
+        open={counterModalOpen}
+        onClose={() => setCounterModalOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounterKeys}
+        onConfirm={(keys) => {
+          // Replace counter portion, keep KPIs
+          const next = Array.from(new Set([...selectedKpiKeys, ...keys]));
+          updateForm('selectedKpis', next);
+          setCounterModalOpen(false);
+        }}
+        perimeterVendor={form.vendor}
+        perimeterTechno={form.technologies.length === 1 ? form.technologies[0] : undefined}
+      />
     </div>
   );
 };
