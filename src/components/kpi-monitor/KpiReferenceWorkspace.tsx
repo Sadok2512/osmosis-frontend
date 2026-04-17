@@ -7,6 +7,7 @@ import {
   Eye,
   FilePenLine,
   Layers3,
+  RotateCcw,
   Search,
   ShieldAlert,
   Sparkles,
@@ -222,8 +223,23 @@ const KpiReferenceWorkspace: React.FC = () => {
   const mapReadyCount = catalog.filter(item => item.is_map_supported).length;
   const thresholdCount = catalog.filter(item => item.thresholds?.warning != null || item.thresholds?.critical != null).length;
   const activeCategoryCount = categories.length;
+  const activeFilterCount = [search.trim() ? 1 : 0, categoryFilter !== 'all' ? 1 : 0, techFilter !== 'all' ? 1 : 0, statusFilter !== 'all' ? 1 : 0].reduce((sum, value) => sum + value, 0);
+  const selectedIndex = selectedKpi ? filteredCatalog.findIndex(item => item.kpi_key === selectedKpi.kpi_key) : -1;
 
   const hasUnsavedChanges = selectedKpi && draft ? JSON.stringify(toDraft(selectedKpi)) !== JSON.stringify(draft) : false;
+
+  const clearFilters = () => {
+    setSearch('');
+    setCategoryFilter('all');
+    setTechFilter('all');
+    setStatusFilter('all');
+  };
+
+  const openView = (kpi: KpiCatalogEntry) => {
+    setSelectedKpiKey(kpi.kpi_key);
+    setIsEditing(false);
+    setDetailTab('overview');
+  };
 
   const openEdit = (kpi?: KpiCatalogEntry | null) => {
     const target = kpi || selectedKpi;
@@ -295,13 +311,44 @@ const KpiReferenceWorkspace: React.FC = () => {
             </select>
           </div>
 
+          <div className="mb-5 flex flex-col gap-3 rounded-3xl border border-border/60 bg-muted/20 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-3 py-1 font-bold text-primary">
+                {filteredCatalog.length} result{filteredCatalog.length === 1 ? '' : 's'}
+              </span>
+              {activeFilterCount > 0 ? (
+                <span className="inline-flex items-center rounded-full border border-border/60 bg-card px-3 py-1 font-semibold text-foreground">
+                  {activeFilterCount} active filter{activeFilterCount === 1 ? '' : 's'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center rounded-full border border-border/60 bg-card px-3 py-1 font-semibold text-muted-foreground">
+                  Full catalog view
+                </span>
+              )}
+              {selectedKpi && selectedIndex >= 0 ? (
+                <span className="inline-flex items-center rounded-full border border-border/60 bg-card px-3 py-1 font-semibold text-foreground">
+                  Selected {selectedIndex + 1} / {filteredCatalog.length}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={clearFilters}
+                disabled={activeFilterCount === 0}
+                className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-foreground transition-all hover:border-primary/30 hover:text-primary disabled:opacity-45"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Clear filters
+              </button>
+            </div>
+          </div>
+
           <div className="overflow-hidden rounded-3xl border border-border/60">
-            <div className="grid grid-cols-[1.7fr_1.2fr_0.8fr_0.9fr_0.8fr_1.2fr] gap-3 bg-muted/35 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+            <div className="grid grid-cols-[1.7fr_1.2fr_0.8fr_0.9fr_0.9fr_1.2fr] gap-3 bg-muted/35 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
               <span>KPI</span>
               <span>Category</span>
               <span>Tech</span>
               <span>Unit</span>
-              <span>Map</span>
+              <span>Coverage</span>
               <span>Actions</span>
             </div>
             <div className="divide-y divide-border/50 bg-card">
@@ -309,28 +356,34 @@ const KpiReferenceWorkspace: React.FC = () => {
                 <div className="px-6 py-12 text-sm text-muted-foreground">Loading KPI reference...</div>
               ) : filteredCatalog.length > 0 ? filteredCatalog.map(item => {
                 const isSelected = selectedKpiKey === item.kpi_key;
+                const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
                 return (
                   <div
                     key={item.kpi_key}
                     className={cn(
-                      'grid grid-cols-[1.7fr_1.2fr_0.8fr_0.9fr_0.8fr_1.2fr] gap-3 px-4 py-4 text-sm transition-all',
-                      isSelected ? 'bg-primary/6' : 'hover:bg-primary/5'
+                      'grid grid-cols-[1.7fr_1.2fr_0.8fr_0.9fr_0.9fr_1.2fr] gap-3 px-4 py-4 text-sm transition-all',
+                      isSelected ? 'bg-primary/6 shadow-[inset_4px_0_0_0_rgba(59,130,246,0.9)]' : 'hover:bg-primary/5'
                     )}
                   >
-                    <button className="min-w-0 text-left" onClick={() => { setSelectedKpiKey(item.kpi_key); setIsEditing(false); }}>
+                    <button className="min-w-0 text-left" onClick={() => openView(item)}>
                       <p className="truncate font-bold text-foreground">{item.display_name}</p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">{item.kpi_key}</p>
                     </button>
                     <span className="text-foreground">{item.category}</span>
                     <span className="font-semibold text-foreground">{item.techno_scope}</span>
                     <span className="text-foreground">{item.unit || '—'}</span>
-                    <span>
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className={cn('inline-flex rounded-full border px-2.5 py-1 text-[11px] font-bold', item.is_map_supported ? 'border-emerald-500/25 bg-emerald-500/12 text-emerald-700' : 'border-slate-500/20 bg-slate-500/10 text-slate-700')}>
-                        {item.is_map_supported ? 'Ready' : 'No'}
+                        {item.is_map_supported ? 'Map' : 'List'}
                       </span>
-                    </span>
+                      {hasThresholds ? (
+                        <span className="inline-flex rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                          Thresholds
+                        </span>
+                      ) : null}
+                    </div>
                     <div className="flex items-center gap-2">
-                      <button onClick={() => { setSelectedKpiKey(item.kpi_key); setIsEditing(false); }} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
+                      <button onClick={() => openView(item)} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                         <Eye className="h-3.5 w-3.5" /> Open
                       </button>
                       <button onClick={() => openEdit(item)} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/14">
@@ -367,31 +420,39 @@ const KpiReferenceWorkspace: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-[11px] font-bold text-primary">{selectedKpi.kpi_key}</span>
-                      <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/25 px-3 py-1 text-[11px] font-bold text-foreground">{selectedKpi.category}</span>
-                      <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/25 px-3 py-1 text-[11px] font-bold text-foreground">{selectedKpi.techno_scope}</span>
+                <div className="rounded-3xl border border-border/60 bg-background/70 p-4 shadow-sm">
+                  <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-3 py-1 text-[11px] font-bold text-primary">{selectedKpi.kpi_key}</span>
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-card px-3 py-1 text-[11px] font-bold text-foreground">{selectedKpi.category}</span>
+                        <span className="inline-flex items-center rounded-full border border-border/60 bg-card px-3 py-1 text-[11px] font-bold text-foreground">{selectedKpi.techno_scope}</span>
+                        <span className={cn('inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-bold', hasUnsavedChanges ? 'border-amber-500/25 bg-amber-500/10 text-amber-700' : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-700')}>
+                          {hasUnsavedChanges ? 'Unsaved changes' : 'Synchronized'}
+                        </span>
+                      </div>
+                      <h2 className="mt-3 text-xl font-black tracking-tight text-foreground">{draft.display_name}</h2>
+                      <p className="mt-2 max-w-4xl text-sm text-muted-foreground">{draft.description || 'No KPI description available.'}</p>
                     </div>
-                    <h2 className="mt-3 text-xl font-black tracking-tight text-foreground">{draft.display_name}</h2>
-                    <p className="mt-2 max-w-4xl text-sm text-muted-foreground">{draft.description || 'No KPI description available.'}</p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {isEditing ? (
-                      <>
-                        <button onClick={() => { setDraft(toDraft(selectedKpi)); setIsEditing(false); }} className="rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
-                          Cancel
-                        </button>
-                        <button onClick={saveDraft} disabled={!hasUnsavedChanges || updateMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving...' : 'Save KPI'}
-                        </button>
-                      </>
-                    ) : (
-                      <button onClick={() => openEdit()} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90">
-                        <FilePenLine className="h-3.5 w-3.5" /> Edit KPI
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button onClick={() => openView(selectedKpi)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-foreground transition-all hover:border-primary/30 hover:text-primary">
+                        <Eye className="h-3.5 w-3.5" /> View
                       </button>
-                    )}
+                      {isEditing ? (
+                        <>
+                          <button onClick={() => { setDraft(toDraft(selectedKpi)); setIsEditing(false); }} className="rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-foreground transition-all hover:border-primary/30 hover:text-primary">
+                            Cancel
+                          </button>
+                          <button onClick={saveDraft} disabled={!hasUnsavedChanges || updateMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving...' : 'Save KPI'}
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => openEdit()} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90">
+                          <FilePenLine className="h-3.5 w-3.5" /> Edit KPI
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -416,7 +477,7 @@ const KpiReferenceWorkspace: React.FC = () => {
                 </div>
 
                 {detailTab === 'overview' && (
-                  <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+                  <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
                     <div className="space-y-4 rounded-3xl border border-border/60 bg-background/60 p-5">
                       <div className="grid gap-4 md:grid-cols-2">
                         <div>
@@ -467,39 +528,72 @@ const KpiReferenceWorkspace: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-4 rounded-3xl border border-border/60 bg-background/60 p-5">
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Display color</label>
-                        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3">
-                          <input type="color" value={draft.color} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, color: event.target.value } : prev)} className="h-10 w-12 rounded-lg border-0 bg-transparent p-0 disabled:opacity-75" />
-                          <span className="text-sm font-semibold text-foreground">{draft.color}</span>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl border border-border/60 bg-card px-4 py-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Map support</p>
-                            <p className="mt-1 text-sm text-foreground">Enable KPI availability in map-oriented workflows.</p>
+                    <div className="space-y-4">
+                      <div className="rounded-3xl border border-border/60 bg-background/60 p-5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Reference summary</p>
+                        <div className="mt-4 grid gap-3 text-sm text-foreground">
+                          <div className="rounded-2xl border border-border/60 bg-card p-4">
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">KPI key</p>
+                            <p className="mt-2 break-words font-bold">{selectedKpi.kpi_key}</p>
                           </div>
-                          <button
-                            disabled={!isEditing}
-                            onClick={() => setDraft(prev => prev ? { ...prev, is_map_supported: !prev.is_map_supported } : prev)}
-                            className={cn('relative h-7 w-12 rounded-full transition-all disabled:opacity-75', draft.is_map_supported ? 'bg-primary' : 'bg-muted-foreground/30')}
-                          >
-                            <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all', draft.is_map_supported ? 'right-1' : 'left-1')} />
-                          </button>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-2xl border border-border/60 bg-card p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Aggregation</p>
+                              <p className="mt-2 font-bold">{draft.default_agg}</p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Value type</p>
+                              <p className="mt-2 font-bold">{draft.value_type}</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div className="rounded-2xl border border-border/60 bg-card p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Technology</p>
+                              <p className="mt-2 font-bold">{draft.techno_scope}</p>
+                            </div>
+                            <div className="rounded-2xl border border-border/60 bg-card p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Unit</p>
+                              <p className="mt-2 font-bold">{draft.unit || '—'}</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
-                      <div className="rounded-2xl border border-primary/20 bg-primary/6 px-4 py-4">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Reference summary</p>
-                        <ul className="mt-3 space-y-2 text-sm text-foreground">
-                          <li>KPI key: <span className="font-bold">{selectedKpi.kpi_key}</span></li>
-                          <li>Aggregation: <span className="font-bold">{draft.default_agg}</span></li>
-                          <li>Value type: <span className="font-bold">{draft.value_type}</span></li>
-                          <li>Tech scope: <span className="font-bold">{draft.techno_scope}</span></li>
-                        </ul>
+                      <div className="rounded-3xl border border-border/60 bg-background/60 p-5">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Operational profile</p>
+                        <div className="mt-4 space-y-4">
+                          <div>
+                            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Display color</label>
+                            <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3">
+                              <input type="color" value={draft.color} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, color: event.target.value } : prev)} className="h-10 w-12 rounded-lg border-0 bg-transparent p-0 disabled:opacity-75" />
+                              <span className="text-sm font-semibold text-foreground">{draft.color}</span>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-border/60 bg-card px-4 py-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Map support</p>
+                                <p className="mt-1 text-sm text-foreground">Enable KPI availability in map-oriented workflows.</p>
+                              </div>
+                              <button
+                                disabled={!isEditing}
+                                onClick={() => setDraft(prev => prev ? { ...prev, is_map_supported: !prev.is_map_supported } : prev)}
+                                className={cn('relative h-7 w-12 rounded-full transition-all disabled:opacity-75', draft.is_map_supported ? 'bg-primary' : 'bg-muted-foreground/30')}
+                              >
+                                <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all', draft.is_map_supported ? 'right-1' : 'left-1')} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-primary/20 bg-primary/6 px-4 py-4 text-sm text-foreground">
+                            <ul className="space-y-2">
+                              <li>Open keeps the KPI visible below while you continue browsing the list.</li>
+                              <li>Edit stays in the same lower workspace to avoid losing context.</li>
+                              <li>Only metadata fields are editable here; formula details remain read-oriented.</li>
+                            </ul>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -508,7 +602,10 @@ const KpiReferenceWorkspace: React.FC = () => {
                 {detailTab === 'formula' && (
                   <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
                     <div className="rounded-3xl border border-border/60 bg-background/60 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Formula structure</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Formula structure</p>
+                        {explainQuery.isLoading ? <span className="text-xs font-semibold text-muted-foreground">Loading explain...</span> : null}
+                      </div>
                       <div className="mt-4 space-y-4 text-sm text-foreground">
                         <div className="rounded-2xl border border-border/60 bg-card p-4">
                           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Numerator</p>
@@ -576,7 +673,10 @@ const KpiReferenceWorkspace: React.FC = () => {
                 {detailTab === 'source' && (
                   <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
                     <div className="rounded-3xl border border-border/60 bg-background/60 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Source metadata</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Source metadata</p>
+                        {explainQuery.isLoading ? <span className="text-xs font-semibold text-muted-foreground">Loading explain...</span> : null}
+                      </div>
                       <div className="mt-4 grid gap-3 text-sm text-foreground">
                         <div className="rounded-2xl border border-border/60 bg-card p-4">
                           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Source table</p>
