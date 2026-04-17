@@ -24,10 +24,8 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
   const startDate = ctx?.startDate || state.startDate;
   const endDate = ctx?.endDate || state.endDate;
 
-  // Compute days from period
-  const d1 = new Date(startDate);
-  const d2 = new Date(endDate);
-  const days = Math.max(1, Math.ceil((d2.getTime() - d1.getTime()) / 86400000) + 1);
+  // CM History: always look back 30 days minimum (config changes are rare)
+  const days = 30;
 
   return (
     <div>
