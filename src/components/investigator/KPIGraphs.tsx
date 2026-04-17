@@ -899,9 +899,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         }
 
         // Multi-KPI: build series — detect split data
+        // Per-slot color allocator: ensures every series in this chart gets a unique color
+        const colorAlloc = makeSlotColorAllocator();
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
-          return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+          const baseColor = d?.color || stableColorForKpi(id);
+          const uniqueColor = colorAlloc.forKpi(id);
+          return d
+            ? { ...d, color: uniqueColor }
+            : { id, label: id, unit: '', color: uniqueColor, thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
         // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel" or "kpi@split1@split2")
