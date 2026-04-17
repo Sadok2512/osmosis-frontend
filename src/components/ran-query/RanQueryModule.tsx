@@ -70,6 +70,8 @@ interface ReportResultRow {
   trend: number;
 }
 
+type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque';
+
 interface RanReport {
   id: string;
   name: string;
@@ -82,6 +84,13 @@ interface RanReport {
   updatedAt: string;
   lastRunAt: string | null;
   results: ReportResultRow[];
+  // ── Extended filter & aggregation context ──
+  plaques?: string[];
+  dors?: string[];
+  sites?: string[];
+  zoneArcep?: string[];
+  aggregation?: AggregationLevel;
+  dimensions?: string[];
 }
 
 interface CreateFormState {
@@ -96,6 +105,13 @@ interface CreateFormState {
   relativeUnit: RelativeUnit;
   manualInput: string;
   selectedKpis: string[];
+  // ── New ──
+  plaques: string[];
+  dors: string[];
+  sites: string[];
+  zoneArcep: string[];
+  aggregation: AggregationLevel;
+  dimensions: string[];
 }
 
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
