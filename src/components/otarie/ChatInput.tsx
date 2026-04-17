@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'OSMOSIS';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
   PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
