@@ -231,11 +231,12 @@ function formatDateTime(value: string | null): string {
 }
 
 function describeTimeConfig(config: TimeConfig): string {
+  const granLabel = GRANULARITY_OPTIONS.find(g => g.value === config.granularity)?.label ?? config.granularity;
   if (config.timeMode === 'absolute') {
-    return `${formatDateTime(config.start)} → ${formatDateTime(config.end)}`;
+    return `${formatDateTime(config.start)} → ${formatDateTime(config.end)} · ${granLabel}`;
   }
   const unitLabel = config.unit === 'minutes' ? 'min' : config.unit === 'hours' ? 'h' : 'd';
-  return `Last ${config.value}${unitLabel} up to now`;
+  return `Last ${config.value}${unitLabel} up to now · ${granLabel}`;
 }
 
 function statusClasses(status: ReportStatus): string {
