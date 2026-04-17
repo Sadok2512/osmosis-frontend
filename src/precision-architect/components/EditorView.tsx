@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Trash2,
   FileText,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
