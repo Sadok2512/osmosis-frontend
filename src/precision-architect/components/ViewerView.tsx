@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { Eye, Edit3, Play } from 'lucide-react';
-import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
+import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { ViewMode, PAPage } from '../types';
 import { cn } from '@/lib/utils';
 import WidgetRenderer from './WidgetRenderer';
+
+const GridLayout = WidthProvider(ReactGridLayout);
 
 interface ViewerProps {
   projectName: string;
