@@ -305,9 +305,30 @@ const RanQueryModule: React.FC = () => {
   const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
   const [showKpiLibrary, setShowKpiLibrary] = useState(false);
 
+  // ── Catalogs (Investigator-themed selectors) ──
+  const [kpiCatalog, setKpiCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  const [kpiModalOpen, setKpiModalOpen] = useState(false);
+  const [counterModalOpen, setCounterModalOpen] = useState(false);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
+
+  // Load KPI catalog (DB) + counter catalog (VPS) once
+  useEffect(() => {
+    fetchKpiCatalogFromDB().then(setKpiCatalog).catch(() => setKpiCatalog([]));
+    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
+      .catch(() => setCounterCatalog([]));
+  }, []);
+
+  // Split current selection into KPI keys vs counter keys
+  const kpiKeySet = useMemo(() => new Set(kpiCatalog.map(k => k.kpi_key)), [kpiCatalog]);
+  const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
+  const counterKeySet = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
+  const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
 
   const selectedReport = useMemo(
     () => reports.find(report => report.id === selectedReportId) || null,
