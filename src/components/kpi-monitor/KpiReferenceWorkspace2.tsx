@@ -179,10 +179,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const updateMutation = useMutation({
     mutationFn: async (payload: { kpi: KpiCatalogEntry; draft: KpiDraft }) => {
       const { kpi, draft } = payload;
-      const updateBody = {
+      const updateBody: Record<string, any> = {
         display_name: draft.display_name,
-        definition: draft.description,
-        famille: CATEGORY_TO_FAMILLE[draft.category] || draft.category,
+        description: draft.description,
+        category: draft.category,
         techno: draft.techno_scope === 'both' ? '4G/5G' : draft.techno_scope,
         unit: draft.unit,
         value_type: draft.value_type,
@@ -193,26 +193,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
         threshold_critical: draft.critical.trim() === '' ? null : Number(draft.critical),
       };
 
-      let updateError: any = null;
-
-      if (kpi.kpi_id && !Number.isNaN(Number(kpi.kpi_id))) {
-        const { error } = await supabase.from('kpi_catalog').update(updateBody).eq('id', Number(kpi.kpi_id));
-        updateError = error;
-      }
-
-      if (updateError) {
-        const { error: fallbackError } = await supabase.from('kpi_catalog').update(updateBody).eq('kpi_key', kpi.kpi_key);
-        updateError = fallbackError;
-      }
-
-      if (updateError) {
-        const message = String(updateError.message || 'Unable to update KPI metadata.');
-        if (/permission|policy|denied|row-level security|rls/i.test(message)) {
-          throw new Error('Save blocked by backend permissions on kpi_catalog. A backend update endpoint or relaxed RLS policy is required.');
-        }
-        throw updateError;
-      }
-
+      await updateKpiInVps(kpi.kpi_key, updateBody);
       return true;
     },
     onSuccess: async () => {
