@@ -572,7 +572,7 @@ const RanQueryModule: React.FC = () => {
 
   // Load KPI catalog + counter catalog from backend, re-fetch when vendor changes
   useEffect(() => {
-    const vendor = form.vendor;
+    const vendor = form.vendors.length === 1 ? form.vendors[0] : '';
     // KPI catalog from monitor API
     fetch(getApiUrl('monitor/catalog/kpis'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
@@ -596,7 +596,7 @@ const RanQueryModule: React.FC = () => {
       .then(r => r.ok ? r.json() : [])
       .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
       .catch(() => setCounterCatalog([]));
-  }, [form.vendor]);
+  }, [form.vendors]);
 
   // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) from backend
   useEffect(() => {
@@ -1665,7 +1665,7 @@ const RanQueryModule: React.FC = () => {
           updateForm('selectedKpis', next);
           setCounterModalOpen(false);
         }}
-        perimeterVendor={form.vendor}
+        perimeterVendor={form.vendors.length === 1 ? form.vendors[0] : undefined}
         perimeterTechno={form.technologies.length === 1 ? form.technologies[0] : undefined}
       />
     </div>
