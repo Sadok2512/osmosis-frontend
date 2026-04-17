@@ -4,7 +4,7 @@ import {
   Radio, Settings, Layout, Bell,
   Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
   Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut,
-  Search, Wand2
+  Search, Wand2, LibraryBig
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
@@ -27,6 +27,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
   { id: 'kpi_monitor', label: 'KPI Monitor', icon: <LineChart className="w-5 h-5" /> },
+  { id: 'kpi_reference2', label: 'KPI Reference 2', icon: <LibraryBig className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
   { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
@@ -61,7 +62,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
   return (
     <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`}>
 
-      {/* COLLAPSE TOGGLE */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3 top-10 w-6 h-6 border rounded-full flex items-center justify-center shadow-md transition-all z-50 bg-sidebar border-sidebar-border text-sidebar-foreground hover:text-sidebar-primary"
@@ -69,7 +69,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
       </button>
 
-      {/* BRANDING */}
       <div className={`p-6 pb-4 flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3'}`}>
         <div className="w-10 h-10 bg-sidebar-accent rounded-xl flex items-center justify-center shrink-0 border border-sidebar-border">
           <Radio className="text-sidebar-primary w-5 h-5" />
@@ -82,7 +81,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
         )}
       </div>
 
-      {/* Scroll-up chevron */}
       {canScrollLeft && (
         <button onClick={() => scrollBy(-1)} className="flex items-center justify-center py-1 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors">
           <ChevronLeft size={16} className="rotate-90" />
@@ -95,15 +93,12 @@ const AppSidebar: React.FC<SidebarProps> = ({
         className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-6 scrollbar-hide pb-20 pt-4`}
         style={{ scrollBehavior: 'smooth' }}
       >
-
-        {/* SECTION LABEL */}
         {!isCollapsed && (
           <div className="px-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Main Modules</span>
           </div>
         )}
 
-        {/* NAVIGATION — improved items with h-14 (56px), pill + underline active */}
         <div className="space-y-1">
           {visibleNavItems.map((item) => (
             <button
@@ -116,7 +111,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
               }`}
               title={isCollapsed ? item.label : undefined}
             >
-              {/* Active underline indicator */}
               {activeTab === item.id && (
                 <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
               )}
@@ -125,7 +119,6 @@ const AppSidebar: React.FC<SidebarProps> = ({
             </button>
           ))}
 
-          {/* Precision Architect (internal tab) */}
           <button
             onClick={() => setActiveTab('precision_architect' as AppTab)}
             className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
@@ -145,16 +138,13 @@ const AppSidebar: React.FC<SidebarProps> = ({
 
       </div>
 
-      {/* Scroll-down chevron */}
       {canScrollRight && (
         <button onClick={() => scrollBy(1)} className="flex items-center justify-center py-1 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors">
           <ChevronLeft size={16} className="-rotate-90" />
         </button>
       )}
 
-      {/* FOOTER */}
       <div className="p-4 border-t border-sidebar-border space-y-3">
-        {/* Theme toggle */}
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2 px-3'}`}>
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
