@@ -19,6 +19,8 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
 
   const filters = ctx?.filters || state.filters;
   const cellNames = filters.Cell || filters.CELL || [];
+  const siteNames = filters.Site || filters.SITE || [];
+  const plaques = filters.Plaque || filters.PLAQUE || [];
   const startDate = ctx?.startDate || state.startDate;
   const endDate = ctx?.endDate || state.endDate;
 
@@ -35,12 +37,12 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
           <span className="font-bold text-primary">Source:</span>
           <span>{ctx.sourceGraphTitle}</span>
           <span className="opacity-40">|</span>
-          <span>Cells: {cellNames.join(', ') || '—'}</span>
+          <span>Cells: {cellNames.join(', ') || siteNames.join(', ') || plaques.join(', ') || '—'}</span>
           <span className="opacity-40">|</span>
           <span>{ctx.startDate} → {ctx.endDate}</span>
         </div>
       )}
-      <CMChangesCard cellNames={cellNames} days={days} />
+      <CMChangesCard cellNames={cellNames} siteNames={siteNames} plaques={plaques} days={days} />
     </div>
   );
 };

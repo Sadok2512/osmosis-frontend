@@ -18,41 +18,50 @@ interface CMChange {
 
 interface Props {
   cellNames: string[];
+  siteNames?: string[];
+  plaques?: string[];
   days?: number;
 }
 
-async function fetchCellCmChanges(cellNames: string[], days: number = 30): Promise<CMChange[]> {
-  if (!cellNames.length) return [];
+async function fetchCmChanges(params: { cell_names?: string[]; site_names?: string[]; plaques?: string[]; days: number; limit: number }): Promise<CMChange[]> {
+  if (!params.cell_names?.length && !params.site_names?.length && !params.plaques?.length) return [];
   const url = getApiUrl('cm/cell-changes');
   try {
     const res = await fetch(url, {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ cell_names: cellNames, days, limit: 15 }),
+      body: JSON.stringify(params),
     });
     if (!res.ok) return [];
     return res.json();
   } catch { return []; }
 }
 
-const CMChangesCard: React.FC<Props> = ({ cellNames, days = 30 }) => {
+const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [], days = 30 }) => {
   const [changes, setChanges] = React.useState<CMChange[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
-    const data = await fetchCellCmChanges(cellNames, days);
+    const data = await fetchCmChanges({
+      cell_names: cellNames.length > 0 ? cellNames : undefined,
+      site_names: siteNames.length > 0 ? siteNames : undefined,
+      plaques: plaques.length > 0 ? plaques : undefined,
+      days,
+      limit: 50,
+    });
     setChanges(data);
     setLoading(false);
     setLoaded(true);
   };
 
   React.useEffect(() => {
-    if (cellNames.length > 0 && !loaded) {
+    const hasFilter = cellNames.length > 0 || siteNames.length > 0 || plaques.length > 0;
+    if (hasFilter && !loaded) {
       load();
     }
-  }, [cellNames.join(',')]);
+  }, [cellNames.join(','), siteNames.join(','), plaques.join(',')]);
 
   // Group by site
   const grouped = changes.reduce<Record<string, CMChange[]>>((acc, c) => {
