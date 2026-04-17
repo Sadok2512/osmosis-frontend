@@ -23,18 +23,6 @@ const ROW_HEIGHT = 60;
 export default function ViewerView({ projectName, onViewModeChange, pages, activePageId, setActivePageId }: ViewerProps) {
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasWidth, setCanvasWidth] = useState(1200);
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      if (w && w > 0) setCanvasWidth(w);
-    });
-    obs.observe(canvasRef.current);
-    return () => obs.disconnect();
-  }, []);
 
   const layout = useMemo(() => widgets.map(w => ({
     i: w.id,
@@ -108,13 +96,12 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
             <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
           </div>
         ) : (
-          <div ref={canvasRef} className="pa-grid-view">
+          <div className="pa-grid-view">
             <GridLayout
               className="layout"
               layout={layout}
               cols={COLS}
               rowHeight={ROW_HEIGHT}
-              width={canvasWidth}
               margin={[16, 16]}
               containerPadding={[0, 0]}
               isDraggable={false}
