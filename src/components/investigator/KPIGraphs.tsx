@@ -1359,8 +1359,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const range = rawMax - rawMin;
           const padding = range === 0 ? Math.abs(rawMax || 1) * 0.02 : range * 0.1;
 
+          // KPIs/counters are inherently non-negative — clamp min to 0 when all values ≥ 0
+          const paddedMin = rawMin - padding;
+          const safeMin = rawMin >= 0 ? Math.max(0, paddedMin) : paddedMin;
+
           return {
-            min: parseFloat((rawMin - padding).toFixed(4)),
+            min: parseFloat(safeMin.toFixed(4)),
             max: parseFloat((rawMax + padding).toFixed(4)),
           };
         };
