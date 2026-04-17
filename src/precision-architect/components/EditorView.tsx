@@ -12,6 +12,7 @@ import {
   Radio,
   ChevronRight,
   Trash2,
+  FileText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
@@ -19,11 +20,12 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, WidgetKind, DynWidget, WidgetLayout } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
+import SectionBlock from './SectionBlock';
 
 interface EditorViewProps {
   projectName: string;
@@ -62,12 +64,48 @@ export default function EditorView({
 }: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
+  const sections = activePage?.sections ?? [];
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
+  };
+
+  const updateSections = (updater: (s: PASection[]) => PASection[]) => {
+    setPages(prev => prev.map(p => p.id === activePageId ? { ...p, sections: updater(p.sections ?? []) } : p));
+  };
+
+  const addSection = () => {
+    const id = `section-${Date.now()}`;
+    const idx = (activePage?.sections?.length ?? 0) + 1;
+    const newSection: PASection = {
+      id,
+      name: `Section ${idx}`,
+      title: 'Click to edit title',
+      description: 'Add description or message',
+    };
+    updateSections(s => [...s, newSection]);
+    setActiveSectionId(id);
+    setTimeout(() => {
+      document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
+  const updateSection = (id: string, patch: Partial<PASection>) => {
+    updateSections(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
+  };
+
+  const removeSection = (id: string) => {
+    updateSections(s => s.filter(x => x.id !== id));
+    if (activeSectionId === id) setActiveSectionId(null);
+  };
+
+  const focusSection = (id: string) => {
+    setActiveSectionId(id);
+    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const addWidget = (kind: WidgetKind) => {
@@ -84,7 +122,7 @@ export default function EditorView({
 
   const addPage = () => {
     const newId = `page-${Date.now()}`;
-    setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [] }]);
+    setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [], sections: [] }]);
     setActivePageId(newId);
   };
 
