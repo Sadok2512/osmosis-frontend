@@ -651,9 +651,10 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     animationEasing: 'cubicInOut',
   };
 
-  // Key forces a full chart re-init when axis bounds or mode change so the
-  // pixel mapping is recomputed and no stale white space remains at the top.
-  const yAxisKey = `${yAxisMode}|${config.advanced.yAxisMin ?? ''}|${config.advanced.yAxisMax ?? ''}|${config.advanced.yAxisMinRight ?? ''}|${config.advanced.yAxisMaxRight ?? ''}|${hasRight ? 'R' : 'L'}`;
+  // Key forces a full chart re-init when axis bounds, mode or chart types change
+  // so the pixel mapping is recomputed and no stale white space remains at the top.
+  const chartTypesKey = effectiveYMetrics.map(m => `${m.kpi}:${m.chartType}:${m.axis}`).join(',');
+  const yAxisKey = `${yAxisMode}|${config.advanced.yAxisMin ?? ''}|${config.advanced.yAxisMax ?? ''}|${config.advanced.yAxisMinRight ?? ''}|${config.advanced.yAxisMaxRight ?? ''}|${hasRight ? 'R' : 'L'}|${chartTypesKey}`;
 
   return (
     <ReactECharts
