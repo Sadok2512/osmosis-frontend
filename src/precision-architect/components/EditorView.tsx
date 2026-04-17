@@ -3,11 +3,8 @@ import {
   Layout,
   Edit3,
   Settings,
-  ChevronDown,
   X,
   Plus,
-  Trash2,
-  GripHorizontal,
   Activity,
   BarChart3,
   Map as MapIcon,
@@ -17,9 +14,10 @@ import {
   TowerControl as Tower,
   ShieldAlert,
   ChevronRight,
+  Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ViewMode } from '../types';
+import { ViewMode, PAPage, WidgetKind, DynWidget } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAEChart from './PAEChart';
@@ -31,20 +29,50 @@ interface EditorViewProps {
   projectName: string;
   onProjectNameChange: (name: string) => void;
   onViewModeChange: (mode: ViewMode) => void;
+  pages: PAPage[];
+  setPages: React.Dispatch<React.SetStateAction<PAPage[]>>;
+  activePageId: string;
+  setActivePageId: (id: string) => void;
 }
 
-type WidgetKind = 'chart' | 'map' | 'kpi' | 'table';
-interface DynWidget { id: string; kind: WidgetKind; }
-
-export default function EditorView({ projectName, onProjectNameChange, onViewModeChange }: EditorViewProps) {
+export default function EditorView({
+  projectName,
+  onProjectNameChange,
+  onViewModeChange,
+  pages,
+  setPages,
+  activePageId,
+  setActivePageId,
+}: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
-  const [widgets, setWidgets] = useState<DynWidget[]>([]);
+
+  const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
+  const widgets = activePage?.widgets ?? [];
+
+  const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
+    setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
+  };
 
   const addWidget = (kind: WidgetKind) => {
-    setWidgets(w => [...w, { id: `${kind}-${Date.now()}`, kind }]);
+    updateWidgets(w => [...w, { id: `${kind}-${Date.now()}`, kind }]);
   };
-  const removeWidget = (id: string) => setWidgets(w => w.filter(x => x.id !== id));
+  const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
+
+  const addPage = () => {
+    const newId = `page-${Date.now()}`;
+    setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [] }]);
+    setActivePageId(newId);
+  };
+
+  const removePage = (id: string) => {
+    if (pages.length <= 1) return;
+    setPages(prev => prev.filter(p => p.id !== id));
+    if (activePageId === id) {
+      const remaining = pages.filter(p => p.id !== id);
+      setActivePageId(remaining[0].id);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-surface overflow-hidden">
@@ -61,29 +89,40 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
           </div>
 
           <nav className="space-y-1">
-            {[
-              { icon: Activity, label: 'Network Health', active: true },
-              { icon: BarChart3, label: 'Traffic' },
-              { icon: ShieldAlert, label: 'Interference', color: 'text-tertiary' },
-              { icon: Tower, label: 'Mobility' },
-              { icon: CircleCheck, label: 'Accessibility' },
-            ].map((item) => (
-              <button
-                key={item.label}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
-                  item.active ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
-                )}
-              >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            ))}
+            {pages.map((page) => {
+              const isActive = page.id === activePageId;
+              return (
+                <div key={page.id} className="group relative">
+                  <button
+                    onClick={() => setActivePageId(page.id)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
+                      isActive ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
+                    )}
+                  >
+                    <Activity className="w-4 h-4" />
+                    <span className="truncate">{page.name}</span>
+                  </button>
+                  {pages.length > 1 && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removePage(page.id); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+                      aria-label="Remove page"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
 
         <div className="mt-auto p-4 border-t border-outline-variant/10">
-          <button className="w-full flex items-center justify-center gap-2 py-3 bg-surface-container-high rounded-xl text-primary font-bold hover:bg-surface-container-highest transition-colors active:scale-95">
+          <button
+            onClick={addPage}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-surface-container-high rounded-xl text-primary font-bold hover:bg-surface-container-highest transition-colors active:scale-95"
+          >
             <Plus className="w-4 h-4" />
             <span>Add New Page</span>
           </button>
