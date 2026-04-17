@@ -38,15 +38,6 @@ interface KpiDraft {
 }
 
 const STORAGE_KEY = 'osmosis_kpi_reference2_filters_v1';
-const CATEGORY_TO_FAMILLE: Record<string, string> = {
-  Access: 'ACCESSIBILITY',
-  Retainability: 'RETAINABILITY',
-  Throughput: 'THROUGHPUT',
-  Traffic: 'TRAFFIC',
-  TCP: 'INTERFERENCE',
-  Other: 'Corporate',
-};
-
 const DEFAULT_COLOR = '#0f766e';
 const VALUE_TYPES: ValueType[] = ['ratio', 'counter', 'gauge'];
 const AGGREGATIONS: AggFunc[] = ['avg', 'sum', 'max', 'min', 'p95', 'p50', 'last', 'count'];
