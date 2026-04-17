@@ -242,6 +242,43 @@ function stableColorForCounter(counterName: string): string {
   return SPLIT_COLORS[(stableHash('CTR_' + counterName)) % SPLIT_COLORS.length];
 }
 
+/**
+ * Per-slot color allocator: ensures NO two series in the same chart share
+ * the same color. Tries the hash-based "stable" color first, then falls back
+ * to the next free color in the extended palette (cycling if necessary).
+ */
+function makeSlotColorAllocator() {
+  const used = new Set<string>();
+  const assigned = new Map<string, string>();
+  const palette = SPLIT_COLORS;
+
+  const pick = (key: string, preferred: string): string => {
+    if (assigned.has(key)) return assigned.get(key)!;
+    let chosen = preferred;
+    if (used.has(chosen)) {
+      // Find next free color in palette
+      const startIdx = Math.max(0, palette.indexOf(preferred));
+      for (let off = 1; off <= palette.length; off++) {
+        const candidate = palette[(startIdx + off) % palette.length];
+        if (!used.has(candidate)) { chosen = candidate; break; }
+      }
+      // If all palette colors are used, allow reuse (graceful fallback)
+      if (used.has(chosen)) chosen = preferred;
+    }
+    used.add(chosen);
+    assigned.set(key, chosen);
+    return chosen;
+  };
+
+  return {
+    forKpi: (kpiId: string) => pick(`kpi:${kpiId}`, stableColorForKpi(kpiId)),
+    forSplit: (splitValue: string, kpiId?: string) =>
+      pick(`split:${kpiId || ''}:${splitValue}`, stableColorForSplit(splitValue, kpiId)),
+    forCounter: (counterName: string) =>
+      pick(`ctr:${counterName}`, stableColorForCounter(counterName)),
+  };
+}
+
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void; onChartClick?: () => void }>(({ option, height, onDataZoom, onChartClick }, ref) => {
   const onDataZoomRef = React.useRef(onDataZoom);
