@@ -641,20 +641,63 @@ const ChartConfigPanel: React.FC<Props> = ({ config, onChange, onClose }) => {
                         }`}>{mode === 'auto' ? 'Auto' : 'Fixe'}</button>
                     ))}
                   </div>
-                  {(draft.advanced.yAxisMode || 'auto') === 'fixed' && (
-                    <div className="flex gap-2 mt-1">
-                      <div className="flex-1">
-                        <label className="text-[9px] text-muted-foreground mb-0.5 block">Min</label>
-                        <input type="number" value={draft.advanced.yAxisMin ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMin: e.target.value === '' ? null : Number(e.target.value) } })}
-                          className="w-full px-2 py-1 rounded-md bg-background border border-border text-foreground text-[11px]" placeholder="0" />
+                  {(draft.advanced.yAxisMode || 'auto') === 'fixed' && (() => {
+                    const hasRightAxis = draft.yMetrics.some(m => m.axis === 'right');
+                    const lMin = draft.advanced.yAxisMin;
+                    const lMax = draft.advanced.yAxisMax;
+                    const rMin = draft.advanced.yAxisMinRight;
+                    const rMax = draft.advanced.yAxisMaxRight;
+                    const leftInvalid = lMin != null && lMax != null && lMin >= lMax;
+                    const rightInvalid = rMin != null && rMax != null && rMin >= rMax;
+                    const inputCls = (invalid: boolean) =>
+                      `w-full px-2 py-1 rounded-md bg-background border text-foreground text-[11px] ${
+                        invalid ? 'border-destructive focus:border-destructive' : 'border-border'
+                      }`;
+                    return (
+                      <div className="space-y-2 mt-1">
+                        <div>
+                          {hasRightAxis && (
+                            <div className="text-[9px] text-muted-foreground font-semibold mb-0.5">Axe gauche</div>
+                          )}
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-muted-foreground mb-0.5 block">Min</label>
+                              <input type="number" value={lMin ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMin: e.target.value === '' ? null : Number(e.target.value) } })}
+                                className={inputCls(leftInvalid)} placeholder="0" />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[9px] text-muted-foreground mb-0.5 block">Max</label>
+                              <input type="number" value={lMax ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMax: e.target.value === '' ? null : Number(e.target.value) } })}
+                                className={inputCls(leftInvalid)} placeholder="100" />
+                            </div>
+                          </div>
+                          {leftInvalid && (
+                            <p className="text-[9px] text-destructive mt-0.5">Min doit être &lt; Max — la plage sera ignorée.</p>
+                          )}
+                        </div>
+                        {hasRightAxis && (
+                          <div>
+                            <div className="text-[9px] text-muted-foreground font-semibold mb-0.5">Axe droit</div>
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <label className="text-[9px] text-muted-foreground mb-0.5 block">Min</label>
+                                <input type="number" value={rMin ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMinRight: e.target.value === '' ? null : Number(e.target.value) } })}
+                                  className={inputCls(rightInvalid)} placeholder="auto" />
+                              </div>
+                              <div className="flex-1">
+                                <label className="text-[9px] text-muted-foreground mb-0.5 block">Max</label>
+                                <input type="number" value={rMax ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMaxRight: e.target.value === '' ? null : Number(e.target.value) } })}
+                                  className={inputCls(rightInvalid)} placeholder="auto" />
+                              </div>
+                            </div>
+                            {rightInvalid && (
+                              <p className="text-[9px] text-destructive mt-0.5">Min doit être &lt; Max — la plage sera ignorée.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <label className="text-[9px] text-muted-foreground mb-0.5 block">Max</label>
-                        <input type="number" value={draft.advanced.yAxisMax ?? ''} onChange={e => update({ advanced: { ...draft.advanced, yAxisMax: e.target.value === '' ? null : Number(e.target.value) } })}
-                          className="w-full px-2 py-1 rounded-md bg-background border border-border text-foreground text-[11px]" placeholder="100" />
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
                 {/* Data Mode */}
                 <div className="space-y-1">
