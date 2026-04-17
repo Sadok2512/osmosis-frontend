@@ -9,6 +9,7 @@ import {
   FileUp,
   Filter,
   FolderOpen,
+  Pencil,
   Play,
   Plus,
   Search,
