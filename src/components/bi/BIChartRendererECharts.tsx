@@ -447,15 +447,22 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
             break;
           case 'area':
             series.push({
-              ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
-              symbol: 'none', showSymbol: false,
-              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
+              ...baseSeries,
+              type: 'line',
+              smooth: m.smoothCurve ? 0.3 : false,
+              symbol: m.showMarkers ? 'circle' : 'none',
+              showSymbol: !!m.showMarkers,
+              symbolSize: 6,
+              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.2), shadowBlur: 8, shadowOffsetY: 3 },
+              itemStyle: { color: s.color, borderColor: '#fff', borderWidth: m.showMarkers ? 2 : 0 },
               areaStyle: {
+                opacity: 1,
+                origin: 'auto',
                 color: {
                   type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: withAlpha(s.color, 0.09) },
-                    { offset: 1, color: withAlpha(s.color, 0.01) },
+                    { offset: 0, color: withAlpha(s.color, 0.55) },
+                    { offset: 1, color: withAlpha(s.color, 0.05) },
                   ],
                 },
               },
