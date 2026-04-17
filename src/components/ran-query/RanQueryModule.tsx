@@ -922,8 +922,8 @@ const RanQueryModule: React.FC = () => {
                     {selectedReport.results.map(result => (
                       <div key={`${result.kpi}-${result.technology}`} className="grid grid-cols-[1.8fr_0.9fr_0.9fr_1.2fr_0.8fr_0.8fr_0.7fr] gap-3 px-4 py-4 text-sm text-foreground">
                         <span className="font-bold">{result.kpi}</span>
-                        <span>{result.vendor}</span>
-                        <span>{result.technology}</span>
+                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text)}>{result.vendor}</span></span>
+                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', techBadge(result.technology).bg, techBadge(result.technology).text)}>{result.technology}</span></span>
                         <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
                         <span className="font-semibold">{result.value.toFixed(2)}</span>
                         <span>{result.unit}</span>
