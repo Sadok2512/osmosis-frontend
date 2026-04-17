@@ -1066,17 +1066,20 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     return m;
   }, [kpiDimData]);
 
-  // Per-KPI dimension type map: kpi_id → dimension_type (or null)
+  // Per-KPI dimension type map: kpi_id → dimension_type (or null).
+  // Catalog (DB) is authoritative for dimension_type and is checked FIRST,
+  // because legacy kpiDefs (FALLBACK_KPIS) often lacks the dimension_type field.
   const kpiDimensionMap = useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const def of kpiDefs) {
-      m.set(def.id, (def.dimension_type && PM_DIMENSION_TYPES.has(def.dimension_type)) ? def.dimension_type : null);
-    }
-    // Also include catalog entries
     for (const entry of catalog) {
-      if (!m.has(entry.kpi_key) && entry.dimension_type && PM_DIMENSION_TYPES.has(entry.dimension_type)) {
+      if (entry.dimension_type && PM_DIMENSION_TYPES.has(entry.dimension_type)) {
         m.set(entry.kpi_key, entry.dimension_type);
       }
+    }
+    for (const def of kpiDefs) {
+      if (m.has(def.id)) continue;
+      const dt = (def as any).dimension_type;
+      m.set(def.id, (dt && PM_DIMENSION_TYPES.has(dt)) ? dt : null);
     }
     return m;
   }, [kpiDefs, catalog]);
