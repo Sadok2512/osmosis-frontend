@@ -20,6 +20,7 @@ import { fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
 import { useKpiExplain } from './api/kpiMonitorApi';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { vendorPillClass, techPillClass } from '@/constants/brandColors';
 
 type DetailSection = 'overview' | 'formula' | 'thresholds' | 'source';
 type FilterStatus = 'all' | 'active' | 'inactive';
@@ -369,9 +370,9 @@ const KpiReferenceWorkspace2: React.FC = () => {
                       <p className="mt-1 truncate text-xs text-slate-500">{item.kpi_key}</p>
                     </button>
                     <span className="text-slate-800">{item.category}</span>
-                    <span className="font-semibold text-slate-900">{item.techno_scope}</span>
+                    <span><span className={techPillClass(item.techno_scope)}>{item.techno_scope}</span></span>
                     <span className="text-slate-800">{item.unit || '—'}</span>
-                    <span className="text-slate-800">{item.vendor || '—'}</span>
+                    <span>{item.vendor ? <span className={vendorPillClass(item.vendor)}>{item.vendor}</span> : <span className="text-slate-400">—</span>}</span>
                     <span>
                       {item.is_normalized ? (
                         <span className="inline-flex rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">Yes</span>
