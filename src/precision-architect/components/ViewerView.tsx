@@ -90,38 +90,66 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         </div>
       )}
 
-      <main className="max-w-7xl mx-auto p-8 space-y-6">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Live Report</p>
-          <h2 className="text-4xl font-black font-headline tracking-tighter">{activePage?.name ?? 'Overview'}</h2>
-        </div>
-
-        {widgets.length === 0 ? (
-          <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
-            <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">No widgets on this page</h3>
-            <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
-          </div>
-        ) : (
-          <div className="pa-grid-view">
-            <GridLayout
-              className="layout"
-              layout={layout}
-              cols={COLS}
-              rowHeight={ROW_HEIGHT}
-              margin={[16, 16]}
-              containerPadding={[0, 0]}
-              isDraggable={false}
-              isResizable={false}
-            >
-              {widgets.map(w => (
-                <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 overflow-hidden">
-                  <WidgetRenderer widget={w} />
-                </div>
+      <div className="max-w-7xl mx-auto p-8 flex gap-6">
+        {sections.length > 0 && (
+          <aside className="w-56 shrink-0 hidden lg:block">
+            <div className="sticky top-24 space-y-1">
+              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant px-2 mb-2">Sections</p>
+              {sections.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => focusSection(s.id)}
+                  className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant hover:bg-primary/5 hover:text-primary transition-colors text-left"
+                >
+                  <FileText className="w-3 h-3 shrink-0" />
+                  <span className="truncate">{s.name || 'Untitled'}</span>
+                </button>
               ))}
-            </GridLayout>
-          </div>
+            </div>
+          </aside>
         )}
-      </main>
+
+        <main className="flex-1 min-w-0 space-y-6">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Live Report</p>
+            <h2 className="text-4xl font-black font-headline tracking-tighter">{activePage?.name ?? 'Overview'}</h2>
+          </div>
+
+          {sections.length > 0 && (
+            <div className="space-y-4">
+              {sections.map((s) => (
+                <SectionBlock key={s.id} section={s} editable={false} />
+              ))}
+            </div>
+          )}
+
+          {widgets.length === 0 && sections.length === 0 ? (
+            <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
+              <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">No content on this page</h3>
+              <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
+            </div>
+          ) : widgets.length > 0 && (
+            <div className="pa-grid-view">
+              <GridLayout
+                className="layout"
+                layout={layout}
+                cols={COLS}
+                rowHeight={ROW_HEIGHT}
+                margin={[16, 16]}
+                containerPadding={[0, 0]}
+                isDraggable={false}
+                isResizable={false}
+              >
+                {widgets.map(w => (
+                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 overflow-hidden">
+                    <WidgetRenderer widget={w} />
+                  </div>
+                ))}
+              </GridLayout>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
