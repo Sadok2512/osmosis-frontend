@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ViewMode } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
+import PAEChart from './PAEChart';
 
 interface EditorViewProps {
   projectName: string;
@@ -190,11 +191,8 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
                 </div>
 
                 <div className="flex-grow flex items-center justify-center">
-                  <div className="w-full h-48 relative opacity-20 group-hover:opacity-100 transition-opacity">
-                    <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                      <path d="M0,80 Q25,20 50,50 T100,20" fill="none" stroke="#00685f" strokeWidth="2" strokeLinecap="round" />
-                      <path d="M0,90 Q25,30 50,60 T100,30" fill="none" stroke="#565e74" strokeWidth="1" strokeDasharray="3" strokeLinecap="round" />
-                    </svg>
+                  <div className="w-full h-64 relative">
+                    <PAEChart variant="editor" height="100%" />
                   </div>
                 </div>
               </div>

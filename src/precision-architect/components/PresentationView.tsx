@@ -91,43 +91,14 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
             </div>
           </div>
 
-          <div className="h-[520px] w-full rounded-3xl relative overflow-hidden bg-white/5 border border-white/5 backdrop-blur-sm group">
-            <div className="absolute inset-0 flex items-end justify-between px-2 opacity-10">
+          <div className="h-[520px] w-full rounded-3xl relative overflow-hidden bg-white/5 border border-white/5 backdrop-blur-sm group p-6">
+            <div className="absolute inset-0 flex items-end justify-between px-2 opacity-10 pointer-events-none">
               {[...Array(8)].map((_, i) => (
                 <div key={i} className="w-px h-full bg-white" />
               ))}
             </div>
 
-            <svg className="absolute bottom-0 w-full h-[80%]" preserveAspectRatio="none" viewBox="0 0 1000 400">
-              <defs>
-                <linearGradient id="presentationGradient" x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor="#00685f" stopOpacity="0.4" />
-                  <stop offset="100%" stopColor="#00685f" stopOpacity="0" />
-                </linearGradient>
-                <filter id="glow">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                  <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-              </defs>
-              <path d="M0,350 Q100,320 200,360 T400,300 T600,200 T800,280 T1000,150 L1000,400 L0,400 Z" fill="url(#presentationGradient)" />
-              <motion.path
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: 2, ease: 'easeInOut' }}
-                d="M0,350 Q100,320 200,360 T400,300 T600,200 T800,280 T1000,150"
-                fill="none"
-                stroke="#6bd8cb"
-                strokeWidth="4"
-                strokeLinecap="round"
-                filter="url(#glow)"
-              />
-              <circle cx="200" cy="360" r="5" fill="#6bd8cb" className="animate-pulse" />
-              <circle cx="600" cy="200" r="5" fill="#6bd8cb" className="animate-pulse" />
-              <circle cx="1000" cy="150" r="5" fill="#6bd8cb" className="animate-pulse" />
-            </svg>
+            <PAEChart variant="presentation" height="100%" />
 
             <motion.div
               animate={{ y: [0, -10, 0] }}
