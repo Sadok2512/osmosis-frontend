@@ -706,11 +706,12 @@ export async function fetchTimeSeriesForSlot(
 
   const kpiEngineStart = Date.now();
   log('[Pipeline] Step 2 KPI Engine START:', computeFailed, JSON.stringify(body));
+  // 120s timeout: multi-KPI queries at 15min granularity can be slow on the VPS.
   const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: getApiHeaders(),
     body: JSON.stringify(body),
-  });
+  }, 120_000);
 
   let kpiSeries: any[] = [];
   let kpiResults: DataPoint[] = [];
