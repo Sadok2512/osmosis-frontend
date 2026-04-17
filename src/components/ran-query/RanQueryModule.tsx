@@ -1087,6 +1087,31 @@ const RanQueryModule: React.FC = () => {
                       </div>
                     </div>
                   )}
+
+                  <div>
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Time Granularity</label>
+                    <div className="flex flex-wrap gap-2">
+                      {GRANULARITY_OPTIONS.map(opt => {
+                        const active = form.granularity === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => updateForm('granularity', opt.value)}
+                            className={cn(
+                              'rounded-xl border px-3 py-2 text-xs font-bold transition-all',
+                              active
+                                ? 'border-primary/40 bg-primary/8 text-primary'
+                                : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">Resolution at which KPI / counter values are aggregated over time.</p>
+                  </div>
                 </div>
               </SectionCard>
             </div>
