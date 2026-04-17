@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Check, RotateCcw, ChevronRight } from 'lucide-react';
+import { X, Search, Check, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
 import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
+import { fetchBIKpiCatalog, getCachedBIKpiCatalog } from './biCatalogService';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Volume: 'hsl(210, 80%, 55%)',
@@ -27,12 +28,27 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [catalog, setCatalog] = useState<BIKpiDefinition[]>(() => getCachedBIKpiCatalog());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchBIKpiCatalog()
+      .then(items => { if (!cancelled) setCatalog(items); })
+      .catch(err => { if (!cancelled) setError(err?.message || 'Erreur de chargement'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open]);
 
   const scopedCatalog = useMemo(() => {
-    if (!availableKeys || availableKeys.length === 0) return BI_KPI_CATALOG;
+    if (!availableKeys || availableKeys.length === 0) return catalog;
     const allowed = new Set(availableKeys);
-    return BI_KPI_CATALOG.filter(k => allowed.has(k.key));
-  }, [availableKeys]);
+    return catalog.filter(k => allowed.has(k.key));
+  }, [availableKeys, catalog]);
 
   useEffect(() => {
     if (open) {
@@ -41,6 +57,12 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       setSearch('');
     }
   }, [open, selectedKeys]);
+
+  const dynamicCategories = useMemo(() => {
+    const cats = new Set<string>(BI_KPI_CATEGORIES as readonly string[]);
+    catalog.forEach(k => cats.add(k.category));
+    return Array.from(cats);
+  }, [catalog]);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
