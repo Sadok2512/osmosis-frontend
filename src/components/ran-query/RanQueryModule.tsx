@@ -44,11 +44,13 @@ type Tech = '2G' | '3G' | '4G' | '5G';
 type RelativeUnit = 'minutes' | 'hours' | 'days';
 
 type RelativePreset = '1h' | '24h' | '7d' | '30d' | '90d' | 'custom';
+type Granularity = '5min' | '15min' | '30min' | '1h' | '1d' | '1w';
 
 interface AbsoluteTimeConfig {
   timeMode: 'absolute';
   start: string;
   end: string;
+  granularity: Granularity;
 }
 
 interface RelativeTimeConfig {
@@ -56,9 +58,19 @@ interface RelativeTimeConfig {
   value: number;
   unit: RelativeUnit;
   end: 'now';
+  granularity: Granularity;
 }
 
 type TimeConfig = AbsoluteTimeConfig | RelativeTimeConfig;
+
+const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
+  { value: '5min', label: '5 min' },
+  { value: '15min', label: '15 min' },
+  { value: '30min', label: '30 min' },
+  { value: '1h', label: '1 hour' },
+  { value: '1d', label: '1 day' },
+  { value: '1w', label: '1 week' },
+];
 
 interface ReportResultRow {
   kpi: string;
