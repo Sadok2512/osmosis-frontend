@@ -19,8 +19,9 @@ import { toast } from '@/hooks/use-toast';
 import { fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
 import { useKpiExplain } from './api/kpiMonitorApi';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
-type DetailTab = 'overview' | 'formula' | 'thresholds' | 'source';
+type DetailSection = 'overview' | 'formula' | 'thresholds' | 'source';
 type FilterStatus = 'all' | 'active' | 'inactive';
 
 interface KpiDraft {
@@ -95,7 +96,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [techFilter, setTechFilter] = useState<'all' | TechnoScope>('all');
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
   const [selectedKpiKey, setSelectedKpiKey] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<DetailTab>('overview');
+  const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
 
@@ -216,7 +217,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const openView = (kpi: KpiCatalogEntry) => {
     setSelectedKpiKey(kpi.kpi_key);
     setIsEditing(false);
-    setDetailTab('overview');
+    setOpenSections(['overview']);
   };
 
   const openEdit = (kpi?: KpiCatalogEntry | null) => {
@@ -225,7 +226,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setSelectedKpiKey(target.kpi_key);
     setDraft(toDraft(target));
     setIsEditing(true);
-    setDetailTab('overview');
+    setOpenSections(['overview', 'formula', 'thresholds', 'source']);
   };
 
   const saveDraft = () => {
@@ -444,244 +445,254 @@ const KpiReferenceWorkspace2: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-100 p-1">
-                  {[
-                    { id: 'overview' as const, label: 'Overview' },
-                    { id: 'formula' as const, label: 'Formula' },
-                    { id: 'thresholds' as const, label: 'Thresholds' },
-                    { id: 'source' as const, label: 'Source' },
-                  ].map(tab => (
-                    <button key={tab.id} onClick={() => setDetailTab(tab.id)} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailTab === tab.id ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900')}>
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {detailTab === 'overview' && (
-                  <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                    <div className="space-y-4 rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Display name</label>
-                          <input value={draft.display_name} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, display_name: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Category</label>
-                          <select value={draft.category} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, category: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
-                            {categories.map(category => (
-                              <option key={category} value={category}>{category}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Technology</label>
-                          <select value={draft.techno_scope} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, techno_scope: event.target.value as TechnoScope } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
-                            {TECHNO_OPTIONS.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Unit</label>
-                          <input value={draft.unit} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, unit: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Value type</label>
-                          <select value={draft.value_type} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, value_type: event.target.value as ValueType } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
-                            {VALUE_TYPES.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Default aggregation</label>
-                          <select value={draft.default_agg} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, default_agg: event.target.value as AggFunc } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
-                            {AGGREGATIONS.map(option => (
-                              <option key={option} value={option}>{option}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Description</label>
-                        <textarea value={draft.description} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, description: event.target.value } : prev)} className="min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Reference summary</p>
-                        <div className="mt-4 grid gap-3 text-sm text-slate-900">
-                          <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">KPI key</p>
-                            <p className="mt-2 break-words font-bold">{selectedKpi.kpi_key}</p>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Aggregation</p>
-                              <p className="mt-2 font-bold">{draft.default_agg}</p>
+                <Accordion
+                  type="multiple"
+                  value={openSections}
+                  onValueChange={(v) => setOpenSections(v as DetailSection[])}
+                  className="space-y-3"
+                >
+                  {/* OVERVIEW */}
+                  <AccordionItem value="overview" className="rounded-[24px] border border-slate-200 bg-white/80 px-5 [&]:border-b">
+                    <AccordionTrigger className="py-4 text-left text-sm font-black uppercase tracking-[0.14em] text-slate-900 hover:no-underline">
+                      Overview
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-5 pt-1">
+                      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                        <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Display name</label>
+                              <input value={draft.display_name} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, display_name: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
                             </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Value type</p>
-                              <p className="mt-2 font-bold">{draft.value_type}</p>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Category</label>
+                              <select value={draft.category} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, category: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
+                                {categories.map(category => (
+                                  <option key={category} value={category}>{category}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Technology</label>
+                              <select value={draft.techno_scope} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, techno_scope: event.target.value as TechnoScope } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
+                                {TECHNO_OPTIONS.map(option => (
+                                  <option key={option} value={option}>{option}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Unit</label>
+                              <input value={draft.unit} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, unit: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Value type</label>
+                              <select value={draft.value_type} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, value_type: event.target.value as ValueType } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
+                                {VALUE_TYPES.map(option => (
+                                  <option key={option} value={option}>{option}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Default aggregation</label>
+                              <select value={draft.default_agg} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, default_agg: event.target.value as AggFunc } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75">
+                                {AGGREGATIONS.map(option => (
+                                  <option key={option} value={option}>{option}</option>
+                                ))}
+                              </select>
                             </div>
                           </div>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Technology</p>
-                              <p className="mt-2 font-bold">{draft.techno_scope}</p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Unit</p>
-                              <p className="mt-2 font-bold">{draft.unit || '—'}</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
 
-                      <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Operational profile</p>
-                        <div className="mt-4 space-y-4">
                           <div>
-                            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Display color</label>
-                            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                              <input type="color" value={draft.color} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, color: event.target.value } : prev)} className="h-10 w-12 rounded-lg border-0 bg-transparent p-0 disabled:opacity-75" />
-                              <span className="text-sm font-semibold text-slate-900">{draft.color}</span>
-                            </div>
+                            <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Description</label>
+                            <textarea value={draft.description} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, description: event.target.value } : prev)} className="min-h-[120px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
                           </div>
+                        </div>
 
-                          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Map support</p>
-                                <p className="mt-1 text-sm text-slate-900">Enable KPI availability in map-oriented workflows.</p>
+                        <div className="space-y-4">
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Reference summary</p>
+                            <div className="mt-4 grid gap-3 text-sm text-slate-900">
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">KPI key</p>
+                                <p className="mt-2 break-words font-bold">{selectedKpi.kpi_key}</p>
                               </div>
-                              <button disabled={!isEditing} onClick={() => setDraft(prev => prev ? { ...prev, is_map_supported: !prev.is_map_supported } : prev)} className={cn('relative h-7 w-12 rounded-full transition-all disabled:opacity-75', draft.is_map_supported ? 'bg-teal-700' : 'bg-slate-300')}>
-                                <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all', draft.is_map_supported ? 'right-1' : 'left-1')} />
-                              </button>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Aggregation</p>
+                                  <p className="mt-2 font-bold">{draft.default_agg}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Value type</p>
+                                  <p className="mt-2 font-bold">{draft.value_type}</p>
+                                </div>
+                              </div>
+                              <div className="grid gap-3 md:grid-cols-2">
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Technology</p>
+                                  <p className="mt-2 font-bold">{draft.techno_scope}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Unit</p>
+                                  <p className="mt-2 font-bold">{draft.unit || '—'}</p>
+                                </div>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="rounded-2xl border border-teal-200 bg-teal-50 px-4 py-4 text-sm text-slate-900">
-                            <ul className="space-y-2">
-                              <li>Use the top list to navigate quickly without losing your opened KPI.</li>
-                              <li>Edit mode is local to this lower workspace.</li>
-                              <li>Formula and source remain easy to inspect without leaving the screen.</li>
+                          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Operational profile</p>
+                            <div className="mt-4 space-y-4">
+                              <div>
+                                <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Display color</label>
+                                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                                  <input type="color" value={draft.color} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, color: event.target.value } : prev)} className="h-10 w-12 rounded-lg border-0 bg-transparent p-0 disabled:opacity-75" />
+                                  <span className="text-sm font-semibold text-slate-900">{draft.color}</span>
+                                </div>
+                              </div>
+
+                              <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Map support</p>
+                                    <p className="mt-1 text-sm text-slate-900">Enable KPI availability in map-oriented workflows.</p>
+                                  </div>
+                                  <button disabled={!isEditing} onClick={() => setDraft(prev => prev ? { ...prev, is_map_supported: !prev.is_map_supported } : prev)} className={cn('relative h-7 w-12 rounded-full transition-all disabled:opacity-75', draft.is_map_supported ? 'bg-teal-700' : 'bg-slate-300')}>
+                                    <span className={cn('absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all', draft.is_map_supported ? 'right-1' : 'left-1')} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* FORMULA */}
+                  <AccordionItem value="formula" className="rounded-[24px] border border-slate-200 bg-white/80 px-5 [&]:border-b">
+                    <AccordionTrigger className="py-4 text-left text-sm font-black uppercase tracking-[0.14em] text-slate-900 hover:no-underline">
+                      <div className="flex w-full items-center justify-between pr-3">
+                        <span>Formula</span>
+                        {explainQuery.isLoading ? <span className="text-[10px] font-semibold normal-case tracking-normal text-slate-500">Loading explain...</span> : null}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-5 pt-1">
+                      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Formula structure</p>
+                          <div className="mt-4 space-y-4 text-sm text-slate-900">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Numerator</p>
+                              <p className="mt-2 break-words font-semibold">{explain?.numerator || selectedKpi.numerator_counter || 'No numerator exposed'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Denominator</p>
+                              <p className="mt-2 break-words font-semibold">{explain?.denominator || selectedKpi.denominator_counter || 'No denominator exposed'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">SQL / Formula</p>
+                              <p className="mt-2 break-words font-mono text-xs text-slate-900">{explain?.formula || selectedKpi.formula_sql || 'No formula SQL available'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Counter usage</p>
+                          <div className="mt-4 space-y-3">
+                            {Array.isArray(explain?.counters) && explain.counters.length > 0 ? explain.counters.map((counter: any, index: number) => (
+                              <div key={`${counter?.name || counter}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900">
+                                <p className="font-bold">{counter?.name || counter}</p>
+                                {counter?.description ? <p className="mt-1 text-xs text-slate-500">{counter.description}</p> : null}
+                              </div>
+                            )) : (
+                              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+                                No explicit counter list returned for this KPI.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* THRESHOLDS */}
+                  <AccordionItem value="thresholds" className="rounded-[24px] border border-slate-200 bg-white/80 px-5 [&]:border-b">
+                    <AccordionTrigger className="py-4 text-left text-sm font-black uppercase tracking-[0.14em] text-slate-900 hover:no-underline">
+                      Thresholds
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-5 pt-1">
+                      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Threshold configuration</p>
+                          <div className="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Warning</label>
+                              <input value={draft.warning} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, warning: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
+                            </div>
+                            <div>
+                              <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Critical</label>
+                              <input value={draft.critical} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, critical: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Threshold preview</p>
+                          <div className="mt-4 space-y-3 text-sm">
+                            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
+                              Warning threshold: <span className="font-black">{draft.warning || 'Not defined'}</span>
+                            </div>
+                            <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
+                              Critical threshold: <span className="font-black">{draft.critical || 'Not defined'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* SOURCE */}
+                  <AccordionItem value="source" className="rounded-[24px] border border-slate-200 bg-white/80 px-5 [&]:border-b">
+                    <AccordionTrigger className="py-4 text-left text-sm font-black uppercase tracking-[0.14em] text-slate-900 hover:no-underline">
+                      <div className="flex w-full items-center justify-between pr-3">
+                        <span>Source</span>
+                        {explainQuery.isLoading ? <span className="text-[10px] font-semibold normal-case tracking-normal text-slate-500">Loading explain...</span> : null}
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-5 pt-1">
+                      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source metadata</p>
+                          <div className="mt-4 grid gap-3 text-sm text-slate-900">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source table</p>
+                              <p className="mt-2 font-semibold">{explain?.source_table || 'Not exposed'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source column</p>
+                              <p className="mt-2 font-semibold">{explain?.source_column || 'Not exposed'}</p>
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Supported levels</p>
+                              <p className="mt-2 font-semibold">{Array.isArray(explain?.supported_levels) && explain.supported_levels.length > 0 ? explain.supported_levels.join(', ') : (selectedKpi.supported_levels?.join(', ') || 'Not exposed')}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Review notes</p>
+                          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-900">
+                            <ul className="space-y-3">
+                              <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Open and compare KPI definitions without losing the list context.</li>
+                              <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Use edit mode for metadata only; technical source remains review-focused.</li>
+                              <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Keep formula, thresholds, and source in one continuous analyst workflow.</li>
                             </ul>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-
-                {detailTab === 'formula' && (
-                  <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Formula structure</p>
-                        {explainQuery.isLoading ? <span className="text-xs font-semibold text-slate-500">Loading explain...</span> : null}
-                      </div>
-                      <div className="mt-4 space-y-4 text-sm text-slate-900">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Numerator</p>
-                          <p className="mt-2 break-words font-semibold">{explain?.numerator || selectedKpi.numerator_counter || 'No numerator exposed'}</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Denominator</p>
-                          <p className="mt-2 break-words font-semibold">{explain?.denominator || selectedKpi.denominator_counter || 'No denominator exposed'}</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">SQL / Formula</p>
-                          <p className="mt-2 break-words font-mono text-xs text-slate-900">{explain?.formula || selectedKpi.formula_sql || 'No formula SQL available'}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Counter usage</p>
-                      <div className="mt-4 space-y-3">
-                        {Array.isArray(explain?.counters) && explain.counters.length > 0 ? explain.counters.map((counter: any, index: number) => (
-                          <div key={`${counter?.name || counter}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900">
-                            <p className="font-bold">{counter?.name || counter}</p>
-                            {counter?.description ? <p className="mt-1 text-xs text-slate-500">{counter.description}</p> : null}
-                          </div>
-                        )) : (
-                          <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
-                            No explicit counter list returned for this KPI.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {detailTab === 'thresholds' && (
-                  <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Threshold configuration</p>
-                      <div className="mt-4 grid gap-4 md:grid-cols-2">
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Warning</label>
-                          <input value={draft.warning} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, warning: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
-                        </div>
-                        <div>
-                          <label className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Critical</label>
-                          <input value={draft.critical} disabled={!isEditing} onChange={event => setDraft(prev => prev ? { ...prev, critical: event.target.value } : prev)} className="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-900 outline-none transition-all focus:border-teal-400 disabled:opacity-75" />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Threshold preview</p>
-                      <div className="mt-4 space-y-3 text-sm">
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
-                          Warning threshold: <span className="font-black">{draft.warning || 'Not defined'}</span>
-                        </div>
-                        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">
-                          Critical threshold: <span className="font-black">{draft.critical || 'Not defined'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {detailTab === 'source' && (
-                  <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source metadata</p>
-                        {explainQuery.isLoading ? <span className="text-xs font-semibold text-slate-500">Loading explain...</span> : null}
-                      </div>
-                      <div className="mt-4 grid gap-3 text-sm text-slate-900">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source table</p>
-                          <p className="mt-2 font-semibold">{explain?.source_table || 'Not exposed'}</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Source column</p>
-                          <p className="mt-2 font-semibold">{explain?.source_column || 'Not exposed'}</p>
-                        </div>
-                        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Supported levels</p>
-                          <p className="mt-2 font-semibold">{Array.isArray(explain?.supported_levels) && explain.supported_levels.length > 0 ? explain.supported_levels.join(', ') : (selectedKpi.supported_levels?.join(', ') || 'Not exposed')}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] border border-slate-200 bg-white/80 p-5">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Review notes</p>
-                      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-900">
-                        <ul className="space-y-3">
-                          <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Open and compare KPI definitions without losing the list context.</li>
-                          <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Use edit mode for metadata only; technical source remains review-focused.</li>
-                          <li className="flex items-start gap-2"><ArrowDownRight className="mt-0.5 h-4 w-4 text-teal-700" />Keep formula, thresholds, and source in one continuous analyst workflow.</li>
-                        </ul>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
               </div>
             )}
           </Panel>
