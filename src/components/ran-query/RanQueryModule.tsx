@@ -124,6 +124,7 @@ interface CreateFormState {
   zoneArcep: string[];
   aggregation: AggregationLevel;
   dimensions: string[];
+  granularity: Granularity;
 }
 
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
