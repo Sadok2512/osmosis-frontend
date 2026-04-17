@@ -801,8 +801,8 @@ const RanQueryModule: React.FC = () => {
                             key={tech}
                             onClick={() => updateForm('technologies', active ? form.technologies.filter(item => item !== tech) : [...form.technologies, tech])}
                             className={cn(
-                              'rounded-2xl border px-4 py-3 text-sm font-bold transition-all',
-                              active ? cn('border-transparent', tb.bg, tb.text) : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                              'rounded-2xl border px-4 py-3 text-sm font-medium transition-all',
+                              active ? cn(tb.bg, tb.text, tb.border) : 'border-border/60 bg-background text-foreground hover:border-primary/25'
                             )}
                           >
                             {tech}
