@@ -572,16 +572,34 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
   };
 
   const yAxisMode = config.advanced.yAxisMode || 'auto';
-  const yAxisFixedMin = config.advanced.yAxisMin;
-  const yAxisFixedMax = config.advanced.yAxisMax;
   const showGrid = config.advanced.showGrid !== false;
-  const yAxisRange = yAxisMode === 'fixed' ? {
-    ...(yAxisFixedMin != null ? { min: yAxisFixedMin } : {}),
-    ...(yAxisFixedMax != null ? { max: yAxisFixedMax } : {}),
-  } : {};
+
+  // Validate a (min, max) pair. If invalid (min >= max), ignore both.
+  const validRange = (mn: number | null | undefined, mx: number | null | undefined) => {
+    const minOk = mn != null && Number.isFinite(mn);
+    const maxOk = mx != null && Number.isFinite(mx);
+    if (minOk && maxOk && (mn as number) >= (mx as number)) return {};
+    return {
+      ...(minOk ? { min: mn as number } : {}),
+      ...(maxOk ? { max: mx as number } : {}),
+    };
+  };
+
+  const leftRange = yAxisMode === 'fixed'
+    ? validRange(config.advanced.yAxisMin, config.advanced.yAxisMax)
+    : {};
+  // Right axis: fall back to left bounds if right-specific values are not set,
+  // so users who only set "Min/Max" still get expected behavior on single-axis charts.
+  const rightRange = yAxisMode === 'fixed'
+    ? validRange(
+        config.advanced.yAxisMinRight ?? config.advanced.yAxisMin,
+        config.advanced.yAxisMaxRight ?? config.advanced.yAxisMax,
+      )
+    : {};
 
   const yAxis: any[] = [{
-    ...PREMIUM_YAXIS_BASE, type: 'value', ...yAxisRange,
+    ...PREMIUM_YAXIS_BASE, type: 'value', ...leftRange,
+    scale: yAxisMode === 'auto',
     splitLine: { lineStyle: { color: 'rgba(0,0,0,0.06)', type: [4, 4] as any, width: 1 }, show: showGrid },
   }];
   if (hasRight) {
@@ -589,8 +607,9 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
       ...PREMIUM_YAXIS_BASE,
       type: 'value',
       position: 'right',
+      scale: yAxisMode === 'auto',
       splitLine: { show: false },
-      ...yAxisRange,
+      ...rightRange,
     });
   }
 
