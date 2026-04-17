@@ -5,6 +5,7 @@ import {
   Database,
   Eye,
   Globe,
+  LibraryBig,
   Monitor,
   Moon,
   Palette,
@@ -48,7 +49,8 @@ const MODULE_DEFS: { id: string; label: string; description: string; icon: React
   { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites et cellules', icon: <Globe className="w-5 h-5" /> },
   { id: 'traffic', label: 'Analytic QoE', description: 'Analyse avancée et tableaux de bord', icon: <Activity className="w-5 h-5" /> },
-  { id: 'kpi_monitor', label: 'KPI Monitor', description: 'Suivi des indicateurs de performance', icon: <Activity className="w-5 h-5" /> },
+  { id: 'kpi_monitor', label: 'KPI Monitor', description: 'Référentiel KPI réseau existant', icon: <Activity className="w-5 h-5" /> },
+  { id: 'kpi_reference2', label: 'KPI Reference 2', description: 'Nouveau référentiel KPI avec flux modernisé', icon: <LibraryBig className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', description: 'Détection avancée et RCA', icon: <Server className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', description: 'Détection ML et clustering', icon: <Radio className="w-5 h-5" /> },
   { id: 'radio_profile', label: 'Radio Profile', description: 'Profil radio et couverture', icon: <Radio className="w-5 h-5" /> },
@@ -264,11 +266,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </div>
             </SectionCard>
 
-            <SectionCard title="RAN Query" description="Le nouveau module est maintenant piloté depuis la sidebar et les paramètres.">
+            <SectionCard title="KPI Reference 2" description="Nouveau référentiel KPI en frontend, séparé du module KPI Monitor existant.">
               <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
                 <p className="text-[10px] font-black uppercase tracking-widest text-primary">Frontend only</p>
                 <p className="mt-2 text-sm font-semibold text-foreground">
-                  Le module RAN Query est intégré dans OSMOSIS avec création, exécution, vue détail et téléchargement de rapports.
+                  KPI Reference 2 apporte une vue plus propre, un flux list → open → review → edit, et un workspace inférieur dédié sans casser les fonctionnalités existantes.
                 </p>
               </div>
             </SectionCard>
