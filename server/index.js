@@ -3662,6 +3662,152 @@ app.get('/api/bi-distinct', async (req, res) => {
   }
 });
 
+// ─── /api/bi-catalog (BI Studio — KPI catalog from qoe_metric columns) ───
+// Metadata for known BI KPIs (category + display name + unit). Columns not
+// listed here are still returned with sensible defaults so the catalog stays
+// in sync with the database schema.
+const BI_KPI_META = {
+  // Volume
+  volume_totale_dl: { display_name: 'Volume DL', category: 'Volume', unit: 'GB' },
+  volume_totale_ul: { display_name: 'Volume UL', category: 'Volume', unit: 'GB' },
+  volume_totale_totale: { display_name: 'Volume Total', category: 'Volume', unit: 'GB' },
+  // Débit
+  debit_ul: { display_name: 'Débit UL', category: 'Débit', unit: 'Mbps' },
+  debit_dl: { display_name: 'Débit DL', category: 'Débit', unit: 'Mbps' },
+  debit_ul_vol5: { display_name: 'Débit UL Vol5', category: 'Débit', unit: 'Mbps' },
+  debit_dl_vol5: { display_name: 'Débit DL Vol5', category: 'Débit', unit: 'Mbps' },
+  debit_ul_vol10: { display_name: 'Débit UL Vol10', category: 'Débit', unit: 'Mbps' },
+  debit_dl_vol10: { display_name: 'Débit DL Vol10', category: 'Débit', unit: 'Mbps' },
+  dms_debit_dl_30: { display_name: 'DMS DL 30', category: 'Débit', unit: '%' },
+  dms_debit_dl_8: { display_name: 'DMS DL 8', category: 'Débit', unit: '%' },
+  dms_debit_dl_3: { display_name: 'DMS DL 3', category: 'Débit', unit: '%' },
+  dms_30_dl_vol5: { display_name: 'DMS 30 DL Vol5', category: 'Débit', unit: 'Mbps' },
+  dms_8_dl_vol5: { display_name: 'DMS 8 DL Vol5', category: 'Débit', unit: 'Mbps' },
+  dms_3_dl_vol5: { display_name: 'DMS 3 DL Vol5', category: 'Débit', unit: 'Mbps' },
+  dms_30_dl_vol10: { display_name: 'DMS 30 DL Vol10', category: 'Débit', unit: 'Mbps' },
+  dms_8_dl_vol10: { display_name: 'DMS 8 DL Vol10', category: 'Débit', unit: 'Mbps' },
+  dms_3_dl_vol10: { display_name: 'DMS 3 DL Vol10', category: 'Débit', unit: 'Mbps' },
+  dms_debit_ul_5: { display_name: 'DMS UL 5', category: 'Débit', unit: '%' },
+  dms_debit_ul_3: { display_name: 'DMS UL 3', category: 'Débit', unit: '%' },
+  dms_debit_ul_1: { display_name: 'DMS UL 1', category: 'Débit', unit: '%' },
+  debit_ul_max: { display_name: 'Débit UL Max', category: 'Débit', unit: 'Mbps' },
+  debit_dl_max: { display_name: 'Débit DL Max', category: 'Débit', unit: 'Mbps' },
+  // Latence
+  rtt_setup_avg: { display_name: 'RTT Setup Avg', category: 'Latence', unit: 'ms' },
+  rtt_data_avg: { display_name: 'RTT Data Avg', category: 'Latence', unit: 'ms' },
+  rtt_setup_0_40000: { display_name: 'RTT Setup < 40', category: 'Latence', unit: '%' },
+  rtt_setup_40000_80000: { display_name: 'RTT Setup 40-80', category: 'Latence', unit: '%' },
+  rtt_setup_80000_150000: { display_name: 'RTT Setup 80-150', category: 'Latence', unit: '%' },
+  rtt_setup_150000_300000: { display_name: 'RTT Setup 150-300', category: 'Latence', unit: '%' },
+  rtt_setup_300000_inf: { display_name: 'RTT Setup > 300', category: 'Latence', unit: '%' },
+  rtt_data_0_40000: { display_name: 'RTT Data < 40', category: 'Latence', unit: '%' },
+  rtt_data_40000_80000: { display_name: 'RTT Data 40-80', category: 'Latence', unit: '%' },
+  rtt_data_80000_150000: { display_name: 'RTT Data 80-150', category: 'Latence', unit: '%' },
+  rtt_data_150000_300000: { display_name: 'RTT Data 150-300', category: 'Latence', unit: '%' },
+  rtt_data_300000_inf: { display_name: 'RTT Data > 300', category: 'Latence', unit: '%' },
+  // TCP Session KPI
+  loss_dl_rate: { display_name: 'Loss DL Rate', category: 'TCP Session KPI', unit: '%' },
+  loss_ul_rate: { display_name: 'Loss UL Rate', category: 'TCP Session KPI', unit: '%' },
+  'loss_ul_0_0.01': { display_name: 'Loss UL 0-1%', category: 'TCP Session KPI', unit: '%' },
+  'loss_ul_0.01_0.03': { display_name: 'Loss UL 1-3%', category: 'TCP Session KPI', unit: '%' },
+  'loss_ul_0.03_0.05': { display_name: 'Loss UL 3-5%', category: 'TCP Session KPI', unit: '%' },
+  'loss_ul_0.05_inf': { display_name: 'Loss UL > 5%', category: 'TCP Session KPI', unit: '%' },
+  'loss_dl_0_0.01': { display_name: 'Loss DL 0-1%', category: 'TCP Session KPI', unit: '%' },
+  'loss_dl_0.01_0.03': { display_name: 'Loss DL 1-3%', category: 'TCP Session KPI', unit: '%' },
+  'loss_dl_0.03_0.05': { display_name: 'Loss DL 3-5%', category: 'TCP Session KPI', unit: '%' },
+  'loss_dl_0.05_inf': { display_name: 'Loss DL > 5%', category: 'TCP Session KPI', unit: '%' },
+  tcp_retr_rate_ul: { display_name: 'TCP Retr Rate UL', category: 'TCP Session KPI', unit: '%' },
+  tcp_retr_rate_dl: { display_name: 'TCP Retr Rate DL', category: 'TCP Session KPI', unit: '%' },
+  'retr_dl_0_0.01': { display_name: 'Retr DL 0-1%', category: 'TCP Session KPI', unit: '%' },
+  'retr_dl_0.01_0.03': { display_name: 'Retr DL 1-3%', category: 'TCP Session KPI', unit: '%' },
+  'retr_dl_0.03_0.05': { display_name: 'Retr DL 3-5%', category: 'TCP Session KPI', unit: '%' },
+  'retr_dl_0.05_inf': { display_name: 'Retr DL > 5%', category: 'TCP Session KPI', unit: '%' },
+  'retr_ul_0_0.01': { display_name: 'Retr UL 0-1%', category: 'TCP Session KPI', unit: '%' },
+  'retr_ul_0.01_0.03': { display_name: 'Retr UL 1-3%', category: 'TCP Session KPI', unit: '%' },
+  'retr_ul_0.03_0.05': { display_name: 'Retr UL 3-5%', category: 'TCP Session KPI', unit: '%' },
+  'retr_ul_0.05_inf': { display_name: 'Retr UL > 5%', category: 'TCP Session KPI', unit: '%' },
+  session_wifi_nbr: { display_name: 'Sessions WiFi', category: 'TCP Session KPI', unit: '' },
+  session_3g2g_nbr: { display_name: 'Sessions 3G/2G', category: 'TCP Session KPI', unit: '' },
+  session_4g_nbr: { display_name: 'Sessions 4G', category: 'TCP Session KPI', unit: '' },
+  session_5g_nbr: { display_name: 'Sessions 5G', category: 'TCP Session KPI', unit: '' },
+  session_nbr: { display_name: 'Sessions Total', category: 'TCP Session KPI', unit: '' },
+  session_dur_moy: { display_name: 'Durée Moy Session', category: 'TCP Session KPI', unit: 's' },
+  session_dcr: { display_name: 'Session DCR', category: 'TCP Session KPI', unit: '%' },
+  out_of_order_nbr: { display_name: 'Out of Order Nbr', category: 'TCP Session KPI', unit: '' },
+  out_of_order_rate: { display_name: 'Out of Order Rate', category: 'TCP Session KPI', unit: '%' },
+  wind_full_nbr: { display_name: 'Window Full Nbr', category: 'TCP Session KPI', unit: '' },
+  wind_full_rate: { display_name: 'Window Full Rate', category: 'TCP Session KPI', unit: '%' },
+  // Radio Access Tech
+  fallback_5G_to_4G_rate: { display_name: 'Fallback 5G→4G Rate', category: 'Radio Access Tech', unit: '%' },
+  fallback_4G_to_3G2G_rate: { display_name: 'Fallback 4G→3G/2G Rate', category: 'Radio Access Tech', unit: '%' },
+  instability_rate: { display_name: 'Instability Rate', category: 'Radio Access Tech', unit: '%' },
+  time_rat_5g_pct: { display_name: 'Time RAT 5G %', category: 'Radio Access Tech', unit: '%' },
+  time_rat_4g_pct: { display_name: 'Time RAT 4G %', category: 'Radio Access Tech', unit: '%' },
+  time_rat_3g2g_pct: { display_name: 'Time RAT 3G/2G %', category: 'Radio Access Tech', unit: '%' },
+  time_rat_wifi_pct: { display_name: 'Time RAT WiFi %', category: 'Radio Access Tech', unit: '%' },
+  // QOE Index
+  Mauvaise_Session_Rate: { display_name: 'Mauvaise Session Rate', category: 'QOE Index', unit: '%' },
+  Mauvaise_Session_nbr: { display_name: 'Mauvaise Session Nbr', category: 'QOE Index', unit: '' },
+  qoe_index: { display_name: 'QoE Index', category: 'QOE Index', unit: '' },
+  // User Capabilité
+  '5G_capable_rate': { display_name: '5G Capable Rate', category: 'User Capabilité', unit: '%' },
+  '5gue_attached_4G_rate': { display_name: '5G UE Attached 4G Rate', category: 'User Capabilité', unit: '%' },
+};
+
+const BI_NON_KPI_COLUMNS = new Set([
+  'id', 'date_part', 'created_at', 'Dimension_1', 'Dimension_2', 'dimension_1', 'dimension_2',
+]);
+
+function humanizeKpiKey(key) {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+app.get('/api/bi-catalog', async (_req, res) => {
+  try {
+    // Introspect numeric columns from qoe_metric (fallback to kpi_qoe_aggregated)
+    let columns = [];
+    for (const tbl of ['qoe_metric', 'kpi_qoe_aggregated']) {
+      try {
+        const r = await sharedPool.query(
+          `SELECT column_name, data_type FROM information_schema.columns
+           WHERE table_schema = current_schema() AND table_name = $1`, [tbl]
+        );
+        if (r.rows.length > 0) {
+          columns = r.rows;
+          console.log(`[bi-catalog] using columns from ${tbl} (${columns.length})`);
+          break;
+        }
+      } catch { /* ignore */ }
+    }
+
+    if (columns.length === 0) {
+      // No DB column info — return the static metadata so the UI still works
+      const items = Object.entries(BI_KPI_META).map(([key, m]) => ({ key, ...m }));
+      return res.json({ source: 'static', items });
+    }
+
+    const numericTypes = new Set(['numeric', 'double precision', 'real', 'integer', 'bigint', 'smallint']);
+    const items = [];
+    for (const { column_name, data_type } of columns) {
+      if (BI_NON_KPI_COLUMNS.has(column_name)) continue;
+      if (!numericTypes.has(data_type)) continue;
+      const meta = BI_KPI_META[column_name];
+      items.push({
+        key: column_name,
+        display_name: meta?.display_name || humanizeKpiKey(column_name),
+        category: meta?.category || 'Other',
+        unit: meta?.unit ?? '',
+      });
+    }
+    res.json({ source: 'db', items });
+  } catch (e) {
+    console.error('[bi-catalog]', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── /api/bi-date-range (BI Studio — get available date range) ───
 app.get('/api/bi-date-range', async (_req, res) => {
   try {

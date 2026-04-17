@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Check, RotateCcw, ChevronRight } from 'lucide-react';
-import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
+import { X, Search, Check, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
+import { BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
+import { fetchBIKpiCatalog, getCachedBIKpiCatalog } from './biCatalogService';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Volume: 'hsl(210, 80%, 55%)',
@@ -27,12 +28,27 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
   const [selected, setSelected] = useState<Set<string>>(new Set(selectedKeys));
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [catalog, setCatalog] = useState<BIKpiDefinition[]>(() => getCachedBIKpiCatalog());
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetchBIKpiCatalog()
+      .then(items => { if (!cancelled) setCatalog(items); })
+      .catch(err => { if (!cancelled) setError(err?.message || 'Erreur de chargement'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open]);
 
   const scopedCatalog = useMemo(() => {
-    if (!availableKeys || availableKeys.length === 0) return BI_KPI_CATALOG;
+    if (!availableKeys || availableKeys.length === 0) return catalog;
     const allowed = new Set(availableKeys);
-    return BI_KPI_CATALOG.filter(k => allowed.has(k.key));
-  }, [availableKeys]);
+    return catalog.filter(k => allowed.has(k.key));
+  }, [availableKeys, catalog]);
 
   useEffect(() => {
     if (open) {
@@ -41,6 +57,12 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       setSearch('');
     }
   }, [open, selectedKeys]);
+
+  const dynamicCategories = useMemo(() => {
+    const cats = new Set<string>(BI_KPI_CATEGORIES as readonly string[]);
+    catalog.forEach(k => cats.add(k.category));
+    return Array.from(cats);
+  }, [catalog]);
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -88,7 +110,15 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       <div className="relative w-[720px] max-w-[90vw] h-[540px] max-h-[80vh] flex flex-col rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 bg-primary text-primary-foreground">
-          <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold tracking-wide">Sélectionner des KPIs</h2>
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin opacity-80" />}
+            {!loading && error && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/20 text-primary-foreground/90" title={error}>
+                catalogue local
+              </span>
+            )}
+          </div>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-primary-foreground/10 transition-colors">
             <X className="w-4 h-4" />
           </button>
@@ -128,7 +158,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
                   <ChevronRight className="w-3 h-3" />
                 </div>
               </button>
-              {BI_KPI_CATEGORIES.map(cat => (
+              {dynamicCategories.map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -207,7 +237,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
         <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-card">
           <div className="flex flex-wrap gap-1 max-w-[400px] overflow-hidden">
             {Array.from(selected).slice(0, 6).map(key => {
-              const k = BI_KPI_CATALOG.find(c => c.key === key);
+              const k = catalog.find(c => c.key === key);
               return (
                 <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[9px] font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[k?.category || ''] }} />
