@@ -99,6 +99,13 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
+  const reviewRef = React.useRef<HTMLDivElement | null>(null);
+
+  const scrollToReview = () => {
+    requestAnimationFrame(() => {
+      reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   useEffect(() => {
     try {
