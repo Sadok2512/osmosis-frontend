@@ -53,7 +53,7 @@ const fmt = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') 
 const fmtVal = (v: number | null | undefined) =>
   v != null
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '';
+    : '—';
 
 const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 
@@ -143,7 +143,15 @@ function buildPivotTable(
 ) {
   const scope = getPrimaryScope(filterContext, siteName);
 
-  const kpiSet = new Set<string>();
+  // Build KPI columns from the slot's selected KPIs + counters (so empty KPIs still show a column).
+  // Fall back to whatever appears in tsData if no slot info available.
+  const selectedKeys = activeSlot
+    ? [
+        ...(activeSlot.kpiIds || []),
+        ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+      ]
+    : [];
+  const kpiSet = new Set<string>(selectedKeys);
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
