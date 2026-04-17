@@ -747,13 +747,14 @@ const RanQueryModule: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       {TECH_OPTIONS.map(tech => {
                         const active = form.technologies.includes(tech);
+                        const tb = techBadge(tech);
                         return (
                           <button
                             key={tech}
                             onClick={() => updateForm('technologies', active ? form.technologies.filter(item => item !== tech) : [...form.technologies, tech])}
                             className={cn(
                               'rounded-2xl border px-4 py-3 text-sm font-bold transition-all',
-                              active ? 'border-primary/40 bg-primary/8 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                              active ? cn('border-transparent', tb.bg, tb.text) : 'border-border/60 bg-background text-foreground hover:border-primary/25'
                             )}
                           >
                             {tech}
