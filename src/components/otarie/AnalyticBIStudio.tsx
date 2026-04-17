@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import GridLayout from 'react-grid-layout';
+import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { Plus, Save, FolderOpen, Sparkles, LayoutGrid, Type, Map as MapIcon, FileSpreadsheet, FileDown, ImageIcon, Eye, Table2, Copy, MoreHorizontal, Globe, Lock, Grid3X3, Move, Settings, Pencil, BarChart3 } from 'lucide-react';

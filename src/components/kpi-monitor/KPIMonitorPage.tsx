@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import GridLayout from 'react-grid-layout';
+import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { cn } from '@/lib/utils';
