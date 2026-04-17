@@ -14,9 +14,11 @@ import {
   Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
+import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+
+const GridLayout = WidthProvider(ReactGridLayout);
 import { ViewMode, PAPage, WidgetKind, DynWidget, WidgetLayout } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
@@ -65,19 +67,6 @@ export default function EditorView({
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const obs = new ResizeObserver(entries => {
-      const w = entries[0]?.contentRect.width;
-      console.log('[PA EditorView] canvas width measured:', w);
-      if (w && w > 0) setCanvasWidth(w);
-    });
-    obs.observe(canvasRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  console.log('[PA EditorView] render — canvasWidth:', canvasWidth, 'widgets:', widgets.length, 'layout:', widgets.map(w => w.layout));
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
