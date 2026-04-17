@@ -70,11 +70,14 @@ export default function EditorView({
     if (!canvasRef.current) return;
     const obs = new ResizeObserver(entries => {
       const w = entries[0]?.contentRect.width;
+      console.log('[PA EditorView] canvas width measured:', w);
       if (w && w > 0) setCanvasWidth(w);
     });
     obs.observe(canvasRef.current);
     return () => obs.disconnect();
   }, []);
+
+  console.log('[PA EditorView] render — canvasWidth:', canvasWidth, 'widgets:', widgets.length, 'layout:', widgets.map(w => w.layout));
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
