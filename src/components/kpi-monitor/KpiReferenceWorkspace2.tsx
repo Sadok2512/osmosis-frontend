@@ -592,41 +592,94 @@ const KpiReferenceWorkspace2: React.FC = () => {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="pb-5 pt-1">
-                      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Formula structure</p>
-                          <div className="mt-4 space-y-4 text-sm text-slate-900">
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Numerator</p>
-                              <p className="mt-2 break-words font-semibold">{explain?.numerator || selectedKpi.numerator_counter || 'No numerator exposed'}</p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Denominator</p>
-                              <p className="mt-2 break-words font-semibold">{explain?.denominator || selectedKpi.denominator_counter || 'No denominator exposed'}</p>
-                            </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">SQL / Formula</p>
-                              <p className="mt-2 break-words font-mono text-xs text-slate-900">{explain?.formula || selectedKpi.formula_sql || 'No formula SQL available'}</p>
-                            </div>
-                          </div>
-                        </div>
+                      {(() => {
+                        const numeratorRaw = explain?.numerator || selectedKpi.numerator_counter || '';
+                        const denominatorRaw = explain?.denominator || selectedKpi.denominator_counter || '';
+                        const formulaText = explain?.formula || selectedKpi.formula_sql || '';
+                        const counters: any[] = Array.isArray(explain?.counters) ? explain.counters : [];
+                        const splitList = (raw: string) => raw
+                          ? raw.split(/[\s,;+]+/).map(t => t.trim()).filter(Boolean)
+                          : [];
+                        const numeratorCounters = splitList(numeratorRaw);
+                        const denominatorCounters = splitList(denominatorRaw);
+                        const headline = formulaText
+                          || (numeratorRaw && denominatorRaw ? `${numeratorRaw} / ${denominatorRaw}` : (numeratorRaw || 'No formula available'));
 
-                        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Counter usage</p>
-                          <div className="mt-4 space-y-3">
-                            {Array.isArray(explain?.counters) && explain.counters.length > 0 ? explain.counters.map((counter: any, index: number) => (
-                              <div key={`${counter?.name || counter}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-900">
-                                <p className="font-bold">{counter?.name || counter}</p>
-                                {counter?.description ? <p className="mt-1 text-xs text-slate-500">{counter.description}</p> : null}
+                        return (
+                          <div className="space-y-5">
+                            <div className="rounded-2xl bg-gradient-to-br from-teal-600 to-teal-700 px-5 py-4 text-white shadow-[0_10px_30px_rgba(13,148,136,0.25)]">
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-teal-50/80">Calculation formula</p>
+                              <p className="mt-2 break-words font-mono text-sm leading-relaxed">{headline}</p>
+                            </div>
+
+                            <div className="grid gap-4 xl:grid-cols-2">
+                              {/* NUMERATOR */}
+                              <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white">
+                                <div className="flex items-center justify-between bg-emerald-50/80 px-4 py-3">
+                                  <span className="text-[11px] font-black uppercase tracking-[0.18em] text-emerald-800">Numerator</span>
+                                  <span className="rounded-full border border-emerald-200 bg-white px-2.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                    {numeratorCounters.length} Counter{numeratorCounters.length === 1 ? '' : 's'}
+                                  </span>
+                                </div>
+                                <div className="space-y-2 p-4">
+                                  {numeratorCounters.length > 0 ? numeratorCounters.map((c, i) => (
+                                    <div key={`num-${c}-${i}`} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                                      <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-md bg-emerald-50 text-emerald-700">
+                                        <Table2 className="h-3.5 w-3.5" />
+                                      </span>
+                                      <div className="min-w-0">
+                                        <p className="truncate font-mono text-xs font-bold text-slate-900">{c}</p>
+                                        <p className="mt-0.5 truncate text-[11px] text-slate-500">PM counter: {c}</p>
+                                      </div>
+                                    </div>
+                                  )) : (
+                                    <p className="px-1 text-xs text-slate-500">No numerator exposed</p>
+                                  )}
+                                </div>
                               </div>
-                            )) : (
-                              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
-                                No explicit counter list returned for this KPI.
+
+                              {/* DENOMINATOR */}
+                              <div className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
+                                <div className="flex items-center justify-between bg-sky-50/80 px-4 py-3">
+                                  <span className="text-[11px] font-black uppercase tracking-[0.18em] text-sky-800">Denominator</span>
+                                  <span className="rounded-full border border-sky-200 bg-white px-2.5 py-0.5 text-[10px] font-bold text-sky-700">
+                                    {denominatorCounters.length} Counter{denominatorCounters.length === 1 ? '' : 's'}
+                                  </span>
+                                </div>
+                                <div className="space-y-2 p-4">
+                                  {denominatorCounters.length > 0 ? denominatorCounters.map((c, i) => (
+                                    <div key={`den-${c}-${i}`} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+                                      <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-md bg-sky-50 text-sky-700">
+                                        <Table2 className="h-3.5 w-3.5" />
+                                      </span>
+                                      <div className="min-w-0">
+                                        <p className="truncate font-mono text-xs font-bold text-slate-900">{c}</p>
+                                        <p className="mt-0.5 truncate text-[11px] text-slate-500">PM counter: {c}</p>
+                                      </div>
+                                    </div>
+                                  )) : (
+                                    <p className="px-1 text-xs text-slate-500">No denominator exposed</p>
+                                  )}
+                                </div>
                               </div>
-                            )}
+                            </div>
+
+                            {counters.length > 0 ? (
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Counter usage</p>
+                                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                                  {counters.map((counter: any, index: number) => (
+                                    <div key={`${counter?.name || counter}-${index}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900">
+                                      <p className="font-mono text-xs font-bold">{counter?.name || counter}</p>
+                                      {counter?.description ? <p className="mt-1 text-[11px] text-slate-500">{counter.description}</p> : null}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
                     </AccordionContent>
                   </AccordionItem>
 
