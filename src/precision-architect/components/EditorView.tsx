@@ -347,10 +347,10 @@ export default function EditorView({
                       <button
                         onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
                         className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-white shadow-md border border-outline-variant/20 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
-                        aria-label="Widget options"
+                        aria-label="Edit widget"
                       >
                         <SlidersHorizontal className="w-3 h-3" />
-                        Options
+                        Edit
                       </button>
                       <button
                         onClick={() => removeWidget(w.id)}
