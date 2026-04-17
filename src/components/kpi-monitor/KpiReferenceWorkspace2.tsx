@@ -99,11 +99,16 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
   const reviewRef = React.useRef<HTMLDivElement | null>(null);
 
   const scrollToReview = () => {
     requestAnimationFrame(() => {
-      reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const container = contentRef.current;
+      const review = reviewRef.current;
+      if (!container || !review) return;
+      const top = review.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop - 24;
+      container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     });
   };
 
@@ -272,7 +277,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
+      <div ref={contentRef} className="flex-1 overflow-auto px-6 py-6">
         <div className="mb-6 grid gap-4 xl:grid-cols-4">
           <MetricCard icon={<BookOpen className="h-5 w-5" />} label="Total KPIs" value={String(totalKpis)} tone="primary" />
           <MetricCard icon={<Layers3 className="h-5 w-5" />} label="Categories" value={String(activeCategoryCount)} />
