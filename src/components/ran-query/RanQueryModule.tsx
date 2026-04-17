@@ -12,10 +12,17 @@ import {
   Play,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   XCircle,
+  Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
+import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
+import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import {
   Bar,
   BarChart,
