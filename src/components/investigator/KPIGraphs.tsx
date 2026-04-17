@@ -242,6 +242,43 @@ function stableColorForCounter(counterName: string): string {
   return SPLIT_COLORS[(stableHash('CTR_' + counterName)) % SPLIT_COLORS.length];
 }
 
+/**
+ * Per-slot color allocator: ensures NO two series in the same chart share
+ * the same color. Tries the hash-based "stable" color first, then falls back
+ * to the next free color in the extended palette (cycling if necessary).
+ */
+function makeSlotColorAllocator() {
+  const used = new Set<string>();
+  const assigned = new Map<string, string>();
+  const palette = SPLIT_COLORS;
+
+  const pick = (key: string, preferred: string): string => {
+    if (assigned.has(key)) return assigned.get(key)!;
+    let chosen = preferred;
+    if (used.has(chosen)) {
+      // Find next free color in palette
+      const startIdx = Math.max(0, palette.indexOf(preferred));
+      for (let off = 1; off <= palette.length; off++) {
+        const candidate = palette[(startIdx + off) % palette.length];
+        if (!used.has(candidate)) { chosen = candidate; break; }
+      }
+      // If all palette colors are used, allow reuse (graceful fallback)
+      if (used.has(chosen)) chosen = preferred;
+    }
+    used.add(chosen);
+    assigned.set(key, chosen);
+    return chosen;
+  };
+
+  return {
+    forKpi: (kpiId: string) => pick(`kpi:${kpiId}`, stableColorForKpi(kpiId)),
+    forSplit: (splitValue: string, kpiId?: string) =>
+      pick(`split:${kpiId || ''}:${splitValue}`, stableColorForSplit(splitValue, kpiId)),
+    forCounter: (counterName: string) =>
+      pick(`ctr:${counterName}`, stableColorForCounter(counterName)),
+  };
+}
+
 /** Wrapper — full replace on every update so legend stays in sync */
 const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; onDataZoom?: (start: number, end: number) => void; onChartClick?: () => void }>(({ option, height, onDataZoom, onChartClick }, ref) => {
   const onDataZoomRef = React.useRef(onDataZoom);
@@ -862,9 +899,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         }
 
         // Multi-KPI: build series — detect split data
+        // Per-slot color allocator: ensures every series in this chart gets a unique color
+        const colorAlloc = makeSlotColorAllocator();
         const defs = kpiIds.map((id, i) => {
           const d = getDef(id);
-          return d || { id, label: id, unit: '', color: stableColorForKpi(id), thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
+          const baseColor = d?.color || stableColorForKpi(id);
+          const uniqueColor = colorAlloc.forKpi(id);
+          return d
+            ? { ...d, color: uniqueColor }
+            : { id, label: id, unit: '', color: uniqueColor, thresholds: { warning: 50, critical: 20 }, higherIsBetter: false };
         });
 
         // Filter data to only this slot's KPIs (handle split KPI ids like "kpi@splitLabel" or "kpi@split1@split2")
@@ -966,7 +1009,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
             if (!kpiHasSplit) {
               // Non-split KPI: single aggregated series
-              const color = stableColorForKpi(kpiId);
+              const color = colorAlloc.forKpi(kpiId);
               const dataMap = new Map(kpiData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
               const sp = getSeriesProps(kpiId);
@@ -1012,7 +1055,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 if (!combos.has(key)) combos.set(key, { sv1, sv2 });
               }
               return Array.from(combos.entries()).map(([comboKey, { sv1, sv2 }]) => {
-                const color = stableColorForSplit(comboKey);
+                const color = colorAlloc.forSplit(comboKey, kpiId);
                 const comboData = kpiData.filter(d => (d.splitValue || 'N/A') === sv1 && (d.splitValue2 || 'N/A') === sv2);
                 const dataMap = new Map(comboData.map(d => [d.timestamp, d.value]));
                 const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
@@ -1054,7 +1097,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             // Single split KPI: one series per split value — stable colors per dimension value
             const splitValues = [...new Set(kpiData.map(d => d.splitValue!))].sort();
             return splitValues.map((sv) => {
-              const color = stableColorForSplit(sv, kpiId);
+              const color = colorAlloc.forSplit(sv, kpiId);
               const svData = kpiData.filter(d => d.splitValue === sv);
               const dataMap = new Map(svData.map(d => [d.timestamp, d.value]));
               const values = allTimestamps.map(ts => dataMap.get(ts) ?? null);
@@ -1155,7 +1198,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             const cDef = counterCatalog.find(c => c.counter_name === baseCounter);
             const baseName = cDef?.display_name || cNameMap[baseCounter] || baseCounter;
             const label = dimKey ? `${baseName} [${dimKey}]` : (cDef?.display_name ? `${baseName} (${baseCounter})` : (cNameMap[baseCounter] ? `${cNameMap[baseCounter]} (${baseCounter})` : counter));
-            const color = stableColorForCounter(counter);
+            const color = colorAlloc.forCounter(counter);
 
             const counterData = allTimestamps.map(ts => {
               const p = cSeries.find(d => d.ts === ts && d.counter === counter);
@@ -1216,7 +1259,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             const baseCounter = counterName.includes('@') ? counterName.split('@')[0] : counterName;
             if (alreadyRendered.has(baseCounter)) continue;
             const splitLabel = counterName.includes('@') ? counterName.split('@').slice(1).join('@') : '';
-            const color = splitLabel ? stableColorForSplit(splitLabel) : stableColorForCounter(baseCounter);
+            const color = splitLabel ? colorAlloc.forSplit(splitLabel, baseCounter) : colorAlloc.forCounter(baseCounter);
             const counterPoints = counterDataFromTs.filter((d: any) => d.kpi === counterName);
             const counterData = allTimestamps.map(ts => {
               const p = counterPoints.find((d: any) => d.timestamp === ts);
