@@ -19,7 +19,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { vendorBadge, techBadge } from '@/constants/brandColors';
+import { vendorBadge, techBadge, VENDOR_HSL, TECH_HSL } from '@/constants/brandColors';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
@@ -990,28 +990,78 @@ const RanQueryModule: React.FC = () => {
             </SectionCard>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <SectionCard title="Scope Selection" description="Apply telecom scope filters for the report query.">
+              <SectionCard title="Scope Selection" description="Sélectionnez les critères pour affiner l'analyse.">
                 <div className="space-y-5">
+                  {/* Vendor — chips style (single-select) */}
                   <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</label>
-                    <select value={form.vendor} onChange={(event) => updateForm('vendor', event.target.value)} className="h-12 w-full rounded-2xl border border-border/60 bg-background px-4 text-sm outline-none focus:border-primary/40">
-                      {VENDOR_OPTIONS.map(vendor => <option key={vendor} value={vendor}>{vendor}</option>)}
-                    </select>
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</span>
+                      {form.vendor && (
+                        <button
+                          type="button"
+                          onClick={() => updateForm('vendor', '')}
+                          className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          Effacer
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {VENDOR_OPTIONS.map(vendor => {
+                        const isActive = form.vendor === vendor;
+                        const accent = VENDOR_HSL[vendor.toUpperCase()] || 'hsl(var(--primary))';
+                        return (
+                          <button
+                            key={vendor}
+                            type="button"
+                            onClick={() => updateForm('vendor', isActive ? '' : vendor)}
+                            className={cn(
+                              'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border',
+                              isActive
+                                ? 'text-white border-transparent shadow-sm'
+                                : 'text-foreground border-border bg-card hover:bg-accent/50'
+                            )}
+                            style={isActive ? { backgroundColor: accent, borderColor: accent } : undefined}
+                          >
+                            {vendor}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  <div className="h-px bg-border/60" />
+
+                  {/* Technology — chips style (multi-select) */}
                   <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Technology</label>
-                    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Technologie</span>
+                      {form.technologies.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => updateForm('technologies', [])}
+                          className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          Effacer
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
                       {TECH_OPTIONS.map(tech => {
-                        const active = form.technologies.includes(tech);
-                        const tb = techBadge(tech);
+                        const isActive = form.technologies.includes(tech);
+                        const accent = TECH_HSL[tech] || 'hsl(var(--primary))';
                         return (
                           <button
                             key={tech}
-                            onClick={() => updateForm('technologies', active ? form.technologies.filter(item => item !== tech) : [...form.technologies, tech])}
+                            type="button"
+                            onClick={() => updateForm('technologies', isActive ? form.technologies.filter(item => item !== tech) : [...form.technologies, tech])}
                             className={cn(
-                              'rounded-2xl border px-4 py-3 text-sm font-medium transition-all',
-                              active ? cn(tb.bg, tb.text, tb.border) : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                              'px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border',
+                              isActive
+                                ? 'text-white border-transparent shadow-sm'
+                                : 'text-foreground border-border bg-card hover:bg-accent/50'
                             )}
+                            style={isActive ? { backgroundColor: accent, borderColor: accent } : undefined}
                           >
                             {tech}
                           </button>
@@ -1019,6 +1069,48 @@ const RanQueryModule: React.FC = () => {
                       })}
                     </div>
                   </div>
+
+                  {/* Active summary */}
+                  {(form.vendor || form.technologies.length > 0) && (
+                    <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {form.vendor && (
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+                            style={{ backgroundColor: VENDOR_HSL[form.vendor.toUpperCase()] || 'hsl(var(--primary))' }}
+                          >
+                            {form.vendor}
+                            <button type="button" onClick={() => updateForm('vendor', '')} className="hover:opacity-70">
+                              <XCircle className="w-3 h-3" />
+                            </button>
+                          </span>
+                        )}
+                        {form.technologies.map(t => (
+                          <span
+                            key={t}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white"
+                            style={{ backgroundColor: TECH_HSL[t] || 'hsl(var(--primary))' }}
+                          >
+                            {t}
+                            <button
+                              type="button"
+                              onClick={() => updateForm('technologies', form.technologies.filter(item => item !== t))}
+                              className="hover:opacity-70"
+                            >
+                              <XCircle className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { updateForm('vendor', ''); updateForm('technologies', []); }}
+                        className="text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      >
+                        Tout effacer
+                      </button>
+                    </div>
+                  )}
                 </div>
               </SectionCard>
 
