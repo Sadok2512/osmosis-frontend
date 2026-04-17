@@ -25,6 +25,7 @@ import CounterSelectorModal from '@/components/investigator/CounterSelectorModal
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { topoApi } from '@/lib/localDb';
 import {
   Bar,
   BarChart,
@@ -69,6 +70,8 @@ interface ReportResultRow {
   trend: number;
 }
 
+type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque';
+
 interface RanReport {
   id: string;
   name: string;
@@ -81,6 +84,13 @@ interface RanReport {
   updatedAt: string;
   lastRunAt: string | null;
   results: ReportResultRow[];
+  // ── Extended filter & aggregation context ──
+  plaques?: string[];
+  dors?: string[];
+  sites?: string[];
+  zoneArcep?: string[];
+  aggregation?: AggregationLevel;
+  dimensions?: string[];
 }
 
 interface CreateFormState {
@@ -95,6 +105,13 @@ interface CreateFormState {
   relativeUnit: RelativeUnit;
   manualInput: string;
   selectedKpis: string[];
+  // ── New ──
+  plaques: string[];
+  dors: string[];
+  sites: string[];
+  zoneArcep: string[];
+  aggregation: AggregationLevel;
+  dimensions: string[];
 }
 
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
@@ -121,6 +138,14 @@ const KPI_LIBRARY = [
   'RACH_SR',
   'CSFB_SR',
 ];
+const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string; description: string }[] = [
+  { value: 'cell', label: 'Cell', description: 'Per-cell granularity (highest detail).' },
+  { value: 'band', label: 'Band', description: 'Aggregated by frequency band.' },
+  { value: 'site', label: 'Site', description: 'Per-site totals across all cells.' },
+  { value: 'plaque', label: 'Plaque', description: 'Aggregated by operational plaque.' },
+];
+const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
+
 const DEFAULT_FORM = (): CreateFormState => {
   const now = new Date();
   const end = toLocalDateTimeInput(now);
@@ -137,6 +162,12 @@ const DEFAULT_FORM = (): CreateFormState => {
     relativeUnit: 'hours',
     manualInput: '',
     selectedKpis: [],
+    plaques: [],
+    dors: [],
+    sites: [],
+    zoneArcep: [],
+    aggregation: 'cell',
+    dimensions: [],
   };
 };
 
@@ -294,6 +325,76 @@ const MetricPill: React.FC<{ label: string; onRemove?: () => void }> = ({ label,
   </span>
 );
 
+const ChipMultiSelect: React.FC<{
+  label: string;
+  options: string[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  emptyHint?: string;
+}> = ({ label, options, selected, onChange, emptyHint }) => {
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? options.filter(o => o.toLowerCase().includes(q)) : options;
+  }, [options, query]);
+  const toggle = (v: string) => {
+    onChange(selected.includes(v) ? selected.filter(s => s !== v) : [...selected, v]);
+  };
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <label className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{label}</label>
+        {selected.length > 0 && (
+          <button onClick={() => onChange([])} className="text-[10px] font-semibold text-muted-foreground hover:text-destructive">
+            Clear
+          </button>
+        )}
+      </div>
+      {options.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border/50 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground">
+          {emptyHint || 'No option available'}
+        </p>
+      ) : (
+        <>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search ${label.toLowerCase()}…`}
+            className="mb-2 h-9 w-full rounded-xl border border-border/60 bg-background px-3 text-xs outline-none transition-all focus:border-primary/40"
+          />
+          <div className="max-h-44 overflow-y-auto rounded-xl border border-border/40 bg-card/80 p-2">
+            {filtered.length === 0 ? (
+              <p className="px-2 py-1 text-[11px] text-muted-foreground">No match</p>
+            ) : filtered.map(opt => {
+              const active = selected.includes(opt);
+              return (
+                <button
+                  key={opt}
+                  onClick={() => toggle(opt)}
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs transition-all',
+                    active ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  <span className="truncate">{opt}</span>
+                  {active && <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+          {selected.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {selected.map(s => (
+                <MetricPill key={s} label={s} onRemove={() => toggle(s)} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
 const RanQueryModule: React.FC = () => {
   const [reports, setReports] = useState<RanReport[]>(() => fromStoredReports(localStorage.getItem(STORAGE_KEY)));
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
@@ -314,6 +415,18 @@ const RanQueryModule: React.FC = () => {
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [counterModalOpen, setCounterModalOpen] = useState(false);
 
+  // ── Backend-driven Filter Area / Dimension options ──
+  const [topoOpts, setTopoOpts] = useState<{ plaque: string[]; dor: string[]; zone_arcep: string[] }>({ plaque: [], dor: [], zone_arcep: [] });
+  const [topoLoading, setTopoLoading] = useState(true);
+  const [topoError, setTopoError] = useState<string | null>(null);
+  const [dimensionOpts, setDimensionOpts] = useState<string[]>(DEFAULT_DIMENSIONS);
+  const [dimensionLoading, setDimensionLoading] = useState(true);
+
+  // Site search (live debounced)
+  const [siteSearch, setSiteSearch] = useState('');
+  const [siteResults, setSiteResults] = useState<string[]>([]);
+  const [siteSearching, setSiteSearching] = useState(false);
+
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
@@ -326,6 +439,69 @@ const RanQueryModule: React.FC = () => {
       .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
       .catch(() => setCounterCatalog([]));
   }, []);
+
+  // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) from backend
+  useEffect(() => {
+    setTopoLoading(true);
+    setTopoError(null);
+    topoApi.filters()
+      .then((resp) => {
+        const map: Record<string, string[]> = {};
+        for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
+        setTopoOpts({
+          plaque: map.plaque ?? [],
+          dor: map.dor ?? [],
+          zone_arcep: map.zone_arcep ?? [],
+        });
+      })
+      .catch((err) => {
+        console.warn('[RanQueryModule] Failed to load topo filters', err);
+        setTopoError('Unable to load filter options from backend');
+      })
+      .finally(() => setTopoLoading(false));
+  }, []);
+
+  // Load dimensions list from backend — fallback to defaults
+  useEffect(() => {
+    setDimensionLoading(true);
+    fetch(getApiUrl('qoe/dimensions?table=qoe_metric'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        const arr = Array.isArray(data) ? data : (data?.values || []);
+        const extra = arr.filter((s: any) => typeof s === 'string');
+        const merged = Array.from(new Set([...DEFAULT_DIMENSIONS, ...extra]));
+        setDimensionOpts(merged.length ? merged : DEFAULT_DIMENSIONS);
+      })
+      .catch(() => setDimensionOpts(DEFAULT_DIMENSIONS))
+      .finally(() => setDimensionLoading(false));
+  }, []);
+
+  // Live site search (debounced) — narrowed by current Plaque / DOR selection
+  useEffect(() => {
+    const q = siteSearch.trim();
+    if (q.length < 2) { setSiteResults([]); setSiteSearching(false); return; }
+    setSiteSearching(true);
+    const handle = window.setTimeout(async () => {
+      try {
+        const qs = new URLSearchParams();
+        qs.set('search', q);
+        qs.set('limit', '40');
+        if (form.plaques.length > 0) qs.set('plaque', form.plaques.join(','));
+        if (form.dors.length > 0) qs.set('dor', form.dors.join(','));
+        const rows = await topoApi.filteredSites(qs.toString());
+        const names = (Array.isArray(rows) ? rows : [])
+          .map((r: any) => r.nom_site || r.site_name)
+          .filter(Boolean);
+        setSiteResults(Array.from(new Set(names)).slice(0, 40));
+      } catch (err) {
+        console.warn('[RanQueryModule] site search failed', err);
+        setSiteResults([]);
+      } finally {
+        setSiteSearching(false);
+      }
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [siteSearch, form.plaques, form.dors]);
 
   // Split current selection into KPI keys vs counter keys
   const kpiKeySet = useMemo(() => new Set(kpiCatalog.map(k => k.kpi_key)), [kpiCatalog]);
@@ -413,6 +589,12 @@ const RanQueryModule: React.FC = () => {
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
+        plaques: form.plaques,
+        dors: form.dors,
+        sites: form.sites,
+        zoneArcep: form.zoneArcep,
+        aggregation: form.aggregation,
+        dimensions: form.dimensions,
         // Reset results because scope changed; keep status as Ready so user must re-execute
         status: 'Ready',
         results: [],
@@ -437,6 +619,12 @@ const RanQueryModule: React.FC = () => {
       updatedAt: now,
       lastRunAt: null,
       results: [],
+      plaques: form.plaques,
+      dors: form.dors,
+      sites: form.sites,
+      zoneArcep: form.zoneArcep,
+      aggregation: form.aggregation,
+      dimensions: form.dimensions,
     };
     setReports(prev => [report, ...prev]);
     setSelectedReportId(report.id);
@@ -460,6 +648,12 @@ const RanQueryModule: React.FC = () => {
       relativeUnit: tc.timeMode === 'relative' ? tc.unit : 'hours',
       manualInput: '',
       selectedKpis: r.kpis,
+      plaques: r.plaques ?? [],
+      dors: r.dors ?? [],
+      sites: r.sites ?? [],
+      zoneArcep: r.zoneArcep ?? [],
+      aggregation: r.aggregation ?? 'cell',
+      dimensions: r.dimensions ?? [],
     });
     setEditingReportId(reportId);
     setView('create');
@@ -879,9 +1073,144 @@ const RanQueryModule: React.FC = () => {
               </SectionCard>
             </div>
 
+            <SectionCard title="Filter Area" description="Narrow the report scope by topology dimensions loaded from the backend.">
+              {topoLoading ? (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {[0, 1, 2, 3].map(i => (
+                    <div key={i} className="h-24 animate-pulse rounded-2xl border border-border/40 bg-muted/40" />
+                  ))}
+                </div>
+              ) : topoError ? (
+                <div className="rounded-2xl border border-destructive/30 bg-destructive/8 p-4 text-sm text-destructive">
+                  {topoError}
+                </div>
+              ) : (
+                <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                  <ChipMultiSelect
+                    label="Plaque"
+                    options={topoOpts.plaque}
+                    selected={form.plaques}
+                    onChange={(v) => updateForm('plaques', v)}
+                    emptyHint="No plaque returned by backend"
+                  />
+                  <ChipMultiSelect
+                    label="DOR"
+                    options={topoOpts.dor}
+                    selected={form.dors}
+                    onChange={(v) => updateForm('dors', v)}
+                    emptyHint="No DOR returned by backend"
+                  />
+                  <ChipMultiSelect
+                    label="Zone ARCEP"
+                    options={topoOpts.zone_arcep}
+                    selected={form.zoneArcep}
+                    onChange={(v) => updateForm('zoneArcep', v)}
+                    emptyHint="No zone returned by backend"
+                  />
+                  <div>
+                    <label className="mb-2 block text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Sites</label>
+                    <input
+                      value={siteSearch}
+                      onChange={(e) => setSiteSearch(e.target.value)}
+                      placeholder="Search site name (min 2 chars)…"
+                      className="h-10 w-full rounded-xl border border-border/60 bg-background px-3 text-sm outline-none transition-all focus:border-primary/40"
+                    />
+                    {siteSearching && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">Searching…</p>
+                    )}
+                    {!siteSearching && siteResults.length > 0 && (
+                      <div className="mt-2 max-h-40 overflow-y-auto rounded-xl border border-border/40 bg-card/80 p-2">
+                        {siteResults.map(name => {
+                          const active = form.sites.includes(name);
+                          return (
+                            <button
+                              key={name}
+                              onClick={() => updateForm('sites', active ? form.sites.filter(s => s !== name) : [...form.sites, name])}
+                              className={cn(
+                                'flex w-full items-center justify-between rounded-lg px-2 py-1 text-left text-xs transition-all',
+                                active ? 'bg-primary/15 text-primary font-semibold' : 'text-foreground hover:bg-muted/50'
+                              )}
+                            >
+                              <span className="truncate">{name}</span>
+                              {active && <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {form.sites.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {form.sites.map(s => (
+                          <MetricPill key={s} label={s} onRemove={() => updateForm('sites', form.sites.filter(item => item !== s))} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </SectionCard>
+
+            <div className="grid gap-6 xl:grid-cols-2">
+              <SectionCard title="Aggregation" description="Choose how KPI / counter results are grouped in the report.">
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {AGGREGATION_OPTIONS.map(opt => {
+                    const active = form.aggregation === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => updateForm('aggregation', opt.value)}
+                        className={cn(
+                          'flex flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left transition-all',
+                          active ? 'border-primary/40 bg-primary/8 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                        )}
+                      >
+                        <span className="text-sm font-bold">{opt.label}</span>
+                        <span className={cn('text-[11px] leading-snug', active ? 'text-primary/80' : 'text-muted-foreground')}>{opt.description}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Dimension" description="Add complementary dimensions (Neighbors, PMQAP, Transport, …) to enrich the report.">
+                {dimensionLoading ? (
+                  <div className="flex flex-wrap gap-2">
+                    {[0, 1, 2, 3].map(i => (
+                      <div key={i} className="h-8 w-24 animate-pulse rounded-full bg-muted/50" />
+                    ))}
+                  </div>
+                ) : dimensionOpts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No dimension available from backend.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {dimensionOpts.map(d => {
+                      const active = form.dimensions.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => updateForm('dimensions', active ? form.dimensions.filter(x => x !== d) : [...form.dimensions, d])}
+                          className={cn(
+                            'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
+                            active ? 'border-primary/40 bg-primary/12 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                          )}
+                        >
+                          {active && <CheckCircle2 className="h-3 w-3" />}
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {form.dimensions.length > 0 && (
+                  <p className="mt-3 text-[11px] text-muted-foreground">{form.dimensions.length} dimension(s) selected.</p>
+                )}
+              </SectionCard>
+            </div>
+
             <SectionCard title="KPI / Counter Selection" description="Pick KPIs and PM counters from the live backend catalog. Scope above pre-filters the counter list by vendor / techno.">
               {KPISelectionBlock}
             </SectionCard>
+
 
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => { resetForm(); setEditingReportId(null); setView(editingReportId ? 'detail' : 'list'); }} className="rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
