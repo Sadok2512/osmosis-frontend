@@ -477,13 +477,37 @@ const SingleKpiBreakdown: React.FC<{
       .then(r => r.ok ? r.json() : { series: [] })
       .then(data => {
         const raw = data.series || data.data || [];
-        const norm: CounterTsPoint[] = raw.map((s: any) => ({
-          ts: s.ts || s.timestamp || s.date,
-          counter: s.counter_id || s.counter_name || s.counter || '',
-          value: s.value ?? s.kpi_value ?? s.val ?? 0,
-          dimension_key: s.dimension_key || s.split_field || s.split_value
-            || s.ne_name || s.site_name || s.split_field_value || undefined,
-        }));
+        const norm: CounterTsPoint[] = raw.flatMap((s: any) => {
+          const ts = s.ts || s.timestamp || s.date;
+          const explicitDimension = s.dimension_key || s.split_field || s.split_value || s.ne_name || s.site_name || s.split_field_value || undefined;
+
+          const rawCounter = s.counter_id || s.counter_name || s.counter || '';
+          const parsedCounter = typeof rawCounter === 'string' && rawCounter.includes('@') ? rawCounter.split('@')[0] : rawCounter;
+          const parsedDimension = !explicitDimension && typeof rawCounter === 'string' && rawCounter.includes('@')
+            ? rawCounter.split('@').slice(1).join('@') || undefined
+            : undefined;
+
+          if (parsedCounter) {
+            return [{
+              ts,
+              counter: parsedCounter,
+              value: s.value ?? s.kpi_value ?? s.val ?? 0,
+              dimension_key: explicitDimension || parsedDimension,
+            }];
+          }
+
+          const expanded = names
+            .filter((name) => Object.prototype.hasOwnProperty.call(s, name))
+            .map((name) => ({
+              ts,
+              counter: name,
+              value: s[name] ?? 0,
+              dimension_key: explicitDimension,
+            }))
+            .filter((point) => point.value != null);
+
+          return expanded;
+        });
         setCounterTsData(norm);
         setLoading(false);
       })
