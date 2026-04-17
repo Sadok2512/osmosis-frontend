@@ -18,6 +18,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { vendorBadge, techBadge } from '@/constants/brandColors';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
