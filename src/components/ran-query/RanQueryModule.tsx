@@ -671,6 +671,7 @@ const RanQueryModule: React.FC = () => {
       zoneArcep: r.zoneArcep ?? [],
       aggregation: r.aggregation ?? 'cell',
       dimensions: r.dimensions ?? [],
+      granularity: r.timeConfig.granularity ?? '1h',
     });
     setEditingReportId(reportId);
     setView('create');
