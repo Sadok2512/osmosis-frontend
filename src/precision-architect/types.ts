@@ -16,10 +16,18 @@ export interface DynWidget {
   layout: WidgetLayout;
 }
 
+export interface PASection {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+}
+
 export interface PAPage {
   id: string;
   name: string;
   widgets: DynWidget[];
+  sections: PASection[];
 }
 
 export interface KPI {

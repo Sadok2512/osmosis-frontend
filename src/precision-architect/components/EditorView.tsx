@@ -12,6 +12,7 @@ import {
   Radio,
   ChevronRight,
   Trash2,
+  FileText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
@@ -19,11 +20,12 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, WidgetKind, DynWidget, WidgetLayout } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
+import SectionBlock from './SectionBlock';
 
 interface EditorViewProps {
   projectName: string;
@@ -62,12 +64,48 @@ export default function EditorView({
 }: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
+  const sections = activePage?.sections ?? [];
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
+  };
+
+  const updateSections = (updater: (s: PASection[]) => PASection[]) => {
+    setPages(prev => prev.map(p => p.id === activePageId ? { ...p, sections: updater(p.sections ?? []) } : p));
+  };
+
+  const addSection = () => {
+    const id = `section-${Date.now()}`;
+    const idx = (activePage?.sections?.length ?? 0) + 1;
+    const newSection: PASection = {
+      id,
+      name: `Section ${idx}`,
+      title: 'Click to edit title',
+      description: 'Add description or message',
+    };
+    updateSections(s => [...s, newSection]);
+    setActiveSectionId(id);
+    setTimeout(() => {
+      document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
+  const updateSection = (id: string, patch: Partial<PASection>) => {
+    updateSections(s => s.map(x => x.id === id ? { ...x, ...patch } : x));
+  };
+
+  const removeSection = (id: string) => {
+    updateSections(s => s.filter(x => x.id !== id));
+    if (activeSectionId === id) setActiveSectionId(null);
+  };
+
+  const focusSection = (id: string) => {
+    setActiveSectionId(id);
+    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const addWidget = (kind: WidgetKind) => {
@@ -84,7 +122,7 @@ export default function EditorView({
 
   const addPage = () => {
     const newId = `page-${Date.now()}`;
-    setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [] }]);
+    setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [], sections: [] }]);
     setActivePageId(newId);
   };
 
@@ -134,26 +172,64 @@ export default function EditorView({
           <nav className="space-y-1">
             {pages.map((page) => {
               const isActive = page.id === activePageId;
+              const pageSections = page.sections ?? [];
               return (
-                <div key={page.id} className="group relative">
-                  <button
-                    onClick={() => setActivePageId(page.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
-                      isActive ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
-                    )}
-                  >
-                    <Activity className="w-4 h-4" />
-                    <span className="truncate">{page.name}</span>
-                  </button>
-                  {pages.length > 1 && (
+                <div key={page.id}>
+                  <div className="group relative">
                     <button
-                      onClick={(e) => { e.stopPropagation(); removePage(page.id); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
-                      aria-label="Remove page"
+                      onClick={() => setActivePageId(page.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
+                        isActive ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
+                      )}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Activity className="w-4 h-4" />
+                      <span className="truncate flex-1 text-left">{page.name}</span>
                     </button>
+                    {pages.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removePage(page.id); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+                        aria-label="Remove page"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {isActive && (
+                    <div className="ml-4 mt-1 mb-2 pl-3 border-l border-outline-variant/30 space-y-0.5">
+                      {pageSections.map((s) => (
+                        <div key={s.id} className="group/sec relative flex items-center">
+                          <button
+                            onClick={() => focusSection(s.id)}
+                            className={cn(
+                              "flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-left truncate",
+                              activeSectionId === s.id
+                                ? "bg-primary/10 text-primary"
+                                : "text-on-surface-variant hover:bg-surface-container-low"
+                            )}
+                          >
+                            <FileText className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{s.name || 'Untitled'}</span>
+                          </button>
+                          <button
+                            onClick={() => removeSection(s.id)}
+                            className="opacity-0 group-hover/sec:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+                            aria-label="Remove section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={addSection}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider text-primary/80 hover:bg-primary/5 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add section</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -218,8 +294,23 @@ export default function EditorView({
         <PAToolbar />
 
         <div className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
-          {widgets.length === 0 && (
-            <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto space-y-6">
+            {sections.length > 0 && (
+              <div className="space-y-4">
+                {sections.map((s) => (
+                  <SectionBlock
+                    key={s.id}
+                    section={s}
+                    editable
+                    isActive={activeSectionId === s.id}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                    onRemove={() => removeSection(s.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
                   <Plus className="w-7 h-7" />
@@ -227,42 +318,42 @@ export default function EditorView({
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">Empty canvas</h3>
                   <p className="text-xs font-bold text-on-surface-variant max-w-md">
-                    Use the floating toolbox on the right to add a Chart, Map, KPI Card or Table. Drag the header to move, drag the bottom-right corner to resize.
+                    Add a section from the sidebar to write notes, or use the floating toolbox to add a Chart, Map, KPI Card or Table.
                   </p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {widgets.length > 0 && (
-            <GridLayout
-              className="layout"
-              layout={layout}
-              cols={COLS}
-              rowHeight={ROW_HEIGHT}
-              margin={[16, 16]}
-              containerPadding={[0, 0]}
-              draggableHandle=".widget-drag-handle"
-              isDraggable
-              isResizable
-              compactType="vertical"
-              preventCollision={false}
-              onLayoutChange={handleLayoutChange}
-            >
-              {widgets.map(w => (
-                <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
-                  <button
-                    onClick={() => removeWidget(w.id)}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
-                    aria-label="Remove widget"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                  <WidgetRenderer widget={w} />
-                </div>
-              ))}
-            </GridLayout>
-          )}
+            {widgets.length > 0 && (
+              <GridLayout
+                className="layout"
+                layout={layout}
+                cols={COLS}
+                rowHeight={ROW_HEIGHT}
+                margin={[16, 16]}
+                containerPadding={[0, 0]}
+                draggableHandle=".widget-drag-handle"
+                isDraggable
+                isResizable
+                compactType="vertical"
+                preventCollision={false}
+                onLayoutChange={handleLayoutChange}
+              >
+                {widgets.map(w => (
+                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
+                    <button
+                      onClick={() => removeWidget(w.id)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
+                      aria-label="Remove widget"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <WidgetRenderer widget={w} />
+                  </div>
+                ))}
+              </GridLayout>
+            )}
+          </div>
         </div>
 
         <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">

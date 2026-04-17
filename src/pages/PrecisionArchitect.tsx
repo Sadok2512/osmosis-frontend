@@ -8,7 +8,7 @@ export default function PrecisionArchitectPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
   const [projectName, setProjectName] = useState('Network Health · Q4 Report');
   const [pages, setPages] = useState<PAPage[]>([
-    { id: 'page-1', name: 'Network Health', widgets: [] },
+    { id: 'page-1', name: 'Network Health', widgets: [], sections: [] },
   ]);
   const [activePageId, setActivePageId] = useState<string>('page-1');
 
