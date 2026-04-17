@@ -777,10 +777,6 @@ const RanQueryModule: React.FC = () => {
               </div>
             </SectionCard>
 
-            <SectionCard title="KPI / Counter Selection" description="Select KPIs manually or upload a KPI / counter list.">
-              {KPISelectionBlock}
-            </SectionCard>
-
             <div className="grid gap-6 xl:grid-cols-2">
               <SectionCard title="Scope Selection" description="Apply telecom scope filters for the report query.">
                 <div className="space-y-5">
@@ -882,6 +878,10 @@ const RanQueryModule: React.FC = () => {
                 </div>
               </SectionCard>
             </div>
+
+            <SectionCard title="KPI / Counter Selection" description="Pick KPIs and PM counters from the live backend catalog. Scope above pre-filters the counter list by vendor / techno.">
+              {KPISelectionBlock}
+            </SectionCard>
 
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => { resetForm(); setEditingReportId(null); setView(editingReportId ? 'detail' : 'list'); }} className="rounded-2xl border border-border/60 bg-card px-5 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
