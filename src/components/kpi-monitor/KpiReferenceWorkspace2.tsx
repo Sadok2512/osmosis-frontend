@@ -432,8 +432,8 @@ const KpiReferenceWorkspace2: React.FC = () => {
                         <button onClick={() => { setDraft(toDraft(selectedKpi)); setIsEditing(false); }} className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-slate-900 transition-all hover:border-teal-300 hover:text-teal-700">
                           Cancel
                         </button>
-                        <button onClick={saveDraft} disabled={!hasUnsavedChanges || updateMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-teal-700 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-800 disabled:opacity-50">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving...' : 'Save KPI'}
+                        <button onClick={saveDraft} disabled={updateMutation.isPending} className="inline-flex items-center gap-2 rounded-2xl bg-teal-700 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-800 disabled:opacity-50">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> {updateMutation.isPending ? 'Saving...' : hasUnsavedChanges ? 'Save KPI' : 'Save (no changes)'}
                         </button>
                       </>
                     ) : (
