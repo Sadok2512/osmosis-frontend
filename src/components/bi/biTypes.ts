@@ -193,6 +193,8 @@ export interface ChartConfig {
     yAxisMode: 'auto' | 'fixed';
     yAxisMin: number | null;
     yAxisMax: number | null;
+    yAxisMinRight?: number | null;
+    yAxisMaxRight?: number | null;
   };
 }
 
