@@ -272,25 +272,147 @@ function buildTimeConfig(form: CreateFormState): TimeConfig {
   };
 }
 
-function generateResults(report: RanReport): ReportResultRow[] {
-  const technologies = report.technologies.length > 0 ? report.technologies : ['4G'];
-  const timestamp = new Date().toISOString();
-  return report.kpis.map((kpi, index) => {
-    const tech = technologies[index % technologies.length];
-    const base = 42 + (index % 7) * 6 + report.vendor.length;
-    const variance = (index * 13) % 17;
-    const value = Number((base + variance + technologies.length * 1.8).toFixed(2));
-    const trend = Number((((index % 5) - 2) * 1.7).toFixed(2));
+/** Resolve absolute date_from / date_to from a TimeConfig. */
+function resolveTimeRange(config: TimeConfig): { date_from: string; date_to: string } {
+  if (config.timeMode === 'absolute') {
+    const startD = new Date(config.start);
+    const endD = new Date(config.end);
     return {
-      kpi,
-      vendor: report.vendor,
-      technology: tech,
-      timestamp,
-      value,
-      unit: kpi.includes('RATE') || kpi.includes('SR') ? '%' : kpi.includes('THR') ? 'Mbps' : 'count',
-      trend,
+      date_from: startD.toISOString().slice(0, 10),
+      date_to: endD.toISOString().slice(0, 10),
     };
+  }
+  const now = new Date();
+  const msMap: Record<RelativeUnit, number> = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
+  const startD = new Date(now.getTime() - config.value * msMap[config.unit]);
+  return {
+    date_from: startD.toISOString().slice(0, 10),
+    date_to: now.toISOString().slice(0, 10),
+  };
+}
+
+/** Pick a sensible granularity based on the time span. */
+function pickGranularity(date_from: string, date_to: string): string {
+  const spanMs = new Date(date_to).getTime() - new Date(date_from).getTime();
+  const spanDays = spanMs / 86_400_000;
+  if (spanDays <= 1) return '1h';
+  if (spanDays <= 14) return '1d';
+  return '1w';
+}
+
+/** Execute report against real backend APIs. */
+async function executeReportApi(
+  report: RanReport,
+  kpiKeySet: Set<string>,
+): Promise<ReportResultRow[]> {
+  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
+  const granularity = pickGranularity(date_from, date_to);
+  const results: ReportResultRow[] = [];
+
+  // Separate KPIs from counters
+  const kpiKeys = report.kpis.filter(k => kpiKeySet.has(k));
+  const counterKeys = report.kpis.filter(k => !kpiKeySet.has(k));
+
+  // ── Fetch KPIs ──
+  const kpiPromises = kpiKeys.map(async (kpiCode) => {
+    try {
+      const res = await fetch(getApiUrl('pm/kpi/compute'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          kpi_code: kpiCode,
+          date_from,
+          date_to,
+          granularity,
+          vendor: report.vendor,
+          object_type: report.technologies.join(','),
+        }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
+      if (series.length === 0) {
+        // Return a placeholder row so the user sees the KPI was queried
+        return [{
+          kpi: kpiCode,
+          vendor: report.vendor,
+          technology: report.technologies[0] || '4G',
+          timestamp: date_from,
+          value: 0,
+          unit: kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '',
+          trend: 0,
+        }];
+      }
+      return series.map((pt: any) => ({
+        kpi: kpiCode,
+        vendor: report.vendor,
+        technology: pt.techno || report.technologies[0] || '4G',
+        timestamp: pt.ts || pt.timestamp || date_from,
+        value: Number(pt.kpi_value ?? pt.value ?? 0),
+        unit: kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '',
+        trend: 0,
+      }));
+    } catch {
+      return [];
+    }
   });
+
+  // ── Fetch Counters (batch) ──
+  let counterPromise: Promise<ReportResultRow[]> = Promise.resolve([]);
+  if (counterKeys.length > 0) {
+    counterPromise = (async () => {
+      try {
+        const res = await fetch(getApiUrl('pm/counters/timeseries'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({
+            counter_names: counterKeys,
+            date_from,
+            date_to,
+            granularity,
+            vendor: report.vendor,
+            split_by_field: 'cell_name',
+          }),
+        });
+        if (!res.ok) return counterKeys.map(c => ({
+          kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
+          timestamp: date_from, value: 0, unit: 'count', trend: 0,
+        }));
+        const data = await res.json();
+        const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
+        if (series.length === 0) {
+          return counterKeys.map(c => ({
+            kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
+            timestamp: date_from, value: 0, unit: 'count', trend: 0,
+          }));
+        }
+        return series.map((pt: any) => ({
+          kpi: pt.counter_id || pt.counter_name || counterKeys[0],
+          vendor: report.vendor,
+          technology: pt.techno || report.technologies[0] || '4G',
+          timestamp: pt.ts || pt.timestamp || date_from,
+          value: Number(pt.value ?? 0),
+          unit: 'count',
+          trend: 0,
+        }));
+      } catch {
+        return counterKeys.map(c => ({
+          kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
+          timestamp: date_from, value: 0, unit: 'count', trend: 0,
+        }));
+      }
+    })();
+  }
+
+  const [kpiResults, counterResults] = await Promise.all([
+    Promise.all(kpiPromises),
+    counterPromise,
+  ]);
+
+  for (const batch of kpiResults) results.push(...batch);
+  results.push(...counterResults);
+
+  return results;
 }
 
 function downloadCsv(report: RanReport) {
@@ -448,14 +570,33 @@ const RanQueryModule: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
   }, [reports]);
 
-  // Load KPI catalog (DB) + counter catalog (VPS) once
+  // Load KPI catalog + counter catalog from backend, re-fetch when vendor changes
   useEffect(() => {
-    fetchKpiCatalogFromDB().then(setKpiCatalog).catch(() => setKpiCatalog([]));
-    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+    const vendor = form.vendor;
+    // KPI catalog from monitor API
+    fetch(getApiUrl('monitor/catalog/kpis'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then((data: KpiCatalogEntry[]) => {
+        const arr = Array.isArray(data) ? data : [];
+        // Filter by vendor if a specific vendor is selected
+        const filtered = vendor && vendor !== 'Multi-Vendor'
+          ? arr.filter(k => !k.vendor || k.vendor.toLowerCase() === vendor.toLowerCase())
+          : arr;
+        setKpiCatalog(filtered);
+      })
+      .catch(() => {
+        // Fallback to DB catalog if monitor endpoint is unavailable
+        fetchKpiCatalogFromDB().then(setKpiCatalog).catch(() => setKpiCatalog([]));
+      });
+    // Counter catalog from PM API
+    const counterUrl = vendor && vendor !== 'Multi-Vendor'
+      ? `pm/counters/catalog?vendor=${encodeURIComponent(vendor)}&limit=5000`
+      : 'pm/counters/catalog?limit=5000';
+    fetch(getApiUrl(counterUrl), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
       .catch(() => setCounterCatalog([]));
-  }, []);
+  }, [form.vendor]);
 
   // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) from backend
   useEffect(() => {
@@ -677,23 +818,31 @@ const RanQueryModule: React.FC = () => {
     setView('create');
   };
 
-  const executeReport = (reportId: string) => {
+  const executeReport = async (reportId: string) => {
     setIsExecutingId(reportId);
-    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running', updatedAt: new Date().toISOString() } : report));
-    window.setTimeout(() => {
-      setReports(prev => prev.map(report => {
-        if (report.id !== reportId) return report;
-        const results = generateResults(report);
+    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running' as ReportStatus, updatedAt: new Date().toISOString() } : report));
+    try {
+      const report = reports.find(r => r.id === reportId);
+      if (!report) throw new Error('Report not found');
+      const results = await executeReportApi(report, kpiKeySet);
+      setReports(prev => prev.map(r => {
+        if (r.id !== reportId) return r;
         return {
-          ...report,
-          status: results.length > 0 ? 'Completed' : 'Failed',
+          ...r,
+          status: (results.length > 0 ? 'Completed' : 'Failed') as ReportStatus,
           results,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
       }));
+    } catch {
+      setReports(prev => prev.map(r => {
+        if (r.id !== reportId) return r;
+        return { ...r, status: 'Failed' as ReportStatus, updatedAt: new Date().toISOString() };
+      }));
+    } finally {
       setIsExecutingId(current => current === reportId ? null : current);
-    }, 1200);
+    }
   };
 
   const openReport = (reportId: string) => {
