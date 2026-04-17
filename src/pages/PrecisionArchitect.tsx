@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { ViewMode } from './types';
-import EditorView from './components/EditorView';
-import PresentationView from './components/PresentationView';
-import ViewerView from './components/ViewerView';
+import { ViewMode } from '@/precision-architect/types';
+import EditorView from '@/precision-architect/components/EditorView';
+import PresentationView from '@/precision-architect/components/PresentationView';
+import ViewerView from '@/precision-architect/components/ViewerView';
 
 export default function PrecisionArchitectPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('edit');
