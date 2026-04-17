@@ -1,9 +1,11 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Eye, Edit3, Play } from 'lucide-react';
+import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import { ViewMode, PAPage } from '../types';
 import { cn } from '@/lib/utils';
-import PAEChart from './PAEChart';
-import PAMapWidget from './PAMapWidget';
-import PATableWidget from './PATableWidget';
+import WidgetRenderer from './WidgetRenderer';
 
 interface ViewerProps {
   projectName: string;
@@ -13,9 +15,33 @@ interface ViewerProps {
   setActivePageId: (id: string) => void;
 }
 
+const COLS = 12;
+const ROW_HEIGHT = 60;
+
 export default function ViewerView({ projectName, onViewModeChange, pages, activePageId, setActivePageId }: ViewerProps) {
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasWidth, setCanvasWidth] = useState(1200);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setCanvasWidth(w);
+    });
+    obs.observe(canvasRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const layout = useMemo(() => widgets.map(w => ({
+    i: w.id,
+    x: w.layout.x,
+    y: w.layout.y,
+    w: w.layout.w,
+    h: w.layout.h,
+    static: true,
+  })), [widgets]);
 
   return (
     <div className="min-h-screen bg-surface text-on-surface">
@@ -80,46 +106,24 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
             <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-12 gap-6">
-            {widgets.map(w => (
-              <div key={w.id} className={cn(
-                w.kind === 'kpi' ? 'col-span-12 md:col-span-3' : 'col-span-12 md:col-span-6'
-              )}>
-                <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4">
-                  {w.kind === 'chart' && (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-black text-on-surface font-headline">Chart</h3>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ECharts</span>
-                      </div>
-                      <div className="h-56"><PAEChart variant="editor" height="100%" /></div>
-                    </>
-                  )}
-                  {w.kind === 'map' && (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-black text-on-surface font-headline">Map</h3>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Geo sites</span>
-                      </div>
-                      <div className="h-56"><PAMapWidget height="100%" /></div>
-                    </>
-                  )}
-                  {w.kind === 'table' && <PATableWidget height={300} />}
-                  {w.kind === 'kpi' && (
-                    <div>
-                      <div className="flex justify-between items-start mb-6">
-                        <h3 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">KPI</h3>
-                        <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-primary/40" />
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-black font-headline tracking-tighter text-on-surface">94.6%</span>
-                        <span className="text-xs font-bold text-emerald-600">+1.2%</span>
-                      </div>
-                    </div>
-                  )}
+          <div ref={canvasRef} className="pa-grid-view">
+            <GridLayout
+              className="layout"
+              layout={layout}
+              cols={COLS}
+              rowHeight={ROW_HEIGHT}
+              width={canvasWidth}
+              margin={[16, 16]}
+              containerPadding={[0, 0]}
+              isDraggable={false}
+              isResizable={false}
+            >
+              {widgets.map(w => (
+                <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 overflow-hidden">
+                  <WidgetRenderer widget={w} />
                 </div>
-              </div>
-            ))}
+              ))}
+            </GridLayout>
           </div>
         )}
       </main>

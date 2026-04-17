@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Layout,
+  Layout as LayoutIcon,
   Edit3,
   Settings,
   X,
@@ -9,21 +9,19 @@ import {
   BarChart3,
   Map as MapIcon,
   Table as TableIcon,
-  CircleCheck,
   Radio,
-  TowerControl as Tower,
-  ShieldAlert,
   ChevronRight,
   Trash2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ViewMode, PAPage, WidgetKind, DynWidget } from '../types';
+import { ReactGridLayout as GridLayout } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { ViewMode, PAPage, WidgetKind, DynWidget, WidgetLayout } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
-import PAEChart from './PAEChart';
 import PAToolbar from './PAToolbar';
-import PAMapWidget from './PAMapWidget';
-import PATableWidget from './PATableWidget';
+import WidgetRenderer from './WidgetRenderer';
 
 interface EditorViewProps {
   projectName: string;
@@ -33,6 +31,22 @@ interface EditorViewProps {
   setPages: React.Dispatch<React.SetStateAction<PAPage[]>>;
   activePageId: string;
   setActivePageId: (id: string) => void;
+}
+
+const COLS = 12;
+const ROW_HEIGHT = 60;
+
+const DEFAULT_SIZES: Record<WidgetKind, { w: number; h: number }> = {
+  chart: { w: 6, h: 5 },
+  map: { w: 6, h: 5 },
+  table: { w: 8, h: 6 },
+  kpi: { w: 3, h: 3 },
+};
+
+function findFreeSpot(widgets: DynWidget[], w: number): { x: number; y: number } {
+  if (widgets.length === 0) return { x: 0, y: 0 };
+  const maxY = widgets.reduce((m, x) => Math.max(m, x.layout.y + x.layout.h), 0);
+  return { x: 0, y: maxY };
 }
 
 export default function EditorView({
@@ -46,16 +60,35 @@ export default function EditorView({
 }: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [canvasWidth, setCanvasWidth] = useState(1200);
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const obs = new ResizeObserver(entries => {
+      const w = entries[0]?.contentRect.width;
+      if (w && w > 0) setCanvasWidth(w);
+    });
+    obs.observe(canvasRef.current);
+    return () => obs.disconnect();
+  }, []);
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
   };
 
   const addWidget = (kind: WidgetKind) => {
-    updateWidgets(w => [...w, { id: `${kind}-${Date.now()}`, kind }]);
+    const size = DEFAULT_SIZES[kind];
+    const spot = findFreeSpot(widgets, size.w);
+    const newWidget: DynWidget = {
+      id: `${kind}-${Date.now()}`,
+      kind,
+      layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
+    };
+    updateWidgets(w => [...w, newWidget]);
   };
   const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
 
@@ -72,6 +105,26 @@ export default function EditorView({
       const remaining = pages.filter(p => p.id !== id);
       setActivePageId(remaining[0].id);
     }
+  };
+
+  const layout = useMemo(() => widgets.map(w => ({
+    i: w.id,
+    x: w.layout.x,
+    y: w.layout.y,
+    w: w.layout.w,
+    h: w.layout.h,
+    minW: 2,
+    minH: 2,
+  })), [widgets]);
+
+  const handleLayoutChange = (next: Array<{ i: string; x: number; y: number; w: number; h: number }>) => {
+    updateWidgets(prev => prev.map(w => {
+      const l = next.find(n => n.i === w.id);
+      if (!l) return w;
+      const same = l.x === w.layout.x && l.y === w.layout.y && l.w === w.layout.w && l.h === w.layout.h;
+      if (same) return w;
+      return { ...w, layout: { x: l.x, y: l.y, w: l.w, h: l.h } as WidgetLayout };
+    }));
   };
 
   return (
@@ -174,71 +227,53 @@ export default function EditorView({
 
         <PAToolbar />
 
-        <div className="flex-grow p-12 relative overflow-y-auto blueprint-grid custom-scrollbar">
-          <div className="grid grid-cols-12 gap-6 relative z-10 max-w-7xl mx-auto">
-            {widgets.length === 0 && (
-              <div className="col-span-12">
-                <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
-                  <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
-                    <Plus className="w-7 h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">Empty canvas</h3>
-                    <p className="text-xs font-bold text-on-surface-variant max-w-md">
-                      Use the floating toolbox on the right to add a Chart, Map, KPI Card or Table.
-                    </p>
-                  </div>
+        <div ref={canvasRef} className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
+          {widgets.length === 0 && (
+            <div className="max-w-7xl mx-auto">
+              <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
+                  <Plus className="w-7 h-7" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">Empty canvas</h3>
+                  <p className="text-xs font-bold text-on-surface-variant max-w-md">
+                    Use the floating toolbox on the right to add a Chart, Map, KPI Card or Table. Drag the header to move, drag the bottom-right corner to resize.
+                  </p>
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {widgets.map(w => (
-              <div key={w.id} className={cn(
-                w.kind === 'kpi' ? 'col-span-12 md:col-span-3' : 'col-span-12 md:col-span-6'
-              )}>
-                <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative">
+          {widgets.length > 0 && canvasWidth > 0 && (
+            <GridLayout
+              className="layout"
+              layout={layout}
+              cols={COLS}
+              rowHeight={ROW_HEIGHT}
+              width={canvasWidth - 64}
+              margin={[16, 16]}
+              containerPadding={[0, 0]}
+              draggableHandle=".widget-drag-handle"
+              isDraggable
+              isResizable
+              compactType="vertical"
+              preventCollision={false}
+              onLayoutChange={handleLayoutChange}
+            >
+              {widgets.map(w => (
+                <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
                   <button
                     onClick={() => removeWidget(w.id)}
-                    className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-10"
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-20"
                     aria-label="Remove widget"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                  {w.kind === 'chart' && (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-black text-on-surface font-headline">New Chart</h3>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ECharts</span>
-                      </div>
-                      <div className="h-56"><PAEChart variant="editor" height="100%" /></div>
-                    </>
-                  )}
-                  {w.kind === 'map' && (
-                    <>
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-black text-on-surface font-headline">New Map</h3>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Geo sites</span>
-                      </div>
-                      <div className="h-56"><PAMapWidget height="100%" /></div>
-                    </>
-                  )}
-                  {w.kind === 'table' && <PATableWidget height={300} />}
-                  {w.kind === 'kpi' && (
-                    <div>
-                      <div className="flex justify-between items-start mb-6">
-                        <h3 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">New KPI</h3>
-                        <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-primary/40" />
-                      </div>
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-black font-headline tracking-tighter text-on-surface">94.6%</span>
-                        <span className="text-xs font-bold text-emerald-600">+1.2%</span>
-                      </div>
-                    </div>
-                  )}
+                  <WidgetRenderer widget={w} />
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </GridLayout>
+          )}
         </div>
 
         <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
@@ -285,34 +320,6 @@ export default function EditorView({
                   <button className="pb-4 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-on-surface transition-colors">KPI Breakdown</button>
                   <button className="pb-4 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-on-surface transition-colors">Source Logs</button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-12">
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60">Metrics</label>
-                      <div className="flex flex-wrap gap-2">
-                        {['Avg Throughput', 'Peak User Count'].map((m) => (
-                          <span key={m} className="px-3 py-1.5 rounded-xl bg-surface-container-high flex items-center gap-2 text-xs font-bold text-on-surface">
-                            {m}
-                            <X className="w-3 h-3 text-on-surface-variant cursor-pointer hover:text-error" />
-                          </span>
-                        ))}
-                        <button className="px-3 py-1.5 rounded-xl border-2 border-dashed border-outline-variant text-primary text-xs font-bold hover:border-primary/50 transition-colors">+ Add Metric</button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <div className="space-y-3">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/60">Aggregation</label>
-                      <select className="w-full bg-surface-container-low border-b-2 border-outline-variant focus:border-primary focus:outline-none transition-all text-xs font-bold p-2 cursor-pointer">
-                        <option>Mean (Average)</option>
-                        <option>Sum</option>
-                        <option>95th Percentile</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -347,7 +354,7 @@ export default function EditorView({
           {([
             { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
             { icon: MapIcon, label: 'Map', kind: 'map' as const },
-            { icon: Layout, label: 'KPI Card', kind: 'kpi' as const },
+            { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
             { icon: TableIcon, label: 'Table', kind: 'table' as const },
           ]).map((tool) => (
             <button
