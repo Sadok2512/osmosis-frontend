@@ -11,6 +11,7 @@ import {
 import { motion } from 'motion/react';
 import { ViewMode } from '../types';
 import { cn } from '@/lib/utils';
+import PAEChart from './PAEChart';
 
 interface PresentationViewProps {
   onViewModeChange: (mode: ViewMode) => void;
