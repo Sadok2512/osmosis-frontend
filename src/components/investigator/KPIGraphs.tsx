@@ -1590,11 +1590,18 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               ...thresholdMarkLines,
             ];
 
+            // ── Axis resolution ──
+            // Explicit user assignment (from L/R toggle) ALWAYS wins, even when
+            // the series was created with a pre-baked yAxisIndex (counters / split series).
+            // Falls back to the series' own hint, then to left (0).
+            const userAssigned = effectiveYAxisAssignments[seriesKpiId];
+            const resolvedAxisIdx = hasRightAxis
+              ? (userAssigned != null ? userAssigned : (s.yAxisIndex != null ? s.yAxisIndex : 0))
+              : 0;
+
             return {
               ...s,
-              yAxisIndex: hasRightAxis
-                ? (s.yAxisIndex != null ? s.yAxisIndex : getYAxisIndex(seriesKpiId))
-                : 0,
+              yAxisIndex: resolvedAxisIdx,
               lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
               emphasis: {
                 focus: 'series' as const,

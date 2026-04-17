@@ -2013,20 +2013,32 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       <Slider value={[cfg.lineWidth]} onValueChange={v => setSlotConfig({ lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
                       <span className="text-[8px] text-muted-foreground font-mono w-6 text-right">{cfg.lineWidth}px</span>
                     </div>
-                    {/* Y-Axis assignment */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
-                      <ToggleGroup type="single" value={String(cfg.yAxisAssignments?.[c.counter_name] || 'R')}
-                        onValueChange={(value) => value && setSlotConfig({ yAxisAssignments: { ...(cfg.yAxisAssignments || {}), [c.counter_name]: value } })}
-                        className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
-                      >
-                        {(['L', 'R'] as const).map(side => (
-                          <ToggleGroupItem key={side} value={side} size="sm"
-                            className="h-5 min-w-6 rounded-[4px] border-0 px-1.5 text-[8px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
-                          >{side}</ToggleGroupItem>
-                        ))}
-                      </ToggleGroup>
-                    </div>
+                    {/* Y-Axis assignment — keyed by counter series id (counter_<name>) to match KPIGraphs */}
+                    {(() => {
+                      const counterKey = `counter_${c.counter_name}`;
+                      const current = cfg.yAxisAssignments?.[counterKey];
+                      // Default counters to right axis (1) when unset
+                      const sideValue = current === 0 ? 'L' : 'R';
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Axe Y</span>
+                          <ToggleGroup type="single" value={sideValue}
+                            onValueChange={(value) => {
+                              if (!value) return;
+                              const axisVal = value === 'R' ? 1 : 0;
+                              setSlotConfig({ yAxisAssignments: { ...(cfg.yAxisAssignments || {}), [counterKey]: axisVal } });
+                            }}
+                            className="gap-0 rounded-md border border-border/40 bg-muted/50 p-0.5"
+                          >
+                            {(['L', 'R'] as const).map(side => (
+                              <ToggleGroupItem key={side} value={side} size="sm"
+                                className="h-5 min-w-6 rounded-[4px] border-0 px-1.5 text-[8px] font-bold text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow-sm"
+                              >{side}</ToggleGroupItem>
+                            ))}
+                          </ToggleGroup>
+                        </div>
+                      );
+                    })()}
                     {/* Split — same as KPI popover */}
                     {(() => {
                       const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
