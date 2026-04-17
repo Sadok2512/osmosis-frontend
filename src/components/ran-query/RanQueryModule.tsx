@@ -860,11 +860,15 @@ const RanQueryModule: React.FC = () => {
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</p>
-                  <p className="mt-2 text-sm font-bold text-foreground">{selectedReport.vendor}</p>
+                  <span className={cn('mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-bold', vendorBadge(selectedReport.vendor).bg, vendorBadge(selectedReport.vendor).text)}>{selectedReport.vendor}</span>
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Technology</p>
-                  <p className="mt-2 text-sm font-bold text-foreground">{selectedReport.technologies.join(' / ')}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedReport.technologies.map(t => (
+                      <span key={t} className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold', techBadge(t).bg, techBadge(t).text)}>{t}</span>
+                    ))}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Time range</p>
