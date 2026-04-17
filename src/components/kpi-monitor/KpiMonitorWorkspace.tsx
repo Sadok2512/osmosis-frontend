@@ -11,13 +11,6 @@ const KpiMonitorWorkspace: React.FC = () => {
   const [tab, setTab] = useState<WorkspaceTab>('reference');
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY) as WorkspaceTab | null;
-    if (saved === 'dashboard' || saved === 'reference') {
-      setTab(saved);
-    }
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem(STORAGE_KEY, tab);
   }, [tab]);
 
