@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
-import { Eye, Edit3, Play } from 'lucide-react';
+import { Eye, Edit3, Play, FileText } from 'lucide-react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { ViewMode, PAPage } from '../types';
 import { cn } from '@/lib/utils';
 import WidgetRenderer from './WidgetRenderer';
+import SectionBlock from './SectionBlock';
 
 const GridLayout = WidthProvider(ReactGridLayout);
 
@@ -23,6 +24,11 @@ const ROW_HEIGHT = 60;
 export default function ViewerView({ projectName, onViewModeChange, pages, activePageId, setActivePageId }: ViewerProps) {
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
+  const sections = activePage?.sections ?? [];
+
+  const focusSection = (id: string) => {
+    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   const layout = useMemo(() => widgets.map(w => ({
     i: w.id,
