@@ -175,10 +175,14 @@ async function monitorPost<T>(path: string, body: any): Promise<T> {
 export interface CounterCatalogEntry {
   counter_id: string;
   counter_name: string;
+  display_name?: string;
   family: string;
   techno: string;
   vendor: string;
   is_active: boolean;
+  dimension_type?: string;
+  is_in_kpi?: boolean;
+  kpi_usage_count?: number;
 }
 
 export interface DateRangeResponse {

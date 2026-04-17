@@ -253,6 +253,9 @@ const CounterSelectorModal: React.FC<CounterSelectorModalProps> = ({ open, onClo
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[11px] font-medium text-foreground font-mono truncate">{c.counter_name}</p>
+                        {c.display_name && c.display_name !== c.counter_name && (
+                          <p className="text-[9px] text-muted-foreground truncate mt-0.5">{c.display_name}</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         {c.vendor && (
