@@ -18,6 +18,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { vendorBadge, techBadge } from '@/constants/brandColors';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
@@ -660,8 +661,12 @@ const RanQueryModule: React.FC = () => {
                         <p className="font-bold text-foreground">{report.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">Updated {formatDateTime(report.updatedAt)}</p>
                       </div>
-                      <span>{report.vendor}</span>
-                      <span>{report.technologies.join(' / ')}</span>
+                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-bold', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text)}>{report.vendor}</span>
+                      <div className="flex flex-wrap gap-1">
+                        {report.technologies.map(t => (
+                          <span key={t} className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', techBadge(t).bg, techBadge(t).text)}>{t}</span>
+                        ))}
+                      </div>
                       <span className="text-xs text-muted-foreground">{describeTimeConfig(report.timeConfig)}</span>
                       <span className="font-semibold">{report.kpis.length}</span>
                       <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-bold', statusClasses(report.status))}>{report.status}</span>
@@ -742,13 +747,14 @@ const RanQueryModule: React.FC = () => {
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       {TECH_OPTIONS.map(tech => {
                         const active = form.technologies.includes(tech);
+                        const tb = techBadge(tech);
                         return (
                           <button
                             key={tech}
                             onClick={() => updateForm('technologies', active ? form.technologies.filter(item => item !== tech) : [...form.technologies, tech])}
                             className={cn(
                               'rounded-2xl border px-4 py-3 text-sm font-bold transition-all',
-                              active ? 'border-primary/40 bg-primary/8 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                              active ? cn('border-transparent', tb.bg, tb.text) : 'border-border/60 bg-background text-foreground hover:border-primary/25'
                             )}
                           >
                             {tech}
@@ -854,11 +860,15 @@ const RanQueryModule: React.FC = () => {
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</p>
-                  <p className="mt-2 text-sm font-bold text-foreground">{selectedReport.vendor}</p>
+                  <span className={cn('mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-bold', vendorBadge(selectedReport.vendor).bg, vendorBadge(selectedReport.vendor).text)}>{selectedReport.vendor}</span>
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Technology</p>
-                  <p className="mt-2 text-sm font-bold text-foreground">{selectedReport.technologies.join(' / ')}</p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {selectedReport.technologies.map(t => (
+                      <span key={t} className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold', techBadge(t).bg, techBadge(t).text)}>{t}</span>
+                    ))}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Time range</p>
@@ -912,8 +922,8 @@ const RanQueryModule: React.FC = () => {
                     {selectedReport.results.map(result => (
                       <div key={`${result.kpi}-${result.technology}`} className="grid grid-cols-[1.8fr_0.9fr_0.9fr_1.2fr_0.8fr_0.8fr_0.7fr] gap-3 px-4 py-4 text-sm text-foreground">
                         <span className="font-bold">{result.kpi}</span>
-                        <span>{result.vendor}</span>
-                        <span>{result.technology}</span>
+                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text)}>{result.vendor}</span></span>
+                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', techBadge(result.technology).bg, techBadge(result.technology).text)}>{result.technology}</span></span>
                         <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
                         <span className="font-semibold">{result.value.toFixed(2)}</span>
                         <span>{result.unit}</span>
