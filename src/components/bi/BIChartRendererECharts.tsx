@@ -493,15 +493,6 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
               ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
               symbol: 'none', showSymbol: false,
               lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
-              areaStyle: {
-                color: {
-                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: withAlpha(s.color, 0.04) },
-                    { offset: 1, color: withAlpha(s.color, 0) },
-                  ],
-                },
-              },
             });
             break;
         }
