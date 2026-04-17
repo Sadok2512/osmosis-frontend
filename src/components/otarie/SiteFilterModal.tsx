@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import { X, RotateCcw, Check, Filter, ChevronDown, Search } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { X, RotateCcw, Check, Filter, ChevronDown, Search, Sparkles } from 'lucide-react';
 import { FILTER_DIMENSIONS, resolveAvailableValues, ActiveFilter } from '@/config/filterDimensions';
 import { useFilterCache } from '@/hooks/useFilterCache';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 export interface DashboardSiteFilters {
   dor?: string[];
@@ -12,6 +13,8 @@ export interface DashboardSiteFilters {
   bande?: string[];
   zone_arcep?: string[];
   saisonnier?: string[];
+  vendor?: string[];
+  dr?: string[];
 }
 
 interface SiteFilterModalProps {
@@ -21,133 +24,126 @@ interface SiteFilterModalProps {
   initialFilters?: DashboardSiteFilters;
 }
 
-/* ── Multi-select dropdown ── */
-const MultiSelectDropdown: React.FC<{
+/* ── Filter group card with chips ── */
+const FilterGroupCard: React.FC<{
   label: string;
   values: string[];
   selected: string[];
   onChange: (vals: string[]) => void;
-}> = ({ label, values, selected, onChange }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  globalSearch: string;
+  initiallyExpanded?: boolean;
+}> = ({ label, values, selected, onChange, globalSearch, initiallyExpanded = true }) => {
+  const [expanded, setExpanded] = useState(initiallyExpanded);
+  const [localSearch, setLocalSearch] = useState('');
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return values;
-    const q = search.toLowerCase();
+    const q = (localSearch || globalSearch).trim().toLowerCase();
+    if (!q) return values;
     return values.filter(v => v.toLowerCase().includes(q));
-  }, [values, search]);
+  }, [values, localSearch, globalSearch]);
 
   const toggle = (val: string) => {
     onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
   };
 
-  const selectAll = () => onChange([...values]);
-  const clearAll = () => onChange([]);
+  const selectAllVisible = () => {
+    const merged = Array.from(new Set([...selected, ...filtered]));
+    onChange(merged);
+  };
+
+  const clearGroup = () => onChange([]);
 
   if (values.length === 0) return null;
 
+  // Auto-expand when there's a global search match
+  const hasGlobalMatch = globalSearch.trim() && filtered.length > 0;
+  const isExpanded = expanded || hasGlobalMatch;
+
   return (
-    <div ref={ref} className="relative flex-1 min-w-0">
-      {/* Trigger */}
+    <div className="rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/30 hover:shadow-sm">
+      {/* Header */}
       <button
-        onClick={() => setOpen(!open)}
-        className={cn(
-          'w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-left transition-all',
-          open
-            ? 'border-primary bg-primary/5 shadow-md'
-            : selected.length > 0
-              ? 'border-primary/40 bg-primary/5'
-              : 'border-border bg-muted/30 hover:border-primary/30 hover:bg-muted/50'
-        )}
+        onClick={() => setExpanded(e => !e)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
       >
-        <div className="flex-1 min-w-0">
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">{label}</span>
-          {selected.length === 0 ? (
-            <span className="text-[11px] text-muted-foreground/60">Tout</span>
-          ) : selected.length <= 2 ? (
-            <span className="text-[11px] font-semibold text-foreground truncate block">{selected.join(', ')}</span>
-          ) : (
-            <span className="text-[11px] font-semibold text-foreground">{selected.length} sélectionné{selected.length > 1 ? 's' : ''}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="text-[12px] font-bold text-foreground uppercase tracking-wider">{label}</span>
+          <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+            {values.length}
+          </span>
           {selected.length > 0 && (
-            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">
-              {selected.length}
+            <span className="text-[10px] font-bold text-primary-foreground bg-primary px-2 py-0.5 rounded-full">
+              {selected.length} sélectionné{selected.length > 1 ? 's' : ''}
             </span>
           )}
-          <ChevronDown size={14} className={cn('text-muted-foreground transition-transform', open && 'rotate-180')} />
         </div>
+        <ChevronDown
+          size={14}
+          className={cn('text-muted-foreground transition-transform', isExpanded && 'rotate-180')}
+        />
       </button>
 
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-card rounded-xl border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
-          {/* Search */}
-          {values.length > 5 && (
-            <div className="px-3 pt-2.5 pb-1.5">
-              <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/50 border border-border">
-                <Search size={12} className="text-muted-foreground shrink-0" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Rechercher..."
-                  className="flex-1 bg-transparent text-[11px] text-foreground placeholder:text-muted-foreground/50 outline-none"
-                  autoFocus
+      {/* Body */}
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-3 animate-in fade-in-0 slide-in-from-top-1 duration-150">
+          {/* Local search + actions (only if many values) */}
+          {values.length > 8 && (
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={localSearch}
+                  onChange={e => setLocalSearch(e.target.value)}
+                  placeholder={`Rechercher dans ${label.toLowerCase()}…`}
+                  className="h-8 pl-7 text-[11px]"
                 />
               </div>
+              <button
+                onClick={selectAllVisible}
+                className="text-[10px] font-semibold text-primary hover:underline whitespace-nowrap"
+              >
+                Tout
+              </button>
+              {selected.length > 0 && (
+                <button
+                  onClick={clearGroup}
+                  className="text-[10px] font-semibold text-destructive hover:underline whitespace-nowrap"
+                >
+                  Effacer
+                </button>
+              )}
             </div>
           )}
 
-          {/* Select all / Clear */}
-          <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border/40">
-            <button onClick={selectAll} className="text-[10px] font-semibold text-primary hover:underline">Tout sélectionner</button>
-            <span className="text-muted-foreground/40">·</span>
-            <button onClick={clearAll} className="text-[10px] font-semibold text-destructive hover:underline">Effacer</button>
-          </div>
-
-          {/* Options */}
-          <div className="max-h-[200px] overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground/50 text-center py-3 italic">Aucun résultat</p>
-            ) : (
-              filtered.map(val => {
+          {/* Chip grid */}
+          {filtered.length === 0 ? (
+            <p className="text-[11px] text-muted-foreground italic text-center py-3">
+              Aucun résultat
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {filtered.map(val => {
                 const isSelected = selected.includes(val);
                 return (
                   <button
                     key={val}
                     onClick={() => toggle(val)}
                     className={cn(
-                      'w-full flex items-center gap-2.5 px-3 py-2 text-[11px] transition-colors',
+                      'group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all duration-150 border',
                       isSelected
-                        ? 'bg-primary/5 text-foreground font-semibold'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        ? 'bg-primary text-primary-foreground border-primary shadow-sm hover:bg-primary/90 hover:shadow-md'
+                        : 'bg-muted/40 text-foreground border-transparent hover:bg-muted hover:border-primary/30',
                     )}
                   >
-                    <div className={cn(
-                      'w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-all',
-                      isSelected
-                        ? 'bg-primary border-primary'
-                        : 'border-border'
-                    )}>
-                      {isSelected && <Check size={10} className="text-primary-foreground" />}
-                    </div>
-                    <span className="truncate">{val}</span>
+                    {isSelected && (
+                      <Check size={10} className="shrink-0 animate-in zoom-in-50 duration-150" />
+                    )}
+                    <span className="truncate max-w-[180px]">{val}</span>
                   </button>
                 );
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -156,6 +152,16 @@ const MultiSelectDropdown: React.FC<{
 
 const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onApply, initialFilters }) => {
   const [filters, setFilters] = useState<DashboardSiteFilters>(initialFilters || {});
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setFilters(initialFilters || {});
+      setGlobalSearch('');
+      setActiveCategory(null);
+    }
+  }, [open, initialFilters]);
 
   const activeFilters = useMemo((): ActiveFilter[] => {
     return Object.entries(filters)
@@ -163,7 +169,7 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
       .map(([key, vals]) => ({ id: key, dimension: key, op: 'IN' as const, values: vals! }));
   }, [filters]);
 
-  useFilterCache(activeFilters); // loads base + context-filtered values
+  useFilterCache(activeFilters);
 
   const setDimValues = useCallback((dimKey: string, vals: string[]) => {
     setFilters(prev => ({ ...prev, [dimKey]: vals.length > 0 ? vals : undefined }));
@@ -183,58 +189,192 @@ const SiteFilterModal: React.FC<SiteFilterModalProps> = ({ open, onClose, onAppl
     onApply(clean);
   };
 
+  // Quick category chips (top dimensions)
+  const QUICK_CATEGORIES = ['vendor', 'dor', 'plaque', 'site', 'techno', 'bande'];
+
+  // Build dimensions with values, optionally filtered by quick category
+  const visibleDimensions = useMemo(() => {
+    return FILTER_DIMENSIONS
+      .map(dim => ({
+        dim,
+        availableValues: resolveAvailableValues(dim.key, activeFilters),
+      }))
+      .filter(({ dim, availableValues }) => {
+        if (availableValues.length === 0) return false;
+        if (activeCategory && dim.key !== activeCategory) return false;
+        return true;
+      });
+  }, [activeFilters, activeCategory]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in-0 duration-200"
+        onClick={onClose}
+      />
 
-      <div className="relative z-10 w-full max-w-xl mx-4 bg-card rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 fade-in-0 duration-200 flex flex-col max-h-[85vh]">
+      <div className="relative z-10 w-full max-w-3xl mx-4 bg-card rounded-2xl border border-border shadow-2xl animate-in zoom-in-95 fade-in-0 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0 bg-gradient-to-r from-primary/5 via-card to-card">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Filter size={18} className="text-primary" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Filter size={18} className="text-primary-foreground" />
             </div>
             <div>
-              <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wider">Filtres de Sites</h2>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Sélectionnez les critères pour filtrer les sites</p>
+              <h2 className="text-sm font-extrabold text-foreground uppercase tracking-wider flex items-center gap-2">
+                Filtres de Sites
+                <Sparkles size={12} className="text-primary" />
+              </h2>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Sélectionnez les critères pour affiner votre analyse réseau
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
             <X size={16} />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-          {FILTER_DIMENSIONS.map(dim => {
-            const availableValues = resolveAvailableValues(dim.key, activeFilters);
-            const selectedValues = filters[dim.key as keyof DashboardSiteFilters] || [];
-            if (availableValues.length === 0 && !dim.values) return null;
+        {/* Sticky search/filter bar */}
+        <div className="px-6 py-3 border-b border-border shrink-0 bg-card/80 backdrop-blur-sm space-y-3">
+          {/* Global search */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={globalSearch}
+              onChange={e => setGlobalSearch(e.target.value)}
+              placeholder="Rechercher dans toutes les valeurs de filtres…"
+              className="h-10 pl-9 text-[12px] bg-muted/30 border-border/60 focus-visible:bg-card"
+            />
+            {globalSearch && (
+              <button
+                onClick={() => setGlobalSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
 
-            return (
-              <MultiSelectDropdown
+          {/* Quick category chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setActiveCategory(null)}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border',
+                activeCategory === null
+                  ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                  : 'bg-muted/40 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground',
+              )}
+            >
+              Tous
+            </button>
+            {QUICK_CATEGORIES.map(cat => {
+              const dim = FILTER_DIMENSIONS.find(d => d.key === cat);
+              if (!dim) return null;
+              const count = filters[cat as keyof DashboardSiteFilters]?.length || 0;
+              const isActive = activeCategory === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(isActive ? null : cat)}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border',
+                    isActive
+                      ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                      : count > 0
+                        ? 'bg-primary/10 text-primary border-primary/30'
+                        : 'bg-muted/40 text-muted-foreground border-transparent hover:bg-muted hover:text-foreground',
+                  )}
+                >
+                  {dim.label}
+                  {count > 0 && (
+                    <span className={cn(
+                      'inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-extrabold',
+                      isActive ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary text-primary-foreground',
+                    )}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-[10px] font-semibold text-muted-foreground">
+                <span className="text-primary font-bold">{totalSelected}</span> sélectionné{totalSelected > 1 ? 's' : ''}
+              </span>
+              {totalSelected > 0 && (
+                <button
+                  onClick={resetFilters}
+                  className="text-[10px] font-semibold text-destructive hover:underline"
+                >
+                  Tout effacer
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3 bg-muted/20">
+          {visibleDimensions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                <Search size={18} className="text-muted-foreground" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">Aucun filtre disponible</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Essayez de modifier votre recherche ou catégorie
+              </p>
+            </div>
+          ) : (
+            visibleDimensions.map(({ dim, availableValues }) => (
+              <FilterGroupCard
                 key={dim.key}
                 label={dim.label}
                 values={availableValues}
-                selected={selectedValues}
+                selected={filters[dim.key as keyof DashboardSiteFilters] || []}
                 onChange={(vals) => setDimValues(dim.key, vals)}
+                globalSearch={globalSearch}
+                initiallyExpanded={availableValues.length <= 12 || (filters[dim.key as keyof DashboardSiteFilters]?.length ?? 0) > 0}
               />
-            );
-          })}
+            ))
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-muted/30">
-          <button onClick={resetFilters} className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-muted transition-colors">
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border shrink-0 bg-card">
+          <button
+            onClick={resetFilters}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-bold text-muted-foreground hover:text-foreground border border-border hover:bg-muted transition-colors"
+          >
             <RotateCcw size={12} /> Réinitialiser
           </button>
           <div className="flex items-center gap-3">
             {totalSelected > 0 && (
-              <span className="text-[10px] font-semibold text-primary">{totalSelected} filtre{totalSelected > 1 ? 's' : ''}</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[10px] font-bold text-primary">
+                  {totalSelected} filtre{totalSelected > 1 ? 's' : ''} actif{totalSelected > 1 ? 's' : ''}
+                </span>
+              </div>
             )}
-            <button onClick={handleApply} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors shadow-lg">
+            <button
+              onClick={onClose}
+              className="px-4 py-2.5 rounded-xl text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleApply}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary/85 text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:shadow-lg hover:shadow-primary/30 transition-all shadow-md"
+            >
               <Check size={13} /> Appliquer
             </button>
           </div>
