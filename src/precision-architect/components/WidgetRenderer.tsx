@@ -17,7 +17,6 @@ export default function WidgetRenderer({ widget: w }: Props) {
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-2 widget-drag-handle cursor-move">
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Chart'}</h3>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ECharts</span>
         </div>
         <div className="flex-1 min-h-0">
           <PAEChart variant="editor" height="100%" />
