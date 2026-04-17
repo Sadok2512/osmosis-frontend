@@ -2,10 +2,18 @@ export type ViewMode = 'view' | 'edit' | 'presentation';
 
 export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table';
 
+export interface WidgetLayout {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface DynWidget {
   id: string;
   kind: WidgetKind;
   title?: string;
+  layout: WidgetLayout;
 }
 
 export interface PAPage {

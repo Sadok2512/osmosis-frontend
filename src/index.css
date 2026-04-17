@@ -352,3 +352,33 @@ All colors MUST be HSL.
 .precision-architect .animate-pulse-soft {
   animation: pa-pulse-soft 2s infinite ease-in-out;
 }
+
+/* Precision Architect — react-grid-layout polish */
+.precision-architect .pa-grid-edit .react-grid-item.react-grid-placeholder {
+  background: hsl(var(--primary) / 0.18) !important;
+  border: 2px dashed hsl(var(--primary) / 0.5);
+  border-radius: 1rem;
+  opacity: 1;
+}
+.precision-architect .pa-grid-edit .react-grid-item > .react-resizable-handle {
+  background-image: none;
+  width: 14px;
+  height: 14px;
+  right: 6px;
+  bottom: 6px;
+  border-right: 2px solid hsl(var(--primary));
+  border-bottom: 2px solid hsl(var(--primary));
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.precision-architect .pa-grid-edit .react-grid-item:hover > .react-resizable-handle {
+  opacity: 0.7;
+}
+.precision-architect .pa-grid-edit .react-grid-item.react-draggable-dragging,
+.precision-architect .pa-grid-edit .react-grid-item.resizing {
+  z-index: 50;
+  box-shadow: 0 25px 50px -12px hsl(var(--primary) / 0.35);
+}
+.precision-architect .pa-grid-view .react-resizable-handle {
+  display: none !important;
+}
