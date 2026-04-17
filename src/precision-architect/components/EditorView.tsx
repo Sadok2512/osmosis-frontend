@@ -23,6 +23,9 @@ import { ViewMode } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAEChart from './PAEChart';
+import PAToolbar from './PAToolbar';
+import PAMapWidget from './PAMapWidget';
+import PATableWidget from './PATableWidget';
 
 interface EditorViewProps {
   projectName: string;
@@ -121,20 +124,7 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
           </div>
         </header>
 
-        <div className="bg-surface-container-low/50 border-b border-outline-variant/10 px-8 py-4 flex flex-wrap gap-6 items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Perimeter:</span>
-            <div className="flex gap-1">
-              <span className="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-bold cursor-pointer">4G</span>
-              <span className="px-3 py-1 rounded-full bg-primary text-on-primary text-xs font-bold cursor-pointer">5G Active</span>
-              <span className="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-bold cursor-pointer">LTE</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-outline-variant/20 shadow-sm transition-all hover:border-primary/50 cursor-pointer">
-            <span className="text-sm font-bold text-on-surface">Last 24 Hours</span>
-            <ChevronDown className="w-3.5 h-3.5 text-outline" />
-          </div>
-        </div>
+        <PAToolbar />
 
         <div className="flex-grow p-12 relative overflow-y-auto blueprint-grid custom-scrollbar">
           <div className="grid grid-cols-12 gap-6 relative z-10 max-w-7xl mx-auto">
@@ -199,11 +189,20 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
             </div>
 
             <div className="col-span-12 md:col-span-6">
-              <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-12 rounded-2xl flex flex-col items-center justify-center gap-4 group cursor-pointer hover:bg-white/80 hover:border-primary/40 transition-all">
-                <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center text-outline group-hover:text-primary group-hover:scale-110 transition-all">
-                  <Plus className="w-6 h-6" />
+              <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 h-full flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-black text-on-surface font-headline">Network Map</h3>
+                  <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Live geo-distribution</p>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-widest text-outline group-hover:text-primary transition-colors">Drop component here</span>
+                <div className="flex-1 min-h-[280px]">
+                  <PAMapWidget height="100%" />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-12">
+              <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4">
+                <PATableWidget height={340} />
               </div>
             </div>
           </div>
