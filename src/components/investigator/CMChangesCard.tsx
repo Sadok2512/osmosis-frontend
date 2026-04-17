@@ -20,10 +20,12 @@ interface Props {
   cellNames: string[];
   siteNames?: string[];
   plaques?: string[];
+  dateFrom?: string;
+  dateTo?: string;
   days?: number;
 }
 
-async function fetchCmChanges(params: { cell_names?: string[]; site_names?: string[]; plaques?: string[]; days: number; limit: number }): Promise<CMChange[]> {
+async function fetchCmChanges(params: { cell_names?: string[]; site_names?: string[]; plaques?: string[]; date_from?: string; date_to?: string; days?: number; limit: number }): Promise<CMChange[]> {
   if (!params.cell_names?.length && !params.site_names?.length && !params.plaques?.length) return [];
   const url = getApiUrl('cm/cell-changes');
   try {
@@ -37,7 +39,7 @@ async function fetchCmChanges(params: { cell_names?: string[]; site_names?: stri
   } catch { return []; }
 }
 
-const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [], days = 30 }) => {
+const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [], dateFrom, dateTo, days = 30 }) => {
   const [changes, setChanges] = React.useState<CMChange[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
@@ -48,7 +50,9 @@ const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [
       cell_names: cellNames.length > 0 ? cellNames : undefined,
       site_names: siteNames.length > 0 ? siteNames : undefined,
       plaques: plaques.length > 0 ? plaques : undefined,
-      days,
+      date_from: dateFrom || undefined,
+      date_to: dateTo || undefined,
+      days: (!dateFrom && !dateTo) ? days : undefined,
       limit: 50,
     });
     setChanges(data);
@@ -86,7 +90,7 @@ const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [
           </div>
           <div>
             <h3 className="text-xs font-bold text-foreground uppercase tracking-tight">CM Parameter Changes</h3>
-            <p className="text-[9px] text-muted-foreground">Last {days} days — configuration changes on worst cells</p>
+            <p className="text-[9px] text-muted-foreground">{dateFrom && dateTo ? `${dateFrom.slice(0,10)} → ${dateTo.slice(0,10)}` : `Last ${days} days`} — configuration changes</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

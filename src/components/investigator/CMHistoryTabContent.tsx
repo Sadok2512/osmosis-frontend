@@ -24,9 +24,6 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
   const startDate = ctx?.startDate || state.startDate;
   const endDate = ctx?.endDate || state.endDate;
 
-  // CM History: always look back 30 days minimum (config changes are rare)
-  const days = 30;
-
   return (
     <div>
       {ctx && (
@@ -37,10 +34,10 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
           <span className="opacity-40">|</span>
           <span>Cells: {cellNames.join(', ') || siteNames.join(', ') || plaques.join(', ') || '—'}</span>
           <span className="opacity-40">|</span>
-          <span>{ctx.startDate} → {ctx.endDate}</span>
+          <span>{startDate} → {endDate}</span>
         </div>
       )}
-      <CMChangesCard cellNames={cellNames} siteNames={siteNames} plaques={plaques} days={days} />
+      <CMChangesCard cellNames={cellNames} siteNames={siteNames} plaques={plaques} dateFrom={startDate} dateTo={endDate} />
     </div>
   );
 };
