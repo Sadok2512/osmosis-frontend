@@ -519,6 +519,12 @@ const RanQueryModule: React.FC = () => {
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
+        plaques: form.plaques,
+        dors: form.dors,
+        sites: form.sites,
+        zoneArcep: form.zoneArcep,
+        aggregation: form.aggregation,
+        dimensions: form.dimensions,
         // Reset results because scope changed; keep status as Ready so user must re-execute
         status: 'Ready',
         results: [],
@@ -543,6 +549,12 @@ const RanQueryModule: React.FC = () => {
       updatedAt: now,
       lastRunAt: null,
       results: [],
+      plaques: form.plaques,
+      dors: form.dors,
+      sites: form.sites,
+      zoneArcep: form.zoneArcep,
+      aggregation: form.aggregation,
+      dimensions: form.dimensions,
     };
     setReports(prev => [report, ...prev]);
     setSelectedReportId(report.id);
@@ -566,6 +578,12 @@ const RanQueryModule: React.FC = () => {
       relativeUnit: tc.timeMode === 'relative' ? tc.unit : 'hours',
       manualInput: '',
       selectedKpis: r.kpis,
+      plaques: r.plaques ?? [],
+      dors: r.dors ?? [],
+      sites: r.sites ?? [],
+      zoneArcep: r.zoneArcep ?? [],
+      aggregation: r.aggregation ?? 'cell',
+      dimensions: r.dimensions ?? [],
     });
     setEditingReportId(reportId);
     setView('create');
