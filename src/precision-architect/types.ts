@@ -1,5 +1,19 @@
 export type ViewMode = 'view' | 'edit' | 'presentation';
 
+export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table';
+
+export interface DynWidget {
+  id: string;
+  kind: WidgetKind;
+  title?: string;
+}
+
+export interface PAPage {
+  id: string;
+  name: string;
+  widgets: DynWidget[];
+}
+
 export interface KPI {
   label: string;
   value: string;
