@@ -33,9 +33,18 @@ interface EditorViewProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
+type WidgetKind = 'chart' | 'map' | 'kpi' | 'table';
+interface DynWidget { id: string; kind: WidgetKind; }
+
 export default function EditorView({ projectName, onProjectNameChange, onViewModeChange }: EditorViewProps) {
   const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
   const [showSettings, setShowSettings] = useState(true);
+  const [widgets, setWidgets] = useState<DynWidget[]>([]);
+
+  const addWidget = (kind: WidgetKind) => {
+    setWidgets(w => [...w, { id: `${kind}-${Date.now()}`, kind }]);
+  };
+  const removeWidget = (id: string) => setWidgets(w => w.filter(x => x.id !== id));
 
   return (
     <div className="flex h-screen bg-surface overflow-hidden">
@@ -205,6 +214,53 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
                 <PATableWidget height={340} />
               </div>
             </div>
+
+            {widgets.map(w => (
+              <div key={w.id} className={cn(
+                w.kind === 'kpi' ? 'col-span-12 md:col-span-3' : 'col-span-12 md:col-span-6'
+              )}>
+                <div className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative">
+                  <button
+                    onClick={() => removeWidget(w.id)}
+                    className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors opacity-0 group-hover:opacity-100 z-10"
+                    aria-label="Remove widget"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  {w.kind === 'chart' && (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-black text-on-surface font-headline">New Chart</h3>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ECharts</span>
+                      </div>
+                      <div className="h-56"><PAEChart variant="editor" height="100%" /></div>
+                    </>
+                  )}
+                  {w.kind === 'map' && (
+                    <>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-black text-on-surface font-headline">New Map</h3>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Geo sites</span>
+                      </div>
+                      <div className="h-56"><PAMapWidget height="100%" /></div>
+                    </>
+                  )}
+                  {w.kind === 'table' && <PATableWidget height={300} />}
+                  {w.kind === 'kpi' && (
+                    <div>
+                      <div className="flex justify-between items-start mb-6">
+                        <h3 className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">New KPI</h3>
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm shadow-primary/40" />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-black font-headline tracking-tighter text-on-surface">94.6%</span>
+                        <span className="text-xs font-bold text-emerald-600">+1.2%</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -311,19 +367,27 @@ export default function EditorView({ projectName, onProjectNameChange, onViewMod
 
       <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
         <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
-          {[
-            { icon: BarChart3, label: 'Chart' },
-            { icon: MapIcon, label: 'Map' },
-            { icon: Layout, label: 'KPI Card' },
-            { icon: TableIcon, label: 'Table' },
-          ].map((tool) => (
-            <button key={tool.label} className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-xl transition-all w-full text-left">
+          {([
+            { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
+            { icon: MapIcon, label: 'Map', kind: 'map' as const },
+            { icon: Layout, label: 'KPI Card', kind: 'kpi' as const },
+            { icon: TableIcon, label: 'Table', kind: 'table' as const },
+          ]).map((tool) => (
+            <button
+              key={tool.label}
+              onClick={() => addWidget(tool.kind)}
+              className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-xl transition-all w-full text-left active:scale-95"
+            >
               <tool.icon className="w-5 h-5 text-primary shrink-0" />
               <span className="font-bold text-xs uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">{tool.label}</span>
             </button>
           ))}
         </div>
-        <button className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform">
+        <button
+          onClick={() => addWidget('chart')}
+          className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+          aria-label="Add chart"
+        >
           <Plus className="w-6 h-6" />
         </button>
       </div>
