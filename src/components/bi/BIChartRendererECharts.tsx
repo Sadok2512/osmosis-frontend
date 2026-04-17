@@ -447,15 +447,21 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
             break;
           case 'area':
             series.push({
-              ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
-              symbol: 'none', showSymbol: false,
-              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
+              ...baseSeries,
+              type: 'line',
+              smooth: m.smoothCurve ? 0.3 : false,
+              symbol: 'none',
+              showSymbol: false,
+              lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.2), shadowBlur: 8, shadowOffsetY: 3 },
+              itemStyle: { color: s.color, borderWidth: 0 },
               areaStyle: {
+                opacity: 1,
+                origin: 'auto',
                 color: {
                   type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: withAlpha(s.color, 0.09) },
-                    { offset: 1, color: withAlpha(s.color, 0.01) },
+                    { offset: 0, color: withAlpha(s.color, 0.55) },
+                    { offset: 1, color: withAlpha(s.color, 0.05) },
                   ],
                 },
               },
@@ -487,15 +493,6 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
               ...baseSeries, type: 'line', smooth: m.smoothCurve ? 0.3 : false,
               symbol: 'none', showSymbol: false,
               lineStyle: { width: 2.5, color: s.color, shadowColor: withAlpha(s.color, 0.15), shadowBlur: 8, shadowOffsetY: 3 },
-              areaStyle: {
-                color: {
-                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                  colorStops: [
-                    { offset: 0, color: withAlpha(s.color, 0.04) },
-                    { offset: 1, color: withAlpha(s.color, 0) },
-                  ],
-                },
-              },
             });
             break;
         }
@@ -654,9 +651,10 @@ const BIChartRendererECharts: React.FC<Props> = ({ config }) => {
     animationEasing: 'cubicInOut',
   };
 
-  // Key forces a full chart re-init when axis bounds or mode change so the
-  // pixel mapping is recomputed and no stale white space remains at the top.
-  const yAxisKey = `${yAxisMode}|${config.advanced.yAxisMin ?? ''}|${config.advanced.yAxisMax ?? ''}|${config.advanced.yAxisMinRight ?? ''}|${config.advanced.yAxisMaxRight ?? ''}|${hasRight ? 'R' : 'L'}`;
+  // Key forces a full chart re-init when axis bounds, mode or chart types change
+  // so the pixel mapping is recomputed and no stale white space remains at the top.
+  const chartTypesKey = effectiveYMetrics.map(m => `${m.kpi}:${m.chartType}:${m.axis}`).join(',');
+  const yAxisKey = `${yAxisMode}|${config.advanced.yAxisMin ?? ''}|${config.advanced.yAxisMax ?? ''}|${config.advanced.yAxisMinRight ?? ''}|${config.advanced.yAxisMaxRight ?? ''}|${hasRight ? 'R' : 'L'}|${chartTypesKey}`;
 
   return (
     <ReactECharts
