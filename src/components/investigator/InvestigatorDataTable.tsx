@@ -143,7 +143,15 @@ function buildPivotTable(
 ) {
   const scope = getPrimaryScope(filterContext, siteName);
 
-  const kpiSet = new Set<string>();
+  // Build KPI columns from the slot's selected KPIs + counters (so empty KPIs still show a column).
+  // Fall back to whatever appears in tsData if no slot info available.
+  const selectedKeys = activeSlot
+    ? [
+        ...(activeSlot.kpiIds || []),
+        ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+      ]
+    : [];
+  const kpiSet = new Set<string>(selectedKeys);
   tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
   const kpiColumns = [...kpiSet];
 
