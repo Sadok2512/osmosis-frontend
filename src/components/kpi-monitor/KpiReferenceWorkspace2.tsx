@@ -345,11 +345,14 @@ const KpiReferenceWorkspace2: React.FC = () => {
           </div>
 
           <div className="overflow-hidden rounded-[28px] border border-slate-200">
-            <div className="grid grid-cols-[1.8fr_1.1fr_0.8fr_0.8fr_1fr_1.2fr] gap-3 bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
+            <div className="grid grid-cols-[1.6fr_1fr_0.7fr_0.7fr_0.9fr_0.9fr_0.9fr_0.9fr_1.1fr] gap-3 bg-slate-100 px-4 py-3 text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">
               <span>KPI</span>
               <span>Category</span>
               <span>Tech</span>
               <span>Unit</span>
+              <span>Vendor</span>
+              <span>Normalized</span>
+              <span>Status</span>
               <span>Coverage</span>
               <span>Actions</span>
             </div>
