@@ -960,6 +960,35 @@ const RanQueryModule: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* ── Investigator-themed selectors ── */}
+      <KpiSelectorModal
+        open={kpiModalOpen}
+        onClose={() => setKpiModalOpen(false)}
+        catalog={kpiCatalog}
+        selectedKeys={selectedKpiKeys}
+        onConfirm={(keys) => {
+          // Replace KPI portion, keep counters
+          const next = Array.from(new Set([...selectedCounterKeys, ...keys]));
+          updateForm('selectedKpis', next);
+          setKpiModalOpen(false);
+        }}
+      />
+
+      <CounterSelectorModal
+        open={counterModalOpen}
+        onClose={() => setCounterModalOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounterKeys}
+        onConfirm={(keys) => {
+          // Replace counter portion, keep KPIs
+          const next = Array.from(new Set([...selectedKpiKeys, ...keys]));
+          updateForm('selectedKpis', next);
+          setCounterModalOpen(false);
+        }}
+        perimeterVendor={form.vendor}
+        perimeterTechno={form.technologies.length === 1 ? form.technologies[0] : undefined}
+      />
     </div>
   );
 };
