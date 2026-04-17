@@ -260,6 +260,7 @@ function buildTimeConfig(form: CreateFormState): TimeConfig {
       timeMode: 'absolute',
       start: form.absoluteStart,
       end: form.absoluteEnd,
+      granularity: form.granularity,
     };
   }
   return {
@@ -267,6 +268,7 @@ function buildTimeConfig(form: CreateFormState): TimeConfig {
     value: form.relativeValue,
     unit: form.relativeUnit,
     end: 'now',
+    granularity: form.granularity,
   };
 }
 
