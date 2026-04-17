@@ -24,6 +24,7 @@ const KPIMonitorPage = lazy(() => import('../components/kpi-monitor/KPIMonitorPa
 const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
 const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
 const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
+const RanQueryModule = lazy(() => import('../components/ran-query/RanQueryModule'));
 const NetworkTopologyPage = lazy(() => import('../components/otarie/NetworkTopologyPage'));
 const PrecisionArchitectPage = lazy(() => import('./PrecisionArchitect'));
 
@@ -54,7 +55,9 @@ const Index: React.FC = () => {
     return {
       dashboard_overview: true, list: true, sites: true, traffic: true,
       alerts: true, detector: true, ai_assistant: true, radio_profile: true,
-      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true, pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, topology: true,
+      topologie: true, rag: true, docs: true, backend_admin: true, kpi_monitor: true,
+      pm_dashboard: true, parameters: true, pulse_report: true, sentinel: true, topology: true,
+      ran_query: true,
     };
   });
 
@@ -160,6 +163,8 @@ const Index: React.FC = () => {
         return <SentinelPage theme={theme} />;
       case 'investigator':
         return <InvestigatorPage />;
+      case 'ran_query':
+        return <RanQueryModule />;
       case 'topology':
         return <NetworkTopologyPage />;
       case 'precision_architect':
