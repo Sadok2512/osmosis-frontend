@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Search, Check, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
-import { BI_KPI_CATALOG, BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
+import { BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
 import { fetchBIKpiCatalog, getCachedBIKpiCatalog } from './biCatalogService';
 
 const CATEGORY_COLORS: Record<string, string> = {
