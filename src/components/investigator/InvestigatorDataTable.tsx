@@ -53,7 +53,7 @@ const fmt = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') 
 const fmtVal = (v: number | null | undefined) =>
   v != null
     ? Number(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '';
+    : '—';
 
 const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 
