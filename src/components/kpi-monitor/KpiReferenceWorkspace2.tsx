@@ -99,6 +99,13 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
+  const reviewRef = React.useRef<HTMLDivElement | null>(null);
+
+  const scrollToReview = () => {
+    requestAnimationFrame(() => {
+      reviewRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   useEffect(() => {
     try {
@@ -216,8 +223,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
 
   const openView = (kpi: KpiCatalogEntry) => {
     setSelectedKpiKey(kpi.kpi_key);
+    setDraft(toDraft(kpi));
     setIsEditing(false);
     setOpenSections(['overview']);
+    scrollToReview();
   };
 
   const openEdit = (kpi?: KpiCatalogEntry | null) => {
@@ -227,6 +236,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
+    scrollToReview();
   };
 
   const saveDraft = () => {
@@ -386,7 +396,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
           </div>
         </Panel>
 
-        <div className="mt-6">
+        <div ref={reviewRef} className="mt-6 scroll-mt-6">
           <Panel title={selectedKpi ? `Review Workspace — ${selectedKpi.display_name}` : 'Review Workspace'} description={selectedKpi ? 'Open, review, and edit the selected KPI in the lower panel.' : 'Select a KPI above to open its lower review workspace.'}>
             {!selectedKpi || !draft ? (
               <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
