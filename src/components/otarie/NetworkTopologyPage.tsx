@@ -138,6 +138,8 @@ interface FilterOption {
   values: string[];
 }
 
+const SITE_SEARCH_LIMIT = '50000';
+
 /* ────────────────────── Helpers ────────────────────── */
 
 const fmt = (n: number | undefined | null): string =>
@@ -216,6 +218,7 @@ const NetworkTopologyPage: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const pollRef = useRef<number | null>(null);
+  const previousImportingRef = useRef(false);
 
   const loadStats = useCallback(async () => {
     try {
@@ -238,12 +241,35 @@ const NetworkTopologyPage: React.FC = () => {
     return () => { if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; } };
   }, [importing, loadStats]);
 
+  const loadFilters = useCallback(async () => {
+    try {
+      const d = await fetchJson<{ filters: FilterOption[] }>('topo/filters');
+      setFilters(d.filters || []);
+    } catch {
+      setFilters([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadFilters();
+  }, [loadFilters]);
+
+  useEffect(() => {
+    const wasImporting = previousImportingRef.current;
+    if (wasImporting && !importing) {
+      loadFilters();
+      searchSitesRef.current?.();
+    }
+    previousImportingRef.current = importing;
+  }, [importing, loadFilters]);
+
   const runImport = async () => {
     try {
       await fetchJson<unknown>('control/run-now/TOPO_SERVICE', { method: 'POST' });
       toast.success('Topology import started');
       setImporting(true);
       loadStats();
+      loadFilters();
     } catch (e) {
       toast.error(`Import failed: ${(e as Error).message}`);
     }
@@ -254,6 +280,7 @@ const NetworkTopologyPage: React.FC = () => {
       await fetchJson<unknown>('topo/delete', { method: 'DELETE' });
       toast.success('Topology data deleted');
       loadStats();
+      loadFilters();
       setSites([]);
       setSelectedSite(null);
       setSiteDetail(null);
@@ -277,6 +304,7 @@ const NetworkTopologyPage: React.FC = () => {
       toast.success(`File uploaded: ${d.rows || 0} rows detected`);
       setImporting(true);
       loadStats();
+      loadFilters();
     } catch (e) {
       toast.error(`Upload failed: ${(e as Error).message}`);
     }
@@ -286,12 +314,6 @@ const NetworkTopologyPage: React.FC = () => {
 
   /* ══════════════════ FILTERS ══════════════════ */
   const [filters, setFilters] = useState<FilterOption[]>([]);
-
-  useEffect(() => {
-    fetchJson<{ filters: FilterOption[] }>('topo/filters')
-      .then(d => setFilters(d.filters || []))
-      .catch(() => {});
-  }, []);
 
   const filterValues = useMemo(() => {
     const map: Record<string, string[]> = {};
@@ -309,26 +331,38 @@ const NetworkTopologyPage: React.FC = () => {
   const [sitesLoading, setSitesLoading] = useState(false);
   const [sitesError, setSitesError] = useState<string | null>(null);
   const searchTimer = useRef<number | null>(null);
+  const searchRequestRef = useRef(0);
+  const searchSitesRef = useRef<(() => Promise<void>) | null>(null);
 
   const searchSites = useCallback(async () => {
+    const requestId = ++searchRequestRef.current;
     setSitesLoading(true);
     setSitesError(null);
     try {
-      const params = new URLSearchParams({ limit: '200' });
+      const params = new URLSearchParams({ limit: SITE_SEARCH_LIMIT });
       if (query.trim()) params.set('search', query.trim());
       if (vendorFilter !== 'all') params.set('vendor', vendorFilter);
       if (technoFilter !== 'all') params.set('techno', technoFilter);
       if (plaqueFilter !== 'all') params.set('plaque', plaqueFilter);
       if (dorFilter !== 'all') params.set('dor', dorFilter);
-      const d = await fetchJson<SiteRow[]>(`topo/sites?${params}`);
-      setSites(d);
+      const d = await fetchJson<SiteRow[] | { sites?: SiteRow[]; rows?: SiteRow[] }>(`topo/sites?${params}`);
+      if (requestId !== searchRequestRef.current) return;
+      const rows = Array.isArray(d) ? d : (d.sites || d.rows || []);
+      setSites(rows);
     } catch (e) {
+      if (requestId !== searchRequestRef.current) return;
       setSitesError((e as Error).message);
       setSites([]);
     } finally {
-      setSitesLoading(false);
+      if (requestId === searchRequestRef.current) {
+        setSitesLoading(false);
+      }
     }
   }, [query, vendorFilter, technoFilter, plaqueFilter, dorFilter]);
+
+  useEffect(() => {
+    searchSitesRef.current = searchSites;
+  }, [searchSites]);
 
   useEffect(() => {
     if (searchTimer.current) window.clearTimeout(searchTimer.current);
@@ -353,8 +387,13 @@ const NetworkTopologyPage: React.FC = () => {
   const [siteParams, setSiteParams] = useState<SiteParam[]>([]);
   const [paramsLoading, setParamsLoading] = useState(false);
   const [paramSearch, setParamSearch] = useState('');
+  const detailRequestRef = useRef(0);
+  const alarmsRequestRef = useRef(0);
+  const cmRequestRef = useRef(0);
+  const paramsRequestRef = useRef(0);
 
   const viewSite = async (siteName: string) => {
+    const requestId = ++detailRequestRef.current;
     setSelectedSite(siteName);
     setSiteDetail(null);
     setDetailLoading(true);
@@ -365,45 +404,70 @@ const NetworkTopologyPage: React.FC = () => {
     setSiteParams([]);
     try {
       const s = await fetchJson<SiteDetail>(`topo/site/${encodeURIComponent(siteName)}`);
+      if (requestId !== detailRequestRef.current) return;
       setSiteDetail(s);
       setTimeout(() => {
         document.getElementById('topo-site-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
     } catch (e) {
+      if (requestId !== detailRequestRef.current) return;
       setDetailError((e as Error).message);
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestRef.current) {
+        setDetailLoading(false);
+      }
     }
   };
 
   const loadSiteAlarms = useCallback(async (siteName: string) => {
+    const requestId = ++alarmsRequestRef.current;
     setAlarmsLoading(true);
     try {
       const d = await fetchJson<{ alarms: SiteAlarm[] }>(`topo/site-alarms?site_name=${encodeURIComponent(siteName)}&limit=50`);
+      if (requestId !== alarmsRequestRef.current || selectedSite !== siteName) return;
       setSiteAlarms(d.alarms || []);
-    } catch { setSiteAlarms([]); }
-    finally { setAlarmsLoading(false); }
-  }, []);
+    } catch {
+      if (requestId !== alarmsRequestRef.current || selectedSite !== siteName) return;
+      setSiteAlarms([]);
+    }
+    finally {
+      if (requestId === alarmsRequestRef.current) setAlarmsLoading(false);
+    }
+  }, [selectedSite]);
 
   const loadSiteCmHistory = useCallback(async (siteName: string) => {
+    const requestId = ++cmRequestRef.current;
     setCmLoading(true);
     try {
       const d = await fetchJson<{ changes: CmChange[] }>(`topo/site-cm-history?site_name=${encodeURIComponent(siteName)}&limit=50`);
+      if (requestId !== cmRequestRef.current || selectedSite !== siteName) return;
       setSiteCmChanges(d.changes || []);
-    } catch { setSiteCmChanges([]); }
-    finally { setCmLoading(false); }
-  }, []);
+    } catch {
+      if (requestId !== cmRequestRef.current || selectedSite !== siteName) return;
+      setSiteCmChanges([]);
+    }
+    finally {
+      if (requestId === cmRequestRef.current) setCmLoading(false);
+    }
+  }, [selectedSite]);
 
   const loadSiteParams = useCallback(async (siteName: string, search?: string) => {
+    const requestId = ++paramsRequestRef.current;
     setParamsLoading(true);
     try {
       const params = new URLSearchParams({ site_name: siteName, limit: '50' });
       if (search) params.set('search', search);
       const d = await fetchJson<SiteParam[]>(`topo/site-params?${params}`);
+      if (requestId !== paramsRequestRef.current || selectedSite !== siteName) return;
       setSiteParams(Array.isArray(d) ? d : []);
-    } catch { setSiteParams([]); }
-    finally { setParamsLoading(false); }
-  }, []);
+    } catch {
+      if (requestId !== paramsRequestRef.current || selectedSite !== siteName) return;
+      setSiteParams([]);
+    }
+    finally {
+      if (requestId === paramsRequestRef.current) setParamsLoading(false);
+    }
+  }, [selectedSite]);
 
   useEffect(() => {
     if (!selectedSite || !detailTab) return;
