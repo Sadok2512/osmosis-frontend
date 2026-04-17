@@ -1464,9 +1464,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // dataZoom slider height
         const sliderHeight = 22;
         const sliderBottomMargin = 30;
-        // Estimate legend rows from total series count (avg ~5 items per row)
+        // Legend: cap at 2 rows and let ECharts paginate the rest with arrows.
+        // This guarantees the chart area is never crushed by long legends.
         const legendItemsCount = Array.isArray(series) ? series.length : 0;
-        const legendRows = Math.min(4, Math.max(1, Math.ceil(legendItemsCount / 5)));
+        const MAX_LEGEND_ROWS = 2;
+        const legendRows = Math.min(MAX_LEGEND_ROWS, Math.max(1, Math.ceil(legendItemsCount / 5)));
         const legendHeight = 18 + (legendRows - 1) * 16;
 
         const option: any = {
@@ -1525,7 +1527,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             itemWidth: 12,
             itemHeight: 4,
             itemGap: 12,
-            type: 'plain' as any,
+            // Scroll legend: paginates with arrows when items overflow,
+            // never overlaps the chart area.
+            type: 'scroll' as const,
+            pageButtonItemGap: 4,
+            pageButtonGap: 8,
+            pageIconSize: 10,
+            pageIconColor: '#6366f1',
+            pageIconInactiveColor: '#cbd5e1',
+            pageTextStyle: { fontSize: 9, color: '#6b7280' },
             align: 'left' as const,
             textStyle: {
               fontSize: 9,
