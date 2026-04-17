@@ -706,10 +706,10 @@ const RanQueryModule: React.FC = () => {
                         <p className="font-bold text-foreground">{report.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">Updated {formatDateTime(report.updatedAt)}</p>
                       </div>
-                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-bold', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text)}>{report.vendor}</span>
+                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-medium', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text, vendorBadge(report.vendor).border)}>{report.vendor}</span>
                       <div className="flex flex-wrap gap-1">
                         {report.technologies.map(t => (
-                          <span key={t} className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', techBadge(t).bg, techBadge(t).text)}>{t}</span>
+                          <span key={t} className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
                         ))}
                       </div>
                       <span className="text-xs text-muted-foreground">{describeTimeConfig(report.timeConfig)}</span>
@@ -908,13 +908,13 @@ const RanQueryModule: React.FC = () => {
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Vendor</p>
-                  <span className={cn('mt-2 inline-flex items-center rounded-full px-3 py-1 text-sm font-bold', vendorBadge(selectedReport.vendor).bg, vendorBadge(selectedReport.vendor).text)}>{selectedReport.vendor}</span>
+                  <span className={cn('mt-2 inline-flex items-center rounded-full border px-3 py-1 text-sm font-medium', vendorBadge(selectedReport.vendor).bg, vendorBadge(selectedReport.vendor).text, vendorBadge(selectedReport.vendor).border)}>{selectedReport.vendor}</span>
                 </div>
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Technology</p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {selectedReport.technologies.map(t => (
-                      <span key={t} className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold', techBadge(t).bg, techBadge(t).text)}>{t}</span>
+                      <span key={t} className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
                     ))}
                   </div>
                 </div>
@@ -973,8 +973,8 @@ const RanQueryModule: React.FC = () => {
                     {selectedReport.results.map(result => (
                       <div key={`${result.kpi}-${result.technology}`} className="grid grid-cols-[1.8fr_0.9fr_0.9fr_1.2fr_0.8fr_0.8fr_0.7fr] gap-3 px-4 py-4 text-sm text-foreground">
                         <span className="font-bold">{result.kpi}</span>
-                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text)}>{result.vendor}</span></span>
-                        <span><span className={cn('inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold', techBadge(result.technology).bg, techBadge(result.technology).text)}>{result.technology}</span></span>
+                        <span><span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text, vendorBadge(result.vendor).border)}>{result.vendor}</span></span>
+                        <span><span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', techBadge(result.technology).bg, techBadge(result.technology).text, techBadge(result.technology).border)}>{result.technology}</span></span>
                         <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
                         <span className="font-semibold">{result.value.toFixed(2)}</span>
                         <span>{result.unit}</span>
