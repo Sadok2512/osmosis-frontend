@@ -403,6 +403,28 @@ const RanQueryModule: React.FC = () => {
   const createReport = () => {
     if (!form.name.trim() || form.selectedKpis.length === 0 || form.technologies.length === 0) return;
     const now = new Date().toISOString();
+
+    // Edit mode: update the existing report in place
+    if (editingReportId) {
+      setReports(prev => prev.map(r => r.id === editingReportId ? {
+        ...r,
+        name: form.name.trim(),
+        vendor: form.vendor,
+        technologies: form.technologies,
+        kpis: form.selectedKpis,
+        timeConfig: buildTimeConfig(form),
+        // Reset results because scope changed; keep status as Ready so user must re-execute
+        status: 'Ready',
+        results: [],
+        updatedAt: now,
+      } : r));
+      setSelectedReportId(editingReportId);
+      setEditingReportId(null);
+      setView('detail');
+      resetForm();
+      return;
+    }
+
     const report: RanReport = {
       id: `ran-report-${Date.now()}`,
       name: form.name.trim(),
@@ -420,6 +442,27 @@ const RanQueryModule: React.FC = () => {
     setSelectedReportId(report.id);
     setView('list');
     resetForm();
+  };
+
+  const editReport = (reportId: string) => {
+    const r = reports.find(x => x.id === reportId);
+    if (!r) return;
+    const tc = r.timeConfig;
+    setForm({
+      name: r.name,
+      vendor: r.vendor,
+      technologies: r.technologies,
+      timeMode: tc.timeMode,
+      absoluteStart: tc.timeMode === 'absolute' ? tc.start : DEFAULT_FORM().absoluteStart,
+      absoluteEnd: tc.timeMode === 'absolute' ? tc.end : DEFAULT_FORM().absoluteEnd,
+      relativePreset: 'custom',
+      relativeValue: tc.timeMode === 'relative' ? tc.value : 24,
+      relativeUnit: tc.timeMode === 'relative' ? tc.unit : 'hours',
+      manualInput: '',
+      selectedKpis: r.kpis,
+    });
+    setEditingReportId(reportId);
+    setView('create');
   };
 
   const executeReport = (reportId: string) => {
