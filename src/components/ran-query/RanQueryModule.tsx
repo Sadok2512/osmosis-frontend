@@ -935,6 +935,9 @@ const RanQueryModule: React.FC = () => {
                 <button onClick={() => downloadCsv(selectedReport)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                   <Download className="h-3.5 w-3.5" /> Download report
                 </button>
+                <button onClick={() => editReport(selectedReport.id)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
+                  <Pencil className="h-3.5 w-3.5" /> Edit report
+                </button>
                 <div className="ml-auto inline-flex rounded-2xl border border-border/60 bg-muted/20 p-1">
                   <button onClick={() => setDetailMode('table')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'table' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
                     Table view
