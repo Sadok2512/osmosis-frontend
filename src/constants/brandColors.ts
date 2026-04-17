@@ -52,27 +52,44 @@ export const TECH_HSL: Record<string, string> = {
   '2G':  'hsl(283, 59%, 47%)',
 };
 
-// ── Tailwind badge classes (bg + text) ──
-export const VENDOR_BADGE: Record<string, { bg: string; text: string }> = {
-  Ericsson: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
-  Nokia:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
-  Huawei:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
-  Samsung:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
-  ERICSSON: { bg: 'bg-blue-400/15',  text: 'text-blue-400' },
-  NOKIA:    { bg: 'bg-blue-800/15',  text: 'text-blue-800' },
-  HUAWEI:   { bg: 'bg-red-600/15',   text: 'text-red-500' },
-  SAMSUNG:  { bg: 'bg-violet-600/15', text: 'text-violet-500' },
+// ── Pill badge palette (clean & pro) — single source of truth for network UI ──
+// Soft background + matching text + light border. Used everywhere: filters, tables, chips.
+export type PillTone = { bg: string; text: string; border: string };
+
+export const VENDOR_PILL: Record<string, PillTone> = {
+  Ericsson: { bg: 'bg-[#E8F1FF]', text: 'text-[#1D4ED8]', border: 'border-[#BFDBFE]' },
+  Huawei:   { bg: 'bg-[#FEECEC]', text: 'text-[#DC2626]', border: 'border-[#FCA5A5]' },
+  Nokia:    { bg: 'bg-[#E6F0FF]', text: 'text-[#1E40AF]', border: 'border-[#93C5FD]' },
+  Alcatel:  { bg: 'bg-[#F3E8FF]', text: 'text-[#7C3AED]', border: 'border-[#C4B5FD]' },
+  ALU:      { bg: 'bg-[#F3E8FF]', text: 'text-[#7C3AED]', border: 'border-[#C4B5FD]' },
+  Samsung:  { bg: 'bg-[#F3F4F6]', text: 'text-[#374151]', border: 'border-[#D1D5DB]' },
+  NSN:      { bg: 'bg-[#E6F0FF]', text: 'text-[#1E40AF]', border: 'border-[#93C5FD]' },
+  Indéfini: { bg: 'bg-[#F9FAFB]', text: 'text-[#6B7280]', border: 'border-[#E5E7EB]' },
+  Indefini: { bg: 'bg-[#F9FAFB]', text: 'text-[#6B7280]', border: 'border-[#E5E7EB]' },
+  Unknown:  { bg: 'bg-[#F9FAFB]', text: 'text-[#6B7280]', border: 'border-[#E5E7EB]' },
 };
 
-export const TECH_BADGE: Record<string, { bg: string; text: string }> = {
-  '5G':  { bg: 'bg-[#27AE60]/15',  text: 'text-[#27AE60]' },
-  NR:    { bg: 'bg-[#27AE60]/15',  text: 'text-[#27AE60]' },
-  '4G':  { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]' },
-  LTE:   { bg: 'bg-[#F39C12]/15', text: 'text-[#F39C12]' },
-  '3G':  { bg: 'bg-[#3498DB]/15',    text: 'text-[#3498DB]' },
-  '2G':  { bg: 'bg-[#8E44AD]/15', text: 'text-[#8E44AD]' },
-  ALL:   { bg: 'bg-muted',         text: 'text-muted-foreground' },
+export const TECH_PILL: Record<string, PillTone> = {
+  '2G':  { bg: 'bg-[#F3E8FF]', text: 'text-[#7C3AED]', border: 'border-[#E9D5FF]' },
+  '3G':  { bg: 'bg-[#E0F2FE]', text: 'text-[#0284C7]', border: 'border-[#BAE6FD]' },
+  '4G':  { bg: 'bg-[#FFF7ED]', text: 'text-[#EA580C]', border: 'border-[#FED7AA]' },
+  LTE:   { bg: 'bg-[#FFF7ED]', text: 'text-[#EA580C]', border: 'border-[#FED7AA]' },
+  '5G':  { bg: 'bg-[#ECFDF5]', text: 'text-[#059669]', border: 'border-[#A7F3D0]' },
+  NR:    { bg: 'bg-[#ECFDF5]', text: 'text-[#059669]', border: 'border-[#A7F3D0]' },
+  ALL:   { bg: 'bg-muted',     text: 'text-muted-foreground', border: 'border-border' },
 };
+
+// Backward-compat alias (used by existing components that read { bg, text } only)
+export const VENDOR_BADGE: Record<string, PillTone> = {
+  ...VENDOR_PILL,
+  ERICSSON: VENDOR_PILL.Ericsson,
+  HUAWEI:   VENDOR_PILL.Huawei,
+  NOKIA:    VENDOR_PILL.Nokia,
+  SAMSUNG:  VENDOR_PILL.Samsung,
+  ALCATEL:  VENDOR_PILL.Alcatel,
+};
+
+export const TECH_BADGE: Record<string, PillTone> = { ...TECH_PILL };
 
 // ── Helper functions ──
 
@@ -112,10 +129,45 @@ export const vendorHsl = (v: string | null | undefined): string => {
 export const techHsl = (t: string | null | undefined): string =>
   TECH_HSL[(t || '').toUpperCase()] || 'hsl(var(--primary))';
 
-/** Get vendor Tailwind badge classes */
-export const vendorBadge = (v: string | null | undefined): { bg: string; text: string } =>
-  VENDOR_BADGE[(v || '')] || VENDOR_BADGE[(v || '').toUpperCase()] || { bg: 'bg-muted', text: 'text-muted-foreground' };
+/** Normalize a raw vendor string to its canonical pill key */
+const normalizeVendorKey = (v: string | null | undefined): string => {
+  const k = (v || '').trim().toUpperCase();
+  if (!k) return 'Indéfini';
+  if (k.includes('ERICSSON')) return 'Ericsson';
+  if (k.includes('NOKIA') || k === 'NSN') return 'Nokia';
+  if (k.includes('HUAWEI')) return 'Huawei';
+  if (k.includes('SAMSUNG')) return 'Samsung';
+  if (k.includes('ALCATEL') || k === 'ALU') return 'Alcatel';
+  if (k.includes('INDEF') || k === 'UNKNOWN' || k === '-') return 'Indéfini';
+  return v as string;
+};
 
-/** Get tech Tailwind badge classes */
-export const techBadge = (t: string | null | undefined): { bg: string; text: string } =>
-  TECH_BADGE[(t || '')] || TECH_BADGE[(t || '').toUpperCase()] || TECH_BADGE.ALL;
+/** Normalize a raw tech string to its canonical pill key */
+const normalizeTechKey = (t: string | null | undefined): string => {
+  const k = (t || '').trim().toUpperCase();
+  if (k.includes('NR') || k.includes('5G')) return '5G';
+  if (k.includes('LTE') || k.includes('4G')) return '4G';
+  if (k.includes('3G') || k === 'UMTS')     return '3G';
+  if (k.includes('2G') || k === 'GSM')      return '2G';
+  return k || 'ALL';
+};
+
+/** Get vendor pill (bg + text + border) */
+export const vendorBadge = (v: string | null | undefined): PillTone =>
+  VENDOR_PILL[normalizeVendorKey(v)] || VENDOR_PILL.Indéfini;
+
+/** Get tech pill (bg + text + border) */
+export const techBadge = (t: string | null | undefined): PillTone =>
+  TECH_PILL[normalizeTechKey(t)] || TECH_PILL.ALL;
+
+/** Convenience: ready-to-use className string for a Vendor pill */
+export const vendorPillClass = (v: string | null | undefined): string => {
+  const p = vendorBadge(v);
+  return `inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${p.bg} ${p.text} ${p.border}`;
+};
+
+/** Convenience: ready-to-use className string for a Tech pill */
+export const techPillClass = (t: string | null | undefined): string => {
+  const p = techBadge(t);
+  return `inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${p.bg} ${p.text} ${p.border}`;
+};
