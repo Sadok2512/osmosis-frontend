@@ -4,17 +4,13 @@ import {
   BarChart3,
   BookOpen,
   CheckCircle2,
-  Database,
   Eye,
   FilePenLine,
-  Filter,
   Layers3,
-  ListFilter,
   Search,
   ShieldAlert,
   Sparkles,
   Table2,
-  XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
@@ -163,9 +159,10 @@ const KpiReferenceWorkspace: React.FC = () => {
         item.description.toLowerCase().includes(query);
       const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
       const matchesTech = techFilter === 'all' || item.techno_scope === techFilter;
+      const isOperationalFocus = item.is_map_supported || Boolean(item.thresholds?.warning) || Boolean(item.thresholds?.critical);
       const matchesStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'active' ? item.is_map_supported || Boolean(item.thresholds) || true : false);
+        (statusFilter === 'active' ? isOperationalFocus : !isOperationalFocus);
       return matchesSearch && matchesCategory && matchesTech && matchesStatus;
     });
   }, [catalog, search, categoryFilter, techFilter, statusFilter]);
@@ -228,9 +225,11 @@ const KpiReferenceWorkspace: React.FC = () => {
 
   const hasUnsavedChanges = selectedKpi && draft ? JSON.stringify(toDraft(selectedKpi)) !== JSON.stringify(draft) : false;
 
-  const openEdit = () => {
-    if (!selectedKpi) return;
-    setDraft(toDraft(selectedKpi));
+  const openEdit = (kpi?: KpiCatalogEntry | null) => {
+    const target = kpi || selectedKpi;
+    if (!target) return;
+    setSelectedKpiKey(target.kpi_key);
+    setDraft(toDraft(target));
     setIsEditing(true);
     setDetailTab('overview');
   };
@@ -318,7 +317,7 @@ const KpiReferenceWorkspace: React.FC = () => {
                       isSelected ? 'bg-primary/6' : 'hover:bg-primary/5'
                     )}
                   >
-                    <button className="min-w-0 text-left" onClick={() => setSelectedKpiKey(item.kpi_key)}>
+                    <button className="min-w-0 text-left" onClick={() => { setSelectedKpiKey(item.kpi_key); setIsEditing(false); }}>
                       <p className="truncate font-bold text-foreground">{item.display_name}</p>
                       <p className="mt-1 truncate text-xs text-muted-foreground">{item.kpi_key}</p>
                     </button>
@@ -334,7 +333,7 @@ const KpiReferenceWorkspace: React.FC = () => {
                       <button onClick={() => { setSelectedKpiKey(item.kpi_key); setIsEditing(false); }} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                         <Eye className="h-3.5 w-3.5" /> Open
                       </button>
-                      <button onClick={() => { setSelectedKpiKey(item.kpi_key); setTimeout(openEdit, 0); }} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/14">
+                      <button onClick={() => openEdit(item)} className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/14">
                         <FilePenLine className="h-3.5 w-3.5" /> Edit
                       </button>
                     </div>
@@ -389,7 +388,7 @@ const KpiReferenceWorkspace: React.FC = () => {
                         </button>
                       </>
                     ) : (
-                      <button onClick={openEdit} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90">
+                      <button onClick={() => openEdit()} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90">
                         <FilePenLine className="h-3.5 w-3.5" /> Edit KPI
                       </button>
                     )}
