@@ -263,3 +263,39 @@ export function fetchWithTimeout(
 
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
 }
+
+/**
+ * Fetch with automatic retry on transient edge function cold-start errors
+ * (503 BOOT_ERROR / WORKER_LIMIT). Retries up to `maxRetries` times with
+ * exponential backoff. Use for any call that goes through the vps-proxy
+ * edge function.
+ */
+export async function fetchVpsWithRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+  options: { maxRetries?: number; timeoutMs?: number; baseDelayMs?: number } = {},
+): Promise<Response> {
+  const { maxRetries = 2, timeoutMs = REQUEST_TIMEOUT_MS, baseDelayMs = 400 } = options;
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(input, init, timeoutMs);
+      if (res.status === 503 && attempt < maxRetries) {
+        const text = await res.clone().text().catch(() => '');
+        if (/BOOT_ERROR|WORKER_LIMIT|please check logs/i.test(text)) {
+          await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+          continue;
+        }
+      }
+      return res;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, baseDelayMs * Math.pow(2, attempt)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('fetchVpsWithRetry failed');
+}
