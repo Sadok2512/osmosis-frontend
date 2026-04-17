@@ -291,3 +291,64 @@ All colors MUST be HSL.
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ============ Precision Architect module (scoped) ============ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+.precision-architect {
+  --m3-on-primary: #ffffff;
+  --m3-primary-container: #008378;
+  --m3-on-primary-container: #ffffff;
+  --m3-primary-fixed-dim: #6bd8cb;
+  --m3-surface: #f7f9fb;
+  --m3-surface-bright: #f7f9fb;
+  --m3-surface-dim: #d8dadc;
+  --m3-surface-container: #eceef0;
+  --m3-surface-container-low: #f2f4f6;
+  --m3-surface-container-high: #e6e8ea;
+  --m3-surface-container-highest: #e0e3e5;
+  --m3-surface-container-lowest: #ffffff;
+  --m3-on-surface: #191c1e;
+  --m3-on-surface-variant: #3d4947;
+  --m3-outline: #6d7a77;
+  --m3-outline-variant: #bcc9c6;
+  --m3-tertiary: #924628;
+  --m3-tertiary-container: #b05e3d;
+  --m3-error: #ba1a1a;
+  --m3-error-container: #ffdad6;
+
+  --primary: 174 100% 20%;
+  --primary-foreground: 0 0% 100%;
+  --ring: 174 100% 20%;
+
+  background: var(--m3-surface);
+  color: var(--m3-on-surface);
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.precision-architect .glass-panel {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(188, 201, 198, 0.1);
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.precision-architect .glass-panel-dark {
+  background-color: rgba(23, 23, 23, 0.4);
+  backdrop-filter: blur(48px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+.precision-architect .blueprint-grid {
+  background-image: radial-gradient(circle, var(--m3-outline-variant) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes pa-pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+.precision-architect .animate-pulse-soft {
+  animation: pa-pulse-soft 2s infinite ease-in-out;
+}
