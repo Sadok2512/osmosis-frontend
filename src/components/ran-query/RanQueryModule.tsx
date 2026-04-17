@@ -181,6 +181,7 @@ const DEFAULT_FORM = (): CreateFormState => {
     zoneArcep: [],
     aggregation: 'cell',
     dimensions: [],
+    granularity: '1h',
   };
 };
 
