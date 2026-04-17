@@ -223,8 +223,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
 
   const openView = (kpi: KpiCatalogEntry) => {
     setSelectedKpiKey(kpi.kpi_key);
+    setDraft(toDraft(kpi));
     setIsEditing(false);
     setOpenSections(['overview']);
+    scrollToReview();
   };
 
   const openEdit = (kpi?: KpiCatalogEntry | null) => {
@@ -234,6 +236,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
+    scrollToReview();
   };
 
   const saveDraft = () => {
