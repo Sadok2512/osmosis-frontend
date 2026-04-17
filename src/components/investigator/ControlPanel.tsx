@@ -1642,6 +1642,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                           <span className="truncate max-w-[140px]">{name}</span>
+                          {(() => {
+                            const kpiDim = kpiDimensionMap.get(kpiIdItem);
+                            if (!kpiDim) return null;
+                            const dc = getDimensionColor(kpiDim);
+                            const label = PM_DIMENSION_LABELS[kpiDim] || kpiDim;
+                            return (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border",
+                                  dc.bg, dc.text, dc.textDark, dc.border
+                                )}
+                                title={`Dimension: ${label}`}
+                              >
+                                {kpiDim}
+                              </span>
+                            );
+                          })()}
                           {hasSplit && (() => {
                             const dc = getDimensionColor(splitVal);
                             return (
