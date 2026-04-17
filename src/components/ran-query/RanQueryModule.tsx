@@ -689,7 +689,7 @@ const RanQueryModule: React.FC = () => {
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-border/60">
-                <div className="grid grid-cols-[2.2fr_1fr_1fr_1.6fr_0.8fr_0.9fr_1.2fr_1.9fr] gap-3 bg-muted/40 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                <div className="grid grid-cols-[2fr_0.9fr_1.1fr_1.5fr_0.7fr_0.8fr_1.1fr_2.6fr] gap-3 bg-muted/40 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
                   <span>Report Name</span>
                   <span>Vendor</span>
                   <span>Technology</span>
@@ -701,7 +701,7 @@ const RanQueryModule: React.FC = () => {
                 </div>
                 <div className="divide-y divide-border/50 bg-card">
                   {filteredReports.length > 0 ? filteredReports.map(report => (
-                    <div key={report.id} className="grid grid-cols-[2.2fr_1fr_1fr_1.6fr_0.8fr_0.9fr_1.2fr_1.9fr] gap-3 px-4 py-4 text-sm text-foreground transition-all hover:bg-primary/5">
+                    <div key={report.id} className="grid grid-cols-[2fr_0.9fr_1.1fr_1.5fr_0.7fr_0.8fr_1.1fr_2.6fr] items-center gap-3 px-4 py-4 text-sm text-foreground transition-all hover:bg-primary/5">
                       <div>
                         <p className="font-bold text-foreground">{report.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">Updated {formatDateTime(report.updatedAt)}</p>
@@ -709,14 +709,14 @@ const RanQueryModule: React.FC = () => {
                       <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-medium', vendorBadge(report.vendor).bg, vendorBadge(report.vendor).text, vendorBadge(report.vendor).border)}>{report.vendor}</span>
                       <div className="flex flex-wrap gap-1">
                         {report.technologies.map(t => (
-                          <span key={t} className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
+                          <span key={t} className={cn('inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium leading-none', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
                         ))}
                       </div>
                       <span className="text-xs text-muted-foreground">{describeTimeConfig(report.timeConfig)}</span>
                       <span className="font-semibold">{report.kpis.length}</span>
                       <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2.5 py-1 text-[11px] font-bold', statusClasses(report.status))}>{report.status}</span>
                       <span className="text-xs text-muted-foreground">{formatDateTime(report.createdAt)}</span>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-nowrap items-center gap-1.5 justify-end">
                         <button
                           onClick={() => executeReport(report.id)}
                           disabled={isExecutingId === report.id}
