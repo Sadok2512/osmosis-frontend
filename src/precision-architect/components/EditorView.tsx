@@ -172,26 +172,64 @@ export default function EditorView({
           <nav className="space-y-1">
             {pages.map((page) => {
               const isActive = page.id === activePageId;
+              const pageSections = page.sections ?? [];
               return (
-                <div key={page.id} className="group relative">
-                  <button
-                    onClick={() => setActivePageId(page.id)}
-                    className={cn(
-                      "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
-                      isActive ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
-                    )}
-                  >
-                    <Activity className="w-4 h-4" />
-                    <span className="truncate">{page.name}</span>
-                  </button>
-                  {pages.length > 1 && (
+                <div key={page.id}>
+                  <div className="group relative">
                     <button
-                      onClick={(e) => { e.stopPropagation(); removePage(page.id); }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
-                      aria-label="Remove page"
+                      onClick={() => setActivePageId(page.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold transition-all",
+                        isActive ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
+                      )}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Activity className="w-4 h-4" />
+                      <span className="truncate flex-1 text-left">{page.name}</span>
                     </button>
+                    {pages.length > 1 && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removePage(page.id); }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+                        aria-label="Remove page"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {isActive && (
+                    <div className="ml-4 mt-1 mb-2 pl-3 border-l border-outline-variant/30 space-y-0.5">
+                      {pageSections.map((s) => (
+                        <div key={s.id} className="group/sec relative flex items-center">
+                          <button
+                            onClick={() => focusSection(s.id)}
+                            className={cn(
+                              "flex-1 flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-bold transition-all text-left truncate",
+                              activeSectionId === s.id
+                                ? "bg-primary/10 text-primary"
+                                : "text-on-surface-variant hover:bg-surface-container-low"
+                            )}
+                          >
+                            <FileText className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{s.name || 'Untitled'}</span>
+                          </button>
+                          <button
+                            onClick={() => removeSection(s.id)}
+                            className="opacity-0 group-hover/sec:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-opacity"
+                            aria-label="Remove section"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={addSection}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider text-primary/80 hover:bg-primary/5 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add section</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               );
