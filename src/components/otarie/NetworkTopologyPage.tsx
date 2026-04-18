@@ -933,6 +933,7 @@ const NetworkTopologyPage: React.FC = () => {
 
           {/* ═══════ TAB: Live Map ═══════ */}
           <TabsContent value="livemap" className="mt-4">
+            {visitedTabs.has('livemap') && (
             <div className="flex" style={{ height: 'calc(100vh - 340px)', minHeight: 400 }}>
               {/* Map */}
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
@@ -1145,6 +1146,7 @@ const NetworkTopologyPage: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </TabsContent>
 
           {/* ═══════ TAB: Sites & Data ═══════ */}
@@ -1481,10 +1483,12 @@ const NetworkTopologyPage: React.FC = () => {
                 )}
               </Card>
             )}
+            </>)}
           </TabsContent>
 
           {/* ═══════ TAB: Global Network ═══════ */}
           <TabsContent value="network" className="mt-4 space-y-4">
+            {visitedTabs.has('network') && (<>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Globe className="w-5 h-5 text-blue-500" />
@@ -1686,6 +1690,7 @@ const NetworkTopologyPage: React.FC = () => {
                 </Card>
               </>
             )}
+            </>)}
           </TabsContent>
 
 
