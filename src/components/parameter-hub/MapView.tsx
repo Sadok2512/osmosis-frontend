@@ -262,11 +262,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     });
   }, [focusRows, technoFilter, valueRange, numericStats]);
 
-  const uniqueValues = useMemo(() => {
-    if (numericStats) return [];
-    return Array.from(new Set(visibleRows.map((r) => r.value ?? '(null)'))).sort().slice(0, 30);
-  }, [visibleRows, numericStats]);
-
   // Stable color palette for categorical values (up to 30 distinct colors)
   const VALUE_PALETTE = [
     '#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2',
@@ -277,13 +272,35 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   ];
   const MULTI_COLOR = '#64748b'; // slate-500 for multi-value sites
 
+  // All distinct values (sorted numerically when possible) — used for categorical legend
+  const distinctValues = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of visibleRows) set.add(r.value ?? '(null)');
+    const arr = Array.from(set);
+    arr.sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return String(a).localeCompare(String(b), undefined, { numeric: true });
+    });
+    return arr;
+  }, [visibleRows]);
+
+  // Use categorical coloring when distinct count is reasonable (≤30), else fall back to gradient
+  const useCategorical = distinctValues.length > 0 && distinctValues.length <= 30;
+
   const valueColorMap = useMemo(() => {
     const map = new Map<string, string>();
-    uniqueValues.forEach((v, i) => {
+    distinctValues.forEach((v, i) => {
       map.set(v, VALUE_PALETTE[i % VALUE_PALETTE.length]);
     });
     return map;
-  }, [uniqueValues]);
+  }, [distinctValues]);
+
+  // Effective numericStats: disable gradient mode when categorical legend is in play
+  const effectiveNumericStats = useCategorical ? null : numericStats;
+
+  // Kept for legacy code paths (capped list)
+  const uniqueValues = useCategorical ? distinctValues : [];
 
   // Aggregate rows by site
   interface SitePoint {
