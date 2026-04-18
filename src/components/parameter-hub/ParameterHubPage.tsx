@@ -87,7 +87,7 @@ const ParameterHubPage: React.FC = () => {
   const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('cell');
   const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('cell');
   const [viewMode, setViewMode] = useState<ViewMode>('distribution');
-  const [activeModule, setActiveModule] = useState<ExplorerModule>('parameter-hub');
+  const [activeModule, setActiveModule] = useState<ExplorerModule>('topology');
 
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [parametersLoading, setParametersLoading] = useState(true);
@@ -193,8 +193,8 @@ const ParameterHubPage: React.FC = () => {
           {/* Top-level module tabs */}
           <div className="flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] w-fit">
             {[
-              { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
               { key: 'topology' as const, label: 'Topology', icon: Share2 },
+              { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
               { key: 'change-history' as const, label: 'Change History', icon: History },
               { key: 'alarms' as const, label: 'Alarms', icon: Bell },
             ].map((m) => {
