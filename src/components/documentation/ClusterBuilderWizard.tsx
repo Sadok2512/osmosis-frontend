@@ -90,6 +90,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // ── Live scope counting ──
   const [matchingCount, setMatchingCount] = useState<MatchingCount | null>(null);
   const [countLoading, setCountLoading] = useState(false);
+  const [countError, setCountError] = useState(false);
   const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -106,10 +107,11 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
       return;
     }
     setCountLoading(true);
+    setCountError(false);
     countTimer.current = setTimeout(() => {
       countMatching(topology)
-        .then(setMatchingCount)
-        .catch(() => setMatchingCount(null))
+        .then((r) => { setMatchingCount(r); setCountError(false); })
+        .catch(() => { setMatchingCount(null); setCountError(true); })
         .finally(() => setCountLoading(false));
     }, 600);
     return () => { if (countTimer.current) clearTimeout(countTimer.current); };
@@ -146,7 +148,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // ── Validation ──
   const canProceed = (s: number): boolean => {
     if (s === 0) return name.trim().length > 0;
-    if (s === 1) return topoCount > 0 && (matchingCount == null || matchingCount.cells > 0);
+    if (s === 1) return topoCount > 0 && (countError || matchingCount == null || matchingCount.cells > 0);
     return true;
   };
 
@@ -269,6 +271,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                 loading={countLoading}
                 cells={matchingCount?.cells}
                 sites={matchingCount?.sites}
+                error={countError}
               />
 
               {!filtersReady && (
