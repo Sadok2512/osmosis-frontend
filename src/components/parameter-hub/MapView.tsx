@@ -365,14 +365,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     });
   }, [visibleRows, numericStats]);
 
-  const toggleTechno = (t: string) => {
-    setTechnoFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
-  };
 
   if (focusRows.length === 0) {
     return (
