@@ -728,67 +728,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
           )}
         </MapContainer>
 
-        {/* Floating filter panel — top left */}
-        {(availableTechnos.length > 0 || numericStats) && (
-          <div className="absolute top-4 left-4 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 w-[280px] space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <Layers className="w-3.5 h-3.5" />
-              Map filters
-            </div>
-
-            {numericStats && valueRange && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground font-medium">Value range</span>
-                  <span className="font-mono text-foreground">
-                    {valueRange[0].toFixed(1)} – {valueRange[1].toFixed(1)}
-                  </span>
-                </div>
-                <Slider
-                  min={numericStats.min}
-                  max={numericStats.max}
-                  step={(numericStats.max - numericStats.min) / 100 || 1}
-                  value={valueRange}
-                  onValueChange={(v) => setValueRange([v[0], v[1]] as [number, number])}
-                  className="py-1"
-                />
-              </div>
-            )}
-
-            {availableTechnos.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-xs text-muted-foreground font-medium">Technology</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableTechnos.map((t) => {
-                    const active = technoFilter.has(t);
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => toggleTechno(t)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all ${
-                          active
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    );
-                  })}
-                  {technoFilter.size > 0 && (
-                    <button
-                      onClick={() => setTechnoFilter(new Set())}
-                      className="px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Legend — bottom left */}
         {effectiveNumericStats ? (
           <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 min-w-[280px] space-y-3">
