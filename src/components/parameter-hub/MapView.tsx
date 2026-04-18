@@ -787,19 +787,48 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
           uniqueValues.length > 0 && uniqueValues.length <= 30 && (viewMode === 'points' || viewMode === 'cells') && (
             <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[360px] overflow-y-auto min-w-[220px] space-y-2">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                  Values ({uniqueValues.length})
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Values ({uniqueValues.length - hiddenValues.size}/{uniqueValues.length})
+                  </div>
+                  {hiddenValues.size > 0 && (
+                    <button
+                      onClick={() => setHiddenValues(new Set())}
+                      className="text-[10px] font-semibold text-primary hover:underline"
+                    >
+                      Show all
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  {uniqueValues.map((v) => (
-                    <div key={v} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
-                        style={{ backgroundColor: valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v) }}
-                      />
-                      <span className="truncate max-w-[160px] text-foreground">{v}</span>
-                    </div>
-                  ))}
+                <div className="text-[9px] text-muted-foreground/80 mb-1.5 italic">
+                  Click to hide / show
+                </div>
+                <div className="space-y-0.5">
+                  {uniqueValues.map((v) => {
+                    const hidden = hiddenValues.has(v);
+                    const color = valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v);
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => toggleValueVisibility(v)}
+                        className={`w-full flex items-center gap-2 text-xs px-1.5 py-1 rounded transition-all hover:bg-muted/60 ${
+                          hidden ? 'opacity-40' : ''
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
+                          style={{
+                            backgroundColor: hidden ? 'transparent' : color,
+                            borderColor: hidden ? color : undefined,
+                            borderWidth: hidden ? 1.5 : undefined,
+                          }}
+                        />
+                        <span className={`truncate max-w-[160px] text-left ${hidden ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {v}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="pt-2 border-t border-border/40 space-y-1.5">
