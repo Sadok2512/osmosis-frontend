@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric,
   DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
