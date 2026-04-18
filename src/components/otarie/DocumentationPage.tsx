@@ -12,8 +12,9 @@ import FilterRepositoryView from '@/components/documentation/FilterRepositoryVie
 import QosNetworkView from '@/components/documentation/QosNetworkView';
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
 const NetworkTopologyPage = lazy(() => import('@/components/otarie/NetworkTopologyPage'));
+const KpiReferenceWorkspace2 = lazy(() => import('@/components/kpi-monitor/KpiReferenceWorkspace2'));
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'kpi_reference2' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
@@ -155,6 +156,7 @@ const DocumentationPage: React.FC = () => {
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
+    { id: 'kpi_reference2', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
   ];
 
@@ -228,6 +230,10 @@ const DocumentationPage: React.FC = () => {
           <FilterRepositoryView />
         ) : activeTab === 'qos_network' ? (
           <QosNetworkView />
+        ) : activeTab === 'kpi_reference2' ? (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <KpiReferenceWorkspace2 />
+          </Suspense>
         ) : activeTab === 'topology' ? (
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
             <NetworkTopologyPage />
