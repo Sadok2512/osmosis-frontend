@@ -5,8 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { ParameterRow } from './parameterHubApi';
-import { MapPin, Layers, Flame, Circle as CircleIcon, AlertTriangle } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
+import { MapPin, Flame, Circle as CircleIcon, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -196,8 +195,7 @@ const buildSiteIcon = (
 
 export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('points');
-  const [technoFilter, setTechnoFilter] = useState<Set<string>>(new Set());
-  const [valueRange, setValueRange] = useState<[number, number] | null>(null);
+  const [hiddenValues, setHiddenValues] = useState<Set<string>>(new Set());
 
   const focusRows = useMemo(
     () => (parameterFocus ? rows.filter((r) => r.parameter === parameterFocus) : rows),
@@ -217,50 +215,24 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     return { min, max };
   }, [focusRows]);
 
-  // Reset slider when stats change
+  // Reset hidden values when underlying data changes
   useEffect(() => {
-    if (numericStats) setValueRange([numericStats.min, numericStats.max]);
-    else setValueRange(null);
-  }, [numericStats?.min, numericStats?.max]);
-
-  const availableTechnos = useMemo(() => {
-    const set = new Set<string>();
-    focusRows.forEach((r) => {
-      const t = (r.techno ?? r.bande ?? '').toString();
-      if (t) {
-        // Try to extract 2G/3G/4G/5G hint from techno or band
-        const m = t.match(/(2G|3G|4G|5G|LTE|NR|GSM|UMTS)/i);
-        if (m) {
-          const norm = m[1].toUpperCase()
-            .replace('LTE', '4G').replace('NR', '5G')
-            .replace('GSM', '2G').replace('UMTS', '3G');
-          set.add(norm);
-        }
-      }
-    });
-    return Array.from(set).sort();
-  }, [focusRows]);
+    setHiddenValues(new Set());
+  }, [parameterFocus, rows]);
 
   const visibleRows = useMemo(() => {
-    return focusRows.filter((r) => {
-      // Techno filter
-      if (technoFilter.size) {
-        const t = (r.techno ?? r.bande ?? '').toString().toUpperCase()
-          .replace('LTE', '4G').replace('NR', '5G')
-          .replace('GSM', '2G').replace('UMTS', '3G');
-        const match = Array.from(technoFilter).some((tf) => t.includes(tf));
-        if (!match) return false;
-      }
-      // Value range filter
-      if (numericStats && valueRange) {
-        const n = Number(r.value);
-        if (Number.isFinite(n)) {
-          if (n < valueRange[0] || n > valueRange[1]) return false;
-        }
-      }
-      return true;
+    if (hiddenValues.size === 0) return focusRows;
+    return focusRows.filter((r) => !hiddenValues.has(r.value ?? '(null)'));
+  }, [focusRows, hiddenValues]);
+
+  const toggleValueVisibility = (v: string) => {
+    setHiddenValues((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
     });
-  }, [focusRows, technoFilter, valueRange, numericStats]);
+  };
 
   // Stable color palette for categorical values (up to 30 distinct colors)
   const VALUE_PALETTE = [
@@ -392,14 +364,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     });
   }, [visibleRows, numericStats]);
 
-  const toggleTechno = (t: string) => {
-    setTechnoFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
-  };
 
   if (focusRows.length === 0) {
     return (
@@ -763,67 +727,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
           )}
         </MapContainer>
 
-        {/* Floating filter panel — top left */}
-        {(availableTechnos.length > 0 || numericStats) && (
-          <div className="absolute top-4 left-4 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 w-[280px] space-y-4">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              <Layers className="w-3.5 h-3.5" />
-              Map filters
-            </div>
-
-            {numericStats && valueRange && (
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground font-medium">Value range</span>
-                  <span className="font-mono text-foreground">
-                    {valueRange[0].toFixed(1)} – {valueRange[1].toFixed(1)}
-                  </span>
-                </div>
-                <Slider
-                  min={numericStats.min}
-                  max={numericStats.max}
-                  step={(numericStats.max - numericStats.min) / 100 || 1}
-                  value={valueRange}
-                  onValueChange={(v) => setValueRange([v[0], v[1]] as [number, number])}
-                  className="py-1"
-                />
-              </div>
-            )}
-
-            {availableTechnos.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-xs text-muted-foreground font-medium">Technology</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {availableTechnos.map((t) => {
-                    const active = technoFilter.has(t);
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => toggleTechno(t)}
-                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border transition-all ${
-                          active
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    );
-                  })}
-                  {technoFilter.size > 0 && (
-                    <button
-                      onClick={() => setTechnoFilter(new Set())}
-                      className="px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Legend — bottom left */}
         {effectiveNumericStats ? (
           <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 min-w-[280px] space-y-3">
@@ -883,19 +786,48 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
           uniqueValues.length > 0 && uniqueValues.length <= 30 && (viewMode === 'points' || viewMode === 'cells') && (
             <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[360px] overflow-y-auto min-w-[220px] space-y-2">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                  Values ({uniqueValues.length})
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Values ({uniqueValues.length - hiddenValues.size}/{uniqueValues.length})
+                  </div>
+                  {hiddenValues.size > 0 && (
+                    <button
+                      onClick={() => setHiddenValues(new Set())}
+                      className="text-[10px] font-semibold text-primary hover:underline"
+                    >
+                      Show all
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-1">
-                  {uniqueValues.map((v) => (
-                    <div key={v} className="flex items-center gap-2 text-xs">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
-                        style={{ backgroundColor: valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v) }}
-                      />
-                      <span className="truncate max-w-[160px] text-foreground">{v}</span>
-                    </div>
-                  ))}
+                <div className="text-[9px] text-muted-foreground/80 mb-1.5 italic">
+                  Click to hide / show
+                </div>
+                <div className="space-y-0.5">
+                  {uniqueValues.map((v) => {
+                    const hidden = hiddenValues.has(v);
+                    const color = valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v);
+                    return (
+                      <button
+                        key={v}
+                        onClick={() => toggleValueVisibility(v)}
+                        className={`w-full flex items-center gap-2 text-xs px-1.5 py-1 rounded transition-all hover:bg-muted/60 ${
+                          hidden ? 'opacity-40' : ''
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
+                          style={{
+                            backgroundColor: hidden ? 'transparent' : color,
+                            borderColor: hidden ? color : undefined,
+                            borderWidth: hidden ? 1.5 : undefined,
+                          }}
+                        />
+                        <span className={`truncate max-w-[160px] text-left ${hidden ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {v}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="pt-2 border-t border-border/40 space-y-1.5">
