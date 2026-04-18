@@ -138,7 +138,7 @@ interface FilterOption {
   values: string[];
 }
 
-const SITE_SEARCH_LIMIT = '50000';
+const SITE_SEARCH_LIMIT = '500';
 
 /* ────────────────────── Helpers ────────────────────── */
 
@@ -1715,8 +1715,11 @@ const NetworkTopologyPage: React.FC = () => {
 
 /* ────────────────────── StatCard ────────────────────── */
 
-const StatCard: React.FC<{ label: string; value: string; icon?: React.ReactNode; small?: boolean }> = ({ label, value, icon, small }) => (
-  <Card className="p-4">
+const StatCard = React.forwardRef<
+  HTMLDivElement,
+  { label: string; value: string; icon?: React.ReactNode; small?: boolean }
+>(({ label, value, icon, small }, ref) => (
+  <Card ref={ref} className="p-4">
     <div className="flex items-start justify-between">
       <div className="flex-1 min-w-0">
         <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-1">{label}</div>
@@ -1725,7 +1728,8 @@ const StatCard: React.FC<{ label: string; value: string; icon?: React.ReactNode;
       {icon && <div className="shrink-0">{icon}</div>}
     </div>
   </Card>
-);
+));
+StatCard.displayName = 'StatCard';
 
 /* ────────────────────── FilterSelect ────────────────────── */
 
