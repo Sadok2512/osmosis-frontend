@@ -602,17 +602,17 @@ function StyleTab({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <h4 className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{title}</h4>
-      <div className="space-y-3">{children}</div>
+    <div className="space-y-2">
+      <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">{title}</h4>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="text-[11px] font-bold text-on-surface-variant">{label}</label>
+    <div className="space-y-1">
+      <label className="text-[10px] font-bold text-on-surface-variant">{label}</label>
       {children}
     </div>
   );
@@ -624,20 +624,20 @@ function ToggleRow({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className="w-full flex items-center justify-between py-2 px-3 rounded-lg bg-white border border-outline-variant/20 hover:border-outline-variant/40 transition-colors"
+      className="w-full flex items-center justify-between py-1.5 px-2.5 rounded-md bg-white border border-outline-variant/20 hover:border-outline-variant/40 transition-colors"
       type="button"
     >
-      <span className="text-xs font-bold text-on-surface">{label}</span>
+      <span className="text-[11px] font-bold text-on-surface">{label}</span>
       <span
         className={cn(
-          'w-9 h-5 rounded-full relative transition-colors shrink-0',
+          'w-8 h-4 rounded-full relative transition-colors shrink-0',
           checked ? 'bg-primary' : 'bg-outline-variant/40'
         )}
       >
         <span
           className={cn(
-            'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
-            checked ? 'translate-x-[18px]' : 'translate-x-0.5'
+            'absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform',
+            checked ? 'translate-x-[17px]' : 'translate-x-0.5'
           )}
         />
       </span>
