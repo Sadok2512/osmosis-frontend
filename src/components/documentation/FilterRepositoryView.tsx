@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, Plus, Filter as FilterIcon, SlidersHorizontal,
-  MoreVertical, Eye, Pencil, Copy, Trash2, Star, Share2,
-  ChevronLeft, ChevronRight, BarChart3, User, Loader2
+  Search, Plus, Filter as FilterIcon,
+  MoreVertical, Eye, Pencil, Copy, Trash2, Star,
+  ChevronLeft, ChevronRight, BarChart3, Loader2, Globe, Lock,
+  Users, FolderOpen, CheckCircle2, Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { NetworkFilter, FilterStatus } from './filterTypes';
-import { FILTER_STATUS_CONFIG } from './filterTypes';
+import type { NetworkFilter, FilterVisibility } from './filterTypes';
 import FilterDetailsDrawer from './FilterDetailsDrawer';
-import CreateFilterWizard from './CreateFilterWizard';
+import ClusterBuilderWizard from './ClusterBuilderWizard';
 import { fetchFilters, createFilter, updateFilter, deleteFilter, duplicateFilter, countFilterMatching } from '@/services/filterService';
 
 const TECH_BADGE: Record<string, { label: string; bg: string; text: string }> = {
@@ -27,7 +27,6 @@ const VENDOR_COLORS: Record<string, string> = {
 
 const ITEMS_PER_PAGE = 8;
 
-/** Infer tech from filter topology bands */
 function inferTech(filter: NetworkFilter): string[] {
   const bands = filter.topology.find(t => t.dimension === 'band')?.values || [];
   const techs = new Set<string>();
@@ -59,11 +58,19 @@ const FilterRepositoryView: React.FC = () => {
   const [search, setSearch] = useState('');
   const [techFilter, setTechFilter] = useState<string>('All');
   const [vendorFilter, setVendorFilter] = useState<string>('All');
+  const [visibilityFilter, setVisibilityFilter] = useState<'All' | FilterVisibility>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'draft' | 'active' | 'archived'>('All');
+  const [ownerFilter, setOwnerFilter] = useState<'All' | 'Me'>('All');
   const [selectedFilter, setSelectedFilter] = useState<NetworkFilter | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [editFilter, setEditFilter] = useState<NetworkFilter | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  // Current user (for "Me" filter & private filtering). Pulled from existing filter list owners.
+  const currentUser = useMemo(() => {
+    try { return localStorage.getItem('osmosis_username') || 'system'; } catch { return 'system'; }
+  }, []);
 
   const loadFilters = useCallback(async () => {
     try {
@@ -71,7 +78,7 @@ const FilterRepositoryView: React.FC = () => {
       const resp = await fetchFilters({ limit: 500 });
       setFilters(resp.filters);
     } catch (err) {
-      console.warn('[FilterRepository] Failed to load filters:', err);
+      console.warn('[FilterCatalog] Failed to load filters:', err);
       toast.error('Impossible de charger les filtres');
     } finally {
       setLoading(false);
@@ -94,17 +101,30 @@ const FilterRepositoryView: React.FC = () => {
       const matchSearch = !search ||
         f.name.toLowerCase().includes(q) ||
         f.description.toLowerCase().includes(q) ||
-        f.created_by.toLowerCase().includes(q);
+        f.created_by.toLowerCase().includes(q) ||
+        inferRegion(f).toLowerCase().includes(q) ||
+        inferVendor(f).toLowerCase().includes(q);
       const matchTech = techFilter === 'All' || inferTech(f).includes(techFilter);
       const matchVendor = vendorFilter === 'All' || inferVendor(f).includes(vendorFilter);
-      return matchSearch && matchTech && matchVendor;
+      const matchVisibility = visibilityFilter === 'All' || f.visibility === visibilityFilter;
+      const matchStatus = statusFilter === 'All' || f.status === statusFilter;
+      const matchOwner = ownerFilter === 'All' || f.created_by === currentUser;
+      return matchSearch && matchTech && matchVendor && matchVisibility && matchStatus && matchOwner;
     });
-  }, [filters, search, techFilter, vendorFilter]);
+  }, [filters, search, techFilter, vendorFilter, visibilityFilter, statusFilter, ownerFilter, currentUser]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
   const paginated = filtered.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-  React.useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter]);
+  useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, visibilityFilter, statusFilter, ownerFilter]);
+
+  // ── Stats ──
+  const stats = useMemo(() => ({
+    total: filters.length,
+    public: filters.filter(f => f.visibility === 'public').length,
+    private: filters.filter(f => f.visibility === 'private').length,
+    active: filters.filter(f => f.status === 'active').length,
+  }), [filters]);
 
   const handleCreate = async (data: any) => {
     try {
@@ -116,15 +136,18 @@ const FilterRepositoryView: React.FC = () => {
         parameters: data.parameters,
         logic: data.logic,
       });
+      // Persist visibility too if backend supports it
+      if (created?.id && data.visibility) {
+        try { await updateFilter(created.id, { visibility: data.visibility }); } catch {}
+      }
       setShowCreate(false);
-      toast.success(`Filtre "${data.name}" créé`);
-      // Auto-count matching objects
+      toast.success(`Cluster "${data.name}" créé`);
       if (data.topology?.length > 0) {
         countFilterMatching(created.id).catch(() => {});
       }
       loadFilters();
     } catch (err) {
-      toast.error('Erreur lors de la création du filtre');
+      toast.error('Erreur lors de la création du cluster');
     }
   };
 
@@ -135,65 +158,43 @@ const FilterRepositoryView: React.FC = () => {
         name: data.name,
         description: data.description,
         status: data.status,
+        visibility: data.visibility,
         topology: data.topology,
         parameters: data.parameters,
         logic: data.logic,
       });
       setEditFilter(null);
       setSelectedFilter(null);
-      toast.success(`Filtre "${data.name}" mis à jour`);
+      toast.success(`Cluster "${data.name}" mis à jour`);
       loadFilters();
     } catch (err) {
-      toast.error('Erreur lors de la mise à jour du filtre');
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
   const handleDuplicate = async (filter: NetworkFilter) => {
     try {
       await duplicateFilter(filter.id);
-      toast.success(`Filtre dupliqué`);
+      toast.success(`Cluster dupliqué`);
       setActionMenuId(null);
       loadFilters();
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors de la duplication');
     }
   };
 
   const handleDelete = async (filter: NetworkFilter) => {
-    if (!confirm(`Supprimer le filtre "${filter.name}" ?`)) return;
+    if (!confirm(`Supprimer le cluster "${filter.name}" ?`)) return;
     try {
       await deleteFilter(filter.id);
       if (selectedFilter?.id === filter.id) setSelectedFilter(null);
-      toast.success(`Filtre supprimé`);
+      toast.success(`Cluster supprimé`);
       setActionMenuId(null);
       loadFilters();
-    } catch (err) {
+    } catch {
       toast.error('Erreur lors de la suppression');
     }
   };
-
-  // Stats
-  const activeCount = filters.filter(f => f.status === 'active').length;
-  const techDistribution = useMemo(() => {
-    const dist: Record<string, number> = {};
-    filters.forEach(f => inferTech(f).forEach(t => { dist[t] = (dist[t] || 0) + 1; }));
-    return dist;
-  }, [filters]);
-  const vendorDistribution = useMemo(() => {
-    const dist: Record<string, number> = {};
-    filters.forEach(f => {
-      const v = inferVendor(f);
-      if (v !== 'All') v.split(', ').forEach(x => { dist[x] = (dist[x] || 0) + 1; });
-    });
-    return dist;
-  }, [filters]);
-
-  const topCreator = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filters.forEach(f => { counts[f.created_by] = (counts[f.created_by] || 0) + 1; });
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    return sorted[0] ? { name: sorted[0][0], count: sorted[0][1] } : null;
-  }, [filters]);
 
   const fmtDate = (iso: string) => {
     if (!iso) return '—';
@@ -202,73 +203,85 @@ const FilterRepositoryView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(220 60% 97%), hsl(220 40% 95%))' }}>
+    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-br from-muted/20 to-background">
 
-      {/* ── TOP BAR ── */}
-      <div className="shrink-0 px-6 py-4">
+      {/* ── STATS ROW ── */}
+      <div className="shrink-0 px-6 pt-5 pb-3 grid grid-cols-4 gap-3">
+        <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total Clusters" value={stats.total} accent="primary" />
+        <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} accent="emerald" />
+        <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} accent="amber" />
+        <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} accent="sky" />
+      </div>
+
+      {/* ── TOOLBAR ── */}
+      <div className="shrink-0 px-6 pb-3">
         <div className="flex items-center gap-3 flex-wrap">
-          {/* New filter button */}
-          <button onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all">
-            <Plus className="w-4 h-4" /> Nouveau filtre
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all"
+          >
+            <Plus className="w-4 h-4" /> New Cluster
           </button>
 
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-md">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-            <input type="text" placeholder="Rechercher un filtre…" value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-full border border-border/40 bg-white/80 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all backdrop-blur-sm" />
+            <input
+              type="text"
+              placeholder="Search clusters by name, region, vendor…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-full border border-border/40 bg-card/80 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 backdrop-blur-sm"
+            />
           </div>
+        </div>
 
-          {/* Tech filter chips */}
-          <div className="flex items-center gap-1.5">
-            {allTechs.map(t => (
-              <button key={t} onClick={() => setTechFilter(t)}
-                className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all ${
-                  techFilter === t
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'bg-white/70 text-muted-foreground border border-border/30 hover:bg-white hover:border-primary/30'
-                }`}>
-                Tech: {t}
-              </button>
-            ))}
-          </div>
-
-          {/* Vendor filter */}
-          <select value={vendorFilter} onChange={e => setVendorFilter(e.target.value)}
-            className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 appearance-none cursor-pointer backdrop-blur-sm">
-            {allVendors.map(v => <option key={v} value={v}>Vendor: {v}</option>)}
-          </select>
-
-          {/* Created by placeholder */}
-          <button className="px-3 py-2 rounded-full border border-border/30 bg-white/70 text-xs font-medium text-muted-foreground hover:bg-white transition-colors backdrop-blur-sm">
-            Created by
-          </button>
-
-          {/* Grid toggle */}
-          <button className="p-2 rounded-lg border border-border/30 bg-white/70 text-muted-foreground hover:bg-white transition-colors backdrop-blur-sm">
-            <SlidersHorizontal className="w-4 h-4" />
-          </button>
+        {/* Filter chip row */}
+        <div className="flex items-center gap-2 mt-3 flex-wrap">
+          <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
+          <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
+          <ChipGroup
+            label="Visibility"
+            options={['All', 'public', 'private']}
+            value={visibilityFilter}
+            onChange={v => setVisibilityFilter(v as any)}
+            renderOption={o => o === 'public' ? '🟢 Public' : o === 'private' ? '🔒 Private' : 'All'}
+          />
+          <ChipGroup
+            label="Status"
+            options={['All', 'draft', 'active', 'archived']}
+            value={statusFilter}
+            onChange={v => setStatusFilter(v as any)}
+            renderOption={o => o === 'All' ? 'All' : o.charAt(0).toUpperCase() + o.slice(1)}
+          />
+          <ChipGroup
+            label="Owner"
+            options={['All', 'Me']}
+            value={ownerFilter}
+            onChange={v => setOwnerFilter(v as any)}
+          />
         </div>
       </div>
 
       {/* ── TABLE ── */}
-      <div className="flex-1 mx-6 mb-4 rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 shadow-sm flex flex-col overflow-hidden">
-        {filtered.length === 0 ? (
+      <div className="flex-1 mx-6 mb-4 rounded-2xl bg-card/90 backdrop-blur-sm border border-border/20 shadow-sm flex flex-col overflow-hidden">
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-16">
             <FilterIcon className="w-12 h-12 mb-3 opacity-20" />
-            <p className="text-base font-semibold">No filters yet</p>
-            <p className="text-xs mt-1 opacity-60">Start by creating your first filter</p>
-            <button onClick={() => setShowCreate(true)}
-              className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
-              <Plus className="w-4 h-4" /> Create filter
+            <p className="text-base font-semibold">No clusters match your filters</p>
+            <p className="text-xs mt-1 opacity-60">Try adjusting filters, or create a new cluster</p>
+            <button onClick={() => setShowCreate(true)} className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
+              <Plus className="w-4 h-4" /> Create cluster
             </button>
           </div>
         ) : (
           <>
             {/* Header */}
-            <div className="grid grid-cols-[2fr_0.7fr_1fr_1fr_1fr_0.8fr_0.8fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
-              {['NOM', 'MATCHING', 'TECHNOLOGY', 'VENDOR', 'REGION', 'CREATED BY', 'DATE', 'ACTIONS'].map(h => (
+            <div className="grid grid-cols-[2.4fr_1fr_0.7fr_1fr_1.1fr_0.9fr_0.9fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
+              {['NAME', 'SCOPE', 'TECH', 'VENDOR', 'VISIBILITY · STATUS', 'OWNER', 'UPDATED', ''].map(h => (
                 <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{h}</span>
               ))}
             </div>
@@ -280,55 +293,88 @@ const FilterRepositoryView: React.FC = () => {
                 const vendor = inferVendor(filter);
                 const region = inferRegion(filter);
                 const vendorParts = vendor.split(', ');
+                const isPublic = filter.visibility === 'public';
 
                 return (
-                  <div key={filter.id}
+                  <div
+                    key={filter.id}
                     onClick={() => setSelectedFilter(filter)}
-                    className="grid grid-cols-[2fr_0.7fr_1fr_1fr_1fr_0.8fr_0.8fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.02] transition-colors">
-
-                    {/* Name */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[13px] font-bold text-foreground truncate">{filter.name}</span>
+                    className="grid grid-cols-[2.4fr_1fr_0.7fr_1fr_1.1fr_0.9fr_0.9fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.03] transition-colors"
+                  >
+                    {/* Name + description */}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+                        <span className="text-[13px] font-bold text-foreground truncate">{filter.name}</span>
+                      </div>
+                      {filter.description && (
+                        <p className="text-[11px] text-muted-foreground truncate mt-0.5 ml-5">{filter.description}</p>
+                      )}
                     </div>
 
-                    {/* Matching objects */}
-                    <div className="flex items-center gap-1">
+                    {/* Scope */}
+                    <div className="flex items-center gap-1.5">
+                      <Layers className="w-3 h-3 text-muted-foreground/50" />
                       {filter.matching_objects != null ? (
-                        <span className="text-xs font-bold text-primary tabular-nums">{filter.matching_objects.toLocaleString('fr-FR')} cells</span>
+                        <span className="text-xs font-bold text-primary tabular-nums">
+                          {filter.matching_objects.toLocaleString('fr-FR')} <span className="font-normal text-muted-foreground">cells</span>
+                        </span>
                       ) : (
                         <span className="text-[10px] text-muted-foreground/50 italic">—</span>
                       )}
                     </div>
 
-                    {/* Tech badges */}
-                    <div className="flex items-center gap-1">
+                    {/* Tech */}
+                    <div className="flex items-center gap-1 flex-wrap">
                       {techs.map(t => {
                         const badge = TECH_BADGE[t];
                         return badge ? (
-                          <span key={t} className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.bg} ${badge.text}`}>
+                          <span key={t} className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${badge.bg} ${badge.text}`}>
                             {badge.label}
                           </span>
                         ) : (
-                          <span key={t} className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground">All</span>
+                          <span key={t} className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-muted text-muted-foreground">All</span>
                         );
                       })}
                     </div>
 
                     {/* Vendor */}
-                    <div className="flex items-center gap-1 min-w-0">
-                      {vendorParts.map(v => (
-                        <span key={v} className={`text-xs font-semibold truncate ${VENDOR_COLORS[v] || 'text-foreground'}`}>{v}</span>
-                      ))}
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {vendorParts.map(v => (
+                          <span key={v} className={`text-xs font-semibold truncate ${VENDOR_COLORS[v] || 'text-foreground'}`}>{v}</span>
+                        ))}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground truncate">{region}</span>
                     </div>
 
-                    {/* Region */}
-                    <span className="text-xs text-foreground truncate">{region}</span>
+                    {/* Visibility · Status */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        isPublic ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {isPublic ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                        {isPublic ? 'Public' : 'Private'}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        filter.status === 'active' ? 'bg-sky-500/10 text-sky-600' :
+                        filter.status === 'draft' ? 'bg-amber-500/10 text-amber-600' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
+                      </span>
+                    </div>
 
-                    {/* Created by */}
-                    <span className="text-xs text-muted-foreground font-medium truncate">{filter.created_by}</span>
+                    {/* Owner */}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                        <Users className="w-3 h-3 text-muted-foreground" />
+                      </div>
+                      <span className="text-xs text-muted-foreground font-medium truncate">{filter.created_by}</span>
+                    </div>
 
-                    {/* Date */}
-                    <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(filter.created_at)}</span>
+                    {/* Updated */}
+                    <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(filter.updated_at || filter.created_at)}</span>
 
                     {/* Actions */}
                     <div className="relative flex justify-end">
@@ -342,37 +388,30 @@ const FilterRepositoryView: React.FC = () => {
                       {actionMenuId === filter.id && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-xl border border-border/30 bg-white shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
-                            <button onClick={() => { setSelectedFilter(filter); setActionMenuId(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
-                              <Eye className="w-3.5 h-3.5" /> Voir détails
-                            </button>
-                            <button onClick={() => { if (filter.permission !== 'locked') { setEditFilter(filter); setActionMenuId(null); } }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${filter.permission === 'locked' ? 'text-muted-foreground/40 cursor-not-allowed' : 'text-foreground hover:bg-muted/40'}`}>
-                              <Pencil className="w-3.5 h-3.5" /> Modifier
-                            </button>
-                            <button onClick={async () => {
-                              setActionMenuId(null);
-                              try {
-                                const result = await countFilterMatching(filter.id);
-                                toast.success(`${result.cells.toLocaleString('fr-FR')} cells, ${result.sites.toLocaleString('fr-FR')} sites`);
-                                loadFilters();
-                              } catch { toast.error('Erreur lors du calcul'); }
-                            }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
-                              <BarChart3 className="w-3.5 h-3.5" /> Recalculer matching
-                            </button>
-                            <button onClick={() => handleDuplicate(filter)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
-                              <Copy className="w-3.5 h-3.5" /> Dupliquer
-                            </button>
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
-                              <Star className="w-3.5 h-3.5" /> Favori
-                            </button>
-                            <button className="w-full flex items-center gap-2 px-3 py-2 text-xs text-foreground hover:bg-muted/40 transition-colors">
-                              <Share2 className="w-3.5 h-3.5" /> Partager
-                            </button>
+                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border/30 bg-card shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <ActionItem icon={<Eye className="w-3.5 h-3.5" />} label="Open" onClick={() => { setSelectedFilter(filter); setActionMenuId(null); }} />
+                            <ActionItem
+                              icon={<Pencil className="w-3.5 h-3.5" />}
+                              label="Edit"
+                              disabled={filter.permission === 'locked'}
+                              onClick={() => { if (filter.permission !== 'locked') { setEditFilter(filter); setActionMenuId(null); } }}
+                            />
+                            <ActionItem icon={<Copy className="w-3.5 h-3.5" />} label="Duplicate" onClick={() => handleDuplicate(filter)} />
+                            <ActionItem
+                              icon={<BarChart3 className="w-3.5 h-3.5" />}
+                              label="Recalculate scope"
+                              onClick={async () => {
+                                setActionMenuId(null);
+                                try {
+                                  const r = await countFilterMatching(filter.id);
+                                  toast.success(`${r.cells.toLocaleString('fr-FR')} cells, ${r.sites.toLocaleString('fr-FR')} sites`);
+                                  loadFilters();
+                                } catch { toast.error('Erreur lors du calcul'); }
+                              }}
+                            />
+                            <ActionItem icon={<Star className="w-3.5 h-3.5" />} label="Favorite" onClick={() => setActionMenuId(null)} />
                             <div className="border-t border-border/20 my-1" />
-                            <button onClick={() => handleDelete(filter)} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/5 transition-colors">
-                              <Trash2 className="w-3.5 h-3.5" /> Supprimer
-                            </button>
+                            <ActionItem icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete" tone="destructive" onClick={() => handleDelete(filter)} />
                           </div>
                         </>
                       )}
@@ -382,27 +421,22 @@ const FilterRepositoryView: React.FC = () => {
               })}
             </div>
 
-            {/* Pagination footer */}
+            {/* Pagination */}
             <div className="shrink-0 px-5 py-3 border-t border-border/20 flex items-center justify-between bg-muted/10">
               <span className="text-[11px] text-muted-foreground">
-                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}–{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} Filters
+                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}–{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} clusters
               </span>
               <div className="flex items-center gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
                   <ChevronLeft className="w-4 h-4 text-muted-foreground" />
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map(p => (
-                  <button key={p} onClick={() => setPage(p)}
-                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                      page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
-                    }`}>
-                    {p}
-                  </button>
+                  <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+                    page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
+                  }`}>{p}</button>
                 ))}
                 {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">…</span>}
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </button>
               </div>
@@ -411,67 +445,7 @@ const FilterRepositoryView: React.FC = () => {
         )}
       </div>
 
-      {/* ── STATS FOOTER ── */}
-      <div className="shrink-0 mx-6 mb-4 grid grid-cols-3 gap-4">
-        {/* Activity card */}
-        <div className="rounded-2xl bg-primary p-5 text-primary-foreground shadow-md shadow-primary/20">
-          <div className="flex items-center gap-2 mb-2">
-            <BarChart3 className="w-4 h-4 opacity-80" />
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">ACTIVITY</span>
-          </div>
-          <p className="text-3xl font-black">{filters.length}</p>
-          <p className="text-[11px] opacity-70 mt-0.5">Filters created this month</p>
-        </div>
-
-        {/* Tech distribution */}
-        <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Distribution par technologie</p>
-          <div className="space-y-2">
-            {Object.entries(techDistribution).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tech, count]) => {
-              const pct = Math.round((count / filters.length) * 100);
-              const badge = TECH_BADGE[tech];
-              return (
-                <div key={tech} className="flex items-center gap-2">
-                  <span className="text-[10px] font-semibold text-muted-foreground w-16">{tech} ({pct}%)</span>
-                  <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">
-                    <div className={`h-full rounded-full ${badge?.bg || 'bg-primary/30'}`} style={{ width: `${pct}%`, backgroundColor: tech === '4G' ? '#3b82f6' : tech === '5G' ? '#10b981' : undefined }} />
-                  </div>
-                  <span className="text-[10px] font-bold text-muted-foreground w-8 text-right">{pct}%</span>
-                </div>
-              );
-            })}
-          </div>
-          {/* Vendor dots */}
-          <div className="flex items-center gap-2 mt-3 pt-2 border-t border-border/20">
-            <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">VENDORS</span>
-            <div className="flex items-center gap-1.5">
-              {Object.keys(vendorDistribution).slice(0, 4).map(v => (
-                <span key={v} className={`text-[10px] font-bold ${VENDOR_COLORS[v] || 'text-foreground'}`}>
-                  {v.charAt(0)}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Top creator */}
-        <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">TOP CREATOR</p>
-          {topCreator && (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-muted/40 flex items-center justify-center">
-                <User className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-foreground">{topCreator.name}</p>
-                <p className="text-[10px] text-muted-foreground">{topCreator.count} active filters</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── MODALS ── */}
+      {/* Drawer */}
       {selectedFilter && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/30 backdrop-blur-[2px]" onClick={() => setSelectedFilter(null)}>
           <div className="w-[420px] h-full bg-card shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
@@ -485,10 +459,87 @@ const FilterRepositoryView: React.FC = () => {
           </div>
         </div>
       )}
-      {showCreate && <CreateFilterWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
-      {editFilter && <CreateFilterWizard onSubmit={handleEdit} onClose={() => setEditFilter(null)} initialData={editFilter} editMode />}
+
+      {/* Modals */}
+      {showCreate && <ClusterBuilderWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
+      {editFilter && <ClusterBuilderWizard onSubmit={handleEdit} onClose={() => setEditFilter(null)} initialData={editFilter} editMode />}
     </div>
   );
 };
+
+/* ── Sub-components ── */
+
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  accent: 'primary' | 'emerald' | 'amber' | 'sky';
+}
+const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accent }) => {
+  const accents = {
+    primary: 'bg-primary/10 text-primary',
+    emerald: 'bg-emerald-500/10 text-emerald-600',
+    amber: 'bg-amber-500/10 text-amber-600',
+    sky: 'bg-sky-500/10 text-sky-600',
+  };
+  return (
+    <div className="rounded-2xl bg-card/90 backdrop-blur-sm border border-border/20 p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accents[accent]}`}>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
+          <p className="text-2xl font-black text-foreground tabular-nums leading-tight">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface ChipGroupProps {
+  label: string;
+  options: string[];
+  value: string;
+  onChange: (v: string) => void;
+  renderOption?: (o: string) => string;
+}
+const ChipGroup: React.FC<ChipGroupProps> = ({ label, options, value, onChange, renderOption }) => (
+  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-card/70 border border-border/30 backdrop-blur-sm">
+    <span className="text-[10px] font-bold uppercase text-muted-foreground/70 px-1">{label}:</span>
+    {options.map(o => (
+      <button
+        key={o}
+        onClick={() => onChange(o)}
+        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+          value === o ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        }`}
+      >
+        {renderOption ? renderOption(o) : (o === 'All' ? 'All' : o)}
+      </button>
+    ))}
+  </div>
+);
+
+interface ActionItemProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'default' | 'destructive';
+}
+const ActionItem: React.FC<ActionItemProps> = ({ icon, label, onClick, disabled, tone = 'default' }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={`w-full flex items-center gap-2 px-3 py-2 text-xs transition-colors ${
+      disabled ? 'text-muted-foreground/40 cursor-not-allowed' :
+      tone === 'destructive' ? 'text-destructive hover:bg-destructive/5' :
+      'text-foreground hover:bg-muted/40'
+    }`}
+  >
+    {icon} {label}
+  </button>
+);
 
 export default FilterRepositoryView;
