@@ -76,7 +76,7 @@ const FilterRepositoryView: React.FC = () => {
     try {
       setLoading(true);
       const resp = await fetchFilters({ limit: 500 });
-      setFilters(resp.filters);
+      setFilters(Array.isArray(resp?.filters) ? resp.filters : []);
     } catch (err) {
       console.warn('[FilterCatalog] Failed to load filters:', err);
       toast.error('Impossible de charger les filtres');
