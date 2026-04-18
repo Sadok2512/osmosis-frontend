@@ -40,6 +40,9 @@ function buildSafeFallback(service: string, path: string, message: string) {
   if (path.includes('/topo/cells')) {
     return { ...base, cells: [], rows: [] };
   }
+  if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
+    return { ...base, cells: 0, sites: 0 };
+  }
   if (path.includes('/qoe/metrics')) {
     return { ...base, items: [], data: [], rows: [] };
   }
