@@ -41,9 +41,10 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
   }, [open, selected]);
 
   const filtered = useMemo(() => {
+    const safeOptions = Array.isArray(options) ? options : [];
     const q = search.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.toLowerCase().includes(q));
+    if (!q) return safeOptions;
+    return safeOptions.filter((o) => String(o).toLowerCase().includes(q));
   }, [options, search]);
 
   const toggle = (val: string) => {
@@ -68,7 +69,7 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
         <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">{title}</span>
           <span className="text-[11px] text-muted-foreground">
-            {draft.length} / {options.length}
+            {draft.length} / {Array.isArray(options) ? options.length : 0}
           </span>
         </div>
         <div className="p-2 border-b border-border">
