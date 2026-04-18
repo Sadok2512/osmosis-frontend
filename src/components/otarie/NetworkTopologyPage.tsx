@@ -211,7 +211,7 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 /* ────────────────────── Component ────────────────────── */
 
 const NetworkTopologyPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('livemap');
+  const [activeTab, setActiveTab] = useState('network');
 
   /* ══════════════════ STATS + SERVICE STATUS ══════════════════ */
   const [stats, setStats] = useState<TopoStats | null>(null);
