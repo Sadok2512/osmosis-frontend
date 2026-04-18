@@ -159,39 +159,38 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
 
   const chartOption = tsData.length > 0 ? {
-    tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'rgba(255,255,255,0.08)',
-      textStyle: { color: '#f8fafc', fontSize: 10 },
+    ...phAnimation,
+    tooltip: phTooltip({
       formatter: (params: any[]) => {
-        let html = `<div style="font-size:10px;font-weight:700;margin-bottom:4px">${params[0]?.axisValue}</div>`;
+        let html = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">${params[0]?.axisValue}</div>`;
         params.forEach((p: any) => {
           const v = typeof p.value === 'number' ? (p.value >= 1e6 ? (p.value/1e6).toFixed(2)+'M' : p.value >= 1e3 ? (p.value/1e3).toFixed(1)+'K' : p.value.toFixed(0)) : '—';
-          html += `<div style="display:flex;align-items:center;gap:6px;margin:2px 0"><span style="width:8px;height:8px;border-radius:50%;background:${p.color}"></span><span style="flex:1">${p.seriesName}</span><span style="font-weight:700;font-family:monospace">${v}</span></div>`;
+          html += `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:10px;height:3px;border-radius:2px;background:${p.color}"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px">${p.seriesName}</span><span style="font-weight:600;font-family:monospace;color:${PH_COLORS.labelStrong}">${v}</span></div>`;
         });
         return html;
       },
-    },
+    }),
     legend: {
       bottom: 0,
-      textStyle: { color: '#9ca3af', fontSize: 9 },
+      icon: 'roundRect',
+      itemWidth: 14, itemHeight: 4, itemGap: 14,
+      textStyle: { color: PH_COLORS.labelMuted, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif' },
       data: counters.map(c => displayName(c)),
     },
-    grid: { left: 60, right: 20, top: 10, bottom: 40 },
+    grid: { left: 60, right: 24, top: 16, bottom: 48, containLabel: false },
     xAxis: {
       type: 'category' as const,
       data: timestamps.map(t => t.slice(0, 10)),
-      axisLabel: { color: '#6b7280', fontSize: 9 },
-      axisLine: { lineStyle: { color: '#374151' } },
+      ...phXAxis(),
     },
     yAxis: {
       type: 'value' as const,
-      axisLabel: {
-        color: '#6b7280', fontSize: 9,
-        formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString()
-      },
-      splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
+      ...phYAxis({
+        axisLabel: {
+          color: PH_COLORS.labelSubtle, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif',
+          formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString()
+        },
+      }),
     },
     series: counters.map((counter, i) => ({
       name: displayName(counter),
@@ -202,15 +201,16 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
         const point = tsData.find(d => d.ts === ts && (d.counter === counter || (d as any).counter_id === counter));
         return point ? point.value : null;
       }),
-      lineStyle: { width: 2, color: COLORS[i % COLORS.length] },
+      lineStyle: { width: 2.5, color: COLORS[i % COLORS.length], shadowColor: 'rgba(14,124,102,0.18)', shadowBlur: 6, shadowOffsetY: 2 },
       itemStyle: { color: COLORS[i % COLORS.length] },
-      symbolSize: 4,
+      symbol: 'circle',
+      symbolSize: 5,
       areaStyle: {
         color: {
           type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
-            { offset: 0, color: COLORS[i % COLORS.length] + '25' },
-            { offset: 1, color: COLORS[i % COLORS.length] + '05' },
+            { offset: 0, color: COLORS[i % COLORS.length] + '30' },
+            { offset: 1, color: COLORS[i % COLORS.length] + '03' },
           ],
         },
       },
