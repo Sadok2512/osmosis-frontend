@@ -82,8 +82,8 @@ const ParameterHubPage: React.FC = () => {
   const [draftFilters, setDraftFilters] = useState<ParameterHubFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<ParameterHubFilters>(EMPTY_FILTERS);
   const [draftDimensions, setDraftDimensions] = useState<string[]>(['Cell', 'Vendor']);
-  const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('cell');
-  const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('cell');
+  const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('sector');
+  const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('sector');
   const [viewMode, setViewMode] = useState<ViewMode>('distribution');
   const [activeModule, setActiveModule] = useState<ExplorerModule>('topology');
 
