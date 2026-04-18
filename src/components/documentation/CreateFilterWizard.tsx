@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2, Radio } from 'lucide-react';
 import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { TopologyCondition, ParameterCondition } from './filterTypes';
+import BulkListInput from './BulkListInput';
 import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
-import TopologyStep from './TopologyStep';
+import { countMatching, type MatchingCount } from '@/services/filterService';
 
 interface CreateFilterWizardProps {
   onSubmit: (data: any) => void;
@@ -90,6 +91,30 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   const topoCount = Object.values(topoConditions).filter(v => v.length > 0).length;
   const totalConditions = topoCount + paramConditions.length;
 
+  // Live matching count — debounced API call when topo conditions change
+  const [matchingCount, setMatchingCount] = useState<MatchingCount | null>(null);
+  const [countLoading, setCountLoading] = useState(false);
+  const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (countTimer.current) clearTimeout(countTimer.current);
+    const topology = Object.entries(topoConditions)
+      .filter(([, v]) => v.length > 0)
+      .map(([dimension, values]) => ({ dimension, operator: 'in', values }));
+    if (topology.length === 0) {
+      setMatchingCount(null);
+      return;
+    }
+    setCountLoading(true);
+    countTimer.current = setTimeout(() => {
+      countMatching(topology)
+        .then(setMatchingCount)
+        .catch(() => setMatchingCount(null))
+        .finally(() => setCountLoading(false));
+    }, 600); // debounce 600ms
+    return () => { if (countTimer.current) clearTimeout(countTimer.current); };
+  }, [topoConditions]);
+
   const canNext = () => {
     if (step === 0) return name.trim().length > 0;
     return true;
@@ -162,13 +187,72 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
 
           {/* Step 2: Topology */}
           {step === 1 && (
-            <TopologyStep
-              topoConditions={topoConditions}
-              setTopoValues={setTopoValues}
-              toggleTopoOption={toggleTopoOption}
-              getDynamicOptions={getDynamicOptions}
-              filtersReady={filtersReady}
-            />
+            <div className="space-y-4">
+              {/* Live matching count */}
+              {topoCount > 0 && (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
+                  <Radio className="w-4 h-4 text-primary" />
+                  {countLoading ? (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Counting…
+                    </span>
+                  ) : matchingCount ? (
+                    <span className="text-xs text-foreground">
+                      <span className="font-bold text-primary">{matchingCount.cells.toLocaleString('fr-FR')}</span> cells
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      <span className="font-bold text-primary">{matchingCount.sites.toLocaleString('fr-FR')}</span> sites match
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Select topology filters to see matching count</span>
+                  )}
+                </div>
+              )}
+              {!filtersReady && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Loading filter options from backend…</span>
+                </div>
+              )}
+              {TOPOLOGY_DIMENSIONS.map(dim => {
+                const dynamicOpts = dim.bulkSupport ? [] : getDynamicOptions(dim.key);
+                const options = dynamicOpts.length > 0 ? dynamicOpts : dim.options;
+                return (
+                  <div key={dim.key} className="rounded-xl border border-border/50 bg-muted/10 p-4">
+                    {dim.bulkSupport ? (
+                      <BulkListInput
+                        label={dim.label}
+                        values={topoConditions[dim.key] || []}
+                        onChange={vals => setTopoValues(dim.key, vals)}
+                        placeholder={`Enter ${dim.label.toLowerCase()}…`}
+                      />
+                    ) : (
+                      <>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                          {dim.label}
+                          <span className="ml-2 text-[9px] font-normal text-muted-foreground/60">({options.length})</span>
+                        </label>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {options.map(opt => {
+                            const selected = (topoConditions[dim.key] || []).includes(opt);
+                            return (
+                              <button key={opt} onClick={() => toggleTopoOption(dim.key, opt)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                  selected ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                                }`}>
+                                {opt}
+                              </button>
+                            );
+                          })}
+                          {options.length === 0 && (
+                            <span className="text-xs text-muted-foreground/60 italic">No options available</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* Step 3: Parameters */}
@@ -252,6 +336,24 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
                       </div>
                     ))}
                   </div>
+
+                  {/* Matching count in preview */}
+                  {topoCount > 0 && (
+                    <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-2">
+                      <Radio className="w-3.5 h-3.5 text-primary" />
+                      {countLoading ? (
+                        <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                          <Loader2 className="w-3 h-3 animate-spin" /> Counting…
+                        </span>
+                      ) : matchingCount ? (
+                        <span className="text-[11px] text-foreground">
+                          Matching: <span className="font-bold text-primary">{matchingCount.cells.toLocaleString('fr-FR')}</span> cells
+                          <span className="mx-1 text-muted-foreground">·</span>
+                          <span className="font-bold text-primary">{matchingCount.sites.toLocaleString('fr-FR')}</span> sites
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -320,6 +422,14 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Total Conditions</span>
                   <span className="text-xs font-bold text-foreground">{totalConditions}</span>
                 </div>
+                {matchingCount && (
+                  <div className="flex justify-between mt-1 pt-1 border-t border-border/30">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Matching</span>
+                    <span className="text-xs font-bold text-primary">
+                      {matchingCount.cells.toLocaleString('fr-FR')} cells · {matchingCount.sites.toLocaleString('fr-FR')} sites
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
