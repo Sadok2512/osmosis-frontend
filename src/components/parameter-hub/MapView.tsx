@@ -160,11 +160,16 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   );
 
   const numericStats = useMemo(() => {
-    const nums = focusRows
-      .map((r) => Number(r.value))
-      .filter((n) => Number.isFinite(n));
-    if (nums.length < focusRows.length * 0.5) return null;
-    return { min: Math.min(...nums), max: Math.max(...nums) };
+    let min = Infinity, max = -Infinity, count = 0;
+    for (const r of focusRows) {
+      const n = Number(r.value);
+      if (!Number.isFinite(n)) continue;
+      if (n < min) min = n;
+      if (n > max) max = n;
+      count++;
+    }
+    if (count < focusRows.length * 0.5) return null;
+    return { min, max };
   }, [focusRows]);
 
   // Reset slider when stats change
