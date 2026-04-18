@@ -366,7 +366,7 @@ export default function EditorView({
                         <X className="w-3.5 h-3.5" />
                       </button>
                     </div>
-                    <WidgetRenderer widget={w} />
+                    <WidgetRenderer widget={w} editable onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))} />
                   </div>
                 ))}
               </GridLayout>
