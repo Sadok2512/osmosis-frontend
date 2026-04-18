@@ -80,7 +80,16 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
           });
           counts.set(bestVal, (counts.get(bestVal) ?? 0) + 1);
         });
-        const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 30);
+        const allSorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+        const sorted = allSorted.slice(0, 30);
+        const totalCount = allSorted.reduce((s, [, n]) => s + n, 0) || 1;
+        let cumul = 0;
+        const tableRows = allSorted.map(([value, count], idx) => {
+          const pct = (count / totalCount) * 100;
+          cumul += pct;
+          return { value, count, pct, cumul, rank: idx + 1 };
+        });
+        const topValue = tableRows[0];
 
         const option = {
           grid: { left: 56, right: 24, top: 24, bottom: 72, containLabel: false },
