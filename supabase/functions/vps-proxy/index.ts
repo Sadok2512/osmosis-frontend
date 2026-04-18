@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
-          ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
+          ? buildSafePostFallback(service, path, msg)
           : buildSafeFallback(service, path, msg);
         return new Response(JSON.stringify(fallback), {
           status: 200,
