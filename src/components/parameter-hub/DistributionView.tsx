@@ -55,11 +55,31 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
   return (
     <div className={entries.length === 1 ? 'flex justify-center' : 'grid grid-cols-1 xl:grid-cols-2 gap-6'}>
       {entries.map(([param, list]) => {
-        const counts = new Map<string, number>();
+        // 1) Aggregate rows → 1 representative value per entity (mode of values within entity)
+        const byEntity = new Map<string, Map<string, number>>();
         for (const r of list) {
-          const key = r.value ?? '(null)';
-          counts.set(key, (counts.get(key) ?? 0) + 1);
+          const ekey = groupKeyFor(r, aggregation);
+          if (!ekey) continue;
+          const v = r.value ?? '(null)';
+          if (!byEntity.has(ekey)) byEntity.set(ekey, new Map());
+          const vc = byEntity.get(ekey)!;
+          vc.set(v, (vc.get(v) ?? 0) + 1);
         }
+        const entityCount = byEntity.size;
+
+        // 2) Count entities per value (each entity contributes once)
+        const counts = new Map<string, number>();
+        byEntity.forEach((valMap) => {
+          let bestVal = '(null)';
+          let bestN = -1;
+          valMap.forEach((n, v) => {
+            if (n > bestN) {
+              bestN = n;
+              bestVal = v;
+            }
+          });
+          counts.set(bestVal, (counts.get(bestVal) ?? 0) + 1);
+        });
         const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 30);
 
         const option = {
