@@ -95,7 +95,7 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
             extraCssText: 'box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18); border-radius: 10px;',
             formatter: (params: any) => {
               const p = params[0];
-              return `<div style="font-weight:600;color:#0E7C66;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">${p.name}</div><div style="color:#1F2937;font-size:14px;font-weight:600;">${p.value.toLocaleString()} <span style="color:#6B7280;font-weight:400;font-size:12px;">samples</span></div>`;
+              return `<div style="font-weight:600;color:#0E7C66;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">${p.name}</div><div style="color:#1F2937;font-size:14px;font-weight:600;">${p.value.toLocaleString()} <span style="color:#6B7280;font-weight:400;font-size:12px;">${aggregation}${p.value > 1 ? 's' : ''}</span></div>`;
             },
           },
           xAxis: {
@@ -178,11 +178,11 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1.5">
-                <span className="font-semibold text-slate-700">{list.length.toLocaleString()}</span> samples
+                <span className="font-semibold text-slate-700">{entityCount.toLocaleString()}</span> {aggregation}{entityCount > 1 ? 's' : ''}
                 <span className="mx-1.5 text-slate-300">·</span>
                 <span className="font-semibold text-slate-700">{counts.size}</span> unique values
                 <span className="mx-1.5 text-slate-300">·</span>
-                aggregated by <span className="font-medium text-teal-700">{aggregation}</span>
+                <span className="text-slate-400">{list.length.toLocaleString()} raw rows</span>
               </p>
             </div>
 
@@ -194,7 +194,7 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
             {/* Footer */}
             <div className="px-8 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                {list.length.toLocaleString()} rows · aggregation: {aggregation}
+                {entityCount.toLocaleString()} {aggregation}{entityCount > 1 ? 's' : ''} · aggregation: {aggregation}
               </span>
               <span className="text-[11px] text-slate-400">Top {Math.min(30, counts.size)} of {counts.size}</span>
             </div>
