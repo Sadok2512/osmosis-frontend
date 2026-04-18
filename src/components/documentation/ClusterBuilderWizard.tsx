@@ -148,7 +148,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // ── Validation ──
   const canProceed = (s: number): boolean => {
     if (s === 0) return name.trim().length > 0;
-    if (s === 1) return topoCount > 0 && (matchingCount == null || matchingCount.cells > 0);
+    if (s === 1) return topoCount > 0 && (countError || matchingCount == null || matchingCount.cells > 0);
     return true;
   };
 
