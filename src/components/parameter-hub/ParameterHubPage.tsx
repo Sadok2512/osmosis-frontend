@@ -34,6 +34,7 @@ import RawDataView from './RawDataView';
 import MapView from './MapView';
 
 type ViewMode = 'distribution' | 'raw' | 'map';
+type ExplorerModule = 'parameter-hub' | 'change-history' | 'alarms';
 
 const FILTER_DIMS: {
   key: keyof Omit<ParameterHubFilters, 'parameters'>;
