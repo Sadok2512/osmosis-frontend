@@ -64,9 +64,11 @@ export default function EditorView({
   activePageId,
   setActivePageId,
 }: EditorViewProps) {
-  const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
+  const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting' | 'chat'>('data');
+  const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
@@ -368,56 +370,128 @@ export default function EditorView({
           </div>
         </div>
 
-        <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
-          <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
-            <div className="flex items-center gap-4">
-              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
-              <div className="h-4 w-px bg-outline-variant" />
-              <h4 className="font-headline font-bold text-on-surface text-sm">{activeWidget}</h4>
-            </div>
-            <div className="flex gap-2">
-              <button className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors">Reset</button>
-              <button
-                onClick={() => setActiveWidget(null)}
-                className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+        {activeWidget && (() => {
+          const w = widgets.find(x => x.id === activeWidget);
+          const widgetLabel = w ? `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}` : activeWidget;
+          return (
+            <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+              <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
+                  <div className="h-4 w-px bg-outline-variant" />
+                  <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setSettingsTab('data'); setSettingsSubTab('table'); }}
+                    className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    onClick={() => setActiveWidget(null)}
+                    className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+                    aria-label="Close settings"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
 
-          <div className="flex h-full pb-10">
-            <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
-              {[
-                { label: 'Data Source', active: true },
-                { label: 'Appearance' },
-                { label: 'Interactions' },
-                { label: 'Alerting' },
-                { label: 'Chat', icon: MessageSquare },
-              ].map((tab) => (
-                <button
-                  key={tab.label}
-                  className={cn(
-                    "w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
-                    tab.active ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
-                  )}
-                >
-                  {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
-                  {tab.label}
-                </button>
-              ))}
-            </aside>
-            <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-              <div className="max-w-4xl">
-                <div className="flex gap-8 mb-8 border-b border-outline-variant/20">
-                  <button className="pb-4 border-b-2 border-primary text-primary text-xs font-bold uppercase tracking-widest">Table Data</button>
-                  <button className="pb-4 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-on-surface transition-colors">KPI Breakdown</button>
-                  <button className="pb-4 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-on-surface transition-colors">Source Logs</button>
+              <div className="flex h-full pb-10">
+                <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+                  {([
+                    { key: 'data', label: 'Data Source', icon: undefined as any },
+                    { key: 'appearance', label: 'Appearance', icon: undefined as any },
+                    { key: 'interactions', label: 'Interactions', icon: undefined as any },
+                    { key: 'alerting', label: 'Alerting', icon: undefined as any },
+                    { key: 'chat', label: 'Chat', icon: MessageSquare },
+                  ] as const).map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => setSettingsTab(tab.key)}
+                      className={cn(
+                        "w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                        settingsTab === tab.key ? "bg-primary/10 text-primary" : "text-on-surface-variant hover:bg-surface-container-low"
+                      )}
+                    >
+                      {tab.icon && <tab.icon className="w-3.5 h-3.5" />}
+                      {tab.label}
+                    </button>
+                  ))}
+                </aside>
+                <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                  <div className="max-w-4xl">
+                    {settingsTab === 'data' && (
+                      <>
+                        <div className="flex gap-8 mb-6 border-b border-outline-variant/20">
+                          {([
+                            { key: 'table', label: 'Table Data' },
+                            { key: 'breakdown', label: 'KPI Breakdown' },
+                            { key: 'logs', label: 'Source Logs' },
+                          ] as const).map(st => (
+                            <button
+                              key={st.key}
+                              onClick={() => setSettingsSubTab(st.key)}
+                              className={cn(
+                                "pb-4 text-xs font-bold uppercase tracking-widest transition-colors",
+                                settingsSubTab === st.key
+                                  ? "border-b-2 border-primary text-primary"
+                                  : "text-on-surface-variant hover:text-on-surface"
+                              )}
+                            >
+                              {st.label}
+                            </button>
+                          ))}
+                        </div>
+                        {settingsSubTab === 'table' && (
+                          <div className="space-y-3 text-xs text-on-surface-variant">
+                            <p className="font-bold text-on-surface">Source dataset</p>
+                            <p>Select a KPI catalog entry and dimensions for this widget.</p>
+                            <select className="w-full mt-2 px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-on-surface">
+                              <option>kpi_qoe_aggregated</option>
+                              <option>ml_features</option>
+                            </select>
+                          </div>
+                        )}
+                        {settingsSubTab === 'breakdown' && (
+                          <p className="text-xs text-on-surface-variant">Configure KPI dimensional breakdown (Vendor, Bande, DOR…).</p>
+                        )}
+                        {settingsSubTab === 'logs' && (
+                          <pre className="text-[11px] text-on-surface-variant bg-surface-container-low p-3 rounded-lg">No source logs yet for {widgetLabel}.</pre>
+                        )}
+                      </>
+                    )}
+                    {settingsTab === 'appearance' && (
+                      <div className="space-y-3 text-xs text-on-surface-variant">
+                        <p className="font-bold text-on-surface">Appearance</p>
+                        <p>Color palette, axis, legend and density options.</p>
+                      </div>
+                    )}
+                    {settingsTab === 'interactions' && (
+                      <div className="space-y-3 text-xs text-on-surface-variant">
+                        <p className="font-bold text-on-surface">Interactions</p>
+                        <p>Drill-down targets, cross-filter behaviour and tooltip actions.</p>
+                      </div>
+                    )}
+                    {settingsTab === 'alerting' && (
+                      <div className="space-y-3 text-xs text-on-surface-variant">
+                        <p className="font-bold text-on-surface">Alerting</p>
+                        <p>Threshold rules and notification channels.</p>
+                      </div>
+                    )}
+                    {settingsTab === 'chat' && (
+                      <div className="space-y-3 text-xs text-on-surface-variant">
+                        <p className="font-bold text-on-surface">Chat</p>
+                        <p>Ask the assistant about this widget.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       <AnimatePresence>
