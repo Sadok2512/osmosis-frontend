@@ -115,11 +115,64 @@ export async function fetchParameterRows(
   return resp.items ?? [];
 }
 
-/** Fetch rows that have lat/lng for map view. */
+/** Site → coords cache (lifetime of the page). */
+let siteCoordsCache: Map<string, { lat: number; lng: number }> | null = null;
+let siteCoordsPromise: Promise<Map<string, { lat: number; lng: number }>> | null = null;
+
+async function loadSiteCoords(): Promise<Map<string, { lat: number; lng: number }>> {
+  if (siteCoordsCache) return siteCoordsCache;
+  if (siteCoordsPromise) return siteCoordsPromise;
+  siteCoordsPromise = (async () => {
+    const url = getApiUrl('topo/sites?bbox=-180,-90,180,90&limit=50000');
+    try {
+      const res = await fetch(url, { headers: getApiHeaders() });
+      if (!res.ok) throw new Error(`topo/sites ${res.status}`);
+      const data = await res.json();
+      const rows: any[] = Array.isArray(data) ? data : (data.sites ?? data.rows ?? data.items ?? []);
+      const map = new Map<string, { lat: number; lng: number }>();
+      for (const r of rows) {
+        const lat = Number(r.latitude ?? r.lat);
+        const lng = Number(r.longitude ?? r.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const key = String(r.site_name ?? r.nom_site ?? r.name ?? '').trim();
+        if (key) map.set(key.toUpperCase(), { lat, lng });
+        const code = String(r.code_nidt ?? '').trim();
+        if (code) map.set(code.toUpperCase(), { lat, lng });
+      }
+      siteCoordsCache = map;
+      return map;
+    } catch (e) {
+      console.warn('[ParameterHub] topo/sites fetch failed — map enrichment disabled', e);
+      siteCoordsCache = new Map();
+      return siteCoordsCache;
+    }
+  })();
+  return siteCoordsPromise;
+}
+
+/** Fetch rows that have lat/lng for map view, enriched from topo/sites if missing. */
 export async function fetchParameterMapRows(
   filters: ParameterHubFilters,
   limit = 1000,
 ): Promise<ParameterRow[]> {
-  const rows = await fetchParameterRows(filters, limit);
-  return rows.filter((r) => r.latitude != null && r.longitude != null);
+  const [rows, coords] = await Promise.all([
+    fetchParameterRows(filters, limit),
+    loadSiteCoords(),
+  ]);
+  const enriched: ParameterRow[] = [];
+  for (const r of rows) {
+    let lat = r.latitude;
+    let lng = r.longitude;
+    if (lat == null || lng == null) {
+      const key = String(r.site_name ?? '').trim().toUpperCase();
+      if (key) {
+        const hit = coords.get(key);
+        if (hit) { lat = hit.lat; lng = hit.lng; }
+      }
+    }
+    if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+      enriched.push({ ...r, latitude: lat, longitude: lng });
+    }
+  }
+  return enriched;
 }
