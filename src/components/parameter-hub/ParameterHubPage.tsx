@@ -90,7 +90,7 @@ const ParameterHubPage: React.FC = () => {
   const [activeModule, setActiveModule] = useState<ExplorerModule>('topology');
 
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
-  const [parametersLoading, setParametersLoading] = useState(true);
+  const [parametersLoading, setParametersLoading] = useState(false);
   const [distinctCache, setDistinctCache] = useState<Record<string, string[]>>({});
   const [distinctLoading, setDistinctLoading] = useState<Record<string, boolean>>({});
 
@@ -100,20 +100,15 @@ const ParameterHubPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
 
-  // Load parameter list once on mount
-  useEffect(() => {
-    let active = true;
+  // Lazy-load parameter list — only when the Parameters multi-select is first opened.
+  const loadParameters = useCallback(() => {
+    if (availableParameters.length > 0 || parametersLoading) return;
     setParametersLoading(true);
     fetchAvailableParameters()
-      .then((list) => {
-        if (active) setAvailableParameters(list);
-      })
+      .then((list) => setAvailableParameters(list))
       .catch((e) => console.error('[ParameterHub] params fetch failed', e))
-      .finally(() => active && setParametersLoading(false));
-    return () => {
-      active = false;
-    };
-  }, []);
+      .finally(() => setParametersLoading(false));
+  }, [availableParameters.length, parametersLoading]);
 
   const ensureDistinct = useCallback(
     (column: keyof ParameterRow) => {
@@ -230,6 +225,7 @@ const ParameterHubPage: React.FC = () => {
                   options={availableParameters}
                   selected={draftFilters.parameters}
                   onConfirm={(v) => setFilterValues('parameters', v)}
+                  onOpen={loadParameters}
                   loading={parametersLoading}
                   emptyHint="No parameters in catalog"
                   trigger={

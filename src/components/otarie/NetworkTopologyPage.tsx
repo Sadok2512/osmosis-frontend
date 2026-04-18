@@ -138,7 +138,7 @@ interface FilterOption {
   values: string[];
 }
 
-const SITE_SEARCH_LIMIT = '50000';
+const SITE_SEARCH_LIMIT = '500';
 
 /* ────────────────────── Helpers ────────────────────── */
 
@@ -212,6 +212,17 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 const NetworkTopologyPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('network');
+  // Lazy-mount tabs: only render the JSX of tabs that have been visited at least once
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['network']));
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
 
   /* ══════════════════ STATS + SERVICE STATUS ══════════════════ */
   const [stats, setStats] = useState<TopoStats | null>(null);
@@ -365,10 +376,11 @@ const NetworkTopologyPage: React.FC = () => {
   }, [searchSites]);
 
   useEffect(() => {
+    if (activeTab !== 'sites') return;
     if (searchTimer.current) window.clearTimeout(searchTimer.current);
     searchTimer.current = window.setTimeout(() => { searchSites(); }, 300) as unknown as number;
     return () => { if (searchTimer.current) window.clearTimeout(searchTimer.current); };
-  }, [searchSites]);
+  }, [searchSites, activeTab]);
 
   /* ══════════════════ SITE DETAIL ══════════════════ */
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
@@ -921,6 +933,7 @@ const NetworkTopologyPage: React.FC = () => {
 
           {/* ═══════ TAB: Live Map ═══════ */}
           <TabsContent value="livemap" className="mt-4">
+            {visitedTabs.has('livemap') && (
             <div className="flex" style={{ height: 'calc(100vh - 340px)', minHeight: 400 }}>
               {/* Map */}
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
@@ -1133,10 +1146,12 @@ const NetworkTopologyPage: React.FC = () => {
                 </div>
               )}
             </div>
+            )}
           </TabsContent>
 
           {/* ═══════ TAB: Sites & Data ═══════ */}
           <TabsContent value="sites" className="mt-4 space-y-4">
+            {visitedTabs.has('sites') && (<>
 
             {/* Topo Service section removed */}
             <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,.txt" className="hidden"
@@ -1469,10 +1484,12 @@ const NetworkTopologyPage: React.FC = () => {
                 )}
               </Card>
             )}
+            </>)}
           </TabsContent>
 
           {/* ═══════ TAB: Global Network ═══════ */}
           <TabsContent value="network" className="mt-4 space-y-4">
+            {visitedTabs.has('network') && (<>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Globe className="w-5 h-5 text-blue-500" />
@@ -1674,6 +1691,7 @@ const NetworkTopologyPage: React.FC = () => {
                 </Card>
               </>
             )}
+            </>)}
           </TabsContent>
 
 
@@ -1715,8 +1733,11 @@ const NetworkTopologyPage: React.FC = () => {
 
 /* ────────────────────── StatCard ────────────────────── */
 
-const StatCard: React.FC<{ label: string; value: string; icon?: React.ReactNode; small?: boolean }> = ({ label, value, icon, small }) => (
-  <Card className="p-4">
+const StatCard = React.forwardRef<
+  HTMLDivElement,
+  { label: string; value: string; icon?: React.ReactNode; small?: boolean }
+>(({ label, value, icon, small }, ref) => (
+  <Card ref={ref} className="p-4">
     <div className="flex items-start justify-between">
       <div className="flex-1 min-w-0">
         <div className="text-[10px] uppercase font-bold tracking-wide text-muted-foreground mb-1">{label}</div>
@@ -1725,7 +1746,8 @@ const StatCard: React.FC<{ label: string; value: string; icon?: React.ReactNode;
       {icon && <div className="shrink-0">{icon}</div>}
     </div>
   </Card>
-);
+));
+StatCard.displayName = 'StatCard';
 
 /* ────────────────────── FilterSelect ────────────────────── */
 
