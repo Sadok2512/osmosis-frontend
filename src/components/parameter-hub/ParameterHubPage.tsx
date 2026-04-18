@@ -394,7 +394,7 @@ const ParameterHubPage: React.FC = () => {
                   <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
                 </div>
               ) : viewMode === 'distribution' ? (
-                <DistributionView rows={rows} aggregation={appliedAggregation} />
+                <DistributionView rows={rows} aggregation={draftAggregation} />
               ) : viewMode === 'raw' ? (
                 <RawDataView rows={rows} />
               ) : (
