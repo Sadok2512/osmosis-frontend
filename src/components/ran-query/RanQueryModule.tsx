@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
+  AlertTriangle,
   BarChart3,
   CalendarClock,
   CheckCircle2,
   ChevronLeft,
+  ChevronRight,
   Copy,
   Download,
   FileUp,
   Filter,
   FolderOpen,
+  Loader2,
   Pencil,
   Play,
   Plus,
@@ -27,8 +30,6 @@ import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { topoApi } from '@/lib/localDb';
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -44,7 +45,7 @@ type Tech = '2G' | '3G' | '4G' | '5G';
 type RelativeUnit = 'minutes' | 'hours' | 'days';
 
 type RelativePreset = '1h' | '24h' | '7d' | '30d' | '90d' | 'custom';
-type Granularity = '5min' | '15min' | '30min' | '1h' | '1d' | '1w';
+type Granularity = '15min' | '1h' | '1d' | '1w';
 
 interface AbsoluteTimeConfig {
   timeMode: 'absolute';
@@ -64,9 +65,7 @@ interface RelativeTimeConfig {
 type TimeConfig = AbsoluteTimeConfig | RelativeTimeConfig;
 
 const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
-  { value: '5min', label: '5 min' },
   { value: '15min', label: '15 min' },
-  { value: '30min', label: '30 min' },
   { value: '1h', label: '1 hour' },
   { value: '1d', label: '1 day' },
   { value: '1w', label: '1 week' },
@@ -79,7 +78,8 @@ interface ReportResultRow {
   timestamp: string;
   value: number;
   unit: string;
-  trend: number;
+  site_name?: string;
+  cell_name?: string;
 }
 
 type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque';
@@ -96,6 +96,7 @@ interface RanReport {
   updatedAt: string;
   lastRunAt: string | null;
   results: ReportResultRow[];
+  errorMessage?: string;
   // ── Extended filter & aggregation context ──
   plaques?: string[];
   dors?: string[];
@@ -130,27 +131,7 @@ interface CreateFormState {
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
 const TECH_OPTIONS: Tech[] = ['2G', '3G', '4G', '5G'];
 const STATUS_OPTIONS: ReportStatus[] = ['Draft', 'Ready', 'Running', 'Completed', 'Failed'];
-const VENDOR_OPTIONS = ['Ericsson', 'Nokia', 'Huawei', 'Samsung', 'ZTE', 'Multi-Vendor'];
-const KPI_LIBRARY = [
-  'L.CELL.AVAIL.DUR',
-  'L.TCH.SUCC.RATE',
-  'ERAB_SETUP_SR',
-  'RRC_SETUP_SR',
-  'CSSR_PS',
-  'DROP_CALL_RATE',
-  'DL_USER_THRPUT',
-  'UL_USER_THRPUT',
-  'PRB_UTIL_DL',
-  'PRB_UTIL_UL',
-  'HANDOVER_SR',
-  'VOLTE_CSSR',
-  'VOLTE_DCR',
-  'S1_SIG_SR',
-  'NR_CELL_AVAIL',
-  'X2_HO_SR',
-  'RACH_SR',
-  'CSFB_SR',
-];
+const VENDOR_OPTIONS = ['Ericsson', 'Nokia', 'Huawei', 'Samsung', 'Alcatel'];
 const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string; description: string }[] = [
   { value: 'cell', label: 'Cell', description: 'Per-cell granularity (highest detail).' },
   { value: 'band', label: 'Band', description: 'Aggregated by frequency band.' },
@@ -278,161 +259,166 @@ function resolveTimeRange(config: TimeConfig): { date_from: string; date_to: str
     const startD = new Date(config.start);
     const endD = new Date(config.end);
     return {
-      date_from: startD.toISOString().slice(0, 10),
-      date_to: endD.toISOString().slice(0, 10),
+      date_from: startD.toISOString().slice(0, 19),
+      date_to: endD.toISOString().slice(0, 19),
     };
   }
   const now = new Date();
   const msMap: Record<RelativeUnit, number> = { minutes: 60_000, hours: 3_600_000, days: 86_400_000 };
   const startD = new Date(now.getTime() - config.value * msMap[config.unit]);
   return {
-    date_from: startD.toISOString().slice(0, 10),
-    date_to: now.toISOString().slice(0, 10),
+    date_from: startD.toISOString().slice(0, 19),
+    date_to: now.toISOString().slice(0, 19),
   };
 }
 
-/** Pick a sensible granularity based on the time span. */
-function pickGranularity(date_from: string, date_to: string): string {
-  const spanMs = new Date(date_to).getTime() - new Date(date_from).getTime();
-  const spanDays = spanMs / 86_400_000;
-  if (spanDays <= 1) return '1h';
-  if (spanDays <= 14) return '1d';
-  return '1w';
+/** Build the common filter payload from report scope. */
+function buildFilterPayload(report: RanReport) {
+  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
+  const granularity = report.timeConfig.granularity;
+  // Split multi-vendor string into array for per-vendor requests
+  const vendors = report.vendor.split(',').map(v => v.trim()).filter(Boolean);
+  const base: Record<string, unknown> = {
+    date_from,
+    date_to,
+    granularity,
+  };
+  // Topology filters — only include if user selected values
+  if (report.plaques && report.plaques.length > 0) base.plaque = report.plaques;
+  if (report.dors && report.dors.length > 0) base.dor = report.dors;
+  if (report.sites && report.sites.length > 0) base.site_name = report.sites;
+  if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
+  if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
+  if (report.aggregation && report.aggregation !== 'cell') base.split_by_field = report.aggregation === 'site' ? 'site_name' : report.aggregation === 'band' ? 'band' : report.aggregation === 'plaque' ? 'plaque' : 'cell_name';
+  if (report.dimensions && report.dimensions.length > 0) base.dimensions = report.dimensions;
+  return { vendors, base };
+}
+
+const MAX_CONCURRENT = 4;
+
+/** Run promises with concurrency limit. */
+async function pLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[]> {
+  const results: T[] = [];
+  let idx = 0;
+  async function next(): Promise<void> {
+    const i = idx++;
+    if (i >= tasks.length) return;
+    results[i] = await tasks[i]();
+    await next();
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, () => next()));
+  return results;
 }
 
 /** Execute report against real backend APIs. */
 async function executeReportApi(
   report: RanReport,
   kpiKeySet: Set<string>,
-): Promise<ReportResultRow[]> {
-  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
-  const granularity = pickGranularity(date_from, date_to);
+): Promise<{ rows: ReportResultRow[]; errors: string[] }> {
+  const { vendors, base } = buildFilterPayload(report);
+  const errors: string[] = [];
   const results: ReportResultRow[] = [];
 
   // Separate KPIs from counters
   const kpiKeys = report.kpis.filter(k => kpiKeySet.has(k));
   const counterKeys = report.kpis.filter(k => !kpiKeySet.has(k));
 
-  // ── Fetch KPIs ──
-  const kpiPromises = kpiKeys.map(async (kpiCode) => {
+  // ── Fetch KPIs (per vendor × per KPI, with concurrency limit) ──
+  const kpiTasks = vendors.flatMap(vendor =>
+    kpiKeys.map(kpiCode => async (): Promise<ReportResultRow[]> => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120_000);
+        const res = await fetch(getApiUrl('pm/kpi/compute'), {
+          method: 'POST',
+          headers: getApiHeaders(),
+          signal: controller.signal,
+          body: JSON.stringify({ ...base, kpi_code: kpiCode, vendor }),
+        });
+        clearTimeout(timeout);
+        if (!res.ok) {
+          errors.push(`KPI ${kpiCode} (${vendor}): HTTP ${res.status}`);
+          return [];
+        }
+        const data = await res.json();
+        const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
+        if (series.length === 0) return [];
+        return series.map((pt: any) => ({
+          kpi: kpiCode,
+          vendor,
+          technology: pt.techno || report.technologies[0] || '4G',
+          timestamp: pt.ts || pt.timestamp || base.date_from as string,
+          value: Number(pt.kpi_value ?? pt.value ?? 0),
+          unit: pt.unit || (kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : ''),
+          site_name: pt.site_name,
+          cell_name: pt.cell_name,
+        }));
+      } catch (err: any) {
+        const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
+        errors.push(`KPI ${kpiCode} (${vendor}): ${msg}`);
+        return [];
+      }
+    })
+  );
+
+  // ── Fetch Counters (per vendor, batch, with concurrency limit) ──
+  const counterTasks = counterKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
     try {
-      const res = await fetch(getApiUrl('pm/kpi/compute'), {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000);
+      const res = await fetch(getApiUrl('pm/counters/timeseries'), {
         method: 'POST',
         headers: getApiHeaders(),
+        signal: controller.signal,
         body: JSON.stringify({
-          kpi_code: kpiCode,
-          date_from,
-          date_to,
-          granularity,
-          vendor: report.vendor,
-          object_type: report.technologies.join(','),
+          ...base,
+          counter_names: counterKeys,
+          vendor,
+          split_by_field: base.split_by_field || 'cell_name',
         }),
       });
-      if (!res.ok) return [];
+      clearTimeout(timeout);
+      if (!res.ok) {
+        errors.push(`Counters (${vendor}): HTTP ${res.status}`);
+        return [];
+      }
       const data = await res.json();
       const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
-      if (series.length === 0) {
-        // Return a placeholder row so the user sees the KPI was queried
-        return [{
-          kpi: kpiCode,
-          vendor: report.vendor,
-          technology: report.technologies[0] || '4G',
-          timestamp: date_from,
-          value: 0,
-          unit: kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '',
-          trend: 0,
-        }];
-      }
+      if (series.length === 0) return [];
       return series.map((pt: any) => ({
-        kpi: kpiCode,
-        vendor: report.vendor,
+        kpi: pt.counter_id || pt.counter_name || counterKeys[0],
+        vendor,
         technology: pt.techno || report.technologies[0] || '4G',
-        timestamp: pt.ts || pt.timestamp || date_from,
-        value: Number(pt.kpi_value ?? pt.value ?? 0),
-        unit: kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '',
-        trend: 0,
+        timestamp: pt.ts || pt.timestamp || base.date_from as string,
+        value: Number(pt.value ?? 0),
+        unit: 'count',
+        site_name: pt.site_name,
+        cell_name: pt.cell_name,
       }));
-    } catch {
+    } catch (err: any) {
+      const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
+      errors.push(`Counters (${vendor}): ${msg}`);
       return [];
     }
   });
 
-  // ── Fetch Counters (batch) ──
-  let counterPromise: Promise<ReportResultRow[]> = Promise.resolve([]);
-  if (counterKeys.length > 0) {
-    counterPromise = (async () => {
-      try {
-        const res = await fetch(getApiUrl('pm/counters/timeseries'), {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify({
-            counter_names: counterKeys,
-            date_from,
-            date_to,
-            granularity,
-            vendor: report.vendor,
-            split_by_field: 'cell_name',
-          }),
-        });
-        if (!res.ok) return counterKeys.map(c => ({
-          kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
-          timestamp: date_from, value: 0, unit: 'count', trend: 0,
-        }));
-        const data = await res.json();
-        const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
-        if (series.length === 0) {
-          return counterKeys.map(c => ({
-            kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
-            timestamp: date_from, value: 0, unit: 'count', trend: 0,
-          }));
-        }
-        return series.map((pt: any) => ({
-          kpi: pt.counter_id || pt.counter_name || counterKeys[0],
-          vendor: report.vendor,
-          technology: pt.techno || report.technologies[0] || '4G',
-          timestamp: pt.ts || pt.timestamp || date_from,
-          value: Number(pt.value ?? 0),
-          unit: 'count',
-          trend: 0,
-        }));
-      } catch {
-        return counterKeys.map(c => ({
-          kpi: c, vendor: report.vendor, technology: report.technologies[0] || '4G',
-          timestamp: date_from, value: 0, unit: 'count', trend: 0,
-        }));
-      }
-    })();
-  }
+  const allTasks = [...kpiTasks, ...counterTasks];
+  const batches = await pLimit(allTasks, MAX_CONCURRENT);
+  for (const batch of batches) results.push(...batch);
 
-  const [kpiResults, counterResults] = await Promise.all([
-    Promise.all(kpiPromises),
-    counterPromise,
-  ]);
-
-  for (const batch of kpiResults) results.push(...batch);
-  results.push(...counterResults);
-
-  return results;
+  return { rows: results, errors };
 }
 
 function downloadCsv(report: RanReport) {
-  const rows = report.results.length > 0 ? report.results : report.kpis.map((kpi, index) => ({
-    kpi,
-    vendor: report.vendor,
-    technology: report.technologies[index % Math.max(report.technologies.length, 1)] || '4G',
-    timestamp: report.lastRunAt || report.updatedAt,
-    value: '',
-    unit: '',
-    trend: '',
-  }));
-  const header = ['KPI', 'Vendor', 'Technology', 'Timestamp', 'Value', 'Unit', 'Trend'];
+  if (report.results.length === 0) return; // Don't export empty reports
+  const header = ['KPI', 'Vendor', 'Technology', 'Timestamp', 'Value', 'Unit', 'Site', 'Cell'];
   const escape = (value: unknown) => {
     const text = value == null ? '' : String(value);
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   const csv = [
     header.join(','),
-    ...rows.map(row => [row.kpi, row.vendor, row.technology, row.timestamp, row.value, row.unit, row.trend].map(escape).join(',')),
+    ...report.results.map(row => [row.kpi, row.vendor, row.technology, row.timestamp, row.value, row.unit, row.site_name || '', row.cell_name || ''].map(escape).join(',')),
   ].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -546,7 +532,8 @@ const RanQueryModule: React.FC = () => {
   const [form, setForm] = useState<CreateFormState>(DEFAULT_FORM);
   const [isExecutingId, setIsExecutingId] = useState<string | null>(null);
   const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
-  const [showKpiLibrary, setShowKpiLibrary] = useState(false);
+  const [resultPage, setResultPage] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
 
   // ── Catalogs (Investigator-themed selectors) ──
   const [kpiCatalog, setKpiCatalog] = useState<KpiCatalogEntry[]>([]);
@@ -567,7 +554,9 @@ const RanQueryModule: React.FC = () => {
   const [siteSearching, setSiteSearching] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+    // Persist report definitions only — strip results to stay within localStorage limits
+    const stripped = reports.map(({ results, ...def }) => ({ ...def, results: [] }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
   }, [reports]);
 
   // Load KPI catalog + counter catalog from backend, re-fetch when vendor changes
@@ -598,11 +587,15 @@ const RanQueryModule: React.FC = () => {
       .catch(() => setCounterCatalog([]));
   }, [form.vendors]);
 
-  // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) from backend
+  // Load topology filter dimensions (Plaque / DOR / Zone ARCEP) — re-fetch when vendor/techno changes
   useEffect(() => {
     setTopoLoading(true);
     setTopoError(null);
-    topoApi.filters()
+    const qs = new URLSearchParams();
+    if (form.vendors.length > 0) qs.set('vendor', form.vendors.join(','));
+    if (form.technologies.length > 0) qs.set('techno', form.technologies.join(','));
+    const query = qs.toString();
+    topoApi.filters(query || undefined)
       .then((resp) => {
         const map: Record<string, string[]> = {};
         for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
@@ -614,10 +607,17 @@ const RanQueryModule: React.FC = () => {
       })
       .catch((err) => {
         console.warn('[RanQueryModule] Failed to load topo filters', err);
-        setTopoError('Unable to load filter options from backend');
+        // Fallback: load without filters
+        topoApi.filters()
+          .then((resp) => {
+            const map: Record<string, string[]> = {};
+            for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
+            setTopoOpts({ plaque: map.plaque ?? [], dor: map.dor ?? [], zone_arcep: map.zone_arcep ?? [] });
+          })
+          .catch(() => setTopoError('Unable to load filter options from backend'));
       })
       .finally(() => setTopoLoading(false));
-  }, []);
+  }, [form.vendors, form.technologies]);
 
   // Load dimensions list from backend — fallback to defaults
   useEffect(() => {
@@ -682,14 +682,31 @@ const RanQueryModule: React.FC = () => {
     });
   }, [reports, search, statusFilter, techFilter, vendorFilter]);
 
+  // Build time-series chart data: group by timestamp, one line per KPI
   const chartData = useMemo(() => {
-    if (!selectedReport) return [];
-    return selectedReport.results.slice(0, 10).map(row => ({
-      name: row.kpi,
-      value: row.value,
-      trend: row.trend,
-    }));
+    if (!selectedReport || selectedReport.results.length === 0) return [];
+    // Group by timestamp
+    const tsMap = new Map<string, Record<string, number>>();
+    const kpiSet = new Set<string>();
+    for (const row of selectedReport.results) {
+      const ts = row.timestamp;
+      if (!tsMap.has(ts)) tsMap.set(ts, {});
+      const bucket = tsMap.get(ts)!;
+      bucket[row.kpi] = (bucket[row.kpi] ?? 0) + row.value;
+      kpiSet.add(row.kpi);
+    }
+    const sorted = Array.from(tsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return { points: sorted.map(([ts, vals]) => ({ ts, ...vals })), kpis: Array.from(kpiSet) };
   }, [selectedReport]);
+
+  // Pagination for results table
+  const PAGE_SIZE = 100;
+  const paginatedResults = useMemo(() => {
+    if (!selectedReport) return [];
+    const start = resultPage * PAGE_SIZE;
+    return selectedReport.results.slice(start, start + PAGE_SIZE);
+  }, [selectedReport, resultPage]);
+  const totalPages = selectedReport ? Math.max(1, Math.ceil(selectedReport.results.length / PAGE_SIZE)) : 1;
 
   const updateForm = <K extends keyof CreateFormState>(key: K, value: CreateFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -731,7 +748,6 @@ const RanQueryModule: React.FC = () => {
 
   const resetForm = () => {
     setForm(DEFAULT_FORM());
-    setShowKpiLibrary(false);
   };
 
   const createReport = () => {
@@ -743,7 +759,7 @@ const RanQueryModule: React.FC = () => {
       setReports(prev => prev.map(r => r.id === editingReportId ? {
         ...r,
         name: form.name.trim(),
-        vendor: form.vendors.join(', ') || 'Multi-Vendor',
+        vendor: form.vendors.join(','),
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
@@ -765,10 +781,11 @@ const RanQueryModule: React.FC = () => {
       return;
     }
 
+    const reportId = `ran-report-${crypto.randomUUID()}`;
     const report: RanReport = {
-      id: `ran-report-${Date.now()}`,
+      id: reportId,
       name: form.name.trim(),
-      vendor: form.vendors.join(', ') || 'Multi-Vendor',
+      vendor: form.vendors.join(','),
       technologies: form.technologies,
       kpis: form.selectedKpis,
       timeConfig: buildTimeConfig(form),
@@ -785,8 +802,8 @@ const RanQueryModule: React.FC = () => {
       dimensions: form.dimensions,
     };
     setReports(prev => [report, ...prev]);
-    setSelectedReportId(report.id);
-    setView('list');
+    setSelectedReportId(reportId);
+    setView('detail');
     resetForm();
   };
 
@@ -818,32 +835,36 @@ const RanQueryModule: React.FC = () => {
     setView('create');
   };
 
-  const executeReport = async (reportId: string) => {
+  const executeReport = useCallback(async (reportId: string) => {
     setIsExecutingId(reportId);
-    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running' as ReportStatus, updatedAt: new Date().toISOString() } : report));
+    setResultPage(0);
+    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running' as ReportStatus, errorMessage: undefined, updatedAt: new Date().toISOString() } : report));
     try {
+      // Read fresh report state
       const report = reports.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
-      const results = await executeReportApi(report, kpiKeySet);
+      const { rows, errors } = await executeReportApi(report, kpiKeySet);
+      const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
         return {
           ...r,
-          status: (results.length > 0 ? 'Completed' : 'Failed') as ReportStatus,
-          results,
+          status: (rows.length > 0 ? 'Completed' : 'Failed') as ReportStatus,
+          results: rows,
+          errorMessage: rows.length === 0 ? (errorMsg || 'No data returned for the selected scope') : errorMsg,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
       }));
-    } catch {
+    } catch (err: any) {
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
-        return { ...r, status: 'Failed' as ReportStatus, updatedAt: new Date().toISOString() };
+        return { ...r, status: 'Failed' as ReportStatus, errorMessage: err?.message || 'Execution failed', updatedAt: new Date().toISOString() };
       }));
     } finally {
       setIsExecutingId(current => current === reportId ? null : current);
     }
-  };
+  }, [reports, kpiKeySet]);
 
   const openReport = (reportId: string) => {
     setSelectedReportId(reportId);
@@ -857,7 +878,7 @@ const RanQueryModule: React.FC = () => {
     const now = new Date().toISOString();
     const duplicate: RanReport = {
       ...source,
-      id: `ran-report-${Date.now()}`,
+      id: `ran-report-${crypto.randomUUID()}`,
       name: `${source.name} Copy`,
       status: 'Draft',
       results: [],
@@ -869,6 +890,11 @@ const RanQueryModule: React.FC = () => {
   };
 
   const deleteReport = (reportId: string) => {
+    if (showDeleteConfirm !== reportId) {
+      setShowDeleteConfirm(reportId);
+      return;
+    }
+    setShowDeleteConfirm(null);
     setReports(prev => prev.filter(report => report.id !== reportId));
     if (selectedReportId === reportId) {
       setSelectedReportId(null);
@@ -1083,12 +1109,12 @@ const RanQueryModule: React.FC = () => {
                           disabled={isExecutingId === report.id}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/14 disabled:opacity-50"
                         >
-                          <Play className="h-3.5 w-3.5" /> {report.status === 'Completed' ? 'Reload' : 'Execute'}
+                          {isExecutingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {report.status === 'Completed' ? 'Reload' : 'Execute'}
                         </button>
                         <button onClick={() => openReport(report.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                           <FolderOpen className="h-3.5 w-3.5" /> Open
                         </button>
-                        <button onClick={() => downloadCsv(report)} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
+                        <button onClick={() => downloadCsv(report)} disabled={report.results.length === 0} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary disabled:opacity-30 disabled:pointer-events-none">
                           <Download className="h-3.5 w-3.5" /> Download
                         </button>
                         <button onClick={() => editReport(report.id)} className="rounded-xl border border-border/60 p-2 text-muted-foreground transition-all hover:border-primary/30 hover:text-primary" title="Edit">
@@ -1097,8 +1123,18 @@ const RanQueryModule: React.FC = () => {
                         <button onClick={() => duplicateReport(report.id)} className="rounded-xl border border-border/60 p-2 text-muted-foreground transition-all hover:border-primary/30 hover:text-primary" title="Duplicate">
                           <Copy className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => deleteReport(report.id)} className="rounded-xl border border-border/60 p-2 text-muted-foreground transition-all hover:border-destructive/30 hover:text-destructive" title="Delete">
-                          <Trash2 className="h-3.5 w-3.5" />
+                        <button
+                          onClick={() => deleteReport(report.id)}
+                          onBlur={() => setShowDeleteConfirm(null)}
+                          className={cn(
+                            'rounded-xl border p-2 transition-all',
+                            showDeleteConfirm === report.id
+                              ? 'border-destructive bg-destructive/10 text-destructive'
+                              : 'border-border/60 text-muted-foreground hover:border-destructive/30 hover:text-destructive'
+                          )}
+                          title={showDeleteConfirm === report.id ? 'Click again to confirm delete' : 'Delete'}
+                        >
+                          {showDeleteConfirm === report.id ? <AlertTriangle className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                         </button>
                       </div>
                     </div>
@@ -1139,7 +1175,7 @@ const RanQueryModule: React.FC = () => {
             </SectionCard>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <SectionCard title="Scope Selection" description="Sélectionnez les critères pour affiner l'analyse.">
+              <SectionCard title="Scope Selection" description="Select scope criteria to narrow the analysis.">
                 <div className="space-y-5">
                   {/* Vendor — chips style (multi-select) */}
                   <div>
@@ -1151,7 +1187,7 @@ const RanQueryModule: React.FC = () => {
                           onClick={() => updateForm('vendors', [])}
                           className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
                         >
-                          Effacer
+                          Clear
                         </button>
                       )}
                     </div>
@@ -1184,14 +1220,14 @@ const RanQueryModule: React.FC = () => {
                   {/* Technology — chips style (multi-select) */}
                   <div>
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Technologie</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Technology</span>
                       {form.technologies.length > 0 && (
                         <button
                           type="button"
                           onClick={() => updateForm('technologies', [])}
                           className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
                         >
-                          Effacer
+                          Clear
                         </button>
                       )}
                     </div>
@@ -1261,7 +1297,7 @@ const RanQueryModule: React.FC = () => {
                         onClick={() => { updateForm('vendors', []); updateForm('technologies', []); }}
                         className="text-[10px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
                       >
-                        Tout effacer
+                        Clear all
                       </button>
                     </div>
                   )}
@@ -1546,9 +1582,17 @@ const RanQueryModule: React.FC = () => {
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-3">
-                <span className={cn('inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em]', statusClasses(selectedReport.status))}>{selectedReport.status}</span>
+                <span className={cn('inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em]', statusClasses(selectedReport.status))}>
+                  {isExecutingId === selectedReport.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+                  {selectedReport.status}
+                </span>
+                {selectedReport.errorMessage && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/8 px-3 py-1.5 text-[11px] text-amber-700">
+                    <AlertTriangle className="h-3 w-3" /> {selectedReport.errorMessage.length > 120 ? selectedReport.errorMessage.slice(0, 120) + '...' : selectedReport.errorMessage}
+                  </span>
+                )}
                 <button onClick={() => executeReport(selectedReport.id)} disabled={isExecutingId === selectedReport.id} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
-                  <Play className="h-3.5 w-3.5" /> {selectedReport.status === 'Completed' ? 'Reload' : 'Execute'}
+                  {isExecutingId === selectedReport.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {selectedReport.status === 'Completed' ? 'Reload' : 'Execute'}
                 </button>
                 <button onClick={() => downloadCsv(selectedReport)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                   <Download className="h-3.5 w-3.5" /> Download report
@@ -1577,61 +1621,70 @@ const RanQueryModule: React.FC = () => {
                   </div>
                 </div>
               ) : detailMode === 'table' ? (
-                <div className="overflow-hidden rounded-2xl border border-border/60">
-                  <div className="grid grid-cols-[1.8fr_0.9fr_0.9fr_1.2fr_0.8fr_0.8fr_0.7fr] gap-3 bg-muted/40 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                    <span>KPI</span>
-                    <span>Vendor</span>
-                    <span>Technology</span>
-                    <span>Timestamp</span>
-                    <span>Value</span>
-                    <span>Unit</span>
-                    <span>Trend</span>
-                  </div>
-                  <div className="divide-y divide-border/50 bg-card">
-                    {selectedReport.results.map(result => (
-                      <div key={`${result.kpi}-${result.technology}`} className="grid grid-cols-[1.8fr_0.9fr_0.9fr_1.2fr_0.8fr_0.8fr_0.7fr] gap-3 px-4 py-4 text-sm text-foreground">
-                        <span className="font-bold">{result.kpi}</span>
-                        <span><span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text, vendorBadge(result.vendor).border)}>{result.vendor}</span></span>
-                        <span><span className={cn('inline-flex items-center rounded-full border px-2.5 py-0.5 text-[10px] font-medium', techBadge(result.technology).bg, techBadge(result.technology).text, techBadge(result.technology).border)}>{result.technology}</span></span>
-                        <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
-                        <span className="font-semibold">{result.value.toFixed(2)}</span>
-                        <span>{result.unit}</span>
-                        <span className={cn('font-semibold', result.trend >= 0 ? 'text-emerald-600' : 'text-red-600')}>
-                          {result.trend >= 0 ? '+' : ''}{result.trend.toFixed(2)}
-                        </span>
+                <div>
+                  <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
+                    <span>{selectedReport.results.length} rows total</span>
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-2">
+                        <button disabled={resultPage === 0} onClick={() => setResultPage(p => p - 1)} className="rounded-lg border border-border/60 p-1.5 disabled:opacity-30">
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="font-semibold">Page {resultPage + 1} / {totalPages}</span>
+                        <button disabled={resultPage >= totalPages - 1} onClick={() => setResultPage(p => p + 1)} className="rounded-lg border border-border/60 p-1.5 disabled:opacity-30">
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
                       </div>
-                    ))}
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-2xl border border-border/60">
+                    <div className="grid grid-cols-[1.6fr_0.8fr_0.7fr_1.1fr_0.8fr_0.6fr_1fr_1fr] gap-3 bg-muted/40 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+                      <span>KPI</span>
+                      <span>Vendor</span>
+                      <span>Technology</span>
+                      <span>Timestamp</span>
+                      <span>Value</span>
+                      <span>Unit</span>
+                      <span>Site</span>
+                      <span>Cell</span>
+                    </div>
+                    <div className="divide-y divide-border/50 bg-card">
+                      {paginatedResults.map((result, idx) => (
+                        <div key={`${result.kpi}-${result.timestamp}-${result.vendor}-${idx}`} className="grid grid-cols-[1.6fr_0.8fr_0.7fr_1.1fr_0.8fr_0.6fr_1fr_1fr] gap-3 px-4 py-3 text-sm text-foreground">
+                          <span className="font-bold truncate" title={result.kpi}>{result.kpi}</span>
+                          <span><span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text, vendorBadge(result.vendor).border)}>{result.vendor}</span></span>
+                          <span><span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(result.technology).bg, techBadge(result.technology).text, techBadge(result.technology).border)}>{result.technology}</span></span>
+                          <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
+                          <span className="font-semibold">{result.value.toFixed(2)}</span>
+                          <span className="text-xs">{result.unit}</span>
+                          <span className="text-xs text-muted-foreground truncate" title={result.site_name}>{result.site_name || '—'}</span>
+                          <span className="text-xs text-muted-foreground truncate" title={result.cell_name}>{result.cell_name || '—'}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="grid gap-6 xl:grid-cols-2">
-                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Value distribution</p>
-                    <div className="h-[320px]">
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    Time Series {chartData && 'kpis' in chartData ? `(${chartData.kpis.length} KPI${chartData.kpis.length > 1 ? 's' : ''})` : ''}
+                  </p>
+                  <div className="h-[400px]">
+                    {chartData && 'points' in chartData && chartData.points.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 40 }}>
+                        <LineChart data={chartData.points} margin={{ top: 8, right: 12, left: 0, bottom: 40 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.25)" />
-                          <XAxis dataKey="name" angle={-18} textAnchor="end" interval={0} height={70} tick={{ fontSize: 11 }} />
+                          <XAxis dataKey="ts" angle={-18} textAnchor="end" interval="preserveStartEnd" height={70} tick={{ fontSize: 10 }} />
                           <YAxis tick={{ fontSize: 11 }} />
                           <Tooltip />
-                          <Bar dataKey="value" fill="#2563eb" radius={[8, 8, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                  <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
-                    <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Trend by KPI</p>
-                    <div className="h-[320px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 40 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.25)" />
-                          <XAxis dataKey="name" angle={-18} textAnchor="end" interval={0} height={70} tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
-                          <Tooltip />
-                          <Line type="monotone" dataKey="trend" stroke="#0f766e" strokeWidth={3} dot={{ r: 4 }} />
+                          {chartData.kpis.slice(0, 8).map((kpi, i) => {
+                            const colors = ['#2563eb', '#0f766e', '#dc2626', '#9333ea', '#ea580c', '#0891b2', '#4f46e5', '#15803d'];
+                            return <Line key={kpi} type="monotone" dataKey={kpi} stroke={colors[i % colors.length]} strokeWidth={2} dot={false} />;
+                          })}
                         </LineChart>
                       </ResponsiveContainer>
-                    </div>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No chart data available</div>
+                    )}
                   </div>
                 </div>
               )}
