@@ -92,12 +92,20 @@ export async function fetchDistinctValues(column: keyof ParameterRow): Promise<s
   return dumpGet<string[]>(`params/distinct?column=${encodeURIComponent(backendCol)}&limit=5000`);
 }
 
-function buildQueryString(filters: ParameterHubFilters, limit: number, page = 1): string {
+function buildQueryString(
+  filters: ParameterHubFilters,
+  limit: number,
+  page = 1,
+  parameterOverride?: string,
+): string {
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
   qs.set('page', String(page));
-  // Multi-value: use comma-separated plural params for every dimension
-  if (filters.parameters.length > 0) qs.set('parameters', filters.parameters.join(','));
+  // Backend OR-filter only supports a SINGLE parameter per request:
+  // sending CSV or repeated values silently keeps only the last one.
+  // We fan out one call per parameter (see fetchParameterRows below).
+  const param = parameterOverride ?? filters.parameters[0];
+  if (param) qs.set('parameters', param);
   if (filters.vendor.length > 0) qs.set('vendors', filters.vendor.join(','));
   if (filters.dor.length > 0) qs.set('dor', filters.dor.join(','));
   if (filters.plaque.length > 0) qs.set('plaque', filters.plaque.join(','));
@@ -109,14 +117,27 @@ function buildQueryString(filters: ParameterHubFilters, limit: number, page = 1)
   return qs.toString();
 }
 
-/** Fetch enriched parameter rows matching the filters. */
+/** Fetch enriched parameter rows. Fans out one request per selected parameter
+ *  because the backend OR-filter currently keeps only the last value sent. */
 export async function fetchParameterRows(
   filters: ParameterHubFilters,
   limit = 200,
 ): Promise<ParameterRow[]> {
-  const qs = buildQueryString(filters, limit);
-  const resp = await dumpGet<{ items: ParameterRow[] }>(`params/enriched?${qs}`);
-  return resp.items ?? [];
+  const params = filters.parameters.length > 0 ? filters.parameters : [undefined];
+  const perParamLimit = Math.max(50, Math.ceil(limit / Math.max(1, params.length)));
+  const results = await Promise.all(
+    params.map(async (p) => {
+      const qs = buildQueryString(filters, perParamLimit, 1, p);
+      try {
+        const resp = await dumpGet<{ items: ParameterRow[] }>(`params/enriched?${qs}`);
+        return resp.items ?? [];
+      } catch (e) {
+        console.warn('[ParameterHub] fetch failed for parameter', p, e);
+        return [];
+      }
+    }),
+  );
+  return results.flat();
 }
 
 /** Site → coords cache (lifetime of the page). */
