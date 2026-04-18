@@ -342,7 +342,10 @@ async function executeReportApi(
         }
         const data = await res.json();
         const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
-        if (series.length === 0) return [];
+        if (series.length === 0) {
+          if (data?.error) errors.push(`KPI ${kpiCode} (${vendor}): ${data.error}`);
+          return [];
+        }
         return series.map((pt: any) => ({
           kpi: kpiCode,
           vendor,
@@ -384,7 +387,11 @@ async function executeReportApi(
       }
       const data = await res.json();
       const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
-      if (series.length === 0) return [];
+      if (series.length === 0) {
+        if (data?.error) errors.push(`Counters (${vendor}): ${data.error}`);
+        else if (data?.meta?.total_series === 0) errors.push(`Counters (${vendor}): no series returned (topology_cells=${data.meta.topology_cells ?? '?'})`);
+        return [];
+      }
       return series.map((pt: any) => ({
         kpi: pt.counter_id || pt.counter_name || counterKeys[0],
         vendor,
