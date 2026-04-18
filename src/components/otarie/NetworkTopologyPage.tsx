@@ -365,10 +365,11 @@ const NetworkTopologyPage: React.FC = () => {
   }, [searchSites]);
 
   useEffect(() => {
+    if (activeTab !== 'sites') return;
     if (searchTimer.current) window.clearTimeout(searchTimer.current);
     searchTimer.current = window.setTimeout(() => { searchSites(); }, 300) as unknown as number;
     return () => { if (searchTimer.current) window.clearTimeout(searchTimer.current); };
-  }, [searchSites]);
+  }, [searchSites, activeTab]);
 
   /* ══════════════════ SITE DETAIL ══════════════════ */
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
