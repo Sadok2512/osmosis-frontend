@@ -40,6 +40,9 @@ function buildSafeFallback(service: string, path: string, message: string) {
   if (path.includes('/topo/cells')) {
     return { ...base, cells: [], rows: [] };
   }
+  if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
+    return { ...base, cells: 0, sites: 0 };
+  }
   if (path.includes('/qoe/metrics')) {
     return { ...base, items: [], data: [], rows: [] };
   }
@@ -51,6 +54,14 @@ function buildSafeFallback(service: string, path: string, message: string) {
   }
 
   return { ...base, items: [], data: [], rows: [] };
+}
+
+function buildSafePostFallback(service: string, path: string, message: string) {
+  if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
+    return buildSafeFallback(service, path, message);
+  }
+
+  return { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 };
 }
 
 Deno.serve(async (req) => {
@@ -153,11 +164,11 @@ Deno.serve(async (req) => {
 
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-        (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+        (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path));
       const isAgentPost = req.method === 'POST' && service === 'agent';
       if (isSafeRead || isSafePost) {
         const fallback = isSafePost
-          ? { unavailable: true, service, path, error: msg, series: [], data: [], rows: [], total: 0 }
+          ? buildSafePostFallback(service, path, msg)
           : buildSafeFallback(service, path, msg);
         return new Response(JSON.stringify(fallback), {
           status: 200,
@@ -181,7 +192,7 @@ Deno.serve(async (req) => {
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path));
     const isSafeWrite = ['PUT', 'DELETE'].includes(req.method) && (service === 'kpi' || service === 'parser') && path.includes('/catalog/');
     const isAgentPost2 = req.method === 'POST' && service === 'agent';
 
@@ -204,7 +215,7 @@ Deno.serve(async (req) => {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
       const fallback = (isSafePost || isSafeWrite)
-        ? { unavailable: true, service, path, error: `Upstream ${upstreamRes.status}: ${errorSnippet}`, series: [], data: [], rows: [], total: 0 }
+        ? buildSafePostFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify(fallback), {
         status: 200,
@@ -237,11 +248,11 @@ Deno.serve(async (req) => {
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path));
 
     if (isSafeRead || isSafePost) {
       const fallback = isSafePost
-        ? { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 }
+        ? buildSafePostFallback(service, path, message)
         : buildSafeFallback(service, path, message);
       return new Response(JSON.stringify(fallback), {
         status: 200,
