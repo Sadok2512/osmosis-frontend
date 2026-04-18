@@ -1,6 +1,6 @@
 export type ViewMode = 'view' | 'edit' | 'presentation';
 
-export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table';
+export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table' | 'text' | 'image';
 
 export interface WidgetLayout {
   x: number;
@@ -13,6 +13,12 @@ export interface DynWidget {
   id: string;
   kind: WidgetKind;
   title?: string;
+  /** Free-form rich text body (used by `text` widget). */
+  body?: string;
+  /** Image source URL (used by `image` widget). */
+  imageUrl?: string;
+  /** Optional caption for `image` widget. */
+  caption?: string;
   layout: WidgetLayout;
 }
 

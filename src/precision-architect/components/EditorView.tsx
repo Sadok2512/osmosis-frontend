@@ -9,6 +9,8 @@ import {
   BarChart3,
   Map as MapIcon,
   Table as TableIcon,
+  Type as TypeIcon,
+  Image as ImageIcon,
   Radio,
   ChevronRight,
   Trash2,
@@ -47,6 +49,8 @@ const DEFAULT_SIZES: Record<WidgetKind, { w: number; h: number }> = {
   map: { w: 6, h: 5 },
   table: { w: 8, h: 6 },
   kpi: { w: 3, h: 3 },
+  text: { w: 6, h: 3 },
+  image: { w: 4, h: 4 },
 };
 
 function findFreeSpot(widgets: DynWidget[], w: number): { x: number; y: number } {
@@ -524,6 +528,8 @@ export default function EditorView({
             { icon: MapIcon, label: 'Map', kind: 'map' as const },
             { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
             { icon: TableIcon, label: 'Table', kind: 'table' as const },
+            { icon: TypeIcon, label: 'Text', kind: 'text' as const },
+            { icon: ImageIcon, label: 'Image', kind: 'image' as const },
           ]).map((tool) => (
             <button
               key={tool.label}
