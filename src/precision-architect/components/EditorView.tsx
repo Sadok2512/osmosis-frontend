@@ -528,6 +528,8 @@ export default function EditorView({
             { icon: MapIcon, label: 'Map', kind: 'map' as const },
             { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
             { icon: TableIcon, label: 'Table', kind: 'table' as const },
+            { icon: TypeIcon, label: 'Text', kind: 'text' as const },
+            { icon: ImageIcon, label: 'Image', kind: 'image' as const },
           ]).map((tool) => (
             <button
               key={tool.label}
