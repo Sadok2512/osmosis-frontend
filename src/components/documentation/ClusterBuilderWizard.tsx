@@ -6,6 +6,7 @@ import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/co
 import { countMatching, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
+import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
 
 interface ClusterBuilderWizardProps {
   onSubmit: (data: any) => void;
@@ -457,6 +458,12 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
               <div className="text-xs text-muted-foreground">
                 Total conditions: <strong className="text-foreground">{totalConditions}</strong>
               </div>
+
+              {/* Preview Results */}
+              <ClusterPreviewTable
+                topoConditions={topoConditions}
+                totalMatched={matchingCount?.sites}
+              />
             </div>
           )}
         </div>
