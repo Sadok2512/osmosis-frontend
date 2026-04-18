@@ -479,7 +479,7 @@ function StyleTab({
   patchStyle: (p: Partial<ChartWidgetConfig['style']>) => void;
 }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <Section title="Chart type">
         <div className="grid grid-cols-3 gap-2">
           {(['line', 'area', 'bar'] as ChartType[]).map(t => (
