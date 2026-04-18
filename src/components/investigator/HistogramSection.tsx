@@ -4,6 +4,15 @@ import ReactECharts from 'echarts-for-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, ChevronRight, Search, RefreshCw, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  PH_COLORS,
+  phTooltip,
+  phXAxis,
+  phYAxis,
+  phBarItemStyle,
+  phBarEmphasis,
+  phAnimation,
+} from './paramHubChartStyle';
 
 interface HistogramDef {
   id: number;
@@ -108,36 +117,39 @@ const HistogramSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
 
   // Chart
   const chartOption = bins.length > 0 ? {
-    tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.95)',
-      borderColor: 'rgba(255,255,255,0.08)',
-      textStyle: { color: '#f8fafc', fontSize: 10 },
-    },
-    grid: { left: 60, right: 20, top: 10, bottom: 50 },
+    ...phAnimation,
+    tooltip: phTooltip(),
+    grid: { left: 60, right: 24, top: 16, bottom: 56, containLabel: false },
     xAxis: {
       type: 'category' as const,
       data: bins.map(b => b.label),
-      axisLabel: { color: '#6b7280', fontSize: 8, rotate: bins.length > 20 ? 45 : 0, interval: bins.length > 50 ? Math.floor(bins.length / 20) : 0 },
-      axisLine: { lineStyle: { color: '#374151' } },
+      ...phXAxis({
+        axisLabel: {
+          color: PH_COLORS.labelMuted, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif',
+          rotate: bins.length > 20 ? 45 : 0,
+          interval: bins.length > 50 ? Math.floor(bins.length / 20) : 0,
+          margin: 12,
+        },
+      }),
     },
     yAxis: {
       type: 'value' as const,
       name: histUnit || 'Count',
-      nameTextStyle: { color: '#6b7280', fontSize: 9 },
-      axisLabel: {
-        color: '#6b7280', fontSize: 9,
-        formatter: (v: number) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toString(),
-      },
-      splitLine: { lineStyle: { color: 'rgba(55,65,81,0.3)' } },
+      nameTextStyle: { color: PH_COLORS.labelSubtle, fontSize: 10, fontFamily: 'Inter, system-ui, sans-serif' },
+      ...phYAxis({
+        axisLabel: {
+          color: PH_COLORS.labelSubtle, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif',
+          formatter: (v: number) => v >= 1e6 ? (v / 1e6).toFixed(1) + 'M' : v >= 1e3 ? (v / 1e3).toFixed(1) + 'K' : v.toString(),
+        },
+      }),
     },
     series: [{
       type: 'bar' as const,
-      data: bins.map((b, i) => ({
-        value: b.count,
-        itemStyle: { color: COLORS[0], borderRadius: [2, 2, 0, 0] },
-      })),
-      barMaxWidth: 40,
+      data: bins.map(b => b.count),
+      itemStyle: phBarItemStyle(),
+      emphasis: phBarEmphasis(),
+      barMaxWidth: 36,
+      barCategoryGap: '32%',
     }],
   } : null;
 
