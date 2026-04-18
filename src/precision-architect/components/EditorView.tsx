@@ -74,7 +74,7 @@ export default function EditorView({
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting' | 'chat'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
-  const [techFilter, setTechFilter] = useState<'ALL' | 'NR' | 'LTE' | 'UMTS' | 'GSM'>('ALL');
+  
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
@@ -376,30 +376,6 @@ export default function EditorView({
           </div>
         </div>
 
-        {/* Vertical tech filter pill — bottom-right floating */}
-        <div className={cn(
-          "fixed right-4 z-[55] pointer-events-auto",
-          activeWidget ? "bottom-[280px]" : "bottom-6"
-        )}>
-          <div className="flex flex-col items-stretch gap-0.5 p-1 bg-white/95 backdrop-blur border border-outline-variant/30 rounded-full shadow-xl">
-            {(['ALL', 'NR', 'LTE', 'UMTS', 'GSM'] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTechFilter(t)}
-                className={cn(
-                  "w-9 h-9 rounded-full text-[10px] font-black tracking-wide transition-all",
-                  techFilter === t
-                    ? "bg-primary text-on-primary shadow-md scale-105"
-                    : "text-on-surface-variant hover:bg-surface-container-high"
-                )}
-                aria-label={`Filter ${t}`}
-                title={t}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {activeWidget && (() => {
           const w = widgets.find(x => x.id === activeWidget);
