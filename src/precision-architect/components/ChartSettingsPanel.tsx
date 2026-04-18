@@ -69,7 +69,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
   return (
-    <div className="fixed bottom-0 right-0 h-[520px] w-[calc((100vw-16rem)/2)] bg-white border-t border-l border-outline-variant/20 shadow-2xl z-[60] flex flex-col">
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 h-[520px] w-[calc((100vw-16rem)/2)] bg-white border-t border-x border-outline-variant/20 shadow-2xl z-[60] flex flex-col rounded-t-lg">
       {/* Header with horizontal tabs */}
       <div className="px-4 py-1.5 border-b border-outline-variant/15 flex items-center justify-between bg-surface-container-low shrink-0">
         <div className="flex items-center gap-4">
