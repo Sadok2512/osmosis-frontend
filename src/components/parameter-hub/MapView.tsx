@@ -38,14 +38,20 @@ const FitBounds: React.FC<{ rows: ParameterRow[] }> = ({ rows }) => {
   const map = useMap();
   useEffect(() => {
     if (rows.length === 0) return;
-    const lats = rows.map((r) => r.latitude!).filter((n) => Number.isFinite(n));
-    const lngs = rows.map((r) => r.longitude!).filter((n) => Number.isFinite(n));
-    if (!lats.length) return;
+    let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+    let count = 0;
+    for (const r of rows) {
+      const lat = r.latitude!, lng = r.longitude!;
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      count++;
+    }
+    if (!count) return;
     map.fitBounds(
-      [
-        [Math.min(...lats), Math.min(...lngs)],
-        [Math.max(...lats), Math.max(...lngs)],
-      ],
+      [[minLat, minLng], [maxLat, maxLng]],
       { padding: [60, 60], maxZoom: 13 },
     );
   }, [rows, map]);
