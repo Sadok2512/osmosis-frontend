@@ -1151,6 +1151,7 @@ const NetworkTopologyPage: React.FC = () => {
 
           {/* ═══════ TAB: Sites & Data ═══════ */}
           <TabsContent value="sites" className="mt-4 space-y-4">
+            {visitedTabs.has('sites') && (<>
 
             {/* Topo Service section removed */}
             <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,.txt" className="hidden"
