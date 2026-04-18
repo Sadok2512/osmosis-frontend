@@ -271,6 +271,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                 loading={countLoading}
                 cells={matchingCount?.cells}
                 sites={matchingCount?.sites}
+                error={countError}
               />
 
               {!filtersReady && (
