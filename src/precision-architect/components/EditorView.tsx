@@ -492,7 +492,6 @@ export default function EditorView({
             </div>
           );
         })()}
-        </div>
       </div>
 
       <AnimatePresence>
