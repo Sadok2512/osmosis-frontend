@@ -74,6 +74,7 @@ export default function EditorView({
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting' | 'chat'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
+  const [techFilter, setTechFilter] = useState<'ALL' | 'NR' | 'LTE' | 'UMTS' | 'GSM'>('ALL');
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
