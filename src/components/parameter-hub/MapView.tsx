@@ -234,12 +234,54 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
 
   if (focusRows.length === 0) {
     return (
-      <div className="rounded-2xl border border-border bg-gradient-to-br from-card to-muted/20 p-16 flex flex-col items-center justify-center text-muted-foreground shadow-sm">
-        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-          <MapPin className="w-8 h-8 opacity-40" />
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between gap-4 px-5 py-3 border-b border-border bg-gradient-to-r from-muted/40 to-muted/10">
+          <div className="flex items-center gap-3 text-sm">
+            <Badge variant="secondary" className="font-mono text-xs">0 points</Badge>
+            <span className="text-xs text-muted-foreground">No geo-located rows yet</span>
+          </div>
         </div>
-        <p className="text-base font-semibold text-foreground">No geo-located data available</p>
-        <p className="text-sm mt-1.5">Apply filters with valid latitude / longitude</p>
+        <div className="relative h-[68vh] bg-muted/30">
+          <MapContainer
+            center={[46.6, 2.3]}
+            zoom={6}
+            className="w-full h-full z-0"
+            style={{ background: 'hsl(var(--muted))' }}
+            zoomControl={false}
+          >
+            <LayersControl position="topright">
+              <LayersControl.BaseLayer checked name="Light">
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
+                  attribution="&copy; CartoDB &copy; OSM"
+                />
+              </LayersControl.BaseLayer>
+              <LayersControl.BaseLayer name="Light + labels">
+                <TileLayer
+                  url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                  attribution="&copy; CartoDB &copy; OSM"
+                />
+              </LayersControl.BaseLayer>
+              <LayersControl.BaseLayer name="Satellite">
+                <TileLayer
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  attribution="&copy; Esri"
+                />
+              </LayersControl.BaseLayer>
+            </LayersControl>
+          </MapContainer>
+
+          {/* Floating empty-state hint */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg px-5 py-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center">
+              <MapPin className="w-4 h-4 opacity-60" />
+            </div>
+            <div>
+              <div className="text-sm font-semibold text-foreground">No geo-located data</div>
+              <div className="text-xs text-muted-foreground">Apply filters with valid latitude / longitude</div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
