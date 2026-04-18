@@ -174,18 +174,47 @@ const ParameterHubPage: React.FC = () => {
           {/* Header */}
           <header className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-[0_4px_12px_-2px_rgba(14,124,102,0.35)] flex items-center justify-center shrink-0">
-              <Sliders className="w-5 h-5 text-white" />
+              <Network className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
               <h1 className="text-[22px] font-semibold text-slate-800 tracking-tight leading-tight">
-                Parameters Hub
+                Network Explorer
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
-                Explore, filter, and analyze network parameters across the topology.
+                Explore, analyze, and monitor network data across topology.
               </p>
             </div>
           </header>
 
+          {/* Top-level module tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] w-fit">
+            {[
+              { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
+              { key: 'change-history' as const, label: 'Change History', icon: History },
+              { key: 'alarms' as const, label: 'Alarms', icon: Bell },
+            ].map((m) => {
+              const Icon = m.icon;
+              const active = activeModule === m.key;
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => setActiveModule(m.key)}
+                  className={cn(
+                    'inline-flex items-center gap-2 h-9 px-4 rounded-full text-[13px] font-medium transition-all duration-150',
+                    active
+                      ? 'bg-gradient-to-b from-teal-500 to-teal-600 text-white shadow-[0_1px_2px_rgba(14,124,102,0.18),0_4px_12px_-2px_rgba(14,124,102,0.30)]'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50',
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeModule === 'parameter-hub' && (
+          <>
           {/* Main premium card */}
           <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
             {/* Filter bar */}
