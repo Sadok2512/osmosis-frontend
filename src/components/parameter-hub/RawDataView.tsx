@@ -9,12 +9,9 @@ interface RawDataViewProps {
   rows: ParameterRow[];
 }
 
-type SortKey = keyof ParameterRow;
 type SortDir = 'asc' | 'desc';
 
-const COLUMNS: { key: SortKey; label: string; width?: string }[] = [
-  { key: 'parameter', label: 'Parameter' },
-  { key: 'value', label: 'Value' },
+const DIM_COLUMNS: { key: keyof ParameterRow; label: string }[] = [
   { key: 'site_name', label: 'Site' },
   { key: 'cell_name', label: 'Cell' },
   { key: 'vendor', label: 'Vendor' },
@@ -24,49 +21,104 @@ const COLUMNS: { key: SortKey; label: string; width?: string }[] = [
   { key: 'zone_arcep', label: 'Zone ARCEP' },
 ];
 
-function toCsv(rows: ParameterRow[]): string {
-  const header = COLUMNS.map((c) => c.label).join(',');
+interface PivotRow {
+  site_name: string;
+  cell_name: string;
+  vendor: string;
+  bande: string;
+  plaque: string;
+  dor: string;
+  zone_arcep: string;
+  values: Record<string, string>; // parameter -> value
+}
+
+function buildPivot(rows: ParameterRow[]): { pivoted: PivotRow[]; parameters: string[] } {
+  const paramSet = new Set<string>();
+  const map = new Map<string, PivotRow>();
+  for (const r of rows) {
+    const param = String(r.parameter ?? '');
+    if (param) paramSet.add(param);
+    const key = `${r.site_name ?? ''}||${r.cell_name ?? ''}`;
+    let entry = map.get(key);
+    if (!entry) {
+      entry = {
+        site_name: String(r.site_name ?? '—'),
+        cell_name: String(r.cell_name ?? '—'),
+        vendor: String(r.vendor ?? '—'),
+        bande: String(r.bande ?? '—'),
+        plaque: String(r.plaque ?? '—'),
+        dor: String(r.dor ?? '—'),
+        zone_arcep: String(r.zone_arcep ?? '—'),
+        values: {},
+      };
+      map.set(key, entry);
+    }
+    if (param) entry.values[param] = String(r.value ?? '—');
+  }
+  const parameters = [...paramSet].sort();
+  return { pivoted: [...map.values()], parameters };
+}
+
+function toCsv(rows: PivotRow[], parameters: string[]): string {
+  const header = [...DIM_COLUMNS.map((c) => c.label), ...parameters].join(',');
+  const escape = (v: unknown) => {
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    return /[",\n]/.test(s) ? `"${s}"` : s;
+  };
   const lines = rows.map((r) =>
-    COLUMNS.map((c) => {
-      const v = r[c.key];
-      if (v == null) return '';
-      const s = String(v).replace(/"/g, '""');
-      return /[",\n]/.test(s) ? `"${s}"` : s;
-    }).join(','),
+    [
+      ...DIM_COLUMNS.map((c) => escape(r[c.key as keyof PivotRow])),
+      ...parameters.map((p) => escape(r.values[p] ?? '')),
+    ].join(','),
   );
   return [header, ...lines].join('\n');
 }
 
 export const RawDataView: React.FC<RawDataViewProps> = ({ rows }) => {
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('parameter');
+  const [sortKey, setSortKey] = useState<string>('site_name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
+  const { pivoted, parameters } = useMemo(() => buildPivot(rows), [rows]);
+
+  const allColumns = useMemo(
+    () => [...DIM_COLUMNS.map((c) => c.key as string), ...parameters],
+    [parameters],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let arr = rows;
+    let arr = pivoted;
     if (q) {
-      arr = arr.filter((r) =>
-        COLUMNS.some((c) => String(r[c.key] ?? '').toLowerCase().includes(q)),
-      );
+      arr = arr.filter((r) => {
+        for (const c of DIM_COLUMNS) {
+          if (String(r[c.key as keyof PivotRow] ?? '').toLowerCase().includes(q)) return true;
+        }
+        for (const p of parameters) {
+          if (String(r.values[p] ?? '').toLowerCase().includes(q)) return true;
+        }
+        return false;
+      });
     }
     arr = [...arr].sort((a, b) => {
-      const av = a[sortKey] ?? '';
-      const bv = b[sortKey] ?? '';
+      const isParam = parameters.includes(sortKey);
+      const av = isParam ? (a.values[sortKey] ?? '') : (a as any)[sortKey] ?? '';
+      const bv = isParam ? (b.values[sortKey] ?? '') : (b as any)[sortKey] ?? '';
       if (av === bv) return 0;
       const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return arr;
-  }, [rows, search, sortKey, sortDir]);
+  }, [pivoted, parameters, search, sortKey, sortDir]);
 
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, pages - 1);
   const slice = filtered.slice(safePage * pageSize, safePage * pageSize + pageSize);
 
-  const toggleSort = (k: SortKey) => {
+  const toggleSort = (k: string) => {
     if (k === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     else {
       setSortKey(k);
@@ -75,7 +127,7 @@ export const RawDataView: React.FC<RawDataViewProps> = ({ rows }) => {
   };
 
   const downloadCsv = () => {
-    const csv = toCsv(filtered);
+    const csv = toCsv(filtered, parameters);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -108,7 +160,7 @@ export const RawDataView: React.FC<RawDataViewProps> = ({ rows }) => {
           className="h-9 max-w-sm text-sm"
         />
         <Badge variant="secondary" className="text-[11px]">
-          {filtered.length.toLocaleString()} / {rows.length.toLocaleString()} rows
+          {filtered.length.toLocaleString()} cells · {parameters.length} param{parameters.length > 1 ? 's' : ''}
         </Badge>
         <div className="flex-1" />
         <button
@@ -123,10 +175,10 @@ export const RawDataView: React.FC<RawDataViewProps> = ({ rows }) => {
         <Table>
           <TableHeader className="bg-muted/40 sticky top-0 z-10">
             <TableRow>
-              {COLUMNS.map((c) => (
+              {DIM_COLUMNS.map((c) => (
                 <TableHead
                   key={c.key as string}
-                  onClick={() => toggleSort(c.key)}
+                  onClick={() => toggleSort(c.key as string)}
                   className="cursor-pointer select-none whitespace-nowrap text-xs font-semibold text-foreground"
                 >
                   <span className="inline-flex items-center gap-1">
@@ -140,18 +192,40 @@ export const RawDataView: React.FC<RawDataViewProps> = ({ rows }) => {
                   </span>
                 </TableHead>
               ))}
+              {parameters.map((p) => (
+                <TableHead
+                  key={p}
+                  onClick={() => toggleSort(p)}
+                  className="cursor-pointer select-none whitespace-nowrap text-xs font-semibold text-primary border-l border-border"
+                  title={p}
+                >
+                  <span className="inline-flex items-center gap-1">
+                    {p}
+                    {sortKey === p &&
+                      (sortDir === 'asc' ? (
+                        <ArrowUp className="w-3 h-3" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3" />
+                      ))}
+                  </span>
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
             {slice.map((r, i) => (
-              <TableRow key={`${r.parameter}-${r.cell_name ?? r.site_name ?? ''}-${i}`}>
-                {COLUMNS.map((c) => (
-                  <TableCell key={c.key as string} className="text-xs whitespace-nowrap py-2">
-                    {c.key === 'value' ? (
-                      <span className="font-mono text-foreground">{String(r[c.key] ?? '—')}</span>
-                    ) : (
-                      <span className="text-foreground/90">{String(r[c.key] ?? '—')}</span>
-                    )}
+              <TableRow key={`${r.site_name}-${r.cell_name}-${i}`}>
+                {DIM_COLUMNS.map((c) => (
+                  <TableCell key={c.key as string} className="text-xs whitespace-nowrap py-2 text-foreground/90">
+                    {String(r[c.key as keyof PivotRow] ?? '—')}
+                  </TableCell>
+                ))}
+                {parameters.map((p) => (
+                  <TableCell
+                    key={p}
+                    className="text-xs whitespace-nowrap py-2 font-mono text-foreground border-l border-border"
+                  >
+                    {r.values[p] ?? <span className="text-muted-foreground">—</span>}
                   </TableCell>
                 ))}
               </TableRow>
