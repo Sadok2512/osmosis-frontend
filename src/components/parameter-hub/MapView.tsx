@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap, LayersControl } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, Popup, Tooltip, useMap, LayersControl } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { ParameterRow } from './parameterHubApi';
-import { MapPin, Layers, Flame, Circle as CircleIcon } from 'lucide-react';
+import { MapPin, Layers, Flame, Circle as CircleIcon, AlertTriangle } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
