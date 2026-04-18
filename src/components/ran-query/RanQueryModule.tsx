@@ -1594,9 +1594,24 @@ const RanQueryModule: React.FC = () => {
                   {selectedReport.status}
                 </span>
                 {selectedReport.errorMessage && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/25 bg-amber-500/8 px-3 py-1.5 text-[11px] text-amber-700">
-                    <AlertTriangle className="h-3 w-3" /> {selectedReport.errorMessage.length > 120 ? selectedReport.errorMessage.slice(0, 120) + '...' : selectedReport.errorMessage}
-                  </span>
+                  <details className="group w-full max-w-2xl rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700">
+                    <summary className="flex cursor-pointer items-center gap-1.5 font-semibold">
+                      <AlertTriangle className="h-3 w-3" />
+                      {(() => {
+                        const items = selectedReport.errorMessage.split(' | ');
+                        return items.length > 1
+                          ? `${items.length} backend issues — click to expand`
+                          : (selectedReport.errorMessage.length > 120
+                              ? selectedReport.errorMessage.slice(0, 120) + '… (click)'
+                              : selectedReport.errorMessage);
+                      })()}
+                    </summary>
+                    <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto pl-4 font-mono text-[10px]">
+                      {selectedReport.errorMessage.split(' | ').map((m, i) => (
+                        <li key={i} className="list-disc">{m}</li>
+                      ))}
+                    </ul>
+                  </details>
                 )}
                 <button onClick={() => executeReport(selectedReport.id)} disabled={isExecutingId === selectedReport.id} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
                   {isExecutingId === selectedReport.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {selectedReport.status === 'Completed' ? 'Reload' : 'Execute'}
