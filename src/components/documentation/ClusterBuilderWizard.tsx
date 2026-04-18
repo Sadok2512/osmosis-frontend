@@ -90,6 +90,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // ── Live scope counting ──
   const [matchingCount, setMatchingCount] = useState<MatchingCount | null>(null);
   const [countLoading, setCountLoading] = useState(false);
+  const [countError, setCountError] = useState(false);
   const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
