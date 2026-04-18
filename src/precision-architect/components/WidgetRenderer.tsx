@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
+  List, ListOrdered, Type, Palette,
+} from 'lucide-react';
 import { DynWidget } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
