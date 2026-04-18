@@ -323,46 +323,51 @@ async function executeReportApi(
   const kpiKeys = report.kpis.filter(k => kpiKeySet.has(k));
   const counterKeys = report.kpis.filter(k => !kpiKeySet.has(k));
 
-  // ── Fetch KPIs (per vendor × per KPI, with concurrency limit) ──
-  const kpiTasks = vendors.flatMap(vendor =>
-    kpiKeys.map(kpiCode => async (): Promise<ReportResultRow[]> => {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120_000);
-        const res = await fetch(getApiUrl('pm/kpi/compute'), {
-          method: 'POST',
-          headers: getApiHeaders(),
-          signal: controller.signal,
-          body: JSON.stringify({ ...base, kpi_code: kpiCode, vendor }),
-        });
-        clearTimeout(timeout);
-        if (!res.ok) {
-          errors.push(`KPI ${kpiCode} (${vendor}): HTTP ${res.status}`);
-          return [];
-        }
-        const data = await res.json();
-        const series: any[] = Array.isArray(data?.series) ? data.series : Array.isArray(data) ? data : [];
-        if (series.length === 0) {
-          if (data?.error) errors.push(`KPI ${kpiCode} (${vendor}): ${data.error}`);
-          return [];
-        }
-        return series.map((pt: any) => ({
-          kpi: kpiCode,
-          vendor,
-          technology: pt.techno || report.technologies[0] || '4G',
-          timestamp: pt.ts || pt.timestamp || base.date_from as string,
-          value: Number(pt.kpi_value ?? pt.value ?? 0),
-          unit: pt.unit || (kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : ''),
-          site_name: pt.site_name,
-          cell_name: pt.cell_name,
-        }));
-      } catch (err: any) {
-        const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
-        errors.push(`KPI ${kpiCode} (${vendor}): ${msg}`);
+  // ── Fetch KPIs (batch per vendor: 1 request per vendor with all KPI codes) ──
+  const kpiTasks = kpiKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 180_000);
+      const res = await fetch(getApiUrl('pm/kpi/compute-batch'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        signal: controller.signal,
+        body: JSON.stringify({ ...base, kpi_codes: kpiKeys, vendor }),
+      });
+      clearTimeout(timeout);
+      if (!res.ok) {
+        errors.push(`KPIs batch (${vendor}): HTTP ${res.status}`);
         return [];
       }
-    })
-  );
+      const data = await res.json();
+      const batchResults: ReportResultRow[] = [];
+      for (const kpiResult of (data?.results || [])) {
+        if (kpiResult.error && (!kpiResult.series || kpiResult.series.length === 0)) {
+          errors.push(`KPI ${kpiResult.kpi_code} (${vendor}): ${kpiResult.error}`);
+          continue;
+        }
+        const kpiCode = kpiResult.kpi_code || '';
+        const unit = kpiResult.unit || (kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '');
+        for (const pt of (kpiResult.series || [])) {
+          batchResults.push({
+            kpi: kpiCode,
+            vendor,
+            technology: pt.techno || report.technologies[0] || '4G',
+            timestamp: pt.ts || pt.timestamp || base.date_from as string,
+            value: Number(pt.kpi_value ?? pt.value ?? 0),
+            unit: pt.unit || unit,
+            site_name: pt.site_name,
+            cell_name: pt.cell_name,
+          });
+        }
+      }
+      return batchResults;
+    } catch (err: any) {
+      const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
+      errors.push(`KPIs batch (${vendor}): ${msg}`);
+      return [];
+    }
+  });
 
   // ── Fetch Counters (per vendor, batch, with concurrency limit) ──
   const counterTasks = counterKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
