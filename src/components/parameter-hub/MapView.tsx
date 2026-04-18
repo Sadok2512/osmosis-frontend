@@ -15,7 +15,7 @@ interface MapViewProps {
   parameterFocus?: string;
 }
 
-type ViewMode = 'points' | 'heatmap';
+type ViewMode = 'points' | 'cells' | 'heatmap';
 
 // Smooth red → yellow → green gradient (RAG inverted: low=red, high=green)
 const gradientColor = (t: number): string => {
