@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BarChart3,
+  Bell,
   Database,
   Filter as FilterIcon,
+  History,
   Layers,
   Loader2,
   MapPin,
+  Network,
   Plus,
   Sliders,
   Sparkles,
@@ -31,6 +34,7 @@ import RawDataView from './RawDataView';
 import MapView from './MapView';
 
 type ViewMode = 'distribution' | 'raw' | 'map';
+type ExplorerModule = 'parameter-hub' | 'change-history' | 'alarms';
 
 const FILTER_DIMS: {
   key: keyof Omit<ParameterHubFilters, 'parameters'>;
@@ -79,6 +83,7 @@ const ParameterHubPage: React.FC = () => {
   const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('cell');
   const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('cell');
   const [viewMode, setViewMode] = useState<ViewMode>('distribution');
+  const [activeModule, setActiveModule] = useState<ExplorerModule>('parameter-hub');
 
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [parametersLoading, setParametersLoading] = useState(true);
@@ -169,18 +174,47 @@ const ParameterHubPage: React.FC = () => {
           {/* Header */}
           <header className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-[0_4px_12px_-2px_rgba(14,124,102,0.35)] flex items-center justify-center shrink-0">
-              <Sliders className="w-5 h-5 text-white" />
+              <Network className="w-5 h-5 text-white" />
             </div>
             <div className="flex-1">
               <h1 className="text-[22px] font-semibold text-slate-800 tracking-tight leading-tight">
-                Parameters Hub
+                Network Explorer
               </h1>
               <p className="text-sm text-slate-500 mt-0.5">
-                Explore, filter, and analyze network parameters across the topology.
+                Explore, analyze, and monitor network data across topology.
               </p>
             </div>
           </header>
 
+          {/* Top-level module tabs */}
+          <div className="flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] w-fit">
+            {[
+              { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
+              { key: 'change-history' as const, label: 'Change History', icon: History },
+              { key: 'alarms' as const, label: 'Alarms', icon: Bell },
+            ].map((m) => {
+              const Icon = m.icon;
+              const active = activeModule === m.key;
+              return (
+                <button
+                  key={m.key}
+                  onClick={() => setActiveModule(m.key)}
+                  className={cn(
+                    'inline-flex items-center gap-2 h-9 px-4 rounded-full text-[13px] font-medium transition-all duration-150',
+                    active
+                      ? 'bg-gradient-to-b from-teal-500 to-teal-600 text-white shadow-[0_1px_2px_rgba(14,124,102,0.18),0_4px_12px_-2px_rgba(14,124,102,0.30)]'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50',
+                  )}
+                >
+                  <Icon className="w-3.5 h-3.5" />
+                  {m.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {activeModule === 'parameter-hub' && (
+          <>
           {/* Main premium card */}
           <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
             {/* Filter bar */}
@@ -363,6 +397,56 @@ const ParameterHubPage: React.FC = () => {
               )}
             </div>
           </div>
+          </>
+          )}
+
+          {activeModule === 'change-history' && (
+            <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
+              <div className="px-7 pt-6 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-teal-600" />
+                  <h2 className="text-base font-semibold text-slate-800">Change History</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Track configuration changes over time across the network.
+                </p>
+              </div>
+              <div className="px-6 py-24 bg-gradient-to-b from-white to-slate-50/40 min-h-[520px] flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mb-4">
+                  <History className="w-7 h-7 text-teal-600/70" />
+                </div>
+                <p className="text-sm font-semibold text-slate-600">Change History — coming soon</p>
+                <p className="text-xs mt-1.5 text-slate-400 max-w-sm">
+                  This module will show parameter changes (old → new), timestamps, source user/system,
+                  and an interactive timeline.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {activeModule === 'alarms' && (
+            <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
+              <div className="px-7 pt-6 pb-5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-teal-600" />
+                  <h2 className="text-base font-semibold text-slate-800">Alarms</h2>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Monitor active alerts and anomalies on sites and cells.
+                </p>
+              </div>
+              <div className="px-6 py-24 bg-gradient-to-b from-white to-slate-50/40 min-h-[520px] flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mb-4">
+                  <Bell className="w-7 h-7 text-teal-600/70" />
+                </div>
+                <p className="text-sm font-semibold text-slate-600">Alarms — coming soon</p>
+                <p className="text-xs mt-1.5 text-slate-400 max-w-sm">
+                  This module will list severity-coded alarms (active/resolved), affected elements,
+                  filters by severity/region/time, and per-alarm sparklines.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
