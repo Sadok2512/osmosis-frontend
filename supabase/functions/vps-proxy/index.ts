@@ -56,6 +56,14 @@ function buildSafeFallback(service: string, path: string, message: string) {
   return { ...base, items: [], data: [], rows: [] };
 }
 
+function buildSafePostFallback(service: string, path: string, message: string) {
+  if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
+    return buildSafeFallback(service, path, message);
+  }
+
+  return { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
