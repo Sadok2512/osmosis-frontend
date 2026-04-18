@@ -5870,6 +5870,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const shouldShowLabels = showSiteLabels;
 
   const renderSites = useMemo(() => {
+    // Defensive: drop any null/undefined entries that may have slipped into sites/taggedSites
+    const safeFilter = (arr: any[]): SiteSummary[] => (arr || []).filter((s): s is SiteSummary => !!s && typeof s === 'object' && !!s.site_id);
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
       if (mapTechnoFilter === 'OFF') return false;
 
@@ -5888,7 +5890,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Tagged-only mode: show only tagged sites
     if (taggedDisplayMode === 'tagged-only') {
       const result: SiteSummary[] = [];
-      for (const ts of taggedSites) {
+      for (const ts of safeFilter(taggedSites)) {
         if (!siteMatchesCurrentTechFilter(ts)) continue;
         if (localZoneArcep !== 'ALL') {
           const tsCells = ts.cells ?? [];
@@ -5905,9 +5907,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return result;
     }
 
-    const merged = [...visibleSites];
+    const merged = safeFilter(visibleSites);
 
-    for (const ts of taggedSites) {
+    for (const ts of safeFilter(taggedSites)) {
       if (!siteMatchesCurrentTechFilter(ts)) continue;
       // Respect zone_arcep filter for tagged sites
       if (localZoneArcep !== 'ALL') {
