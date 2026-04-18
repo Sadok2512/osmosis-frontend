@@ -118,7 +118,7 @@ const dimSections: DimSection[] = [
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
 const DocumentationPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DocTab>('kpi_reference');
+  const [activeTab, setActiveTab] = useState<DocTab>('filters');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
 
@@ -153,7 +153,6 @@ const DocumentationPage: React.FC = () => {
   const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'kpi_reference', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     
@@ -229,9 +228,7 @@ const DocumentationPage: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'kpi_reference' ? (
-          <KpiCatalogView />
-        ) : activeTab === 'filters' ? (
+        {activeTab === 'filters' ? (
           <FilterRepositoryView />
         ) : activeTab === 'qos_network' ? (
           <QosNetworkView />
