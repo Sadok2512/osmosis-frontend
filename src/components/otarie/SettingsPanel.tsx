@@ -56,7 +56,7 @@ const MODULE_DEFS: { id: string; label: string; description: string; icon: React
   { id: 'radio_profile', label: 'Radio Profile', description: 'Profil radio et couverture', icon: <Radio className="w-5 h-5" /> },
   { id: 'topologie', label: 'Parameters HUB', description: 'Paramètres et topologie', icon: <Server className="w-5 h-5" /> },
   { id: 'ran_query', label: 'RAN Query', description: 'Création et exécution de rapports KPI / counter', icon: <BarChart3 className="w-5 h-5" /> },
-  { id: 'docs', label: 'Référentiel KPI Réseau', description: 'Référentiel KPI réseau', icon: <Database className="w-5 h-5" /> },
+  { id: 'docs', label: 'Network References', description: 'Référentiel réseau', icon: <Database className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', description: 'Administration backend', icon: <Database className="w-5 h-5" /> },
   { id: 'topology', label: 'Topology', description: 'Visualisation réseau', icon: <Globe className="w-5 h-5" /> },
 ];
