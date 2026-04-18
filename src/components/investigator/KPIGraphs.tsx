@@ -205,14 +205,18 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
-const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+// Force teal palette across the entire Investigator (Parameter Hub style)
+const SERIES_COLORS = [
+  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
+  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
+];
 
-// Extended palette for split dimension values — 20 distinct colors
+// Extended teal/cyan palette for split dimension values — 20 distinct shades
 const SPLIT_COLORS = [
-  '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
-  '#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6',
-  '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24',
-  '#fb7185','#2dd4bf','#818cf8','#facc15','#34d399',
+  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
+  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
+  '#155E75','#22D3EE','#67E8F9','#3B82F6','#0369A1',
+  '#1E40AF','#0284C7','#38BDF8','#0EA5E9','#7DD3FC',
 ];
 
 /** Deterministic hash for any string key */
