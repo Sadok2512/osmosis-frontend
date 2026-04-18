@@ -47,6 +47,8 @@ const DEFAULT_SIZES: Record<WidgetKind, { w: number; h: number }> = {
   map: { w: 6, h: 5 },
   table: { w: 8, h: 6 },
   kpi: { w: 3, h: 3 },
+  text: { w: 6, h: 3 },
+  image: { w: 4, h: 4 },
 };
 
 function findFreeSpot(widgets: DynWidget[], w: number): { x: number; y: number } {
