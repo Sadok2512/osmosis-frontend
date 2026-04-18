@@ -200,12 +200,106 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
               <ReactECharts option={option} style={{ height: 420 }} notMerge />
             </div>
 
-            {/* Footer */}
-            <div className="px-8 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <span className="text-[11px] text-slate-400">
-                {entityCount.toLocaleString()} {aggregation}{entityCount > 1 ? 's' : ''} · aggregation: {aggregation}
-              </span>
-              <span className="text-[11px] text-slate-400">Top {Math.min(30, counts.size)} of {counts.size}</span>
+            {/* Statistics Table */}
+            <div className="px-7 pt-5 pb-6 border-t border-slate-100 bg-gradient-to-b from-slate-50/40 to-white">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h4 className="text-[13px] font-semibold text-slate-800 tracking-tight">Distribution Summary</h4>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Per-value breakdown · sorted by frequency</p>
+                </div>
+                {/* Summary chips */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="px-3 py-1.5 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total</span>
+                    <span className="ml-2 text-[12px] font-semibold text-slate-700">{totalCount.toLocaleString()}</span>
+                  </div>
+                  <div className="px-3 py-1.5 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Unique</span>
+                    <span className="ml-2 text-[12px] font-semibold text-slate-700">{counts.size}</span>
+                  </div>
+                  {topValue && (
+                    <div className="px-3 py-1.5 rounded-full bg-gradient-to-b from-teal-50 to-teal-100/60 border border-teal-200/60">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-teal-700/70">Top</span>
+                      <span className="ml-2 text-[12px] font-semibold text-teal-800">{topValue.value}</span>
+                      <span className="ml-1.5 text-[11px] text-teal-700/80">({topValue.pct.toFixed(1)}%)</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-slate-200/70 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.03)] overflow-hidden">
+                <div className="max-h-[420px] overflow-auto">
+                  <table className="w-full text-[12.5px]">
+                    <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur border-b border-slate-200/70">
+                      <tr className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                        <th className="px-4 py-3 text-left w-14">Rank</th>
+                        <th className="px-4 py-3 text-left">Value</th>
+                        <th className="px-4 py-3 text-right w-28">Count</th>
+                        <th className="px-4 py-3 text-left w-[38%]">Percentage</th>
+                        <th className="px-4 py-3 text-right w-28">Cumulative</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableRows.map((r) => {
+                        const isTop3 = r.rank <= 3;
+                        const rankBg =
+                          r.rank === 1
+                            ? 'bg-gradient-to-b from-teal-500 to-teal-600 text-white shadow-[0_1px_2px_rgba(14,124,102,0.3)]'
+                            : r.rank === 2
+                            ? 'bg-teal-100 text-teal-700 border border-teal-200/70'
+                            : r.rank === 3
+                            ? 'bg-teal-50 text-teal-600 border border-teal-100'
+                            : 'bg-slate-100 text-slate-500';
+                        return (
+                          <tr
+                            key={r.value}
+                            className="border-b border-slate-100 last:border-b-0 hover:bg-teal-50/30 transition-colors"
+                          >
+                            <td className="px-4 py-2.5">
+                              <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-[10.5px] font-bold ${rankBg}`}>
+                                {r.rank}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <span className={`font-mono ${isTop3 ? 'text-slate-800 font-semibold' : 'text-slate-600'}`}>
+                                {r.value}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-slate-700 font-medium">
+                              {r.count.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full bg-gradient-to-r from-teal-400 to-teal-600 transition-all"
+                                    style={{ width: `${Math.max(2, r.pct)}%` }}
+                                  />
+                                </div>
+                                <span className={`tabular-nums text-[11.5px] w-12 text-right ${isTop3 ? 'text-teal-700 font-semibold' : 'text-slate-500'}`}>
+                                  {r.pct.toFixed(1)}%
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-slate-400 text-[11.5px]">
+                              {r.cumul.toFixed(1)}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-3 px-1">
+                <span className="text-[11px] text-slate-400">
+                  Showing {tableRows.length} of {counts.size} value{counts.size > 1 ? 's' : ''}
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Aggregation: <span className="text-slate-600 font-medium">{aggregation}</span> · {entityCount.toLocaleString()} {aggregation}{entityCount > 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
           </div>
         );
