@@ -262,11 +262,6 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     });
   }, [focusRows, technoFilter, valueRange, numericStats]);
 
-  const uniqueValues = useMemo(() => {
-    if (numericStats) return [];
-    return Array.from(new Set(visibleRows.map((r) => r.value ?? '(null)'))).sort().slice(0, 30);
-  }, [visibleRows, numericStats]);
-
   // Stable color palette for categorical values (up to 30 distinct colors)
   const VALUE_PALETTE = [
     '#2563eb', '#dc2626', '#16a34a', '#d97706', '#9333ea', '#0891b2',
@@ -277,13 +272,35 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   ];
   const MULTI_COLOR = '#64748b'; // slate-500 for multi-value sites
 
+  // All distinct values (sorted numerically when possible) — used for categorical legend
+  const distinctValues = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of visibleRows) set.add(r.value ?? '(null)');
+    const arr = Array.from(set);
+    arr.sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return String(a).localeCompare(String(b), undefined, { numeric: true });
+    });
+    return arr;
+  }, [visibleRows]);
+
+  // Use categorical coloring when distinct count is reasonable (≤30), else fall back to gradient
+  const useCategorical = distinctValues.length > 0 && distinctValues.length <= 30;
+
   const valueColorMap = useMemo(() => {
     const map = new Map<string, string>();
-    uniqueValues.forEach((v, i) => {
+    distinctValues.forEach((v, i) => {
       map.set(v, VALUE_PALETTE[i % VALUE_PALETTE.length]);
     });
     return map;
-  }, [uniqueValues]);
+  }, [distinctValues]);
+
+  // Effective numericStats: disable gradient mode when categorical legend is in play
+  const effectiveNumericStats = useCategorical ? null : numericStats;
+
+  // Kept for legacy code paths (capped list)
+  const uniqueValues = useCategorical ? distinctValues : [];
 
   // Aggregate rows by site
   interface SitePoint {
@@ -347,10 +364,10 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
         .sort((a, b) => b[1] - a[1])
         .map(([v, n]) => {
           let segColor: string;
-          if (numericStats) {
+          if (effectiveNumericStats) {
             const nv = Number(v);
-            const t = Number.isFinite(nv) && numericStats.max !== numericStats.min
-              ? (nv - numericStats.min) / (numericStats.max - numericStats.min)
+            const t = Number.isFinite(nv) && effectiveNumericStats.max !== effectiveNumericStats.min
+              ? (nv - effectiveNumericStats.min) / (effectiveNumericStats.max - effectiveNumericStats.min)
               : 0.5;
             segColor = gradientColor(Number.isFinite(nv) ? t : 0.5);
           } else {
@@ -529,10 +546,10 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
               {visibleRows.map((r, i) => {
                 const v = r.value ?? '(null)';
                 let color: string;
-                if (numericStats) {
+                if (effectiveNumericStats) {
                   const n = Number(r.value);
-                  const t = Number.isFinite(n) && numericStats.max !== numericStats.min
-                    ? (n - numericStats.min) / (numericStats.max - numericStats.min)
+                  const t = Number.isFinite(n) && effectiveNumericStats.max !== effectiveNumericStats.min
+                    ? (n - effectiveNumericStats.min) / (effectiveNumericStats.max - effectiveNumericStats.min)
                     : 0.5;
                   color = gradientColor(Number.isFinite(n) ? t : 0.5);
                 } else {
@@ -588,13 +605,13 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
               maxClusterRadius={50}
               spiderfyOnMaxZoom
               showCoverageOnHover={false}
-              iconCreateFunction={buildClusterIcon(numericStats)}
+              iconCreateFunction={buildClusterIcon(effectiveNumericStats)}
             >
               {sitePoints.map((sp, i) => {
                 let color: string;
-                if (numericStats) {
-                  const t = sp.avg !== null && numericStats.max !== numericStats.min
-                    ? (sp.avg - numericStats.min) / (numericStats.max - numericStats.min)
+                if (effectiveNumericStats) {
+                  const t = sp.avg !== null && effectiveNumericStats.max !== effectiveNumericStats.min
+                    ? (sp.avg - effectiveNumericStats.min) / (effectiveNumericStats.max - effectiveNumericStats.min)
                     : 0.5;
                   color = gradientColor(t);
                 } else if (sp.isMulti) {
@@ -606,7 +623,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
                 const icon = buildSiteIcon(color, sp.isMulti, size, sp.pieSegments);
                 // Sort cells worst-first when numeric, else by value
                 const sortedCells = [...sp.cells].sort((a, b) => {
-                  if (numericStats) {
+                  if (effectiveNumericStats) {
                     const na = Number(a.value), nb = Number(b.value);
                     const va = Number.isFinite(na) ? na : Infinity;
                     const vb = Number.isFinite(nb) ? nb : Infinity;
@@ -695,10 +712,10 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
                             {sortedCells.map((c, ci) => {
                               const cv = c.value ?? '(null)';
                               let cc: string;
-                              if (numericStats) {
+                              if (effectiveNumericStats) {
                                 const nv = Number(cv);
-                                const t = Number.isFinite(nv) && numericStats.max !== numericStats.min
-                                  ? (nv - numericStats.min) / (numericStats.max - numericStats.min)
+                                const t = Number.isFinite(nv) && effectiveNumericStats.max !== effectiveNumericStats.min
+                                  ? (nv - effectiveNumericStats.min) / (effectiveNumericStats.max - effectiveNumericStats.min)
                                   : 0.5;
                                 cc = gradientColor(Number.isFinite(nv) ? t : 0.5);
                               } else {
@@ -808,7 +825,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
         )}
 
         {/* Legend — bottom left */}
-        {numericStats ? (
+        {effectiveNumericStats ? (
           <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 min-w-[280px] space-y-3">
             <div>
               <div className="flex items-center justify-between mb-2.5">
