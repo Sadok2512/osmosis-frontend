@@ -117,6 +117,38 @@ function buildQueryString(
   return qs.toString();
 }
 
+/** Orange France band-letter convention applied to the prefix preceding the
+ *  trailing sector digit of a cell name. Used to backfill `bande` when the
+ *  backend does not enrich it (so band aggregation works). */
+const BAND_LETTER_MAP: Record<string, string> = {
+  // 4G
+  E: 'L2600', F: 'L1800', H: 'L800', V: 'L2100', K: 'L700', L: 'L900',
+  // 5G
+  X: 'NR3500', Y: 'NR2100', Z: 'NR700', W: 'NR1800', U: 'NR2600',
+};
+
+function inferBandFromCell(cellName?: string | null): string | null {
+  if (!cellName) return null;
+  const name = String(cellName).toUpperCase();
+  // 2G / 3G explicit prefixes
+  if (/GSM\s*1800|DCS/.test(name)) return 'GSM1800';
+  if (/GSM\s*900|GSM/.test(name)) return 'GSM900';
+  if (/UMTS\s*2100|U21/.test(name)) return 'UMTS2100';
+  if (/UMTS\s*900|U09/.test(name)) return 'UMTS900';
+  // Orange convention: <letter><sector-digit> at the end
+  const m = name.match(/([A-Z])(\d)(?!.*\d)/);
+  if (m && BAND_LETTER_MAP[m[1]]) return BAND_LETTER_MAP[m[1]];
+  return null;
+}
+
+function enrichBande(rows: ParameterRow[]): ParameterRow[] {
+  return rows.map((r) => {
+    if (r.bande && r.bande.trim()) return r;
+    const inferred = inferBandFromCell(r.cell_name ?? r.cell_dn ?? r.dn);
+    return inferred ? { ...r, bande: inferred } : r;
+  });
+}
+
 /** Fetch enriched parameter rows. Fans out one request per selected parameter
  *  because the backend OR-filter currently keeps only the last value sent. */
 export async function fetchParameterRows(
@@ -137,7 +169,7 @@ export async function fetchParameterRows(
       }
     }),
   );
-  return results.flat();
+  return enrichBande(results.flat());
 }
 
 /** Site → coords cache (lifetime of the page). */
