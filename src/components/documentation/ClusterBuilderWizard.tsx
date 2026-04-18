@@ -106,10 +106,11 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
       return;
     }
     setCountLoading(true);
+    setCountError(false);
     countTimer.current = setTimeout(() => {
       countMatching(topology)
-        .then(setMatchingCount)
-        .catch(() => setMatchingCount(null))
+        .then((r) => { setMatchingCount(r); setCountError(false); })
+        .catch(() => { setMatchingCount(null); setCountError(true); })
         .finally(() => setCountLoading(false));
     }, 600);
     return () => { if (countTimer.current) clearTimeout(countTimer.current); };
