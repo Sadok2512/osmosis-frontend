@@ -10,10 +10,14 @@ import {
   MapPin,
   Network,
   Plus,
+  Share2,
   Sliders,
   Sparkles,
   Trash2,
 } from 'lucide-react';
+import { lazy, Suspense } from 'react';
+
+const NetworkTopologyPage = lazy(() => import('../otarie/NetworkTopologyPage'));
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
@@ -34,7 +38,7 @@ import RawDataView from './RawDataView';
 import MapView from './MapView';
 
 type ViewMode = 'distribution' | 'raw' | 'map';
-type ExplorerModule = 'parameter-hub' | 'change-history' | 'alarms';
+type ExplorerModule = 'parameter-hub' | 'topology' | 'change-history' | 'alarms';
 
 const FILTER_DIMS: {
   key: keyof Omit<ParameterHubFilters, 'parameters'>;
@@ -190,6 +194,7 @@ const ParameterHubPage: React.FC = () => {
           <div className="flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] w-fit">
             {[
               { key: 'parameter-hub' as const, label: 'Parameter Hub', icon: Sliders },
+              { key: 'topology' as const, label: 'Topology', icon: Share2 },
               { key: 'change-history' as const, label: 'Change History', icon: History },
               { key: 'alarms' as const, label: 'Alarms', icon: Bell },
             ].map((m) => {
@@ -398,6 +403,20 @@ const ParameterHubPage: React.FC = () => {
             </div>
           </div>
           </>
+          )}
+
+          {activeModule === 'topology' && (
+            <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden min-h-[640px]">
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-32">
+                    <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                  </div>
+                }
+              >
+                <NetworkTopologyPage />
+              </Suspense>
+            </div>
           )}
 
           {activeModule === 'change-history' && (
