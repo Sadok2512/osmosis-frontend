@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
     const path = url.searchParams.get('path') || '/health';
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
-      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/'));
+      (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path));
 
     if (isSafeRead || isSafePost) {
       const fallback = isSafePost
