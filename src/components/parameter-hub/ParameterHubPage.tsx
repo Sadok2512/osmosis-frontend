@@ -319,7 +319,9 @@ const ParameterHubPage: React.FC = () => {
                   <span className="px-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
                     Aggregate
                   </span>
-                  {AGGREGATION_OPTIONS.map((opt) => (
+                  {AGGREGATION_OPTIONS
+                    .filter((opt) => viewMode !== 'distribution' || (opt.value !== 'cell' && opt.value !== 'site'))
+                    .map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => setDraftAggregation(opt.value)}
