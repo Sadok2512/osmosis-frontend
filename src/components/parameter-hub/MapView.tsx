@@ -742,57 +742,96 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
 
         {/* Legend — bottom left */}
         {numericStats ? (
-          <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 min-w-[260px]">
-            <div className="flex items-center justify-between mb-2.5">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                {parameterFocus ?? 'Parameter'}
+          <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-4 min-w-[280px] space-y-3">
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {parameterFocus ?? 'Parameter'}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  {viewMode === 'heatmap' ? 'Density' : 'Gradient'}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                {viewMode === 'heatmap' ? 'Density' : 'Gradient'}
+              <div
+                className="h-2.5 w-full rounded-full"
+                style={{
+                  background:
+                    'linear-gradient(to right, hsl(0,78%,48%) 0%, hsl(50,90%,55%) 50%, hsl(140,78%,45%) 100%)',
+                }}
+              />
+              <div className="flex justify-between text-[11px] mt-1.5 font-mono">
+                <span className="text-foreground font-semibold">{numericStats.min.toFixed(2)}</span>
+                <span className="text-muted-foreground">
+                  {((numericStats.min + numericStats.max) / 2).toFixed(2)}
+                </span>
+                <span className="text-foreground font-semibold">{numericStats.max.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] mt-0.5 text-muted-foreground">
+                <span>Critical</span>
+                <span>Optimal</span>
               </div>
             </div>
-            <div
-              className="h-2.5 w-full rounded-full"
-              style={{
-                background:
-                  'linear-gradient(to right, hsl(0,78%,48%) 0%, hsl(50,90%,55%) 50%, hsl(140,78%,45%) 100%)',
-              }}
-            />
-            <div className="flex justify-between text-[11px] mt-1.5 font-mono">
-              <span className="text-foreground font-semibold">{numericStats.min.toFixed(2)}</span>
-              <span className="text-muted-foreground">
-                {((numericStats.min + numericStats.max) / 2).toFixed(2)}
-              </span>
-              <span className="text-foreground font-semibold">{numericStats.max.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-[10px] mt-0.5 text-muted-foreground">
-              <span>Critical</span>
-              <span>Optimal</span>
-            </div>
+
+            {viewMode === 'points' && (
+              <div className="pt-2.5 border-t border-border/50 space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Site marker
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <div className="w-3.5 h-3.5 rounded-full shrink-0 border-2 border-white shadow-sm" style={{ background: 'hsl(140,78%,45%)' }} />
+                  <span className="text-foreground">Uniform site (all cells aligned)</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <div
+                    className="w-4 h-4 rounded-full shrink-0 border-2 border-white shadow-sm"
+                    style={{
+                      background: 'conic-gradient(hsl(140,78%,45%) 0% 33%, hsl(50,90%,55%) 33% 66%, hsl(0,78%,48%) 66% 100%)',
+                      outline: '1.5px dashed rgba(15,23,42,0.55)',
+                      outlineOffset: '1px',
+                    }}
+                  />
+                  <span className="text-foreground">Multi-value site (cell heterogeneity)</span>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           uniqueValues.length > 0 && uniqueValues.length <= 30 && viewMode === 'points' && (
-            <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[320px] overflow-y-auto min-w-[200px]">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                Values ({uniqueValues.length})
+            <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[360px] overflow-y-auto min-w-[220px] space-y-2">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Values ({uniqueValues.length})
+                </div>
+                <div className="space-y-1">
+                  {uniqueValues.map((v) => (
+                    <div key={v} className="flex items-center gap-2 text-xs">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
+                        style={{ backgroundColor: valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v) }}
+                      />
+                      <span className="truncate max-w-[160px] text-foreground">{v}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                {uniqueValues.map((v) => (
-                  <div key={v} className="flex items-center gap-2 text-xs">
-                    <div
-                      className="w-3 h-3 rounded-full shrink-0 border border-white/60 shadow-sm"
-                      style={{ backgroundColor: valueColorMap.get(v) ?? stringToColor(v === '(null)' ? null : v) }}
-                    />
-                    <span className="truncate max-w-[160px] text-foreground">{v}</span>
-                  </div>
-                ))}
-                {/* Multi-values indicator */}
-                <div className="flex items-center gap-2 text-xs pt-1 mt-1 border-t border-border/30">
+              <div className="pt-2 border-t border-border/40 space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Site marker
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <div className="w-3.5 h-3.5 rounded-full shrink-0 border-2 border-white shadow-sm" style={{ background: VALUE_PALETTE[0] }} />
+                  <span className="text-foreground">Uniform — all cells share value</span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
                   <div
-                    className="w-3 h-3 rounded-full shrink-0 border-2 border-white shadow-sm"
-                    style={{ backgroundColor: MULTI_COLOR, borderStyle: 'dashed' }}
+                    className="w-4 h-4 rounded-full shrink-0 border-2 border-white shadow-sm"
+                    style={{
+                      background: `conic-gradient(${VALUE_PALETTE[0]} 0% 50%, ${VALUE_PALETTE[1]} 50% 100%)`,
+                      outline: '1.5px dashed rgba(15,23,42,0.55)',
+                      outlineOffset: '1px',
+                    }}
                   />
-                  <span className="truncate max-w-[160px] text-muted-foreground italic">Multi-values</span>
+                  <span className="text-foreground">Multi-value — heterogeneous cells</span>
                 </div>
               </div>
             </div>
