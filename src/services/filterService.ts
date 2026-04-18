@@ -94,3 +94,35 @@ export async function countMatching(topology: any[]): Promise<MatchingCount> {
 export async function countFilterMatching(id: string): Promise<MatchingCount> {
   return filterApi<MatchingCount>(`${id}/count`, { method: 'POST' });
 }
+
+export interface DimensionSearchResult {
+  dimension: string;
+  values: string[];
+  total: number;
+  truncated: boolean;
+}
+
+export async function searchDimensionValues(
+  dimension: string,
+  q: string,
+  limit = 50,
+): Promise<DimensionSearchResult> {
+  const qs = new URLSearchParams({ dimension, q, limit: String(limit) });
+  return filterApi<DimensionSearchResult>(`dimension-search?${qs}`);
+}
+
+export interface DimensionValidateResult {
+  found: string[];
+  not_found: string[];
+}
+
+export async function validateDimensionValues(
+  dimension: string,
+  values: string[],
+): Promise<DimensionValidateResult> {
+  const qs = new URLSearchParams({ dimension });
+  return filterApi<DimensionValidateResult>(`dimension-validate?${qs}`, {
+    method: 'POST',
+    body: JSON.stringify(values),
+  });
+}

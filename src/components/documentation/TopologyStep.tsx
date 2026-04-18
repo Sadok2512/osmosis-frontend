@@ -291,6 +291,7 @@ const TopologyStep: React.FC<TopologyStepProps> = ({
                 values={selected}
                 onChange={vals => setTopoValues(dim.key, vals)}
                 placeholder={`Enter ${dim.label.toLowerCase()}…`}
+                dimensionKey={dim.key}
               />
             </SectionCard>
           );

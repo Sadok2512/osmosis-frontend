@@ -224,6 +224,7 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
                         values={topoConditions[dim.key] || []}
                         onChange={vals => setTopoValues(dim.key, vals)}
                         placeholder={`Enter ${dim.label.toLowerCase()}…`}
+                        dimensionKey={dim.key}
                       />
                     ) : (
                       <>
