@@ -149,6 +149,51 @@ const buildClusterIcon = (numericStats: { min: number; max: number } | null) =>
     });
   };
 
+// Normalize raw techno/band string to 2G/3G/4G/5G label
+const normTechno = (raw: string | null | undefined): string => {
+  if (!raw) return '—';
+  const s = raw.toString().toUpperCase();
+  const m = s.match(/(2G|3G|4G|5G|LTE|NR|GSM|UMTS)/);
+  if (!m) return s.slice(0, 4);
+  return m[1].replace('LTE', '4G').replace('NR', '5G').replace('GSM', '2G').replace('UMTS', '3G');
+};
+
+// Build a divIcon for a site marker.
+// - Uniform site: solid color disc.
+// - Multi-value site: conic-gradient pie split by cell value frequency.
+const buildSiteIcon = (
+  color: string,
+  isMulti: boolean,
+  size: number,
+  pieSegments?: { color: string; pct: number }[],
+) => {
+  let bg = color;
+  if (isMulti && pieSegments && pieSegments.length > 1) {
+    let acc = 0;
+    const stops: string[] = [];
+    for (const seg of pieSegments) {
+      const start = acc;
+      acc += seg.pct;
+      stops.push(`${seg.color} ${(start * 100).toFixed(2)}% ${(acc * 100).toFixed(2)}%`);
+    }
+    bg = `conic-gradient(${stops.join(',')})`;
+  }
+  const html = `
+    <div style="
+      width:${size}px;height:${size}px;border-radius:9999px;
+      background:${bg};
+      border:2px solid #ffffff;
+      box-shadow:0 2px 6px rgba(15,23,42,0.35),0 0 0 1px rgba(15,23,42,0.08);
+      ${isMulti ? 'outline:2px dashed rgba(15,23,42,0.55);outline-offset:2px;' : ''}
+    "></div>`;
+  return L.divIcon({
+    html,
+    className: 'param-hub-site-marker',
+    iconSize: [size + 6, size + 6],
+    iconAnchor: [(size + 6) / 2, (size + 6) / 2],
+  });
+};
+
 export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('points');
   const [technoFilter, setTechnoFilter] = useState<Set<string>>(new Set());
