@@ -30,6 +30,7 @@ import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
+import ChartSettingsPanel from './ChartSettingsPanel';
 
 interface EditorViewProps {
   projectName: string;
@@ -376,7 +377,21 @@ export default function EditorView({
 
         {activeWidget && (() => {
           const w = widgets.find(x => x.id === activeWidget);
-          const widgetLabel = w ? `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}` : activeWidget;
+          if (!w) return null;
+
+          // Chart widgets get the new unified side panel.
+          if (w.kind === 'chart') {
+            return (
+              <ChartSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
+          // Other widget kinds keep the legacy bottom panel.
+          const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
             <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
               <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
@@ -427,68 +442,22 @@ export default function EditorView({
                 <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
                   <div className="max-w-4xl">
                     {settingsTab === 'data' && (
-                      <>
-                        <div className="flex gap-8 mb-6 border-b border-outline-variant/20">
-                          {([
-                            { key: 'table', label: 'Table Data' },
-                            { key: 'breakdown', label: 'KPI Breakdown' },
-                            { key: 'logs', label: 'Source Logs' },
-                          ] as const).map(st => (
-                            <button
-                              key={st.key}
-                              onClick={() => setSettingsSubTab(st.key)}
-                              className={cn(
-                                "pb-4 text-xs font-bold uppercase tracking-widest transition-colors",
-                                settingsSubTab === st.key
-                                  ? "border-b-2 border-primary text-primary"
-                                  : "text-on-surface-variant hover:text-on-surface"
-                              )}
-                            >
-                              {st.label}
-                            </button>
-                          ))}
-                        </div>
-                        {settingsSubTab === 'table' && (
-                          <div className="space-y-3 text-xs text-on-surface-variant">
-                            <p className="font-bold text-on-surface">Source dataset</p>
-                            <p>Select a KPI catalog entry and dimensions for this widget.</p>
-                            <select className="w-full mt-2 px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-on-surface">
-                              <option>kpi_qoe_aggregated</option>
-                              <option>ml_features</option>
-                            </select>
-                          </div>
-                        )}
-                        {settingsSubTab === 'breakdown' && (
-                          <p className="text-xs text-on-surface-variant">Configure KPI dimensional breakdown (Vendor, Bande, DOR…).</p>
-                        )}
-                        {settingsSubTab === 'logs' && (
-                          <pre className="text-[11px] text-on-surface-variant bg-surface-container-low p-3 rounded-lg">No source logs yet for {widgetLabel}.</pre>
-                        )}
-                      </>
+                      <div className="space-y-3 text-xs text-on-surface-variant">
+                        <p className="font-bold text-on-surface">Source dataset</p>
+                        <p>Configure the dataset for this widget.</p>
+                      </div>
                     )}
                     {settingsTab === 'appearance' && (
-                      <div className="space-y-3 text-xs text-on-surface-variant">
-                        <p className="font-bold text-on-surface">Appearance</p>
-                        <p>Color palette, axis, legend and density options.</p>
-                      </div>
+                      <p className="text-xs text-on-surface-variant">Color palette, axis, legend and density options.</p>
                     )}
                     {settingsTab === 'interactions' && (
-                      <div className="space-y-3 text-xs text-on-surface-variant">
-                        <p className="font-bold text-on-surface">Interactions</p>
-                        <p>Drill-down targets, cross-filter behaviour and tooltip actions.</p>
-                      </div>
+                      <p className="text-xs text-on-surface-variant">Drill-down targets and tooltip actions.</p>
                     )}
                     {settingsTab === 'alerting' && (
-                      <div className="space-y-3 text-xs text-on-surface-variant">
-                        <p className="font-bold text-on-surface">Alerting</p>
-                        <p>Threshold rules and notification channels.</p>
-                      </div>
+                      <p className="text-xs text-on-surface-variant">Threshold rules and notifications.</p>
                     )}
                     {settingsTab === 'chat' && (
-                      <div className="space-y-3 text-xs text-on-surface-variant">
-                        <p className="font-bold text-on-surface">Chat</p>
-                        <p>Ask the assistant about this widget.</p>
-                      </div>
+                      <p className="text-xs text-on-surface-variant">Ask the assistant about this widget.</p>
                     )}
                   </div>
                 </div>
