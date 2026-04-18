@@ -526,83 +526,153 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
               {sitePoints.map((sp, i) => {
                 let color: string;
                 if (numericStats) {
-                  // Numeric: average of all cells at this site
-                  const vals = sp.cells.map(c => Number(c.value)).filter(Number.isFinite);
-                  const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : numericStats.min;
-                  const t = numericStats.max === numericStats.min
-                    ? 0.5
-                    : (avg - numericStats.min) / (numericStats.max - numericStats.min);
+                  const t = sp.avg !== null && numericStats.max !== numericStats.min
+                    ? (sp.avg - numericStats.min) / (numericStats.max - numericStats.min)
+                    : 0.5;
                   color = gradientColor(t);
                 } else if (sp.isMulti) {
                   color = MULTI_COLOR;
                 } else {
                   color = valueColorMap.get(sp.dominantValue) ?? stringToColor(sp.dominantValue);
                 }
-                const radius = sp.isMulti ? 8 : 6;
+                const size = sp.isMulti ? 20 : 14;
+                const icon = buildSiteIcon(color, sp.isMulti, size, sp.pieSegments);
+                // Sort cells worst-first when numeric, else by value
+                const sortedCells = [...sp.cells].sort((a, b) => {
+                  if (numericStats) {
+                    const na = Number(a.value), nb = Number(b.value);
+                    const va = Number.isFinite(na) ? na : Infinity;
+                    const vb = Number.isFinite(nb) ? nb : Infinity;
+                    return va - vb;
+                  }
+                  return (a.value ?? '').localeCompare(b.value ?? '');
+                });
+                const worstCellName = numericStats && sp.min !== null
+                  ? sp.cells.find(c => Number(c.value) === sp.min)?.cell_name
+                  : null;
+                // attach kpiValue for cluster avg
+                (icon as any).options = (icon as any).options || {};
+
                 return (
-                  <CircleMarker
+                  <Marker
                     key={`site-${sp.site_name}-${i}`}
-                    center={[sp.lat, sp.lng]}
-                    radius={radius}
-                    pathOptions={{
-                      fillColor: color,
-                      fillOpacity: 0.9,
-                      color: sp.isMulti ? '#ffffff' : 'rgba(255,255,255,0.9)',
-                      weight: sp.isMulti ? 2 : 1.2,
-                      dashArray: sp.isMulti ? '3 2' : undefined,
-                    }}
+                    position={[sp.lat, sp.lng]}
+                    icon={icon}
+                    // @ts-expect-error custom prop for cluster averaging
+                    kpiValue={sp.avg ?? undefined}
                   >
-                    <Popup>
-                      <div className="text-xs space-y-1.5 min-w-[220px]">
-                        <div className="font-bold text-sm pb-1 border-b border-border/50">
-                          {sp.site_name}
+                    <Tooltip direction="top" offset={[0, -8]} opacity={1} className="!bg-slate-900 !text-white !border-0 !shadow-lg !rounded-md !px-2 !py-1.5 !text-[11px]">
+                      <div className="font-semibold text-[12px] leading-tight">{sp.site_name}</div>
+                      <div className="text-slate-300 text-[10px] mt-0.5">
+                        {sp.cells.length} cell{sp.cells.length > 1 ? 's' : ''}
+                        {sp.isMulti ? ` · ${sp.values.size} different values` : ''}
+                      </div>
+                      {numericStats && sp.avg !== null ? (
+                        <div className="text-[10px] mt-0.5 font-mono">
+                          {sp.isMulti
+                            ? `min ${sp.min!.toFixed(2)} · avg ${sp.avg.toFixed(2)} · max ${sp.max!.toFixed(2)}`
+                            : `value ${sp.avg.toFixed(2)}`}
                         </div>
-                        <div className="flex justify-between gap-4">
-                          <span className="text-muted-foreground">Cells</span>
-                          <span className="font-semibold">{sp.cells.length}</span>
+                      ) : (
+                        <div className="text-[10px] mt-0.5">
+                          {sp.isMulti ? `dominant: ${sp.dominantValue}` : `value: ${sp.dominantValue}`}
                         </div>
-                        {sp.isMulti ? (
-                          <>
-                            <div className="flex justify-between gap-4">
-                              <span className="text-muted-foreground">Values</span>
-                              <span className="font-bold text-amber-600">{sp.values.size} different</span>
+                      )}
+                    </Tooltip>
+                    <Popup maxWidth={340} minWidth={280}>
+                      <div className="text-xs space-y-2 min-w-[260px]">
+                        {/* Header */}
+                        <div className="pb-1.5 border-b border-slate-200">
+                          <div className="font-bold text-sm text-slate-800">{sp.site_name}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                            <span>{sp.cells.length} cell{sp.cells.length > 1 ? 's' : ''}</span>
+                            {sp.isMulti && (
+                              <span className="inline-flex items-center gap-1 text-amber-600 font-semibold">
+                                · <AlertTriangle className="w-3 h-3" /> {sp.values.size} different values
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Stats */}
+                        {numericStats && sp.avg !== null ? (
+                          <div className="grid grid-cols-3 gap-1.5">
+                            <div className="rounded-md bg-slate-50 p-1.5 text-center">
+                              <div className="text-[9px] text-slate-500 uppercase tracking-wide">Min</div>
+                              <div className="font-bold text-[11px] text-slate-800 font-mono">{sp.min!.toFixed(2)}</div>
                             </div>
-                            <div className="pt-1 border-t border-border/30 space-y-0.5">
-                              {sp.cells.map((c, ci) => {
-                                const cv = c.value ?? '(null)';
-                                const cc = valueColorMap.get(cv) ?? stringToColor(cv);
-                                return (
-                                  <div key={ci} className="flex justify-between gap-2 text-[11px]">
-                                    <span className="truncate max-w-[120px] text-muted-foreground">{c.cell_name ?? c.bande ?? `cell-${ci}`}</span>
-                                    <span className="font-bold px-1 rounded" style={{ color: cc, background: `${cc}15` }}>{cv}</span>
-                                  </div>
-                                );
-                              })}
+                            <div className="rounded-md bg-teal-50 p-1.5 text-center">
+                              <div className="text-[9px] text-teal-600 uppercase tracking-wide">Avg</div>
+                              <div className="font-bold text-[11px] text-teal-700 font-mono">{sp.avg.toFixed(2)}</div>
                             </div>
-                          </>
+                            <div className="rounded-md bg-slate-50 p-1.5 text-center">
+                              <div className="text-[9px] text-slate-500 uppercase tracking-wide">Max</div>
+                              <div className="font-bold text-[11px] text-slate-800 font-mono">{sp.max!.toFixed(2)}</div>
+                            </div>
+                          </div>
                         ) : (
                           <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Value</span>
-                            <span className="font-bold px-1.5 rounded" style={{ color, background: `${color}15` }}>
+                            <span className="text-slate-500">{sp.isMulti ? 'Dominant value' : 'Value'}</span>
+                            <span className="font-bold px-1.5 rounded" style={{ color, background: `${color}20` }}>
                               {sp.dominantValue}
                             </span>
                           </div>
                         )}
-                        {sp.cells[0]?.vendor && (
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Vendor</span>
-                            <span>{sp.cells[0].vendor}</span>
+
+                        {/* Cell list */}
+                        <div className="pt-1.5 border-t border-slate-200">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                            Cells {numericStats ? '(worst → best)' : ''}
                           </div>
-                        )}
-                        {sp.cells[0]?.plaque && (
-                          <div className="flex justify-between gap-4">
-                            <span className="text-muted-foreground">Plaque</span>
-                            <span>{sp.cells[0].plaque}</span>
+                          <div className="max-h-[180px] overflow-y-auto space-y-0.5 pr-1">
+                            {sortedCells.map((c, ci) => {
+                              const cv = c.value ?? '(null)';
+                              let cc: string;
+                              if (numericStats) {
+                                const nv = Number(cv);
+                                const t = Number.isFinite(nv) && numericStats.max !== numericStats.min
+                                  ? (nv - numericStats.min) / (numericStats.max - numericStats.min)
+                                  : 0.5;
+                                cc = gradientColor(Number.isFinite(nv) ? t : 0.5);
+                              } else {
+                                cc = valueColorMap.get(cv) ?? stringToColor(cv);
+                              }
+                              const isWorst = c.cell_name && c.cell_name === worstCellName;
+                              return (
+                                <div
+                                  key={ci}
+                                  className={`flex items-center justify-between gap-2 text-[11px] px-1.5 py-1 rounded ${
+                                    isWorst ? 'bg-rose-50 ring-1 ring-rose-200' : 'hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cc }} />
+                                    <span className="truncate text-slate-700 font-medium" title={c.cell_name ?? ''}>
+                                      {c.cell_name ?? `cell-${ci}`}
+                                    </span>
+                                    <span className="text-[9px] px-1 rounded bg-slate-100 text-slate-500 font-semibold shrink-0">
+                                      {normTechno(c.techno ?? c.bande)}
+                                    </span>
+                                  </div>
+                                  <span className="font-bold font-mono shrink-0 px-1.5 py-0.5 rounded" style={{ color: cc, background: `${cc}18` }}>
+                                    {cv}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Footer meta */}
+                        {(sp.cells[0]?.vendor || sp.cells[0]?.plaque) && (
+                          <div className="pt-1.5 border-t border-slate-200 flex gap-3 text-[10px] text-slate-500">
+                            {sp.cells[0]?.vendor && <span>vendor: <b className="text-slate-700">{sp.cells[0].vendor}</b></span>}
+                            {sp.cells[0]?.plaque && <span>plaque: <b className="text-slate-700">{sp.cells[0].plaque}</b></span>}
                           </div>
                         )}
                       </div>
                     </Popup>
-                  </CircleMarker>
+                  </Marker>
                 );
               })}
             </MarkerClusterGroup>
