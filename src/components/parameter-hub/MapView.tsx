@@ -467,7 +467,16 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
             onClick={() => setViewMode('points')}
           >
             <CircleIcon className="w-3 h-3" />
-            Points
+            Sites
+          </Button>
+          <Button
+            variant={viewMode === 'cells' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-3 text-xs gap-1.5"
+            onClick={() => setViewMode('cells')}
+          >
+            <CircleIcon className="w-3 h-3" />
+            Cells
           </Button>
           <Button
             variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
