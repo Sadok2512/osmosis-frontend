@@ -341,7 +341,13 @@ const ParameterHubPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="px-7 pt-4 pb-0 flex items-center justify-between border-b border-slate-100">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <Tabs value={viewMode} onValueChange={(v) => {
+                const next = v as ViewMode;
+                setViewMode(next);
+                if (next === 'distribution' && (draftAggregation === 'cell' || draftAggregation === 'site')) {
+                  setDraftAggregation('sector');
+                }
+              }}>
                 <TabsList className="h-10 bg-slate-100/70 p-1 rounded-full">
                   <TabsTrigger
                     value="distribution"
