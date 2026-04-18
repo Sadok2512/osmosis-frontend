@@ -5,8 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { ParameterRow } from './parameterHubApi';
-import { MapPin, Layers, Flame, Circle as CircleIcon, AlertTriangle } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
+import { MapPin, Flame, Circle as CircleIcon, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
