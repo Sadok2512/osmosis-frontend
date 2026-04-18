@@ -8,6 +8,27 @@ interface DistributionViewProps {
   aggregation: AggregationLevel;
 }
 
+/** Stable entity key per aggregation level. */
+const groupKeyFor = (r: ParameterRow, level: AggregationLevel): string | null => {
+  switch (level) {
+    case 'cell':
+      return r.cell_name ?? r.cell_dn ?? r.dn ?? null;
+    case 'sector': {
+      const c = r.cell_name ?? r.cell_dn ?? r.dn;
+      if (!c) return null;
+      return c.replace(/\d+$/, '') || c;
+    }
+    case 'band':
+      return r.bande ?? null;
+    case 'site':
+      return r.site_name ?? null;
+    case 'plaque':
+      return r.plaque ?? null;
+    case 'dor':
+      return r.dor ?? null;
+  }
+};
+
 export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggregation }) => {
   const perParameter = useMemo(() => {
     const byParam = new Map<string, ParameterRow[]>();
