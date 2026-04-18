@@ -252,7 +252,7 @@ Deno.serve(async (req) => {
 
     if (isSafeRead || isSafePost) {
       const fallback = isSafePost
-        ? { unavailable: true, service, path, error: message, series: [], data: [], rows: [], total: 0 }
+        ? buildSafePostFallback(service, path, message)
         : buildSafeFallback(service, path, message);
       return new Response(JSON.stringify(fallback), {
         status: 200,
