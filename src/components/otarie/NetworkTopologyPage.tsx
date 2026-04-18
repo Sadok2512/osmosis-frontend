@@ -1487,7 +1487,28 @@ const NetworkTopologyPage: React.FC = () => {
               <div className="text-center py-12 text-muted-foreground"><Loader2 className="w-5 h-5 inline animate-spin mr-2" />Loading network data...</div>
             )}
 
-            {globalNet && (
+            {globalNet?.error && (globalNet.total_cells === 0) && (
+              <Card className="p-6 border-rose-200 bg-rose-50/40">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-rose-700 mb-1">Backend query timeout</div>
+                    <div className="text-xs text-rose-600/90 mb-3">
+                      The aggregation query on <code className="px-1 py-0.5 bg-rose-100 rounded text-[11px]">ref_cell_daily</code> exceeded the database timeout. Distributions cannot be computed right now.
+                    </div>
+                    <details className="text-[11px] text-rose-500/80 mb-3">
+                      <summary className="cursor-pointer hover:text-rose-700">Technical details</summary>
+                      <pre className="mt-2 p-2 bg-white/60 rounded border border-rose-200 overflow-x-auto whitespace-pre-wrap">{globalNet.error}</pre>
+                    </details>
+                    <Button size="sm" variant="outline" onClick={loadGlobalNetwork} disabled={globalLoading} className="border-rose-300 text-rose-700 hover:bg-rose-100">
+                      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${globalLoading ? 'animate-spin' : ''}`} /> Retry
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {globalNet && globalNet.total_cells > 0 && (
               <>
                 {/* Top stats */}
                 <div className="grid grid-cols-4 gap-3">
