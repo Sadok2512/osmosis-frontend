@@ -30,6 +30,7 @@ import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
+import ChartSettingsPanel from './ChartSettingsPanel';
 
 interface EditorViewProps {
   projectName: string;
