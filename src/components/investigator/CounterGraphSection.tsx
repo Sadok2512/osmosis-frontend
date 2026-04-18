@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { normalizeGranularity } from './types';
+import { PH_COLORS, phTooltip, phXAxis, phYAxis, phAnimation } from './paramHubChartStyle';
 
 interface CounterDef {
   counter_name: string;
@@ -28,8 +29,10 @@ interface CounterPoint {
   value: number;
 }
 
-const COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#ef4444','#84cc16','#6366f1','#14b8a6',
-                '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24','#fb7185'];
+// Teal palette (forced) — Parameter Hub style across all Investigator charts
+const COLORS = ['#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2','#0D9488',
+                '#115E59','#5EEAD4','#06B6D4','#0E7490','#155E75','#3B82F6',
+                '#0369A1','#67E8F9','#22D3EE','#1E40AF'];
 
 async function fetchCounterCatalog(): Promise<CounterDef[]> {
   try {
