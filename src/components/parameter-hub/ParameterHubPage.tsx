@@ -83,6 +83,7 @@ const ParameterHubPage: React.FC = () => {
   const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('cell');
   const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('cell');
   const [viewMode, setViewMode] = useState<ViewMode>('distribution');
+  const [activeModule, setActiveModule] = useState<ExplorerModule>('parameter-hub');
 
   const [availableParameters, setAvailableParameters] = useState<string[]>([]);
   const [parametersLoading, setParametersLoading] = useState(true);
