@@ -15,7 +15,7 @@ interface MapViewProps {
   parameterFocus?: string;
 }
 
-type ViewMode = 'points' | 'heatmap';
+type ViewMode = 'points' | 'cells' | 'heatmap';
 
 // Smooth red → yellow → green gradient (RAG inverted: low=red, high=green)
 const gradientColor = (t: number): string => {
@@ -467,7 +467,16 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
             onClick={() => setViewMode('points')}
           >
             <CircleIcon className="w-3 h-3" />
-            Points
+            Sites
+          </Button>
+          <Button
+            variant={viewMode === 'cells' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 px-3 text-xs gap-1.5"
+            onClick={() => setViewMode('cells')}
+          >
+            <CircleIcon className="w-3 h-3" />
+            Cells
           </Button>
           <Button
             variant={viewMode === 'heatmap' ? 'default' : 'ghost'}
@@ -515,6 +524,64 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
 
           {viewMode === 'heatmap' ? (
             <HeatLayer points={heatPoints} />
+          ) : viewMode === 'cells' ? (
+            <>
+              {visibleRows.map((r, i) => {
+                const v = r.value ?? '(null)';
+                let color: string;
+                if (numericStats) {
+                  const n = Number(r.value);
+                  const t = Number.isFinite(n) && numericStats.max !== numericStats.min
+                    ? (n - numericStats.min) / (numericStats.max - numericStats.min)
+                    : 0.5;
+                  color = gradientColor(Number.isFinite(n) ? t : 0.5);
+                } else {
+                  color = valueColorMap.get(v) ?? stringToColor(v);
+                }
+                // tiny jitter so co-located cells are distinguishable
+                const jitter = 0.00018;
+                const offLat = ((i % 7) - 3) * jitter;
+                const offLng = ((Math.floor(i / 7) % 7) - 3) * jitter;
+                return (
+                  <CircleMarker
+                    key={`cell-${r.cell_name ?? r.dn ?? i}-${i}`}
+                    center={[r.latitude! + offLat, r.longitude! + offLng]}
+                    radius={6}
+                    pathOptions={{
+                      color: '#ffffff',
+                      weight: 1.5,
+                      fillColor: color,
+                      fillOpacity: 0.92,
+                    }}
+                  >
+                    <Tooltip direction="top" offset={[0, -4]} opacity={1} className="!bg-slate-900 !text-white !border-0 !shadow-lg !rounded-md !px-2 !py-1.5 !text-[11px]">
+                      <div className="font-semibold text-[12px] leading-tight">{r.cell_name ?? '—'}</div>
+                      <div className="text-slate-300 text-[10px] mt-0.5">site: {r.site_name ?? '—'}</div>
+                      <div className="text-[10px] mt-0.5 font-mono">
+                        {r.parameter} = <span className="font-bold" style={{ color }}>{v}</span>
+                      </div>
+                      <div className="text-slate-400 text-[10px] mt-0.5">
+                        {normTechno(r.techno ?? r.bande)} · {r.vendor ?? '—'} · {r.bande ?? '—'}
+                      </div>
+                    </Tooltip>
+                    <Popup>
+                      <div className="text-xs space-y-1 min-w-[200px]">
+                        <div className="font-bold text-sm text-slate-800">{r.cell_name ?? '—'}</div>
+                        <div className="text-[10px] text-slate-500">site: {r.site_name ?? '—'}</div>
+                        <div className="pt-1 border-t border-slate-200 flex justify-between items-center gap-3">
+                          <span className="text-slate-500">{r.parameter}</span>
+                          <span className="font-bold font-mono px-1.5 py-0.5 rounded" style={{ color, background: `${color}20` }}>{v}</span>
+                        </div>
+                        <div className="flex gap-3 text-[10px] text-slate-500 pt-1">
+                          {r.vendor && <span>vendor: <b className="text-slate-700">{r.vendor}</b></span>}
+                          {r.bande && <span>band: <b className="text-slate-700">{r.bande}</b></span>}
+                        </div>
+                      </div>
+                    </Popup>
+                  </CircleMarker>
+                );
+              })}
+            </>
           ) : (
             <MarkerClusterGroup
               chunkedLoading
@@ -772,7 +839,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
               </div>
             </div>
 
-            {viewMode === 'points' && (
+            {(viewMode === 'points' || viewMode === 'cells') && (
               <div className="pt-2.5 border-t border-border/50 space-y-1.5">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Site marker
@@ -796,7 +863,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
             )}
           </div>
         ) : (
-          uniqueValues.length > 0 && uniqueValues.length <= 30 && viewMode === 'points' && (
+          uniqueValues.length > 0 && uniqueValues.length <= 30 && (viewMode === 'points' || viewMode === 'cells') && (
             <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[360px] overflow-y-auto min-w-[220px] space-y-2">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
