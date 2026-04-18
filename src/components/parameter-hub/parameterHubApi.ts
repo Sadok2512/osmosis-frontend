@@ -1,5 +1,5 @@
 // ── Parameter Hub API — connected to parser /api/v1/dump ──
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 
 export interface ParameterRow {
   parameter: string;
@@ -53,7 +53,7 @@ export const EMPTY_FILTERS: ParameterHubFilters = {
 
 async function dumpGet<T>(path: string): Promise<T> {
   const url = getApiUrl(`dump/${path}`);
-  const res = await fetch(url, { headers: getApiHeaders() });
+  const res = await fetchVpsWithRetry(url, { headers: getApiHeaders() }, { maxRetries: 3 });
   if (!res.ok) throw new Error(`Dump API ${res.status}: ${await res.text()}`);
   return res.json();
 }
@@ -126,7 +126,7 @@ async function loadSiteCoords(): Promise<Map<string, { lat: number; lng: number 
   siteCoordsPromise = (async () => {
     const url = getApiUrl('topo/sites?bbox=-180,-90,180,90&limit=50000');
     try {
-      const res = await fetch(url, { headers: getApiHeaders() });
+      const res = await fetchVpsWithRetry(url, { headers: getApiHeaders() }, { maxRetries: 3, timeoutMs: 45_000 });
       if (!res.ok) throw new Error(`topo/sites ${res.status}`);
       const data = await res.json();
       const rows: any[] = Array.isArray(data) ? data : (data.sites ?? data.rows ?? data.items ?? []);
