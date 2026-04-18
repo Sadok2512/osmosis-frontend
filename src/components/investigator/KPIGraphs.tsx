@@ -482,20 +482,20 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         height: sliderHeight,
         bottom: legendHeight - 2,
         filterMode: 'none' as const,
-        borderColor: 'rgba(128,128,128,0.2)',
-        backgroundColor: 'rgba(128,128,128,0.06)',
-        fillerColor: 'rgba(99,102,241,0.15)',
+        borderColor: 'rgba(14,124,102,0.18)',
+        backgroundColor: 'rgba(14,124,102,0.04)',
+        fillerColor: 'rgba(20,184,166,0.18)',
         handleSize: '120%',
-        handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
+        handleStyle: { color: PH_COLORS.tealDark, borderColor: PH_COLORS.tealDark, borderWidth: 1 },
         moveHandleSize: 6,
-        textStyle: { fontSize: 9, color: '#a1a1aa' },
+        textStyle: { fontSize: 9, color: PH_COLORS.labelSubtle },
         dataBackground: {
-          lineStyle: { color: 'rgba(99,102,241,0.3)' },
-          areaStyle: { color: 'rgba(99,102,241,0.08)' },
+          lineStyle: { color: 'rgba(14,124,102,0.3)' },
+          areaStyle: { color: 'rgba(14,124,102,0.08)' },
         },
         selectedDataBackground: {
-          lineStyle: { color: 'rgba(99,102,241,0.5)' },
-          areaStyle: { color: 'rgba(99,102,241,0.15)' },
+          lineStyle: { color: 'rgba(14,124,102,0.5)' },
+          areaStyle: { color: 'rgba(20,184,166,0.18)' },
         },
         brushSelect: false,
       },
@@ -515,16 +515,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       tooltip: { show: true },
     },
     tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.96)',
-      borderColor: 'rgba(255,255,255,0.06)',
-      borderRadius: 8,
-      padding: [10, 14],
-      textStyle: { color: '#f1f5f9', fontSize: 11.5 },
-      axisPointer: {
-        type: 'line' as const,
-        lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const },
-      },
+      ...phTooltip(),
       formatter: (params: any) => {
         const items = Array.isArray(params) ? params : [params];
         if (items.length === 0) return '';
@@ -533,11 +524,11 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
         const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         const isWE = dt.getDay() === 0 || dt.getDay() === 6;
-        const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
-        const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
+        const weBadge = isWE ? ` <span style="background:rgba(14,124,102,0.1);padding:1px 5px;border-radius:3px;font-size:9px;color:${PH_COLORS.tealDark}">WE</span>` : '';
+        const header = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${PH_COLORS.splitLine};padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
         const rows = items.map((p: any) => {
           const val = p.value != null ? p.value.toFixed(2) : '—';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val}</b></div>`;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px">${p.seriesName}</span><b style="color:${PH_COLORS.labelStrong}">${val}</b></div>`;
         }).join('');
         return header + rows;
       },
@@ -548,22 +539,23 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       axisLabel: {
         formatter: (v: string) => formatAxisLabel(v, state.granularity),
         fontSize: 11,
-        color: '#6b7280',
-        margin: 16,
+        color: PH_COLORS.labelMuted,
+        fontFamily: 'Inter, system-ui, sans-serif',
+        margin: 14,
         rotate: 0,
         interval: xInterval,
         lineHeight: 16,
       },
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-      axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
+      axisTick: { show: false },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value' as const,
       min: yMin,
       max: yMax,
-      axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 14 },
-      splitLine: { show: true, lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const } },
+      axisLabel: { fontSize: 11, color: PH_COLORS.labelSubtle, fontFamily: 'Inter, system-ui, sans-serif', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 12 },
+      splitLine: { show: true, lineStyle: { color: PH_COLORS.splitLine, type: 'solid' as const } },
       axisLine: { show: false },
       axisTick: { show: false },
     },
