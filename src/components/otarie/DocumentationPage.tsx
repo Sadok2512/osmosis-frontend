@@ -170,7 +170,7 @@ const DocumentationPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">OSMOSIS Catalogue Officiel</p>
-                <h1 className="text-2xl font-black tracking-tight text-foreground">Référentiel KPI Réseau</h1>
+                <h1 className="text-2xl font-black tracking-tight text-foreground">Network References</h1>
                 <p className="text-xs text-muted-foreground mt-0.5">{kpiCatalog.length} KPIs • Backend Synchronized</p>
               </div>
             </div>
