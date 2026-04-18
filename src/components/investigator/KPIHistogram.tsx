@@ -2,6 +2,15 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { KPI_MAP } from './mockData';
 import { fetchHistogramData } from './investigatorApi';
+import {
+  PH_COLORS,
+  phTooltip,
+  phXAxis,
+  phYAxis,
+  phBarItemStyle,
+  phBarEmphasis,
+  phAnimation,
+} from './paramHubChartStyle';
 
 interface Props {
   selectedKpis: string[];
@@ -28,41 +37,44 @@ const KPIHistogram: React.FC<Props> = ({ selectedKpis, layout }) => {
         if (bins.length === 0) return null;
 
         const option = {
-          grid: { top: 30, right: 20, bottom: 36, left: 50 },
-          tooltip: {
-            trigger: 'axis' as const,
-            backgroundColor: 'rgba(15,23,42,0.95)',
-            borderColor: 'rgba(255,255,255,0.08)',
-            textStyle: { color: '#f8fafc', fontSize: 11 },
-          },
+          ...phAnimation,
+          grid: { top: 24, right: 20, bottom: 56, left: 56, containLabel: false },
+          tooltip: phTooltip(),
           xAxis: {
             type: 'category' as const,
             data: bins.map(b => b.label),
-            axisLabel: { fontSize: 8, color: '#9ca3af', rotate: 30 },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.06)' } },
+            ...phXAxis({ axisLabel: { fontSize: 11, color: PH_COLORS.labelMuted, rotate: 30, margin: 12 } }),
           },
           yAxis: {
             type: 'value' as const,
             name: 'Count',
-            nameTextStyle: { fontSize: 9, color: '#9ca3af' },
-            axisLabel: { fontSize: 9, color: '#9ca3af' },
-            splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const } },
+            nameTextStyle: { fontSize: 10, color: PH_COLORS.labelSubtle },
+            ...phYAxis(),
           },
           series: [{
             type: 'bar' as const,
             data: bins.map(b => b.count),
-            itemStyle: { color: def.color, borderRadius: [3, 3, 0, 0] },
-            barMaxWidth: 30,
+            itemStyle: phBarItemStyle(),
+            emphasis: phBarEmphasis(),
+            barMaxWidth: 36,
+            barCategoryGap: '32%',
           }],
         };
 
         return (
-          <div key={kpiId} className="rounded-xl border border-border/60 bg-card p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: def.color }} />
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-tight">{def.label} — Distribution</h3>
+          <div
+            key={kpiId}
+            className="rounded-2xl border border-slate-200/70 bg-white shadow-[0_2px_8px_-2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] overflow-hidden"
+          >
+            <div className="px-6 pt-5 pb-2 flex items-baseline justify-between gap-4">
+              <h3 className="text-sm font-semibold text-slate-800 tracking-tight truncate">{def.label}</h3>
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                Distribution
+              </span>
             </div>
-            <ReactECharts option={option} style={{ height: layout === 1 ? 320 : 220 }} />
+            <div className="px-3 pb-3">
+              <ReactECharts option={option} style={{ height: layout === 1 ? 320 : 220 }} />
+            </div>
           </div>
         );
       })}

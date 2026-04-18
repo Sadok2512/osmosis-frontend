@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { PH_COLORS, phTooltip, phXAxis, phYAxis, phBarItemStyle, phBarEmphasis, phAnimation } from './paramHubChartStyle';
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
@@ -205,14 +206,18 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
-const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+// Force teal palette across the entire Investigator (Parameter Hub style)
+const SERIES_COLORS = [
+  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
+  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
+];
 
-// Extended palette for split dimension values — 20 distinct colors
+// Extended teal/cyan palette for split dimension values — 20 distinct shades
 const SPLIT_COLORS = [
-  '#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4',
-  '#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6',
-  '#f97316','#a855f7','#22d3ee','#4ade80','#fbbf24',
-  '#fb7185','#2dd4bf','#818cf8','#facc15','#34d399',
+  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
+  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
+  '#155E75','#22D3EE','#67E8F9','#3B82F6','#0369A1',
+  '#1E40AF','#0284C7','#38BDF8','#0EA5E9','#7DD3FC',
 ];
 
 /** Deterministic hash for any string key */
@@ -332,11 +337,12 @@ const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: Kpi
         const bins = histData[kpiId] || [];
         if (bins.length === 0) return <div key={kpiId} className="text-center text-[10px] text-muted-foreground py-8">Chargement histogram...</div>;
         const option = {
-          grid: { top: 30, right: 20, bottom: 36, left: 50 },
-          tooltip: { trigger: 'axis' as const, backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#f8fafc', fontSize: 11 } },
-          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), axisLabel: { fontSize: 8, color: '#9ca3af', rotate: 30 } },
-          yAxis: { type: 'value' as const, name: 'Count', axisLabel: { fontSize: 9, color: '#9ca3af' }, splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const } } },
-          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: { color: def?.color || '#6366f1', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 30 }],
+          ...phAnimation,
+          grid: { top: 24, right: 20, bottom: 48, left: 56, containLabel: false },
+          tooltip: phTooltip(),
+          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), ...phXAxis({ axisLabel: { fontSize: 10, color: PH_COLORS.labelMuted, rotate: 30, margin: 12 } }) },
+          yAxis: { type: 'value' as const, name: 'Count', nameTextStyle: { fontSize: 10, color: PH_COLORS.labelSubtle }, ...phYAxis() },
+          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: phBarItemStyle(), emphasis: phBarEmphasis(), barMaxWidth: 32, barCategoryGap: '32%' }],
         };
         return <ReactECharts key={kpiId} option={option} style={{ height: height - 40 }} />;
       })}
@@ -476,20 +482,20 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         height: sliderHeight,
         bottom: legendHeight - 2,
         filterMode: 'none' as const,
-        borderColor: 'rgba(128,128,128,0.2)',
-        backgroundColor: 'rgba(128,128,128,0.06)',
-        fillerColor: 'rgba(99,102,241,0.15)',
+        borderColor: 'rgba(14,124,102,0.18)',
+        backgroundColor: 'rgba(14,124,102,0.04)',
+        fillerColor: 'rgba(20,184,166,0.18)',
         handleSize: '120%',
-        handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
+        handleStyle: { color: PH_COLORS.tealDark, borderColor: PH_COLORS.tealDark, borderWidth: 1 },
         moveHandleSize: 6,
-        textStyle: { fontSize: 9, color: '#a1a1aa' },
+        textStyle: { fontSize: 9, color: PH_COLORS.labelSubtle },
         dataBackground: {
-          lineStyle: { color: 'rgba(99,102,241,0.3)' },
-          areaStyle: { color: 'rgba(99,102,241,0.08)' },
+          lineStyle: { color: 'rgba(14,124,102,0.3)' },
+          areaStyle: { color: 'rgba(14,124,102,0.08)' },
         },
         selectedDataBackground: {
-          lineStyle: { color: 'rgba(99,102,241,0.5)' },
-          areaStyle: { color: 'rgba(99,102,241,0.15)' },
+          lineStyle: { color: 'rgba(14,124,102,0.5)' },
+          areaStyle: { color: 'rgba(20,184,166,0.18)' },
         },
         brushSelect: false,
       },
@@ -509,16 +515,7 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       tooltip: { show: true },
     },
     tooltip: {
-      trigger: 'axis' as const,
-      backgroundColor: 'rgba(15,23,42,0.96)',
-      borderColor: 'rgba(255,255,255,0.06)',
-      borderRadius: 8,
-      padding: [10, 14],
-      textStyle: { color: '#f1f5f9', fontSize: 11.5 },
-      axisPointer: {
-        type: 'line' as const,
-        lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const },
-      },
+      ...phTooltip(),
       formatter: (params: any) => {
         const items = Array.isArray(params) ? params : [params];
         if (items.length === 0) return '';
@@ -527,11 +524,11 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
         const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         const isWE = dt.getDay() === 0 || dt.getDay() === 6;
-        const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
-        const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
+        const weBadge = isWE ? ` <span style="background:rgba(14,124,102,0.1);padding:1px 5px;border-radius:3px;font-size:9px;color:${PH_COLORS.tealDark}">WE</span>` : '';
+        const header = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${PH_COLORS.splitLine};padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
         const rows = items.map((p: any) => {
           const val = p.value != null ? p.value.toFixed(2) : '—';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1">${p.seriesName}</span><b style="color:#f1f5f9">${val}</b></div>`;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px">${p.seriesName}</span><b style="color:${PH_COLORS.labelStrong}">${val}</b></div>`;
         }).join('');
         return header + rows;
       },
@@ -542,22 +539,23 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
       axisLabel: {
         formatter: (v: string) => formatAxisLabel(v, state.granularity),
         fontSize: 11,
-        color: '#6b7280',
-        margin: 16,
+        color: PH_COLORS.labelMuted,
+        fontFamily: 'Inter, system-ui, sans-serif',
+        margin: 14,
         rotate: 0,
         interval: xInterval,
         lineHeight: 16,
       },
-      axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-      axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+      axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
+      axisTick: { show: false },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value' as const,
       min: yMin,
       max: yMax,
-      axisLabel: { fontSize: 10, color: '#a1a1aa', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 14 },
-      splitLine: { show: true, lineStyle: { color: 'rgba(148,163,184,0.10)', type: 'dashed' as const } },
+      axisLabel: { fontSize: 11, color: PH_COLORS.labelSubtle, fontFamily: 'Inter, system-ui, sans-serif', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 12 },
+      splitLine: { show: true, lineStyle: { color: PH_COLORS.splitLine, type: 'solid' as const } },
       axisLine: { show: false },
       axisTick: { show: false },
     },
@@ -1500,20 +1498,20 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               filterMode: 'none' as const,
               start: cfg.zoomWindow?.start,
               end: cfg.zoomWindow?.end,
-              borderColor: 'rgba(128,128,128,0.2)',
-              backgroundColor: 'rgba(128,128,128,0.06)',
-              fillerColor: 'rgba(99,102,241,0.15)',
+              borderColor: 'rgba(14,124,102,0.18)',
+              backgroundColor: 'rgba(14,124,102,0.04)',
+              fillerColor: 'rgba(20,184,166,0.18)',
               handleSize: '120%',
-              handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
+              handleStyle: { color: PH_COLORS.tealDark, borderColor: PH_COLORS.tealDark, borderWidth: 1 },
               moveHandleSize: 6,
-              textStyle: { fontSize: 9, color: '#a1a1aa' },
+              textStyle: { fontSize: 9, color: PH_COLORS.labelSubtle },
               dataBackground: {
-                lineStyle: { color: 'rgba(99,102,241,0.3)' },
-                areaStyle: { color: 'rgba(99,102,241,0.08)' },
+                lineStyle: { color: 'rgba(14,124,102,0.3)' },
+                areaStyle: { color: 'rgba(14,124,102,0.08)' },
               },
               selectedDataBackground: {
-                lineStyle: { color: 'rgba(99,102,241,0.5)' },
-                areaStyle: { color: 'rgba(99,102,241,0.15)' },
+                lineStyle: { color: 'rgba(14,124,102,0.5)' },
+                areaStyle: { color: 'rgba(20,184,166,0.18)' },
               },
               brushSelect: false,
             },
@@ -1533,30 +1531,22 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             pageButtonItemGap: 4,
             pageButtonGap: 8,
             pageIconSize: 10,
-            pageIconColor: '#6366f1',
+            pageIconColor: PH_COLORS.tealDark,
             pageIconInactiveColor: '#cbd5e1',
-            pageTextStyle: { fontSize: 9, color: '#6b7280' },
+            pageTextStyle: { fontSize: 9, color: PH_COLORS.labelMuted },
             align: 'left' as const,
             textStyle: {
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: 500,
-              color: '#4b5563',
+              color: PH_COLORS.labelMuted,
+              fontFamily: 'Inter, system-ui, sans-serif',
               padding: [0, 0, 0, 2],
             },
             tooltip: { show: true },
           },
           backgroundColor: '#ffffff',
           tooltip: {
-            trigger: 'axis' as const,
-            backgroundColor: 'rgba(15,23,42,0.96)',
-            borderColor: 'rgba(255,255,255,0.06)',
-            borderRadius: 8,
-            padding: [10, 14],
-            textStyle: { color: '#f1f5f9', fontSize: 11.5 },
-            axisPointer: {
-              type: 'line' as const,
-              lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const },
-            },
+            ...phTooltip(),
             formatter: (params: any) => {
               const items = Array.isArray(params) ? params : [params];
               if (items.length === 0) return '';
@@ -1565,8 +1555,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
               const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               const isWE = dt.getDay() === 0 || dt.getDay() === 6;
-              const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
-              const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
+              const weBadge = isWE ? ` <span style="background:rgba(14,124,102,0.1);padding:1px 5px;border-radius:3px;font-size:9px;color:${PH_COLORS.tealDark}">WE</span>` : '';
+              const header = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${PH_COLORS.splitLine};padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
 
               // Group items: detect split series for total row
               // Also show split/NE details in tooltip
@@ -1582,12 +1572,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
                 // Find matching series metadata for NE info
                 const matchedSeries = option.series?.find((s: any) => s.name === p.seriesName);
-                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,0.15);padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
-                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
+                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:${PH_COLORS.labelSubtle};background:${PH_COLORS.splitLine};padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
+                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:${PH_COLORS.labelStrong}">${val} ${unit}</b></div>`);
               }
               // Add total row for split series
               const totalRow = splitCount > 1
-                ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;margin-top:2px;border-top:1px solid rgba(255,255,255,0.08)"><span style="width:12px;height:3px;border-radius:2px;background:rgba(255,255,255,0.3);display:inline-block"></span><span style="flex:1;color:#94a3b8;font-weight:600">Total</span><b style="color:#f1f5f9">${splitTotal.toFixed(2)} ${splitUnit}</b></div>`
+                ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;margin-top:2px;border-top:1px solid ${PH_COLORS.splitLine}"><span style="width:12px;height:3px;border-radius:2px;background:${PH_COLORS.tealDark};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-weight:600">Total</span><b style="color:${PH_COLORS.labelStrong}">${splitTotal.toFixed(2)} ${splitUnit}</b></div>`
                 : '';
               return header + rows.join('') + totalRow;
             },
@@ -1598,14 +1588,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             axisLabel: {
               formatter: (v: string) => formatAxisLabel(v, slotGranularity),
               fontSize: 11,
-              color: '#6b7280',
-              margin: 16,
+              color: PH_COLORS.labelMuted,
+              fontFamily: 'Inter, system-ui, sans-serif',
+              margin: 14,
               rotate: 0,
               interval: xInterval,
               lineHeight: 16,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-            axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+            axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
+            axisTick: { show: false },
             splitLine: { show: false },
           },
           yAxis: yAxisArr,

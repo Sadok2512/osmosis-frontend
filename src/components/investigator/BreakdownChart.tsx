@@ -5,8 +5,19 @@ import { fetchExplain } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { formatAxisLabel } from './timeUtils';
 import { Granularity } from './types';
 import { Layers } from 'lucide-react';
+import {
+  PH_COLORS,
+  phTooltip,
+  phXAxis,
+  phYAxis,
+  phAnimation,
+} from './paramHubChartStyle';
 
-const SERIES_COLORS = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#06b6d4','#ec4899','#84cc16','#ef4444','#6366f1','#14b8a6'];
+// Teal palette (forced) — slight tonal variations so multiple counters remain distinguishable
+const SERIES_COLORS = [
+  '#0E7C66', '#14B8A6', '#2DD4BF', '#0F766E', '#0891B2',
+  '#0D9488', '#115E59', '#5EEAD4', '#06B6D4', '#0E7490',
+];
 
 /** Extract counter names from a formula string like `counter_a` + `counter_b` */
 const extractCounters = (formula: string): string[] => {
@@ -139,7 +150,7 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
     return {
       hasData: true,
       option: {
-        animation: false,
+        ...phAnimation,
         backgroundColor: '#ffffff',
         grid: { top: 28, right: 28, bottom: legendRows + 30, left: 62, containLabel: false },
         dataZoom: [
@@ -147,12 +158,12 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
           {
             type: 'slider' as const, xAxisIndex: 0, height: 18,
             bottom: legendRows - 8, filterMode: 'none' as const,
-            borderColor: 'rgba(128,128,128,0.2)',
-            backgroundColor: 'rgba(128,128,128,0.06)',
-            fillerColor: 'rgba(99,102,241,0.15)',
+            borderColor: 'rgba(14,124,102,0.18)',
+            backgroundColor: 'rgba(14,124,102,0.04)',
+            fillerColor: 'rgba(20,184,166,0.18)',
             handleSize: '120%',
-            handleStyle: { color: '#6366f1', borderColor: '#6366f1', borderWidth: 1 },
-            textStyle: { fontSize: 9, color: '#a1a1aa' },
+            handleStyle: { color: PH_COLORS.tealDark, borderColor: PH_COLORS.tealDark, borderWidth: 1 },
+            textStyle: { fontSize: 9, color: PH_COLORS.labelSubtle },
             brushSelect: false,
           },
         ],
@@ -160,34 +171,31 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
           show: true, bottom: 4, icon: 'roundRect',
           itemWidth: 16, itemHeight: 4, itemGap: 14,
           type: 'scroll' as any, pageIconSize: 10,
-          textStyle: { fontSize: 10, fontWeight: 500, color: '#4b5563' },
+          textStyle: { fontSize: 10, fontWeight: 500, color: PH_COLORS.labelMuted, fontFamily: 'Inter, system-ui, sans-serif' },
           tooltip: { show: true },
         },
-        tooltip: {
-          trigger: 'axis' as const,
-          backgroundColor: 'rgba(15,23,42,0.96)',
-          borderColor: 'rgba(255,255,255,0.06)',
-          borderRadius: 8,
-          padding: [8, 12],
-          textStyle: { color: '#f1f5f9', fontSize: 11 },
-          axisPointer: { type: 'line' as const, lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const } },
-        },
+        tooltip: phTooltip(),
         xAxis: {
           type: 'category' as const,
           data: timestamps,
-          axisLabel: {
-            formatter: (v: string) => formatAxisLabel(v, granularity),
-            fontSize: 11, color: '#6b7280', margin: 16, lineHeight: 16,
-          },
-          axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-          axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+          ...phXAxis({
+            axisLabel: {
+              formatter: (v: string) => formatAxisLabel(v, granularity),
+              fontSize: 11, color: PH_COLORS.labelMuted, margin: 14, lineHeight: 16, fontFamily: 'Inter, system-ui, sans-serif',
+            },
+          }),
         },
         yAxis: {
           type: 'value' as const,
-          axisLabel: { fontSize: 9, color: '#a1a1aa', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1) },
-          splitLine: { show: showGrid, lineStyle: { color: 'rgba(148,163,184,0.35)', type: 'dashed' as const } },
-          axisLine: { show: false },
-          axisTick: { show: false },
+          ...phYAxis({
+            axisLabel: {
+              fontSize: 11, color: PH_COLORS.labelSubtle, fontFamily: 'Inter, system-ui, sans-serif',
+              formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1),
+            },
+            splitLine: showGrid
+              ? { lineStyle: { color: PH_COLORS.splitLine, type: 'solid' as const } }
+              : { show: false },
+          }),
         },
         series,
       },
