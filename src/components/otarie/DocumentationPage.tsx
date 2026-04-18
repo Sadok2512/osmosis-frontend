@@ -155,9 +155,7 @@ const DocumentationPage: React.FC = () => {
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
-    
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
-    { id: 'parameters_hub', label: 'Parameters HUB', icon: <Sliders className="w-4 h-4" /> },
   ];
 
   return (
