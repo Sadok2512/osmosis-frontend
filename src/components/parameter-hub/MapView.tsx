@@ -839,7 +839,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
               </div>
             </div>
 
-            {viewMode === 'points' && (
+            {(viewMode === 'points' || viewMode === 'cells') && (
               <div className="pt-2.5 border-t border-border/50 space-y-1.5">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                   Site marker
@@ -863,7 +863,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
             )}
           </div>
         ) : (
-          uniqueValues.length > 0 && uniqueValues.length <= 30 && viewMode === 'points' && (
+          uniqueValues.length > 0 && uniqueValues.length <= 30 && (viewMode === 'points' || viewMode === 'cells') && (
             <div className="absolute bottom-5 left-5 z-[1000] bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-lg p-3 max-h-[360px] overflow-y-auto min-w-[220px] space-y-2">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
