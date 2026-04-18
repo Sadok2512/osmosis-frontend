@@ -1564,21 +1564,92 @@ const NetworkTopologyPage: React.FC = () => {
                   </Card>
                 </div>
 
-                {/* Band distribution */}
+                {/* Band distribution — grouped by technology with contextual % */}
                 <Card className="p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Wifi className="w-5 h-5 text-cyan-500" />
-                    <h3 className="text-sm font-bold uppercase tracking-wide">Band Distribution</h3>
+                  <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-2">
+                      <Wifi className="w-5 h-5 text-cyan-500" />
+                      <h3 className="text-sm font-bold uppercase tracking-wide">Band Distribution</h3>
+                      <span className="text-[10px] text-muted-foreground font-medium ml-1">% within technology</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {globalNet.by_band.length} bands · {globalNet.total_cells.toLocaleString()} total cells
+                    </span>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {globalNet.by_band.map(b => (
-                      <div key={b.band} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border bg-muted/20" title={`${b.cells.toLocaleString()} cells`}>
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ background: bandColor(b.band) }} />
-                        <span className="text-xs font-semibold">{b.band}</span>
-                        <span className="text-[10px] text-muted-foreground">{b.cells.toLocaleString()}</span>
+
+                  {(() => {
+                    const bandTech = (band: string): '5G' | '4G' | '3G' | '2G' => {
+                      const b = band.toUpperCase();
+                      if (b.startsWith('NR') || b.includes('5G')) return '5G';
+                      if (b.startsWith('LTE') || b.includes('4G')) return '4G';
+                      if (b.startsWith('UMTS') || b.startsWith('WCDMA') || b.includes('3G')) return '3G';
+                      return '2G';
+                    };
+                    const techMeta: Record<string, { label: string; icon: string; gradient: string; barFrom: string; barTo: string; ring: string; chip: string }> = {
+                      '5G': { label: '5G (NR)', icon: '📡', gradient: 'from-emerald-50 to-emerald-100/40', barFrom: 'from-emerald-400', barTo: 'to-emerald-600', ring: 'border-emerald-200/60', chip: 'bg-emerald-500/10 text-emerald-700' },
+                      '4G': { label: '4G (LTE)', icon: '📶', gradient: 'from-orange-50 to-orange-100/40', barFrom: 'from-orange-400', barTo: 'to-orange-600', ring: 'border-orange-200/60', chip: 'bg-orange-500/10 text-orange-700' },
+                      '3G': { label: '3G (UMTS)', icon: '📡', gradient: 'from-sky-50 to-sky-100/40', barFrom: 'from-sky-400', barTo: 'to-sky-600', ring: 'border-sky-200/60', chip: 'bg-sky-500/10 text-sky-700' },
+                      '2G': { label: '2G (GSM)', icon: '☎️', gradient: 'from-violet-50 to-violet-100/40', barFrom: 'from-violet-400', barTo: 'to-violet-600', ring: 'border-violet-200/60', chip: 'bg-violet-500/10 text-violet-700' },
+                    };
+
+                    const groups: Record<string, { band: string; cells: number }[]> = { '5G': [], '4G': [], '3G': [], '2G': [] };
+                    globalNet.by_band.forEach(b => groups[bandTech(b.band)].push(b));
+                    Object.values(groups).forEach(arr => arr.sort((a, b) => b.cells - a.cells));
+                    const order: ('5G' | '4G' | '3G' | '2G')[] = ['5G', '4G', '3G', '2G'];
+
+                    return (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        {order.filter(t => groups[t].length > 0).map(tech => {
+                          const meta = techMeta[tech];
+                          const bands = groups[tech];
+                          const totalTech = bands.reduce((s, b) => s + b.cells, 0);
+                          return (
+                            <div key={tech} className={`rounded-xl border ${meta.ring} bg-gradient-to-br ${meta.gradient} p-4`}>
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-base">{meta.icon}</span>
+                                  <span className="text-[13px] font-bold text-slate-800">{meta.label}</span>
+                                </div>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${meta.chip}`}>
+                                  {totalTech.toLocaleString()} cells · {bands.length} band{bands.length > 1 ? 's' : ''}
+                                </span>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                {bands.map((b, idx) => {
+                                  const pct = totalTech > 0 ? (b.cells / totalTech) * 100 : 0;
+                                  const isTop = idx === 0 && bands.length > 1;
+                                  return (
+                                    <div key={b.band} className="bg-white/70 backdrop-blur rounded-lg px-3 py-2 border border-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-2">
+                                          <div className="w-2 h-2 rounded-full" style={{ background: bandColor(b.band) }} />
+                                          <span className={`text-[12px] font-semibold ${isTop ? 'text-slate-900' : 'text-slate-700'}`}>{b.band}</span>
+                                          {isTop && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${meta.chip}`}>TOP</span>}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[11px]">
+                                          <span className="tabular-nums text-slate-500 font-medium">{b.cells.toLocaleString()}</span>
+                                          <span className="text-slate-300">·</span>
+                                          <span className="tabular-nums font-bold text-slate-800 w-10 text-right">{pct.toFixed(1)}%</span>
+                                        </div>
+                                      </div>
+                                      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                        <div
+                                          className={`h-full rounded-full bg-gradient-to-r ${meta.barFrom} ${meta.barTo} transition-all`}
+                                          style={{ width: `${Math.max(2, pct)}%` }}
+                                        />
+                                      </div>
+                                      <div className="text-[9.5px] text-slate-400 mt-1 text-right">% of {tech}</div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </Card>
               </>
             )}
