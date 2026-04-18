@@ -1523,8 +1523,9 @@ const NetworkTopologyPage: React.FC = () => {
                 {/* Top stats */}
                 <div className="grid grid-cols-4 gap-3">
                   {(() => {
-                    const t4g = globalNet.by_techno.find(t => t.techno === '4G' || t.techno === 'LTE');
-                    const t5g = globalNet.by_techno.find(t => t.techno === '5G' || t.techno === 'NR');
+                    const byTechno = globalNet.by_techno ?? [];
+                    const t4g = byTechno.find(t => t.techno === '4G' || t.techno === 'LTE');
+                    const t5g = byTechno.find(t => t.techno === '5G' || t.techno === 'NR');
                     return (
                       <>
                         <StatCard label="Sites 4G" value={fmt(t4g?.sites)} icon={<MapPin className="w-5 h-5 text-blue-500" />} />
