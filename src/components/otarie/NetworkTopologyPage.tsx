@@ -212,6 +212,17 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
 
 const NetworkTopologyPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('network');
+  // Lazy-mount tabs: only render the JSX of tabs that have been visited at least once
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['network']));
+  useEffect(() => {
+    setVisitedTabs(prev => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+
 
   /* ══════════════════ STATS + SERVICE STATUS ══════════════════ */
   const [stats, setStats] = useState<TopoStats | null>(null);
