@@ -401,10 +401,10 @@ export default function EditorView({
               <div className="flex h-full pb-10">
                 <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
                   {([
-                    { key: 'data', label: 'Data Source' },
-                    { key: 'appearance', label: 'Appearance' },
-                    { key: 'interactions', label: 'Interactions' },
-                    { key: 'alerting', label: 'Alerting' },
+                    { key: 'data', label: 'Data Source', icon: undefined as any },
+                    { key: 'appearance', label: 'Appearance', icon: undefined as any },
+                    { key: 'interactions', label: 'Interactions', icon: undefined as any },
+                    { key: 'alerting', label: 'Alerting', icon: undefined as any },
                     { key: 'chat', label: 'Chat', icon: MessageSquare },
                   ] as const).map((tab) => (
                     <button
