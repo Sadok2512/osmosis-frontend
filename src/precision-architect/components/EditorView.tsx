@@ -9,6 +9,8 @@ import {
   BarChart3,
   Map as MapIcon,
   Table as TableIcon,
+  Type as TypeIcon,
+  Image as ImageIcon,
   Radio,
   ChevronRight,
   Trash2,
