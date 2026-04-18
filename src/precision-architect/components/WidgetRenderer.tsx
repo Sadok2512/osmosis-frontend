@@ -1,4 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
+  List, ListOrdered, Type, Palette,
+} from 'lucide-react';
 import { DynWidget } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
@@ -76,13 +80,49 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
 /* ---------- Inline editable Text widget ---------- */
 function TextWidgetBody({ widget: w, editable, onChange }: Props) {
   const [title, setTitle] = useState(w.title ?? 'Text');
-  const [body, setBody] = useState(w.body ?? '');
+  const editorRef = useRef<HTMLDivElement>(null);
+  const isInternalUpdate = useRef(false);
 
-  // Sync external updates (e.g. settings panel) without clobbering local typing
   useEffect(() => { setTitle(w.title ?? 'Text'); }, [w.title]);
-  useEffect(() => { setBody(w.body ?? ''); }, [w.body]);
+
+  // Sync external body changes into the contentEditable without disrupting caret
+  useEffect(() => {
+    if (!editorRef.current) return;
+    if (isInternalUpdate.current) { isInternalUpdate.current = false; return; }
+    const incoming = w.body ?? '';
+    if (editorRef.current.innerHTML !== incoming) {
+      editorRef.current.innerHTML = incoming;
+    }
+  }, [w.body]);
 
   const placeholder = 'Click here to add notes, commentary or a narrative for this report section.';
+
+  const exec = (cmd: string, value?: string) => {
+    editorRef.current?.focus();
+    document.execCommand(cmd, false, value);
+    if (editorRef.current) {
+      isInternalUpdate.current = true;
+      onChange?.({ body: editorRef.current.innerHTML });
+    }
+  };
+
+  const handleInput = () => {
+    if (!editorRef.current) return;
+    isInternalUpdate.current = true;
+    onChange?.({ body: editorRef.current.innerHTML });
+  };
+
+  const FONT_SIZES = [
+    { label: 'Small', value: '2' },
+    { label: 'Normal', value: '3' },
+    { label: 'Large', value: '5' },
+    { label: 'XL', value: '6' },
+    { label: 'Heading', value: '7' },
+  ];
+
+  const COLORS = ['#0f172a', '#475569', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#2563eb', '#7c3aed', '#db2777'];
+
+  const btn = "h-7 w-7 flex items-center justify-center rounded hover:bg-surface-container-high text-on-surface-variant hover:text-primary transition-colors";
 
   return (
     <div className="h-full flex flex-col">
@@ -99,18 +139,72 @@ function TextWidgetBody({ widget: w, editable, onChange }: Props) {
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Text'}</h3>
         )}
       </div>
+
+      {editable && (
+        <div
+          onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+          className="flex flex-wrap items-center gap-0.5 mb-2 p-1 rounded-lg bg-surface-container-low border border-outline-variant/20"
+        >
+          <select
+            onChange={(e) => exec('fontSize', e.target.value)}
+            defaultValue="3"
+            className="h-7 px-1.5 text-[11px] font-bold rounded bg-transparent hover:bg-surface-container-high text-on-surface-variant outline-none cursor-pointer"
+            title="Font size"
+          >
+            {FONT_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+          <div className="w-px h-5 bg-outline-variant/40 mx-1" />
+          <button onClick={() => exec('bold')} className={btn} title="Bold"><Bold className="w-3.5 h-3.5" /></button>
+          <button onClick={() => exec('italic')} className={btn} title="Italic"><Italic className="w-3.5 h-3.5" /></button>
+          <button onClick={() => exec('underline')} className={btn} title="Underline"><Underline className="w-3.5 h-3.5" /></button>
+          <div className="w-px h-5 bg-outline-variant/40 mx-1" />
+          <button onClick={() => exec('justifyLeft')} className={btn} title="Align left"><AlignLeft className="w-3.5 h-3.5" /></button>
+          <button onClick={() => exec('justifyCenter')} className={btn} title="Align center"><AlignCenter className="w-3.5 h-3.5" /></button>
+          <button onClick={() => exec('justifyRight')} className={btn} title="Align right"><AlignRight className="w-3.5 h-3.5" /></button>
+          <div className="w-px h-5 bg-outline-variant/40 mx-1" />
+          <button onClick={() => exec('insertUnorderedList')} className={btn} title="Bullet list"><List className="w-3.5 h-3.5" /></button>
+          <button onClick={() => exec('insertOrderedList')} className={btn} title="Numbered list"><ListOrdered className="w-3.5 h-3.5" /></button>
+          <div className="w-px h-5 bg-outline-variant/40 mx-1" />
+          <div className="relative group/color">
+            <button className={btn} title="Text color"><Palette className="w-3.5 h-3.5" /></button>
+            <div className="absolute top-full left-0 mt-1 hidden group-hover/color:flex flex-wrap gap-1 p-2 bg-white rounded-lg shadow-xl border border-outline-variant/20 z-50 w-32">
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => exec('foreColor', c)}
+                  className="w-5 h-5 rounded-full border border-outline-variant/30 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+            </div>
+          </div>
+          <label className={btn + " cursor-pointer relative"} title="Custom color">
+            <Type className="w-3.5 h-3.5" />
+            <input
+              type="color"
+              onChange={(e) => exec('foreColor', e.target.value)}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </label>
+        </div>
+      )}
+
       {editable ? (
-        <textarea
-          value={body}
-          onChange={(e) => { setBody(e.target.value); onChange?.({ body: e.target.value }); }}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
           onMouseDown={(e) => e.stopPropagation()}
-          placeholder={placeholder}
-          className="flex-1 min-h-0 w-full resize-none bg-transparent border border-transparent hover:border-outline-variant/30 focus:border-primary/40 focus:bg-surface-container-low rounded-lg p-2 text-sm text-on-surface-variant leading-relaxed outline-none transition-colors"
+          data-placeholder={placeholder}
+          className="flex-1 min-h-0 w-full overflow-auto bg-transparent border border-transparent hover:border-outline-variant/30 focus:border-primary/40 focus:bg-surface-container-low rounded-lg p-2 text-sm text-on-surface leading-relaxed outline-none transition-colors empty:before:content-[attr(data-placeholder)] empty:before:text-on-surface-variant empty:before:opacity-60"
         />
       ) : (
-        <div className="flex-1 min-h-0 overflow-auto text-sm text-on-surface-variant whitespace-pre-wrap leading-relaxed p-2">
-          {w.body || placeholder}
-        </div>
+        <div
+          className="flex-1 min-h-0 overflow-auto text-sm text-on-surface leading-relaxed p-2"
+          dangerouslySetInnerHTML={{ __html: w.body || `<span class="opacity-60">${placeholder}</span>` }}
+        />
       )}
     </div>
   );
