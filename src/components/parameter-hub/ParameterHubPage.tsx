@@ -225,6 +225,7 @@ const ParameterHubPage: React.FC = () => {
                   options={availableParameters}
                   selected={draftFilters.parameters}
                   onConfirm={(v) => setFilterValues('parameters', v)}
+                  onOpen={loadParameters}
                   loading={parametersLoading}
                   emptyHint="No parameters in catalog"
                   trigger={
