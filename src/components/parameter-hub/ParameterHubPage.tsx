@@ -72,8 +72,10 @@ const DIMENSION_OPTIONS = [
 ];
 
 const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string }[] = [
+  { value: 'cell', label: 'Cell' },
   { value: 'sector', label: 'Sector' },
   { value: 'band', label: 'Band' },
+  { value: 'site', label: 'Site' },
   { value: 'plaque', label: 'Plaque' },
   { value: 'dor', label: 'DOR' },
 ];
@@ -317,7 +319,9 @@ const ParameterHubPage: React.FC = () => {
                   <span className="px-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
                     Aggregate
                   </span>
-                  {AGGREGATION_OPTIONS.map((opt) => (
+                  {AGGREGATION_OPTIONS
+                    .filter((opt) => viewMode !== 'distribution' || (opt.value !== 'cell' && opt.value !== 'site'))
+                    .map((opt) => (
                     <button
                       key={opt.value}
                       onClick={() => setDraftAggregation(opt.value)}
@@ -337,7 +341,13 @@ const ParameterHubPage: React.FC = () => {
 
             {/* Tabs */}
             <div className="px-7 pt-4 pb-0 flex items-center justify-between border-b border-slate-100">
-              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+              <Tabs value={viewMode} onValueChange={(v) => {
+                const next = v as ViewMode;
+                setViewMode(next);
+                if (next === 'distribution' && (draftAggregation === 'cell' || draftAggregation === 'site')) {
+                  setDraftAggregation('sector');
+                }
+              }}>
                 <TabsList className="h-10 bg-slate-100/70 p-1 rounded-full">
                   <TabsTrigger
                     value="distribution"
