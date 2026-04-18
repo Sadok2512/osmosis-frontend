@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { PH_COLORS, phTooltip, phXAxis, phYAxis, phBarItemStyle, phBarEmphasis, phAnimation } from './paramHubChartStyle';
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
@@ -336,11 +337,12 @@ const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: Kpi
         const bins = histData[kpiId] || [];
         if (bins.length === 0) return <div key={kpiId} className="text-center text-[10px] text-muted-foreground py-8">Chargement histogram...</div>;
         const option = {
-          grid: { top: 30, right: 20, bottom: 36, left: 50 },
-          tooltip: { trigger: 'axis' as const, backgroundColor: 'rgba(15,23,42,0.95)', borderColor: 'rgba(255,255,255,0.08)', textStyle: { color: '#f8fafc', fontSize: 11 } },
-          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), axisLabel: { fontSize: 8, color: '#9ca3af', rotate: 30 } },
-          yAxis: { type: 'value' as const, name: 'Count', axisLabel: { fontSize: 9, color: '#9ca3af' }, splitLine: { lineStyle: { color: 'rgba(128,128,128,0.12)', type: 'dashed' as const } } },
-          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: { color: def?.color || '#6366f1', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 30 }],
+          ...phAnimation,
+          grid: { top: 24, right: 20, bottom: 48, left: 56, containLabel: false },
+          tooltip: phTooltip(),
+          xAxis: { type: 'category' as const, data: bins.map((b: any) => b.label), ...phXAxis({ axisLabel: { fontSize: 10, color: PH_COLORS.labelMuted, rotate: 30, margin: 12 } }) },
+          yAxis: { type: 'value' as const, name: 'Count', nameTextStyle: { fontSize: 10, color: PH_COLORS.labelSubtle }, ...phYAxis() },
+          series: [{ type: 'bar' as const, data: bins.map((b: any) => b.count), itemStyle: phBarItemStyle(), emphasis: phBarEmphasis(), barMaxWidth: 32, barCategoryGap: '32%' }],
         };
         return <ReactECharts key={kpiId} option={option} style={{ height: height - 40 }} />;
       })}
