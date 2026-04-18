@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2, Search, Download, ExternalLink, AlertCircle, Inbox, ArrowUpDown } from 'lucide-react';
+import { Loader2, Search, Download, ExternalLink, AlertCircle, Inbox, ArrowUpDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { topoApi } from '@/lib/localDb';
 import type { TopologyConditionState } from './TopologyConditionCard';
 
@@ -9,16 +9,31 @@ interface Props {
   onViewFull?: () => void;
 }
 
+interface PreviewCell {
+  cell_id?: string;
+  cell_name?: string;
+  nom_cellule?: string;
+  techno?: string;
+  bande?: string;
+  band?: string;
+  pci?: number | string;
+  eci?: number | string;
+  azimut?: number | string;
+  etat_cellule?: string;
+  status?: string;
+}
+
 interface PreviewSite {
   site_id?: string;
   site_name?: string;
+  code_nidt?: string;
   vendor?: string;
   constructeur?: string;
   dor?: string;
   plaque?: string;
   region?: string;
   cell_count?: number;
-  cells?: any[];
+  cells?: PreviewCell[];
   status?: string;
 }
 
@@ -37,6 +52,7 @@ const DIM_TO_QS: Record<string, string> = {
 function buildQueryString(conds: TopologyConditionState[]): string {
   const qs = new URLSearchParams();
   qs.set('limit', String(PREVIEW_LIMIT));
+  qs.set('include_cells', '1');
   for (const c of conds) {
     if (c.operator !== 'IN' || !c.values.length) continue;
     const key = DIM_TO_QS[c.field] || c.field;
@@ -54,6 +70,9 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('site_name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [cellsCache, setCellsCache] = useState<Record<string, PreviewCell[]>>({});
+  const [cellsLoading, setCellsLoading] = useState<Set<string>>(new Set());
 
   const validConds = useMemo(
     () => topoConditions.filter(c => c.values.length > 0 && c.operator === 'IN'),
@@ -66,6 +85,8 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setExpanded(new Set());
+    setCellsCache({});
     topoApi.filteredSites(qs)
       .then((rows: any[]) => {
         if (controller.signal.aborted) return;
@@ -81,12 +102,13 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
   }, [validConds]);
 
   const enriched = useMemo(() => sites.map(s => ({
-    site_id: s.site_id,
-    site_name: s.site_name || s.site_id || '—',
+    site_id: s.site_id || s.code_nidt || s.site_name || '',
+    site_name: s.site_name || s.code_nidt || s.site_id || '—',
     vendor: s.vendor || s.constructeur || '—',
     region: s.dor || s.plaque || s.region || '—',
     cell_count: s.cell_count ?? (Array.isArray(s.cells) ? s.cells.length : undefined) ?? 0,
     status: s.status || 'active',
+    cells: Array.isArray(s.cells) ? s.cells : undefined,
   })), [sites]);
 
   const filtered = useMemo(() => {
@@ -99,8 +121,8 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
         )
       : enriched;
     const sorted = [...list].sort((a, b) => {
-      const av = a[sortKey] ?? '';
-      const bv = b[sortKey] ?? '';
+      const av = (a as any)[sortKey] ?? '';
+      const bv = (b as any)[sortKey] ?? '';
       if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av;
       return sortDir === 'asc'
         ? String(av).localeCompare(String(bv))
@@ -114,10 +136,49 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
     else { setSortKey(k); setSortDir('asc'); }
   };
 
+  const toggleExpand = async (siteId: string, inlineCells?: PreviewCell[]) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(siteId)) next.delete(siteId); else next.add(siteId);
+      return next;
+    });
+    // Lazy fetch cells if not provided inline & not cached
+    if (!cellsCache[siteId] && (!inlineCells || inlineCells.length === 0)) {
+      setCellsLoading(prev => new Set(prev).add(siteId));
+      try {
+        const qs = new URLSearchParams({ limit: '500', site_id: siteId, include_cells: '1' }).toString();
+        const rows = await topoApi.filteredSites(qs);
+        const found = (rows || []).find((r: any) => (r.site_id || r.code_nidt || r.site_name) === siteId);
+        const cells = (found?.cells as PreviewCell[]) || [];
+        setCellsCache(prev => ({ ...prev, [siteId]: cells }));
+      } catch {
+        setCellsCache(prev => ({ ...prev, [siteId]: [] }));
+      } finally {
+        setCellsLoading(prev => { const n = new Set(prev); n.delete(siteId); return n; });
+      }
+    } else if (inlineCells && !cellsCache[siteId]) {
+      setCellsCache(prev => ({ ...prev, [siteId]: inlineCells }));
+    }
+  };
+
   const handleExport = () => {
-    const headers = ['Site Name', 'Vendor', 'Region', 'Cells', 'Status'];
-    const rows = filtered.map(s => [s.site_name, s.vendor, s.region, s.cell_count, s.status]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const headers = ['Site Name', 'Vendor', 'Region', 'Cell Name', 'Techno', 'Band', 'PCI/ECI', 'Status'];
+    const rows: any[] = [];
+    filtered.forEach(s => {
+      const cells = cellsCache[s.site_id] || s.cells || [];
+      if (cells.length === 0) {
+        rows.push([s.site_name, s.vendor, s.region, '', '', '', '', s.status]);
+      } else {
+        cells.forEach(c => rows.push([
+          s.site_name, s.vendor, s.region,
+          c.cell_name || c.nom_cellule || c.cell_id || '',
+          c.techno || '', c.bande || c.band || '',
+          c.pci ?? c.eci ?? '',
+          c.etat_cellule || c.status || s.status,
+        ]));
+      }
+    });
+    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -138,7 +199,7 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
           <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Preview Results</h4>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {hasConds && total > 0
-              ? <>Showing first <strong className="text-foreground">{Math.min(filtered.length, PREVIEW_LIMIT)}</strong> of <strong className="text-foreground">{total.toLocaleString('fr-FR')}</strong> matched sites</>
+              ? <>Showing first <strong className="text-foreground">{Math.min(filtered.length, PREVIEW_LIMIT)}</strong> of <strong className="text-foreground">{total.toLocaleString('fr-FR')}</strong> matched sites — click a row to expand cells</>
               : 'Define topology filters to preview matching sites'}
           </p>
         </div>
@@ -196,10 +257,11 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
         </div>
       ) : (
         <>
-          <div className="max-h-72 overflow-auto">
+          <div className="max-h-80 overflow-auto">
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/50 backdrop-blur z-10">
                 <tr className="border-b border-border">
+                  <th className="w-6 py-2 px-2"></th>
                   {([
                     { k: 'site_name', label: 'Site Name', align: 'left' },
                     { k: 'vendor', label: 'Vendor', align: 'left' },
@@ -221,30 +283,83 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s, i) => (
-                  <tr
-                    key={s.site_id || i}
-                    className="border-b border-border/30 last:border-0 hover:bg-muted/40 transition-colors cursor-pointer"
-                  >
-                    <td className="py-2 px-3 font-medium text-foreground">{s.site_name}</td>
-                    <td className="py-2 px-3 text-muted-foreground">{s.vendor}</td>
-                    <td className="py-2 px-3 text-muted-foreground">{s.region}</td>
-                    <td className="py-2 px-3 text-right font-mono text-foreground">{s.cell_count}</td>
-                    <td className="py-2 px-3">
-                      <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${
-                        s.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
-                      }`}>
-                        {s.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((s, i) => {
+                  const isOpen = expanded.has(s.site_id);
+                  const cells = cellsCache[s.site_id] || s.cells || [];
+                  const isLoadingCells = cellsLoading.has(s.site_id);
+                  return (
+                    <React.Fragment key={s.site_id || i}>
+                      <tr
+                        onClick={() => toggleExpand(s.site_id, s.cells)}
+                        className="border-b border-border/30 hover:bg-muted/40 transition-colors cursor-pointer"
+                      >
+                        <td className="py-2 px-2 text-muted-foreground">
+                          {isOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                        </td>
+                        <td className="py-2 px-3 font-medium text-foreground">{s.site_name}</td>
+                        <td className="py-2 px-3 text-muted-foreground">{s.vendor}</td>
+                        <td className="py-2 px-3 text-muted-foreground">{s.region}</td>
+                        <td className="py-2 px-3 text-right font-mono text-foreground">{s.cell_count}</td>
+                        <td className="py-2 px-3">
+                          <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${
+                            s.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {s.status}
+                          </span>
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="bg-muted/20">
+                          <td></td>
+                          <td colSpan={5} className="py-2 px-3">
+                            {isLoadingCells ? (
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground py-2">
+                                <Loader2 className="w-3 h-3 animate-spin" /> Loading cells…
+                              </div>
+                            ) : cells.length === 0 ? (
+                              <p className="text-[11px] text-muted-foreground italic py-1">No cell details available</p>
+                            ) : (
+                              <div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+                                <table className="w-full text-[11px]">
+                                  <thead className="bg-muted/40">
+                                    <tr>
+                                      <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Cell Name</th>
+                                      <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Techno</th>
+                                      <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Band</th>
+                                      <th className="py-1.5 px-2 text-right font-semibold text-muted-foreground">PCI</th>
+                                      <th className="py-1.5 px-2 text-right font-semibold text-muted-foreground">ECI/CID</th>
+                                      <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Status</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {cells.map((c, j) => (
+                                      <tr key={j} className="border-t border-border/30 hover:bg-muted/30">
+                                        <td className="py-1 px-2 font-medium text-foreground">{c.cell_name || c.nom_cellule || c.cell_id || '—'}</td>
+                                        <td className="py-1 px-2 text-muted-foreground">{c.techno || '—'}</td>
+                                        <td className="py-1 px-2 text-muted-foreground">{c.bande || c.band || '—'}</td>
+                                        <td className="py-1 px-2 text-right font-mono">{c.pci ?? '—'}</td>
+                                        <td className="py-1 px-2 text-right font-mono">{c.eci ?? '—'}</td>
+                                        <td className="py-1 px-2">
+                                          <span className="text-[10px] text-muted-foreground">{c.etat_cellule || c.status || '—'}</span>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           {total > PREVIEW_LIMIT && (
             <div className="px-4 py-2 border-t border-border/50 text-[11px] text-muted-foreground text-center bg-muted/20">
-              Only first {PREVIEW_LIMIT} results are displayed
+              Only first {PREVIEW_LIMIT} sites are displayed
             </div>
           )}
         </>
