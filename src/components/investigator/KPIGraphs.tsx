@@ -1555,8 +1555,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               const dateStr = dt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: '2-digit' });
               const timeStr = dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
               const isWE = dt.getDay() === 0 || dt.getDay() === 6;
-              const weBadge = isWE ? ' <span style="background:rgba(148,163,184,0.2);padding:1px 5px;border-radius:3px;font-size:9px;color:#94a3b8">WE</span>' : '';
-              const header = `<div style="font-size:10.5px;color:#94a3b8;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
+              const weBadge = isWE ? ` <span style="background:rgba(14,124,102,0.1);padding:1px 5px;border-radius:3px;font-size:9px;color:${PH_COLORS.tealDark}">WE</span>` : '';
+              const header = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em;border-bottom:1px solid ${PH_COLORS.splitLine};padding-bottom:5px">${dayName} ${dateStr} · ${timeStr}${weBadge}</div>`;
 
               // Group items: detect split series for total row
               // Also show split/NE details in tooltip
@@ -1572,12 +1572,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
                 // Find matching series metadata for NE info
                 const matchedSeries = option.series?.find((s: any) => s.name === p.seriesName);
-                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:#94a3b8;background:rgba(148,163,184,0.15);padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
-                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:#f1f5f9">${val} ${unit}</b></div>`);
+                const neInfo = matchedSeries?._networkElement ? ` <span style="font-size:9px;color:${PH_COLORS.labelSubtle};background:${PH_COLORS.splitLine};padding:1px 4px;border-radius:3px;margin-left:4px">NE: ${matchedSeries._networkElement}</span>` : '';
+                rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:12px;height:3px;border-radius:2px;background:${p.color};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${p.seriesName}${neInfo}</span><b style="color:${PH_COLORS.labelStrong}">${val} ${unit}</b></div>`);
               }
               // Add total row for split series
               const totalRow = splitCount > 1
-                ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;margin-top:2px;border-top:1px solid rgba(255,255,255,0.08)"><span style="width:12px;height:3px;border-radius:2px;background:rgba(255,255,255,0.3);display:inline-block"></span><span style="flex:1;color:#94a3b8;font-weight:600">Total</span><b style="color:#f1f5f9">${splitTotal.toFixed(2)} ${splitUnit}</b></div>`
+                ? `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;margin-top:2px;border-top:1px solid ${PH_COLORS.splitLine}"><span style="width:12px;height:3px;border-radius:2px;background:${PH_COLORS.tealDark};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-weight:600">Total</span><b style="color:${PH_COLORS.labelStrong}">${splitTotal.toFixed(2)} ${splitUnit}</b></div>`
                 : '';
               return header + rows.join('') + totalRow;
             },
@@ -1588,14 +1588,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             axisLabel: {
               formatter: (v: string) => formatAxisLabel(v, slotGranularity),
               fontSize: 11,
-              color: '#6b7280',
-              margin: 16,
+              color: PH_COLORS.labelMuted,
+              fontFamily: 'Inter, system-ui, sans-serif',
+              margin: 14,
               rotate: 0,
               interval: xInterval,
               lineHeight: 16,
             },
-            axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-            axisTick: { show: true, length: 4, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
+            axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
+            axisTick: { show: false },
             splitLine: { show: false },
           },
           yAxis: yAxisArr,
