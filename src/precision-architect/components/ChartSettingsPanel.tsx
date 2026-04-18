@@ -69,22 +69,22 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
   return (
-    <div className="fixed bottom-0 left-64 right-0 h-[420px] bg-white border-t border-outline-variant/20 shadow-2xl z-[60] flex flex-col">
+    <div className="fixed bottom-0 left-64 right-0 h-[260px] bg-white border-t border-outline-variant/20 shadow-2xl z-[60] flex flex-col">
       {/* Header with horizontal tabs */}
-      <div className="px-6 py-3 border-b border-outline-variant/15 flex items-center justify-between bg-surface-container-low shrink-0">
-        <div className="flex items-center gap-6">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary leading-none">Chart Settings</p>
-            <h3 className="text-sm font-bold text-on-surface mt-1 truncate max-w-[300px]">{widget.title ?? 'Untitled chart'}</h3>
+      <div className="px-4 py-1.5 border-b border-outline-variant/15 flex items-center justify-between bg-surface-container-low shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="flex items-baseline gap-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-primary leading-none">Chart Settings</p>
+            <h3 className="text-xs font-bold text-on-surface truncate max-w-[220px]">{widget.title ?? 'Untitled chart'}</h3>
           </div>
-          <div className="h-8 w-px bg-outline-variant/30" />
-          <div className="flex items-center gap-1">
+          <div className="h-5 w-px bg-outline-variant/30" />
+          <div className="flex items-center gap-0.5">
             {(['data', 'metrics', 'style'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={cn(
-                  'px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all',
+                  'px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all',
                   tab === t
                     ? 'bg-primary text-on-primary shadow-sm'
                     : 'text-on-surface-variant hover:bg-surface-container-high'
@@ -95,13 +95,13 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
             ))}
           </div>
         </div>
-        <button onClick={onClose} className="p-1.5 hover:bg-surface-container-high rounded-lg transition-colors" aria-label="Close">
-          <X className="w-4 h-4 text-on-surface-variant" />
+        <button onClick={onClose} className="p-1 hover:bg-surface-container-high rounded-md transition-colors" aria-label="Close">
+          <X className="w-3.5 h-3.5 text-on-surface-variant" />
         </button>
       </div>
 
       {/* Body: 2-column scrolling content for the bottom panel */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3">
         <div className="max-w-5xl mx-auto">
           {tab === 'data' && (
             <DataTab
