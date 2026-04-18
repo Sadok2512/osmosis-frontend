@@ -8,6 +8,27 @@ interface DistributionViewProps {
   aggregation: AggregationLevel;
 }
 
+/** Stable entity key per aggregation level. */
+const groupKeyFor = (r: ParameterRow, level: AggregationLevel): string | null => {
+  switch (level) {
+    case 'cell':
+      return r.cell_name ?? r.cell_dn ?? r.dn ?? null;
+    case 'sector': {
+      const c = r.cell_name ?? r.cell_dn ?? r.dn;
+      if (!c) return null;
+      return c.replace(/\d+$/, '') || c;
+    }
+    case 'band':
+      return r.bande ?? null;
+    case 'site':
+      return r.site_name ?? null;
+    case 'plaque':
+      return r.plaque ?? null;
+    case 'dor':
+      return r.dor ?? null;
+  }
+};
+
 export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggregation }) => {
   const perParameter = useMemo(() => {
     const byParam = new Map<string, ParameterRow[]>();
@@ -34,11 +55,31 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
   return (
     <div className={entries.length === 1 ? 'flex justify-center' : 'grid grid-cols-1 xl:grid-cols-2 gap-6'}>
       {entries.map(([param, list]) => {
-        const counts = new Map<string, number>();
+        // 1) Aggregate rows → 1 representative value per entity (mode of values within entity)
+        const byEntity = new Map<string, Map<string, number>>();
         for (const r of list) {
-          const key = r.value ?? '(null)';
-          counts.set(key, (counts.get(key) ?? 0) + 1);
+          const ekey = groupKeyFor(r, aggregation);
+          if (!ekey) continue;
+          const v = r.value ?? '(null)';
+          if (!byEntity.has(ekey)) byEntity.set(ekey, new Map());
+          const vc = byEntity.get(ekey)!;
+          vc.set(v, (vc.get(v) ?? 0) + 1);
         }
+        const entityCount = byEntity.size;
+
+        // 2) Count entities per value (each entity contributes once)
+        const counts = new Map<string, number>();
+        byEntity.forEach((valMap) => {
+          let bestVal = '(null)';
+          let bestN = -1;
+          valMap.forEach((n, v) => {
+            if (n > bestN) {
+              bestN = n;
+              bestVal = v;
+            }
+          });
+          counts.set(bestVal, (counts.get(bestVal) ?? 0) + 1);
+        });
         const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, 30);
 
         const option = {
@@ -54,7 +95,7 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
             extraCssText: 'box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18); border-radius: 10px;',
             formatter: (params: any) => {
               const p = params[0];
-              return `<div style="font-weight:600;color:#0E7C66;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">${p.name}</div><div style="color:#1F2937;font-size:14px;font-weight:600;">${p.value.toLocaleString()} <span style="color:#6B7280;font-weight:400;font-size:12px;">samples</span></div>`;
+              return `<div style="font-weight:600;color:#0E7C66;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">${p.name}</div><div style="color:#1F2937;font-size:14px;font-weight:600;">${p.value.toLocaleString()} <span style="color:#6B7280;font-weight:400;font-size:12px;">${aggregation}${p.value > 1 ? 's' : ''}</span></div>`;
             },
           },
           xAxis: {
@@ -137,11 +178,11 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-1.5">
-                <span className="font-semibold text-slate-700">{list.length.toLocaleString()}</span> samples
+                <span className="font-semibold text-slate-700">{entityCount.toLocaleString()}</span> {aggregation}{entityCount > 1 ? 's' : ''}
                 <span className="mx-1.5 text-slate-300">·</span>
                 <span className="font-semibold text-slate-700">{counts.size}</span> unique values
                 <span className="mx-1.5 text-slate-300">·</span>
-                aggregated by <span className="font-medium text-teal-700">{aggregation}</span>
+                <span className="text-slate-400">{list.length.toLocaleString()} raw rows</span>
               </p>
             </div>
 
@@ -153,7 +194,7 @@ export const DistributionView: React.FC<DistributionViewProps> = ({ rows, aggreg
             {/* Footer */}
             <div className="px-8 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <span className="text-[11px] text-slate-400">
-                {list.length.toLocaleString()} rows · aggregation: {aggregation}
+                {entityCount.toLocaleString()} {aggregation}{entityCount > 1 ? 's' : ''} · aggregation: {aggregation}
               </span>
               <span className="text-[11px] text-slate-400">Top {Math.min(30, counts.size)} of {counts.size}</span>
             </div>
