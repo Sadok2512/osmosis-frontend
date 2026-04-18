@@ -9102,7 +9102,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating LEFT side: techno filter + band legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 left-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out">
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden animate-fade-in">
