@@ -72,8 +72,10 @@ const DIMENSION_OPTIONS = [
 ];
 
 const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string }[] = [
+  { value: 'cell', label: 'Cell' },
   { value: 'sector', label: 'Sector' },
   { value: 'band', label: 'Band' },
+  { value: 'site', label: 'Site' },
   { value: 'plaque', label: 'Plaque' },
   { value: 'dor', label: 'DOR' },
 ];
