@@ -215,7 +215,7 @@ Deno.serve(async (req) => {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
       const fallback = (isSafePost || isSafeWrite)
-        ? { unavailable: true, service, path, error: `Upstream ${upstreamRes.status}: ${errorSnippet}`, series: [], data: [], rows: [], total: 0 }
+        ? buildSafePostFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify(fallback), {
         status: 200,
