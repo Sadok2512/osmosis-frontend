@@ -285,7 +285,7 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     return map;
   }, [uniqueValues]);
 
-  // Aggregate rows by site → { site_name, lat, lng, values: Set, cells: Row[] }
+  // Aggregate rows by site
   interface SitePoint {
     site_name: string;
     lat: number;
@@ -294,6 +294,10 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     cells: typeof visibleRows;
     dominantValue: string;
     isMulti: boolean;
+    avg: number | null;
+    min: number | null;
+    max: number | null;
+    pieSegments: { value: string; color: string; pct: number; count: number }[];
   }
 
   const sitePoints = useMemo<SitePoint[]>(() => {
@@ -311,31 +315,53 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
           cells: [],
           dominantValue: '',
           isMulti: false,
+          avg: null, min: null, max: null,
+          pieSegments: [],
         };
         byKey.set(key, sp);
       }
       sp.values.add(r.value ?? '(null)');
       sp.cells.push(r);
     }
-    // Compute dominant value and multi flag
     for (const sp of byKey.values()) {
       sp.isMulti = sp.values.size > 1;
-      if (sp.isMulti) {
-        // Find mode (most frequent value)
-        const counts = new Map<string, number>();
-        for (const c of sp.cells) {
-          const v = c.value ?? '(null)';
-          counts.set(v, (counts.get(v) ?? 0) + 1);
-        }
-        let best = '', bestN = 0;
-        counts.forEach((n, v) => { if (n > bestN) { bestN = n; best = v; } });
-        sp.dominantValue = best;
-      } else {
-        sp.dominantValue = Array.from(sp.values)[0];
+      // Numeric stats
+      const nums = sp.cells.map(c => Number(c.value)).filter(Number.isFinite);
+      if (nums.length) {
+        sp.avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+        sp.min = Math.min(...nums);
+        sp.max = Math.max(...nums);
       }
+      // Frequency counts
+      const counts = new Map<string, number>();
+      for (const c of sp.cells) {
+        const v = c.value ?? '(null)';
+        counts.set(v, (counts.get(v) ?? 0) + 1);
+      }
+      let best = '', bestN = 0;
+      counts.forEach((n, v) => { if (n > bestN) { bestN = n; best = v; } });
+      sp.dominantValue = best;
+      // Pie segments (used for multi-value markers)
+      const total = sp.cells.length || 1;
+      const segs = Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([v, n]) => {
+          let segColor: string;
+          if (numericStats) {
+            const nv = Number(v);
+            const t = Number.isFinite(nv) && numericStats.max !== numericStats.min
+              ? (nv - numericStats.min) / (numericStats.max - numericStats.min)
+              : 0.5;
+            segColor = gradientColor(Number.isFinite(nv) ? t : 0.5);
+          } else {
+            segColor = valueColorMap.get(v) ?? stringToColor(v);
+          }
+          return { value: v, color: segColor, pct: n / total, count: n };
+        });
+      sp.pieSegments = segs;
     }
     return Array.from(byKey.values());
-  }, [visibleRows]);
+  }, [visibleRows, numericStats, valueColorMap]);
 
   const heatPoints = useMemo<Array<[number, number, number]>>(() => {
     if (!numericStats) {
