@@ -34,6 +34,8 @@ import KpiWidgetCard from './KpiWidgetCard';
 import AIFloatingModal from './AIFloatingModal';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { exportElementToPDF } from '@/lib/exportUtils';
+import DashboardSettingsPanel from './DashboardSettingsPanel';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
