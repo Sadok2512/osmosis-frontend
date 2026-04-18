@@ -41,9 +41,10 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
   }, [open, selected]);
 
   const filtered = useMemo(() => {
+    const safeOptions = Array.isArray(options) ? options : [];
     const q = search.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.toLowerCase().includes(q));
+    if (!q) return safeOptions;
+    return safeOptions.filter((o) => String(o).toLowerCase().includes(q));
   }, [options, search]);
 
   const toggle = (val: string) => {
