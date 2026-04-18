@@ -100,19 +100,20 @@ const ParameterHubPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [hasApplied, setHasApplied] = useState(false);
 
-  // Load parameter list once on mount
-  useEffect(() => {
-    let active = true;
+  // Lazy-load parameter list — only when the Parameters multi-select is opened.
+  const loadParameters = useCallback(() => {
+    if (availableParameters.length > 0 || parametersLoading === false ? availableParameters.length > 0 : false) return;
+    if (availableParameters.length > 0) return;
     setParametersLoading(true);
     fetchAvailableParameters()
-      .then((list) => {
-        if (active) setAvailableParameters(list);
-      })
+      .then((list) => setAvailableParameters(list))
       .catch((e) => console.error('[ParameterHub] params fetch failed', e))
-      .finally(() => active && setParametersLoading(false));
-    return () => {
-      active = false;
-    };
+      .finally(() => setParametersLoading(false));
+  }, [availableParameters.length, parametersLoading]);
+
+  // Initialize loading flag to false (don't auto-fetch on mount)
+  useEffect(() => {
+    setParametersLoading(false);
   }, []);
 
   const ensureDistinct = useCallback(
