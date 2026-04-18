@@ -69,7 +69,7 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
         <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
           <span className="text-sm font-semibold text-foreground">{title}</span>
           <span className="text-[11px] text-muted-foreground">
-            {draft.length} / {options.length}
+            {draft.length} / {Array.isArray(options) ? options.length : 0}
           </span>
         </div>
         <div className="p-2 border-b border-border">
