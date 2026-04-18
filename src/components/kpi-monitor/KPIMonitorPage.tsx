@@ -34,6 +34,8 @@ import KpiWidgetCard from './KpiWidgetCard';
 import AIFloatingModal from './AIFloatingModal';
 import { useDashboardManager, DashboardTabBar, DashboardListPanel } from '../bi/DashboardManager';
 import { exportElementToPDF } from '@/lib/exportUtils';
+import DashboardSettingsPanel from './DashboardSettingsPanel';
+import { ChevronRight, ArrowLeft } from 'lucide-react';
 
 const COLS = 12;
 const ROW_HEIGHT = 80;
@@ -911,150 +913,89 @@ const KPIMonitorPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Toolbar (labeled sections with dropdowns) ── */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm">
-        <div className="max-w-[1600px] mx-auto px-6 py-2.5">
-          <div className="flex items-center gap-6 flex-wrap">
-            {/* PLAGE DE DATES */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <CalendarIcon className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Plage de dates</span>
-              </div>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-[130px] justify-start text-left text-xs font-medium h-[32px]', !startDate && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                    {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={startDate} onSelect={(d) => d && setGlobalDateFrom(format(d, 'yyyy-MM-dd'))} initialFocus className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-              <span className="text-xs text-muted-foreground">→</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn('w-[130px] justify-start text-left text-xs font-medium h-[32px]', !endDate && 'text-muted-foreground')}>
-                    <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
-                    {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={endDate} onSelect={(d) => d && setGlobalDateTo(format(d, 'yyyy-MM-dd'))} initialFocus className="p-3 pointer-events-auto" />
-                </PopoverContent>
-              </Popover>
-            </div>
-
-            <div className="h-8 w-px bg-border/60 shrink-0" />
-
-            {/* PÉRIODE & GRANULARITÉ */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Activity className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider whitespace-nowrap">Période & Granularité</span>
-              </div>
-              <Select value={globalPeriod} onValueChange={applyPeriod}>
-                <SelectTrigger className="h-[32px] w-[110px] text-xs">
-                  <SelectValue placeholder="Période..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {PERIODS.filter(p => p.value).map(p => (
-                    <SelectItem key={p.value} value={p.value} className="text-xs">{p.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={globalGranularity} onValueChange={setGlobalGranularity}>
-                <SelectTrigger className="h-[32px] w-[90px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {GRANULARITIES.map(g => (
-                    <SelectItem key={g.value} value={g.value} className="text-xs">{g.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="h-8 w-px bg-border/60 shrink-0" />
-
-            {/* SPLIT */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <GitBranch className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Split</span>
-              </div>
-              <Select value={globalSplitBy} onValueChange={v => setGlobalSplitBy(v as any)}>
-                <SelectTrigger className="h-[32px] w-[110px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SPLIT_OPTIONS.map(s => (
-                    <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={String(globalTopN)} onValueChange={v => setGlobalTopN(Number(v))}>
-                <SelectTrigger className="h-[32px] w-[80px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TOP_N_OPTIONS.map(n => (
-                    <SelectItem key={n} value={String(n)} className="text-xs">Top {n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="h-8 w-px bg-border/60 shrink-0" />
-
-            {/* FILTRES */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Filter className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Filtres</span>
-              </div>
-              <AddFilterDropdown existingKeys={Object.keys(globalFilters)} onAdd={addGlobalFilter} />
-            </div>
-
-            {/* APPLY BUTTON */}
-            <button onClick={handleApplyGlobal}
-              className="shrink-0 ml-auto flex items-center gap-1.5 px-5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity shadow-sm h-[32px]">
-              <Check className="w-3.5 h-3.5" /> Appliquer
-            </button>
-          </div>
+      {/* ── Compact Summary Strip + Breadcrumb ── */}
+      <div className="border-b border-border bg-card/40 backdrop-blur-sm px-6 py-2 flex items-center gap-3 text-[11px]">
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-1.5 text-muted-foreground">
+          <LayoutGrid className="w-3 h-3" />
+          <span className="font-medium text-foreground">{dm.activeTab?.name || 'Dashboard'}</span>
+          {selectedWidget && (
+            <>
+              <ChevronRight className="w-3 h-3" />
+              <span className="font-semibold text-primary">
+                Widget: {selectedWidget.config.title || 'Untitled'}
+              </span>
+            </>
+          )}
         </div>
 
-        {/* ── Gradient separator ── */}
-        <div className="mx-6 my-0.5">
-          <div className="h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+        <div className="h-4 w-px bg-border/60" />
+
+        {/* Live summary chips */}
+        <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            <CalendarIcon className="w-3 h-3" />
+            <span className="font-medium text-foreground">
+              {startDate ? format(startDate, 'dd/MM') : '—'}
+              {' → '}
+              {endDate ? format(endDate, 'dd/MM/yy') : '—'}
+            </span>
+          </span>
+          {globalSplitBy !== 'none' && (
+            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/8 text-primary border border-primary/15 text-[10px] font-semibold">
+              <GitBranch className="w-2.5 h-2.5" /> {globalSplitBy} · Top {globalTopN}
+            </span>
+          )}
+          {globalFilterChips.slice(0, 3).map(({ dim, val }) => (
+            <span key={`${dim}-${val}`}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-muted/60 text-foreground text-[10px] font-medium">
+              <span className="text-muted-foreground">{dim}:</span> {val}
+              <button onClick={() => removeGlobalFilter(dim, val)} className="hover:text-destructive">
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </span>
+          ))}
+          {globalFilterChips.length > 3 && (
+            <span className="text-[10px] text-muted-foreground">+{globalFilterChips.length - 3} filtres</span>
+          )}
         </div>
 
-        {/* Filter chips row */}
-        {globalFilterChips.length > 0 && (
-          <div className="max-w-[1600px] mx-auto px-6 pb-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/50 mr-1">Filtres actifs</span>
-              {globalFilterChips.map(({ dim, val }) => (
-                <span key={`${dim}-${val}`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-primary/8 text-primary border border-primary/15 shadow-[0_1px_2px_hsl(var(--primary)/0.06)]">
-                  <span className="text-muted-foreground">{dim}:</span>
-                  <span className="font-bold">{val}</span>
-                  <button onClick={() => removeGlobalFilter(dim, val)} className="ml-0.5 hover:text-destructive transition-colors">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
+        {/* Quick switch */}
+        {selectedWidget && (
+          <button
+            onClick={() => setSelectedWidgetId(null)}
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
+            <ArrowLeft className="w-3 h-3" /> Retour Dashboard
+          </button>
         )}
       </div>
 
-      {/* ── Main Content + Sidebar ── */}
+      {/* ── Main Content + Right Panel (swap pattern) ── */}
       <div className="flex-1 flex overflow-hidden">
         {/* Main canvas */}
-        <main className="flex-1 overflow-auto">
+        <main
+          className="flex-1 overflow-auto"
+          onClick={(e) => {
+            // Click outside any widget → return to Dashboard Settings
+            if ((e.target as HTMLElement).closest('[data-widget-card]') === null) {
+              if (selectedWidgetId) setSelectedWidgetId(null);
+            }
+          }}
+        >
           <div className="p-6 space-y-4">
+            {/* Editing label */}
+            {selectedWidget && (
+              <div className="sticky top-0 z-10 -mt-2 mb-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold shadow-md animate-fade-in">
+                <Pencil className="w-3 h-3" />
+                Editing: {selectedWidget.config.title || 'Widget'}
+                <button onClick={() => setSelectedWidgetId(null)}
+                  className="ml-1 hover:bg-primary-foreground/20 rounded-full p-0.5">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            )}
+
             {/* ── Canvas ── */}
             <div ref={(node) => { (dashboardRef as any).current = node; containerRef(node); }}>
               {widgets.length === 0 ? (
@@ -1089,9 +1030,12 @@ const KPIMonitorPage: React.FC = () => {
                 >
                   {widgets.map(w => (
                     <div key={w.config.id}
+                      data-widget-card
                       className={cn(
                         "transition-all duration-200 rounded-xl",
-                        selectedWidgetId === w.config.id && "ring-2 ring-primary shadow-lg shadow-primary/10"
+                        selectedWidgetId === w.config.id
+                          ? "ring-2 ring-primary shadow-xl shadow-primary/20 bg-primary/[0.02]"
+                          : "hover:ring-1 hover:ring-border"
                       )}
                     >
                       <KpiWidgetCard
@@ -1143,16 +1087,43 @@ const KPIMonitorPage: React.FC = () => {
           </div>
         </main>
 
-        {/* Right Sidebar */}
-        {showSidebar && selectedWidget && (
-          <WidgetSidebarPanel
-            widget={selectedWidget}
-            catalog={catalog}
-            catalogMap={catalogMap}
-            onUpdate={(updates) => updateWidgetConfig(selectedWidget.config.id, updates)}
-            onClose={() => setSelectedWidgetId(null)}
-          />
-        )}
+        {/* Right Panel — swaps between Widget (when selected) and Dashboard settings */}
+        <div className="relative shrink-0">
+          {selectedWidget ? (
+            <div className="animate-slide-in-right h-full">
+              <WidgetSidebarPanel
+                widget={selectedWidget}
+                catalog={catalog}
+                catalogMap={catalogMap}
+                onUpdate={(updates) => updateWidgetConfig(selectedWidget.config.id, updates)}
+                onClose={() => setSelectedWidgetId(null)}
+              />
+            </div>
+          ) : (
+            <div className="animate-fade-in h-full">
+              <DashboardSettingsPanel
+                globalDateFrom={globalDateFrom}
+                globalDateTo={globalDateTo}
+                setGlobalDateFrom={setGlobalDateFrom}
+                setGlobalDateTo={setGlobalDateTo}
+                globalPeriod={globalPeriod}
+                applyPeriod={applyPeriod}
+                globalGranularity={globalGranularity}
+                setGlobalGranularity={setGlobalGranularity}
+                globalSplitBy={globalSplitBy}
+                setGlobalSplitBy={setGlobalSplitBy}
+                globalTopN={globalTopN}
+                setGlobalTopN={setGlobalTopN}
+                globalFilters={globalFilters}
+                removeGlobalFilter={removeGlobalFilter}
+                filterPicker={
+                  <AddFilterDropdown existingKeys={Object.keys(globalFilters)} onAdd={addGlobalFilter} />
+                }
+                onApply={handleApplyGlobal}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* AI Modal */}
