@@ -64,9 +64,11 @@ export default function EditorView({
   activePageId,
   setActivePageId,
 }: EditorViewProps) {
-  const [activeWidget, setActiveWidget] = useState<string | null>('Traffic Load');
+  const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting' | 'chat'>('data');
+  const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
