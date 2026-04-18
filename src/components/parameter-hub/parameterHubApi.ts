@@ -96,13 +96,16 @@ function buildQueryString(filters: ParameterHubFilters, limit: number, page = 1)
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
   qs.set('page', String(page));
-  // Multi-value: use comma-separated plural params
+  // Multi-value: use comma-separated plural params for every dimension
   if (filters.parameters.length > 0) qs.set('parameters', filters.parameters.join(','));
   if (filters.vendor.length > 0) qs.set('vendors', filters.vendor.join(','));
-  if (filters.dor.length > 0) qs.set('dor', filters.dor[0]);
-  if (filters.plaque.length > 0) qs.set('plaque', filters.plaque[0]);
-  if (filters.bande.length > 0) qs.set('bande', filters.bande[0]);
-  if (filters.site.length > 0) qs.set('site_name', filters.site[0]);
+  if (filters.dor.length > 0) qs.set('dor', filters.dor.join(','));
+  if (filters.plaque.length > 0) qs.set('plaque', filters.plaque.join(','));
+  if (filters.bande.length > 0) qs.set('bande', filters.bande.join(','));
+  if (filters.zone_arcep.length > 0) qs.set('zone_arcep', filters.zone_arcep.join(','));
+  if (filters.techno.length > 0) qs.set('techno', filters.techno.join(','));
+  if (filters.site.length > 0) qs.set('site_name', filters.site.join(','));
+  if (filters.cell.length > 0) qs.set('cell_name', filters.cell.join(','));
   return qs.toString();
 }
 
