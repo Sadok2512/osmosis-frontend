@@ -1138,40 +1138,9 @@ const NetworkTopologyPage: React.FC = () => {
           {/* ═══════ TAB: Sites & Data ═══════ */}
           <TabsContent value="sites" className="mt-4 space-y-4">
 
-            {/* Topo Service */}
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="w-5 h-5 text-blue-500" />
-                  <h2 className="text-sm font-bold uppercase tracking-wide">Topo Service</h2>
-                </div>
-                {serviceBadge}
-              </div>
-              {stats?.csv_path && (
-                <div className="flex items-center gap-3 p-3 bg-muted/30 border rounded-lg mb-3">
-                  <FolderOpen className="w-4 h-4 text-blue-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-muted-foreground uppercase mb-0.5">Configured Path</div>
-                    <div className="font-mono text-xs font-semibold truncate">{stats.csv_path}</div>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2 items-center">
-                <Button size="sm" onClick={runImport} disabled={importing}>
-                  {importing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-1" />}
-                  Run Import
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-4 h-4 mr-1" /> Upload File
-                </Button>
-                <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,.txt" className="hidden"
-                  onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ''; }} />
-                <div className="flex-1" />
-                <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-                  <Trash2 className="w-4 h-4 mr-1" /> Delete Topo
-                </Button>
-              </div>
-            </Card>
+            {/* Topo Service section removed */}
+            <input ref={fileInputRef} type="file" accept=".csv,.xls,.xlsx,.txt" className="hidden"
+              onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ''; }} />
 
             {/* Sites search + table */}
             <Card className="p-5">
