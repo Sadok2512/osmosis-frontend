@@ -12,9 +12,12 @@ interface FilterChipProps {
 }
 
 const TONE: Record<NonNullable<FilterChipProps['tone']>, string> = {
-  neutral: 'bg-muted/60 text-foreground border-border hover:bg-muted',
-  primary: 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/15',
-  accent: 'bg-accent/40 text-accent-foreground border-accent hover:bg-accent/60',
+  neutral:
+    'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-[0_1px_2px_rgba(15,23,42,0.04)]',
+  primary:
+    'bg-teal-50 text-teal-800 border-teal-200/80 hover:bg-teal-100/70 shadow-[0_1px_2px_rgba(14,124,102,0.06)]',
+  accent:
+    'bg-slate-900 text-white border-slate-900 hover:bg-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.12)]',
 };
 
 export const FilterChip: React.FC<FilterChipProps> = ({
@@ -25,29 +28,32 @@ export const FilterChip: React.FC<FilterChipProps> = ({
   tone = 'neutral',
   icon,
 }) => {
+  const active = values.length > 0;
   const summary =
     values.length === 0 ? 'Any' : values.length === 1 ? values[0] : `${values.length} selected`;
   return (
     <div
       className={cn(
-        'inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-xs font-medium transition-colors',
+        'inline-flex items-center gap-2 h-9 pl-3.5 pr-2.5 rounded-full border text-[12.5px] font-medium transition-all duration-150',
         TONE[tone],
+        active && tone === 'neutral' && 'border-teal-300 bg-teal-50/60 text-teal-800',
       )}
     >
-      {icon && <span className="opacity-70">{icon}</span>}
+      {icon && <span className="opacity-70 flex items-center">{icon}</span>}
       <button onClick={onClick} className="flex items-center gap-1.5 cursor-pointer">
-        <span className="opacity-70">{label}:</span>
+        <span className="opacity-60">{label}</span>
+        <span className="opacity-30">·</span>
         <span className="font-semibold max-w-[160px] truncate" title={values.join(', ')}>
           {summary}
         </span>
       </button>
-      {onClear && values.length > 0 && (
+      {onClear && active && (
         <button
           onClick={(e) => {
             e.stopPropagation();
             onClear();
           }}
-          className="ml-0.5 -mr-1 w-4 h-4 rounded-full hover:bg-foreground/10 flex items-center justify-center"
+          className="ml-0.5 w-5 h-5 rounded-full hover:bg-slate-900/10 flex items-center justify-center transition-colors"
           aria-label={`Clear ${label}`}
         >
           <X className="w-3 h-3" />

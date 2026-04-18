@@ -162,196 +162,208 @@ const ParameterHubPage: React.FC = () => {
     draftAggregation !== appliedAggregation;
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Header */}
-      <header className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <Sliders className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Parameters Hub</h1>
-            <p className="text-xs text-muted-foreground">
-              Search, filter, and analyze network parameters across topology and dimensions.
-            </p>
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col h-full bg-[#F7F9FB] overflow-hidden font-sans">
+      {/* Scrollable wrapper — content centered in a max-width column */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-[1280px] mx-auto px-8 py-8 space-y-6">
+          {/* Header */}
+          <header className="flex items-start gap-4">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 shadow-[0_4px_12px_-2px_rgba(14,124,102,0.35)] flex items-center justify-center shrink-0">
+              <Sliders className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h1 className="text-[22px] font-semibold text-slate-800 tracking-tight leading-tight">
+                Parameters Hub
+              </h1>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Explore, filter, and analyze network parameters across the topology.
+              </p>
+            </div>
+          </header>
 
-      {/* Toolbar */}
-      <div className="shrink-0 border-b border-border bg-card/30 px-6 py-3 space-y-3">
-        {/* Row 1 — Parameters + filter chips */}
-        <div className="flex items-center flex-wrap gap-2">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
-            <Sparkles className="w-3 h-3" /> Parameters
-          </span>
-          <MultiSelectPopover
-            title="Select parameters"
-            options={availableParameters}
-            selected={draftFilters.parameters}
-            onConfirm={(v) => setFilterValues('parameters', v)}
-            loading={parametersLoading}
-            emptyHint="No parameters in catalog"
-            trigger={
-              <button>
-                <FilterChip
-                  label="Parameter"
-                  values={draftFilters.parameters}
-                  tone="primary"
-                  icon={<Sparkles className="w-3 h-3" />}
-                  onClear={() => setFilterValues('parameters', [])}
+          {/* Main premium card */}
+          <div className="rounded-2xl bg-white border border-slate-200/70 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_12px_32px_-12px_rgba(15,23,42,0.10)] overflow-hidden">
+            {/* Filter bar */}
+            <div className="px-7 pt-6 pb-5 border-b border-slate-100">
+              <div className="flex items-center gap-2 flex-wrap">
+                <MultiSelectPopover
+                  title="Select parameters"
+                  options={availableParameters}
+                  selected={draftFilters.parameters}
+                  onConfirm={(v) => setFilterValues('parameters', v)}
+                  loading={parametersLoading}
+                  emptyHint="No parameters in catalog"
+                  trigger={
+                    <button>
+                      <FilterChip
+                        label="Parameter"
+                        values={draftFilters.parameters}
+                        tone="primary"
+                        icon={<Sparkles className="w-3.5 h-3.5" />}
+                        onClear={() => setFilterValues('parameters', [])}
+                      />
+                    </button>
+                  }
                 />
-              </button>
-            }
-          />
 
-          <div className="h-6 w-px bg-border mx-1" />
+                <div className="h-5 w-px bg-slate-200 mx-1" />
 
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mr-1">
-            <FilterIcon className="w-3 h-3" /> Filters
-          </span>
-
-          {FILTER_DIMS.map((d) => (
-            <MultiSelectPopover
-              key={d.key}
-              title={`Select ${d.label}`}
-              options={distinctCache[d.column as string] ?? []}
-              selected={draftFilters[d.key]}
-              onConfirm={(v) => setFilterValues(d.key, v)}
-              loading={distinctLoading[d.column as string]}
-              emptyHint="No values"
-              trigger={
-                <button onMouseEnter={() => ensureDistinct(d.column)} onClick={() => ensureDistinct(d.column)}>
-                  <FilterChip
-                    label={d.label}
-                    values={draftFilters[d.key]}
-                    onClear={() => setFilterValues(d.key, [])}
+                {FILTER_DIMS.map((d) => (
+                  <MultiSelectPopover
+                    key={d.key}
+                    title={`Select ${d.label}`}
+                    options={distinctCache[d.column as string] ?? []}
+                    selected={draftFilters[d.key]}
+                    onConfirm={(v) => setFilterValues(d.key, v)}
+                    loading={distinctLoading[d.column as string]}
+                    emptyHint="No values"
+                    trigger={
+                      <button onMouseEnter={() => ensureDistinct(d.column)} onClick={() => ensureDistinct(d.column)}>
+                        <FilterChip
+                          label={d.label}
+                          values={draftFilters[d.key]}
+                          onClear={() => setFilterValues(d.key, [])}
+                        />
+                      </button>
+                    }
                   />
-                </button>
-              }
-            />
-          ))}
+                ))}
 
-          <div className="flex-1" />
+                <div className="flex-1" />
 
-          {totalActiveFilters > 0 && (
-            <button
-              onClick={clearAllFilters}
-              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs text-muted-foreground hover:text-destructive border border-transparent hover:border-destructive/30 rounded-full transition-colors"
-            >
-              <Trash2 className="w-3 h-3" /> Clear all ({totalActiveFilters})
-            </button>
-          )}
-        </div>
-
-        {/* Row 2 — Dimensions / Aggregation / Apply */}
-        <div className="flex items-center flex-wrap gap-3">
-          <MultiSelectPopover
-            title="Select dimensions"
-            options={DIMENSION_OPTIONS}
-            selected={draftDimensions}
-            onConfirm={(v) => setDraftDimensions(v)}
-            trigger={
-              <button>
-                <FilterChip
-                  label="Dimensions"
-                  values={draftDimensions}
-                  tone="accent"
-                  icon={<Layers className="w-3 h-3" />}
-                />
-              </button>
-            }
-          />
-
-          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-muted/60 border border-border">
-            <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Aggregate
-            </span>
-            {AGGREGATION_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setDraftAggregation(opt.value)}
-                className={cn(
-                  'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                  draftAggregation === opt.value
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-foreground/70 hover:text-foreground',
+                {totalActiveFilters > 0 && (
+                  <button
+                    onClick={clearAllFilters}
+                    className="inline-flex items-center gap-1.5 h-9 px-3 text-xs font-medium text-slate-500 hover:text-rose-600 rounded-full transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Clear all ({totalActiveFilters})
+                  </button>
                 )}
-              >
-                {opt.label}
-              </button>
-            ))}
+
+                <button
+                  onClick={handleApply}
+                  disabled={loading}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 h-9 px-5 rounded-full text-[13px] font-semibold text-white transition-all duration-150',
+                    'bg-gradient-to-b from-teal-500 to-teal-600 hover:from-teal-400 hover:to-teal-500',
+                    'shadow-[0_1px_2px_rgba(14,124,102,0.18),0_4px_12px_-2px_rgba(14,124,102,0.30)]',
+                    'hover:shadow-[0_2px_4px_rgba(14,124,102,0.20),0_8px_18px_-4px_rgba(14,124,102,0.40)]',
+                    'disabled:opacity-60 disabled:cursor-not-allowed',
+                    dirty && !loading && 'ring-2 ring-teal-300/60 ring-offset-1',
+                  )}
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Apply{dirty ? ' *' : ''}
+                </button>
+              </div>
+
+              {/* Secondary row — Dimensions & Aggregation */}
+              <div className="flex items-center gap-3 flex-wrap mt-4 pt-4 border-t border-slate-100">
+                <MultiSelectPopover
+                  title="Select dimensions"
+                  options={DIMENSION_OPTIONS}
+                  selected={draftDimensions}
+                  onConfirm={(v) => setDraftDimensions(v)}
+                  trigger={
+                    <button>
+                      <FilterChip
+                        label="Dimensions"
+                        values={draftDimensions}
+                        tone="accent"
+                        icon={<Layers className="w-3.5 h-3.5" />}
+                      />
+                    </button>
+                  }
+                />
+
+                <div className="inline-flex items-center gap-0.5 p-1 rounded-full bg-slate-100/80 border border-slate-200/60">
+                  <span className="px-2.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
+                    Aggregate
+                  </span>
+                  {AGGREGATION_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setDraftAggregation(opt.value)}
+                      className={cn(
+                        'px-3 py-1 rounded-full text-xs font-medium transition-all duration-150',
+                        draftAggregation === opt.value
+                          ? 'bg-white text-teal-700 shadow-[0_1px_2px_rgba(15,23,42,0.08)]'
+                          : 'text-slate-500 hover:text-slate-700',
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="px-7 pt-4 pb-0 flex items-center justify-between border-b border-slate-100">
+              <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
+                <TabsList className="h-10 bg-slate-100/70 p-1 rounded-full">
+                  <TabsTrigger
+                    value="distribution"
+                    className="gap-1.5 text-xs px-4 rounded-full data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" /> Distribution
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="raw"
+                    className="gap-1.5 text-xs px-4 rounded-full data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm"
+                  >
+                    <Database className="w-3.5 h-3.5" /> Raw Data
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="map"
+                    className="gap-1.5 text-xs px-4 rounded-full data-[state=active]:bg-white data-[state=active]:text-teal-700 data-[state=active]:shadow-sm"
+                  >
+                    <MapPin className="w-3.5 h-3.5" /> Map
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <div className="text-[11.5px] text-slate-400 font-medium">
+                {hasApplied
+                  ? `${rows.length.toLocaleString()} rows · ${mapRows.length.toLocaleString()} geo points · aggregation: ${appliedAggregation}`
+                  : 'Configure filters and click Apply to load data.'}
+              </div>
+            </div>
+
+            {/* Content area */}
+            <div className="px-6 py-8 bg-gradient-to-b from-white to-slate-50/40 min-h-[520px]">
+              {error && (
+                <div className="mb-5 mx-auto max-w-3xl px-4 py-3 rounded-xl border border-rose-200 bg-rose-50/60 text-sm text-rose-700">
+                  {error}
+                </div>
+              )}
+
+              {!hasApplied ? (
+                <div className="flex flex-col items-center justify-center py-32 text-slate-400">
+                  <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center mb-4">
+                    <Sliders className="w-7 h-7 text-teal-600/70" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">
+                    Pick parameters and filters, then click Apply
+                  </p>
+                  <p className="text-xs mt-1.5 text-slate-400">
+                    Nothing loads until you apply — keeps the network calm.
+                  </p>
+                </div>
+              ) : loading ? (
+                <div className="flex items-center justify-center py-32">
+                  <Loader2 className="w-8 h-8 animate-spin text-teal-600" />
+                </div>
+              ) : viewMode === 'distribution' ? (
+                <DistributionView rows={rows} aggregation={appliedAggregation} />
+              ) : viewMode === 'raw' ? (
+                <RawDataView rows={rows} />
+              ) : (
+                <MapView rows={mapRows} parameterFocus={appliedFilters.parameters[0]} />
+              )}
+            </div>
           </div>
-
-          <div className="flex-1" />
-
-          <Button
-            onClick={handleApply}
-            disabled={loading}
-            className={cn(
-              'h-9 gap-1.5',
-              dirty && 'ring-2 ring-primary/40',
-            )}
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            Apply{dirty ? ' *' : ''}
-          </Button>
         </div>
-      </div>
-
-      {/* View switcher */}
-      <div className="shrink-0 border-b border-border bg-background/40 px-6 py-2 flex items-center justify-between">
-        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
-          <TabsList className="h-9">
-            <TabsTrigger value="distribution" className="gap-1.5 text-xs">
-              <BarChart3 className="w-3.5 h-3.5" /> Distribution
-            </TabsTrigger>
-            <TabsTrigger value="raw" className="gap-1.5 text-xs">
-              <Database className="w-3.5 h-3.5" /> Raw Data
-            </TabsTrigger>
-            <TabsTrigger value="map" className="gap-1.5 text-xs">
-              <MapPin className="w-3.5 h-3.5" /> Map
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        <div className="text-[11px] text-muted-foreground">
-          {hasApplied
-            ? `${rows.length.toLocaleString()} rows · ${mapRows.length.toLocaleString()} geo points · agg ${appliedAggregation}`
-            : 'Configure filters and click Apply to load data.'}
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-6">
-        {error && (
-          <div className="mb-4 px-4 py-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {!hasApplied ? (
-          <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
-            <Sliders className="w-12 h-12 opacity-30 mb-3" />
-            <p className="text-sm font-medium">Pick parameters and filters, then click Apply</p>
-            <p className="text-xs mt-1">
-              Nothing will load until you apply — keeps the network calm.
-            </p>
-          </div>
-        ) : loading ? (
-          <div className="flex items-center justify-center py-32">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : viewMode === 'distribution' ? (
-          <DistributionView rows={rows} aggregation={appliedAggregation} />
-        ) : viewMode === 'raw' ? (
-          <RawDataView rows={rows} />
-        ) : (
-          <MapView
-            rows={mapRows}
-            parameterFocus={appliedFilters.parameters[0]}
-          />
-        )}
       </div>
     </div>
   );
