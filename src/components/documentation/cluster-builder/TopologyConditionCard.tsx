@@ -48,35 +48,33 @@ const TopologyConditionCard: React.FC<TopologyConditionCardProps> = ({
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
       {/* Top row: field / operator / remove */}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 grid grid-cols-[1fr_auto] gap-2">
-          <div>
-            <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Field</label>
-            <select
-              value={condition.field}
-              onChange={e => set({ field: e.target.value, values: [] })}
-              className="w-full mt-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              {fieldOptions.map(f => (
-                <option key={f.key} value={f.key}>{f.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Operator</label>
-            <select
-              value={condition.operator}
-              onChange={e => set({ operator: e.target.value as TopoOperator })}
-              className="mt-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-            >
-              <option value="IN">IN</option>
-              <option value="NOT IN">NOT IN</option>
-            </select>
-          </div>
+      <div className="flex items-end gap-2">
+        <div className="flex-1 min-w-0">
+          <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Field</label>
+          <select
+            value={condition.field}
+            onChange={e => set({ field: e.target.value, values: [] })}
+            className="w-full mt-1 h-9 px-2.5 rounded-lg border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            {fieldOptions.map(f => (
+              <option key={f.key} value={f.key}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="w-28 shrink-0">
+          <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Operator</label>
+          <select
+            value={condition.operator}
+            onChange={e => set({ operator: e.target.value as TopoOperator })}
+            className="w-full mt-1 h-9 px-2.5 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="IN">IN</option>
+            <option value="NOT IN">NOT IN</option>
+          </select>
         </div>
         <button
           onClick={onRemove}
-          className="self-end p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          className="shrink-0 h-9 w-9 flex items-center justify-center rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
           title="Remove condition"
         >
           <Trash2 className="w-4 h-4" />
