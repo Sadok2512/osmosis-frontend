@@ -158,8 +158,6 @@ const DocumentationPage: React.FC = () => {
     
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
     { id: 'parameters_hub', label: 'Parameters HUB', icon: <Sliders className="w-4 h-4" /> },
-    { id: 'alarms', label: 'Alarms', icon: <Bell className="w-4 h-4" /> },
-    { id: 'cm_history', label: 'CM History', icon: <History className="w-4 h-4" /> },
   ];
 
   return (
