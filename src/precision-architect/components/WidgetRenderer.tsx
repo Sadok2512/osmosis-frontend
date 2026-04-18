@@ -49,6 +49,39 @@ export default function WidgetRenderer({ widget: w }: Props) {
       </div>
     );
   }
+  if (w.kind === 'text') {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="widget-drag-handle cursor-move mb-2">
+          <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Text'}</h3>
+        </div>
+        <div className="flex-1 min-h-0 overflow-auto text-sm text-on-surface-variant whitespace-pre-wrap leading-relaxed">
+          {w.body ?? 'Click Edit to add notes, commentary or a narrative for this report section.'}
+        </div>
+      </div>
+    );
+  }
+  if (w.kind === 'image') {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="widget-drag-handle cursor-move mb-2 flex items-center justify-between">
+          <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Image'}</h3>
+          {w.caption && (
+            <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">{w.caption}</span>
+          )}
+        </div>
+        <div className="flex-1 min-h-0 rounded-xl overflow-hidden bg-surface-container-low border border-outline-variant/20 flex items-center justify-center">
+          {w.imageUrl ? (
+            <img src={w.imageUrl} alt={w.caption ?? w.title ?? 'Widget image'} className="w-full h-full object-contain" />
+          ) : (
+            <div className="text-xs font-bold uppercase tracking-widest text-on-surface-variant text-center px-4">
+              No image yet — paste a URL in widget settings
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
   // kpi
   return (
     <div className="h-full flex flex-col">
