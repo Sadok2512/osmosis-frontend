@@ -196,8 +196,7 @@ const buildSiteIcon = (
 
 export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
   const [viewMode, setViewMode] = useState<ViewMode>('points');
-  const [technoFilter, setTechnoFilter] = useState<Set<string>>(new Set());
-  const [valueRange, setValueRange] = useState<[number, number] | null>(null);
+  const [hiddenValues, setHiddenValues] = useState<Set<string>>(new Set());
 
   const focusRows = useMemo(
     () => (parameterFocus ? rows.filter((r) => r.parameter === parameterFocus) : rows),
@@ -217,50 +216,24 @@ export const MapView: React.FC<MapViewProps> = ({ rows, parameterFocus }) => {
     return { min, max };
   }, [focusRows]);
 
-  // Reset slider when stats change
+  // Reset hidden values when underlying data changes
   useEffect(() => {
-    if (numericStats) setValueRange([numericStats.min, numericStats.max]);
-    else setValueRange(null);
-  }, [numericStats?.min, numericStats?.max]);
-
-  const availableTechnos = useMemo(() => {
-    const set = new Set<string>();
-    focusRows.forEach((r) => {
-      const t = (r.techno ?? r.bande ?? '').toString();
-      if (t) {
-        // Try to extract 2G/3G/4G/5G hint from techno or band
-        const m = t.match(/(2G|3G|4G|5G|LTE|NR|GSM|UMTS)/i);
-        if (m) {
-          const norm = m[1].toUpperCase()
-            .replace('LTE', '4G').replace('NR', '5G')
-            .replace('GSM', '2G').replace('UMTS', '3G');
-          set.add(norm);
-        }
-      }
-    });
-    return Array.from(set).sort();
-  }, [focusRows]);
+    setHiddenValues(new Set());
+  }, [parameterFocus, rows]);
 
   const visibleRows = useMemo(() => {
-    return focusRows.filter((r) => {
-      // Techno filter
-      if (technoFilter.size) {
-        const t = (r.techno ?? r.bande ?? '').toString().toUpperCase()
-          .replace('LTE', '4G').replace('NR', '5G')
-          .replace('GSM', '2G').replace('UMTS', '3G');
-        const match = Array.from(technoFilter).some((tf) => t.includes(tf));
-        if (!match) return false;
-      }
-      // Value range filter
-      if (numericStats && valueRange) {
-        const n = Number(r.value);
-        if (Number.isFinite(n)) {
-          if (n < valueRange[0] || n > valueRange[1]) return false;
-        }
-      }
-      return true;
+    if (hiddenValues.size === 0) return focusRows;
+    return focusRows.filter((r) => !hiddenValues.has(r.value ?? '(null)'));
+  }, [focusRows, hiddenValues]);
+
+  const toggleValueVisibility = (v: string) => {
+    setHiddenValues((prev) => {
+      const next = new Set(prev);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
     });
-  }, [focusRows, technoFilter, valueRange, numericStats]);
+  };
 
   // Stable color palette for categorical values (up to 30 distinct colors)
   const VALUE_PALETTE = [
