@@ -96,12 +96,13 @@ function buildQueryString(filters: ParameterHubFilters, limit: number, page = 1)
   const qs = new URLSearchParams();
   qs.set('limit', String(limit));
   qs.set('page', String(page));
-  if (filters.parameters.length === 1) qs.set('parameter', filters.parameters[0]);
-  if (filters.vendor.length === 1) qs.set('vendor', filters.vendor[0]);
-  if (filters.dor.length === 1) qs.set('dor', filters.dor[0]);
-  if (filters.plaque.length === 1) qs.set('plaque', filters.plaque[0]);
-  if (filters.bande.length === 1) qs.set('bande', filters.bande[0]);
-  if (filters.site.length === 1) qs.set('site_name', filters.site[0]);
+  // Multi-value: use comma-separated plural params
+  if (filters.parameters.length > 0) qs.set('parameters', filters.parameters.join(','));
+  if (filters.vendor.length > 0) qs.set('vendors', filters.vendor.join(','));
+  if (filters.dor.length > 0) qs.set('dor', filters.dor[0]);
+  if (filters.plaque.length > 0) qs.set('plaque', filters.plaque[0]);
+  if (filters.bande.length > 0) qs.set('bande', filters.bande[0]);
+  if (filters.site.length > 0) qs.set('site_name', filters.site[0]);
   return qs.toString();
 }
 
