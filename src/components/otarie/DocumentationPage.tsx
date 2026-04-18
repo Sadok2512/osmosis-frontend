@@ -153,7 +153,6 @@ const DocumentationPage: React.FC = () => {
   const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
-  const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
     { id: 'filters', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     
