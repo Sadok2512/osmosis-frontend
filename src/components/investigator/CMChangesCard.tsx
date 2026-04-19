@@ -83,7 +83,7 @@ const CMChangesCard: React.FC<Props> = ({ cellNames, siteNames = [], plaques = [
   // Filter
   const filtered = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    return changes.filter(c => {
+    return (Array.isArray(changes) ? changes : []).filter(c => {
       if (actionFilter !== 'all' && c.change_type !== actionFilter) return false;
       if (!q) return true;
       return (
