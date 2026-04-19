@@ -5127,6 +5127,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
   const cellLoadAttemptedRef = useRef(new Set<string>());
+  // Track per-site fetch attempts so we stop hammering sites that backend can't resolve
+  const cellLoadAttemptCountRef = useRef(new Map<string, number>());
+  const MAX_CELL_LOAD_ATTEMPTS = 2;
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cellsLoadingCount, setCellsLoadingCount] = useState(0);
   const [cellsCacheLoadedCount, setCellsCacheLoadedCount] = useState(0);
@@ -5525,6 +5528,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
+      cellLoadAttemptCountRef.current.clear();
       invalidateBboxCache();
     }
     prevBboxFiltersRef.current = filterKey;
@@ -5537,7 +5541,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!viewport.bounds) return;
 
     const sitesNeedingCellsRaw = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
+      s => s.cells.length === 0
+        && !cellLoadingRef.current.has(s.site_id)
+        && !cellLoadAttemptedRef.current.has(s.site_id)
+        && (cellLoadAttemptCountRef.current.get(s.site_id) ?? 0) < MAX_CELL_LOAD_ATTEMPTS
     );
 
     if (sitesNeedingCellsRaw.length === 0) return;
@@ -5552,8 +5559,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
-      // Mark all as loading
-      sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      // Mark all as loading and bump per-site attempt count
+      sitesNeedingCells.forEach(s => {
+        cellLoadingRef.current.add(s.site_id);
+        const prev = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+        cellLoadAttemptCountRef.current.set(s.site_id, prev + 1);
+      });
       setCellsLoadingCount(cellLoadingRef.current.size);
 
       try {
@@ -5701,7 +5712,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           const gotCells = !!resolveSiteCells(s);
-          if (gotCells || !cacheStillLoading) {
+          const attempts = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+          // Mark attempted if: we got cells, cache finished, OR we've hit the retry cap
+          if (gotCells || !cacheStillLoading || attempts >= MAX_CELL_LOAD_ATTEMPTS) {
             cellLoadAttemptedRef.current.add(s.site_id);
           }
         });
@@ -5716,8 +5729,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
-          // Don't mark as attempted on error if cache still loading
-          if (!isCellsCacheLoading()) {
+          const attempts = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+          // Don't mark as attempted on transient error if cache still loading AND we still have retries left
+          if (!isCellsCacheLoading() || attempts >= MAX_CELL_LOAD_ATTEMPTS) {
             cellLoadAttemptedRef.current.add(s.site_id);
           }
         });
