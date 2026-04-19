@@ -5711,7 +5711,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
           const gotCells = !!resolveSiteCells(s);
-          if (gotCells || !cacheStillLoading) {
+          const attempts = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+          // Mark attempted if: we got cells, cache finished, OR we've hit the retry cap
+          if (gotCells || !cacheStillLoading || attempts >= MAX_CELL_LOAD_ATTEMPTS) {
             cellLoadAttemptedRef.current.add(s.site_id);
           }
         });
@@ -5726,8 +5728,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
           cellLoadingRef.current.delete(s.site_id);
-          // Don't mark as attempted on error if cache still loading
-          if (!isCellsCacheLoading()) {
+          const attempts = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+          // Don't mark as attempted on transient error if cache still loading AND we still have retries left
+          if (!isCellsCacheLoading() || attempts >= MAX_CELL_LOAD_ATTEMPTS) {
             cellLoadAttemptedRef.current.add(s.site_id);
           }
         });
