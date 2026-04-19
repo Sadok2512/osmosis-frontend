@@ -5558,8 +5558,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
-      // Mark all as loading
-      sitesNeedingCells.forEach(s => cellLoadingRef.current.add(s.site_id));
+      // Mark all as loading and bump per-site attempt count
+      sitesNeedingCells.forEach(s => {
+        cellLoadingRef.current.add(s.site_id);
+        const prev = cellLoadAttemptCountRef.current.get(s.site_id) ?? 0;
+        cellLoadAttemptCountRef.current.set(s.site_id, prev + 1);
+      });
       setCellsLoadingCount(cellLoadingRef.current.size);
 
       try {
