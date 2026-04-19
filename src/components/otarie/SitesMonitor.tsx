@@ -6881,7 +6881,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Cell-count density scale: dense sites get bigger sectors (sqrt scaling, clamped)
             const cellCountScale = getCellCountScale(site.cells.length);
             const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7 * cellCountScale;
-            const miniOpacity = Math.min(0.65, 0.25 + (viewport.zoom - 9) * 0.1);
+            // PRO #2/#3: lighter fill + stronger outline for readability
+            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
             // Build per-cell band-based mini items with size hierarchy
@@ -6950,8 +6951,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         color: isHovered ? '#fff' : deriveStrokeColor(techColor),
                         fillColor: techColor,
                         fillOpacity: isHovered ? 0.5 : miniOpacity,
-                        weight: isHovered ? 1.5 : 0.8,
-                        opacity: isHovered ? 1 : 0.65,
+                        weight: isHovered ? 2 : 1.5, // PRO #3: stronger outline
+                        opacity: isHovered ? 1 : 0.85,
                       }}
                       eventHandlers={{
                         click: () => handleSiteClick(site),
@@ -7452,9 +7453,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
-                        fillOpacity: isHovered ? 0.5 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.92 : overlapFactor)),
-                        weight: isHovered ? 2 : 1.2,
-                        opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.8),
+                        // PRO #2: transparency 0.35–0.55 makes overlaps readable
+                        fillOpacity: isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor))),
+                        weight: isHovered ? 2 : 1.5, // PRO #3: stronger border
+                        opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.9),
                       }}
                       eventHandlers={{
                         click: () => handleSiteClick(site),
@@ -7556,8 +7558,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' && !colorViewOverrideCell ? getBandStrokeColor(cell.bande, cell.techno) : deriveStrokeColor(fillColor));
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
-                const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.92 : overlapFactor)));
-                const strokeWeight = isFocusCell ? 2 : (isHovered ? 1.5 : 1);
+                const baseOpacity = isFocusFaded ? 0.08 : (isFaded ? 0.08 : (isCellDimmed ? 0.15 : (is5G ? 0.45 : Math.min(0.4, overlapFactor)))); // PRO #2
+                const strokeWeight = isFocusCell ? 2.5 : (isHovered ? 2 : 1.5); // PRO #3
                 return (
                   <Polygon
                     key={cell.cell_id}
@@ -7566,9 +7568,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: isFocusCell ? 0.45 : (isHovered ? 0.40 : baseOpacity),
+                      fillOpacity: isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity),
                       weight: strokeWeight,
-                      opacity: isFocusCell ? 1 : (isHovered ? 0.9 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.7))),
+                      opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
                     eventHandlers={{
                       click: () => {
