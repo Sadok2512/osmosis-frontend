@@ -1204,23 +1204,29 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             });
             const forceMarkers = cfg.showSymbols || hasSinglePoint(counterData);
 
+            const sp = getSeriesProps(baseCounter);
+            const fm = sp.forceSymbols || forceMarkers;
             series.push({
               name: label,
               _kpiId: `counter_${counter}`,
               _isCounter: true,
               connectNulls: true,
-              type: 'line' as any,
+              type: sp.seriesType as any,
               data: counterData,
-              smooth: cfg.smooth !== undefined ? cfg.smooth : true,
-              symbol: forceMarkers ? 'circle' : 'none',
-              symbolSize: forceMarkers ? 5 : 0,
-              lineStyle: { width: cfg.lineWidth || 2.5, color, type: 'solid' as const },
-              itemStyle: { color },
-              areaStyle: cfg.showArea ? {
+              smooth: sp.isSmooth,
+              symbol: fm ? 'circle' : 'none',
+              symbolSize: fm ? 5 : 0,
+              lineStyle: sp.seriesType === 'line'
+                ? { width: cfg.lineWidth || 2.5, color, type: 'solid' as const }
+                : undefined,
+              itemStyle: { color, borderRadius: sp.seriesType === 'bar' ? [3, 3, 0, 0] : undefined },
+              barMaxWidth: 20,
+              stack: sp.isStacked ? 'total_counters' : undefined,
+              areaStyle: sp.showArea ? {
                 color: {
                   type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
                   colorStops: [
-                    { offset: 0, color: `${color}15` },
+                    { offset: 0, color: `${color}30` },
                     { offset: 1, color: `${color}02` },
                   ],
                 },
