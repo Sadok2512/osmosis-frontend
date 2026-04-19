@@ -17,13 +17,14 @@ export const getZoomAwareRadius = (
   densityFactor: number = 1,
   viewportWidth: number = 1400,
 ): number => {
+  // PRO adjustment #1: reduced max sizes — avoid carpet effect
   let targetPx: number;
-  if (zoom <= 9) targetPx = 14;
-  else if (zoom <= 10) targetPx = 18;
-  else if (zoom <= 11) targetPx = 22;
-  else if (zoom <= 12) targetPx = 26;
-  else if (zoom <= 13) targetPx = 30;
-  else targetPx = 34;
+  if (zoom <= 9) targetPx = 8;          // simplified at very low zoom
+  else if (zoom <= 11) targetPx = 12;   // small sectors at medium zoom
+  else if (zoom <= 12) targetPx = 16;
+  else if (zoom <= 13) targetPx = 20;
+  else if (zoom <= 14) targetPx = 24;
+  else targetPx = 28;                   // PRO max ~28px (was 34)
 
   // Dynamic viewport scaling — smaller screens get proportionally smaller beams
   const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
@@ -33,7 +34,8 @@ export const getZoomAwareRadius = (
   targetPx *= densityScale;
 
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(20, Math.min(800, targetPx * mpp));
+  // PRO adjustment #1: tighter clamps [min 6px → max 28px equivalent]
+  return Math.max(15, Math.min(500, targetPx * mpp));
 };
 
 /**
