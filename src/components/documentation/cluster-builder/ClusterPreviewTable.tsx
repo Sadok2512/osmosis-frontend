@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2, Search, Download, ExternalLink, AlertCircle, Inbox, ArrowUpDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { topoApi } from '@/lib/localDb';
+import { fetchSiteCells } from '@/services/topoService';
 import type { TopologyConditionState } from './TopologyConditionCard';
 
 interface Props {
@@ -12,14 +13,20 @@ interface Props {
 interface PreviewCell {
   cell_id?: string;
   cell_name?: string;
+  source_cellule?: string;
   nom_cellule?: string;
   techno?: string;
   bande?: string;
   band?: string;
   pci?: number | string;
   eci?: number | string;
+  sac_ci_eci?: number | string;
+  nci?: number | string;
   azimut?: number | string;
+  azimuth?: number | string;
   etat_cellule?: string;
+  admin_state?: string;
+  oper_state?: string;
   status?: string;
 }
 
@@ -137,19 +144,21 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
   };
 
   const toggleExpand = async (siteId: string, inlineCells?: PreviewCell[]) => {
+    const isCurrentlyOpen = expanded.has(siteId);
     setExpanded(prev => {
       const next = new Set(prev);
       if (next.has(siteId)) next.delete(siteId); else next.add(siteId);
       return next;
     });
+
+    if (isCurrentlyOpen) return;
+
     // Lazy fetch cells if not provided inline & not cached
     if (!cellsCache[siteId] && (!inlineCells || inlineCells.length === 0)) {
       setCellsLoading(prev => new Set(prev).add(siteId));
       try {
-        const qs = new URLSearchParams({ limit: '500', site_id: siteId, include_cells: '1' }).toString();
-        const rows = await topoApi.filteredSites(qs);
-        const found = (rows || []).find((r: any) => (r.site_id || r.code_nidt || r.site_name) === siteId);
-        const cells = (found?.cells as PreviewCell[]) || [];
+        const site = enriched.find(s => s.site_id === siteId);
+        const cells = await fetchSiteCells(siteId, site?.site_name);
         setCellsCache(prev => ({ ...prev, [siteId]: cells }));
       } catch {
         setCellsCache(prev => ({ ...prev, [siteId]: [] }));
@@ -171,10 +180,10 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
       } else {
         cells.forEach(c => rows.push([
           s.site_name, s.vendor, s.region,
-          c.cell_name || c.nom_cellule || c.cell_id || '',
+          c.cell_name || c.source_cellule || c.nom_cellule || c.cell_id || '',
           c.techno || '', c.bande || c.band || '',
-          c.pci ?? c.eci ?? '',
-          c.etat_cellule || c.status || s.status,
+          c.pci ?? c.eci ?? c.sac_ci_eci ?? c.nci ?? '',
+          c.etat_cellule || c.admin_state || c.oper_state || c.status || s.status,
         ]));
       }
     });
@@ -334,13 +343,13 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
                                   <tbody>
                                     {cells.map((c, j) => (
                                       <tr key={j} className="border-t border-border/30 hover:bg-muted/30">
-                                        <td className="py-1 px-2 font-medium text-foreground">{c.cell_name || c.nom_cellule || c.cell_id || '—'}</td>
+                                        <td className="py-1 px-2 font-medium text-foreground">{c.cell_name || c.source_cellule || c.nom_cellule || c.cell_id || '—'}</td>
                                         <td className="py-1 px-2 text-muted-foreground">{c.techno || '—'}</td>
                                         <td className="py-1 px-2 text-muted-foreground">{c.bande || c.band || '—'}</td>
                                         <td className="py-1 px-2 text-right font-mono">{c.pci ?? '—'}</td>
-                                        <td className="py-1 px-2 text-right font-mono">{c.eci ?? '—'}</td>
+                                        <td className="py-1 px-2 text-right font-mono">{c.eci ?? c.sac_ci_eci ?? c.nci ?? '—'}</td>
                                         <td className="py-1 px-2">
-                                          <span className="text-[10px] text-muted-foreground">{c.etat_cellule || c.status || '—'}</span>
+                                          <span className="text-[10px] text-muted-foreground">{c.etat_cellule || c.admin_state || c.oper_state || c.status || '—'}</span>
                                         </td>
                                       </tr>
                                     ))}
