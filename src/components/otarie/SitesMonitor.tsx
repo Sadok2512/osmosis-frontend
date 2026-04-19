@@ -5528,6 +5528,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
+      cellLoadAttemptCountRef.current.clear();
       invalidateBboxCache();
     }
     prevBboxFiltersRef.current = filterKey;
