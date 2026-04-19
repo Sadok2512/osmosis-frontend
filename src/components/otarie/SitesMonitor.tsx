@@ -5540,7 +5540,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!viewport.bounds) return;
 
     const sitesNeedingCellsRaw = visibleSites.filter(
-      s => s.cells.length === 0 && !cellLoadingRef.current.has(s.site_id) && !cellLoadAttemptedRef.current.has(s.site_id)
+      s => s.cells.length === 0
+        && !cellLoadingRef.current.has(s.site_id)
+        && !cellLoadAttemptedRef.current.has(s.site_id)
+        && (cellLoadAttemptCountRef.current.get(s.site_id) ?? 0) < MAX_CELL_LOAD_ATTEMPTS
     );
 
     if (sitesNeedingCellsRaw.length === 0) return;
