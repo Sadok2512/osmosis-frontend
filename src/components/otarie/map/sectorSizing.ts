@@ -17,25 +17,25 @@ export const getZoomAwareRadius = (
   densityFactor: number = 1,
   viewportWidth: number = 1400,
 ): number => {
-  // PRO adjustment #1: reduced max sizes — avoid carpet effect
+  // PRO: max sector kept tight to avoid carpet effect in dense urban zones
   let targetPx: number;
-  if (zoom <= 9) targetPx = 8;          // simplified at very low zoom
-  else if (zoom <= 11) targetPx = 12;   // small sectors at medium zoom
-  else if (zoom <= 12) targetPx = 16;
-  else if (zoom <= 13) targetPx = 20;
-  else if (zoom <= 14) targetPx = 24;
-  else targetPx = 28;                   // PRO max ~28px (was 34)
+  if (zoom <= 9) targetPx = 7;
+  else if (zoom <= 11) targetPx = 10;
+  else if (zoom <= 12) targetPx = 13;
+  else if (zoom <= 13) targetPx = 16;
+  else if (zoom <= 14) targetPx = 20;
+  else targetPx = 24;
 
   // Dynamic viewport scaling — smaller screens get proportionally smaller beams
   const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
   targetPx *= vpScale;
 
-  const densityScale = 0.45 + 0.55 * Math.max(0, Math.min(1, densityFactor));
+  // Stronger density shrinking (densityFactor 0..1, 0 = very dense → shrink hard)
+  const densityScale = 0.30 + 0.70 * Math.max(0, Math.min(1, densityFactor));
   targetPx *= densityScale;
 
   const mpp = metersPerPixel(lat, zoom);
-  // PRO adjustment #1: tighter clamps [min 6px → max 28px equivalent]
-  return Math.max(15, Math.min(500, targetPx * mpp));
+  return Math.max(12, Math.min(420, targetPx * mpp));
 };
 
 /**
@@ -50,13 +50,13 @@ export const getTaggedRadius = (zoom: number): number => {
   return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
 };
 
-/** Compute density factor from visible site count */
+/** Compute density factor from visible site count — aggressive shrink in dense zones */
 export const computeDensityFactor = (visibleCount: number): number => {
-  if (visibleCount > 500) return 0;
-  if (visibleCount > 300) return 0.15;
-  if (visibleCount > 150) return 0.3;
-  if (visibleCount > 80) return 0.5;
-  if (visibleCount > 30) return 0.7;
+  if (visibleCount > 400) return 0;
+  if (visibleCount > 200) return 0.1;
+  if (visibleCount > 100) return 0.2;
+  if (visibleCount > 60) return 0.4;
+  if (visibleCount > 25) return 0.65;
   return 1;
 };
 
