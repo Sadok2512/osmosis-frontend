@@ -5127,6 +5127,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Auto-load cells refs (effect placed after visibleSites is defined)
   const cellLoadingRef = useRef(new Set<string>());
   const cellLoadAttemptedRef = useRef(new Set<string>());
+  // Track per-site fetch attempts so we stop hammering sites that backend can't resolve
+  const cellLoadAttemptCountRef = useRef(new Map<string, number>());
+  const MAX_CELL_LOAD_ATTEMPTS = 2;
   const cellLoadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [cellsLoadingCount, setCellsLoadingCount] = useState(0);
   const [cellsCacheLoadedCount, setCellsCacheLoadedCount] = useState(0);
