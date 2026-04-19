@@ -114,8 +114,22 @@ export const getBandSizeScale = (bandKey: string | null): number => {
 };
 
 /**
- * Get band sort priority for rendering order (lower value = render first = below).
+ * Cell-count density scale: sites with more cells get bigger sectors.
+ * Uses sqrt scaling to prevent visual explosion on dense sites, clamped to [0.7, 1.6].
+ *
+ *   scale = clamp( sqrt(cellCount / REF) , MIN, MAX )
+ *
+ * REF = 6 cells (typical tri-sector tri-tech site) → scale ≈ 1.0
+ * 1 cell  → 0.70 (clamped) | 6 cells → 1.00 | 12 cells → 1.41 | 24+ cells → 1.60
  */
+export const getCellCountScale = (cellCount: number): number => {
+  if (!Number.isFinite(cellCount) || cellCount <= 0) return 0.7;
+  const REF = 6;
+  const MIN = 0.7;
+  const MAX = 1.6;
+  const raw = Math.sqrt(cellCount / REF);
+  return Math.max(MIN, Math.min(MAX, raw));
+};
 export const getBandRenderOrder = (bandKey: string | null): number => {
   if (!bandKey) return 50;
   const scale = BAND_PRIORITY[bandKey] ?? 0.75;
