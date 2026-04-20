@@ -110,7 +110,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           : undefined;
 
         // Vary data per metric so multiple lines are visually distinct.
-        const seriesData = data.map((d, di) => {
+        const seriesData = effectiveData.map((d, di) => {
           const v = m.axis === 'right' ? (d.secondary ?? d.value * 0.65) : d.value;
           // Add a small per-metric offset so additional metrics don't fully overlap.
           return Math.round(v * (1 - idx * 0.12) + (idx * 8));
@@ -150,7 +150,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'line' as const,
           smooth: true,
           showSymbol: false,
-          data: data.map(d => d.value),
+          data: effectiveData.map(d => d.value),
           lineStyle: {
             color: primaryColor,
             width: isPresentation ? 3 : 2.5,
@@ -172,7 +172,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'line' as const,
           smooth: true,
           showSymbol: false,
-          data: data.map(d => d.secondary ?? 0),
+          data: effectiveData.map(d => d.secondary ?? 0),
           lineStyle: { color: secondaryColor, width: 1.5, type: 'dashed' as const },
           itemStyle: { color: secondaryColor },
         }] : []),
@@ -214,7 +214,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       },
       xAxis: {
         type: 'category' as const,
-        data: data.map(d => d.time),
+        data: effectiveData.map(d => d.time),
         boundaryGap: style.chartType === 'bar',
         axisLine: { lineStyle: { color: splitLine } },
         axisTick: { show: false },
