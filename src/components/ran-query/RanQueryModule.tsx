@@ -28,6 +28,7 @@ import CounterSelectorModal from '@/components/investigator/CounterSelectorModal
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import ClusterPicker, { type ClusterSelection } from '@/components/shared/ClusterPicker';
 import { topoApi } from '@/lib/localDb';
 import {
   CartesianGrid,
@@ -104,6 +105,8 @@ interface RanReport {
   zoneArcep?: string[];
   aggregation?: AggregationLevel;
   dimensions?: string[];
+  cluster_id?: number;
+  cluster_name?: string;
 }
 
 interface CreateFormState {
@@ -291,6 +294,7 @@ function buildFilterPayload(report: RanReport) {
   if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
   if (report.aggregation && report.aggregation !== 'cell') base.split_by_field = report.aggregation === 'site' ? 'site_name' : report.aggregation === 'band' ? 'band' : report.aggregation === 'plaque' ? 'plaque' : 'cell_name';
   if (report.dimensions && report.dimensions.length > 0) base.dimensions = report.dimensions;
+  if (report.cluster_id) base.cluster_id = report.cluster_id;
   return { vendors, base };
 }
 
@@ -546,6 +550,7 @@ const RanQueryModule: React.FC = () => {
   const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
   const [resultPage, setResultPage] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<ClusterSelection | null>(null);
 
   // ── Catalogs (Investigator-themed selectors) ──
   const [kpiCatalog, setKpiCatalog] = useState<KpiCatalogEntry[]>([]);
@@ -781,6 +786,8 @@ const RanQueryModule: React.FC = () => {
         zoneArcep: form.zoneArcep,
         aggregation: form.aggregation,
         dimensions: form.dimensions,
+        cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
+        cluster_name: selectedCluster?.cluster.name,
         // Reset results because scope changed; keep status as Ready so user must re-execute
         status: 'Ready',
         results: [],
@@ -812,6 +819,8 @@ const RanQueryModule: React.FC = () => {
       zoneArcep: form.zoneArcep,
       aggregation: form.aggregation,
       dimensions: form.dimensions,
+      cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
+      cluster_name: selectedCluster?.cluster.name,
     };
     setReports(prev => [report, ...prev]);
     setSelectedReportId(reportId);
@@ -1410,7 +1419,29 @@ const RanQueryModule: React.FC = () => {
               </SectionCard>
             </div>
 
-            <SectionCard title="Filter Area" description="Narrow the report scope by topology dimensions loaded from the backend.">
+            <SectionCard title="Filter Area" description="Use a saved cluster or narrow scope manually with topology filters.">
+              <div className="mb-4 flex items-center gap-3">
+                <ClusterPicker
+                  selected={selectedCluster?.cluster || null}
+                  onSelect={(sel) => {
+                    setSelectedCluster(sel);
+                    if (sel) {
+                      // Auto-fill sites from cluster
+                      updateForm('sites', sel.sites);
+                    } else {
+                      updateForm('sites', []);
+                    }
+                  }}
+                />
+                {selectedCluster && (
+                  <span className="text-xs text-muted-foreground">
+                    {selectedCluster.sites.length} sites from <strong>{selectedCluster.cluster.name}</strong>
+                  </span>
+                )}
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Manual Filters" description="Or narrow scope manually with topology dimensions.">
               {topoLoading ? (
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                   {[0, 1, 2, 3].map(i => (

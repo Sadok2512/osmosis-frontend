@@ -95,6 +95,28 @@ export async function countFilterMatching(id: string): Promise<MatchingCount> {
   return filterApi<MatchingCount>(`${id}/count`, { method: 'POST' });
 }
 
+// ── Cluster / Saved Scope APIs ──
+
+export interface ClusterSitesResult {
+  filter_id: number;
+  sites: string[];
+  site_count: number;
+}
+
+export async function getClusterSites(id: string): Promise<ClusterSitesResult> {
+  return filterApi<ClusterSitesResult>(`${id}/sites`);
+}
+
+export async function resolveClusterSites(id: string): Promise<ClusterSitesResult> {
+  return filterApi<ClusterSitesResult>(`${id}/resolve-sites`, { method: 'POST' });
+}
+
+export async function fetchActiveClusters(): Promise<NetworkFilter[]> {
+  const res = await fetchFilters({ status: 'active', limit: 100 });
+  return res.filters;
+}
+
+
 export interface DimensionSearchResult {
   dimension: string;
   values: string[];
