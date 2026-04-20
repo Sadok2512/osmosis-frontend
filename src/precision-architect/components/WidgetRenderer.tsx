@@ -299,3 +299,93 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
     </div>
   );
 }
+
+/* ---------- Chart widget with backend integration ---------- */
+/**
+ * Builds a TimeseriesRequest from the widget config and fires it via
+ * useTimeseriesQuery. The query is gated by `appliedRev` so no backend call
+ * happens until the user clicks "Appliquer" / "Save" in the settings panel
+ * (per project rule: apply-only-backend-execution).
+ */
+function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
+  const cfg: ChartWidgetConfig | undefined = w.config;
+  const hasMetrics = !!cfg && cfg.metrics.length > 0;
+  const hasBeenApplied = (w.appliedRev ?? 0) > 0;
+
+  // Build the request only when ready. Re-built whenever appliedRev bumps.
+  const request: TimeseriesRequest | null = useMemo(() => {
+    if (!cfg || !hasMetrics || !hasBeenApplied) return null;
+
+    // Group filter chips by dimension into IN clauses.
+    const byDim = new Map<string, string[]>();
+    cfg.data.filters.forEach(f => {
+      const arr = byDim.get(f.dimension) ?? [];
+      if (!arr.includes(f.value)) arr.push(f.value);
+      byDim.set(f.dimension, arr);
+    });
+    const filters: MonitorFilter[] = Array.from(byDim.entries()).map(([dimension, values]) => ({
+      dimension,
+      op: 'IN' as const,
+      values,
+    }));
+
+    // Granularity: monitor API expects 5min/15min/1h/1d (no 30min).
+    const grainMap: Record<string, string> = {
+      '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
+    };
+
+    return {
+      date_from: cfg.data.timeRange.from,
+      date_to: cfg.data.timeRange.to,
+      granularity: grainMap[cfg.data.granularity] ?? '15min',
+      filters,
+      selections: cfg.metrics.filter(m => m.visible).map(m => ({
+        kpi_key: m.kpiKey,
+        axis: m.axis,
+      })),
+      split_by: null,
+      top_n: 10,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w.appliedRev]);
+
+  const { data: tsResp, isFetching } = useTimeseriesQuery(request);
+
+  // Pivot the flat series response into per-metric arrays + a shared X axis.
+  const { seriesByMetric, xAxisLabels } = useMemo(() => {
+    const empty = { seriesByMetric: {} as Record<string, { time: string; value: number }[]>, xAxisLabels: [] as string[] };
+    if (!tsResp || !cfg) return empty;
+
+    const tsSet = new Set<string>();
+    tsResp.series.forEach(p => tsSet.add(p.ts));
+    const labels = Array.from(tsSet).sort();
+
+    const out: Record<string, { time: string; value: number }[]> = {};
+    cfg.metrics.forEach(m => {
+      const points = tsResp.series.filter(p => p.kpi_key === m.kpiKey);
+      const byTs = new Map(points.map(p => [p.ts, p.value]));
+      out[m.id] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+    });
+    return { seriesByMetric: out, xAxisLabels: labels.map(shortLabel) };
+  }, [tsResp, cfg]);
+
+  return (
+    <PAEChart
+      variant="editor"
+      height="100%"
+      config={cfg}
+      appliedRev={w.appliedRev}
+      seriesByMetric={seriesByMetric}
+      xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
+      loading={isFetching}
+    />
+  );
+}
+
+function shortLabel(ts: string): string {
+  // "2026-04-13T12:30:00" → "04-13 12:30"; "2026-04-13" → "04-13"
+  const m = ts.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return ts;
+  const [, , mo, d, hh, mm] = m;
+  return hh ? `${mo}-${d} ${hh}:${mm}` : `${mo}-${d}`;
+}
