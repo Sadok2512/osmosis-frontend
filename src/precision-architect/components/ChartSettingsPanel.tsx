@@ -830,10 +830,23 @@ function MetricsTab({
         }}
       />
 
+      {/* Selected KPI list — always visible below Add area */}
       <div className="space-y-2">
+        {metrics.length > 0 && (
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/70">
+              Selected · {metrics.length}
+            </span>
+            <span className="text-[9px] font-bold text-on-surface-variant/50">
+              Click Edit to customize
+            </span>
+          </div>
+        )}
+
         {metrics.map((m) => {
           const expanded = expandedId === m.id;
           const kpiLabel = kpiOptions.find(o => o.key === m.kpiKey)?.label ?? m.kpiKey;
+          const isCounter = counterKeys.has(m.kpiKey);
           return (
             <div
               key={m.id}
@@ -841,58 +854,102 @@ function MetricsTab({
               className={cn(
                 'group border rounded-xl bg-white transition-all',
                 expanded
-                  ? 'border-primary/40 shadow-md'
-                  : 'border-outline-variant/20 hover:border-outline-variant/50 hover:shadow-sm'
+                  ? 'border-primary/50 shadow-md ring-1 ring-primary/20'
+                  : 'border-outline-variant/25 hover:border-primary/30 hover:shadow-sm'
               )}
             >
-              <button
-                onClick={() => setExpandedId(expanded ? null : m.id)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left"
-              >
-                <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/40 shrink-0 cursor-grab" />
-                {expanded
-                  ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" />
-                  : <ChevronRight className="w-3.5 h-3.5 text-on-surface-variant/60 shrink-0" />
-                }
+              {/* Always-visible row: color · name · axis · style · edit · remove */}
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 shrink-0 cursor-grab" />
+
+                {/* Color indicator */}
                 <span
-                  className="w-3 h-3 rounded-full ring-2 ring-white shadow-sm shrink-0"
+                  className="w-3.5 h-3.5 rounded-full ring-2 ring-white shadow-sm shrink-0"
                   style={{ background: m.color }}
+                  aria-label="Color indicator"
                 />
-                <span className="font-bold text-sm text-on-surface truncate flex-1">
-                  {m.alias || kpiLabel}
-                </span>
-                <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md">
+
+                {/* KPI name + type tag */}
+                <div className="flex-1 min-w-0 flex items-center gap-2">
+                  <span className="font-bold text-sm text-on-surface truncate">
+                    {m.alias || kpiLabel}
+                  </span>
+                  {isCounter && (
+                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 shrink-0">
+                      Counter
+                    </span>
+                  )}
+                </div>
+
+                {/* Axis badge */}
+                <span
+                  className={cn(
+                    'inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md shrink-0',
+                    m.axis === 'left'
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-amber-500/10 text-amber-700'
+                  )}
+                  title={`Axis: ${m.axis}`}
+                >
                   {m.axis}
                 </span>
-                <span className="hidden md:inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md capitalize">
+
+                {/* Style badge */}
+                <span
+                  className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
+                  title={`Style: ${m.lineStyle}`}
+                >
+                  <span
+                    className={cn(
+                      'w-4 h-0.5 rounded-full',
+                      m.lineStyle === 'dashed' ? 'border-t-2 border-dashed border-on-surface-variant bg-transparent h-0' : 'bg-on-surface-variant'
+                    )}
+                  />
                   {m.lineStyle}
                 </span>
-                <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { visible: !m.visible }); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); updateMetric(m.id, { visible: !m.visible }); } }}
-                    className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors cursor-pointer"
-                    aria-label="Toggle visibility"
-                  >
-                    {m.visible ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" /> : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
-                  </span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); removeMetric(m.id); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); removeMetric(m.id); } }}
-                    className="p-1.5 hover:bg-error/10 rounded-md transition-colors cursor-pointer"
-                    aria-label="Remove metric"
-                  >
-                    <Trash2 className="w-3.5 h-3.5 text-error" />
-                  </span>
-                </div>
-              </button>
+
+                {/* Visibility toggle */}
+                <button
+                  onClick={() => updateMetric(m.id, { visible: !m.visible })}
+                  className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors shrink-0"
+                  aria-label="Toggle visibility"
+                  title={m.visible ? 'Hide' : 'Show'}
+                >
+                  {m.visible
+                    ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
+                    : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
+                </button>
+
+                {/* Edit button */}
+                <button
+                  onClick={() => setExpandedId(expanded ? null : m.id)}
+                  className={cn(
+                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors shrink-0',
+                    expanded
+                      ? 'bg-primary text-on-primary'
+                      : 'bg-surface-container-low text-on-surface hover:bg-primary/10 hover:text-primary'
+                  )}
+                  aria-label="Edit metric"
+                >
+                  {expanded
+                    ? <ChevronDown className="w-3 h-3" />
+                    : <ChevronRight className="w-3 h-3" />}
+                  Edit
+                </button>
+
+                {/* Remove button */}
+                <button
+                  onClick={() => removeMetric(m.id)}
+                  className="p-1.5 hover:bg-error/10 rounded-md transition-colors shrink-0"
+                  aria-label="Remove metric"
+                  title="Remove"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-error" />
+                </button>
+              </div>
 
               {expanded && (
-                <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="px-4 pb-4 pt-3 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
                   <Field label={`KPI ${kpiOptions.length > 0 ? `· ${kpiOptions.length} disponibles` : ''}`}>
                     <KpiCombobox
                       value={m.kpiKey}
@@ -994,12 +1051,20 @@ function MetricsTab({
         {metrics.length === 0 && (
           <div className="border border-dashed border-outline-variant/30 rounded-xl py-12 flex flex-col items-center gap-3">
             <p className="text-xs text-on-surface-variant">No metrics yet</p>
-            <button
-              onClick={() => setKpiPickerOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90"
-            >
-              <Plus className="w-3.5 h-3.5" /> Add your first KPI
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCounterPickerOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-500/40 text-emerald-600 text-xs font-bold hover:bg-emerald-500/10"
+              >
+                <Cpu className="w-3.5 h-3.5" /> Add Counter
+              </button>
+              <button
+                onClick={() => setKpiPickerOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add your first KPI
+              </button>
+            </div>
           </div>
         )}
       </div>
