@@ -203,7 +203,19 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           <div className="h-4 w-px bg-outline-variant" />
           <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          <button
+            onClick={() => onChange({ transparentBg: !widget.transparentBg })}
+            className={cn(
+              'px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors',
+              widget.transparentBg
+                ? 'bg-primary/10 border-primary text-primary'
+                : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'
+            )}
+            title="Toggle transparent card background"
+          >
+            {widget.transparentBg ? '◇ Transparent' : '◆ Card BG'}
+          </button>
           <button
             onClick={resetSettings}
             className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
