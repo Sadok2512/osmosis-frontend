@@ -2318,6 +2318,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           technology: config.technology,
           level: config.level,
           kpis: config.kpis,
+          dateFrom: config.dateFrom,
+          dateTo: config.dateTo,
         };
         // Also set kpiOverlays for backward compat
         settings.kpiOverlays = (config.kpis || []).map(k => k.kpiKey);
@@ -4787,7 +4789,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     if (!MAP_KPIS.length) return;
-    if (!mapKpi || !MAP_KPIS.some(k => k.id === mapKpi)) {
+    // Don't override mapKpi if it was explicitly set (e.g. by a view activation)
+    // — even if not yet in catalog (catalog may still be loading or KPI is engine-only)
+    if (!mapKpi) {
       setMapKpi(MAP_KPIS[0].id);
     }
   }, [MAP_KPIS, mapKpi]);
@@ -7122,9 +7126,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
+          // KPI coloring: use site-level KPI value when in KPI mode
+          const kpiColor = sectorColorMode === 'kpi' ? getKpiColor(kpiValues.get(`site:${site.site_name || site.site_id}`) ?? (site.cells.length > 0 ? getCellKpiValue(site.cells[0]) : NaN)) : null;
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
-          const color = colorViewOverride || topoColor;
+          const color = colorViewOverride || kpiColor || topoColor;
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -10775,8 +10781,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (cfg.dateTo) setKpiDateTo(cfg.dateTo);
                       setKpiOverlayLocked(true);
                       setSectorColorMode('kpi');
-                      // Apply KPI overlays from view config
-                      const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter((id: string) => MAP_KPIS.some(m => m.id === id));
+                      // Apply KPI overlays from view config — accept all KPIs (catalog may still be loading)
+                      const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter(Boolean);
                       if (cfgOverlays.length > 0) {
                         setKpiOverlays(cfgOverlays);
                         setMapKpi(cfgOverlays[0]);
