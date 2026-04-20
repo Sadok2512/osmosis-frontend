@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { usePAReportStore } from '../stores/paReportStore';
 import { DEFAULT_DASHBOARD_THEME, type DashboardTheme } from '../types';
 import { toast } from 'sonner';
+import ColorSwatchPalette from './ColorSwatchPalette';
 
 interface EditorSidebarProps {
   onClose: () => void;
