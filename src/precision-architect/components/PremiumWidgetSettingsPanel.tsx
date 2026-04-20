@@ -13,6 +13,7 @@ import {
   DEFAULT_DIVIDER_CONFIG,
 } from '../types';
 import { cn } from '@/lib/utils';
+import ColorSwatchPalette from './ColorSwatchPalette';
 
 interface Props {
   widget: DynWidget;
@@ -369,28 +370,31 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
   const [local, setLocal] = useState(value);
   useEffect(() => setLocal(value), [value]);
   return (
-    <div className="flex items-center gap-2">
-      <input
-        type="color"
-        value={local || '#00685f'}
-        onChange={(e) => { setLocal(e.target.value); onChange(e.target.value); }}
-        className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
-      />
-      <input
-        type="text"
-        value={local}
-        placeholder="auto (theme)"
-        onChange={(e) => { setLocal(e.target.value); onChange(e.target.value); }}
-        className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
-      />
-      {local && (
-        <button
-          onClick={() => { setLocal(''); onChange(''); }}
-          className="text-[10px] font-bold text-on-surface-variant hover:text-error transition-colors px-2"
-        >
-          Clear
-        </button>
-      )}
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={local || '#00685f'}
+          onChange={(e) => { setLocal(e.target.value); onChange(e.target.value); }}
+          className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
+        />
+        <input
+          type="text"
+          value={local}
+          placeholder="auto (theme)"
+          onChange={(e) => { setLocal(e.target.value); onChange(e.target.value); }}
+          className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+        />
+        {local && (
+          <button
+            onClick={() => { setLocal(''); onChange(''); }}
+            className="text-[10px] font-bold text-on-surface-variant hover:text-error transition-colors px-2"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      <ColorSwatchPalette value={local} onChange={(c) => { setLocal(c); onChange(c); }} />
     </div>
   );
 }
