@@ -237,9 +237,14 @@ const PAEChart: React.FC<PAEChartProps> = ({
   }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
 
   if (isEmpty) {
+    const copy = emptyReason === 'no-metric'
+      ? { title: 'No KPI selected', body: 'Open the settings panel and add a KPI or counter from the catalog to start visualizing data.' }
+      : emptyReason === 'not-applied'
+      ? { title: 'Configuration not applied', body: 'Click "Appliquer" in the settings panel to fetch data from the backend.' }
+      : { title: 'No data returned', body: 'The backend returned no points for this perimeter / period / filters. Try widening the period or relaxing filters.' };
     return (
       <div
-        className="flex flex-col items-center justify-center w-full text-center px-6"
+        className="flex flex-col items-center justify-center w-full text-center px-6 relative"
         style={{ height }}
       >
         <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
@@ -249,11 +254,16 @@ const PAEChart: React.FC<PAEChartProps> = ({
           </svg>
         </div>
         <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">
-          No KPI selected
+          {copy.title}
         </p>
-        <p className="text-[11px] text-on-surface-variant max-w-[260px]">
-          Open the settings panel and add a KPI or counter from the catalog to start visualizing data.
+        <p className="text-[11px] text-on-surface-variant max-w-[280px]">
+          {copy.body}
         </p>
+        {loading && (
+          <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
+            Loading…
+          </div>
+        )}
       </div>
     );
   }
