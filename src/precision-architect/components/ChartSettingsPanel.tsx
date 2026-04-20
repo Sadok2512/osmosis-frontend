@@ -105,22 +105,25 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       <div className="flex h-full pb-10">
         <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
           {([
-            { key: 'data', label: 'Data Source' },
-            { key: 'appearance', label: 'Appearance' },
-            { key: 'interactions', label: 'Interactions' },
-            { key: 'alerting', label: 'Alerting' },
-          ] as const).map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                'w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2',
-                tab === t.key ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
+            { key: 'data', label: 'Data Source', icon: Database },
+            { key: 'appearance', label: 'Appearance', icon: Palette },
+            { key: 'jalons', label: 'Jalons & Seuils', icon: Flag },
+          ] as const).map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2',
+                  tab === t.key ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
         </aside>
 
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
@@ -144,13 +147,20 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
               </div>
             )}
             {tab === 'appearance' && (
-              <StyleTab style={config.style} patchStyle={patchStyle} />
+              <StyleTab
+                style={config.style}
+                patchStyle={patchStyle}
+                title={widget.title ?? ''}
+                onTitleChange={(t) => onChange({ title: t })}
+              />
             )}
-            {tab === 'interactions' && (
-              <p className="text-xs text-on-surface-variant">Drill-down targets and tooltip actions.</p>
-            )}
-            {tab === 'alerting' && (
-              <p className="text-xs text-on-surface-variant">Threshold rules and notifications.</p>
+            {tab === 'jalons' && (
+              <JalonsTab
+                jalons={config.jalons ?? []}
+                thresholds={config.thresholds ?? []}
+                onJalonsChange={(j) => patchConfig({ jalons: j })}
+                onThresholdsChange={(th) => patchConfig({ thresholds: th })}
+              />
             )}
           </div>
         </div>
