@@ -292,7 +292,7 @@ export default function EditorView({
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 flex justify-between items-center w-full px-6 py-3 border-b border-outline-variant/10">
+        <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-[70] flex justify-between items-center w-full px-6 py-3 border-b border-outline-variant/10">
           <div className="flex items-center gap-6">
             <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
             <div className="h-6 w-px bg-outline-variant/30" />
