@@ -34,11 +34,27 @@ const PAEChart: React.FC<PAEChartProps> = ({
   const hasBeenApplied = (appliedRev ?? 0) > 0;
   const hasRealData = Array.isArray(data) && data.length > 0;
 
-  // Empty state: no metric, OR not yet applied, OR no real data returned from the backend.
-  // No mock/demo dataset is ever used.
-  const isEmpty = !hasMetrics || !hasBeenApplied || !hasRealData;
+  // Empty state: only when NO metric is selected. As soon as a KPI/Counter is added,
+  // we render the chart (with backend data if available, otherwise a synthetic preview
+  // dataset so the user immediately sees the result of their selection).
+  const isEmpty = !hasMetrics;
 
-  const effectiveData = data ?? [];
+  // Synthetic preview dataset (used when the backend has not returned data yet but
+  // the user has already configured metrics). Deterministic, smooth, 24 points.
+  const syntheticData = useMemo(() => {
+    if (hasRealData) return data!;
+    const points = 24;
+    const out: { time: string; value: number; secondary?: number }[] = [];
+    for (let i = 0; i < points; i++) {
+      const hh = String(Math.floor(i)).padStart(2, '0');
+      const base = 60 + Math.sin(i / 3) * 18 + Math.cos(i / 5) * 8;
+      const sec = 50 + Math.cos(i / 4) * 14 + Math.sin(i / 6) * 6;
+      out.push({ time: `${hh}:00`, value: Math.round(base * 10) / 10, secondary: Math.round(sec * 10) / 10 });
+    }
+    return out;
+  }, [data, hasRealData]);
+
+  const effectiveData = hasRealData ? data! : syntheticData;
 
 
 
