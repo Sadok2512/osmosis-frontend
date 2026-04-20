@@ -273,7 +273,7 @@ function DataTab({
   return (
     <div className="space-y-4">
       <Section title="Time & Filters">
-        <TimeFiltersToolbar />
+        <TimeFiltersToolbar dimensionOptions={dimensionOptions} filtersLoading={filtersLoading} />
       </Section>
     </div>
   );
@@ -288,7 +288,7 @@ const TF_TECHS: { id: string; label: string; bg: string; text: string }[] = [
   { id: '5g', label: '5G', bg: 'bg-emerald-500', text: 'text-white' },
 ];
 
-const TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI'];
+// Dimensions are now sourced live from the backend (with fallback at the top of the file).
 
 interface TFFilter { id: string; dimension: string; value: string; }
 
@@ -304,7 +304,7 @@ function TFPill({ icon, children, className }: { icon?: React.ReactNode; childre
   );
 }
 
-function TimeFiltersToolbar() {
+function TimeFiltersToolbar({ dimensionOptions, filtersLoading }: { dimensionOptions: string[]; filtersLoading: boolean }) {
   const [filters, setFilters] = useState<TFFilter[]>([
     { id: 'f-1', dimension: 'Plaque', value: 'NANTES' },
   ]);
@@ -420,8 +420,8 @@ function TimeFiltersToolbar() {
                   onChange={(e) => setDraftDim(e.target.value)}
                   className="mt-1 w-full h-8 px-2 rounded-lg border border-outline-variant/30 bg-white text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
                 >
-                  <option value="">Choisir…</option>
-                  {TF_DIMENSIONS.map(d => (
+                  <option value="">{filtersLoading ? 'Chargement…' : 'Choisir…'}</option>
+                  {dimensionOptions.map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
@@ -475,20 +475,28 @@ function TimeFiltersToolbar() {
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
-  metrics, addMetric, updateMetric, removeMetric,
+  metrics, addMetric, updateMetric, removeMetric, kpiOptions, kpisLoading,
 }: {
   metrics: ChartMetric[];
   addMetric: () => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
+  kpiOptions: { key: string; label: string; unit: string }[];
+  kpisLoading: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">
-          Metrics · {metrics.length}
+        <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
+          <span>Metrics · {metrics.length}</span>
+          {kpisLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+          {!kpisLoading && kpiOptions.length > 0 && (
+            <span className="text-[8px] font-bold text-primary/70 normal-case tracking-wide">
+              · {kpiOptions.length} KPIs disponibles
+            </span>
+          )}
         </h4>
         <button
           onClick={() => {
@@ -507,7 +515,7 @@ function MetricsTab({
       <div className="space-y-2">
         {metrics.map((m) => {
           const expanded = expandedId === m.id;
-          const kpiLabel = KPI_OPTIONS.find(o => o.key === m.kpiKey)?.label ?? m.kpiKey;
+          const kpiLabel = kpiOptions.find(o => o.key === m.kpiKey)?.label ?? m.kpiKey;
           return (
             <div
               key={m.id}
@@ -571,12 +579,12 @@ function MetricsTab({
                     <select
                       value={m.kpiKey}
                       onChange={(e) => {
-                        const opt = KPI_OPTIONS.find(o => o.key === e.target.value);
+                        const opt = kpiOptions.find(o => o.key === e.target.value);
                         updateMetric(m.id, { kpiKey: e.target.value, alias: opt?.label, unit: opt?.unit });
                       }}
                       className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm font-bold text-on-surface"
                     >
-                      {KPI_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                      {kpiOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                     </select>
                   </Field>
 
