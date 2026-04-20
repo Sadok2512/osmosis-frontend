@@ -283,9 +283,28 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   };
 
   if (tableData.length === 0) {
+    const hasNoKpis =
+      (!activeSlot?.kpiIds || activeSlot.kpiIds.length === 0) &&
+      (!(activeSlot as GraphSlot & { counterIds?: string[] })?.counterIds ||
+        (activeSlot as GraphSlot & { counterIds?: string[] }).counterIds!.length === 0);
+
     return (
-      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex items-center justify-center h-48">
-        <p className="text-xs text-muted-foreground">Aucune donnée pour ce graphe — cliquez sur Appliquer</p>
+      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col items-center justify-center h-48 gap-2 px-6 text-center">
+        {hasNoKpis ? (
+          <>
+            <p className="text-xs font-semibold text-foreground">Aucun KPI ni compteur sélectionné sur ce graphe</p>
+            <p className="text-[11px] text-muted-foreground">
+              Ouvrez le sélecteur de KPI/compteurs sur le graphe « {activeSlot?.name || 'Timeseries'} », ajoutez au moins un élément, puis cliquez sur <span className="font-semibold text-primary">Appliquer</span>.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs font-semibold text-foreground">Aucune donnée pour ce graphe</p>
+            <p className="text-[11px] text-muted-foreground">
+              Cliquez sur <span className="font-semibold text-primary">Appliquer</span> pour exécuter la requête, ou ajustez la période / les filtres.
+            </p>
+          </>
+        )}
       </div>
     );
   }
