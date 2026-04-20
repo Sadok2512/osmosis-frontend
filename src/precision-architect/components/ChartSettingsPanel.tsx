@@ -50,6 +50,15 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const [tab, setTab] = useState<Tab>('data');
   const config: ChartWidgetConfig = widget.config ?? DEFAULT_CHART_CONFIG;
 
+  const commitAppliedConfig = (closeAfter = false) => {
+    onChange({
+      config,
+      appliedConfig: structuredClone(config),
+      appliedRev: (widget.appliedRev ?? 0) + 1,
+    });
+    if (closeAfter) onClose();
+  };
+
   // ── Live backend catalogs (KPIs + filter dimensions) ───────────────
   const { data: kpiCatalog, isLoading: kpisLoading } = useKpiCatalog();
   const { data: filterCatalog, isLoading: filtersLoading } = useFilterCatalog();
@@ -202,17 +211,14 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
             Reset
           </button>
           <button
-            onClick={() => onChange({ appliedRev: (widget.appliedRev ?? 0) + 1 })}
+            onClick={() => commitAppliedConfig(false)}
             className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
             title="Re-render the chart with current settings"
           >
             Appliquer
           </button>
           <button
-            onClick={() => {
-              onChange({ appliedRev: (widget.appliedRev ?? 0) + 1 });
-              onClose();
-            }}
+            onClick={() => commitAppliedConfig(true)}
             className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
           >
             Save
