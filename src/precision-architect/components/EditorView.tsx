@@ -35,6 +35,7 @@ import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
+import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
 
