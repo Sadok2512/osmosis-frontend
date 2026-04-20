@@ -190,6 +190,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 function DataSourceTab({
   config, patchData, addMetric, updateMetric, removeMetric, title, onTitleChange,
+  kpiOptions, kpisLoading, dimensionOptions, filtersLoading,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -198,6 +199,10 @@ function DataSourceTab({
   removeMetric: (id: string) => void;
   title: string;
   onTitleChange: (t: string) => void;
+  kpiOptions: { key: string; label: string; unit: string }[];
+  kpisLoading: boolean;
+  dimensionOptions: string[];
+  filtersLoading: boolean;
 }) {
   const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
   return (
@@ -235,6 +240,8 @@ function DataSourceTab({
           addMetric={addMetric}
           updateMetric={updateMetric}
           removeMetric={removeMetric}
+          kpiOptions={kpiOptions}
+          kpisLoading={kpisLoading}
         />
       )}
       {sub === 'time' && (
@@ -243,6 +250,8 @@ function DataSourceTab({
           patchData={patchData}
           title={title}
           onTitleChange={onTitleChange}
+          dimensionOptions={dimensionOptions}
+          filtersLoading={filtersLoading}
         />
       )}
     </div>
@@ -252,12 +261,14 @@ function DataSourceTab({
 /* ---------------- Sub-section: Time & Filters ---------------- */
 
 function DataTab({
-  data, patchData, title, onTitleChange,
+  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   title: string;
   onTitleChange: (t: string) => void;
+  dimensionOptions: string[];
+  filtersLoading: boolean;
 }) {
   return (
     <div className="space-y-4">
