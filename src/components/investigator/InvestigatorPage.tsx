@@ -1210,7 +1210,33 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
                 return (
                   <>
-                    {/* Slot picker removed — table strictly follows the currently selected graph */}
+                    {/* Slot tabs — switch between graphs that have Table Data enabled */}
+                    {enabledSlots.length > 1 && (
+                      <div className="flex items-center gap-1 mb-2 border-b border-border/30 px-1">
+                        {enabledSlots.map(s => {
+                          const isActive = s.id === effectiveSlotId;
+                          const rows = (slotDataById.get(s.id) || []).length;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => {
+                                setActiveSlotId(s.id);
+                                setTableDataSlotId(s.id);
+                              }}
+                              className={cn(
+                                'px-3 py-1.5 text-[11px] font-semibold border-b-2 transition-colors -mb-px',
+                                isActive
+                                  ? 'border-primary text-primary'
+                                  : 'border-transparent text-muted-foreground hover:text-foreground'
+                              )}
+                            >
+                              {s.name}
+                              <span className="ml-1.5 text-[9px] opacity-60">({rows})</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     {activeTableSlot && (
                       <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/5 border border-primary/20 rounded-lg text-[9px] text-muted-foreground mb-2">
@@ -1224,6 +1250,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     )}
 
                     <InvestigatorDataTable
+                      key={activeTableSlot?.id || 'none'}
                       tsData={slotData}
                       activeSlot={activeTableSlot}
                       siteName={((activeTableSlot?.filters?.['Site'] || activeTableSlot?.filters?.['SITE'] || (!activeTableSlot ? state.filters?.['Site'] || state.filters?.['SITE'] : []) || [])[0]) || undefined}
