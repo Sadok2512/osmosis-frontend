@@ -927,6 +927,14 @@ function MetricsTab({
                   {m.axis}
                 </span>
 
+                {/* Type badge */}
+                <span
+                  className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
+                  title={`Type: ${m.graphType ?? 'line'}`}
+                >
+                  {m.graphType ?? 'line'}
+                </span>
+
                 {/* Style badge */}
                 <span
                   className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
