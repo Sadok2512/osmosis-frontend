@@ -269,12 +269,19 @@ const PAEChart: React.FC<PAEChartProps> = ({
   }
 
   return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: '100%' }}
-      opts={{ renderer: 'canvas' }}
-      notMerge
-    />
+    <div style={{ height, width: '100%', position: 'relative' }}>
+      <ReactECharts
+        option={option}
+        style={{ height: '100%', width: '100%' }}
+        opts={{ renderer: 'canvas' }}
+        notMerge
+      />
+      {loading && (
+        <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
+          Loading…
+        </div>
+      )}
+    </div>
   );
 };
 
