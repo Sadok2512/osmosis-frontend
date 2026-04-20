@@ -24,8 +24,10 @@ const useBackendFilterValues = (dimension: string): { values: string[]; labels: 
   const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
-    ensureFilterLoaded(dimension).then(() => alive && setTick(t => t + 1)).catch(() => {});
+    try { ensureFilterLoaded(dimension); } catch {}
     const unsub = subscribeCacheUpdates(() => alive && setTick(t => t + 1));
+    // Trigger one re-render after mount in case cache already has it
+    setTick(t => t + 1);
     return () => { alive = false; unsub(); };
   }, [dimension]);
   const key = dimToKey(dimension);
