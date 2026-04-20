@@ -7174,7 +7174,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 9 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
@@ -7237,7 +7237,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
             // Build per-cell band-based mini items with size hierarchy
-            const miniItems: { tech: string; az: number; r: number; bandKey: string | null }[] = [];
+            const miniItems: { tech: string; az: number; r: number; bandKey: string | null; cell: typeof site.cells[number] }[] = [];
             const seenMini = new Set<string>();
             for (const cell of site.cells) {
               const tech = getCellTechGroup(cell.techno);
@@ -7251,7 +7251,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (seenMini.has(dedup)) continue;
               seenMini.add(dedup);
               const bandScale = getBandSizeScale(bandKey);
-              miniItems.push({ tech, az, r: miniRadius * bandScale, bandKey });
+              miniItems.push({ tech, az, r: miniRadius * bandScale, bandKey, cell });
             }
             // Sort: bigger first (low freq below), smaller on top
             miniItems.sort((a, b) => getBandRenderOrder(a.bandKey) - getBandRenderOrder(b.bandKey));
@@ -7279,20 +7279,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Fallback: if no band-specific items, use all azimuths with site color
             if (miniItems.length === 0) {
               if (has4G && !has5G && enabledTechnos.has('4G')) {
-                azimuths.forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius, bandKey: null }));
+                const fallbackCell = site.cells.find(c => getCellTechGroup(c.techno) === '4G') ?? site.cells[0];
+                if (fallbackCell) azimuths.forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius, bandKey: null, cell: fallbackCell }));
               } else if (has5G && !has4G && enabledTechnos.has('5G')) {
-                azimuths.forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius, bandKey: null }));
+                const fallbackCell = site.cells.find(c => getCellTechGroup(c.techno) === '5G') ?? site.cells[0];
+                if (fallbackCell) azimuths.forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius, bandKey: null, cell: fallbackCell }));
               }
             }
 
             return (
               <React.Fragment key={site.site_id}>
-                {miniItems.map(({ tech, az, r, bandKey }) => {
+                {miniItems.map(({ tech, az, r, bandKey, cell }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
                   const defaultTechColor = mapTechnoFilter === 'ALL'
                     ? (tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : (bandColors['4G_GROUP'] || '#F39C12'))
                     : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#27AE60' : '#F39C12')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : (bandColors['4G_GROUP'] || '#F39C12')));
-                  const techColor = colorViewOverride || defaultTechColor;
+                  const kpiColor = getKpiColor(getCellKpiValue(cell));
+                  const techColor = colorViewOverride || (sectorColorMode === 'kpi' ? kpiColor : defaultTechColor);
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
@@ -7351,7 +7354,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
             if (isIndoor) return false;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= 9 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
+            const showMini = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
             return !showMini;
           });
 
