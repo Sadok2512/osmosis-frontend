@@ -31,6 +31,7 @@ function parseBackendList(raw: unknown): string[] {
       .forEach(s => out.add(s));
   }
   return [...out];
+}
 
 /** Normalize raw techno string to canonical 2G/3G/4G/5G */
 function normalizeTechnoRaw(raw: string | null | undefined): string {
