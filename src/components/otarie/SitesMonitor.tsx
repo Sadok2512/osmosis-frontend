@@ -10783,6 +10783,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setKpiOverlayLocked(true);
                       setSectorColorMode('kpi');
                       setShowKpiLegend(true);
+                      // Force-enable sector beams + sites display mode so cell-level KPI overlay
+                      // becomes visible as soon as zoom permits (>= SITES_TO_CELLS_ZOOM).
+                      if (cfg.level === 'cell') {
+                        setShowBeamSectors(true);
+                        setMapDisplayMode('sites');
+                      }
                       // Apply KPI overlays from view config — accept all KPIs (catalog may still be loading)
                       const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter(Boolean);
                       console.log('[KPI Overlay] View activated:', { cfgOverlays, technology: cfg.technology, level: cfg.level, dateFrom: cfg.dateFrom, dateTo: cfg.dateTo });
