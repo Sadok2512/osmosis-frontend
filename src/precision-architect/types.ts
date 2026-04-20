@@ -89,9 +89,7 @@ export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
     timeRange: { inherit: true, preset: '24h' },
     granularity: 'auto',
   },
-  metrics: [
-    { id: 'm1', kpiKey: 'qoe_index', alias: 'QoE Index', unit: '', axis: 'left', color: '#00685f', lineStyle: 'solid', visible: true },
-  ],
+  metrics: [],
   style: {
     chartType: 'line',
     lineThickness: 2,
