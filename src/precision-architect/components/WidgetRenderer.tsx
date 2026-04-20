@@ -395,8 +395,19 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       split_by: null,
       top_n: 10,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveAppliedRev]);
+  }, [
+    cfg,
+    hasMetrics,
+    hasBeenApplied,
+    inheritsTime,
+    inheritsScope,
+    global.from,
+    global.to,
+    global.grain,
+    global.technos,
+    global.filters,
+    effectiveAppliedRev,
+  ]);
 
   useEffect(() => {
     if (request) {

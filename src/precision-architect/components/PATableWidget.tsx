@@ -77,8 +77,18 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       split_by: cfg.splitBy,
       top_n: cfg.topN,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectiveAppliedRev]);
+  }, [
+    cfg,
+    hasColumns,
+    hasBeenApplied,
+    inheritsTime,
+    inheritsScope,
+    global.from,
+    global.to,
+    global.technos,
+    global.filters,
+    effectiveAppliedRev,
+  ]);
 
   useEffect(() => {
     if (request) console.log('[PA Table] ▶ POST /monitor/query/table', request);
