@@ -126,6 +126,29 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
 
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
           <div className="max-w-4xl space-y-5">
+            <div className="rounded-xl border border-outline-variant/20 p-4 bg-surface-container-low/30">
+              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70 mb-2">Card Background</p>
+              <div className="grid grid-cols-2 gap-2 max-w-xs">
+                <button
+                  onClick={() => onChange({ transparentBg: false })}
+                  className={cn(
+                    'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                    !widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                  )}
+                >
+                  ◆ Card BG
+                </button>
+                <button
+                  onClick={() => onChange({ transparentBg: true })}
+                  className={cn(
+                    'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                    widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                  )}
+                >
+                  ◇ Transparent
+                </button>
+              </div>
+            </div>
             {tab === 'columns' && (
               <>
                 <div className="flex items-center justify-between">
