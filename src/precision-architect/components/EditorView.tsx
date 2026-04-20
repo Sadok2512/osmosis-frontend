@@ -89,6 +89,17 @@ export default function EditorView({
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
   const sections = activePage?.sections ?? [];
+  const theme = activePage?.theme;
+  const pageBg = theme?.backgroundColor || (theme?.background === 'dark' ? '#0f172a' : theme?.background === 'gradient' ? '#1a1a2e' : undefined);
+  const cardBg = theme?.cardColor || '#ffffff';
+  const titleColor = theme?.titleColor || theme?.accentColor;
+  const textColor = theme?.textColor;
+  const radius = theme?.borderRadius ?? 16;
+  const spacing = theme?.spacing ?? 16;
+  const padding = theme?.pagePadding ?? 32;
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
+  const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
