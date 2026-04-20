@@ -6138,7 +6138,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const renderSites = useMemo(() => {
     // Defensive: drop any null/undefined entries that may have slipped into sites/taggedSites
-    const safeFilter = (arr: any[]): SiteSummary[] => (arr || []).filter((s): s is SiteSummary => !!s && typeof s === 'object' && !!s.site_id);
+    // Also pre-filter cells by active dashboard band/techno perimeter so that
+    // ALL downstream renderers (concentric markers, sectors, tech inference, inventory)
+    // see only the cells matching the active dashboard (e.g. Rennes_L1800 → only LTE1800).
+    const dashBands = dashboardActive && activeDashboardFilters?.bande?.length
+      ? new Set(activeDashboardFilters.bande.map(b => String(b).trim().toUpperCase()))
+      : null;
+    const dashTechs = dashboardActive && activeDashboardFilters?.techno?.length
+      ? new Set(activeDashboardFilters.techno.map(t => String(t).trim().toUpperCase()))
+      : null;
+    const projectSiteCells = (s: SiteSummary): SiteSummary => {
+      if (!dashBands && !dashTechs) return s;
+      if (!s.cells?.length) return s;
+      const filtered = s.cells.filter(c => {
+        if (dashBands) {
+          const cb = String(c.bande || '').trim().toUpperCase();
+          if (!cb || !dashBands.has(cb)) return false;
+        }
+        if (dashTechs) {
+          const ct = String(c.techno || '').trim().toUpperCase();
+          const tg = String(getCellTechGroup(c.techno) || '').toUpperCase();
+          if (!dashTechs.has(ct) && !dashTechs.has(tg)) return false;
+        }
+        return true;
+      });
+      return { ...s, cells: filtered };
+    };
+    const safeFilter = (arr: any[]): SiteSummary[] => (arr || [])
+      .filter((s): s is SiteSummary => !!s && typeof s === 'object' && !!s.site_id)
+      .map(projectSiteCells);
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
       if (mapTechnoFilter === 'OFF') return false;
 
@@ -6199,7 +6227,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return [selectedSiteSnapshot, ...merged];
-  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep, taggedDisplayMode]);
+  }, [visibleSites, selectedSiteId, selectedSiteSnapshot, viewport.bounds, taggedSites, mapTechnoFilter, enabledTechnos, localZoneArcep, taggedDisplayMode, dashboardActive, activeDashboardFilters]);
 
   // ── Color View Mode: build a value→color map from visible sites ──
   const colorViewColorMap = useMemo(() => {
