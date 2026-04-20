@@ -10,6 +10,12 @@ interface PAEChartProps {
   config?: ChartWidgetConfig;
   /** Bumped each time the user clicks "Appliquer" / "Save" in settings. 0 (or undefined) = never applied yet. */
   appliedRev?: number;
+  /** Per-metric series fetched from the backend (metricId → ordered list of {time,value}). */
+  seriesByMetric?: Record<string, { time: string; value: number }[]>;
+  /** Shared X axis labels (timestamps). When provided, supersedes `data`. */
+  xAxisLabels?: string[];
+  /** Loading flag — shown as overlay on top of any synthetic preview. */
+  loading?: boolean;
   /** Legacy props (kept for compatibility). */
   primaryColor?: string;
   secondaryColor?: string;
@@ -23,6 +29,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
   data,
   config,
   appliedRev,
+  seriesByMetric,
+  xAxisLabels,
+  loading = false,
   primaryColor = '#00685f',
   secondaryColor = '#6bd8cb',
   showSecondary = true,
@@ -32,7 +41,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // The chart is driven by the settings panel when a config is provided.
   const hasMetrics = !!config && config.metrics.length > 0;
   const hasBeenApplied = (appliedRev ?? 0) > 0;
-  const hasRealData = Array.isArray(data) && data.length > 0;
+  const hasBackendSeries = !!seriesByMetric && Object.values(seriesByMetric).some(s => s.length > 0);
+  const hasRealData = hasBackendSeries || (Array.isArray(data) && data.length > 0);
 
   // Empty state: only when NO metric is selected. As soon as a KPI/Counter is added,
   // we render the chart (with backend data if available, otherwise a synthetic preview
@@ -115,12 +125,15 @@ const PAEChart: React.FC<PAEChartProps> = ({
             : { color: hexAlpha(m.color, Math.round(opacityRatio * 0xff)) }
           : undefined;
 
-        // Vary data per metric so multiple lines are visually distinct.
-        const seriesData = effectiveData.map((d, di) => {
-          const v = m.axis === 'right' ? (d.secondary ?? d.value * 0.65) : d.value;
-          // Add a small per-metric offset so additional metrics don't fully overlap.
-          return Math.round(v * (1 - idx * 0.12) + (idx * 8));
-        });
+        // Prefer real per-metric backend series when available; otherwise fall back
+        // to the synthetic preview dataset (so the user sees something immediately).
+        const backendSeries = seriesByMetric?.[m.id];
+        const seriesData = backendSeries && backendSeries.length > 0
+          ? backendSeries.map(p => p.value)
+          : effectiveData.map((d, di) => {
+              const v = m.axis === 'right' ? (d.secondary ?? d.value * 0.65) : d.value;
+              return Math.round(v * (1 - idx * 0.12) + (idx * 8));
+            });
 
         return {
           name: m.alias || m.kpiKey,
@@ -220,7 +233,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       },
       xAxis: {
         type: 'category' as const,
-        data: effectiveData.map(d => d.time),
+        data: (xAxisLabels && xAxisLabels.length > 0) ? xAxisLabels : effectiveData.map(d => d.time),
         boundaryGap: style.chartType === 'bar',
         axisLine: { lineStyle: { color: splitLine } },
         axisTick: { show: false },
@@ -231,7 +244,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
 
   if (isEmpty) {
     return (
@@ -256,12 +269,19 @@ const PAEChart: React.FC<PAEChartProps> = ({
   }
 
   return (
-    <ReactECharts
-      option={option}
-      style={{ height, width: '100%' }}
-      opts={{ renderer: 'canvas' }}
-      notMerge
-    />
+    <div style={{ height, width: '100%', position: 'relative' }}>
+      <ReactECharts
+        option={option}
+        style={{ height: '100%', width: '100%' }}
+        opts={{ renderer: 'canvas' }}
+        notMerge
+      />
+      {loading && (
+        <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
+          Loading…
+        </div>
+      )}
+    </div>
   );
 };
 
