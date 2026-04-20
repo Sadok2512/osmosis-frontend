@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from '@/components/ui/tooltip';
+import operatorLogo from '@/assets/operator-logo.png';
 
 type DashboardType = 'map' | 'analytic_qoe';
 type Visibility = 'private' | 'public' | 'shared';
@@ -816,8 +817,40 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   /* ─── Main Overview ─── */
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
+      {/* ── Operator header card ── */}
+      <div className="px-6 pt-6">
+        <div className="rounded-2xl border border-border bg-card shadow-sm px-5 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-4">
+              <img
+                src={operatorLogo}
+                alt="Orange France operator logo"
+                width={48}
+                height={48}
+                loading="lazy"
+                className="w-12 h-12 rounded-full object-contain bg-muted/30 ring-1 ring-border shrink-0"
+              />
+              <div className="min-w-0">
+                <h2 className="text-base font-bold text-foreground leading-tight truncate">
+                  Orange France
+                </h2>
+                <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
+                  RAN Network — National Operator
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Clock className="w-3.5 h-3.5" />
+              <span className="text-xs font-medium tabular-nums">
+                {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-4 bg-card border-b border-border">
+      <div className="px-6 pt-4 pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
