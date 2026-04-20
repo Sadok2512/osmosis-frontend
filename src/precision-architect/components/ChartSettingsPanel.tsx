@@ -157,6 +157,10 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 removeMetric={removeMetric}
                 title={widget.title ?? ''}
                 onTitleChange={(t) => onChange({ title: t })}
+                kpiOptions={kpiOptions}
+                kpisLoading={kpisLoading}
+                dimensionOptions={dimensionOptions}
+                filtersLoading={filtersLoading}
               />
             )}
             {tab === 'appearance' && (
