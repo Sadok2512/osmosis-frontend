@@ -39,7 +39,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
   const isPresentation = variant === 'presentation';
 
   // The chart is driven by the settings panel when a config is provided.
-  const hasMetrics = !!config && config.metrics.length > 0;
+  const hasMetrics = !!config && config.metrics.some((metric) => metric.visible !== false);
   const hasBeenApplied = (appliedRev ?? 0) > 0;
   const hasBackendSeries = !!seriesByMetric && Object.values(seriesByMetric).some(s => s.length > 0);
   const hasLegacyData = Array.isArray(data) && data.length > 0;
@@ -79,7 +79,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
     let legendData: string[] = [];
 
     if (cfg && cfg.metrics.length > 0) {
-      const visible = cfg.metrics.filter(m => m.visible);
+      const visible = cfg.metrics.filter(m => m.visible !== false);
       const hasRight = visible.some(m => m.axis === 'right');
       const hasLeft = visible.some(m => m.axis === 'left' || m.axis == null);
       // Pick a representative color per axis (first metric on that side)
