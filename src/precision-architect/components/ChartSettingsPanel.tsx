@@ -285,6 +285,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 patchStyle={patchStyle}
                 title={widget.title ?? ''}
                 onTitleChange={(t) => onChange({ title: t })}
+                transparentBg={!!widget.transparentBg}
+                onTransparentBgChange={(v) => onChange({ transparentBg: v })}
               />
             )}
             {tab === 'jalons' && (
@@ -1166,12 +1168,14 @@ function MetricsTab({
 /* ---------------- Tab: Appearance ---------------- */
 
 function StyleTab({
-  style, patchStyle, title, onTitleChange,
+  style, patchStyle, title, onTitleChange, transparentBg, onTransparentBgChange,
 }: {
   style: ChartWidgetConfig['style'];
   patchStyle: (p: Partial<ChartWidgetConfig['style']>) => void;
   title: string;
   onTitleChange: (t: string) => void;
+  transparentBg: boolean;
+  onTransparentBgChange: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-6">
