@@ -16,6 +16,7 @@ import CounterSelectorModal from '@/components/investigator/CounterSelectorModal
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import PAFilterChips from './PAFilterChips';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
 interface Props {
   widget: DynWidget;
