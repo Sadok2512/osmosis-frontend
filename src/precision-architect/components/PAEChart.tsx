@@ -244,7 +244,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
 
   if (isEmpty) {
     return (
