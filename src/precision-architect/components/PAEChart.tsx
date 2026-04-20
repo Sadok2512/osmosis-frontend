@@ -110,8 +110,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
       ];
 
       series = visible.map((m, idx) => {
-        const seriesType = style.chartType === 'bar' ? 'bar' : 'line';
-        const wantsArea = (style.chartType === 'area' || style.fill !== 'none') && seriesType === 'line';
+        const metricType = m.graphType ?? style.chartType;
+        const seriesType = metricType === 'bar' ? 'bar' : 'line';
+        const wantsArea = (metricType === 'area' || (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')) && seriesType === 'line';
         const opacityRatio = Math.max(0, Math.min(100, style.opacity)) / 100;
         const areaStyle = wantsArea
           ? style.fill === 'gradient'
