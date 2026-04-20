@@ -302,26 +302,28 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
 
 /* ---------- Chart widget with backend integration ---------- */
 /**
- * Builds a TimeseriesRequest from the widget config and fires it via
- * useTimeseriesQuery. The query is gated by `appliedRev` so no backend call
- * happens until the user clicks "Appliquer" / "Save" in the settings panel
- * (per project rule: apply-only-backend-execution).
+ * Builds a TimeseriesRequest mirroring the Investigator flow:
+ *   1. Date normalization: 15min/1h grains MUST send YYYY-MM-DDTHH:mm:00 (with seconds).
+ *   2. Granularity mapping: monitor API expects 5min / 15min / 1h / 1d (no 30min).
+ *   3. Filter chips grouped per-dimension into IN clauses.
+ *   4. Gated by `appliedRev` — no request fires before the user clicks Appliquer
+ *      (project rule: apply-only-backend-execution).
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   const cfg: ChartWidgetConfig | undefined = w.config;
   const hasMetrics = !!cfg && cfg.metrics.length > 0;
   const hasBeenApplied = (w.appliedRev ?? 0) > 0;
 
-  // Build the request only when ready. Re-built whenever appliedRev bumps.
   const request: TimeseriesRequest | null = useMemo(() => {
     if (!cfg || !hasMetrics || !hasBeenApplied) return null;
 
-    // Group filter chips by dimension into IN clauses.
+    // ── 1. Filters (chip[] → IN clauses, dimension uppercased like Investigator) ──
     const byDim = new Map<string, string[]>();
     cfg.data.filters.forEach(f => {
-      const arr = byDim.get(f.dimension) ?? [];
+      const dim = f.dimension.toUpperCase();
+      const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
-      byDim.set(f.dimension, arr);
+      byDim.set(dim, arr);
     });
     const filters: MonitorFilter[] = Array.from(byDim.entries()).map(([dimension, values]) => ({
       dimension,
@@ -329,15 +331,41 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       values,
     }));
 
-    // Granularity: monitor API expects 5min/15min/1h/1d (no 30min).
+    // ── 2. Technology perimeter chips (4G/5G…) → TECHNOLOGY filter, but only if not "all selected" ──
+    const ALL_TECHS = new Set(['2g', '3g', '4g', '5g']);
+    const selectedTechs = (cfg.data.technos || []).map(t => t.toLowerCase());
+    const allSelected = selectedTechs.length >= 4 && selectedTechs.every(t => ALL_TECHS.has(t));
+    if (selectedTechs.length > 0 && !allSelected) {
+      filters.push({
+        dimension: 'TECHNOLOGY',
+        op: 'IN',
+        values: selectedTechs.map(t => t.toUpperCase()),
+      });
+    }
+
+    // ── 3. Granularity normalization ──
     const grainMap: Record<string, string> = {
-      '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
+      'auto': '1h', '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
+    };
+    const granularity = grainMap[cfg.data.granularity] ?? '1h';
+
+    // ── 4. Date normalization — Investigator rule:
+    //      15min/1h → YYYY-MM-DDTHH:mm:00 (always with seconds, ClickHouse requires it)
+    //      1d → YYYY-MM-DD ──
+    const normalizeDate = (raw: string): string => {
+      if (!raw) return raw;
+      if (granularity === '1d') return raw.split('T')[0];
+      // High-res grain → ensure full datetime with seconds
+      if (/T\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
+      if (/T\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+      if (!raw.includes('T')) return `${raw}T00:00:00`;
+      return raw;
     };
 
     return {
-      date_from: cfg.data.timeRange.from,
-      date_to: cfg.data.timeRange.to,
-      granularity: grainMap[cfg.data.granularity] ?? '15min',
+      date_from: normalizeDate(cfg.data.timeRange.from),
+      date_to: normalizeDate(cfg.data.timeRange.to),
+      granularity,
       filters,
       selections: cfg.metrics.filter(m => m.visible).map(m => ({
         kpi_key: m.kpiKey,
@@ -346,15 +374,33 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       split_by: null,
       top_n: 10,
     };
+    // Re-fire the request only when the user clicks Appliquer (rev bumps).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [w.appliedRev]);
 
-  const { data: tsResp, isFetching } = useTimeseriesQuery(request);
+  // Debug trace so the user can confirm the backend is being called
+  useEffect(() => {
+    if (request) {
+      console.log('[PA Chart] ▶ POST /monitor/query/timeseries', request);
+    }
+  }, [request]);
+
+  const { data: tsResp, isFetching, error } = useTimeseriesQuery(request);
+
+  useEffect(() => {
+    if (tsResp) {
+      console.log('[PA Chart] ◀ response', {
+        points: tsResp.series?.length ?? 0,
+        meta: tsResp.meta,
+      });
+    }
+    if (error) console.warn('[PA Chart] ✖ error', error);
+  }, [tsResp, error]);
 
   // Pivot the flat series response into per-metric arrays + a shared X axis.
   const { seriesByMetric, xAxisLabels } = useMemo(() => {
     const empty = { seriesByMetric: {} as Record<string, { time: string; value: number }[]>, xAxisLabels: [] as string[] };
-    if (!tsResp || !cfg) return empty;
+    if (!tsResp || !cfg || !tsResp.series || tsResp.series.length === 0) return empty;
 
     const tsSet = new Set<string>();
     tsResp.series.forEach(p => tsSet.add(p.ts));
