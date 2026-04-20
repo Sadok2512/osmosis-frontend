@@ -10996,7 +10996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-tight flex items-center gap-1">
                       {site.cells?.length === 0 && cellsLoadingCount > 0
                         ? <><RefreshCw size={10} className="animate-spin text-primary" /><span className="text-primary animate-pulse">cells…</span></>
-                        : site.cells?.length > 0 || site.cell_count > 0 ? `${site.cell_count} CELLS` : '—'}
+                        : getSiteDisplayCellCount(site) > 0 ? `${getSiteDisplayCellCount(site)} CELLS` : '—'}
                     </span>
                     <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground transition-all"><ArrowRight size={16} /></div>
                   </div>
