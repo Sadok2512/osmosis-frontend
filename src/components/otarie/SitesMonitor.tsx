@@ -5798,8 +5798,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [currentBboxFilters, viewport.zoom]);
 
   useEffect(() => {
-    // Load cells when needed for rendering/filtering logic
-    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    // Load cells whenever sector rendering or cell-level filtering needs them.
+    const needsCellData = displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
@@ -6007,12 +6007,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
+  }, [displayMode, mapDisplayMode, showBeamSectors, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
-    const needsCellData = displayMode === 'cells' || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    const needsCellData = displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
 
     const unsub = onCellsCacheUpdate(() => {
@@ -6060,12 +6060,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
 
     return unsub;
-  }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, mapDisplayMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
 
   useEffect(() => {
     setCellsCacheLoadedCount(getCellsCacheCount());
     setCellsCacheLoading(isCellsCacheLoading());
-  }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, mapDisplayMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
 
 
   // ── Enrich tagged sites with cells when in tagged-only mode ──
