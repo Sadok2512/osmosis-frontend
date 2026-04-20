@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
-  DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
+  DEFAULT_CHART_CONFIG, ChartType, TechnoId, PeriodPreset, GrainOption, ChartFilterChip,
   LineStyle, AxisSide, FillStyle, BackgroundStyle, LegendPosition,
 } from '../types';
 import { cn } from '@/lib/utils';
