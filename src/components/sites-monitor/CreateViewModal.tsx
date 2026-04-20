@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2 } from 'lucide-react';
+import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2 } from 'lucide-react';
+import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 
 // ── Types ──
 export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter';
@@ -87,6 +88,32 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
   // Parameter state
   const [paramFilters, setParamFilters] = useState<Record<string, string>>({});
   const [activeParamKeys, setActiveParamKeys] = useState<string[]>(['parameter']);
+  const [paramSearchQuery, setParamSearchQuery] = useState('');
+  const [paramSearchResults, setParamSearchResults] = useState<string[]>([]);
+  const [paramSearchLoading, setParamSearchLoading] = useState(false);
+  const [paramListOpen, setParamListOpen] = useState(false);
+
+  // Debounced parameter search from backend
+  useEffect(() => {
+    if (!paramSearchQuery || paramSearchQuery.length < 2) {
+      setParamSearchResults([]);
+      return;
+    }
+    setParamSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const url = getVpsProxyUrl('parser', `/api/v1/dump/params/distinct?column=parameter_raw&search=${encodeURIComponent(paramSearchQuery)}&limit=50`);
+        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        if (resp.ok) {
+          const data = await resp.json();
+          const vals = Array.isArray(data) ? data : (data.values || data.items || []);
+          setParamSearchResults(vals.map((v: any) => typeof v === 'string' ? v : v.value || v.name || '').filter(Boolean));
+        }
+      } catch { setParamSearchResults([]); }
+      finally { setParamSearchLoading(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [paramSearchQuery]);
 
   // Reset when closing
   const handleOpenChange = (o: boolean) => {
@@ -615,19 +642,60 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                 <div className="space-y-2">
                   {activeParamKeys.map(key => {
                     const def = PARAM_FILTER_KEYS.find(t => t.key === key);
+                    const isParamKey = key === 'parameter';
                     return (
                       <div key={key} className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-foreground w-24 shrink-0">{def?.label || key}</span>
-                        <Input
-                          value={paramFilters[key] || ''}
-                          onChange={e => setParamFilters(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder={`Valeur ${def?.label || key}...`}
-                          className="text-xs h-8 flex-1"
-                        />
+                        {isParamKey ? (
+                          <div className="flex-1 relative">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                value={paramFilters[key] || paramSearchQuery}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  setParamSearchQuery(v);
+                                  setParamFilters(prev => ({ ...prev, [key]: v }));
+                                  setParamListOpen(true);
+                                }}
+                                onFocus={() => { if (paramSearchQuery.length >= 2) setParamListOpen(true); }}
+                                placeholder="Tapez pour rechercher (ex: pMax, LNCEL)..."
+                                className="text-xs h-8 flex-1 font-mono"
+                              />
+                              {paramSearchLoading && <Loader2 size={14} className="animate-spin text-muted-foreground shrink-0" />}
+                            </div>
+                            {paramListOpen && paramSearchResults.length > 0 && (
+                              <div className="absolute z-50 top-9 left-0 right-0 bg-popover border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                                {paramSearchResults.map(p => (
+                                  <button
+                                    key={p}
+                                    onClick={() => {
+                                      setParamFilters(prev => ({ ...prev, parameter: p }));
+                                      setParamSearchQuery(p);
+                                      setParamListOpen(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-1.5 text-xs font-mono hover:bg-accent transition-colors ${
+                                      paramFilters.parameter === p ? 'bg-primary/10 text-primary font-bold' : 'text-foreground'
+                                    }`}
+                                  >
+                                    {p}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <Input
+                            value={paramFilters[key] || ''}
+                            onChange={e => setParamFilters(prev => ({ ...prev, [key]: e.target.value }))}
+                            placeholder={`Valeur ${def?.label || key}...`}
+                            className="text-xs h-8 flex-1"
+                          />
+                        )}
                         <button
                           onClick={() => {
                             setActiveParamKeys(prev => prev.filter(k => k !== key));
                             setParamFilters(prev => { const n = { ...prev }; delete n[key]; return n; });
+                            if (isParamKey) { setParamSearchQuery(''); setParamSearchResults([]); }
                           }}
                           className="p-1 hover:text-destructive text-muted-foreground"
                         >
