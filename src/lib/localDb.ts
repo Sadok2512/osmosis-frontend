@@ -392,8 +392,9 @@ function buildCellsQs(filters?: BboxFilters, limit = CHUNK_SIZE, offset = 0): UR
   const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   if (filters?.plaque && filters.plaque !== 'ALL') qs.set('plaque', filters.plaque);
   if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
-  if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
-  if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+  // IMPORTANT: do not push techno/band filters down to /topo/cells.
+  // The cells cache must stay broad, then SitesMonitor applies strict
+  // dashboard band/techno filtering client-side at render time.
   if (filters?.bcluster && filters.bcluster !== 'ALL') qs.set('bcluster', filters.bcluster);
   if (filters?.q) qs.set('search', filters.q);
   return qs;
