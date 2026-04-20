@@ -1,212 +1,467 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  Minimize2,
+  Maximize2,
+  X,
+  LayoutGrid,
   Play,
   Pause,
-  Minimize2,
-  MoreVertical,
-  ShieldCheck,
 } from 'lucide-react';
-import { motion } from 'motion/react';
-import { ViewMode } from '../types';
+import { motion, AnimatePresence } from 'motion/react';
+import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
+import 'react-grid-layout/css/styles.css';
+import { ViewMode, DEFAULT_DASHBOARD_THEME, type PAPage } from '../types';
 import { cn } from '@/lib/utils';
+import { usePAReportStore } from '../stores/paReportStore';
+import WidgetRenderer from './WidgetRenderer';
+import SectionBlock from './SectionBlock';
 
+const GridLayout = WidthProvider(ReactGridLayout);
+
+const SLIDE_W = 1920;
+const SLIDE_H = 1080;
+const COLS = 12;
+const ROW_HEIGHT = 60;
 
 interface PresentationViewProps {
   onViewModeChange: (mode: ViewMode) => void;
 }
 
-export default function PresentationView({ onViewModeChange }: PresentationViewProps) {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(33);
+/** Renders a single page at full 1920x1080 resolution. The parent scales it. */
+function SlideContent({ page, projectName }: { page: PAPage; projectName: string }) {
+  const theme = { ...DEFAULT_DASHBOARD_THEME, ...(page.theme ?? {}) };
+  const widgets = page.widgets ?? [];
+  const sections = page.sections ?? [];
 
-  useEffect(() => {
-    if (!isPlaying) return;
-    const interval = setInterval(() => {
-      setProgress((prev) => (prev < 100 ? prev + 0.5 : 0));
-    }, 100);
-    return () => clearInterval(interval);
-  }, [isPlaying]);
+  const pageBg =
+    theme.backgroundColor ||
+    (theme.background === 'dark' ? '#0a0c0d' : theme.background === 'gradient' ? '#1a1a2e' : '#f8fafc');
+  const cardBg = theme.cardColor || '#ffffff';
+  const titleColor = theme.titleColor || theme.accentColor;
+  const textColor = theme.textColor || (theme.background === 'dark' || theme.background === 'gradient' ? '#ffffff' : '#0f172a');
+  const radius = theme.borderRadius ?? 16;
+  const spacing = theme.spacing ?? 16;
+  const padding = theme.pagePadding ?? 48;
+  const headerAlign =
+    theme.headerAlign === 'center' ? 'text-center' : theme.headerAlign === 'right' ? 'text-right' : 'text-left';
+
+  const layout = widgets.map((w) => ({
+    i: w.id,
+    x: w.layout.x,
+    y: w.layout.y,
+    w: w.layout.w,
+    h: w.layout.h,
+    static: true,
+  }));
 
   return (
-    <div className="h-screen w-full bg-[#0a0c0d] text-white flex flex-col overflow-hidden relative">
-      <div className="absolute inset-0 pointer-events-none overflow-hidden -z-10 opacity-30">
-        <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-primary/20 blur-[150px] rounded-full" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-teal-500/10 blur-[200px] rounded-full" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#ffffff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
-      </div>
-
-      <header className="flex justify-between items-center w-full px-12 py-8 z-50">
-        <div className="flex items-center gap-4">
-          <div className="w-3 h-3 rounded-full bg-primary animate-pulse shadow-[0_0_10px_rgba(0,104,95,0.8)]" />
-          <h1 className="text-2xl font-black tracking-tight text-white uppercase font-headline">Precision Architect</h1>
-          <span className="ml-4 px-3 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-black tracking-[0.2em] uppercase border border-primary/20">Live P+ View</span>
-        </div>
-
-        <div className="flex items-center gap-8">
-          <div className="text-right">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] font-bold">Global Network Status</p>
-            <p className="text-lg font-bold text-white flex items-center gap-2 justify-end">
-              <ShieldCheck className="w-5 h-5 text-primary" />
-              Operational
-            </p>
-          </div>
-          <button
-            onClick={() => onViewModeChange('view')}
-            className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-all active:scale-95"
-          >
-            <Minimize2 className="w-6 h-6 text-white" />
-          </button>
-        </div>
+    <div
+      className="slide-content w-full h-full overflow-hidden flex flex-col"
+      style={{ backgroundColor: pageBg, color: textColor, padding }}
+    >
+      {/* Slide header */}
+      <header className={cn('w-full mb-6', headerAlign)}>
+        <p className="text-xs font-black uppercase tracking-[0.3em] opacity-60 mb-2" style={{ color: theme.accentColor }}>
+          {theme.operatorName || projectName}
+        </p>
+        {(theme.pageTitle || page.name) && (
+          <h1 className="text-6xl font-black font-headline tracking-tight" style={{ color: titleColor }}>
+            {theme.pageTitle || page.name}
+          </h1>
+        )}
+        {theme.pageSubtitle && <p className="text-xl mt-3 opacity-75 max-w-4xl">{theme.pageSubtitle}</p>}
       </header>
 
-      <main className="flex-1 w-full px-12 flex flex-col justify-center gap-12 relative max-w-[1800px] mx-auto">
-        <div className="w-full flex flex-col gap-8">
-          <div className="flex justify-between items-end">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
-              <h2 className="text-7xl font-black text-white tracking-tighter mb-4 font-headline uppercase">Global Throughput</h2>
-              <p className="text-xl text-zinc-400 font-medium max-w-2xl">Real-time aggregate data flow across 14 global nodes, monitored with millisecond precision.</p>
-            </motion.div>
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {sections.length > 0 && (
+          <div className="space-y-4 mb-6">
+            {sections.map((s) => (
+              <SectionBlock key={s.id} section={s} />
+            ))}
+          </div>
+        )}
 
-            <div className="flex gap-6">
-              {[
-                { label: 'Peak Rate', value: '1.42', unit: 'Tb/s' },
-                { label: 'Current Active', value: '892', unit: 'Gb/s', active: true },
-              ].map((stat) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={cn(
-                    "glass-panel-dark px-8 py-6 rounded-2xl text-center min-w-[200px]",
-                    stat.active && "border-l-4 border-l-primary"
-                  )}
-                >
-                  <p className="text-[10px] text-primary uppercase tracking-[0.2em] mb-2 font-black">{stat.label}</p>
-                  <p className="text-5xl font-black text-white font-headline">
-                    {stat.value} <span className="text-xl font-normal text-zinc-500 ml-1 decoration-none">{stat.unit}</span>
-                  </p>
-                </motion.div>
-              ))}
+        {widgets.length === 0 && sections.length === 0 ? (
+          <div className="h-full w-full flex items-center justify-center opacity-50">
+            <div className="text-center">
+              <p className="text-2xl font-black uppercase tracking-widest mb-2">Empty slide</p>
+              <p className="text-base opacity-70">Add widgets in the editor to populate this slide.</p>
             </div>
           </div>
+        ) : (
+          <GridLayout
+            className="layout"
+            layout={layout}
+            cols={COLS}
+            rowHeight={ROW_HEIGHT}
+            margin={[spacing, spacing]}
+            containerPadding={[0, 0]}
+            isDraggable={false}
+            isResizable={false}
+            compactType="vertical"
+          >
+            {widgets.map((w) => (
+              <div
+                key={w.id}
+                className="overflow-hidden shadow-lg border border-black/5"
+                style={{ backgroundColor: cardBg, borderRadius: radius }}
+              >
+                <div className="w-full h-full p-4">
+                  <WidgetRenderer widget={w} />
+                </div>
+              </div>
+            ))}
+          </GridLayout>
+        )}
+      </div>
+    </div>
+  );
+}
 
-          <div className="h-[520px] w-full rounded-3xl relative overflow-hidden bg-white/5 border border-white/5 backdrop-blur-sm group p-6">
-            <div className="absolute inset-0 flex items-end justify-between px-2 opacity-10 pointer-events-none">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="w-px h-full bg-white" />
-              ))}
+/** Wraps SlideContent at fixed 1920x1080 and scales it to fit any container. */
+function ScaledSlide({ page, projectName }: { page: PAPage; projectName: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+    const compute = () => {
+      const { width, height } = el.getBoundingClientRect();
+      const s = Math.min(width / SLIDE_W, height / SLIDE_H);
+      setScale(s > 0 ? s : 1);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="relative w-full h-full overflow-hidden">
+      <div
+        className="absolute"
+        style={{
+          width: SLIDE_W,
+          height: SLIDE_H,
+          left: '50%',
+          top: '50%',
+          marginLeft: -SLIDE_W / 2,
+          marginTop: -SLIDE_H / 2,
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        <SlideContent page={page} projectName={projectName} />
+      </div>
+    </div>
+  );
+}
+
+export default function PresentationView({ onViewModeChange }: PresentationViewProps) {
+  const projectName = usePAReportStore((s) => s.projectName);
+  const pages = usePAReportStore((s) => s.pages);
+  const activePageId = usePAReportStore((s) => s.activePageId);
+  const setActivePageId = usePAReportStore((s) => s.setActivePageId);
+
+  const startIdx = Math.max(
+    0,
+    pages.findIndex((p) => p.id === activePageId),
+  );
+  const [index, setIndex] = useState(startIdx);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showGrid, setShowGrid] = useState(false);
+  const [autoplay, setAutoplay] = useState(false);
+  const [cursorVisible, setCursorVisible] = useState(true);
+  const cursorTimer = useRef<number | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const total = pages.length;
+  const currentPage = pages[index];
+
+  const goTo = useCallback(
+    (i: number) => {
+      if (total === 0) return;
+      const next = ((i % total) + total) % total;
+      setIndex(next);
+      setActivePageId(pages[next].id);
+    },
+    [pages, total, setActivePageId],
+  );
+
+  const next = useCallback(() => goTo(index + 1), [goTo, index]);
+  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+        e.preventDefault();
+        next();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prev();
+      } else if (e.key === 'Escape') {
+        if (showGrid) setShowGrid(false);
+        else if (document.fullscreenElement) document.exitFullscreen();
+        else onViewModeChange('view');
+      } else if (e.key === 'g' || e.key === 'G') {
+        setShowGrid((v) => !v);
+      } else if (e.key === 'f' || e.key === 'F' || e.key === 'F5') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'Home') {
+        goTo(0);
+      } else if (e.key === 'End') {
+        goTo(total - 1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [next, prev, showGrid, total]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      rootRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, []);
+
+  // Auto-hide cursor after inactivity
+  useEffect(() => {
+    const onMove = () => {
+      setCursorVisible(true);
+      if (cursorTimer.current) window.clearTimeout(cursorTimer.current);
+      cursorTimer.current = window.setTimeout(() => setCursorVisible(false), 2500);
+    };
+    window.addEventListener('mousemove', onMove);
+    onMove();
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      if (cursorTimer.current) window.clearTimeout(cursorTimer.current);
+    };
+  }, []);
+
+  // Autoplay
+  useEffect(() => {
+    if (!autoplay) return;
+    const t = window.setInterval(() => next(), 7000);
+    return () => window.clearInterval(t);
+  }, [autoplay, next]);
+
+  const progress = total > 1 ? ((index + 1) / total) * 100 : 100;
+
+  if (!currentPage) {
+    return (
+      <div className="h-screen w-full bg-[#0a0c0d] text-white flex items-center justify-center">
+        <p>No pages to present.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className={cn(
+        'h-screen w-full bg-[#0a0c0d] text-white flex flex-col overflow-hidden relative',
+        !cursorVisible && 'cursor-none',
+      )}
+    >
+      {/* Top toolbar — fades when cursor hidden */}
+      <AnimatePresence>
+        {cursorVisible && (
+          <motion.header
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -20, opacity: 0 }}
+            className="absolute top-0 left-0 right-0 z-50 flex justify-between items-center px-6 py-4 bg-gradient-to-b from-black/60 to-transparent"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-2.5 h-2.5 rounded-full bg-primary animate-pulse" />
+              <span className="text-sm font-black uppercase tracking-widest text-white">{projectName}</span>
+              <span className="px-3 py-1 rounded-full bg-white/10 text-white/70 text-[10px] font-black tracking-widest uppercase">
+                Slide {index + 1} / {total}
+              </span>
             </div>
 
-            <div className="h-full w-full flex flex-col items-center justify-center text-center px-8">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                  <path d="M3 3v18h18" />
-                  <path d="M7 14l4-4 4 4 5-6" />
-                </svg>
-              </div>
-              <p className="text-xs font-black uppercase tracking-[0.25em] text-white/80 mb-2">No live data</p>
-              <p className="text-[11px] text-white/50 max-w-[320px]">
-                Configure a chart widget in the editor and click "Appliquer" to fetch real data from the backend.
-              </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowGrid((v) => !v)}
+                className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center transition-all"
+                title="Grid view (G)"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setAutoplay((v) => !v)}
+                className={cn(
+                  'w-10 h-10 rounded-lg border flex items-center justify-center transition-all',
+                  autoplay ? 'bg-primary border-primary text-white' : 'bg-white/5 border-white/10 hover:bg-white/10',
+                )}
+                title="Autoplay"
+              >
+                {autoplay ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center transition-all"
+                title="Fullscreen (F)"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={() => onViewModeChange('view')}
+                className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center transition-all"
+                title="Exit (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+          </motion.header>
+        )}
+      </AnimatePresence>
 
-            <motion.div
-              animate={{ y: [0, -10, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute left-[58%] top-[35%] glass-panel-dark p-5 rounded-2xl flex items-center gap-5 border border-primary/30 shadow-2xl z-20"
-            >
-              <div className="w-3 h-3 rounded-full bg-primary-fixed-dim shadow-[0_0_12px_rgba(107,216,203,0.8)]" />
-              <div>
-                <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Node: Frankfurt-A</p>
-                <p className="text-lg font-bold text-white font-headline">412.5 <span className="text-sm font-normal text-zinc-500">Gb/s</span></p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
+      {/* Slide stage */}
+      <main className="flex-1 w-full h-full relative">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage.id}
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.02 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="absolute inset-0"
+          >
+            <ScaledSlide page={currentPage} projectName={projectName} />
+          </motion.div>
+        </AnimatePresence>
 
-        <div className="grid grid-cols-4 gap-8 w-full">
-          {[
-            { label: 'Network Latency', value: '12', unit: 'ms', progress: 75, color: 'bg-primary' },
-            { label: 'Error Rate', value: '0.02', unit: '%', progress: 10, color: 'bg-tertiary' },
-            { label: 'Active Nodes', value: '142', unit: '/ 144', extra: 'High Availability', color: 'bg-primary' },
-            { label: 'Packet Loss', value: '0.00', unit: 'μ', status: 'optimal', color: 'bg-primary' },
-          ].map((item, idx) => (
-            <motion.div
-              key={item.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 + idx * 0.1 }}
-              className="glass-panel-dark p-8 rounded-2xl hover:bg-white/5 transition-all cursor-pointer group"
-            >
-              <p className="text-[10px] text-zinc-500 uppercase tracking-[0.2em] mb-3 font-black">{item.label}</p>
-              <div className="flex items-baseline gap-2 mb-6">
-                <span className="text-4xl font-bold text-white font-headline tracking-tighter">{item.value}</span>
-                <span className="text-lg text-primary font-medium">{item.unit}</span>
-              </div>
-
-              {item.progress !== undefined ? (
-                <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${item.progress}%` }} className={cn('h-full', item.color)} />
-                </div>
-              ) : item.extra ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  <span className="text-xs text-primary font-bold uppercase tracking-widest">{item.extra}</span>
-                </div>
-              ) : (
-                <div className="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
-                  <div className={cn('w-full h-full shadow-[0_0_12px_rgba(0,104,95,0.6)]', item.color)} />
-                </div>
+        {/* Side nav arrows */}
+        {total > 1 && (
+          <>
+            <button
+              onClick={prev}
+              className={cn(
+                'absolute left-6 top-1/2 -translate-y-1/2 z-40 w-14 h-14 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/15 transition-all active:scale-90',
+                !cursorVisible && 'opacity-0',
               )}
-            </motion.div>
-          ))}
-        </div>
-      </main>
-
-      <footer className="w-full px-12 py-10 flex flex-col items-center gap-6 z-50 mt-auto">
-        <div className="w-full max-w-5xl h-1 bg-zinc-800 rounded-full overflow-hidden">
-          <motion.div className="h-full bg-primary" style={{ width: `${progress}%` }} />
-        </div>
-
-        <div className="flex justify-between items-center w-full max-w-7xl">
-          <div className="flex items-center gap-4">
-            <button className="w-14 h-14 rounded-full glass-panel-dark flex items-center justify-center hover:bg-white/10 transition-all active:scale-90">
+              aria-label="Previous"
+            >
               <ChevronLeft className="w-6 h-6" />
             </button>
-            <div className="text-center px-6">
-              <p className="text-sm font-black text-white uppercase tracking-tighter">Slide 04</p>
-              <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-widest">of 12</p>
-            </div>
-            <button className="w-14 h-14 rounded-full bg-primary text-white flex items-center justify-center hover:scale-110 active:scale-90 shadow-xl shadow-primary/40 transition-all">
+            <button
+              onClick={next}
+              className={cn(
+                'absolute right-6 top-1/2 -translate-y-1/2 z-40 w-14 h-14 rounded-full bg-white/5 border border-white/10 backdrop-blur-md flex items-center justify-center hover:bg-white/15 transition-all active:scale-90',
+                !cursorVisible && 'opacity-0',
+              )}
+              aria-label="Next"
+            >
               <ChevronRight className="w-6 h-6" />
             </button>
-          </div>
+          </>
+        )}
+      </main>
 
-          <div className="flex items-center gap-4 px-3 py-2 glass-panel-dark rounded-full">
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="px-8 py-3 rounded-full bg-primary text-white text-xs font-black uppercase tracking-[0.2em] flex items-center gap-3 active:scale-95 transition-all shadow-lg shadow-primary/20"
-            >
-              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-              {isPlaying ? 'Playback' : 'Paused'}
-            </button>
-            <button className="px-6 py-3 rounded-full text-zinc-400 text-xs font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Insights</button>
-            <button className="px-6 py-3 rounded-full text-zinc-400 text-xs font-black uppercase tracking-[0.2em] hover:text-white transition-colors">Topology</button>
-          </div>
-
-          <div className="flex items-center gap-8">
-            <div className="text-right">
-              <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mb-1">Next Topic</p>
-              <p className="text-sm font-bold text-white uppercase tracking-tight">Security Perimeter</p>
+      {/* Bottom progress + thumbnail strip */}
+      <AnimatePresence>
+        {cursorVisible && total > 1 && (
+          <motion.footer
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            className="absolute bottom-0 left-0 right-0 z-50 px-6 pb-4 pt-10 bg-gradient-to-t from-black/70 to-transparent"
+          >
+            <div className="max-w-6xl mx-auto">
+              <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-4">
+                <motion.div
+                  className="h-full bg-primary"
+                  initial={false}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 0.4 }}
+                />
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {pages.map((p, i) => (
+                  <button
+                    key={p.id}
+                    onClick={() => goTo(i)}
+                    className={cn(
+                      'h-1.5 rounded-full transition-all',
+                      i === index ? 'w-8 bg-primary' : 'w-1.5 bg-white/30 hover:bg-white/60',
+                    )}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
             </div>
-            <button className="p-2 text-zinc-500 hover:text-white transition-colors">
-              <MoreVertical className="w-6 h-6" />
-            </button>
-          </div>
-        </div>
-      </footer>
+          </motion.footer>
+        )}
+      </AnimatePresence>
+
+      {/* Grid overlay */}
+      <AnimatePresence>
+        {showGrid && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[60] bg-[#0a0c0d]/95 backdrop-blur-xl overflow-y-auto"
+          >
+            <div className="max-w-7xl mx-auto p-12">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-primary mb-1">Grid View</p>
+                  <h2 className="text-3xl font-black text-white font-headline">{projectName}</h2>
+                </div>
+                <button
+                  onClick={() => setShowGrid(false)}
+                  className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-6">
+                {pages.map((p, i) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      goTo(i);
+                      setShowGrid(false);
+                    }}
+                    className={cn(
+                      'group relative aspect-video rounded-xl overflow-hidden border-2 transition-all hover:scale-[1.02]',
+                      i === index ? 'border-primary shadow-2xl shadow-primary/30' : 'border-white/10 hover:border-white/30',
+                    )}
+                  >
+                    <div className="absolute inset-0 bg-white">
+                      <ScaledSlide page={p} projectName={projectName} />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
+                      <span className="text-xs font-black uppercase tracking-widest">{p.name}</span>
+                      <span className="text-[10px] font-black bg-white/20 backdrop-blur px-2 py-1 rounded">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
