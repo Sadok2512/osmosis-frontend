@@ -5617,6 +5617,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return result;
   }, [filteredSites, mapTechnoFilter, enabledTechnos, isBandFilterActive, siteHasEnabledBand]);
 
+  // Bands actually present in the active scope (dashboard sites). Used to
+  // restrict the band-chip selector in the top bar so it never shows bands
+  // that don't exist in the currently visible scope.
+  const availableBandsInScope = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of filteredSites) {
+      if (!s.cells?.length) continue;
+      for (const cell of s.cells) {
+        const key = normalizeBandKey((cell as any).bande, (cell as any).techno);
+        if (key) set.add(key);
+      }
+    }
+    return set;
+  }, [filteredSites]);
+
   // Dynamic filter options based on actual data
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
   const uniqueDors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.dor).filter(Boolean))].sort(), [sites]);
