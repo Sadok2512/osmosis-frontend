@@ -136,11 +136,10 @@ export default function EditorView({
       kind,
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
-    if (kind === 'hero') {
-      newWidget.heroConfig = { ...(await import('../types')).DEFAULT_HERO_CONFIG };
-    }
+    if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
+    if (kind === 'stat') newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+    if (kind === 'divider') newWidget.dividerConfig = { ...DEFAULT_DIVIDER_CONFIG };
     updateWidgets(w => [...w, newWidget]);
-    // auto-open settings for premium widgets
     if (kind === 'hero' || kind === 'stat' || kind === 'divider') {
       setActiveWidget(newWidget.id);
     }
