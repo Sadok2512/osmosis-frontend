@@ -103,9 +103,15 @@ export interface DynWidget {
 export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
   data: {
     inheritFromDashboard: true,
-    filters: {},
-    timeRange: { inherit: true, preset: '24h' },
-    granularity: 'auto',
+    technos: ['2g', '3g', '4g', '5g'],
+    filters: [],
+    timeRange: {
+      inherit: true,
+      preset: '3j',
+      from: '2026-04-13T00:00',
+      to: '2026-04-15T00:00',
+    },
+    granularity: '15min',
   },
   metrics: [],
   style: {
