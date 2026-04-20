@@ -10,6 +10,7 @@ import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import DateRangePopover from './DateRangePopover';
+import BIKpiSelectorModal from '@/components/bi/BIKpiSelectorModal';
 
 interface Props {
   widget: DynWidget;
@@ -87,6 +88,26 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       visible: true,
     };
     setMetrics([...config.metrics, m]);
+  };
+
+  const addMetricsFromKeys = (keys: string[]) => {
+    const existing = new Set(config.metrics.map(m => m.kpiKey));
+    const toAdd = keys.filter(k => !existing.has(k));
+    if (toAdd.length === 0) return;
+    const newMetrics: ChartMetric[] = toAdd.map((key, idx) => {
+      const opt = kpiOptions.find(o => o.key === key);
+      return {
+        id: `m-${Date.now()}-${idx}`,
+        kpiKey: key,
+        alias: opt?.label ?? key,
+        unit: opt?.unit ?? '',
+        axis: 'left',
+        color: COLOR_PALETTE[(config.metrics.length + idx) % COLOR_PALETTE.length],
+        lineStyle: 'solid',
+        visible: true,
+      };
+    });
+    setMetrics([...config.metrics, ...newMetrics]);
   };
 
 
@@ -176,6 +197,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 config={config}
                 patchData={patchData}
                 addMetric={addMetric}
+                addMetricsFromKeys={addMetricsFromKeys}
                 updateMetric={updateMetric}
                 removeMetric={removeMetric}
                 title={widget.title ?? ''}
@@ -212,12 +234,13 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 /* ---------------- Tab: Data Source (split in 2 sub-sections) ---------------- */
 
 function DataSourceTab({
-  config, patchData, addMetric, updateMetric, removeMetric, title, onTitleChange,
+  config, patchData, addMetric, addMetricsFromKeys, updateMetric, removeMetric, title, onTitleChange,
   kpiOptions, kpisLoading, dimensionOptions, filtersLoading,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   addMetric: () => void;
+  addMetricsFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   title: string;
@@ -261,6 +284,7 @@ function DataSourceTab({
         <MetricsTab
           metrics={config.metrics}
           addMetric={addMetric}
+          addMetricsFromKeys={addMetricsFromKeys}
           updateMetric={updateMetric}
           removeMetric={removeMetric}
           kpiOptions={kpiOptions}
@@ -657,16 +681,21 @@ function TimeFiltersToolbar({
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
-  metrics, addMetric, updateMetric, removeMetric, kpiOptions, kpisLoading,
+  metrics, addMetric, addMetricsFromKeys, updateMetric, removeMetric, kpiOptions, kpisLoading,
 }: {
   metrics: ChartMetric[];
   addMetric: () => void;
+  addMetricsFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const availableKeys = useMemo(() => kpiOptions.map(o => o.key), [kpiOptions]);
+  const selectedKeys = useMemo(() => metrics.map(m => m.kpiKey), [metrics]);
 
   return (
     <div className="space-y-3">
@@ -681,18 +710,25 @@ function MetricsTab({
           )}
         </h4>
         <button
-          onClick={() => {
-            addMetric();
-            setTimeout(() => {
-              const last = document.querySelector<HTMLDivElement>('[data-kpi-card]:last-of-type');
-              last?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 50);
-          }}
+          onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" /> Add KPI
         </button>
       </div>
+
+      <BIKpiSelectorModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selectedKeys={selectedKeys}
+        availableKeys={availableKeys}
+        onConfirm={(keys) => {
+          // Add only newly-selected keys (preserve existing metric configs)
+          const existing = new Set(selectedKeys);
+          const toAdd = keys.filter(k => !existing.has(k));
+          if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+        }}
+      />
 
       <div className="space-y-2">
         {metrics.map((m) => {
@@ -859,7 +895,7 @@ function MetricsTab({
           <div className="border border-dashed border-outline-variant/30 rounded-xl py-12 flex flex-col items-center gap-3">
             <p className="text-xs text-on-surface-variant">No metrics yet</p>
             <button
-              onClick={addMetric}
+              onClick={() => setPickerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90"
             >
               <Plus className="w-3.5 h-3.5" /> Add your first KPI
