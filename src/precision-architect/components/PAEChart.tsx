@@ -42,29 +42,23 @@ const PAEChart: React.FC<PAEChartProps> = ({
   const hasMetrics = !!config && config.metrics.length > 0;
   const hasBeenApplied = (appliedRev ?? 0) > 0;
   const hasBackendSeries = !!seriesByMetric && Object.values(seriesByMetric).some(s => s.length > 0);
-  const hasRealData = hasBackendSeries || (Array.isArray(data) && data.length > 0);
+  const hasLegacyData = Array.isArray(data) && data.length > 0;
+  const hasRealData = hasBackendSeries || hasLegacyData;
 
-  // Empty state: only when NO metric is selected. As soon as a KPI/Counter is added,
-  // we render the chart (with backend data if available, otherwise a synthetic preview
-  // dataset so the user immediately sees the result of their selection).
-  const isEmpty = !hasMetrics;
+  // Empty state rules — NO synthetic preview anymore (per project policy):
+  //   • No metric selected → "No KPI selected"
+  //   • Metrics selected but never applied → "Click Appliquer"
+  //   • Applied + still loading → render an empty grid with the loading badge
+  //   • Applied + backend returned nothing → "No data returned"
+  const emptyReason: 'no-metric' | 'not-applied' | 'no-data' | null =
+    !hasMetrics ? 'no-metric'
+    : (!hasBeenApplied && !hasLegacyData) ? 'not-applied'
+    : (hasBeenApplied && !loading && !hasRealData) ? 'no-data'
+    : null;
+  const isEmpty = emptyReason !== null;
 
-  // Synthetic preview dataset (used when the backend has not returned data yet but
-  // the user has already configured metrics). Deterministic, smooth, 24 points.
-  const syntheticData = useMemo(() => {
-    if (hasRealData) return data!;
-    const points = 24;
-    const out: { time: string; value: number; secondary?: number }[] = [];
-    for (let i = 0; i < points; i++) {
-      const hh = String(Math.floor(i)).padStart(2, '0');
-      const base = 60 + Math.sin(i / 3) * 18 + Math.cos(i / 5) * 8;
-      const sec = 50 + Math.cos(i / 4) * 14 + Math.sin(i / 6) * 6;
-      out.push({ time: `${hh}:00`, value: Math.round(base * 10) / 10, secondary: Math.round(sec * 10) / 10 });
-    }
-    return out;
-  }, [data, hasRealData]);
-
-  const effectiveData = hasRealData ? data! : syntheticData;
+  // Real data only — no synthetic fallback.
+  const effectiveData = hasLegacyData ? data! : [];
 
 
 
