@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2 } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
   LineStyle, AxisSide, FillStyle, BackgroundStyle, LegendPosition,
 } from '../types';
 import { cn } from '@/lib/utils';
+import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 
 interface Props {
   widget: DynWidget;
