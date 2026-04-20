@@ -2265,40 +2265,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 />
               </div>
 
-              {/* Filter dimensions from backend (optional) */}
+              {/* Progressive filter builder */}
               {filterDimensions.length > 0 && (
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">Filtres de sites <span className="text-muted-foreground/50 font-normal">(optionnel)</span></label>
-                <p className="text-[9px] text-primary/70 italic mb-3">Sélectionnez les critères pour filtrer les sites affichés sur la carte</p>
-                  <div className="space-y-2">
-                    {filterDimensions.map(dim => {
-                      const selectedValues = createFilters[dim.id as keyof DashboardSiteFilters] || [];
-                      return (
-                        <CreateFilterDropdown
-                          key={dim.id}
-                          label={dim.label}
-                          values={dim.values}
-                          selected={selectedValues}
-                          onChange={(vals) => setCreateFilters(prev => ({ ...prev, [dim.id]: vals.length > 0 ? vals : undefined }))}
-                        />
-                      );
-                    })}
-                  </div>
-              </div>
-              )}
-
-              {/* Active filter summary */}
-              {hasAnyCreateFilter && (
-                <div className="border border-primary/20 rounded-xl bg-primary/5 p-3">
-                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider">Filtres actifs</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {Object.entries(createFilters).filter(([, v]) => v && v.length > 0).map(([key, vals]) => (
-                      <span key={key} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
-                        {filterDimensions.find(d => d.id === key)?.label || key}: {vals!.join(', ')}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <ProgressiveFilterBuilder
+                  dimensions={filterDimensions}
+                  filters={createFilters}
+                  onChange={setCreateFilters}
+                />
               )}
 
               {/* Buttons */}
