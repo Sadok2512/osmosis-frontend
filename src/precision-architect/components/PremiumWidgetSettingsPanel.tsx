@@ -285,6 +285,35 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function CardBackgroundField({ transparent, onChange }: { transparent: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Section icon={<Palette className="w-4 h-4" />} title="Card Background">
+      <Field label="Widget surface">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onChange(false)}
+            className={cn(
+              'py-2.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center justify-center gap-2',
+              !transparent ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+            )}
+          >
+            ◆ Card BG
+          </button>
+          <button
+            onClick={() => onChange(true)}
+            className={cn(
+              'py-2.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center justify-center gap-2',
+              transparent ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+            )}
+          >
+            ◇ Transparent
+          </button>
+        </div>
+      </Field>
+    </Section>
+  );
+}
+
 function SegmentControl<T extends string>({
   value,
   options,
