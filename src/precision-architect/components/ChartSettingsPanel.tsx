@@ -442,7 +442,12 @@ function DataTab({
 
 function InheritedFromToolbarCard({ onOverride }: { onOverride: () => void }) {
   // Read the live global toolbar values so the user can see what they'll get.
-  const { technos, from, to, preset, grain, filters } = usePAGlobalToolbarReadOnly();
+  const technos = usePAGlobalToolbar((s) => s.technos);
+  const from = usePAGlobalToolbar((s) => s.from);
+  const to = usePAGlobalToolbar((s) => s.to);
+  const preset = usePAGlobalToolbar((s) => s.preset);
+  const grain = usePAGlobalToolbar((s) => s.grain);
+  const filters = usePAGlobalToolbar((s) => s.filters);
 
   const fmt = (iso: string) => {
     if (!iso) return '—';
@@ -510,15 +515,6 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
-/** Read-only hook that subscribes to the global toolbar store without importing it at module top to keep tree-shaking clean. */
-function usePAGlobalToolbarReadOnly() {
-  // Lazily required to avoid circular imports
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { usePAGlobalToolbar } = require('../stores/paGlobalToolbarStore') as typeof import('../stores/paGlobalToolbarStore');
-  return usePAGlobalToolbar((s) => ({
-    technos: s.technos, from: s.from, to: s.to, preset: s.preset, grain: s.grain, filters: s.filters,
-  }));
-}
 
 
 /* ---------------- Time & Filters Toolbar (embedded in panel) ---------------- */
