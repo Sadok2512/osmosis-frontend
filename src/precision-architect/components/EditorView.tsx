@@ -27,7 +27,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
