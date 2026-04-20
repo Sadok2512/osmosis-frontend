@@ -40,6 +40,24 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const [tab, setTab] = useState<Tab>('data');
   const config: ChartWidgetConfig = widget.config ?? DEFAULT_CHART_CONFIG;
 
+  // ── Live backend catalogs (KPIs + filter dimensions) ───────────────
+  const { data: kpiCatalog, isLoading: kpisLoading } = useKpiCatalog();
+  const { data: filterCatalog, isLoading: filtersLoading } = useFilterCatalog();
+
+  const kpiOptions = useMemo(() => {
+    if (!kpiCatalog || kpiCatalog.length === 0) return FALLBACK_KPI_OPTIONS;
+    return kpiCatalog
+      .filter(k => k.is_active !== false)
+      .map(k => ({ key: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || '' }));
+  }, [kpiCatalog]);
+
+  const dimensionOptions = useMemo(() => {
+    if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_TF_DIMENSIONS;
+    return filterCatalog
+      .filter(f => f.is_active !== false)
+      .map(f => f.display_name || f.dimension_key);
+  }, [filterCatalog]);
+
   const patchConfig = (patch: Partial<ChartWidgetConfig>) => {
     onChange({ config: { ...config, ...patch } });
   };
@@ -50,11 +68,12 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const setMetrics = (metrics: ChartMetric[]) => patchConfig({ metrics });
 
   const addMetric = () => {
+    const first = kpiOptions[0] ?? FALLBACK_KPI_OPTIONS[0];
     const m: ChartMetric = {
       id: `m-${Date.now()}`,
-      kpiKey: KPI_OPTIONS[0].key,
-      alias: KPI_OPTIONS[0].label,
-      unit: KPI_OPTIONS[0].unit,
+      kpiKey: first.key,
+      alias: first.label,
+      unit: first.unit,
       axis: 'left',
       color: COLOR_PALETTE[config.metrics.length % COLOR_PALETTE.length],
       lineStyle: 'solid',
@@ -62,6 +81,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
     };
     setMetrics([...config.metrics, m]);
   };
+
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
     setMetrics(config.metrics.map(m => m.id === id ? { ...m, ...patch } : m));
