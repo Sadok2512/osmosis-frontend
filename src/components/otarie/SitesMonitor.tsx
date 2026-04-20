@@ -5014,20 +5014,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
-  // Re-prefetch cells when bbox filters change (e.g. BCluster adds band filter)
-  const prevBboxFiltersRef = useRef<string>('');
-  useEffect(() => {
-    const key = JSON.stringify(currentBboxFilters);
-    if (key === prevBboxFiltersRef.current) return;
-    prevBboxFiltersRef.current = key;
-    // Only re-fetch if we're at sector zoom level
-    if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
-      topoApi.prefetchCells(currentBboxFilters || undefined);
-      // Clear existing cell data from sites so fresh cells are merged from new cache
-      setSites(prev => prev.map(s => ({ ...s, cells: [] })));
-    }
-  }, [currentBboxFilters, viewport.zoom]);
-
   // ── Debounced server-side search (independent of dashboard) ──
   const searchAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
@@ -5685,7 +5671,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     [activeViewConditions],
   );
 
-  // Clear cell cache when filters change
+  // Clear cell cache and re-prefetch when filters change (e.g. BCluster adds band filter)
   const prevBboxFiltersCacheRef = useRef<string>('');
   useEffect(() => {
     const filterKey = JSON.stringify(currentBboxFilters);
@@ -5694,9 +5680,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cellLoadingRef.current.clear();
       cellLoadAttemptCountRef.current.clear();
       invalidateBboxCache();
+      // Re-prefetch cells with new filters (e.g. bcluster applies band/vendor)
+      if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
+        topoApi.prefetchCells(currentBboxFilters || undefined);
+        setSites(prev => prev.map(s => ({ ...s, cells: [] })));
+      }
     }
     prevBboxFiltersCacheRef.current = filterKey;
-  }, [currentBboxFilters]);
+  }, [currentBboxFilters, viewport.zoom]);
 
   useEffect(() => {
     // Load cells when needed for rendering/filtering logic
