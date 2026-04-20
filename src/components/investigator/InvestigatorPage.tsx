@@ -1293,45 +1293,49 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               })()}
             </div>
 
-            {/* Top Worst — only for slots with showTopWorst === true */}
-            {(() => {
+            {/* Top Worst — only mount when the tab is actually active */}
+            {analysisTab === 'top_worst' && (() => {
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showTopWorst);
-              if (enabledSlots.length === 0 && analysisTab === 'top_worst') {
+              if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Top Worst Cells ».</div>;
               }
               const sec = analysisTabs.getSection('top_worst');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances
+              const activeInstance = sec.instances
                 .filter(inst2 => {
-                  // Only show tabs linked to slots that have showTopWorst enabled
                   if (!inst2.sourceGraphId) return true;
                   return enabledSlots.some(s => s.id === inst2.sourceGraphId);
                 })
-                .map(inst2 => (
-                  <div key={inst2.id} style={{ display: analysisTab === 'top_worst' && inst2.id === activeTabId ? undefined : 'none' }}>
-                    <TopWorstTabContent instanceId={instanceId} tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                  </div>
-                ));
+                .find(inst2 => inst2.id === activeTabId);
+
+              return activeInstance ? (
+                <TopWorstTabContent
+                  key={activeInstance.id}
+                  instanceId={instanceId}
+                  tabId={activeInstance.id}
+                  contextSnapshot={activeInstance.contextSnapshot}
+                />
+              ) : null;
             })()}
 
-            {/* Alarms — only for slots with showAlarms === true */}
-            {(() => {
+            {/* Alarms — only mount when the tab is actually active */}
+            {analysisTab === 'alarms' && (() => {
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showAlarms);
-              if (enabledSlots.length === 0 && analysisTab === 'alarms') {
+              if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Alarms ».</div>;
               }
               const sec = analysisTabs.getSection('alarms');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances
+              const activeInstance = sec.instances
                 .filter(inst2 => {
                   if (!inst2.sourceGraphId) return true;
                   return enabledSlots.some(s => s.id === inst2.sourceGraphId);
                 })
-                .map(inst2 => (
-                  <div key={inst2.id} style={{ display: analysisTab === 'alarms' && inst2.id === activeTabId ? undefined : 'none' }}>
-                    <AlarmsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                  </div>
-                ));
+                .find(inst2 => inst2.id === activeTabId);
+
+              return activeInstance ? (
+                <AlarmsTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
+              ) : null;
             })()}
 
             {/* Counters */}
@@ -1342,44 +1346,44 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               />
             </div>
 
-            {/* Neighbors — only for slots with showNeighbors === true */}
-            {(() => {
+            {/* Neighbors — only mount when the tab is actually active */}
+            {analysisTab === 'neighbors' && (() => {
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showNeighbors);
-              if (enabledSlots.length === 0 && analysisTab === 'neighbors') {
+              if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Neighbors ».</div>;
               }
               const sec = analysisTabs.getSection('neighbors');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances
+              const activeInstance = sec.instances
                 .filter(inst2 => {
                   if (!inst2.sourceGraphId) return true;
                   return enabledSlots.some(s => s.id === inst2.sourceGraphId);
                 })
-                .map(inst2 => (
-                  <div key={inst2.id} style={{ display: analysisTab === 'neighbors' && inst2.id === activeTabId ? undefined : 'none' }}>
-                    <NeighborsTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                  </div>
-                ));
+                .find(inst2 => inst2.id === activeTabId);
+
+              return activeInstance ? (
+                <NeighborsTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
+              ) : null;
             })()}
 
-            {/* CM History — only for slots with showCmHistory === true */}
-            {(() => {
+            {/* CM History — only mount when the tab is actually active */}
+            {analysisTab === 'cm_history' && (() => {
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showCmHistory);
-              if (enabledSlots.length === 0 && analysisTab === 'cm_history') {
+              if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « CM History ».</div>;
               }
               const sec = analysisTabs.getSection('cm_history');
               const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              return sec.instances
+              const activeInstance = sec.instances
                 .filter(inst2 => {
                   if (!inst2.sourceGraphId) return true;
                   return enabledSlots.some(s => s.id === inst2.sourceGraphId);
                 })
-                .map(inst2 => (
-                  <div key={inst2.id} style={{ display: analysisTab === 'cm_history' && inst2.id === activeTabId ? undefined : 'none' }}>
-                    <CMHistoryTabContent tabId={inst2.id} contextSnapshot={inst2.contextSnapshot} />
-                  </div>
-                ));
+                .find(inst2 => inst2.id === activeTabId);
+
+              return activeInstance ? (
+                <CMHistoryTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
+              ) : null;
             })()}
 
           </div>
