@@ -10670,7 +10670,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (Object.keys(viewThresholds).length > 0) {
                         setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
                       }
+                    } else if (settings.viewType === 'parameter' && settings.paramFilters) {
+                      // Activate parameter mode with the view's parameter config
+                      const pf = settings.paramFilters;
+                      if (pf.parameter) {
+                        setParamMode(true);
+                        setParamConfirmed(pf.parameter);
+                        setParamSelected(pf.parameter);
+                        setSectorColorMode('topo');
+                        setKpiOverlayLocked(false);
+                        // Load parameter data via /topo/param-map
+                        setParamLoading(true);
+                        (async () => {
+                          try {
+                            const qs = new URLSearchParams({ param: pf.parameter, limit: '10000' });
+                            if (pf.vendor) qs.set('vendor', pf.vendor);
+                            if (pf.bande) qs.set('techno', pf.bande.startsWith('NR') ? '5G' : '4G');
+                            // Also apply dashboard filters if present
+                            const df = settings.siteFilters || {};
+                            if (df.dor?.length) qs.set('dor', df.dor[0]);
+                            if (df.constructeur?.length) qs.set('vendor', df.constructeur[0]);
+                            if ((df as any).bcluster?.length) qs.set('bcluster', (df as any).bcluster[0]);
+                            const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
+                            const url = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${qs}`);
+                            const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+                            const json = await resp.json();
+                            const sites = json.sites || [];
+                            const points: typeof paramPoints = [];
+                            let id = 0;
+                            for (const site of sites) {
+                              for (const cell of (site.cells || [])) {
+                                if (site.latitude && site.longitude) {
+                                  points.push({
+                                    id: id++,
+                                    cell_name: cell.cell_name || null,
+                                    site_name: site.site_name || null,
+                                    latitude: site.latitude,
+                                    longitude: site.longitude,
+                                    parameter: pf.parameter,
+                                    value: cell.value ?? null,
+                                    bande: cell.bande || null,
+                                    vendor: site.constructeur || null,
+                                    dn: null,
+                                  });
+                                }
+                              }
+                            }
+                            setParamPoints(points);
+                          } catch (err) {
+                            console.warn('[SitesMonitor] param view load failed', err);
+                            setParamPoints([]);
+                          } finally {
+                            setParamLoading(false);
+                          }
+                        })();
+                      }
                     } else {
+                      setParamMode(false);
                       setKpiOverlayLocked(false);
                       // Restore techno and analysis level from view (legacy)
                       if (settings.kpiTechno && (settings.kpiTechno === '4G' || settings.kpiTechno === '5G')) {
