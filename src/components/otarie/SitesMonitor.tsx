@@ -7014,7 +7014,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
+          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -7764,7 +7764,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
+          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
