@@ -26,6 +26,8 @@ export interface ChartMetric {
   color: string;
   lineStyle: LineStyle;
   visible: boolean;
+  /** Per-metric graph type override (line/area/bar). Falls back to global style.chartType when undefined. */
+  graphType?: ChartType;
 }
 
 export interface ChartThreshold {
