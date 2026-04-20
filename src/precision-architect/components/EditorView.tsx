@@ -59,6 +59,9 @@ const DEFAULT_SIZES: Record<WidgetKind, { w: number; h: number }> = {
   kpi: { w: 3, h: 3 },
   text: { w: 6, h: 3 },
   image: { w: 4, h: 4 },
+  hero: { w: 12, h: 3 },
+  stat: { w: 3, h: 3 },
+  divider: { w: 12, h: 1 },
 };
 
 function findFreeSpot(widgets: DynWidget[], w: number): { x: number; y: number } {
