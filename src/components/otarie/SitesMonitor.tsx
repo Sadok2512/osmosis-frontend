@@ -476,9 +476,12 @@ const getRenderableCellsForSite = (
     }
 
     // Active dashboard band filter — strict perimeter (e.g. Rennes_L1800 → only LTE1800)
+    // Normalize both sides via normalizeBandKey so VPS values like "LTE1800" match dashboard codes like "L1800".
     if (dashBands) {
-      const cellBand = String(cell.bande || '').trim().toUpperCase();
-      if (!cellBand || !dashBands.has(cellBand)) return false;
+      const rawCellBand = String(cell.bande || '').trim().toUpperCase();
+      const normalizedCellBand = normalizeBandKey(cell.bande || '', cell.techno) || rawCellBand;
+      if (!rawCellBand) return false;
+      if (!dashBands.has(rawCellBand) && !dashBands.has(normalizedCellBand)) return false;
     }
     // Active dashboard techno filter
     if (dashTechs) {
@@ -6153,7 +6156,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const filtered = s.cells.filter(c => {
         if (dashBands) {
           const cb = String(c.bande || '').trim().toUpperCase();
-          if (!cb || !dashBands.has(cb)) return false;
+          const cbNorm = normalizeBandKey(c.bande || '', c.techno) || cb;
+          if (!cb) return false;
+          if (!dashBands.has(cb) && !dashBands.has(cbNorm)) return false;
         }
         if (dashTechs) {
           const ct = String(c.techno || '').trim().toUpperCase();
