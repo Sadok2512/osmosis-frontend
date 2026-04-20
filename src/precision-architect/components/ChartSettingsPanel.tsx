@@ -258,12 +258,15 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 patchData={patchData}
                 addMetric={addMetric}
                 addMetricsFromKeys={addMetricsFromKeys}
+                addCountersFromKeys={addCountersFromKeys}
                 updateMetric={updateMetric}
                 removeMetric={removeMetric}
                 title={widget.title ?? ''}
                 onTitleChange={(t) => onChange({ title: t })}
                 kpiOptions={kpiOptions}
                 kpisLoading={kpisLoading}
+                kpiCatalogForSelector={kpiCatalogForSelector}
+                counterCatalog={counterCatalog}
                 dimensionOptions={dimensionOptions}
                 filtersLoading={filtersLoading}
               />
