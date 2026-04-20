@@ -1831,6 +1831,7 @@ export interface DashboardSiteFilters {
   bande?: string[];
   zone_arcep?: string[];
   saisonnier?: string[];
+  bcluster?: string[];
 }
 
 /** Merge two DashboardSiteFilters with AND logic (intersection for same keys) */
