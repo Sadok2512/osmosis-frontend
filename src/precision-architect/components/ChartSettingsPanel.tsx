@@ -17,6 +17,7 @@ import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import ColorSwatchPalette from './ColorSwatchPalette';
 
 interface Props {
   widget: DynWidget;
