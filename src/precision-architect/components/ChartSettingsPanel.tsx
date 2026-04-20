@@ -1134,6 +1134,9 @@ function MetricsTab({
                           className="w-20 text-[11px] font-mono text-on-surface bg-transparent outline-none uppercase"
                         />
                       </label>
+                      <div className="basis-full">
+                        <ColorSwatchPalette value={m.color} onChange={(c) => updateMetric(m.id, { color: c })} compact />
+                      </div>
                     </div>
                   </Field>
                 </div>
@@ -1395,32 +1398,35 @@ function JalonsTab({
 
         <div className="space-y-2">
           {jalons.map(j => (
-            <div key={j.id} className="flex items-center gap-2 p-2.5 border border-outline-variant/20 rounded-xl bg-white">
-              <input
-                type="color"
-                value={j.color}
-                onChange={(e) => updateJalon(j.id, { color: e.target.value })}
-                className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
-              />
-              <input
-                value={j.label}
-                onChange={(e) => updateJalon(j.id, { label: e.target.value })}
-                placeholder="Label"
-                className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
-              />
-              <input
-                type="date"
-                value={j.date}
-                onChange={(e) => updateJalon(j.id, { date: e.target.value })}
-                className="px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
-              />
-              <button
-                onClick={() => removeJalon(j.id)}
-                className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
-                aria-label="Remove jalon"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-error" />
-              </button>
+            <div key={j.id} className="p-2.5 border border-outline-variant/20 rounded-xl bg-white space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={j.color}
+                  onChange={(e) => updateJalon(j.id, { color: e.target.value })}
+                  className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                />
+                <input
+                  value={j.label}
+                  onChange={(e) => updateJalon(j.id, { label: e.target.value })}
+                  placeholder="Label"
+                  className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
+                />
+                <input
+                  type="date"
+                  value={j.date}
+                  onChange={(e) => updateJalon(j.id, { date: e.target.value })}
+                  className="px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+                />
+                <button
+                  onClick={() => removeJalon(j.id)}
+                  className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                  aria-label="Remove jalon"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-error" />
+                </button>
+              </div>
+              <ColorSwatchPalette value={j.color} onChange={(c) => updateJalon(j.id, { color: c })} compact />
             </div>
           ))}
           {jalons.length === 0 && (
