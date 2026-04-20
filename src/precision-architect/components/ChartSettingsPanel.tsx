@@ -90,6 +90,26 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
     setMetrics([...config.metrics, m]);
   };
 
+  const addMetricsFromKeys = (keys: string[]) => {
+    const existing = new Set(config.metrics.map(m => m.kpiKey));
+    const toAdd = keys.filter(k => !existing.has(k));
+    if (toAdd.length === 0) return;
+    const newMetrics: ChartMetric[] = toAdd.map((key, idx) => {
+      const opt = kpiOptions.find(o => o.key === key);
+      return {
+        id: `m-${Date.now()}-${idx}`,
+        kpiKey: key,
+        alias: opt?.label ?? key,
+        unit: opt?.unit ?? '',
+        axis: 'left',
+        color: COLOR_PALETTE[(config.metrics.length + idx) % COLOR_PALETTE.length],
+        lineStyle: 'solid',
+        visible: true,
+      };
+    });
+    setMetrics([...config.metrics, ...newMetrics]);
+  };
+
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
     setMetrics(config.metrics.map(m => m.id === id ? { ...m, ...patch } : m));
