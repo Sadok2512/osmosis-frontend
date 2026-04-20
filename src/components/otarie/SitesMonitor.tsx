@@ -5705,14 +5705,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return viewport.bounds!.contains(L.latLng(lat, lng));
       });
     }
-    // KPI legend filter: hide sites whose KPI level is toggled off
+    // KPI legend filter: hide sites whose KPI level is toggled off.
+    // A site is kept if ANY of its cells matches a visible level (avoids hiding
+    // a site just because its first cell has no KPI data while another cell does).
     if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
       candidates = candidates.filter(s => {
-        const val = s.cells?.length > 0
-          ? getCellKpiValue(s.cells[0])
-          : (kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN);
-        const level = getKpiLevel(val);
-        return !hiddenKpiLevels.has(level);
+        const cells = s.cells || [];
+        if (cells.length === 0) {
+          const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
+          return !hiddenKpiLevels.has(getKpiLevel(val));
+        }
+        // Site visible if at least one cell falls into a non-hidden level
+        return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
       });
     }
     // If still too many, sample evenly to keep the map responsive
