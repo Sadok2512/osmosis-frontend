@@ -90,7 +90,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
   const reset = () => onChange({ tableConfig: { ...DEFAULT_TABLE_CONFIG } });
 
   return (
-    <div className="h-[30rem] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+    <div className="h-[clamp(20rem,50vh,38rem)] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
       <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-primary">Table Settings</span>
