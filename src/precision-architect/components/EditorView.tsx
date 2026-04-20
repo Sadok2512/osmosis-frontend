@@ -31,6 +31,8 @@ import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
+import { usePAReportStore } from '../stores/paReportStore';
+import { toast } from 'sonner';
 
 interface EditorViewProps {
   projectName: string;
@@ -295,7 +297,13 @@ export default function EditorView({
                 Present
               </button>
             </div>
-            <button className="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all">
+            <button
+              onClick={() => {
+                usePAReportStore.getState().markSaved();
+                toast.success('Report saved', { description: 'Your report is auto-persisted in this browser.' });
+              }}
+              className="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all"
+            >
               Save
             </button>
           </div>
