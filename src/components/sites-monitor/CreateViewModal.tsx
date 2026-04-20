@@ -102,12 +102,12 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
     setParamSearchLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const url = getVpsProxyUrl('parser', `/api/v1/dump/params/distinct?column=parameter_raw&search=${encodeURIComponent(paramSearchQuery)}&limit=50`);
+        const url = getVpsProxyUrl('parser', `/api/v1/topo/param-list?search=${encodeURIComponent(paramSearchQuery)}&limit=50`);
         const resp = await fetch(url, { headers: getVpsProxyHeaders() });
         if (resp.ok) {
           const data = await resp.json();
-          const vals = Array.isArray(data) ? data : (data.values || data.items || []);
-          setParamSearchResults(vals.map((v: any) => typeof v === 'string' ? v : v.value || v.name || '').filter(Boolean));
+          const items = Array.isArray(data) ? data : [];
+          setParamSearchResults(items.map((v: any) => typeof v === 'string' ? v : v.name || v.value || '').filter(Boolean));
         }
       } catch { setParamSearchResults([]); }
       finally { setParamSearchLoading(false); }
