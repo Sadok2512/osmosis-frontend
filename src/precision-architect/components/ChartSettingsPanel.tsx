@@ -494,13 +494,25 @@ function MetricsTab({
 /* ---------------- Tab: Appearance ---------------- */
 
 function StyleTab({
-  style, patchStyle,
+  style, patchStyle, title, onTitleChange,
 }: {
   style: ChartWidgetConfig['style'];
   patchStyle: (p: Partial<ChartWidgetConfig['style']>) => void;
+  title: string;
+  onTitleChange: (t: string) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <Section title="Widget Header">
+        <Field label="Title">
+          <input
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder="e.g. Throughput DL — Last 24h"
+            className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm text-on-surface focus:outline-none focus:border-primary"
+          />
+        </Field>
+      </Section>
       <Section title="Chart type">
         <div className="grid grid-cols-3 gap-2">
           {(['line', 'area', 'bar'] as ChartType[]).map(t => (
