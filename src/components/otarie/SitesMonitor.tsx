@@ -4742,6 +4742,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (localZoneArcep !== 'ALL') filters.zone_arcep = localZoneArcep;
     // Analysis level
     filters.level = kpiAnalysisLevel;
+    // Merge active dashboard filters (bcluster, dor, plaque, vendor, band)
+    if (dashboardActive && activeDashboardFilters) {
+      const df = activeDashboardFilters;
+      if ((df as any).bcluster?.length && !filters.bcluster) filters.bcluster = (df as any).bcluster.join(',');
+      if (df.dor?.length && !filters.dor) filters.dor = df.dor.join(',');
+      if (df.plaque?.length && !filters.plaque) filters.plaque = df.plaque.join(',');
+      if (df.constructeur?.length && !filters.vendor) filters.vendor = df.constructeur.join(',');
+      if (df.bande?.length && !filters.band) filters.band = df.bande.join(',');
+    }
 
     // Extract backend-compatible filters from structured view conditions
     if (activeViewConditions?.length) {
@@ -4788,7 +4797,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions]);
+  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
