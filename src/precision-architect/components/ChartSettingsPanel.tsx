@@ -234,12 +234,13 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 /* ---------------- Tab: Data Source (split in 2 sub-sections) ---------------- */
 
 function DataSourceTab({
-  config, patchData, addMetric, updateMetric, removeMetric, title, onTitleChange,
+  config, patchData, addMetric, addMetricsFromKeys, updateMetric, removeMetric, title, onTitleChange,
   kpiOptions, kpisLoading, dimensionOptions, filtersLoading,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   addMetric: () => void;
+  addMetricsFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   title: string;
@@ -283,6 +284,7 @@ function DataSourceTab({
         <MetricsTab
           metrics={config.metrics}
           addMetric={addMetric}
+          addMetricsFromKeys={addMetricsFromKeys}
           updateMetric={updateMetric}
           removeMetric={removeMetric}
           kpiOptions={kpiOptions}
