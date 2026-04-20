@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Type, Palette,
 } from 'lucide-react';
-import { DynWidget } from '../types';
+import { DynWidget, ChartWidgetConfig } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
 import PATableWidget from './PATableWidget';
+import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 
 interface Props {
   widget: DynWidget;
@@ -26,7 +27,7 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Chart'}</h3>
         </div>
         <div className="flex-1 min-h-0">
-          <PAEChart variant="editor" height="100%" config={w.config} appliedRev={w.appliedRev} />
+          <ChartWidgetBody widget={w} />
         </div>
       </div>
     );
