@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -297,7 +299,6 @@ All colors MUST be HSL.
 }
 
 /* ============ Precision Architect module (scoped) ============ */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
 .precision-architect {
   --m3-on-primary: #ffffff;
