@@ -458,8 +458,12 @@ const getRenderableCellsForSite = (
   if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
 
   // Normalize dashboard filters (case-insensitive set lookup)
-  const dashBands = dashboardBandFilter && dashboardBandFilter.length > 0
-    ? new Set(dashboardBandFilter.map(b => String(b).trim().toUpperCase()))
+  // Expand the set to include both raw and normalized keys (LTE1800 ↔ L1800 ↔ B3).
+  const dashBandsRaw = dashboardBandFilter && dashboardBandFilter.length > 0
+    ? dashboardBandFilter.map(b => String(b).trim().toUpperCase())
+    : null;
+  const dashBands = dashBandsRaw
+    ? new Set([...dashBandsRaw, ...dashBandsRaw.map(b => normalizeBandKey(b) || b)])
     : null;
   const dashTechs = dashboardTechnoFilter && dashboardTechnoFilter.length > 0
     ? new Set(dashboardTechnoFilter.map(t => String(t).trim().toUpperCase()))
@@ -480,8 +484,11 @@ const getRenderableCellsForSite = (
     if (dashBands) {
       const rawCellBand = String(cell.bande || '').trim().toUpperCase();
       const normalizedCellBand = normalizeBandKey(cell.bande || '', cell.techno) || rawCellBand;
-      if (!rawCellBand) return false;
-      if (!dashBands.has(rawCellBand) && !dashBands.has(normalizedCellBand)) return false;
+      // If the cell has no band info at all, don't drop it solely on the band check —
+      // rely on the techno filter below. Otherwise, require a match (raw or normalized).
+      if (rawCellBand && !dashBands.has(rawCellBand) && !dashBands.has(normalizedCellBand)) {
+        return false;
+      }
     }
     // Active dashboard techno filter
     if (dashTechs) {
@@ -6144,12 +6151,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Also pre-filter cells by active dashboard band/techno perimeter so that
     // ALL downstream renderers (concentric markers, sectors, tech inference, inventory)
     // see only the cells matching the active dashboard (e.g. Rennes_L1800 → only LTE1800).
-    const dashBands = dashboardActive && activeDashboardFilters?.bande?.length
-      ? new Set(activeDashboardFilters.bande.map(b => String(b).trim().toUpperCase()))
+    const dashBandsRaw = dashboardActive && activeDashboardFilters?.bande?.length
+      ? activeDashboardFilters.bande.map(b => String(b).trim().toUpperCase())
+      : null;
+    // Build a normalized set of dashboard bands so cell.bande in any naming convention
+    // (LTE1800, L1800, B3, 1800) all map to the same canonical key.
+    const dashBands = dashBandsRaw
+      ? new Set([
+          ...dashBandsRaw,
+          ...dashBandsRaw.map(b => normalizeBandKey(b) || b),
+        ])
       : null;
     const dashTechs = dashboardActive && activeDashboardFilters?.techno?.length
       ? new Set(activeDashboardFilters.techno.map(t => String(t).trim().toUpperCase()))
       : null;
+    // One-shot diagnostic log to help spot mismatches
+    if (dashBands && (window as any).__dashBandsLogged !== JSON.stringify([...dashBands])) {
+      (window as any).__dashBandsLogged = JSON.stringify([...dashBands]);
+      console.info('[SitesMonitor] Dashboard band filter active:', [...dashBands], 'techs:', dashTechs ? [...dashTechs] : null);
+    }
     const projectSiteCells = (s: SiteSummary): SiteSummary => {
       if (!dashBands && !dashTechs) return s;
       if (!s.cells?.length) return s;
@@ -6157,8 +6177,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (dashBands) {
           const cb = String(c.bande || '').trim().toUpperCase();
           const cbNorm = normalizeBandKey(c.bande || '', c.techno) || cb;
-          if (!cb) return false;
-          if (!dashBands.has(cb) && !dashBands.has(cbNorm)) return false;
+          // If cell has no band info, fall back to techno match instead of dropping it
+          if (!cb && !cbNorm) {
+            // skip band check, rely on techno filter below
+          } else if (!dashBands.has(cb) && !dashBands.has(cbNorm)) {
+            return false;
+          }
         }
         if (dashTechs) {
           const ct = String(c.techno || '').trim().toUpperCase();
