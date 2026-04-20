@@ -5739,17 +5739,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const kpiLevelCounts = useMemo(() => {
     const counts = { green: 0, orange: 0, red: 0, gray: 0 } as Record<'green'|'orange'|'red'|'gray', number>;
     if (sectorColorMode !== 'kpi') return counts;
+    const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+    const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
     for (const s of mapFilteredSites) {
       const cells = s.cells || [];
       if (cells.length === 0) {
         const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
         counts[getKpiLevel(val)]++;
       } else {
-        for (const c of cells) counts[getKpiLevel(getCellKpiValue(c))]++;
+        for (const c of cells) {
+          const tech = getCellTechGroup(c.techno);
+          // Strict techno gate: KPI overlay is fetched for kpiTechnoFilter only.
+          if (!tech || tech !== kpiTechnoFilter) continue;
+          // Respect interactive legend (techno toggles)
+          if (!enabledTechnos.has(tech)) continue;
+          // Respect band toggles + dashboard band/techno filters
+          if (!isBandEnabled(c.bande, c.techno)) continue;
+          if (dashBand && dashBand.length > 0 && !dashBand.includes(c.bande)) continue;
+          if (dashTechno && dashTechno.length > 0 && !dashTechno.includes(tech)) continue;
+          counts[getKpiLevel(getCellKpiValue(c))]++;
+        }
       }
     }
     return counts;
-  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel]);
+  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
