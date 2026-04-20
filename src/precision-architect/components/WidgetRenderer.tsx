@@ -314,7 +314,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   const cfg: ChartWidgetConfig | undefined = (w.appliedRev ?? 0) > 0
     ? (w.appliedConfig ?? w.config)
     : w.config;
-  const hasMetrics = !!cfg && cfg.metrics.length > 0;
+  const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
 
   // Global report-level toolbar (top of editor) — inherited by default.
   const global = usePAGlobalToolbar();
@@ -388,7 +388,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       date_to: normalizeDate(eff.to),
       granularity,
       filters,
-      selections: cfg.metrics.filter(m => m.visible).map(m => ({
+      selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
         kpi_key: m.kpiKey,
         axis: m.axis,
       })),
