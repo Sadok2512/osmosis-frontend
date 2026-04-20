@@ -452,8 +452,18 @@ const getRenderableCellsForSite = (
   mapTechnoFilter: 'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF',
   enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
+  dashboardBandFilter?: string[] | null,
+  dashboardTechnoFilter?: string[] | null,
 ) => {
   if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
+
+  // Normalize dashboard filters (case-insensitive set lookup)
+  const dashBands = dashboardBandFilter && dashboardBandFilter.length > 0
+    ? new Set(dashboardBandFilter.map(b => String(b).trim().toUpperCase()))
+    : null;
+  const dashTechs = dashboardTechnoFilter && dashboardTechnoFilter.length > 0
+    ? new Set(dashboardTechnoFilter.map(t => String(t).trim().toUpperCase()))
+    : null;
 
   return site.cells.filter(cell => {
     const techGroup = getCellTechGroup(cell.techno);
@@ -463,6 +473,18 @@ const getRenderableCellsForSite = (
       if (!enabledTechnos.has(techGroup)) return false;
     } else if (techGroup !== mapTechnoFilter) {
       return false;
+    }
+
+    // Active dashboard band filter — strict perimeter (e.g. Rennes_L1800 → only LTE1800)
+    if (dashBands) {
+      const cellBand = String(cell.bande || '').trim().toUpperCase();
+      if (!cellBand || !dashBands.has(cellBand)) return false;
+    }
+    // Active dashboard techno filter
+    if (dashTechs) {
+      const cellTech = String(cell.techno || '').trim().toUpperCase();
+      const groupUpper = String(techGroup).toUpperCase();
+      if (!dashTechs.has(cellTech) && !dashTechs.has(groupUpper)) return false;
     }
 
     return isBandEnabled(cell.bande, cell.techno);
@@ -6992,7 +7014,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
+          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -7742,7 +7764,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled).filter(cellMatchesViewConditions);
+          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
