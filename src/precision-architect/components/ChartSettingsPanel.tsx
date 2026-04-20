@@ -1050,9 +1050,14 @@ function MetricsTab({
                         {COLOR_PALETTE.map(c => (
                           <button
                             key={c}
-                            onClick={() => updateMetric(m.id, { color: c })}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              updateMetric(m.id, { color: c });
+                            }}
                             className={cn(
-                              'w-6 h-6 rounded-full transition-all hover:scale-110',
+                              'w-6 h-6 rounded-full transition-all hover:scale-110 cursor-pointer',
                               m.color === c ? 'ring-2 ring-on-surface ring-offset-2' : 'ring-1 ring-outline-variant/30'
                             )}
                             style={{ background: c }}
@@ -1060,19 +1065,31 @@ function MetricsTab({
                           />
                         ))}
                       </div>
-                      <div className="flex items-center gap-1.5 border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-white shrink-0">
+                      <label
+                        className="flex items-center gap-1.5 border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-white shrink-0 cursor-pointer hover:border-primary/40 transition-colors"
+                        title="Pick a custom color"
+                      >
+                        <span
+                          className="w-5 h-5 rounded ring-1 ring-outline-variant/40 shrink-0 pointer-events-none"
+                          style={{ background: m.color }}
+                        />
                         <input
                           type="color"
                           value={m.color}
                           onChange={(e) => updateMetric(m.id, { color: e.target.value })}
-                          className="w-5 h-5 rounded cursor-pointer border-0 bg-transparent p-0"
+                          className="sr-only"
                         />
                         <input
+                          type="text"
                           value={m.color}
-                          onChange={(e) => updateMetric(m.id, { color: e.target.value })}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) updateMetric(m.id, { color: v });
+                          }}
+                          onClick={(e) => e.stopPropagation()}
                           className="w-20 text-[11px] font-mono text-on-surface bg-transparent outline-none uppercase"
                         />
-                      </div>
+                      </label>
                     </div>
                   </Field>
                 </div>
