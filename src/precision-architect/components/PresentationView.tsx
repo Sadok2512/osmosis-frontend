@@ -105,8 +105,8 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
             {widgets.map((w) => (
               <div
                 key={w.id}
-                className="overflow-hidden shadow-lg border border-black/5"
-                style={{ backgroundColor: cardBg, borderRadius: radius }}
+                className={w.transparentBg ? 'overflow-hidden' : 'overflow-hidden shadow-lg border border-black/5'}
+                style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
               >
                 <div className="w-full h-full p-4">
                   <WidgetRenderer widget={w} />
