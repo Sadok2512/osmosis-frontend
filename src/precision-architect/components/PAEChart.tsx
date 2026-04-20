@@ -10,6 +10,12 @@ interface PAEChartProps {
   config?: ChartWidgetConfig;
   /** Bumped each time the user clicks "Appliquer" / "Save" in settings. 0 (or undefined) = never applied yet. */
   appliedRev?: number;
+  /** Per-metric series fetched from the backend (metricId → ordered list of {time,value}). */
+  seriesByMetric?: Record<string, { time: string; value: number }[]>;
+  /** Shared X axis labels (timestamps). When provided, supersedes `data`. */
+  xAxisLabels?: string[];
+  /** Loading flag — shown as overlay on top of any synthetic preview. */
+  loading?: boolean;
   /** Legacy props (kept for compatibility). */
   primaryColor?: string;
   secondaryColor?: string;
