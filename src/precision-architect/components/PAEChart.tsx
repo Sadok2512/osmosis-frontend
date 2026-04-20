@@ -29,6 +29,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
   data,
   config,
   appliedRev,
+  seriesByMetric,
+  xAxisLabels,
+  loading = false,
   primaryColor = '#00685f',
   secondaryColor = '#6bd8cb',
   showSecondary = true,
@@ -38,7 +41,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // The chart is driven by the settings panel when a config is provided.
   const hasMetrics = !!config && config.metrics.length > 0;
   const hasBeenApplied = (appliedRev ?? 0) > 0;
-  const hasRealData = Array.isArray(data) && data.length > 0;
+  const hasBackendSeries = !!seriesByMetric && Object.values(seriesByMetric).some(s => s.length > 0);
+  const hasRealData = hasBackendSeries || (Array.isArray(data) && data.length > 0);
 
   // Empty state: only when NO metric is selected. As soon as a KPI/Counter is added,
   // we render the chart (with backend data if available, otherwise a synthetic preview
