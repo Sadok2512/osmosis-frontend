@@ -595,8 +595,12 @@ export async function fetchTimeSeriesForSlot(
     }
   }
 
-  // Can compute handle this? Only if there's no non-PM split without a field mapping
-  const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
+  // Can compute handle this? Only if there's no non-PM split without a field mapping.
+  // Per-KPI field splits (Cell/Site in splitByPerKpi) are also handled inside the loop.
+  const hasPerKpiFieldSplit = Object.values(ctx.splitByPerKpi || {}).some(
+    v => v && !v.startsWith('PM_DIM:') && FIELD_MAP[v],
+  );
+  const canCompute = !hasNonPmSplit1 || !!computeSplitByField || hasPerKpiFieldSplit;
   log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
   // Fast path: detect raw PM counters and route directly to counter fallback
@@ -627,10 +631,19 @@ export async function fetchTimeSeriesForSlot(
     for (const kpiId of ctx.kpiIds) {
       // Per-KPI PM dimension split
       const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
+      const perKpiSplit2 = (ctx as any).splitByPerKpi2?.[kpiId];
       const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
-      const pmDimSplit = kpiPmDim || (perKpiSplit ? undefined : computePmDim);
+      const kpiPmDim2 = perKpiSplit2?.startsWith('PM_DIM:') ? perKpiSplit2.replace('PM_DIM:', '') : undefined;
+      // Per-KPI field split (Cell/Site) — when user picks Cell/Site as per-KPI split,
+      // it lands in splitByPerKpi (not in slot.splitBy), so derive the field here.
+      const perKpiField =
+        (perKpiSplit && !perKpiSplit.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit]) ||
+        (perKpiSplit2 && !perKpiSplit2.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit2]) ||
+        undefined;
+      const pmDimSplit = kpiPmDim || kpiPmDim2 || (perKpiSplit ? undefined : computePmDim);
+      const fieldSplit = perKpiField || computeSplitByField;
 
-      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${computeSplitByField || ''}`;
+      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${fieldSplit || ''}`;
 
       // Sequential: do NOT pre-create promises — execute one at a time
       let computed: { data: DataPoint[]; isComputed: boolean };
@@ -640,7 +653,7 @@ export async function fetchTimeSeriesForSlot(
         const queryStart = Date.now();
         log('[Pipeline] Step 1 PM Compute START:', kpiId);
         const promise = fetchKpiComputeOnTheFly(
-          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
+          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, fieldSplit,
         );
         cacheSet(cacheKey, promise);
         computed = await promise;
