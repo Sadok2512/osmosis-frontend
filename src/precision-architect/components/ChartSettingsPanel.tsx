@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
