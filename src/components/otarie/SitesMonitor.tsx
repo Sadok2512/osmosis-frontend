@@ -5797,6 +5797,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     prevBboxFiltersCacheRef.current = filterKey;
   }, [currentBboxFilters, viewport.zoom]);
 
+  // Ensure cells are prefetched whenever the user zooms past the sector-display threshold,
+  // even if the dashboard was originally loaded at a lower zoom (in which case the
+  // initial prefetch was skipped). Without this, sites stay at "0 cells" forever in
+  // KPI / sector view at high zoom.
+  const cellsPrefetchedAtZoomRef = useRef(false);
+  useEffect(() => {
+    if (viewport.zoom < SITES_TO_CELLS_ZOOM) {
+      cellsPrefetchedAtZoomRef.current = false;
+      return;
+    }
+    if (cellsPrefetchedAtZoomRef.current) return;
+    if (sites.length === 0) return;
+    const anyHasCells = sites.some(s => (s.cells?.length || 0) > 0);
+    if (anyHasCells) {
+      cellsPrefetchedAtZoomRef.current = true;
+      return;
+    }
+    const cellFilters: BboxFilters = { ...currentBboxFilters };
+    if (dashboardActive && activeDashboardFilters) {
+      const df: any = activeDashboardFilters;
+      if (df.bcluster?.length && !cellFilters.bcluster) cellFilters.bcluster = df.bcluster.join(',');
+      if (df.bande?.length && !cellFilters.bande) cellFilters.bande = df.bande.join(',');
+      if (df.constructeur?.length && !cellFilters.vendor) cellFilters.vendor = df.constructeur.join(',');
+      if (df.techno?.length && !cellFilters.techno) cellFilters.techno = df.techno.join(',');
+      if (df.dor?.length && !cellFilters.dor) cellFilters.dor = df.dor.join(',');
+      if (df.plaque?.length && !cellFilters.plaque) cellFilters.plaque = df.plaque.join(',');
+    }
+    console.info('[SitesMonitor] Late prefetch of cells (zoom up after dashboard load)');
+    topoApi.prefetchCells(cellFilters);
+    cellsPrefetchedAtZoomRef.current = true;
+  }, [viewport.zoom, sites, currentBboxFilters, dashboardActive, activeDashboardFilters]);
+
   useEffect(() => {
     // Load cells whenever sector rendering or cell-level filtering needs them.
     const needsCellData = displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
