@@ -649,7 +649,7 @@ export async function fetchTimeSeriesForSlot(
         const queryStart = Date.now();
         log('[Pipeline] Step 1 PM Compute START:', kpiId);
         const promise = fetchKpiComputeOnTheFly(
-          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, computeSplitByField,
+          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, fieldSplit,
         );
         cacheSet(cacheKey, promise);
         computed = await promise;
