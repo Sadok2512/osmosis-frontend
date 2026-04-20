@@ -17,6 +17,9 @@ import {
   FileText,
   MessageSquare,
   SlidersHorizontal,
+  Heading1,
+  Hash,
+  Minus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
