@@ -119,15 +119,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
             : { color: hexAlpha(m.color, Math.round(opacityRatio * 0xff)) }
           : undefined;
 
-        // Prefer real per-metric backend series when available; otherwise fall back
-        // to the synthetic preview dataset (so the user sees something immediately).
+        // Real backend series only — no synthetic fallback.
         const backendSeries = seriesByMetric?.[m.id];
         const seriesData = backendSeries && backendSeries.length > 0
           ? backendSeries.map(p => p.value)
-          : effectiveData.map((d, di) => {
-              const v = m.axis === 'right' ? (d.secondary ?? d.value * 0.65) : d.value;
-              return Math.round(v * (1 - idx * 0.12) + (idx * 8));
-            });
+          : [];
 
         return {
           name: m.alias || m.kpiKey,
