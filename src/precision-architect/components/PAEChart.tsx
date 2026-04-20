@@ -212,6 +212,26 @@ const PAEChart: React.FC<PAEChartProps> = ({
     };
   }, [data, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
 
+  if (isEmpty) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center w-full text-center px-6"
+        style={{ height }}
+      >
+        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+            <path d="M3 3v18h18" />
+            <path d="M7 14l4-4 4 4 5-6" />
+          </svg>
+        </div>
+        <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">No KPI selected</p>
+        <p className="text-[11px] text-on-surface-variant max-w-[240px]">
+          Open the settings panel and add a KPI from the catalog to start visualizing data.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <ReactECharts
       option={option}
