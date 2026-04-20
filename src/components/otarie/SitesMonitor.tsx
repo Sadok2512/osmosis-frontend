@@ -4945,8 +4945,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (bp.get('bande')) base.bande = bp.get('bande')!;
       if (bp.get('bcluster')) base.bcluster = bp.get('bcluster')!;
     }
+    // Merge active dashboard filters (bcluster, band, vendor from dashboard scope)
+    if (dashboardActive && activeDashboardFilters) {
+      const df = activeDashboardFilters;
+      if ((df as any).bcluster?.length && !base.bcluster) base.bcluster = (df as any).bcluster.join(',');
+      if (df.bande?.length && !base.bande) base.bande = df.bande.join(',');
+      if (df.constructeur?.length && !base.vendor) base.vendor = df.constructeur.join(',');
+      if (df.techno?.length && !base.techno) base.techno = df.techno.join(',');
+      if (df.dor?.length && !base.dor) base.dor = df.dor.join(',');
+      if (df.plaque?.length && !base.plaque) base.plaque = df.plaque.join(',');
+    }
     return base;
-  }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
+  }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr, dashboardActive, activeDashboardFilters]);
 
   // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
@@ -5205,7 +5215,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Only pre-warm cells cache if user is already at sector-display zoom
           // to avoid downloading 6M+ cells when the map shows only site dots.
           if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
-            topoApi.prefetchCells(currentBboxFilters || undefined);
+            // Use dashboard filters (includes bcluster) instead of local filters (reset to ALL)
+            const cellFilters: BboxFilters = { ...currentBboxFilters };
+            if (effectiveFilters) {
+              if ((effectiveFilters as any).bcluster?.length) cellFilters.bcluster = (effectiveFilters as any).bcluster.join(',');
+              if (effectiveFilters.bande?.length) cellFilters.bande = effectiveFilters.bande.join(',');
+              if (effectiveFilters.constructeur?.length) cellFilters.vendor = effectiveFilters.constructeur.join(',');
+              if (effectiveFilters.techno?.length) cellFilters.techno = effectiveFilters.techno.join(',');
+              if (effectiveFilters.dor?.length) cellFilters.dor = effectiveFilters.dor.join(',');
+              if (effectiveFilters.plaque?.length) cellFilters.plaque = effectiveFilters.plaque.join(',');
+            }
+            topoApi.prefetchCells(cellFilters);
           }
         } else {
           // Only clear if we had no prior data
