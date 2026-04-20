@@ -40,18 +40,6 @@ export default function PremiumWidgetSettingsPanel({ widget, onChange, onClose }
         </div>
         <div className="flex gap-2 items-center">
           <button
-            onClick={() => onChange({ transparentBg: !widget.transparentBg })}
-            className={cn(
-              'px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors',
-              widget.transparentBg
-                ? 'bg-primary/10 border-primary text-primary'
-                : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'
-            )}
-            title="Toggle transparent card background"
-          >
-            {widget.transparentBg ? '◇ Transparent' : '◆ Card BG'}
-          </button>
-          <button
             onClick={() => {
               if (kind === 'hero') onChange({ heroConfig: { ...DEFAULT_HERO_CONFIG } });
               if (kind === 'stat') onChange({ statConfig: { ...DEFAULT_STAT_CONFIG } });
@@ -72,7 +60,8 @@ export default function PremiumWidgetSettingsPanel({ widget, onChange, onClose }
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <CardBackgroundField transparent={!!widget.transparentBg} onChange={(v) => onChange({ transparentBg: v })} />
           {kind === 'hero' && (
             <HeroEditor
               cfg={widget.heroConfig ?? DEFAULT_HERO_CONFIG}
