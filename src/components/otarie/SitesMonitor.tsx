@@ -9850,18 +9850,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 })}
                               </div>
-                              {/* Techno legend */}
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                                {([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
-                                  const isHidden = hiddenTechs.has(tech);
-                                  return (
-                                    <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
-                                      <span className={`w-3 h-3 rounded-full border-2 transition-all ${isHidden ? 'opacity-30 border-muted-foreground' : 'border-transparent'}`} style={{ background: isHidden ? '#9ca3af' : color }} />
-                                      <span className={`text-[10px] font-bold transition-all ${isHidden ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}>{tech}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              {/* Techno legend — only show techs actually present on this site */}
+                              {(() => {
+                                const siteTechs = new Set(
+                                  sortedSec.flatMap(([, cells]) =>
+                                    cells.map(c => getCellTechGroup(c.techno)).filter(Boolean) as string[]
+                                  )
+                                );
+                                const legendEntries = ([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][])
+                                  .filter(([tech]) => siteTechs.has(tech));
+                                if (legendEntries.length === 0) return null;
+                                return (
+                                  <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
+                                    {legendEntries.map(([tech, color]) => {
+                                      const isHidden = hiddenTechs.has(tech);
+                                      return (
+                                        <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
+                                          <span className={`w-3 h-3 rounded-full border-2 transition-all ${isHidden ? 'opacity-30 border-muted-foreground' : 'border-transparent'}`} style={{ background: isHidden ? '#9ca3af' : color }} />
+                                          <span className={`text-[10px] font-bold transition-all ${isHidden ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}>{tech}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
 
                               {(() => {
                                 const visibleSectorEntries = expandedSectors.size > 0
@@ -10189,17 +10201,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   );
                                 })}
                               </div>
-                              <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
-                                {([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][]).map(([tech, color]) => {
-                                  const isHidden = hiddenTechs.has(tech);
-                                  return (
-                                    <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
-                                      <span className={`w-3 h-3 rounded-full border-2 transition-all ${isHidden ? 'opacity-30 border-muted-foreground' : 'border-transparent'}`} style={{ background: isHidden ? '#9ca3af' : color }} />
-                                      <span className={`text-[10px] font-bold transition-all ${isHidden ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}>{tech}</span>
-                                    </button>
-                                  );
-                                })}
-                              </div>
+                              {(() => {
+                                const siteTechs = new Set(
+                                  sortedSec.flatMap(([, cells]) =>
+                                    cells.map(c => getCellTechGroup(c.techno)).filter(Boolean) as string[]
+                                  )
+                                );
+                                const legendEntries = ([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][])
+                                  .filter(([tech]) => siteTechs.has(tech));
+                                if (legendEntries.length === 0) return null;
+                                return (
+                                  <div className="flex items-center gap-4 mb-3 px-1 flex-wrap">
+                                    {legendEntries.map(([tech, color]) => {
+                                      const isHidden = hiddenTechs.has(tech);
+                                      return (
+                                        <button key={tech} onClick={(e) => { e.stopPropagation(); setHiddenTechs(prev => { const n = new Set(prev); if (n.has(tech)) n.delete(tech); else n.add(tech); return n; }); }} className="flex items-center gap-1.5 cursor-pointer group">
+                                          <span className={`w-3 h-3 rounded-full border-2 transition-all ${isHidden ? 'opacity-30 border-muted-foreground' : 'border-transparent'}`} style={{ background: isHidden ? '#9ca3af' : color }} />
+                                          <span className={`text-[10px] font-bold transition-all ${isHidden ? 'text-muted-foreground/40 line-through' : 'text-muted-foreground'}`}>{tech}</span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })()}
                               {(() => {
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
