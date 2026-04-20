@@ -279,6 +279,32 @@ export interface DashboardTheme {
   pageSubtitle: string;
   /** Show or hide the page title block. */
   showPageHeader: boolean;
+  /** Optional explicit hex for the canvas background. Overrides `background` preset. */
+  backgroundColor?: string;
+  /** Hex color for body text. */
+  textColor?: string;
+  /** Hex color for cards/widget surfaces. */
+  cardColor?: string;
+  /** Hex color for the page title. */
+  titleColor?: string;
+  /** Page width mode: fixed (max-w-7xl) or full. */
+  pageWidth?: 'fixed' | 'full';
+  /** Page padding in pixels. */
+  pagePadding?: number;
+  /** Spacing between grid widgets in pixels. */
+  spacing?: number;
+  /** Border radius for cards in pixels. */
+  borderRadius?: number;
+  /** Header alignment for the page title block. */
+  headerAlign?: 'left' | 'center' | 'right';
+  /** Operator name shown in the page header. */
+  operatorName?: string;
+  /** Optional logo URL shown in the page header. */
+  logoUrl?: string;
+  /** Show the operator/logo header block. */
+  showLogo?: boolean;
+  /** Show the report date in the page header. */
+  showDate?: boolean;
 }
 
 export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
@@ -287,6 +313,13 @@ export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
   pageTitle: '',
   pageSubtitle: '',
   showPageHeader: false,
+  pageWidth: 'fixed',
+  pagePadding: 32,
+  spacing: 16,
+  borderRadius: 16,
+  headerAlign: 'left',
+  showLogo: true,
+  showDate: true,
 };
 
 export interface PAPage {

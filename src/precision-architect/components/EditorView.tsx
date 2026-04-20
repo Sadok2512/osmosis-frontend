@@ -89,6 +89,17 @@ export default function EditorView({
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
   const sections = activePage?.sections ?? [];
+  const theme = activePage?.theme;
+  const pageBg = theme?.backgroundColor || (theme?.background === 'dark' ? '#0f172a' : theme?.background === 'gradient' ? '#1a1a2e' : undefined);
+  const cardBg = theme?.cardColor || '#ffffff';
+  const titleColor = theme?.titleColor || theme?.accentColor;
+  const textColor = theme?.textColor;
+  const radius = theme?.borderRadius ?? 16;
+  const spacing = theme?.spacing ?? 16;
+  const padding = theme?.pagePadding ?? 32;
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
+  const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
   const updateWidgets = (updater: (w: DynWidget[]) => DynWidget[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, widgets: updater(p.widgets) } : p));
@@ -325,8 +336,26 @@ export default function EditorView({
 
         <PAToolbar />
 
-        <div className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <div
+          className="flex-grow relative overflow-y-auto custom-scrollbar pa-grid-edit"
+          style={{
+            backgroundColor: pageBg,
+            color: textColor,
+            padding: `${padding}px`,
+          }}
+        >
+          <div className={cn(widthClass, 'mx-auto')} style={{ display: 'flex', flexDirection: 'column', gap: spacing }}>
+            {showHeader && (
+              <header className={cn('w-full', headerAlign)} style={{ color: textColor }}>
+                {theme?.pageTitle && (
+                  <h1 className="text-3xl font-black font-headline" style={{ color: titleColor }}>{theme.pageTitle}</h1>
+                )}
+                {theme?.pageSubtitle && (
+                  <p className="text-sm mt-2 opacity-80">{theme.pageSubtitle}</p>
+                )}
+              </header>
+            )}
+
             {sections.length > 0 && (
               <div className="space-y-4">
                 {sections.map((s) => (
@@ -362,7 +391,7 @@ export default function EditorView({
                 layout={layout}
                 cols={COLS}
                 rowHeight={ROW_HEIGHT}
-                margin={[16, 16]}
+                margin={[spacing, spacing]}
                 containerPadding={[0, 0]}
                 draggableHandle=".widget-drag-handle"
                 isDraggable
@@ -372,7 +401,11 @@ export default function EditorView({
                 onLayoutChange={handleLayoutChange}
               >
                 {widgets.map(w => (
-                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
+                  <div
+                    key={w.id}
+                    className="shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden"
+                    style={{ backgroundColor: cardBg, borderRadius: radius }}
+                  >
                     <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <button
                         onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
