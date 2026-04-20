@@ -336,8 +336,26 @@ export default function EditorView({
 
         <PAToolbar />
 
-        <div className="flex-grow p-8 relative overflow-y-auto blueprint-grid custom-scrollbar pa-grid-edit">
-          <div className="max-w-7xl mx-auto space-y-6">
+        <div
+          className="flex-grow relative overflow-y-auto custom-scrollbar pa-grid-edit"
+          style={{
+            backgroundColor: pageBg,
+            color: textColor,
+            padding: `${padding}px`,
+          }}
+        >
+          <div className={cn(widthClass, 'mx-auto')} style={{ display: 'flex', flexDirection: 'column', gap: spacing }}>
+            {showHeader && (
+              <header className={cn('w-full', headerAlign)} style={{ color: textColor }}>
+                {theme?.pageTitle && (
+                  <h1 className="text-3xl font-black font-headline" style={{ color: titleColor }}>{theme.pageTitle}</h1>
+                )}
+                {theme?.pageSubtitle && (
+                  <p className="text-sm mt-2 opacity-80">{theme.pageSubtitle}</p>
+                )}
+              </header>
+            )}
+
             {sections.length > 0 && (
               <div className="space-y-4">
                 {sections.map((s) => (
