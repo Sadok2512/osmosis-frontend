@@ -4807,11 +4807,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let cancelled = false;
 
     const filters: any = {
-      // Keep the backend KPI fetch broad: the map already applies dashboard/view
-      // perimeter client-side when deciding which cells/sectors to render.
-      // Passing plaque/band/date/dashboard filters here causes the backend
-      // /kpi/cell-values endpoint to return rows with value=null for the KPI map.
+      // Keep the backend KPI fetch broad on perimeter dimensions: the map applies
+      // dashboard/view perimeter client-side when deciding which cells/sectors to render.
+      // BUT we DO forward the active date range — otherwise selecting a different period
+      // in the topbar has no effect on the KPI values displayed on the map.
       techno: kpiTechnoFilter,
+      ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
+      ...(kpiDateTo ? { date_to: kpiDateTo } : {}),
     };
 
     // Only show loading spinner if this is a fresh fetch (not cached)
