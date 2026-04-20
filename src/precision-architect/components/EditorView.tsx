@@ -31,6 +31,8 @@ import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
+import { usePAReportStore } from '../stores/paReportStore';
+import { toast } from 'sonner';
 
 interface EditorViewProps {
   projectName: string;
