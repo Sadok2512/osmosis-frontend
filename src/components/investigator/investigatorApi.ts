@@ -627,7 +627,7 @@ export async function fetchTimeSeriesForSlot(
     for (const kpiId of ctx.kpiIds) {
       // Per-KPI PM dimension split
       const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
-      const perKpiSplit2 = ctx.splitByPerKpi2?.[kpiId];
+      const perKpiSplit2 = (ctx as any).splitByPerKpi2?.[kpiId];
       const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
       const kpiPmDim2 = perKpiSplit2?.startsWith('PM_DIM:') ? perKpiSplit2.replace('PM_DIM:', '') : undefined;
       // Per-KPI field split (Cell/Site) — when user picks Cell/Site as per-KPI split,
