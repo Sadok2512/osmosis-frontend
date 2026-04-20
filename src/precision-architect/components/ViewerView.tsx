@@ -70,8 +70,8 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
       </header>
 
       {pages.length > 1 && (
-        <div className="border-b border-outline-variant/10 bg-white/60 px-8">
-          <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto">
+        <div className="border-b border-outline-variant/10 bg-white/60 px-4 sm:px-6 lg:px-10">
+          <div className="w-full flex items-center gap-1 overflow-x-auto">
             {pages.map(page => (
               <button
                 key={page.id}
@@ -90,9 +90,9 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto p-8 flex gap-6">
+      <div className="w-full px-4 sm:px-6 lg:px-10 py-6 lg:py-8 flex flex-col lg:flex-row gap-6">
         {sections.length > 0 && (
-          <aside className="w-56 shrink-0 hidden lg:block">
+          <aside className="lg:w-56 lg:shrink-0 hidden lg:block">
             <div className="sticky top-24 space-y-1">
               <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant px-2 mb-2">Sections</p>
               {sections.map((s) => (
@@ -112,7 +112,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         <main className="flex-1 min-w-0 space-y-6">
           <div>
             <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Live Report</p>
-            <h2 className="text-4xl font-black font-headline tracking-tighter">{activePage?.name ?? 'Overview'}</h2>
+            <h2 className="text-3xl sm:text-4xl font-black font-headline tracking-tighter">{activePage?.name ?? 'Overview'}</h2>
           </div>
 
           {sections.length > 0 && (
@@ -129,7 +129,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
               <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
             </div>
           ) : widgets.length > 0 && (
-            <div className="pa-grid-view">
+            <div className="pa-grid-view w-full">
               <GridLayout
                 className="layout"
                 layout={layout}
