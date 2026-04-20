@@ -136,7 +136,14 @@ export default function EditorView({
       kind,
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
+    if (kind === 'hero') {
+      newWidget.heroConfig = { ...(await import('../types')).DEFAULT_HERO_CONFIG };
+    }
     updateWidgets(w => [...w, newWidget]);
+    // auto-open settings for premium widgets
+    if (kind === 'hero' || kind === 'stat' || kind === 'divider') {
+      setActiveWidget(newWidget.id);
+    }
   };
   const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
 
