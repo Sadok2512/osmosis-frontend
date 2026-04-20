@@ -94,7 +94,7 @@ export default function EditorView({
     const newSection: PASection = {
       id,
       name: `Section ${idx}`,
-      title: 'Click to edit title',
+      title: 'Add title',
       description: 'Add description or message',
     };
     updateSections(s => [...s, newSection]);

@@ -41,7 +41,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
             <input
               value={section.title}
               onChange={(e) => onChange?.({ title: e.target.value })}
-              placeholder="Click to edit title"
+              placeholder="Add title"
               className="bg-transparent w-full border-none focus:outline-none focus:ring-0 p-0 text-2xl font-black font-headline tracking-tight text-on-surface placeholder:text-on-surface-variant/40"
             />
           ) : (
