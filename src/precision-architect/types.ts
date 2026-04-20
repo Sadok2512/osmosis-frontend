@@ -1,6 +1,6 @@
 export type ViewMode = 'view' | 'edit' | 'presentation';
 
-export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table' | 'text' | 'image';
+export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table' | 'text' | 'image' | 'hero' | 'stat' | 'divider';
 
 export interface WidgetLayout {
   x: number;
