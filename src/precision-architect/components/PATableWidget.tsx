@@ -131,8 +131,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
         <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">{copy.title}</p>
         <p className="text-[11px] text-on-surface-variant max-w-[280px]">{copy.body}</p>
         {isFetching && (
-          <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
-            Loading…
+          <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
+            <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-primary">Loading data…</span>
+            </div>
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { Loader2 } from 'lucide-react';
 import { ChartWidgetConfig, DEFAULT_CHART_CONFIG } from '../types';
 
 interface PAEChartProps {
@@ -251,11 +252,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
         <p className="text-[11px] text-on-surface-variant max-w-[280px]">
           {copy.body}
         </p>
-        {loading && (
-          <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
-            Loading…
-          </div>
-        )}
+        {loading && <LoadingOverlay />}
       </div>
     );
   }
@@ -268,14 +265,22 @@ const PAEChart: React.FC<PAEChartProps> = ({
         opts={{ renderer: 'canvas' }}
         notMerge
       />
-      {loading && (
-        <div className="absolute top-2 right-2 px-2 py-1 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest backdrop-blur">
-          Loading…
-        </div>
-      )}
+      {loading && <LoadingOverlay />}
     </div>
   );
 };
+
+/** Centered loading overlay with spinner — clearly visible during backend fetch. */
+const LoadingOverlay: React.FC = () => (
+  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
+    <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <span className="text-[10px] font-black uppercase tracking-widest text-primary">
+        Loading data…
+      </span>
+    </div>
+  </div>
+);
 
 /** Append an alpha byte (0–255) to a #rrggbb color. */
 function hexAlpha(hex: string, alpha: number): string {
