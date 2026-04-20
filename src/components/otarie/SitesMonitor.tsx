@@ -4807,11 +4807,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let cancelled = false;
 
     const filters: any = {
-      // Keep the backend KPI fetch broad: the map already applies dashboard/view
-      // perimeter client-side when deciding which cells/sectors to render.
-      // Passing plaque/band/date/dashboard filters here causes the backend
-      // /kpi/cell-values endpoint to return rows with value=null for the KPI map.
+      // Keep the backend KPI fetch broad on perimeter dimensions: the map applies
+      // dashboard/view perimeter client-side when deciding which cells/sectors to render.
+      // BUT we DO forward the active date range — otherwise selecting a different period
+      // in the topbar has no effect on the KPI values displayed on the map.
       techno: kpiTechnoFilter,
+      ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
+      ...(kpiDateTo ? { date_to: kpiDateTo } : {}),
     };
 
     // Only show loading spinner if this is a fresh fetch (not cached)
@@ -7220,14 +7222,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08);
              const azimuths = getValidSectorAzimuths(site);
              if (azimuths.length === 0) return null;
-            // Build per-cell band-based mini items with size hierarchy
+            // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
+            // (otherwise the bbox cache may contain stale cells from a previous fetch — e.g. NR700
+            // appearing on the map while the left panel only shows L2600).
+            const renderCells = (isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0)
+              ? siteDetail.cells
+              : site.cells;
+            // Build per-cell band-based mini items with size hierarchy.
+            // Apply the SAME filter set as the left panel (techno + band + dashboard) so
+            // map / left panel / topbar legend stay perfectly consistent.
             const miniItems: { tech: string; az: number; r: number; bandKey: string | null; cell: typeof site.cells[number] }[] = [];
             const seenMini = new Set<string>();
-            for (const cell of site.cells) {
+            for (const cell of renderCells) {
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
+              if (tech === '2G' && !enabledTechnos.has('2G')) continue;
+              if (tech === '3G' && !enabledTechnos.has('3G')) continue;
               if (tech === '4G' && !enabledTechnos.has('4G')) continue;
               if (tech === '5G' && !enabledTechnos.has('5G')) continue;
+              if (mapTechnoFilter === '4G' && tech !== '4G') continue;
+              if (mapTechnoFilter === '5G' && tech !== '5G') continue;
+              if (localTechno !== 'ALL' && tech !== localTechno) continue;
+              if (localBande !== 'ALL' && cell.bande !== localBande) continue;
+              if (!isBandEnabled(cell.bande, cell.techno)) continue;
+              if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) continue;
+              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => tech === t || cell.techno === t)) continue;
               const az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) continue;
               const bandKey = normalizeBandKey(cell.bande, cell.techno);
@@ -7260,13 +7279,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }
             }
 
-            // Fallback: if no band-specific items, use all azimuths with site color
-            if (miniItems.length === 0) {
+            // Fallback: if no band-specific items survived filtering, only use techno-level fallback
+            // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells)
+            const hasActiveBandFilter = localBande !== 'ALL' || (activeDashboardFilters?.bande?.length ?? 0) > 0;
+            if (miniItems.length === 0 && !hasActiveBandFilter) {
               if (has4G && !has5G && enabledTechnos.has('4G')) {
-                const fallbackCell = site.cells.find(c => getCellTechGroup(c.techno) === '4G') ?? site.cells[0];
+                const fallbackCell = renderCells.find(c => getCellTechGroup(c.techno) === '4G') ?? renderCells[0];
                 if (fallbackCell) azimuths.forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius, bandKey: null, cell: fallbackCell }));
               } else if (has5G && !has4G && enabledTechnos.has('5G')) {
-                const fallbackCell = site.cells.find(c => getCellTechGroup(c.techno) === '5G') ?? site.cells[0];
+                const fallbackCell = renderCells.find(c => getCellTechGroup(c.techno) === '5G') ?? renderCells[0];
                 if (fallbackCell) azimuths.forEach(az => miniItems.push({ tech: '5G', az, r: miniRadius, bandKey: null, cell: fallbackCell }));
               }
             }
