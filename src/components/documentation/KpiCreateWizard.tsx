@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, AlertCircle, Loader2, Play, BarChart3 } from 'lucide-react';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import type { KpiCatalogEntry } from './kpiCatalogTypes';
 
 interface KpiCreateWizardProps {
@@ -9,7 +10,7 @@ interface KpiCreateWizardProps {
   mode?: 'create' | 'edit';
 }
 
-const STEPS = ['General Info', 'Formula', 'Numerator', 'Denominator', 'Review'];
+const STEPS = ['General Info', 'Formula', 'Numerator', 'Denominator', 'Test KPI', 'Review'];
 
 const InputField: React.FC<{
   label: string; value: string; onChange: (v: string) => void;
@@ -80,6 +81,55 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
   // Thresholds
   const [thresholdGreen, setThresholdGreen] = useState(initialData?.thresholds?.green?.toString() || '');
   const [thresholdOrange, setThresholdOrange] = useState(initialData?.thresholds?.orange?.toString() || '');
+
+  // Test KPI
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [testError, setTestError] = useState('');
+  const [testDateFrom, setTestDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 3);
+    return d.toISOString().slice(0, 10);
+  });
+  const [testDateTo, setTestDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+
+  const runTest = async () => {
+    if (!numCounters.trim()) { setTestError('No numerator counters defined'); return; }
+    setTestRunning(true);
+    setTestError('');
+    setTestResults([]);
+    try {
+      // Build a temporary formula and test via /pm/kpi/compute with inline formula
+      const numExpr = numCounters.split(',').map(c => '`' + c.trim() + '`').join('+');
+      const denExpr = denCounters.trim()
+        ? denCounters.split(',').map(c => '`' + c.trim() + '`').join('+')
+        : '1';
+      const res = await fetch(getApiUrl('pm/kpi/compute'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          kpi_code: code || '_test_kpi_',
+          date_from: testDateFrom,
+          date_to: testDateTo,
+          granularity: '1d',
+          vendor: vendor !== 'ALL' ? vendor : undefined,
+          _inline_numerator: numExpr,
+          _inline_denominator: denExpr,
+          _inline_formula_type: formulaType,
+        }),
+      });
+      if (!res.ok) { setTestError(`HTTP ${res.status}`); return; }
+      const data = await res.json();
+      if (data.error && (!data.series || data.series.length === 0)) {
+        setTestError(data.error);
+      } else {
+        setTestResults(data.series || []);
+      }
+    } catch (err: any) {
+      setTestError(err.message || 'Test failed');
+    } finally {
+      setTestRunning(false);
+    }
+  };
 
   const canNext = () => {
     if (step === 0) return code.trim() && name.trim();
@@ -204,6 +254,84 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
           )}
 
           {step === 4 && (
+            <>
+              <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-bold text-foreground">Test Formula</span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Run a quick test to verify your KPI formula returns data. Uses <strong className="text-foreground">ClickHouse PM data</strong>.
+                </p>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">From</label>
+                    <input type="date" value={testDateFrom} onChange={e => setTestDateFrom(e.target.value)}
+                      className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-background text-sm" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">To</label>
+                    <input type="date" value={testDateTo} onChange={e => setTestDateTo(e.target.value)}
+                      className="w-full mt-1 px-3 py-2 rounded-xl border border-border bg-background text-sm" />
+                  </div>
+                  <div className="flex items-end">
+                    <button onClick={runTest} disabled={testRunning || !numCounters.trim()}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-40 transition-opacity">
+                      {testRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                      {testRunning ? 'Testing…' : 'Run Test'}
+                    </button>
+                  </div>
+                </div>
+                <div className="text-[10px] text-muted-foreground font-mono">
+                  NUM: {numCounters || '(empty)'} | DEN: {denCounters || '1'} | Type: {formulaType}
+                </div>
+              </div>
+              {testError && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/8 p-3 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-xs text-destructive">{testError}</p>
+                </div>
+              )}
+              {testResults.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-foreground">{testResults.length} data points returned</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">Formula works</span>
+                  </div>
+                  <div className="rounded-xl border border-border overflow-hidden max-h-48 overflow-y-auto">
+                    <table className="w-full text-[11px]">
+                      <thead className="bg-muted/40 sticky top-0">
+                        <tr>
+                          <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Timestamp</th>
+                          <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Site</th>
+                          <th className="py-1.5 px-2 text-right font-semibold text-muted-foreground">Value</th>
+                          <th className="py-1.5 px-2 text-left font-semibold text-muted-foreground">Unit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {testResults.slice(0, 20).map((r, i) => (
+                          <tr key={i} className="border-t border-border/30">
+                            <td className="py-1 px-2 text-muted-foreground">{r.ts || '—'}</td>
+                            <td className="py-1 px-2 text-foreground">{r.site_name || r.cell_name || '—'}</td>
+                            <td className="py-1 px-2 text-right font-mono font-semibold text-foreground">{typeof r.kpi_value === 'number' ? r.kpi_value.toFixed(4) : r.kpi_value ?? '—'}</td>
+                            <td className="py-1 px-2 text-muted-foreground">{unit}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {testResults.length > 20 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">Showing first 20 of {testResults.length} results</p>
+                  )}
+                </div>
+              )}
+              {!testRunning && testResults.length === 0 && !testError && (
+                <p className="text-xs text-muted-foreground text-center py-4">Click "Run Test" to verify the formula returns data.</p>
+              )}
+            </>
+          )}
+
+          {step === 5 && (
             <div className="space-y-1">
               <div className="flex items-center gap-2 mb-3">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
