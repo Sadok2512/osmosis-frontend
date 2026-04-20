@@ -257,6 +257,15 @@ export interface SiteSummary {
   zone_arcep?: string | null;
   techno?: string | null;
   bande?: string | null;
+  /** Parsed list of bands as advertised by backend (already CSV-split). */
+  bandes?: string[];
+  /** Parsed list of technologies as advertised by backend. */
+  technos?: string[];
+  /**
+   * Raw cell_count from backend `/topo/sites` (NOT filtered by band/techno).
+   * Use `cells.length` for filtered-aware count, fall back here only when cells aren't loaded.
+   */
+  backend_cell_count?: number;
   lte_cells?: number;
   nr_cells?: number;
   cells_2g?: number;
