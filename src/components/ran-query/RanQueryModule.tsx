@@ -873,7 +873,7 @@ const RanQueryModule: React.FC = () => {
           ...r,
           status: (rows.length > 0 ? 'Completed' : 'Failed') as ReportStatus,
           results: rows,
-          errorMessage: rows.length === 0 ? (errorMsg || 'No data returned for the selected scope') : errorMsg,
+          errorMessage: rows.length === 0 ? (errorMsg || `No data returned. PM data available: 2026-04-14 to 2026-04-18. Your range: ${report.timeConfig.timeMode === 'absolute' ? report.timeConfig.start + ' → ' + report.timeConfig.end : 'Last ' + (report.timeConfig as any).value + ' ' + (report.timeConfig as any).unit}`) : errorMsg,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
