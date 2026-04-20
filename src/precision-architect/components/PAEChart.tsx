@@ -234,7 +234,6 @@ const PAEChart: React.FC<PAEChartProps> = ({
   }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
 
   if (isEmpty) {
-    const isPending = hasMetrics && !hasBeenApplied;
     return (
       <div
         className="flex flex-col items-center justify-center w-full text-center px-6"
@@ -247,12 +246,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
           </svg>
         </div>
         <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">
-          {isPending ? 'Configuration not applied' : 'No KPI selected'}
+          No KPI selected
         </p>
         <p className="text-[11px] text-on-surface-variant max-w-[260px]">
-          {isPending
-            ? 'Click "Appliquer" in the settings panel to load data for the selected KPIs.'
-            : 'Open the settings panel and add a KPI from the catalog to start visualizing data.'}
+          Open the settings panel and add a KPI or counter from the catalog to start visualizing data.
         </p>
       </div>
     );
