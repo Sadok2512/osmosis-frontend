@@ -508,34 +508,36 @@ export default function EditorView({
         </button>
       )}
 
-      <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
-        <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
-          {([
-            { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
-            { icon: MapIcon, label: 'Map', kind: 'map' as const },
-            { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
-            { icon: TableIcon, label: 'Table', kind: 'table' as const },
-            { icon: TypeIcon, label: 'Text', kind: 'text' as const },
-            { icon: ImageIcon, label: 'Image', kind: 'image' as const },
-          ]).map((tool) => (
-            <button
-              key={tool.label}
-              onClick={() => addWidget(tool.kind)}
-              className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-xl transition-all w-full text-left active:scale-95"
-            >
-              <tool.icon className="w-5 h-5 text-primary shrink-0" />
-              <span className="font-bold text-xs uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">{tool.label}</span>
-            </button>
-          ))}
+      {!(activeWidget && showSettings) && (
+        <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
+          <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
+            {([
+              { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
+              { icon: MapIcon, label: 'Map', kind: 'map' as const },
+              { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
+              { icon: TableIcon, label: 'Table', kind: 'table' as const },
+              { icon: TypeIcon, label: 'Text', kind: 'text' as const },
+              { icon: ImageIcon, label: 'Image', kind: 'image' as const },
+            ]).map((tool) => (
+              <button
+                key={tool.label}
+                onClick={() => addWidget(tool.kind)}
+                className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-xl transition-all w-full text-left active:scale-95"
+              >
+                <tool.icon className="w-5 h-5 text-primary shrink-0" />
+                <span className="font-bold text-xs uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">{tool.label}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => addWidget('chart')}
+            className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+            aria-label="Add chart"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
         </div>
-        <button
-          onClick={() => addWidget('chart')}
-          className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
-          aria-label="Add chart"
-        >
-          <Plus className="w-6 h-6" />
-        </button>
-      </div>
+      )}
     </div>
   );
 }
