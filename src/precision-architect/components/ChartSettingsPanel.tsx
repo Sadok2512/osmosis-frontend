@@ -55,9 +55,13 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
   const dimensionOptions = useMemo(() => {
     if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_TF_DIMENSIONS;
-    return filterCatalog
-      .filter(f => f.is_active !== false)
+    const fromBackend = filterCatalog
+      .filter(f => (f as any).is_active !== false)
       .map(f => f.display_name || f.dimension_key);
+    if (!fromBackend.some(d => d.toLowerCase() === 'vendor')) {
+      fromBackend.push('Vendor');
+    }
+    return fromBackend;
   }, [filterCatalog]);
 
   const patchConfig = (patch: Partial<ChartWidgetConfig>) => {
