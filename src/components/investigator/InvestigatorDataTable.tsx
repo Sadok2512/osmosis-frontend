@@ -427,14 +427,37 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     </td>
                   )}
 
-                  {kpiColumns.map((kpi) => (
-                    <td
-                      key={kpi}
-                      className="py-3 px-5 text-right tabular-nums font-semibold text-foreground whitespace-nowrap"
-                    >
-                      {fmtVal(row.kpiValues[kpi] ?? null)}
-                    </td>
-                  ))}
+                  {kpiColumns.map((kpi) => {
+                    const val = row.kpiValues[kpi];
+                    const range = kpiRanges[kpi];
+                    let pct = 0;
+                    if (val != null && isFinite(val) && range && range.max > range.min) {
+                      pct = Math.max(4, Math.min(100, ((val - range.min) / (range.max - range.min)) * 100));
+                    } else if (val != null && isFinite(val) && range && range.max === range.min && val !== 0) {
+                      pct = 100;
+                    }
+                    const barColor = stableColorForSplit(kpi);
+                    return (
+                      <td
+                        key={kpi}
+                        className="py-3 px-5 whitespace-nowrap"
+                      >
+                        <div className="flex items-center justify-end gap-3">
+                          <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
+                            {val != null && (
+                              <div
+                                className="absolute inset-y-0 left-0 rounded-full"
+                                style={{ width: `${pct}%`, backgroundColor: barColor }}
+                              />
+                            )}
+                          </div>
+                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
+                            {fmtVal(val ?? null)}
+                          </span>
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
               );
             })}
