@@ -229,6 +229,8 @@ export interface DynWidget {
   dividerConfig?: DividerWidgetConfig;
   /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
   appliedRev?: number;
+  /** When true, the widget card renders with a transparent background (no card surface). */
+  transparentBg?: boolean;
   layout: WidgetLayout;
 }
 

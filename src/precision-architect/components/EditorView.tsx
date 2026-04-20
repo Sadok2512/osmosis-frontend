@@ -403,8 +403,11 @@ export default function EditorView({
                 {widgets.map(w => (
                   <div
                     key={w.id}
-                    className="shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden"
-                    style={{ backgroundColor: cardBg, borderRadius: radius }}
+                    className={cn(
+                      'p-4 group relative overflow-hidden',
+                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                    )}
+                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
                   >
                     <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <button
