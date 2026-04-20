@@ -45,12 +45,30 @@ export interface ChartJalon {
   color: string;
 }
 
+export type TechnoId = '2g' | '3g' | '4g' | '5g';
+export type PeriodPreset = '1j' | '3j' | '7j' | '14j' | '30j' | 'custom';
+export type GrainOption = '5min' | '15min' | '30min' | '1h' | '1d';
+
+export interface ChartFilterChip {
+  id: string;
+  dimension: string;
+  value: string;
+}
+
 export interface ChartWidgetConfig {
   data: {
     inheritFromDashboard: boolean;
-    filters: { plaque?: string[]; region?: string[]; vendor?: string[]; site?: string[] };
-    timeRange: { inherit: boolean; preset?: '24h' | '7d' | '30d'; from?: string; to?: string };
-    granularity: ChartGranularity;
+    /** Selected technologies (Périmètre). */
+    technos: TechnoId[];
+    /** Custom dimension filter chips. */
+    filters: ChartFilterChip[];
+    timeRange: {
+      inherit: boolean;
+      preset: PeriodPreset;
+      from: string; // ISO YYYY-MM-DDTHH:mm
+      to: string;
+    };
+    granularity: GrainOption;
   };
   metrics: ChartMetric[];
   style: {
