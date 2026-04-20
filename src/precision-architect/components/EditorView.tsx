@@ -426,7 +426,6 @@ export default function EditorView({
                     { key: 'appearance', label: 'Appearance', icon: undefined as any },
                     { key: 'interactions', label: 'Interactions', icon: undefined as any },
                     { key: 'alerting', label: 'Alerting', icon: undefined as any },
-                    { key: 'chat', label: 'Chat', icon: MessageSquare },
                   ] as const).map((tab) => (
                     <button
                       key={tab.key}
@@ -457,9 +456,6 @@ export default function EditorView({
                     )}
                     {settingsTab === 'alerting' && (
                       <p className="text-xs text-on-surface-variant">Threshold rules and notifications.</p>
-                    )}
-                    {settingsTab === 'chat' && (
-                      <p className="text-xs text-on-surface-variant">Ask the assistant about this widget.</p>
                     )}
                   </div>
                 </div>
