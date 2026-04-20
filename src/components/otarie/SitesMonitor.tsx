@@ -5731,6 +5731,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi]);
 
+  // Cell counts per KPI level (used in the legend). Computed from all
+  // dashboard-filtered sites (mapFilteredSites), independent of legend toggles
+  // so counts remain stable when the user hides/shows levels.
+  const kpiLevelCounts = useMemo(() => {
+    const counts = { green: 0, orange: 0, red: 0, gray: 0 } as Record<'green'|'orange'|'red'|'gray', number>;
+    if (sectorColorMode !== 'kpi') return counts;
+    for (const s of mapFilteredSites) {
+      const cells = s.cells || [];
+      if (cells.length === 0) {
+        const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
+        counts[getKpiLevel(val)]++;
+      } else {
+        for (const c of cells) counts[getKpiLevel(getCellKpiValue(c))]++;
+      }
+    }
+    return counts;
+  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel]);
+
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
     const count = visibleSites.length;
