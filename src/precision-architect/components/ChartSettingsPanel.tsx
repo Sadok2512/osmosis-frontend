@@ -129,22 +129,15 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
           <div className="max-w-4xl">
             {tab === 'data' && (
-              <div className="space-y-6">
-                <DataTab
-                  data={config.data}
-                  patchData={patchData}
-                  onTitleChange={(t) => onChange({ title: t })}
-                  title={widget.title ?? ''}
-                />
-                <div className="pt-4 border-t border-outline-variant/15">
-                  <MetricsTab
-                    metrics={config.metrics}
-                    addMetric={addMetric}
-                    updateMetric={updateMetric}
-                    removeMetric={removeMetric}
-                  />
-                </div>
-              </div>
+              <DataSourceTab
+                config={config}
+                patchData={patchData}
+                addMetric={addMetric}
+                updateMetric={updateMetric}
+                removeMetric={removeMetric}
+                title={widget.title ?? ''}
+                onTitleChange={(t) => onChange({ title: t })}
+              />
             )}
             {tab === 'appearance' && (
               <StyleTab
