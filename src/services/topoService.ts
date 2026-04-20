@@ -12,6 +12,26 @@ function isAllowedTechno(techno: string | null | undefined): boolean {
   return ALLOWED_TECHNOS.has(techno.trim());
 }
 
+/**
+ * Defensive parser for backend band/techno arrays.
+ * VPS `/api/v1/topo/sites` sometimes returns malformed CSV inside an array,
+ * e.g. `bandes: ["LTE1800, LTE2600, LTE800"]` instead of 3 distinct entries.
+ * Splits on commas/semicolons/pipes and trims so we always get a clean list.
+ */
+function parseBackendList(raw: unknown): string[] {
+  if (raw == null) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const out = new Set<string>();
+  for (const entry of arr) {
+    if (entry == null) continue;
+    String(entry)
+      .split(/[,;|]/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .forEach(s => out.add(s));
+  }
+  return [...out];
+
 /** Normalize raw techno string to canonical 2G/3G/4G/5G */
 function normalizeTechnoRaw(raw: string | null | undefined): string {
   const v = String(raw || '').toUpperCase().trim();
