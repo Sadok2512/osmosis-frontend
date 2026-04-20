@@ -83,7 +83,7 @@ interface ReportResultRow {
   cell_name?: string;
 }
 
-type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque';
+type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque' | 'bcluster';
 
 interface RanReport {
   id: string;
@@ -140,6 +140,7 @@ const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string; description
   { value: 'band', label: 'Band', description: 'Aggregated by frequency band.' },
   { value: 'site', label: 'Site', description: 'Per-site totals across all cells.' },
   { value: 'plaque', label: 'Plaque', description: 'Aggregated by operational plaque.' },
+  { value: 'bcluster', label: 'BCluster', description: 'Aggregated by saved cluster scope.' },
 ];
 const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
 
@@ -292,7 +293,7 @@ function buildFilterPayload(report: RanReport) {
   if (report.sites && report.sites.length > 0) base.site_name = report.sites;
   if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
   if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
-  if (report.aggregation && report.aggregation !== 'cell') base.split_by_field = report.aggregation === 'site' ? 'site_name' : report.aggregation === 'band' ? 'band' : report.aggregation === 'plaque' ? 'plaque' : 'cell_name';
+  if (report.aggregation && report.aggregation !== 'cell') base.split_by_field = report.aggregation === 'site' ? 'site_name' : report.aggregation === 'band' ? 'band' : report.aggregation === 'plaque' ? 'plaque' : report.aggregation === 'bcluster' ? 'bcluster' : 'cell_name';
   if (report.dimensions && report.dimensions.length > 0) base.dimensions = report.dimensions;
   if (report.cluster_id) base.cluster_id = report.cluster_id;
   return { vendors, base };
