@@ -11,7 +11,7 @@ import {
 import { motion } from 'motion/react';
 import { ViewMode } from '../types';
 import { cn } from '@/lib/utils';
-import PAEChart from './PAEChart';
+
 
 interface PresentationViewProps {
   onViewModeChange: (mode: ViewMode) => void;
@@ -99,7 +99,18 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
               ))}
             </div>
 
-            <PAEChart variant="presentation" height="100%" />
+            <div className="h-full w-full flex flex-col items-center justify-center text-center px-8">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                  <path d="M3 3v18h18" />
+                  <path d="M7 14l4-4 4 4 5-6" />
+                </svg>
+              </div>
+              <p className="text-xs font-black uppercase tracking-[0.25em] text-white/80 mb-2">No live data</p>
+              <p className="text-[11px] text-white/50 max-w-[320px]">
+                Configure a chart widget in the editor and click "Appliquer" to fetch real data from the backend.
+              </p>
+            </div>
 
             <motion.div
               animate={{ y: [0, -10, 0] }}
