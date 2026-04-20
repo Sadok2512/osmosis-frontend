@@ -168,34 +168,40 @@ const PAEChart: React.FC<PAEChartProps> = ({
     }
 
     const legendPos = cfg?.style.legend.position ?? 'bottom';
+    const showLegend = legendData.length > 1;
+    const useScrollableLegend = legendData.length > 3;
     const legend = {
+      show: showLegend,
+      type: useScrollableLegend ? 'scroll' as const : 'plain' as const,
       data: legendData,
-      bottom: legendPos === 'bottom' ? 6 : undefined,
-      top: legendPos === 'top' ? 6 : undefined,
-      right: legendPos === 'right' ? 8 : undefined,
-      left: legendPos === 'right' ? undefined : 'center' as const,
+      bottom: legendPos === 'bottom' ? 4 : undefined,
+      top: legendPos === 'top' ? 4 : undefined,
+      right: legendPos === 'right' ? 8 : 12,
+      left: legendPos === 'right' ? undefined : 12,
+      width: legendPos === 'right' ? 120 : 'auto',
       orient: legendPos === 'right' ? 'vertical' as const : 'horizontal' as const,
-      textStyle: { fontSize: 11, color: labelColor, fontWeight: 700 as const },
+      textStyle: { fontSize: 10, color: labelColor, fontWeight: 700 as const },
       icon: 'roundRect' as const,
-      itemWidth: 12,
-      itemHeight: 8,
-      itemGap: 14,
-      padding: [4, 8, 4, 8] as [number, number, number, number],
+      itemWidth: 10,
+      itemHeight: 6,
+      itemGap: 10,
+      pageIconSize: 10,
+      pageTextStyle: { color: labelColor, fontSize: 10, fontWeight: 700 as const },
+      pageButtonItemGap: 6,
+      padding: [2, 4, 2, 4] as [number, number, number, number],
     };
 
     const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible && m.axis === 'right');
-    const showLegend = legendData.length > 1;
     return {
       backgroundColor: bgColor,
       grid: {
-        // Reserve generous vertical room so labels + legend never overlap
-        top: legendPos === 'top' && showLegend ? 44 : (isPresentation ? 28 : 20),
-        right: legendPos === 'right' && showLegend ? 140 : (hasRightAxis ? 56 : 20),
-        bottom: legendPos === 'bottom' && showLegend ? 64 : 36,
+        top: legendPos === 'top' && showLegend ? 36 : (isPresentation ? 28 : 20),
+        right: legendPos === 'right' && showLegend ? 150 : (hasRightAxis ? 56 : 20),
+        bottom: legendPos === 'bottom' && showLegend ? 44 : 32,
         left: 52,
         containLabel: true,
       },
-      legend: showLegend ? legend : { show: false },
+      legend,
       tooltip: {
         trigger: 'axis' as const,
         backgroundColor: isDark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.98)',
