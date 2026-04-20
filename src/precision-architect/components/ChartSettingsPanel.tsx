@@ -387,19 +387,138 @@ function DataTab({
   dimensionOptions: string[];
   filtersLoading: boolean;
 }) {
+  // Default: inherit from the report-level top toolbar.
+  const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
+
+  const enableOverride = () => {
+    patchData({
+      inheritFromDashboard: false,
+      timeRange: { ...data.timeRange, inherit: false },
+    });
+  };
+
+  const restoreInheritance = () => {
+    patchData({
+      inheritFromDashboard: true,
+      timeRange: { ...data.timeRange, inherit: true },
+    });
+  };
+
   return (
     <div className="space-y-4">
       <Section title="Time & Filters">
-        <TimeFiltersToolbar
-          data={data}
-          patchData={patchData}
-          dimensionOptions={dimensionOptions}
-          filtersLoading={filtersLoading}
-        />
+        {inherits ? (
+          <InheritedFromToolbarCard onOverride={enableOverride} />
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-amber-900">
+                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black">!</span>
+                <span>Override actif — ce widget ignore la barre du rapport.</span>
+              </div>
+              <button
+                type="button"
+                onClick={restoreInheritance}
+                className="text-[10px] font-black uppercase tracking-widest text-amber-900 hover:underline"
+              >
+                Revenir à l'héritage
+              </button>
+            </div>
+            <TimeFiltersToolbar
+              data={data}
+              patchData={patchData}
+              dimensionOptions={dimensionOptions}
+              filtersLoading={filtersLoading}
+            />
+          </div>
+        )}
       </Section>
     </div>
   );
 }
+
+/* ---------------- Inherited-from-toolbar summary card ---------------- */
+
+function InheritedFromToolbarCard({ onOverride }: { onOverride: () => void }) {
+  // Read the live global toolbar values so the user can see what they'll get.
+  const { technos, from, to, preset, grain, filters } = usePAGlobalToolbarReadOnly();
+
+  const fmt = (iso: string) => {
+    if (!iso) return '—';
+    const [d, t = '00:00'] = iso.split('T');
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y} ${t.slice(0, 5)}`;
+  };
+
+  return (
+    <div className="rounded-xl border-2 border-dashed border-primary/30 bg-primary/[0.03] p-5 space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Filter className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h5 className="text-sm font-black text-on-surface font-headline">Hérite du rapport</h5>
+            <p className="text-[11px] text-on-surface-variant mt-0.5 leading-snug max-w-md">
+              Ce widget utilise automatiquement la <strong>barre Time &amp; Filters</strong> en haut du rapport.
+              Cliquez sur <em>Override</em> pour personnaliser uniquement ce graphique.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onOverride}
+          className="shrink-0 h-8 px-3 rounded-full bg-white border border-primary/40 text-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/5 transition-colors"
+        >
+          Override
+        </button>
+      </div>
+
+      {/* Live read-only summary of inherited values */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-1 pt-2 border-t border-primary/10">
+        <SummaryRow label="Périmètre" value={
+          technos.length === 0
+            ? <span className="italic text-on-surface-variant/70">aucune techno</span>
+            : <span className="flex flex-wrap gap-1">{technos.map(t => (
+                <span key={t} className="px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide bg-primary/15 text-primary">{t.toUpperCase()}</span>
+              ))}</span>
+        } />
+        <SummaryRow label="Période" value={`${preset.toUpperCase()} · ${grain}`} />
+        <SummaryRow label="Du" value={fmt(from)} />
+        <SummaryRow label="Au" value={fmt(to)} />
+        <div className="col-span-2">
+          <SummaryRow label="Filtres" value={
+            filters.length === 0
+              ? <span className="italic text-on-surface-variant/70">aucun filtre</span>
+              : <span className="flex flex-wrap gap-1">{filters.map(f => (
+                  <span key={f.id} className="px-2 h-5 inline-flex items-center justify-center rounded-full bg-amber-100 text-amber-900 text-[10px] font-bold">{f.dimension}: {f.value}</span>
+                ))}</span>
+          } />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 text-[11px]">
+      <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/70 w-20 shrink-0">{label}</span>
+      <span className="font-bold text-on-surface">{value}</span>
+    </div>
+  );
+}
+
+/** Read-only hook that subscribes to the global toolbar store without importing it at module top to keep tree-shaking clean. */
+function usePAGlobalToolbarReadOnly() {
+  // Lazily required to avoid circular imports
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { usePAGlobalToolbar } = require('../stores/paGlobalToolbarStore') as typeof import('../stores/paGlobalToolbarStore');
+  return usePAGlobalToolbar((s) => ({
+    technos: s.technos, from: s.from, to: s.to, preset: s.preset, grain: s.grain, filters: s.filters,
+  }));
+}
+
 
 /* ---------------- Time & Filters Toolbar (embedded in panel) ---------------- */
 
