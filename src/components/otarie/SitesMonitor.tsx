@@ -7584,6 +7584,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
+        {!paramMode && !paramPanelOpen && showSectors && (() => { console.log('[BeamsRender] showSectors=', showSectors, 'zoom=', viewport.zoom, 'mode=', mapDisplayMode, 'beams=', showBeamSectors, 'sites=', renderSites.length, 'sample=', renderSites[0]?.site_id, 'cells=', renderSites[0]?.cells?.length, 'mapTechnoFilter=', mapTechnoFilter); return null; })()}
         {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
