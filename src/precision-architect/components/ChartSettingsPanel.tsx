@@ -197,6 +197,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 config={config}
                 patchData={patchData}
                 addMetric={addMetric}
+                addMetricsFromKeys={addMetricsFromKeys}
                 updateMetric={updateMetric}
                 removeMetric={removeMetric}
                 title={widget.title ?? ''}
