@@ -58,6 +58,24 @@ export async function fetchKpiCatalogFromVps(): Promise<KpiCatalogEntry[]> {
 }
 
 /**
+ * Create a KPI in the VPS catalog. Reuses the same payload shape as the
+ * legacy KPI catalog wizard so both reference pages stay compatible.
+ */
+export async function createKpiInVps(payload: Record<string, any>): Promise<any> {
+  const url = getApiUrl('monitor/catalog/kpis');
+  const res = await fetchVpsWithRetry(url, {
+    method: 'POST',
+    headers: getApiHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error?.detail || error?.message || `VPS create failed: ${res.status}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
+/**
  * Update a KPI in the VPS catalog. Mirrors DocumentationPage's
  * `monitorPut('catalog/kpis/:code')` flow.
  */

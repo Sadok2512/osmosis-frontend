@@ -7,6 +7,7 @@ import {
   Eye,
   FilePenLine,
   Layers3,
+  Plus,
   Radar,
   RotateCcw,
   Search,
@@ -16,7 +17,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
-import { fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
+import KpiCreateWizard from '@/components/documentation/KpiCreateWizard';
+import { createKpiInVps, fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
 import { useKpiExplain } from './api/kpiMonitorApi';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -99,6 +101,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const [selectedKpiKey, setSelectedKpiKey] = useState<string | null>(null);
   const [openSections, setOpenSections] = useState<DetailSection[]>(['overview']);
   const [isEditing, setIsEditing] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [draft, setDraft] = useState<KpiDraft | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const reviewRef = React.useRef<HTMLDivElement | null>(null);
@@ -212,6 +215,22 @@ const KpiReferenceWorkspace2: React.FC = () => {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: createKpiInVps,
+    onSuccess: async (_result, payload) => {
+      await queryClient.invalidateQueries({ queryKey: ['kpi-reference2-catalog'] });
+      await queryClient.invalidateQueries({ queryKey: ['kpi-reference-catalog'] });
+      toast({ title: 'KPI created', description: `${payload.kpi_code || payload.nom_ihm || 'New KPI'} has been added to the catalog.` });
+      setShowCreate(false);
+      if (payload.kpi_code) {
+        setSelectedKpiKey(payload.kpi_code);
+      }
+    },
+    onError: (error: any) => {
+      toast({ title: 'Create failed', description: error?.message || 'Unable to create KPI.', variant: 'destructive' });
+    },
+  });
+
   const totalKpis = catalog.length;
   const mapReadyCount = catalog.filter(item => item.is_map_supported).length;
   const thresholdCount = catalog.filter(item => item.thresholds?.warning != null || item.thresholds?.critical != null).length;
@@ -261,7 +280,17 @@ const KpiReferenceWorkspace2: React.FC = () => {
               A cleaner telecom reference workspace for browsing KPI definitions, opening a KPI in context, and editing metadata in the same lower review area.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
+            <button
+              onClick={() => setShowCreate(true)}
+              className="rounded-[24px] border border-teal-700 bg-teal-700 px-4 py-4 text-left text-white shadow-[0_16px_40px_rgba(15,118,110,0.22)] transition-all hover:-translate-y-0.5 hover:bg-teal-800"
+            >
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15">
+                <Plus className="h-4 w-4" />
+              </span>
+              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-teal-50">Action</p>
+              <p className="mt-1 text-sm font-black">Create KPI</p>
+            </button>
             <div className="rounded-[24px] border border-teal-200 bg-teal-50/90 px-4 py-4">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-teal-700">Flow</p>
               <p className="mt-2 text-sm font-bold text-slate-900">Search → Open → Review → Save</p>
@@ -785,6 +814,14 @@ const KpiReferenceWorkspace2: React.FC = () => {
           </Panel>
         </div>
       </div>
+      {showCreate && (
+        <KpiCreateWizard
+          onSubmit={async (payload) => createMutation.mutateAsync(payload)}
+          onClose={() => {
+            if (!createMutation.isPending) setShowCreate(false);
+          }}
+        />
+      )}
     </div>
   );
 };
