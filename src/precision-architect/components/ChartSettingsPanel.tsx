@@ -927,6 +927,14 @@ function MetricsTab({
                   {m.axis}
                 </span>
 
+                {/* Type badge */}
+                <span
+                  className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
+                  title={`Type: ${m.graphType ?? 'line'}`}
+                >
+                  {m.graphType ?? 'line'}
+                </span>
+
                 {/* Style badge */}
                 <span
                   className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
@@ -1011,7 +1019,7 @@ function MetricsTab({
                     </Field>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Field label="Axis">
                       <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
                         {(['left', 'right'] as AxisSide[]).map(side => (
@@ -1030,6 +1038,29 @@ function MetricsTab({
                             {side}
                           </button>
                         ))}
+                      </div>
+                    </Field>
+                    <Field label="Type">
+                      <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
+                        {(['line', 'area', 'bar'] as ChartType[]).map(t => {
+                          const active = (m.graphType ?? 'line') === t;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                updateMetric(m.id, { graphType: t });
+                              }}
+                              className={cn(
+                                'flex-1 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors',
+                                active ? 'bg-primary text-on-primary' : 'bg-white text-on-surface-variant hover:bg-surface-container-low'
+                              )}
+                            >
+                              {t}
+                            </button>
+                          );
+                        })}
                       </div>
                     </Field>
                     <Field label="Line style">
