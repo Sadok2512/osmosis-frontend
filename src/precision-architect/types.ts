@@ -102,6 +102,8 @@ export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
     grid: true,
     legend: { position: 'bottom', showValues: false },
   },
+  jalons: [],
+  thresholds: [],
 };
 
 export interface PASection {
