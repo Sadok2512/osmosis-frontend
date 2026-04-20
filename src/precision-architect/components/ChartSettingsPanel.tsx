@@ -1296,6 +1296,8 @@ function StyleTab({
           </Field>
         </div>
       </Section>
+
+      <Section title="Grid & Legend">
         <ToggleRow
           label="Show grid"
           checked={style.grid}
