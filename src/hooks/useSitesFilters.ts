@@ -23,9 +23,10 @@ const FILTER_LABELS: Record<string, string> = {
   techno: 'Technologie',
   bande: 'Bande',
   zone_arcep: 'Zone ARCEP',
+  bcluster: 'BCluster',
 };
 
-const FILTER_KEYS = ['dor', 'dr', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep'];
+const FILTER_KEYS = ['dor', 'dr', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep', 'bcluster'];
 
 /** Build static fallback filter definitions from filterDimensions config */
 function buildStaticFilterDefs(): FilterDefinition[] {

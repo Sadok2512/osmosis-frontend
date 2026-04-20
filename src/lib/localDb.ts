@@ -258,6 +258,7 @@ export interface BboxFilters {
   techno?: string;
   bande?: string;
   zone_arcep?: string;
+  bcluster?: string;
   q?: string;
 }
 
@@ -392,6 +393,7 @@ function buildCellsQs(filters?: BboxFilters, limit = CHUNK_SIZE, offset = 0): UR
   if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
   if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
   if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+  if (filters?.bcluster && filters.bcluster !== 'ALL') qs.set('bcluster', filters.bcluster);
   if (filters?.q) qs.set('search', filters.q);
   return qs;
 }

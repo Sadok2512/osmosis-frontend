@@ -4942,6 +4942,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (bp.get('zone_arcep')) base.zone_arcep = bp.get('zone_arcep')!;
       if (bp.get('techno')) base.techno = bp.get('techno')!;
       if (bp.get('bande')) base.bande = bp.get('bande')!;
+      if (bp.get('bcluster')) base.bcluster = bp.get('bcluster')!;
     }
     return base;
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr]);
