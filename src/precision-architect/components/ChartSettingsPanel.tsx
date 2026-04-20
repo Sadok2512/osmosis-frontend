@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
@@ -7,6 +7,8 @@ import {
 } from '../types';
 import { cn } from '@/lib/utils';
 import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface Props {
   widget: DynWidget;
@@ -575,17 +577,13 @@ function MetricsTab({
 
               {expanded && (
                 <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <Field label="KPI">
-                    <select
+                  <Field label={`KPI ${kpiOptions.length > 0 ? `· ${kpiOptions.length} disponibles` : ''}`}>
+                    <KpiCombobox
                       value={m.kpiKey}
-                      onChange={(e) => {
-                        const opt = kpiOptions.find(o => o.key === e.target.value);
-                        updateMetric(m.id, { kpiKey: e.target.value, alias: opt?.label, unit: opt?.unit });
-                      }}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm font-bold text-on-surface"
-                    >
-                      {kpiOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                    </select>
+                      options={kpiOptions}
+                      loading={kpisLoading}
+                      onSelect={(opt) => updateMetric(m.id, { kpiKey: opt.key, alias: opt.label, unit: opt.unit })}
+                    />
                   </Field>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1106,5 +1104,73 @@ function MultiTagInput({
         </div>
       )}
     </div>
+  );
+}
+
+/* ---------------- KPI Combobox (searchable, virtual-friendly) ---------------- */
+
+function KpiCombobox({
+  value, options, loading, onSelect,
+}: {
+  value: string;
+  options: { key: string; label: string; unit: string }[];
+  loading: boolean;
+  onSelect: (opt: { key: string; label: string; unit: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find(o => o.key === value);
+  const displayLabel = current?.label ?? value ?? 'Sélectionner un KPI…';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm font-bold text-on-surface hover:border-primary/40 transition-colors"
+        >
+          <span className="flex items-center gap-2 truncate">
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
+            <span className="truncate">{displayLabel}</span>
+            {current?.unit && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">
+                {current.unit}
+              </span>
+            )}
+          </span>
+          <ChevronDown className="w-4 h-4 text-on-surface-variant shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[420px] p-0" align="start">
+        <Command shouldFilter>
+          <CommandInput placeholder={`Rechercher parmi ${options.length} KPIs…`} />
+          <CommandList className="max-h-80">
+            <CommandEmpty>Aucun KPI trouvé.</CommandEmpty>
+            <CommandGroup>
+              {options.slice(0, 500).map(o => (
+                <CommandItem
+                  key={o.key}
+                  value={`${o.label} ${o.key}`}
+                  onSelect={() => { onSelect(o); setOpen(false); }}
+                  className="flex items-center gap-2"
+                >
+                  <Check className={cn('w-3.5 h-3.5', o.key === value ? 'opacity-100 text-primary' : 'opacity-0')} />
+                  <span className="flex-1 truncate text-xs font-bold">{o.label}</span>
+                  {o.unit && (
+                    <span className="text-[9px] font-bold uppercase text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">
+                      {o.unit}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {options.length > 500 && (
+              <div className="px-3 py-2 text-[10px] text-on-surface-variant border-t border-outline-variant/15">
+                Affichage des 500 premiers résultats — affinez la recherche pour voir les autres ({options.length} au total).
+              </div>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
