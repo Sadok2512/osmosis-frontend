@@ -119,6 +119,22 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
             Reset
           </button>
           <button
+            onClick={() => onChange({ appliedRev: (widget.appliedRev ?? 0) + 1 })}
+            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+            title="Re-render the chart with current settings"
+          >
+            Appliquer
+          </button>
+          <button
+            onClick={() => {
+              onChange({ appliedRev: (widget.appliedRev ?? 0) + 1 });
+              onClose();
+            }}
+            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            Save
+          </button>
+          <button
             onClick={onClose}
             className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
             aria-label="Close settings"
