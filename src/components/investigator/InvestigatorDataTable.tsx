@@ -310,109 +310,100 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   }
 
   return (
-    <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col">
-      <div className="px-5 py-3 bg-primary/5 border-b border-primary/10">
-        <div className="flex items-center gap-3 text-sm">
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
-            📊 {sourceInfo.slotLabel}
+    <div className="flex-grow rounded-2xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col">
+      {/* Top meta strip — light, airy */}
+      <div className="px-6 py-3 bg-white border-b border-border/30">
+        <div className="flex items-center gap-3 text-[11px]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
+            Cells Inventory
           </span>
-          <span className="text-muted-foreground">|</span>
-          <span className="text-muted-foreground font-medium">
-            KPIs: <span className="text-foreground">{sourceInfo.kpiNames}</span>
+          <span className="text-foreground/80 font-semibold">{sourceInfo.slotLabel}</span>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="text-muted-foreground">
+            KPIs: <span className="text-foreground/70">{sourceInfo.kpiNames || '—'}</span>
           </span>
-          <span className="text-muted-foreground">|</span>
-          <span className="text-muted-foreground font-medium">
-            {totalRows} pivoted rows ({sourceInfo.rowCount} raw points)
-          </span>
+          <span className="text-muted-foreground/40">·</span>
+          <span className="text-muted-foreground">{totalRows.toLocaleString()} rows</span>
         </div>
       </div>
 
-      <div className="h-14 border-b border-border/30 flex items-center justify-between px-5 bg-muted/30">
+      {/* Toolbar */}
+      <div className="h-12 border-b border-border/20 flex items-center justify-between px-6 bg-white">
         <div className="flex items-center gap-3">
-          <span className="text-base font-bold text-foreground uppercase tracking-wider">Table Data</span>
-          <span className="text-xs text-muted-foreground font-medium">{totalRows.toLocaleString()} rows</span>
-          <span className="text-[9px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Table</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium">
             {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasSplitValues ? splitLabel : 'NE'}
           </span>
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-2 px-4 py-1.5 rounded-md text-sm font-bold bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
         >
-          <Download className="w-5 h-5" />
+          <Download className="w-3.5 h-3.5" />
           CSV
         </button>
       </div>
 
-      <div className="overflow-auto flex-grow relative" style={{ maxHeight: 500 }}>
-        <table className="w-full border-collapse text-[11px]">
+      <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
+        <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
-            <tr className="bg-muted/80 backdrop-blur-md border-b border-border/30">
-              <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+            <tr className="bg-white border-b border-border/40">
+              <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap">
                 Timestamp
               </th>
 
-              <th className="text-left py-3 px-4 font-bold text-primary uppercase tracking-wider sticky left-0 bg-muted/95 z-30 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap">
+              <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] sticky left-0 bg-white z-30 whitespace-nowrap">
                 {scopeLabel}
               </th>
 
               {hasSplitValues && (
-                <th className="text-left py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap">
                   {splitLabel}
                 </th>
               )}
 
-              {kpiColumns.map((kpi, i) => (
+              {kpiColumns.map((kpi) => (
                 <th
                   key={kpi}
-                  className="text-right py-3 px-4 font-bold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                  className="text-right py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap"
                 >
-                  <div className="flex items-center justify-end gap-1.5">
-                    <span
-                      className="w-2 h-2 rounded-full shrink-0"
-                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                    />
-                    <span className="truncate max-w-[200px]" title={kpi}>{kpi}</span>
-                  </div>
+                  <span className="truncate max-w-[200px] inline-block align-middle" title={kpi}>{kpi}</span>
                 </th>
               ))}
             </tr>
           </thead>
 
-          <tbody className="divide-y divide-border/10">
+          <tbody>
             {pageRows.map((row, idx) => {
               const absIdx = startIdx + idx;
-              const isOdd = absIdx % 2 !== 0;
 
               return (
                 <tr
                   key={absIdx}
-                  className={cn(
-                    'hover:bg-primary/5 transition-colors group',
-                    isOdd && 'bg-muted/20',
-                  )}
+                  className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
                 >
-                  <td className="py-2.5 px-4 tabular-nums text-muted-foreground whitespace-nowrap">
+                  <td className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
                     {row.timestamp}
                   </td>
 
-                  <td
-                    className={cn(
-                      'py-2.5 px-4 font-semibold text-primary sticky left-0 transition-colors shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)] whitespace-nowrap',
-                      isOdd ? 'bg-muted/20 group-hover:bg-primary/5' : 'bg-card group-hover:bg-primary/5',
-                    )}
-                  >
-                    {row.ne}
+                  <td className="py-3 px-5 sticky left-0 bg-white group-hover:bg-muted/30 transition-colors whitespace-nowrap">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: stableColorForSplit(row.ne) }}
+                      />
+                      <span className="font-semibold text-foreground tracking-tight">{row.ne}</span>
+                    </span>
                   </td>
 
                   {hasSplitValues && (
-                    <td className="py-2.5 px-4 whitespace-nowrap text-foreground">
-                      <span className="inline-flex items-center gap-1.5">
+                    <td className="py-3 px-5 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-2">
                         <span
-                          className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/10"
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
                           style={{ backgroundColor: stableColorForSplit(row.splitValue) }}
                         />
-                        <span className="font-medium">{row.splitValue}</span>
+                        <span className="font-medium text-foreground/85">{row.splitValue}</span>
                       </span>
                     </td>
                   )}
@@ -420,7 +411,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                   {kpiColumns.map((kpi) => (
                     <td
                       key={kpi}
-                      className="py-2.5 px-4 text-right tabular-nums font-medium text-foreground whitespace-nowrap"
+                      className="py-3 px-5 text-right tabular-nums font-semibold text-foreground whitespace-nowrap"
                     >
                       {fmtVal(row.kpiValues[kpi] ?? null)}
                     </td>
