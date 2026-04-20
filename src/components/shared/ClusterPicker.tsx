@@ -7,6 +7,7 @@ import type { NetworkFilter } from '@/components/documentation/filterTypes';
 export interface ClusterSelection {
   cluster: NetworkFilter;
   sites: string[];
+  topologyFilters?: Record<string, string[]>;
 }
 
 interface ClusterPickerProps {
@@ -42,10 +43,10 @@ const ClusterPicker: React.FC<ClusterPickerProps> = ({ onSelect, selected, class
     setLoadingSites(cluster.id);
     try {
       const result = await getClusterSites(cluster.id);
-      onSelect({ cluster, sites: result.sites });
+      onSelect({ cluster, sites: result.sites, topologyFilters: (result as any).topology_filters });
       setOpen(false);
     } catch {
-      onSelect({ cluster, sites: [] });
+      onSelect({ cluster, sites: [], topologyFilters: {} });
       setOpen(false);
     } finally {
       setLoadingSites(null);
