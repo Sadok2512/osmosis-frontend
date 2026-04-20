@@ -452,8 +452,18 @@ const getRenderableCellsForSite = (
   mapTechnoFilter: 'ALL' | '2G' | '3G' | '4G' | '5G' | 'OFF',
   enabledTechnos: Set<TechGroup>,
   isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
+  dashboardBandFilter?: string[] | null,
+  dashboardTechnoFilter?: string[] | null,
 ) => {
   if (!site.cells?.length || mapTechnoFilter === 'OFF') return [];
+
+  // Normalize dashboard filters (case-insensitive set lookup)
+  const dashBands = dashboardBandFilter && dashboardBandFilter.length > 0
+    ? new Set(dashboardBandFilter.map(b => String(b).trim().toUpperCase()))
+    : null;
+  const dashTechs = dashboardTechnoFilter && dashboardTechnoFilter.length > 0
+    ? new Set(dashboardTechnoFilter.map(t => String(t).trim().toUpperCase()))
+    : null;
 
   return site.cells.filter(cell => {
     const techGroup = getCellTechGroup(cell.techno);
@@ -463,6 +473,18 @@ const getRenderableCellsForSite = (
       if (!enabledTechnos.has(techGroup)) return false;
     } else if (techGroup !== mapTechnoFilter) {
       return false;
+    }
+
+    // Active dashboard band filter — strict perimeter (e.g. Rennes_L1800 → only LTE1800)
+    if (dashBands) {
+      const cellBand = String(cell.bande || '').trim().toUpperCase();
+      if (!cellBand || !dashBands.has(cellBand)) return false;
+    }
+    // Active dashboard techno filter
+    if (dashTechs) {
+      const cellTech = String(cell.techno || '').trim().toUpperCase();
+      const groupUpper = String(techGroup).toUpperCase();
+      if (!dashTechs.has(cellTech) && !dashTechs.has(groupUpper)) return false;
     }
 
     return isBandEnabled(cell.bande, cell.techno);
