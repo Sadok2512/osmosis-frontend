@@ -827,6 +827,7 @@ export async function fetchDashboardSites(
   if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep.join(',');
   if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno.join(',');
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
+  if ((siteFilters as any)?.bcluster?.length) bboxFilters.bcluster = (siteFilters as any).bcluster.join(',');
   if (search) bboxFilters.q = search;
 
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE
