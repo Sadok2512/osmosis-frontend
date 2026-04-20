@@ -15,6 +15,7 @@ import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import PAFilterChips from './PAFilterChips';
 
 interface Props {
   widget: DynWidget;
