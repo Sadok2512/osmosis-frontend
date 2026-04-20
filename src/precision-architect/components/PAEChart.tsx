@@ -8,13 +8,16 @@ interface PAEChartProps {
   data?: { time: string; value: number; secondary?: number }[];
   /** New: full widget config from settings panel. When provided, supersedes legacy props. */
   config?: ChartWidgetConfig;
+  /** Bumped each time the user clicks "Appliquer" / "Save" in settings. 0 (or undefined) = never applied yet. */
+  appliedRev?: number;
   /** Legacy props (kept for compatibility). */
   primaryColor?: string;
   secondaryColor?: string;
   showSecondary?: boolean;
 }
 
-const defaultData = Array.from({ length: 24 }, (_, i) => {
+/** Demo dataset — only used in the standalone Presentation preview, never inside live widgets. */
+const demoData = Array.from({ length: 24 }, (_, i) => {
   const base = 320 + Math.sin(i / 3) * 60 + Math.cos(i / 2) * 30;
   return {
     time: `${String(i).padStart(2, '0')}:00`,
@@ -26,16 +29,28 @@ const defaultData = Array.from({ length: 24 }, (_, i) => {
 const PAEChart: React.FC<PAEChartProps> = ({
   variant = 'editor',
   height = '100%',
-  data = defaultData,
+  data,
   config,
+  appliedRev,
   primaryColor = '#00685f',
   secondaryColor = '#6bd8cb',
   showSecondary = true,
 }) => {
   const isPresentation = variant === 'presentation';
 
-  // Empty state: no config, or config with no metrics → show placeholder instead of demo data.
-  const isEmpty = !config || !config.metrics || config.metrics.length === 0;
+  // The chart is "live" (driven by the settings panel) when a config is provided.
+  const isLive = !!config;
+  const hasMetrics = !!config && config.metrics.length > 0;
+  const hasBeenApplied = (appliedRev ?? 0) > 0;
+
+  // Live widgets must wait for: (1) at least one metric AND (2) an explicit Apply click.
+  // Standalone usage (no config — e.g. PresentationView demo) keeps showing the demo dataset.
+  const showDemoFallback = !isLive;
+  const isEmpty = isLive && (!hasMetrics || !hasBeenApplied);
+
+  // Effective dataset: real `data` if provided, else demo (only for standalone), else nothing.
+  const effectiveData = data ?? (showDemoFallback ? demoData : []);
+
 
   const option = useMemo(() => {
     const cfg = config ?? null;
