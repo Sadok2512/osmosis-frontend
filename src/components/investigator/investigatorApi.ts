@@ -627,10 +627,19 @@ export async function fetchTimeSeriesForSlot(
     for (const kpiId of ctx.kpiIds) {
       // Per-KPI PM dimension split
       const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
+      const perKpiSplit2 = ctx.splitByPerKpi2?.[kpiId];
       const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
-      const pmDimSplit = kpiPmDim || (perKpiSplit ? undefined : computePmDim);
+      const kpiPmDim2 = perKpiSplit2?.startsWith('PM_DIM:') ? perKpiSplit2.replace('PM_DIM:', '') : undefined;
+      // Per-KPI field split (Cell/Site) — when user picks Cell/Site as per-KPI split,
+      // it lands in splitByPerKpi (not in slot.splitBy), so derive the field here.
+      const perKpiField =
+        (perKpiSplit && !perKpiSplit.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit]) ||
+        (perKpiSplit2 && !perKpiSplit2.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit2]) ||
+        undefined;
+      const pmDimSplit = kpiPmDim || kpiPmDim2 || (perKpiSplit ? undefined : computePmDim);
+      const fieldSplit = perKpiField || computeSplitByField;
 
-      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${computeSplitByField || ''}`;
+      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${fieldSplit || ''}`;
 
       // Sequential: do NOT pre-create promises — execute one at a time
       let computed: { data: DataPoint[]; isComputed: boolean };
