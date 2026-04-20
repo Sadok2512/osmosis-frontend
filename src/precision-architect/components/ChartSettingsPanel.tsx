@@ -297,19 +297,22 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 /* ---------------- Tab: Data Source (split in 2 sub-sections) ---------------- */
 
 function DataSourceTab({
-  config, patchData, addMetric, addMetricsFromKeys, updateMetric, removeMetric, title, onTitleChange,
-  kpiOptions, kpisLoading, dimensionOptions, filtersLoading,
+  config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   addMetric: () => void;
   addMetricsFromKeys: (keys: string[]) => void;
+  addCountersFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   title: string;
   onTitleChange: (t: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
+  kpiCatalogForSelector: KpiCatalogEntry[];
+  counterCatalog: any[];
   dimensionOptions: string[];
   filtersLoading: boolean;
 }) {
@@ -348,10 +351,13 @@ function DataSourceTab({
           metrics={config.metrics}
           addMetric={addMetric}
           addMetricsFromKeys={addMetricsFromKeys}
+          addCountersFromKeys={addCountersFromKeys}
           updateMetric={updateMetric}
           removeMetric={removeMetric}
           kpiOptions={kpiOptions}
           kpisLoading={kpisLoading}
+          kpiCatalogForSelector={kpiCatalogForSelector}
+          counterCatalog={counterCatalog}
         />
       )}
       {sub === 'time' && (
