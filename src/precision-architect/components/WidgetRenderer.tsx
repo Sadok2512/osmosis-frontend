@@ -3,10 +3,13 @@ import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Type, Palette,
 } from 'lucide-react';
-import { DynWidget, ChartWidgetConfig } from '../types';
+import { DynWidget, ChartWidgetConfig, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
 import PATableWidget from './PATableWidget';
+import PAHeroWidget from './PAHeroWidget';
+import PAStatWidget from './PAStatWidget';
+import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
@@ -63,6 +66,34 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
   }
   if (w.kind === 'image') {
     return <ImageWidgetBody widget={w} editable={editable} onChange={onChange} />;
+  }
+  if (w.kind === 'hero') {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="widget-drag-handle cursor-move h-3 -mt-1" />
+        <div className="flex-1 min-h-0">
+          <PAHeroWidget widget={w} />
+        </div>
+      </div>
+    );
+  }
+  if (w.kind === 'stat') {
+    return (
+      <div className="h-full relative">
+        <div className="widget-drag-handle cursor-move absolute inset-x-0 top-0 h-4 z-10" />
+        <PAStatWidget widget={w} />
+      </div>
+    );
+  }
+  if (w.kind === 'divider') {
+    return (
+      <div className="h-full relative">
+        <div className="widget-drag-handle cursor-move absolute inset-0 z-0" />
+        <div className="relative z-10 pointer-events-none">
+          <PADividerWidget widget={w} />
+        </div>
+      </div>
+    );
   }
   // kpi
   return (

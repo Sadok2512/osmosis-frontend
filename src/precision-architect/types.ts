@@ -1,6 +1,6 @@
 export type ViewMode = 'view' | 'edit' | 'presentation';
 
-export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table' | 'text' | 'image';
+export type WidgetKind = 'chart' | 'map' | 'kpi' | 'table' | 'text' | 'image' | 'hero' | 'stat' | 'divider';
 
 export interface WidgetLayout {
   x: number;
@@ -141,6 +141,68 @@ export const DEFAULT_TABLE_CONFIG: TableWidgetConfig = {
   topN: 50,
 };
 
+/** Configuration for the new manually-edited "premium" widgets. */
+export type HeroAlign = 'left' | 'center' | 'right';
+export type HeroSize = 'sm' | 'md' | 'lg' | 'xl';
+export type StatTheme = 'dark' | 'light' | 'glass';
+
+export interface HeroWidgetConfig {
+  title: string;
+  subtitle: string;
+  align: HeroAlign;
+  size: HeroSize;
+  /** Hex color for the title text. Empty = inherit. */
+  titleColor?: string;
+  /** Hex color for the subtitle text. Empty = inherit. */
+  subtitleColor?: string;
+  /** Optional eyebrow label above the title (small uppercase). */
+  eyebrow?: string;
+}
+
+export interface StatWidgetConfig {
+  label: string;
+  value: string;
+  unit: string;
+  /** Optional accent color (hex). Empty = primary token. */
+  accentColor?: string;
+  theme: StatTheme;
+  /** Pulse dot in the top-right (e.g. live indicator). */
+  showPulse: boolean;
+}
+
+export interface DividerWidgetConfig {
+  label?: string;
+  /** Style of the divider line. */
+  style: 'solid' | 'dashed' | 'dotted' | 'gradient';
+  /** Hex color. Empty = primary token. */
+  color?: string;
+  thickness: number;
+  align: HeroAlign;
+}
+
+export const DEFAULT_HERO_CONFIG: HeroWidgetConfig = {
+  title: 'Global Throughput',
+  subtitle: 'Real-time aggregate data flow across all nodes, monitored with millisecond precision.',
+  align: 'left',
+  size: 'lg',
+  eyebrow: '',
+};
+
+export const DEFAULT_STAT_CONFIG: StatWidgetConfig = {
+  label: 'Peak Rate',
+  value: '1.42',
+  unit: 'Tb/s',
+  theme: 'dark',
+  showPulse: false,
+};
+
+export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {
+  label: '',
+  style: 'gradient',
+  thickness: 1,
+  align: 'center',
+};
+
 export interface DynWidget {
   id: string;
   kind: WidgetKind;
@@ -159,6 +221,12 @@ export interface DynWidget {
   tableConfig?: TableWidgetConfig;
   /** Last table configuration explicitly applied by the user. */
   appliedTableConfig?: TableWidgetConfig;
+  /** Hero widget settings. */
+  heroConfig?: HeroWidgetConfig;
+  /** Stat card widget settings. */
+  statConfig?: StatWidgetConfig;
+  /** Divider widget settings. */
+  dividerConfig?: DividerWidgetConfig;
   /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
   appliedRev?: number;
   layout: WidgetLayout;
@@ -199,11 +267,35 @@ export interface PASection {
   description: string;
 }
 
+/** Dashboard-level theme applied to the canvas background and widget accents. */
+export interface DashboardTheme {
+  /** Background style for the dashboard canvas. */
+  background: 'light' | 'dark' | 'gradient';
+  /** Accent color (hex) used by Hero/Stat widgets when no explicit color is set. */
+  accentColor: string;
+  /** Page-level title shown above the grid. */
+  pageTitle: string;
+  /** Page-level subtitle shown under the title. */
+  pageSubtitle: string;
+  /** Show or hide the page title block. */
+  showPageHeader: boolean;
+}
+
+export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
+  background: 'light',
+  accentColor: '#00685f',
+  pageTitle: '',
+  pageSubtitle: '',
+  showPageHeader: false,
+};
+
 export interface PAPage {
   id: string;
   name: string;
   widgets: DynWidget[];
   sections: PASection[];
+  /** Optional theme override per page. Falls back to DEFAULT_DASHBOARD_THEME. */
+  theme?: DashboardTheme;
 }
 
 export interface KPI {

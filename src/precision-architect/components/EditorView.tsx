@@ -17,6 +17,9 @@ import {
   FileText,
   MessageSquare,
   SlidersHorizontal,
+  Heading1,
+  Hash,
+  Minus,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
@@ -24,7 +27,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -32,6 +35,7 @@ import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
+import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
 
@@ -55,6 +59,9 @@ const DEFAULT_SIZES: Record<WidgetKind, { w: number; h: number }> = {
   kpi: { w: 3, h: 3 },
   text: { w: 6, h: 3 },
   image: { w: 4, h: 4 },
+  hero: { w: 12, h: 3 },
+  stat: { w: 3, h: 3 },
+  divider: { w: 12, h: 1 },
 };
 
 function findFreeSpot(widgets: DynWidget[], w: number): { x: number; y: number } {
@@ -129,7 +136,13 @@ export default function EditorView({
       kind,
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
+    if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
+    if (kind === 'stat') newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+    if (kind === 'divider') newWidget.dividerConfig = { ...DEFAULT_DIVIDER_CONFIG };
     updateWidgets(w => [...w, newWidget]);
+    if (kind === 'hero' || kind === 'stat' || kind === 'divider') {
+      setActiveWidget(newWidget.id);
+    }
   };
   const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
 
@@ -412,6 +425,17 @@ export default function EditorView({
             );
           }
 
+          // Premium manually-edited widgets share a unified settings panel.
+          if (w.kind === 'hero' || w.kind === 'stat' || w.kind === 'divider') {
+            return (
+              <PremiumWidgetSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
           // Other widget kinds keep the legacy bottom panel.
           const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
@@ -512,6 +536,9 @@ export default function EditorView({
         <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
           <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
             {([
+              { icon: Heading1, label: 'Hero Title', kind: 'hero' as const },
+              { icon: Hash, label: 'Stat Card', kind: 'stat' as const },
+              { icon: Minus, label: 'Divider', kind: 'divider' as const },
               { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
               { icon: MapIcon, label: 'Map', kind: 'map' as const },
               { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
