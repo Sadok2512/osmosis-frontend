@@ -398,4 +398,3 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     </div>
   );
 }
-}
