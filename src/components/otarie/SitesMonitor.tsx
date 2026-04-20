@@ -5686,16 +5686,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   );
 
   // Clear cell cache when filters change
-  const prevBboxFiltersRef = useRef<string>('');
+  const prevBboxFiltersCacheRef = useRef<string>('');
   useEffect(() => {
     const filterKey = JSON.stringify(currentBboxFilters);
-    if (prevBboxFiltersRef.current && prevBboxFiltersRef.current !== filterKey) {
+    if (prevBboxFiltersCacheRef.current && prevBboxFiltersCacheRef.current !== filterKey) {
       cellLoadAttemptedRef.current.clear();
       cellLoadingRef.current.clear();
       cellLoadAttemptCountRef.current.clear();
       invalidateBboxCache();
     }
-    prevBboxFiltersRef.current = filterKey;
+    prevBboxFiltersCacheRef.current = filterKey;
   }, [currentBboxFilters]);
 
   useEffect(() => {
