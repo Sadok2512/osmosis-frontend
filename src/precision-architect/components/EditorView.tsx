@@ -536,6 +536,9 @@ export default function EditorView({
         <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
           <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
             {([
+              { icon: Heading1, label: 'Hero Title', kind: 'hero' as const },
+              { icon: Hash, label: 'Stat Card', kind: 'stat' as const },
+              { icon: Minus, label: 'Divider', kind: 'divider' as const },
               { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
               { icon: MapIcon, label: 'Map', kind: 'map' as const },
               { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
