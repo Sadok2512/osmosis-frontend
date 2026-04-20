@@ -501,6 +501,49 @@ const getRenderableCellsForSite = (
   });
 };
 
+const isCellVisibleForKpiOverlay = (
+  cell: CellProperties,
+  kpiTechnoFilter: '4G' | '5G',
+  enabledTechnos: Set<TechGroup>,
+  isBandEnabled: (bande?: string | null, techno?: string | null) => boolean,
+  dashboardBandFilter?: string[] | null,
+  dashboardTechnoFilter?: string[] | null,
+  localTechno: string = 'ALL',
+  localBande: string = 'ALL',
+) => {
+  const techGroup = getCellTechGroup(cell.techno);
+  if (!techGroup || techGroup !== kpiTechnoFilter) return false;
+  if (!enabledTechnos.has(techGroup)) return false;
+  if (localTechno !== 'ALL' && techGroup !== localTechno) return false;
+  if (localBande !== 'ALL' && cell.bande !== localBande) return false;
+
+  const dashBandsRaw = dashboardBandFilter && dashboardBandFilter.length > 0
+    ? dashboardBandFilter.map(b => String(b).trim().toUpperCase())
+    : null;
+  const dashBands = dashBandsRaw
+    ? new Set([...dashBandsRaw, ...dashBandsRaw.map(b => normalizeBandKey(b) || b)])
+    : null;
+  const dashTechs = dashboardTechnoFilter && dashboardTechnoFilter.length > 0
+    ? new Set(dashboardTechnoFilter.map(t => String(t).trim().toUpperCase()))
+    : null;
+
+  if (dashBands) {
+    const rawCellBand = String(cell.bande || '').trim().toUpperCase();
+    const normalizedCellBand = normalizeBandKey(cell.bande || '', cell.techno) || rawCellBand;
+    if (rawCellBand && !dashBands.has(rawCellBand) && !dashBands.has(normalizedCellBand)) {
+      return false;
+    }
+  }
+
+  if (dashTechs) {
+    const cellTech = String(cell.techno || '').trim().toUpperCase();
+    const groupUpper = String(techGroup).toUpperCase();
+    if (!dashTechs.has(cellTech) && !dashTechs.has(groupUpper)) return false;
+  }
+
+  return isBandEnabled(cell.bande, cell.techno);
+};
+
 /** Build label text for a site based on selected label fields */
 const buildSiteLabel = (site: SiteSummary, fields: Set<string>): string => {
   if (fields.size === 0) return '';
@@ -5711,13 +5754,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // A site is kept if ANY of its cells matches a visible level (avoids hiding
     // a site just because its first cell has no KPI data while another cell does).
     if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
+      const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+      const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
       candidates = candidates.filter(s => {
-        const cells = s.cells || [];
+        const cells = (s.cells || []).filter(c => isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande));
         if (cells.length === 0) {
           const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
           return !hiddenKpiLevels.has(getKpiLevel(val));
         }
-        // Site visible if at least one cell falls into a non-hidden level
         return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
       });
     }
@@ -5731,7 +5775,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi]);
+  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi, dashboardActive, activeDashboardFilters, kpiTechnoFilter, enabledTechnos, isBandEnabled, localTechno, localBande]);
 
   // Cell counts per KPI level (used in the legend). Computed from all
   // dashboard-filtered sites (mapFilteredSites), independent of legend toggles
@@ -5748,21 +5792,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         counts[getKpiLevel(val)]++;
       } else {
         for (const c of cells) {
-          const tech = getCellTechGroup(c.techno);
-          // Strict techno gate: KPI overlay is fetched for kpiTechnoFilter only.
-          if (!tech || tech !== kpiTechnoFilter) continue;
-          // Respect interactive legend (techno toggles)
-          if (!enabledTechnos.has(tech)) continue;
-          // Respect band toggles + dashboard band/techno filters
-          if (!isBandEnabled(c.bande, c.techno)) continue;
-          if (dashBand && dashBand.length > 0 && !dashBand.includes(c.bande)) continue;
-          if (dashTechno && dashTechno.length > 0 && !dashTechno.includes(tech)) continue;
+          if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande)) continue;
           counts[getKpiLevel(getCellKpiValue(c))]++;
         }
       }
     }
     return counts;
-  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters]);
+  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
@@ -7109,7 +7145,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Points mode — individual cell markers */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
-          const cellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
+          const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+          const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
+          const baseCellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
+          const cellsToRender = sectorColorMode === 'kpi'
+            ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande))
+            : baseCellsToRender;
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
@@ -7250,17 +7291,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             for (const cell of renderCells) {
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
-              if (tech === '2G' && !enabledTechnos.has('2G')) continue;
-              if (tech === '3G' && !enabledTechnos.has('3G')) continue;
-              if (tech === '4G' && !enabledTechnos.has('4G')) continue;
-              if (tech === '5G' && !enabledTechnos.has('5G')) continue;
-              if (mapTechnoFilter === '4G' && tech !== '4G') continue;
-              if (mapTechnoFilter === '5G' && tech !== '5G') continue;
-              if (localTechno !== 'ALL' && tech !== localTechno) continue;
-              if (localBande !== 'ALL' && cell.bande !== localBande) continue;
-              if (!isBandEnabled(cell.bande, cell.techno)) continue;
-              if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) continue;
-              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => tech === t || cell.techno === t)) continue;
+              if (sectorColorMode === 'kpi') {
+                if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande)) continue;
+              } else {
+                if (tech === '2G' && !enabledTechnos.has('2G')) continue;
+                if (tech === '3G' && !enabledTechnos.has('3G')) continue;
+                if (tech === '4G' && !enabledTechnos.has('4G')) continue;
+                if (tech === '5G' && !enabledTechnos.has('5G')) continue;
+                if (mapTechnoFilter === '4G' && tech !== '4G') continue;
+                if (mapTechnoFilter === '5G' && tech !== '5G') continue;
+                if (localTechno !== 'ALL' && tech !== localTechno) continue;
+                if (localBande !== 'ALL' && cell.bande !== localBande) continue;
+                if (!isBandEnabled(cell.bande, cell.techno)) continue;
+                if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) continue;
+                if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => tech === t || cell.techno === t)) continue;
+              }
               const az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360) continue;
               const bandKey = normalizeBandKey(cell.bande, cell.techno);
@@ -7890,7 +7935,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
+          const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+          const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
+          const baseDetailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
+          const detailCells = sectorColorMode === 'kpi'
+            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande))
+            : baseDetailCells;
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
