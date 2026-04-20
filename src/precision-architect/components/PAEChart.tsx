@@ -197,9 +197,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
       backgroundColor: bgColor,
       grid: {
         top: legendPos === 'top' && showLegend ? legendBlockSize + 16 : (isPresentation ? 28 : 20),
-        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 56 : 20),
+        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 48 : 12),
         bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 12 : 32,
-        left: 52,
+        left: 8,
         containLabel: true,
       },
       legend,
