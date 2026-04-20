@@ -3,10 +3,13 @@ import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Type, Palette,
 } from 'lucide-react';
-import { DynWidget, ChartWidgetConfig } from '../types';
+import { DynWidget, ChartWidgetConfig, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
 import PATableWidget from './PATableWidget';
+import PAHeroWidget from './PAHeroWidget';
+import PAStatWidget from './PAStatWidget';
+import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
