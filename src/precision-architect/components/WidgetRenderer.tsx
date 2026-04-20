@@ -8,6 +8,7 @@ import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
 import PATableWidget from './PATableWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
 interface Props {
   widget: DynWidget;
@@ -312,14 +313,35 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   const cfg: ChartWidgetConfig | undefined = w.config;
   const hasMetrics = !!cfg && cfg.metrics.length > 0;
-  const hasBeenApplied = (w.appliedRev ?? 0) > 0;
+
+  // Global report-level toolbar (top of editor) — inherited by default.
+  const global = usePAGlobalToolbar();
+
+  // Resolve effective time/filter source: global if widget inherits, else per-widget config.
+  const inheritsTime = cfg?.data.timeRange?.inherit !== false; // default true
+  const inheritsScope = cfg?.data.inheritFromDashboard !== false; // default true
+
+  // Apply trigger: if inheriting, react to the global Apply; else to the widget's own Apply.
+  const effectiveAppliedRev = inheritsTime || inheritsScope
+    ? Math.max(w.appliedRev ?? 0, global.appliedRev)
+    : (w.appliedRev ?? 0);
+  const hasBeenApplied = effectiveAppliedRev > 0;
 
   const request: TimeseriesRequest | null = useMemo(() => {
     if (!cfg || !hasMetrics || !hasBeenApplied) return null;
 
+    // Pick effective values from global toolbar OR per-widget overrides
+    const eff = {
+      from: inheritsTime ? global.from : cfg.data.timeRange.from,
+      to: inheritsTime ? global.to : cfg.data.timeRange.to,
+      granularity: inheritsTime ? global.grain : cfg.data.granularity,
+      technos: inheritsScope ? global.technos : cfg.data.technos,
+      filters: inheritsScope ? global.filters : cfg.data.filters,
+    };
+
     // ── 1. Filters (chip[] → IN clauses, dimension uppercased like Investigator) ──
     const byDim = new Map<string, string[]>();
-    cfg.data.filters.forEach(f => {
+    eff.filters.forEach(f => {
       const dim = f.dimension.toUpperCase();
       const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
@@ -333,7 +355,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
 
     // ── 2. Technology perimeter chips (4G/5G…) → TECHNOLOGY filter, but only if not "all selected" ──
     const ALL_TECHS = new Set(['2g', '3g', '4g', '5g']);
-    const selectedTechs = (cfg.data.technos || []).map(t => t.toLowerCase());
+    const selectedTechs = (eff.technos || []).map(t => t.toLowerCase());
     const allSelected = selectedTechs.length >= 4 && selectedTechs.every(t => ALL_TECHS.has(t));
     if (selectedTechs.length > 0 && !allSelected) {
       filters.push({
@@ -347,15 +369,12 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     const grainMap: Record<string, string> = {
       'auto': '1h', '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
     };
-    const granularity = grainMap[cfg.data.granularity] ?? '1h';
+    const granularity = grainMap[eff.granularity] ?? '1h';
 
-    // ── 4. Date normalization — Investigator rule:
-    //      15min/1h → YYYY-MM-DDTHH:mm:00 (always with seconds, ClickHouse requires it)
-    //      1d → YYYY-MM-DD ──
+    // ── 4. Date normalization ──
     const normalizeDate = (raw: string): string => {
       if (!raw) return raw;
       if (granularity === '1d') return raw.split('T')[0];
-      // High-res grain → ensure full datetime with seconds
       if (/T\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
       if (/T\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
       if (!raw.includes('T')) return `${raw}T00:00:00`;
@@ -363,8 +382,8 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     };
 
     return {
-      date_from: normalizeDate(cfg.data.timeRange.from),
-      date_to: normalizeDate(cfg.data.timeRange.to),
+      date_from: normalizeDate(eff.from),
+      date_to: normalizeDate(eff.to),
       granularity,
       filters,
       selections: cfg.metrics.filter(m => m.visible).map(m => ({
@@ -374,11 +393,9 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       split_by: null,
       top_n: 10,
     };
-    // Re-fire the request only when the user clicks Appliquer (rev bumps).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [w.appliedRev]);
+  }, [effectiveAppliedRev]);
 
-  // Debug trace so the user can confirm the backend is being called
   useEffect(() => {
     if (request) {
       console.log('[PA Chart] ▶ POST /monitor/query/timeseries', request);
@@ -397,7 +414,6 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     if (error) console.warn('[PA Chart] ✖ error', error);
   }, [tsResp, error]);
 
-  // Pivot the flat series response into per-metric arrays + a shared X axis.
   const { seriesByMetric, xAxisLabels } = useMemo(() => {
     const empty = { seriesByMetric: {} as Record<string, { time: string; value: number }[]>, xAxisLabels: [] as string[] };
     if (!tsResp || !cfg || !tsResp.series || tsResp.series.length === 0) return empty;
@@ -420,7 +436,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       variant="editor"
       height="100%"
       config={cfg}
-      appliedRev={w.appliedRev}
+      appliedRev={effectiveAppliedRev}
       seriesByMetric={seriesByMetric}
       xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
       loading={isFetching}

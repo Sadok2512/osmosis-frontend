@@ -1,13 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Filter, Calendar, Clock, Flag, ChevronDown, Plus, X, Check } from 'lucide-react';
+import { Filter, Clock, Flag, ChevronDown, Plus, X, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import DateRangePopover from './DateRangePopover';
-
-type TechnoId = '2g' | '3g' | '4g' | '5g';
-type PeriodPreset = '1j' | '3j' | '7j' | '14j' | '30j' | 'custom';
-type GrainOption = '5min' | '15min' | '30min' | '1h' | '1d';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import type { TechnoId, PeriodPreset, GrainOption } from '../types';
 
 const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
@@ -33,82 +31,63 @@ const GRAINS: { id: GrainOption; label: string }[] = [
   { id: '1d', label: '1 j' },
 ];
 
-// Fallback dimensions (when backend catalog is unreachable). Vendor is included.
-const FALLBACK_DIMENSIONS = [
-  'Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI',
-];
-
-interface ActiveFilter {
-  id: string;
-  dimension: string;
-  value: string;
-}
+const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI'];
 
 interface Props {
+  /** Optional callback fired AFTER the global Apply has been recorded. */
   onApply?: () => void;
 }
 
-function formatDateDisplay(iso: string): { date: string; time: string } {
-  if (!iso) return { date: '—', time: '' };
-  const [d, t = '00:00'] = iso.split('T');
-  const [y, m, day] = d.split('-');
-  return { date: `${day}/${m}/${y}`, time: t.slice(0, 5) };
-}
-
 const PAToolbar: React.FC<Props> = ({ onApply }) => {
-  // Live filter dimensions from backend (Vendor, Plaque, DOR, DR, Bande, Techno, etc.)
   const { data: filterCatalog, isLoading: filtersLoading } = useFilterCatalog();
   const dimensionOptions = useMemo(() => {
     if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_DIMENSIONS;
     const fromBackend = filterCatalog
       .filter(f => (f as any).is_active !== false)
       .map(f => f.display_name || f.dimension_key);
-    // Ensure Vendor is always present even if backend forgot it
-    if (!fromBackend.some(d => d.toLowerCase() === 'vendor')) {
-      fromBackend.push('Vendor');
-    }
+    if (!fromBackend.some(d => d.toLowerCase() === 'vendor')) fromBackend.push('Vendor');
     return fromBackend;
   }, [filterCatalog]);
 
-  const [technos, setTechnos] = useState<TechnoId[]>(['2g', '3g', '4g', '5g']);
-  const [from, setFrom] = useState('2026-04-13T00:00');
-  const [to, setTo] = useState('2026-04-15T00:00');
-  const [preset, setPreset] = useState<PeriodPreset>('3j');
-  const [grain, setGrain] = useState<GrainOption>('15min');
+  // Global report-level state — single source of truth for all widgets that inherit.
+  const {
+    technos, from, to, preset, grain, filters,
+    setTechnos, setRange, setPreset, setGrain, setFilters, apply,
+  } = usePAGlobalToolbar();
 
-  const [filters, setFilters] = useState<ActiveFilter[]>([
-    { id: 'f-1', dimension: 'Plaque', value: 'NANTES' },
-  ]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftDim, setDraftDim] = useState<string>('');
   const [draftVal, setDraftVal] = useState<string>('');
 
   const toggleTechno = (id: TechnoId) =>
-    setTechnos(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
+    setTechnos(technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id]);
 
   const applyPreset = (p: PeriodPreset) => {
-    setPreset(p);
     const cfg = PERIODS.find(x => x.id === p);
     if (p !== 'custom' && cfg?.days) {
       const toD = new Date(to || new Date().toISOString());
       const fromD = new Date(toD.getTime() - cfg.days * 86400000);
-      setFrom(fromD.toISOString().slice(0, 16));
-      setTo(toD.toISOString().slice(0, 16));
+      setRange(fromD.toISOString().slice(0, 16), toD.toISOString().slice(0, 16), p);
+    } else {
+      setPreset(p);
     }
   };
 
-  const removeFilter = (id: string) => setFilters(prev => prev.filter(f => f.id !== id));
+  const removeFilter = (id: string) => setFilters(filters.filter(f => f.id !== id));
   const clearFilters = () => setFilters([]);
   const addFilter = () => {
     if (!draftDim || !draftVal.trim()) return;
-    setFilters(prev => [...prev, { id: `f-${Date.now()}`, dimension: draftDim, value: draftVal.trim() }]);
+    setFilters([...filters, { id: `f-${Date.now()}`, dimension: draftDim, value: draftVal.trim() }]);
     setDraftDim('');
     setDraftVal('');
     setPickerOpen(false);
   };
 
-  const fromDisp = formatDateDisplay(from);
-  const toDisp = formatDateDisplay(to);
+  const handleApply = () => {
+    apply();
+    onApply?.();
+  };
+
   const periodLabel = PERIODS.find(p => p.id === preset)?.label
     .replace(' jours', 'j').replace(' jour', 'j').replace('Personnalisé', 'Custom') ?? '—';
   const grainLabel = GRAINS.find(g => g.id === grain)?.label ?? grain;
@@ -117,7 +96,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
     <div className="bg-surface-container-low/40 border-b border-outline-variant/20">
       {/* Scope / date row */}
       <div className="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-outline-variant/10">
-        {/* Périmètre — interactive */}
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -168,14 +146,12 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        {/* Date range — unified Investigator-style dual calendar */}
         <DateRangePopover
           from={from}
           to={to}
-          onChange={(f, t) => { setFrom(f); setTo(t); setPreset('custom'); }}
+          onChange={(f, t) => setRange(f, t, 'custom')}
         />
 
-        {/* Période preset */}
         <Popover>
           <PopoverTrigger asChild>
             <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
@@ -202,7 +178,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        {/* Grain */}
         <Popover>
           <PopoverTrigger asChild>
             <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary transition-colors">
@@ -228,7 +203,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        {/* Jalons (display only) */}
         <div className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface">
           <Flag className="w-3.5 h-3.5 text-rose-500" />
           <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
@@ -237,7 +211,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
         <div className="ml-auto">
           <button
-            onClick={onApply}
+            onClick={handleApply}
             className="h-9 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all"
           >
             Appliquer
