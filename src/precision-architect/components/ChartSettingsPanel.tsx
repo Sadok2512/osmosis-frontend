@@ -16,7 +16,8 @@ interface Props {
 
 type Tab = 'data' | 'appearance' | 'jalons';
 
-const KPI_OPTIONS = [
+// Fallback KPI list (used only when backend catalog is unreachable)
+const FALLBACK_KPI_OPTIONS = [
   { key: 'qoe_index', label: 'QoE Index', unit: '%' },
   { key: 'debit_dl', label: 'Débit DL', unit: 'Mbps' },
   { key: 'debit_ul', label: 'Débit UL', unit: 'Mbps' },
@@ -28,12 +29,10 @@ const KPI_OPTIONS = [
   { key: 'instability_rate', label: 'Instability Rate', unit: '%' },
 ];
 
-const FILTER_DIMS = [
-  { key: 'plaque' as const, label: 'Plaque', options: ['Nord', 'Sud', 'Est', 'Ouest', 'IDF'] },
-  { key: 'region' as const, label: 'Region', options: ['Hauts-de-France', 'PACA', 'Auvergne', 'Bretagne'] },
-  { key: 'vendor' as const, label: 'Vendor', options: ['Ericsson', 'Nokia', 'Huawei'] },
-  { key: 'site' as const, label: 'Site', options: [] },
-];
+// Fallback dimensions (used only if backend filter catalog is unreachable)
+const FALLBACK_TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI'];
+
+
 
 const COLOR_PALETTE = ['#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#10b981', '#ec4899'];
 
