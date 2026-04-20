@@ -311,7 +311,9 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
  *      (project rule: apply-only-backend-execution).
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
-  const cfg: ChartWidgetConfig | undefined = w.config;
+  const cfg: ChartWidgetConfig | undefined = (w.appliedRev ?? 0) > 0
+    ? (w.appliedConfig ?? w.config)
+    : w.config;
   const hasMetrics = !!cfg && cfg.metrics.length > 0;
 
   // Global report-level toolbar (top of editor) — inherited by default.

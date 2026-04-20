@@ -99,6 +99,8 @@ export interface DynWidget {
   caption?: string;
   /** Chart-specific settings (used by `chart` widget). */
   config?: ChartWidgetConfig;
+  /** Last chart configuration explicitly applied by the user. Used to keep chart data stable across mode switches. */
+  appliedConfig?: ChartWidgetConfig;
   /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
   appliedRev?: number;
   layout: WidgetLayout;
