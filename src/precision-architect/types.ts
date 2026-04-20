@@ -97,6 +97,8 @@ export interface DynWidget {
   caption?: string;
   /** Chart-specific settings (used by `chart` widget). */
   config?: ChartWidgetConfig;
+  /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
+  appliedRev?: number;
   layout: WidgetLayout;
 }
 
