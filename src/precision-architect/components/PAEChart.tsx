@@ -81,21 +81,30 @@ const PAEChart: React.FC<PAEChartProps> = ({
     if (cfg && cfg.metrics.length > 0) {
       const visible = cfg.metrics.filter(m => m.visible);
       const hasRight = visible.some(m => m.axis === 'right');
+      const hasLeft = visible.some(m => m.axis === 'left' || m.axis == null);
+      // Pick a representative color per axis (first metric on that side)
+      const leftColor = visible.find(m => m.axis !== 'right')?.color ?? labelColor;
+      const rightColor = visible.find(m => m.axis === 'right')?.color ?? labelColor;
       yAxis = [
         {
           type: 'value' as const,
           position: 'left',
-          axisLine: { show: false },
+          show: hasLeft,
+          axisLine: { show: hasRight, lineStyle: { color: leftColor } },
           axisTick: { show: false },
-          axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
+          axisLabel: {
+            fontSize: 9,
+            color: hasRight ? leftColor : labelColor,
+            fontWeight: 700,
+          },
           splitLine: style.grid ? { lineStyle: { color: splitLine, type: 'dashed' as const } } : { show: false },
         },
         ...(hasRight ? [{
           type: 'value' as const,
           position: 'right',
-          axisLine: { show: false },
+          axisLine: { show: true, lineStyle: { color: rightColor } },
           axisTick: { show: false },
-          axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
+          axisLabel: { fontSize: 9, color: rightColor, fontWeight: 700 },
           splitLine: { show: false },
         }] : []),
       ];
@@ -169,11 +178,12 @@ const PAEChart: React.FC<PAEChartProps> = ({
       itemWidth: 10, itemHeight: 6,
     };
 
+    const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible && m.axis === 'right');
     return {
       backgroundColor: bgColor,
       grid: {
         top: legendPos === 'top' ? 36 : (isPresentation ? 24 : 16),
-        right: legendPos === 'right' ? 100 : 16,
+        right: legendPos === 'right' ? 100 : (hasRightAxis ? 48 : 16),
         bottom: legendPos === 'bottom' ? 36 : 28,
         left: 44,
       },

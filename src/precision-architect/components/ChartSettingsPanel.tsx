@@ -1017,7 +1017,11 @@ function MetricsTab({
                         {(['left', 'right'] as AxisSide[]).map(side => (
                           <button
                             key={side}
-                            onClick={() => updateMetric(m.id, { axis: side })}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              updateMetric(m.id, { axis: side });
+                            }}
                             className={cn(
                               'flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors',
                               m.axis === side ? 'bg-primary text-on-primary' : 'bg-white text-on-surface-variant hover:bg-surface-container-low'
