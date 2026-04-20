@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check, Cpu } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartType, TechnoId, PeriodPreset, GrainOption, ChartFilterChip,
@@ -10,7 +11,10 @@ import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import DateRangePopover from './DateRangePopover';
-import BIKpiSelectorModal from '@/components/bi/BIKpiSelectorModal';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
+import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 interface Props {
   widget: DynWidget;
