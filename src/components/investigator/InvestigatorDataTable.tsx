@@ -252,6 +252,25 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     [tableData, siteName, filterContext, forceSplitOff, activeSlot]
   );
 
+  // Per-KPI min/max for inline progress bars
+  const kpiRanges = useMemo(() => {
+    const ranges: Record<string, { min: number; max: number }> = {};
+    for (const kpi of kpiColumns) {
+      let min = Infinity, max = -Infinity;
+      for (const r of rows) {
+        const v = r.kpiValues[kpi];
+        if (v == null || !isFinite(v)) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      ranges[kpi] = {
+        min: isFinite(min) ? min : 0,
+        max: isFinite(max) ? max : 0,
+      };
+    }
+    return ranges;
+  }, [rows, kpiColumns]);
+
   const totalRows = rows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const safePage = Math.min(currentPage, totalPages - 1);
