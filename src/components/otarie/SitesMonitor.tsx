@@ -5731,6 +5731,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi]);
 
+  // Cell counts per KPI level (used in the legend). Computed from all
+  // dashboard-filtered sites (mapFilteredSites), independent of legend toggles
+  // so counts remain stable when the user hides/shows levels.
+  const kpiLevelCounts = useMemo(() => {
+    const counts = { green: 0, orange: 0, red: 0, gray: 0 } as Record<'green'|'orange'|'red'|'gray', number>;
+    if (sectorColorMode !== 'kpi') return counts;
+    for (const s of mapFilteredSites) {
+      const cells = s.cells || [];
+      if (cells.length === 0) {
+        const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
+        counts[getKpiLevel(val)]++;
+      } else {
+        for (const c of cells) counts[getKpiLevel(getCellKpiValue(c))]++;
+      }
+    }
+    return counts;
+  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel]);
+
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
   const sectorDensityFactor = useMemo(() => {
     const count = visibleSites.length;
@@ -9150,18 +9168,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     ];
                 return levels.map(({ level, color, label, qualifier }) => {
                   const hidden = hiddenKpiLevels.has(level);
+                  const count = kpiLevelCounts[level] || 0;
                   return (
                     <button
                       key={level}
                       onClick={() => toggleKpiLevel(level)}
                       className={`flex items-center gap-2 w-full px-1.5 py-1 rounded-md transition-all cursor-pointer hover:bg-muted/50 ${hidden ? 'opacity-35' : ''}`}
-                      title={hidden ? `Afficher ${qualifier || label}` : `Masquer ${qualifier || label}`}
+                      title={hidden ? `Afficher ${qualifier || label} (${count} cellules)` : `Masquer ${qualifier || label} (${count} cellules)`}
                     >
                       <span className="w-3 h-3 rounded-full shrink-0 relative" style={{ background: color }}>
                         {hidden && <X size={8} className="absolute inset-0 m-auto text-white" />}
                       </span>
                       <span className={`text-[10px] font-semibold ${level === 'gray' ? 'text-muted-foreground' : 'text-foreground'}`}>{label}</span>
-                      {qualifier && <span className="text-[9px] text-muted-foreground ml-auto">{qualifier}</span>}
+                      <span className="text-[9px] font-bold tabular-nums text-foreground/80 ml-auto px-1.5 py-0.5 rounded-full bg-muted/60 min-w-[20px] text-center">{count}</span>
+                      {qualifier && <span className="text-[9px] text-muted-foreground w-12 text-right">{qualifier}</span>}
                     </button>
                   );
                 });
