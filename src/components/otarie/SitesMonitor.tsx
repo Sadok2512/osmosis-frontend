@@ -4799,6 +4799,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
   // Uses in-memory cache (5min TTL) — re-selecting same KPI returns instantly without flash
   useEffect(() => {
+    console.log('[KPI Overlay] Effect triggered:', { sectorColorMode, mapKpi, kpiDateFrom, kpiDateTo });
     if (sectorColorMode !== 'kpi' || !mapKpi) {
       setKpiValues(new Map());
       return;
@@ -10783,6 +10784,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setSectorColorMode('kpi');
                       // Apply KPI overlays from view config — accept all KPIs (catalog may still be loading)
                       const cfgOverlays = (cfg.kpis || []).map((k: any) => k.kpiKey).filter(Boolean);
+                      console.log('[KPI Overlay] View activated:', { cfgOverlays, technology: cfg.technology, level: cfg.level, dateFrom: cfg.dateFrom, dateTo: cfg.dateTo });
                       if (cfgOverlays.length > 0) {
                         setKpiOverlays(cfgOverlays);
                         setMapKpi(cfgOverlays[0]);
