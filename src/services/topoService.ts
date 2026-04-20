@@ -634,6 +634,11 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     ? rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)
     : 'Unknown';
   const siteId = dto.code_nidt;
+  // Backend cell_count is NOT filtered by band/techno — keep both raw and effective copies
+  const backendCellCount = Number(dto.nb_cells) || 0;
+  // Defensively split CSV-mangled bands/technos arrays from VPS
+  const bandes = parseBackendList((dto as any).bandes ?? (dto as any).bands ?? (dto as any).band);
+  const technos = parseBackendList((dto as any).technos ?? (dto as any).techs ?? (dto as any).techno);
   return {
     site_id: siteId,
     site_name: dto.nom_site,
@@ -641,7 +646,8 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     dor: normalizeDorValue(dto.dor, dto.region),
     plaque: dto.plaque || '',
     department: (dto.plaque || '').replace('DEPT_', ''),
-    cell_count: Number(dto.nb_cells) || 0,
+    cell_count: backendCellCount,
+    backend_cell_count: backendCellCount,
     qoe_score_avg: 0,
     p50_thr_dn_mbps: 0,
     p50_thr_up_mbps: 0,
@@ -654,6 +660,8 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     zone_arcep: (dto as any).zone_arcep || null,
     techno: (dto as any).techno || null,
     bande: (dto as any).bande || null,
+    bandes,
+    technos,
     lte_cells: dto.lte_cells || 0,
     nr_cells: dto.nr_cells || 0,
     cells_2g: (dto as any).cells_2g || 0,
