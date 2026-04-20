@@ -1554,7 +1554,9 @@ const ProgressiveFilterBuilder: React.FC<{
   }, [pickerOpen]);
 
   const activeKeys = useMemo(
-    () => Object.entries(filters).filter(([, v]) => v && (v as string[]).length > 0).map(([k]) => k),
+    () => Object.entries(filters)
+      .filter(([, v]) => Array.isArray(v))
+      .map(([k]) => k),
     [filters],
   );
 
@@ -1609,7 +1611,7 @@ const ProgressiveFilterBuilder: React.FC<{
           {activeKeys.map(key => {
             const dim = dimensions.find(d => d.id === key);
             if (!dim) return null;
-            const selected = (filters[key as keyof DashboardSiteFilters] as string[]) || [];
+                  const selected = (filters[key as keyof DashboardSiteFilters] as string[]) || [];
             return (
               <div
                 key={key}
