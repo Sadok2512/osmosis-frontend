@@ -681,16 +681,21 @@ function TimeFiltersToolbar({
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
-  metrics, addMetric, updateMetric, removeMetric, kpiOptions, kpisLoading,
+  metrics, addMetric, addMetricsFromKeys, updateMetric, removeMetric, kpiOptions, kpisLoading,
 }: {
   metrics: ChartMetric[];
   addMetric: () => void;
+  addMetricsFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const availableKeys = useMemo(() => kpiOptions.map(o => o.key), [kpiOptions]);
+  const selectedKeys = useMemo(() => metrics.map(m => m.kpiKey), [metrics]);
 
   return (
     <div className="space-y-3">
@@ -705,18 +710,25 @@ function MetricsTab({
           )}
         </h4>
         <button
-          onClick={() => {
-            addMetric();
-            setTimeout(() => {
-              const last = document.querySelector<HTMLDivElement>('[data-kpi-card]:last-of-type');
-              last?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 50);
-          }}
+          onClick={() => setPickerOpen(true)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" /> Add KPI
         </button>
       </div>
+
+      <BIKpiSelectorModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selectedKeys={selectedKeys}
+        availableKeys={availableKeys}
+        onConfirm={(keys) => {
+          // Add only newly-selected keys (preserve existing metric configs)
+          const existing = new Set(selectedKeys);
+          const toAdd = keys.filter(k => !existing.has(k));
+          if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+        }}
+      />
 
       <div className="space-y-2">
         {metrics.map((m) => {
