@@ -169,25 +169,25 @@ const PAEChart: React.FC<PAEChartProps> = ({
 
     const legendPos = cfg?.style.legend.position ?? 'bottom';
     const showLegend = legendData.length > 1;
-    const useScrollableLegend = legendData.length > 3;
+    const estimatedLegendRows = legendPos === 'right'
+      ? legendData.length
+      : Math.max(1, Math.ceil(legendData.length / 3));
+    const legendBlockSize = estimatedLegendRows * 18 + 10;
     const legend = {
       show: showLegend,
-      type: useScrollableLegend ? 'scroll' as const : 'plain' as const,
+      type: 'plain' as const,
       data: legendData,
       bottom: legendPos === 'bottom' ? 4 : undefined,
       top: legendPos === 'top' ? 4 : undefined,
       right: legendPos === 'right' ? 8 : 12,
       left: legendPos === 'right' ? undefined : 12,
-      width: legendPos === 'right' ? 120 : 'auto',
+      width: legendPos === 'right' ? 150 : '92%',
       orient: legendPos === 'right' ? 'vertical' as const : 'horizontal' as const,
       textStyle: { fontSize: 10, color: labelColor, fontWeight: 700 as const },
       icon: 'roundRect' as const,
       itemWidth: 10,
       itemHeight: 6,
       itemGap: 10,
-      pageIconSize: 10,
-      pageTextStyle: { color: labelColor, fontSize: 10, fontWeight: 700 as const },
-      pageButtonItemGap: 6,
       padding: [2, 4, 2, 4] as [number, number, number, number],
     };
 
@@ -195,9 +195,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return {
       backgroundColor: bgColor,
       grid: {
-        top: legendPos === 'top' && showLegend ? 36 : (isPresentation ? 28 : 20),
-        right: legendPos === 'right' && showLegend ? 150 : (hasRightAxis ? 56 : 20),
-        bottom: legendPos === 'bottom' && showLegend ? 44 : 32,
+        top: legendPos === 'top' && showLegend ? legendBlockSize + 16 : (isPresentation ? 28 : 20),
+        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 56 : 20),
+        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 12 : 32,
         left: 52,
         containLabel: true,
       },
