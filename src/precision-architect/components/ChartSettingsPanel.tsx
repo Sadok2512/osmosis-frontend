@@ -995,7 +995,7 @@ function MetricsTab({
           <div className="border border-dashed border-outline-variant/30 rounded-xl py-12 flex flex-col items-center gap-3">
             <p className="text-xs text-on-surface-variant">No metrics yet</p>
             <button
-              onClick={() => setPickerOpen(true)}
+              onClick={() => setKpiPickerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90"
             >
               <Plus className="w-3.5 h-3.5" /> Add your first KPI
