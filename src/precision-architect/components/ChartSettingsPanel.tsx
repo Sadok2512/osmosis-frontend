@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
-  DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
+  DEFAULT_CHART_CONFIG, ChartType, TechnoId, PeriodPreset, GrainOption, ChartFilterChip,
   LineStyle, AxisSide, FillStyle, BackgroundStyle, LegendPosition,
 } from '../types';
 import { cn } from '@/lib/utils';
@@ -275,7 +275,12 @@ function DataTab({
   return (
     <div className="space-y-4">
       <Section title="Time & Filters">
-        <TimeFiltersToolbar dimensionOptions={dimensionOptions} filtersLoading={filtersLoading} />
+        <TimeFiltersToolbar
+          data={data}
+          patchData={patchData}
+          dimensionOptions={dimensionOptions}
+          filtersLoading={filtersLoading}
+        />
       </Section>
     </div>
   );
@@ -283,86 +288,275 @@ function DataTab({
 
 /* ---------------- Time & Filters Toolbar (embedded in panel) ---------------- */
 
-const TF_TECHS: { id: string; label: string; bg: string; text: string }[] = [
+const TF_TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
   { id: '3g', label: '3G', bg: 'bg-amber-400', text: 'text-amber-950' },
   { id: '4g', label: '4G', bg: 'bg-orange-500', text: 'text-white' },
   { id: '5g', label: '5G', bg: 'bg-emerald-500', text: 'text-white' },
 ];
 
-// Dimensions are now sourced live from the backend (with fallback at the top of the file).
+const TF_PERIODS: { id: PeriodPreset; label: string; days?: number }[] = [
+  { id: '1j', label: '1 jour', days: 1 },
+  { id: '3j', label: '3 jours', days: 3 },
+  { id: '7j', label: '7 jours', days: 7 },
+  { id: '14j', label: '14 jours', days: 14 },
+  { id: '30j', label: '30 jours', days: 30 },
+  { id: 'custom', label: 'Personnalisé' },
+];
 
-interface TFFilter { id: string; dimension: string; value: string; }
+const TF_GRAINS: { id: GrainOption; label: string }[] = [
+  { id: '5min', label: '5 min' },
+  { id: '15min', label: '15 min' },
+  { id: '30min', label: '30 min' },
+  { id: '1h', label: '1 h' },
+  { id: '1d', label: '1 j' },
+];
 
-function TFPill({ icon, children, className }: { icon?: React.ReactNode; children: React.ReactNode; className?: string }) {
+function TFPill({
+  icon, children, className, onClick, as = 'div',
+}: {
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  onClick?: () => void;
+  as?: 'div' | 'button';
+}) {
+  const Comp: any = as;
   return (
-    <div className={cn(
-      'flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface',
-      className,
-    )}>
+    <Comp
+      onClick={onClick}
+      type={as === 'button' ? 'button' : undefined}
+      className={cn(
+        'flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface',
+        as === 'button' && 'hover:border-primary hover:text-primary cursor-pointer transition-colors',
+        className,
+      )}
+    >
       {icon}
       {children}
-    </div>
+    </Comp>
   );
 }
 
-function TimeFiltersToolbar({ dimensionOptions, filtersLoading }: { dimensionOptions: string[]; filtersLoading: boolean }) {
-  const [filters, setFilters] = useState<TFFilter[]>([
-    { id: 'f-1', dimension: 'Plaque', value: 'NANTES' },
-  ]);
+function formatDateDisplay(iso: string): { date: string; time: string } {
+  if (!iso) return { date: '—', time: '' };
+  const [d, t = '00:00'] = iso.split('T');
+  const [y, m, day] = d.split('-');
+  return { date: `${day}/${m}/${y}`, time: t.slice(0, 5) };
+}
+
+function TimeFiltersToolbar({
+  data, patchData, dimensionOptions, filtersLoading,
+}: {
+  data: ChartWidgetConfig['data'];
+  patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
+  dimensionOptions: string[];
+  filtersLoading: boolean;
+}) {
+  const technos = data.technos ?? [];
+  const filters = data.filters ?? [];
+  const tr = data.timeRange;
+
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftDim, setDraftDim] = useState('');
   const [draftVal, setDraftVal] = useState('');
 
-  const removeFilter = (id: string) => setFilters(prev => prev.filter(f => f.id !== id));
-  const clearFilters = () => setFilters([]);
+  const toggleTechno = (id: TechnoId) => {
+    const next = technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id];
+    patchData({ technos: next });
+  };
+
+  const setPreset = (preset: PeriodPreset) => {
+    const cfg = TF_PERIODS.find(p => p.id === preset);
+    if (preset !== 'custom' && cfg?.days) {
+      const to = new Date(tr.to || new Date().toISOString());
+      const from = new Date(to.getTime() - cfg.days * 86400000);
+      patchData({
+        timeRange: {
+          ...tr,
+          preset,
+          from: from.toISOString().slice(0, 16),
+          to: to.toISOString().slice(0, 16),
+        },
+      });
+    } else {
+      patchData({ timeRange: { ...tr, preset } });
+    }
+  };
+
+  const setFromDate = (v: string) => patchData({ timeRange: { ...tr, from: v, preset: 'custom' } });
+  const setToDate = (v: string) => patchData({ timeRange: { ...tr, to: v, preset: 'custom' } });
+  const setGrain = (g: GrainOption) => patchData({ granularity: g });
+
+  const removeFilter = (id: string) =>
+    patchData({ filters: filters.filter(f => f.id !== id) });
+  const clearFilters = () => patchData({ filters: [] });
   const addFilter = () => {
     if (!draftDim || !draftVal.trim()) return;
-    setFilters(prev => [...prev, { id: `f-${Date.now()}`, dimension: draftDim, value: draftVal.trim() }]);
+    const next: ChartFilterChip[] = [
+      ...filters,
+      { id: `f-${Date.now()}`, dimension: draftDim, value: draftVal.trim() },
+    ];
+    patchData({ filters: next });
     setDraftDim('');
     setDraftVal('');
     setPickerOpen(false);
   };
 
+  const fromDisp = formatDateDisplay(tr.from);
+  const toDisp = formatDateDisplay(tr.to);
+  const periodLabel = TF_PERIODS.find(p => p.id === tr.preset)?.label.replace(' jour', 'j').replace(' jours', 'j').replace('Personnalisé', 'Custom') ?? '—';
+  const grainLabel = TF_GRAINS.find(g => g.id === data.granularity)?.label ?? data.granularity;
+
   return (
     <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 overflow-visible">
       {/* Scope / date row */}
       <div className="px-4 py-3 flex flex-wrap items-center gap-2.5 border-b border-outline-variant/10">
-        <TFPill icon={<Filter className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Périmètre</span>
-          <div className="flex items-center gap-1 ml-1">
-            {TF_TECHS.map(t => (
-              <span key={t.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
-                {t.label}
-              </span>
-            ))}
-          </div>
-          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">4</span>
-        </TFPill>
+        {/* Périmètre — interactive techno toggles */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors"
+            >
+              <Filter className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Périmètre</span>
+              <div className="flex items-center gap-1 ml-1">
+                {TF_TECHS.filter(t => technos.includes(t.id)).map(t => (
+                  <span key={t.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
+                    {t.label}
+                  </span>
+                ))}
+                {technos.length === 0 && (
+                  <span className="text-[10px] italic text-on-surface-variant">aucune</span>
+                )}
+              </div>
+              <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">{technos.length}</span>
+              <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2" align="start">
+            <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant px-2 py-1.5">Sélectionner technologies</p>
+            <div className="space-y-0.5">
+              {TF_TECHS.map(t => {
+                const active = technos.includes(t.id);
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => toggleTechno(t.id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-bold transition-colors',
+                      active ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                    )}
+                  >
+                    <span className={cn('w-4 h-4 rounded border-2 flex items-center justify-center shrink-0', active ? 'border-primary bg-primary' : 'border-outline-variant/40 bg-white')}>
+                      {active && <Check className="w-3 h-3 text-on-primary" />}
+                    </span>
+                    <span className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
+                      {t.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        <TFPill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span>13/04/2026</span>
-          <span className="text-on-surface-variant/60 font-medium">00:00</span>
-        </TFPill>
+        {/* From date */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
+              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span>{fromDisp.date}</span>
+              <span className="text-on-surface-variant/60 font-medium">{fromDisp.time}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Début</label>
+            <input
+              type="datetime-local"
+              value={tr.from}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
+            />
+          </PopoverContent>
+        </Popover>
 
         <span className="text-on-surface-variant/60 font-bold">—</span>
 
-        <TFPill icon={<Calendar className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span>15/04/2026</span>
-          <span className="text-on-surface-variant/60 font-medium">00:00</span>
-        </TFPill>
+        {/* To date */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
+              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span>{toDisp.date}</span>
+              <span className="text-on-surface-variant/60 font-medium">{toDisp.time}</span>
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-3" align="start">
+            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Fin</label>
+            <input
+              type="datetime-local"
+              value={tr.to}
+              onChange={(e) => setToDate(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
+            />
+          </PopoverContent>
+        </Popover>
 
-        <TFPill icon={<Clock className="w-3.5 h-3.5 text-on-surface-variant" />}>
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Période</span>
-          <span className="font-black">3j</span>
-          <ChevronDown className="w-3 h-3 text-on-surface-variant" />
-        </TFPill>
+        {/* Période preset */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
+              <Clock className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Période</span>
+              <span className="font-black">{periodLabel}</span>
+              <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-44 p-1" align="start">
+            {TF_PERIODS.map(p => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPreset(p.id)}
+                className={cn(
+                  'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                  tr.preset === p.id ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                )}
+              >
+                {p.label}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
 
-        <TFPill>
-          <span className="text-emerald-600 uppercase tracking-wide text-[11px]">Grain :</span>
-          <span className="text-emerald-700 font-black">15 min</span>
-          <ChevronDown className="w-3 h-3 text-emerald-600" />
-        </TFPill>
+        {/* Grain */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary transition-colors">
+              <span className="text-emerald-600 uppercase tracking-wide text-[11px]">Grain :</span>
+              <span className="text-emerald-700 font-black">{grainLabel}</span>
+              <ChevronDown className="w-3 h-3 text-emerald-600" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-36 p-1" align="start">
+            {TF_GRAINS.map(g => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => setGrain(g.id)}
+                className={cn(
+                  'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                  data.granularity === g.id ? 'bg-emerald-50 text-emerald-700' : 'text-on-surface hover:bg-surface-container-low'
+                )}
+              >
+                {g.label}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
 
         <TFPill icon={<Flag className="w-3.5 h-3.5 text-rose-500" />}>
           <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
