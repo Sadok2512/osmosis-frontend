@@ -750,21 +750,28 @@ function TimeFiltersToolbar({
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
-  metrics, addMetric, addMetricsFromKeys, updateMetric, removeMetric, kpiOptions, kpisLoading,
+  metrics, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog,
 }: {
   metrics: ChartMetric[];
   addMetric: () => void;
   addMetricsFromKeys: (keys: string[]) => void;
+  addCountersFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
+  kpiCatalogForSelector: KpiCatalogEntry[];
+  counterCatalog: any[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [kpiPickerOpen, setKpiPickerOpen] = useState(false);
+  const [counterPickerOpen, setCounterPickerOpen] = useState(false);
 
-  const availableKeys = useMemo(() => kpiOptions.map(o => o.key), [kpiOptions]);
   const selectedKeys = useMemo(() => metrics.map(m => m.kpiKey), [metrics]);
+  const counterKeys = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
+  const selectedKpiKeys = useMemo(() => selectedKeys.filter(k => !counterKeys.has(k)), [selectedKeys, counterKeys]);
+  const selectedCounterKeys = useMemo(() => selectedKeys.filter(k => counterKeys.has(k)), [selectedKeys, counterKeys]);
 
   return (
     <div className="space-y-3">
@@ -772,30 +779,54 @@ function MetricsTab({
         <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
           <span>Metrics · {metrics.length}</span>
           {kpisLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
-          {!kpisLoading && kpiOptions.length > 0 && (
+          {!kpisLoading && kpiCatalogForSelector.length > 0 && (
             <span className="text-[8px] font-bold text-primary/70 normal-case tracking-wide">
-              · {kpiOptions.length} KPIs disponibles
+              · {kpiCatalogForSelector.length} KPIs · {counterCatalog.length} compteurs
             </span>
           )}
         </h4>
-        <button
-          onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" /> Add KPI
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCounterPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-500/40 text-emerald-600 text-xs font-bold hover:bg-emerald-500/10 transition-colors"
+          >
+            <Cpu className="w-3.5 h-3.5" /> Add Counter
+          </button>
+          <button
+            onClick={() => setKpiPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add KPI
+          </button>
+        </div>
       </div>
 
-      <BIKpiSelectorModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        selectedKeys={selectedKeys}
-        availableKeys={availableKeys}
+      {createPortal(
+        <KpiSelectorModal
+          open={kpiPickerOpen}
+          onClose={() => setKpiPickerOpen(false)}
+          catalog={kpiCatalogForSelector}
+          selectedKeys={selectedKpiKeys}
+          onConfirm={(keys) => {
+            const existing = new Set(selectedKeys);
+            const toAdd = keys.filter(k => !existing.has(k));
+            if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+            setKpiPickerOpen(false);
+          }}
+        />,
+        document.body
+      )}
+
+      <CounterSelectorModal
+        open={counterPickerOpen}
+        onClose={() => setCounterPickerOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounterKeys}
         onConfirm={(keys) => {
-          // Add only newly-selected keys (preserve existing metric configs)
           const existing = new Set(selectedKeys);
           const toAdd = keys.filter(k => !existing.has(k));
-          if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+          if (toAdd.length > 0) addCountersFromKeys(toAdd);
+          setCounterPickerOpen(false);
         }}
       />
 
