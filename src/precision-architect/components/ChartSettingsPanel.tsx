@@ -1271,9 +1271,31 @@ function StyleTab({
             </button>
           ))}
         </div>
+        <div className="mt-4 pt-4 border-t border-outline-variant/20">
+          <Field label="Card background">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => onTransparentBgChange(false)}
+                className={cn(
+                  'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                  !transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                ◆ Card BG
+              </button>
+              <button
+                onClick={() => onTransparentBgChange(true)}
+                className={cn(
+                  'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                  transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                ◇ Transparent
+              </button>
+            </div>
+          </Field>
+        </div>
       </Section>
-
-      <Section title="Grid & Legend">
         <ToggleRow
           label="Show grid"
           checked={style.grid}
