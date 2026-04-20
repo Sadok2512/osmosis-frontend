@@ -595,8 +595,12 @@ export async function fetchTimeSeriesForSlot(
     }
   }
 
-  // Can compute handle this? Only if there's no non-PM split without a field mapping
-  const canCompute = !hasNonPmSplit1 || !!computeSplitByField;
+  // Can compute handle this? Only if there's no non-PM split without a field mapping.
+  // Per-KPI field splits (Cell/Site in splitByPerKpi) are also handled inside the loop.
+  const hasPerKpiFieldSplit = Object.values(ctx.splitByPerKpi || {}).some(
+    v => v && !v.startsWith('PM_DIM:') && FIELD_MAP[v],
+  );
+  const canCompute = !hasNonPmSplit1 || !!computeSplitByField || hasPerKpiFieldSplit;
   log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
 
   // Fast path: detect raw PM counters and route directly to counter fallback
