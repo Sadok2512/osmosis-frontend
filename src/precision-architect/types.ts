@@ -28,6 +28,23 @@ export interface ChartMetric {
   visible: boolean;
 }
 
+export interface ChartThreshold {
+  id: string;
+  label: string;
+  value: number;
+  axis: AxisSide;
+  color: string;
+  lineStyle: LineStyle;
+}
+
+export interface ChartJalon {
+  id: string;
+  label: string;
+  /** ISO date or display label for the X position */
+  date: string;
+  color: string;
+}
+
 export interface ChartWidgetConfig {
   data: {
     inheritFromDashboard: boolean;
@@ -46,6 +63,8 @@ export interface ChartWidgetConfig {
     grid: boolean;
     legend: { position: LegendPosition; showValues: boolean };
   };
+  jalons?: ChartJalon[];
+  thresholds?: ChartThreshold[];
 }
 
 export interface DynWidget {
