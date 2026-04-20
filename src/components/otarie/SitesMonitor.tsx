@@ -10771,6 +10771,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const cfg = settings.kpiOverlayConfig;
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
+                      if (cfg.dateFrom) setKpiDateFrom(cfg.dateFrom);
+                      if (cfg.dateTo) setKpiDateTo(cfg.dateTo);
                       setKpiOverlayLocked(true);
                       setSectorColorMode('kpi');
                       // Apply KPI overlays from view config

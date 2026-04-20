@@ -30,6 +30,8 @@ export interface ViewConfig {
   technology?: '4G' | '5G';
   level?: AnalysisLevel;
   kpis?: KpiOverlayItem[];
+  dateFrom?: string;
+  dateTo?: string;
   // Topology Search
   topoFilters?: Record<string, string>;
   // Parameter
@@ -84,6 +86,13 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
   // Topology Search state
   const [topoFilters, setTopoFilters] = useState<Record<string, string>>({});
   const [activeTopoKeys, setActiveTopoKeys] = useState<string[]>(['pci']);
+
+  // KPI date range
+  const [kpiDateFrom, setKpiDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [kpiDateTo, setKpiDateTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   // Parameter state
   const [paramFilters, setParamFilters] = useState<Record<string, string>>({});
@@ -202,6 +211,8 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       config.technology = technology;
       config.level = level;
       config.kpis = selectedKpis;
+      config.dateFrom = kpiDateFrom;
+      config.dateTo = kpiDateTo;
     } else if (viewType === 'topology_search') {
       config.topoFilters = Object.fromEntries(
         Object.entries(topoFilters).filter(([, v]) => v.trim())
@@ -387,6 +398,21 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                       <SelectItem value="band">Bande</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Date Range */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Période d'analyse *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[9px] text-muted-foreground">Date début</label>
+                    <Input type="date" value={kpiDateFrom} onChange={e => setKpiDateFrom(e.target.value)} className="text-xs h-9" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground">Date fin</label>
+                    <Input type="date" value={kpiDateTo} onChange={e => setKpiDateTo(e.target.value)} className="text-xs h-9" />
+                  </div>
                 </div>
               </div>
 
