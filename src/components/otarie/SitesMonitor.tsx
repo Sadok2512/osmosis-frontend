@@ -476,9 +476,12 @@ const getRenderableCellsForSite = (
     }
 
     // Active dashboard band filter — strict perimeter (e.g. Rennes_L1800 → only LTE1800)
+    // Normalize both sides via normalizeBandKey so VPS values like "LTE1800" match dashboard codes like "L1800".
     if (dashBands) {
-      const cellBand = String(cell.bande || '').trim().toUpperCase();
-      if (!cellBand || !dashBands.has(cellBand)) return false;
+      const rawCellBand = String(cell.bande || '').trim().toUpperCase();
+      const normalizedCellBand = normalizeBandKey(cell.bande || '', cell.techno) || rawCellBand;
+      if (!rawCellBand) return false;
+      if (!dashBands.has(rawCellBand) && !dashBands.has(normalizedCellBand)) return false;
     }
     // Active dashboard techno filter
     if (dashTechs) {
