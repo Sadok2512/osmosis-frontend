@@ -4936,6 +4936,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
+  const isCellVisibleForKpiLegend = useCallback((cell: CellProperties) => {
+    if (sectorColorMode !== 'kpi' || hiddenKpiLevels.size === 0) return true;
+    return !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(cell)));
+  }, [sectorColorMode, hiddenKpiLevels, getKpiLevel, getCellKpiValue]);
+
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
   const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
@@ -7152,7 +7157,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseCellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
           const cellsToRender = sectorColorMode === 'kpi'
-            ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande))
+            ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande) && isCellVisibleForKpiLegend(cell))
             : baseCellsToRender;
           return (
             <React.Fragment key={site.site_id}>
@@ -7296,6 +7301,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (!tech) continue;
               if (sectorColorMode === 'kpi') {
                 if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande)) continue;
+                if (!isCellVisibleForKpiLegend(cell)) continue;
               } else {
                 if (tech === '2G' && !enabledTechnos.has('2G')) continue;
                 if (tech === '3G' && !enabledTechnos.has('3G')) continue;
@@ -7942,7 +7948,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseDetailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
           const detailCells = sectorColorMode === 'kpi'
-            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande))
+            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande) && isCellVisibleForKpiLegend(cell))
             : baseDetailCells;
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
