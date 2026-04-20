@@ -267,11 +267,35 @@ export interface PASection {
   description: string;
 }
 
+/** Dashboard-level theme applied to the canvas background and widget accents. */
+export interface DashboardTheme {
+  /** Background style for the dashboard canvas. */
+  background: 'light' | 'dark' | 'gradient';
+  /** Accent color (hex) used by Hero/Stat widgets when no explicit color is set. */
+  accentColor: string;
+  /** Page-level title shown above the grid. */
+  pageTitle: string;
+  /** Page-level subtitle shown under the title. */
+  pageSubtitle: string;
+  /** Show or hide the page title block. */
+  showPageHeader: boolean;
+}
+
+export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
+  background: 'light',
+  accentColor: '#00685f',
+  pageTitle: '',
+  pageSubtitle: '',
+  showPageHeader: false,
+};
+
 export interface PAPage {
   id: string;
   name: string;
   widgets: DynWidget[];
   sections: PASection[];
+  /** Optional theme override per page. Falls back to DEFAULT_DASHBOARD_THEME. */
+  theme?: DashboardTheme;
 }
 
 export interface KPI {
