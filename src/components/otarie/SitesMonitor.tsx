@@ -8678,7 +8678,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
                       ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
                       : []
-                  ).map((band) => (
+                  ).filter(band => availableBandsInScope.size === 0 || availableBandsInScope.has(band)).map((band) => (
                     <button
                       key={band}
                       onClick={() => {
@@ -8739,7 +8739,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mapTechnoFilter === 'ALL' || mapTechnoFilter === '2G'
                         ? ['GSM900', 'GSM1800']
                         : []
-                    ).map((band) => (
+                    ).filter(band => availableBandsInScope.size === 0 || availableBandsInScope.has(band)).map((band) => (
                       <button
                         key={band}
                         onClick={() => {
