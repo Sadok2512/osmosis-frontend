@@ -6156,7 +6156,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const filtered = s.cells.filter(c => {
         if (dashBands) {
           const cb = String(c.bande || '').trim().toUpperCase();
-          if (!cb || !dashBands.has(cb)) return false;
+          const cbNorm = normalizeBandKey(c.bande || '', c.techno) || cb;
+          if (!cb) return false;
+          if (!dashBands.has(cb) && !dashBands.has(cbNorm)) return false;
         }
         if (dashTechs) {
           const ct = String(c.techno || '').trim().toUpperCase();
