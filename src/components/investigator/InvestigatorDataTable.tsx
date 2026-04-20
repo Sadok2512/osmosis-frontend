@@ -367,16 +367,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
             <tr className="bg-white border-b border-border/40">
-              <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap">
+              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
                 Timestamp
               </th>
 
-              <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] sticky left-0 bg-white z-30 whitespace-nowrap">
+              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap">
                 {scopeLabel}
               </th>
 
               {hasSplitValues && (
-                <th className="text-left py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap">
+                <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
                   {splitLabel}
                 </th>
               )}
@@ -384,7 +384,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
               {kpiColumns.map((kpi) => (
                 <th
                   key={kpi}
-                  className="text-right py-3 px-5 font-semibold text-[10px] text-muted-foreground/80 uppercase tracking-[0.12em] whitespace-nowrap"
+                  className="text-right py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap"
                 >
                   <span className="truncate max-w-[200px] inline-block align-middle" title={kpi}>{kpi}</span>
                 </th>
