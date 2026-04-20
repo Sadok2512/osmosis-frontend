@@ -6007,7 +6007,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
+  }, [displayMode, mapDisplayMode, showBeamSectors, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
@@ -6060,7 +6060,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
 
     return unsub;
-  }, [displayMode, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, mapDisplayMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
 
   useEffect(() => {
     setCellsCacheLoadedCount(getCellsCacheCount());
