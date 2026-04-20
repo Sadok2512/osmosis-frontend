@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { Loader2 } from 'lucide-react';
 import { ChartWidgetConfig, DEFAULT_CHART_CONFIG } from '../types';
 
 interface PAEChartProps {
