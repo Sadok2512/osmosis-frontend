@@ -4801,58 +4801,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     let cancelled = false;
 
-    const filters: any = {};
-    if (localVendor !== 'ALL') filters.vendor = localVendor;
-    // Always apply KPI techno filter when in KPI mode
-    filters.techno = kpiTechnoFilter;
-    if (localBande !== 'ALL') filters.band = localBande;
-    if (localDor !== 'ALL') filters.dor = localDor;
-    if (localPlaque !== 'ALL') filters.plaque = localPlaque;
-    if (localZoneArcep !== 'ALL') filters.zone_arcep = localZoneArcep;
-    // Analysis level
-    filters.level = kpiAnalysisLevel;
-    // Merge active dashboard filters (bcluster, dor, plaque, vendor, band)
-    if (dashboardActive && activeDashboardFilters) {
-      const df = activeDashboardFilters;
-      if ((df as any).bcluster?.length && !filters.bcluster) filters.bcluster = (df as any).bcluster.join(',');
-      if (df.dor?.length && !filters.dor) filters.dor = df.dor.join(',');
-      if (df.plaque?.length && !filters.plaque) filters.plaque = df.plaque.join(',');
-      if (df.constructeur?.length && !filters.vendor) filters.vendor = df.constructeur.join(',');
-      if (df.bande?.length && !filters.band) filters.band = df.bande.join(',');
-    }
-
-    // Extract backend-compatible filters from structured view conditions
-    if (activeViewConditions?.length) {
-      const attrMap: Record<string, string> = {
-        vendor: 'vendor',
-        constructeur: 'vendor',
-        techno: 'techno',
-        band: 'band',
-        bande: 'band',
-        dor: 'dor',
-        plaque: 'plaque',
-        zone_arcep: 'zone_arcep',
-        region: 'region',
-        site_name: 'site_name',
-        code_nidt: 'site_name',
-      };
-
-      for (const cond of activeViewConditions) {
-        if (!cond.dimension || !cond.values?.length) continue;
-
-        const paramKey = attrMap[cond.dimension.toLowerCase()];
-        const firstValue = cond.values[0];
-        const isInclusive = cond.operator === 'IN' || cond.operator === '=';
-
-        if (paramKey && isInclusive && firstValue && !filters[paramKey]) {
-          filters[paramKey] = firstValue;
-        }
-      }
-    }
-
-    // Pass date range for period aggregation
-    if (kpiDateFrom) filters.date_from = kpiDateFrom;
-    if (kpiDateTo) filters.date_to = kpiDateTo;
+    const filters: any = {
+      // Keep the backend KPI fetch broad: the map already applies dashboard/view
+      // perimeter client-side when deciding which cells/sectors to render.
+      // Passing plaque/band/date/dashboard filters here causes the backend
+      // /kpi/cell-values endpoint to return rows with value=null for the KPI map.
+      techno: kpiTechnoFilter,
+    };
 
     // Only show loading spinner if this is a fresh fetch (not cached)
     // Keep existing kpiValues visible during fetch to avoid flash
