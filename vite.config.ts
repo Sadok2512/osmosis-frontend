@@ -27,7 +27,9 @@ export default defineConfig(({ mode }) => ({
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-map': ['leaflet', 'react-leaflet', 'react-leaflet-cluster'],
-          'vendor-charts': ['echarts', 'echarts-for-react', 'recharts', 'd3'],
+          'vendor-echarts': ['echarts'],
+          'vendor-echarts-react': ['echarts-for-react'],
+          'vendor-recharts': ['recharts'],
           'vendor-ui': [
             '@radix-ui/react-dialog',
             '@radix-ui/react-popover',
@@ -39,6 +41,8 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
-    chunkSizeWarningLimit: 800,
+    // ECharts is intentionally isolated as a heavy visualization vendor chunk.
+    // Keep the threshold above that vendor bundle while still warning on app chunks.
+    chunkSizeWarningLimit: 1200,
   },
 }));

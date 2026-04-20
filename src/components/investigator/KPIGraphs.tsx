@@ -6,7 +6,7 @@ import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
-import { fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
+import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
 import type { KpiDefinition } from './types';
 import { cn } from '@/lib/utils';
 import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
@@ -321,12 +321,10 @@ const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; 
 const HistogramWidget: React.FC<{ kpiIds: string[]; height: number; allKpis: KpiDefinition[] }> = ({ kpiIds, height, allKpis }) => {
   const [histData, setHistData] = React.useState<Record<string, any[]>>({});
   React.useEffect(() => {
-    import('./investigatorApi').then(({ fetchHistogramData }) => {
-      kpiIds.forEach(kpiId => {
-        fetchHistogramData(kpiId).then(bins => {
-          setHistData(prev => ({ ...prev, [kpiId]: bins }));
-        }).catch(() => {});
-      });
+    kpiIds.forEach(kpiId => {
+      fetchHistogramData(kpiId).then(bins => {
+        setHistData(prev => ({ ...prev, [kpiId]: bins }));
+      }).catch(() => {});
     });
   }, [kpiIds]);
 

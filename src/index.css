@@ -299,7 +299,6 @@ All colors MUST be HSL.
 }
 
 /* ============ Precision Architect module (scoped) ============ */
-
 .precision-architect {
   --m3-on-primary: #ffffff;
   --m3-primary-container: #008378;
