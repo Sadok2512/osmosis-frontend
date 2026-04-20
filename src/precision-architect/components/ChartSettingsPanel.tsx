@@ -162,7 +162,70 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   );
 }
 
-/* ---------------- Tab: Data ---------------- */
+/* ---------------- Tab: Data Source (split in 2 sub-sections) ---------------- */
+
+function DataSourceTab({
+  config, patchData, addMetric, updateMetric, removeMetric, title, onTitleChange,
+}: {
+  config: ChartWidgetConfig;
+  patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
+  addMetric: () => void;
+  updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
+  removeMetric: (id: string) => void;
+  title: string;
+  onTitleChange: (t: string) => void;
+}) {
+  const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
+  return (
+    <div className="space-y-5">
+      {/* Sub-section switcher */}
+      <div className="inline-flex p-1 bg-surface-container-low rounded-xl border border-outline-variant/20">
+        {([
+          { key: 'kpi' as const, label: 'KPI Metrics', count: config.metrics.length },
+          { key: 'time' as const, label: 'Time & Filters' },
+        ]).map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setSub(s.key)}
+            className={cn(
+              'px-4 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all flex items-center gap-2',
+              sub === s.key
+                ? 'bg-white text-primary shadow-sm'
+                : 'text-on-surface-variant hover:text-on-surface'
+            )}
+          >
+            {s.label}
+            {'count' in s && s.count !== undefined && (
+              <span className={cn(
+                'px-1.5 py-0.5 rounded-md text-[9px] font-black',
+                sub === s.key ? 'bg-primary/10 text-primary' : 'bg-outline-variant/20 text-on-surface-variant'
+              )}>{s.count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {sub === 'kpi' && (
+        <MetricsTab
+          metrics={config.metrics}
+          addMetric={addMetric}
+          updateMetric={updateMetric}
+          removeMetric={removeMetric}
+        />
+      )}
+      {sub === 'time' && (
+        <DataTab
+          data={config.data}
+          patchData={patchData}
+          title={title}
+          onTitleChange={onTitleChange}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------------- Sub-section: Time & Filters ---------------- */
 
 function DataTab({
   data, patchData, title, onTitleChange,
