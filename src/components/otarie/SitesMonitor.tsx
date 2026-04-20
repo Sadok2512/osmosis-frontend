@@ -5014,6 +5014,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }, 450);
   }, [fetchForViewport, currentBboxFilters]);
 
+  // Re-prefetch cells when bbox filters change (e.g. BCluster adds band filter)
+  const prevBboxFiltersRef = useRef<string>('');
+  useEffect(() => {
+    const key = JSON.stringify(currentBboxFilters);
+    if (key === prevBboxFiltersRef.current) return;
+    prevBboxFiltersRef.current = key;
+    // Only re-fetch if we're at sector zoom level
+    if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
+      topoApi.prefetchCells(currentBboxFilters || undefined);
+      // Clear existing cell data from sites so fresh cells are merged from new cache
+      setSites(prev => prev.map(s => ({ ...s, cells: [] })));
+    }
+  }, [currentBboxFilters, viewport.zoom]);
+
   // ── Debounced server-side search (independent of dashboard) ──
   const searchAbortRef = useRef<AbortController | null>(null);
   useEffect(() => {
