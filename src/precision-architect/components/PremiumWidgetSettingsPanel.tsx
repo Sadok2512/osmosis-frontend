@@ -40,18 +40,6 @@ export default function PremiumWidgetSettingsPanel({ widget, onChange, onClose }
         </div>
         <div className="flex gap-2 items-center">
           <button
-            onClick={() => onChange({ transparentBg: !widget.transparentBg })}
-            className={cn(
-              'px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors',
-              widget.transparentBg
-                ? 'bg-primary/10 border-primary text-primary'
-                : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'
-            )}
-            title="Toggle transparent card background"
-          >
-            {widget.transparentBg ? '◇ Transparent' : '◆ Card BG'}
-          </button>
-          <button
             onClick={() => {
               if (kind === 'hero') onChange({ heroConfig: { ...DEFAULT_HERO_CONFIG } });
               if (kind === 'stat') onChange({ statConfig: { ...DEFAULT_STAT_CONFIG } });
@@ -72,7 +60,8 @@ export default function PremiumWidgetSettingsPanel({ widget, onChange, onClose }
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto space-y-6">
+          <CardBackgroundField transparent={!!widget.transparentBg} onChange={(v) => onChange({ transparentBg: v })} />
           {kind === 'hero' && (
             <HeroEditor
               cfg={widget.heroConfig ?? DEFAULT_HERO_CONFIG}
@@ -293,6 +282,35 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       <label className="block text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-1.5">{label}</label>
       {children}
     </div>
+  );
+}
+
+function CardBackgroundField({ transparent, onChange }: { transparent: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Section icon={<Palette className="w-4 h-4" />} title="Card Background">
+      <Field label="Widget surface">
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onChange(false)}
+            className={cn(
+              'py-2.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center justify-center gap-2',
+              !transparent ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+            )}
+          >
+            ◆ Card BG
+          </button>
+          <button
+            onClick={() => onChange(true)}
+            className={cn(
+              'py-2.5 rounded-lg text-[11px] font-bold border transition-colors flex items-center justify-center gap-2',
+              transparent ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+            )}
+          >
+            ◇ Transparent
+          </button>
+        </div>
+      </Field>
+    </Section>
   );
 }
 

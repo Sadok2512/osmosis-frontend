@@ -205,18 +205,6 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
         </div>
         <div className="flex gap-2 items-center">
           <button
-            onClick={() => onChange({ transparentBg: !widget.transparentBg })}
-            className={cn(
-              'px-3 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors',
-              widget.transparentBg
-                ? 'bg-primary/10 border-primary text-primary'
-                : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-high'
-            )}
-            title="Toggle transparent card background"
-          >
-            {widget.transparentBg ? '◇ Transparent' : '◆ Card BG'}
-          </button>
-          <button
             onClick={resetSettings}
             className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
           >
@@ -297,6 +285,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 patchStyle={patchStyle}
                 title={widget.title ?? ''}
                 onTitleChange={(t) => onChange({ title: t })}
+                transparentBg={!!widget.transparentBg}
+                onTransparentBgChange={(v) => onChange({ transparentBg: v })}
               />
             )}
             {tab === 'jalons' && (
@@ -1178,12 +1168,14 @@ function MetricsTab({
 /* ---------------- Tab: Appearance ---------------- */
 
 function StyleTab({
-  style, patchStyle, title, onTitleChange,
+  style, patchStyle, title, onTitleChange, transparentBg, onTransparentBgChange,
 }: {
   style: ChartWidgetConfig['style'];
   patchStyle: (p: Partial<ChartWidgetConfig['style']>) => void;
   title: string;
   onTitleChange: (t: string) => void;
+  transparentBg: boolean;
+  onTransparentBgChange: (v: boolean) => void;
 }) {
   return (
     <div className="space-y-6">
@@ -1278,6 +1270,30 @@ function StyleTab({
               {b}
             </button>
           ))}
+        </div>
+        <div className="mt-4 pt-4 border-t border-outline-variant/20">
+          <Field label="Card background">
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => onTransparentBgChange(false)}
+                className={cn(
+                  'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                  !transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                ◆ Card BG
+              </button>
+              <button
+                onClick={() => onTransparentBgChange(true)}
+                className={cn(
+                  'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                  transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                ◇ Transparent
+              </button>
+            </div>
+          </Field>
         </div>
       </Section>
 
