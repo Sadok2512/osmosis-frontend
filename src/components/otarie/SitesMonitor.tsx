@@ -2415,7 +2415,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       {/* Create dashboard popup */}
       {showCreateDash && (
         <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
-          <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto p-0 gap-0" onPointerDownOutside={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}>
+          <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto p-0 gap-0">
             <DialogHeader className="px-6 pt-6 pb-3">
               <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
                 <Plus size={16} className="text-primary" />
