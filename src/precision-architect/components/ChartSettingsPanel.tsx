@@ -13,7 +13,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'data' | 'metrics' | 'style';
+type Tab = 'data' | 'appearance' | 'interactions' | 'alerting';
 
 const KPI_OPTIONS = [
   { key: 'qoe_index', label: 'QoE Index', unit: '%' },
@@ -68,60 +68,91 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   };
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
+  const widgetLabel = `CHART · ${widget.id.slice(0, 18)}`;
+
+  const resetSettings = () => {
+    onChange({ config: { ...DEFAULT_CHART_CONFIG } });
+    setTab('data');
+  };
+
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 h-[520px] w-[calc((100vw-16rem)/2)] bg-white border-t border-x border-outline-variant/20 shadow-2xl z-[60] flex flex-col rounded-t-lg">
-      {/* Header with horizontal tabs */}
-      <div className="px-4 py-1.5 border-b border-outline-variant/15 flex items-center justify-between bg-surface-container-low shrink-0">
+    <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+      {/* Header — identical to Table-style panel */}
+      <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
         <div className="flex items-center gap-4">
-          <div className="flex items-baseline gap-2">
-            <p className="text-[9px] font-black uppercase tracking-widest text-primary leading-none">Chart Settings</p>
-            <h3 className="text-xs font-bold text-on-surface truncate max-w-[220px]">{widget.title ?? 'Untitled chart'}</h3>
-          </div>
-          <div className="h-5 w-px bg-outline-variant/30" />
-          <div className="flex items-center gap-0.5">
-            {(['data', 'metrics', 'style'] as Tab[]).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest transition-all',
-                  tab === t
-                    ? 'bg-primary text-on-primary shadow-sm'
-                    : 'text-on-surface-variant hover:bg-surface-container-high'
-                )}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
+          <div className="h-4 w-px bg-outline-variant" />
+          <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-surface-container-high rounded-md transition-colors" aria-label="Close">
-          <X className="w-3.5 h-3.5 text-on-surface-variant" />
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={resetSettings}
+            className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+            aria-label="Close settings"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {/* Body: 2-column scrolling content for the bottom panel */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3">
-        <div className="max-w-5xl mx-auto">
-          {tab === 'data' && (
-            <DataTab
-              data={config.data}
-              patchData={patchData}
-              onTitleChange={(t) => onChange({ title: t })}
-              title={widget.title ?? ''}
-            />
-          )}
-          {tab === 'metrics' && (
-            <MetricsTab
-              metrics={config.metrics}
-              addMetric={addMetric}
-              updateMetric={updateMetric}
-              removeMetric={removeMetric}
-            />
-          )}
-          {tab === 'style' && (
-            <StyleTab style={config.style} patchStyle={patchStyle} />
-          )}
+      {/* Body: left sidebar tabs + content */}
+      <div className="flex h-full pb-10">
+        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+          {([
+            { key: 'data', label: 'Data Source' },
+            { key: 'appearance', label: 'Appearance' },
+            { key: 'interactions', label: 'Interactions' },
+            { key: 'alerting', label: 'Alerting' },
+          ] as const).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                'w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2',
+                tab === t.key ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+              )}
+            >
+              {t.label}
+            </button>
+          ))}
+        </aside>
+
+        <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+          <div className="max-w-4xl">
+            {tab === 'data' && (
+              <div className="space-y-6">
+                <DataTab
+                  data={config.data}
+                  patchData={patchData}
+                  onTitleChange={(t) => onChange({ title: t })}
+                  title={widget.title ?? ''}
+                />
+                <div className="pt-4 border-t border-outline-variant/15">
+                  <MetricsTab
+                    metrics={config.metrics}
+                    addMetric={addMetric}
+                    updateMetric={updateMetric}
+                    removeMetric={removeMetric}
+                  />
+                </div>
+              </div>
+            )}
+            {tab === 'appearance' && (
+              <StyleTab style={config.style} patchStyle={patchStyle} />
+            )}
+            {tab === 'interactions' && (
+              <p className="text-xs text-on-surface-variant">Drill-down targets and tooltip actions.</p>
+            )}
+            {tab === 'alerting' && (
+              <p className="text-xs text-on-surface-variant">Threshold rules and notifications.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -237,7 +268,7 @@ function DataTab({
   );
 }
 
-/* ---------------- Tab: Metrics ---------------- */
+/* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
   metrics, addMetric, updateMetric, removeMetric,
@@ -250,16 +281,14 @@ function MetricsTab({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-3 max-w-3xl mx-auto">
-      {/* Sticky header row */}
-      <div className="flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-sm py-1 z-10">
-        <p className="text-[11px] font-black uppercase tracking-widest text-on-surface-variant">
-          {metrics.length} metric{metrics.length > 1 ? 's' : ''}
-        </p>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">
+          Metrics · {metrics.length}
+        </h4>
         <button
           onClick={() => {
             addMetric();
-            // auto-expand the new one
             setTimeout(() => {
               const last = document.querySelector<HTMLDivElement>('[data-kpi-card]:last-of-type');
               last?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -271,7 +300,6 @@ function MetricsTab({
         </button>
       </div>
 
-      {/* KPI cards list */}
       <div className="space-y-2">
         {metrics.map((m) => {
           const expanded = expandedId === m.id;
@@ -287,7 +315,6 @@ function MetricsTab({
                   : 'border-outline-variant/20 hover:border-outline-variant/50 hover:shadow-sm'
               )}
             >
-              {/* === COLLAPSED ROW === */}
               <button
                 onClick={() => setExpandedId(expanded ? null : m.id)}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left"
@@ -297,27 +324,19 @@ function MetricsTab({
                   ? <ChevronDown className="w-3.5 h-3.5 text-primary shrink-0" />
                   : <ChevronRight className="w-3.5 h-3.5 text-on-surface-variant/60 shrink-0" />
                 }
-
-                {/* color dot */}
                 <span
                   className="w-3 h-3 rounded-full ring-2 ring-white shadow-sm shrink-0"
                   style={{ background: m.color }}
                 />
-
-                {/* name */}
                 <span className="font-bold text-sm text-on-surface truncate flex-1">
                   {m.alias || kpiLabel}
                 </span>
-
-                {/* meta chips */}
                 <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md">
                   {m.axis}
                 </span>
                 <span className="hidden md:inline-flex items-center text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-2 py-0.5 rounded-md capitalize">
                   {m.lineStyle}
                 </span>
-
-                {/* hover actions */}
                 <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                   <span
                     role="button"
@@ -342,10 +361,8 @@ function MetricsTab({
                 </div>
               </button>
 
-              {/* === EXPANDED EDITOR === */}
               {expanded && (
                 <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
-                  {/* KPI selector */}
                   <Field label="KPI">
                     <select
                       value={m.kpiKey}
@@ -359,7 +376,6 @@ function MetricsTab({
                     </select>
                   </Field>
 
-                  {/* Alias + Unit */}
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Alias">
                       <input
@@ -379,7 +395,6 @@ function MetricsTab({
                     </Field>
                   </div>
 
-                  {/* Axis + Style row */}
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Axis">
                       <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
@@ -409,15 +424,12 @@ function MetricsTab({
                     </Field>
                   </div>
 
-                  {/* Color picker - improved */}
                   <Field label="Color">
                     <div className="flex items-center gap-3">
-                      {/* big preview */}
                       <div
                         className="w-10 h-10 rounded-lg ring-2 ring-white shadow-md shrink-0"
                         style={{ background: m.color }}
                       />
-                      {/* palette */}
                       <div className="flex flex-wrap gap-1.5 flex-1">
                         {COLOR_PALETTE.map(c => (
                           <button
@@ -432,7 +444,6 @@ function MetricsTab({
                           />
                         ))}
                       </div>
-                      {/* hex input */}
                       <div className="flex items-center gap-1.5 border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-white shrink-0">
                         <input
                           type="color"
@@ -470,7 +481,7 @@ function MetricsTab({
   );
 }
 
-/* ---------------- Tab: Style ---------------- */
+/* ---------------- Tab: Appearance ---------------- */
 
 function StyleTab({
   style, patchStyle,
