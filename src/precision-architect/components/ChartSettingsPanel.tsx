@@ -237,88 +237,9 @@ function DataTab({
 }) {
   return (
     <div className="space-y-4">
-      <Section title="Network Elements">
-        <ToggleRow
-          label="Inherit from dashboard"
-          checked={data.inheritFromDashboard}
-          onChange={(v) => patchData({ inheritFromDashboard: v })}
-        />
-        <div className={cn('space-y-3 mt-3', data.inheritFromDashboard && 'opacity-40 pointer-events-none')}>
-          {FILTER_DIMS.map(dim => (
-            <Field key={dim.key} label={dim.label}>
-              <MultiTagInput
-                placeholder={dim.options.length ? `Select ${dim.label.toLowerCase()}…` : `Type ${dim.label.toLowerCase()} and press Enter`}
-                suggestions={dim.options}
-                values={data.filters[dim.key] ?? []}
-                onChange={(vals) => patchData({ filters: { ...data.filters, [dim.key]: vals } })}
-              />
-            </Field>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Time Range">
-        <ToggleRow
-          label="Inherit from dashboard"
-          checked={data.timeRange.inherit}
-          onChange={(v) => patchData({ timeRange: { ...data.timeRange, inherit: v } })}
-        />
-        <div className={cn('space-y-3 mt-3', data.timeRange.inherit && 'opacity-40 pointer-events-none')}>
-          <Field label="Preset">
-            <div className="flex gap-2">
-              {(['24h', '7d', '30d'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => patchData({ timeRange: { ...data.timeRange, preset: p } })}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
-                    data.timeRange.preset === p
-                      ? 'bg-primary text-on-primary border-primary'
-                      : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
-                  )}
-                >
-                  Last {p}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="From">
-              <input
-                type="date"
-                value={data.timeRange.from ?? ''}
-                onChange={(e) => patchData({ timeRange: { ...data.timeRange, from: e.target.value, preset: undefined } })}
-                className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm"
-              />
-            </Field>
-            <Field label="To">
-              <input
-                type="date"
-                value={data.timeRange.to ?? ''}
-                onChange={(e) => patchData({ timeRange: { ...data.timeRange, to: e.target.value, preset: undefined } })}
-                className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm"
-              />
-            </Field>
-          </div>
-        </div>
-      </Section>
-
-      <Section title="Granularity">
-        <div className="flex flex-wrap gap-2">
-          {(['auto', '5min', '15min', '1h', '1d'] as ChartGranularity[]).map(g => (
-            <button
-              key={g}
-              onClick={() => patchData({ granularity: g })}
-              className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors',
-                data.granularity === g
-                  ? 'bg-primary text-on-primary border-primary'
-                  : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
-              )}
-            >
-              {g}
-            </button>
-          ))}
+      <Section title="Time & Filters">
+        <div className="py-12 text-center text-xs text-on-surface-variant/60 italic">
+          Coming soon
         </div>
       </Section>
     </div>
