@@ -7160,7 +7160,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isSelectedSite = selectedSiteId === site.site_id;
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
+          const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
+          const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
+          const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
@@ -7216,18 +7219,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
             };
             // Cell-count density scale: dense sites get bigger sectors (sqrt scaling, clamped)
-            const cellCountScale = getCellCountScale(site.cells.length);
+            const cellCountScale = getCellCountScale(renderSiteCells.length);
             const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7 * cellCountScale;
             // PRO #2/#3: lighter fill + stronger outline for readability
             const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08);
-             const azimuths = getValidSectorAzimuths(site);
-             if (azimuths.length === 0) return null;
+            const azimuths = getValidSectorAzimuths(renderSiteForCells);
+            if (azimuths.length === 0) return null;
             // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
             // (otherwise the bbox cache may contain stale cells from a previous fetch — e.g. NR700
             // appearing on the map while the left panel only shows L2600).
-            const renderCells = (isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0)
-              ? siteDetail.cells
-              : site.cells;
+            const renderCells = renderSiteCells;
             // Build per-cell band-based mini items with size hierarchy.
             // Apply the SAME filter set as the left panel (techno + band + dashboard) so
             // map / left panel / topbar legend stay perfectly consistent.
@@ -7358,8 +7359,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
             if (isIndoor) return false;
+            const isSelectedSite = selectedSiteId === site.site_id;
+            const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
+            const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= 8 && site.cells.length > 0 && !isIndoor) || (isTagged && site.cells.length > 0 && !isIndoor);
+            const showMini = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
           });
 
@@ -7525,6 +7529,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
+          const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
+          const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
+          const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
           const isTaggedSite = isSiteTagged(site.site_id);
           // Inverse zoom scaling for tagged sites: much larger than normal, while staying adaptive
           const getTaggedRadiusDetail = (zoom: number) => {
@@ -7536,7 +7543,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
-          const cellCountScale = getCellCountScale(site.cells.length);
+          const cellCountScale = getCellCountScale(renderSiteCells.length);
           const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
@@ -7546,9 +7553,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           if (isIndoor) {
-            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(renderSiteForCells);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
-            const kpiColor = site.cells.length > 0 ? getKpiColor(getCellKpiValue(site.cells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
+            const kpiColor = renderSiteCells.length > 0 ? getKpiColor(getCellKpiValue(renderSiteCells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
             const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
@@ -7582,7 +7589,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           /* ── Fallback: sites with no cells still get a circle marker at sector zoom ── */
-          if (!site.cells || site.cells.length === 0) {
+          if (renderSiteCells.length === 0) {
             const { has2G: fb2G, has3G: fb3G, has4G: fb4G, has5G: fb5G } = inferSiteTechState(site);
             const show2G = fb2G && enabledTechnos.has('2G');
             const show3G = fb3G && enabledTechnos.has('3G');
@@ -7700,7 +7707,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           /* ── Fallback: sites with no cells → simple KPI circle ── */
-          if (!site.cells || site.cells.length === 0) {
+          if (renderSiteCells.length === 0) {
             const kpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
             const colorViewOverrideFb = getColorViewFill(site);
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
@@ -7735,7 +7742,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (mapTechnoFilter === 'ALL') {
             // Group cells by band+azimuth for band-based sizing
             const cellItems: { tech: string; az: number; radius: number; bandKey: string | null; cell: typeof site.cells[0] }[] = [];
-            for (const cell of site.cells) {
+            for (const cell of renderSiteCells) {
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
               let az = Number(cell.azimut);
@@ -7870,7 +7877,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── 5G / 4G mode: detailed per-band sectors ── */
           // Pre-compute max 4G radius per azimuth for capping 5G
-          const detailCells = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
+          const detailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null).filter(cellMatchesViewConditions);
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
