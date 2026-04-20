@@ -631,6 +631,182 @@ function StyleTab({
   );
 }
 
+/* ---------------- Tab: Jalons & Seuils ---------------- */
+
+const JALON_COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#ec4899'];
+
+function JalonsTab({
+  jalons, thresholds, onJalonsChange, onThresholdsChange,
+}: {
+  jalons: ChartJalon[];
+  thresholds: ChartThreshold[];
+  onJalonsChange: (j: ChartJalon[]) => void;
+  onThresholdsChange: (t: ChartThreshold[]) => void;
+}) {
+  const addJalon = () => {
+    const j: ChartJalon = {
+      id: `j-${Date.now()}`,
+      label: `Jalon ${jalons.length + 1}`,
+      date: new Date().toISOString().slice(0, 10),
+      color: JALON_COLORS[jalons.length % JALON_COLORS.length],
+    };
+    onJalonsChange([...jalons, j]);
+  };
+  const updateJalon = (id: string, patch: Partial<ChartJalon>) =>
+    onJalonsChange(jalons.map(j => j.id === id ? { ...j, ...patch } : j));
+  const removeJalon = (id: string) => onJalonsChange(jalons.filter(j => j.id !== id));
+
+  const addThreshold = () => {
+    const t: ChartThreshold = {
+      id: `t-${Date.now()}`,
+      label: `Seuil ${thresholds.length + 1}`,
+      value: 0,
+      axis: 'left',
+      color: JALON_COLORS[thresholds.length % JALON_COLORS.length],
+      lineStyle: 'dashed',
+    };
+    onThresholdsChange([...thresholds, t]);
+  };
+  const updateThreshold = (id: string, patch: Partial<ChartThreshold>) =>
+    onThresholdsChange(thresholds.map(t => t.id === id ? { ...t, ...patch } : t));
+  const removeThreshold = (id: string) => onThresholdsChange(thresholds.filter(t => t.id !== id));
+
+  return (
+    <div className="space-y-6">
+      {/* ── Jalons (X-axis annotations) ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">
+              Jalons · {jalons.length}
+            </h4>
+            <p className="text-[11px] text-on-surface-variant/70 mt-0.5">
+              Marqueurs verticaux sur l'axe temporel (events, déploiements, incidents).
+            </p>
+          </div>
+          <button
+            onClick={addJalon}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Jalon
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {jalons.map(j => (
+            <div key={j.id} className="flex items-center gap-2 p-2.5 border border-outline-variant/20 rounded-xl bg-white">
+              <input
+                type="color"
+                value={j.color}
+                onChange={(e) => updateJalon(j.id, { color: e.target.value })}
+                className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
+              />
+              <input
+                value={j.label}
+                onChange={(e) => updateJalon(j.id, { label: e.target.value })}
+                placeholder="Label"
+                className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
+              />
+              <input
+                type="date"
+                value={j.date}
+                onChange={(e) => updateJalon(j.id, { date: e.target.value })}
+                className="px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+              />
+              <button
+                onClick={() => removeJalon(j.id)}
+                className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                aria-label="Remove jalon"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-error" />
+              </button>
+            </div>
+          ))}
+          {jalons.length === 0 && (
+            <div className="border border-dashed border-outline-variant/30 rounded-xl py-8 text-center">
+              <p className="text-xs text-on-surface-variant">Aucun jalon défini</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Seuils Y (horizontal thresholds) ── */}
+      <div className="space-y-3 pt-4 border-t border-outline-variant/15">
+        <div className="flex items-center justify-between">
+          <div>
+            <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant">
+              Seuils Y · {thresholds.length}
+            </h4>
+            <p className="text-[11px] text-on-surface-variant/70 mt-0.5">
+              Lignes horizontales de seuil sur l'axe Y (objectifs, KPI cibles, alertes).
+            </p>
+          </div>
+          <button
+            onClick={addThreshold}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add Seuil Y
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {thresholds.map(t => (
+            <div key={t.id} className="flex items-center gap-2 p-2.5 border border-outline-variant/20 rounded-xl bg-white">
+              <input
+                type="color"
+                value={t.color}
+                onChange={(e) => updateThreshold(t.id, { color: e.target.value })}
+                className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
+              />
+              <input
+                value={t.label}
+                onChange={(e) => updateThreshold(t.id, { label: e.target.value })}
+                placeholder="Label"
+                className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
+              />
+              <input
+                type="number"
+                value={t.value}
+                onChange={(e) => updateThreshold(t.id, { value: Number(e.target.value) })}
+                placeholder="Value"
+                className="w-24 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+              />
+              <select
+                value={t.axis}
+                onChange={(e) => updateThreshold(t.id, { axis: e.target.value as AxisSide })}
+                className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-bold uppercase"
+              >
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select>
+              <select
+                value={t.lineStyle}
+                onChange={(e) => updateThreshold(t.id, { lineStyle: e.target.value as LineStyle })}
+                className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+              >
+                <option value="solid">Solid</option>
+                <option value="dashed">Dashed</option>
+              </select>
+              <button
+                onClick={() => removeThreshold(t.id)}
+                className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                aria-label="Remove threshold"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-error" />
+              </button>
+            </div>
+          ))}
+          {thresholds.length === 0 && (
+            <div className="border border-dashed border-outline-variant/30 rounded-xl py-8 text-center">
+              <p className="text-xs text-on-surface-variant">Aucun seuil défini</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Helpers ---------------- */
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
