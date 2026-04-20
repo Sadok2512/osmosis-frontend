@@ -425,6 +425,17 @@ export default function EditorView({
             );
           }
 
+          // Premium manually-edited widgets share a unified settings panel.
+          if (w.kind === 'hero' || w.kind === 'stat' || w.kind === 'divider') {
+            return (
+              <PremiumWidgetSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
           // Other widget kinds keep the legacy bottom panel.
           const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
