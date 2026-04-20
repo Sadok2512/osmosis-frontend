@@ -3595,6 +3595,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // ── KPI Overlay enhancements ──
   const [kpiAnalysisLevel, setKpiAnalysisLevel] = useState<'site' | 'cell' | 'band'>('cell');
   const [kpiTechnoFilter, setKpiTechnoFilter] = useState<'4G' | '5G'>('4G');
+  const [kpiDateFrom, setKpiDateFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    return d.toISOString().slice(0, 10);
+  });
+  const [kpiDateTo, setKpiDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [kpiThresholds, setKpiThresholds] = useState<Record<string, { green: number; orange: number; invert?: boolean; colorGreen?: string; colorOrange?: string; colorRed?: string }>>(() => {
     try {
       const saved = localStorage.getItem('osmosis_kpi_thresholds');
@@ -4845,6 +4850,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
 
+    // Pass date range for period aggregation
+    if (kpiDateFrom) filters.date_from = kpiDateFrom;
+    if (kpiDateTo) filters.date_to = kpiDateTo;
+
     // Only show loading spinner if this is a fresh fetch (not cached)
     // Keep existing kpiValues visible during fetch to avoid flash
     setKpiLoading(true);
@@ -4861,7 +4870,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters]);
+  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
@@ -9129,6 +9138,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               )}
             </div>
+
+            {/* ── Date Range ── */}
+            {!kpiOverlayLocked && (
+              <div className="px-3 py-2 border-b border-border/20">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Période</span>
+                  <input type="date" value={kpiDateFrom} onChange={e => setKpiDateFrom(e.target.value)}
+                    className="flex-1 px-1.5 py-1 text-[10px] rounded-lg border border-border/40 bg-background text-foreground" />
+                  <span className="text-[9px] text-muted-foreground">→</span>
+                  <input type="date" value={kpiDateTo} onChange={e => setKpiDateTo(e.target.value)}
+                    className="flex-1 px-1.5 py-1 text-[10px] rounded-lg border border-border/40 bg-background text-foreground" />
+                </div>
+              </div>
+            )}
 
             {/* Gradient bar visualization */}
             <div className="px-3 py-1.5">
