@@ -17,15 +17,6 @@ interface PAEChartProps {
 }
 
 /** Demo dataset — only used in the standalone Presentation preview, never inside live widgets. */
-const demoData = Array.from({ length: 24 }, (_, i) => {
-  const base = 320 + Math.sin(i / 3) * 60 + Math.cos(i / 2) * 30;
-  return {
-    time: `${String(i).padStart(2, '0')}:00`,
-    value: Math.round(base + Math.random() * 40),
-    secondary: Math.round(base * 0.65 + Math.random() * 25),
-  };
-});
-
 const PAEChart: React.FC<PAEChartProps> = ({
   variant = 'editor',
   height = '100%',
@@ -38,18 +29,17 @@ const PAEChart: React.FC<PAEChartProps> = ({
 }) => {
   const isPresentation = variant === 'presentation';
 
-  // The chart is "live" (driven by the settings panel) when a config is provided.
-  const isLive = !!config;
+  // The chart is driven by the settings panel when a config is provided.
   const hasMetrics = !!config && config.metrics.length > 0;
   const hasBeenApplied = (appliedRev ?? 0) > 0;
+  const hasRealData = Array.isArray(data) && data.length > 0;
 
-  // Live widgets must wait for: (1) at least one metric AND (2) an explicit Apply click.
-  // Standalone usage (no config — e.g. PresentationView demo) keeps showing the demo dataset.
-  const showDemoFallback = !isLive;
-  const isEmpty = isLive && (!hasMetrics || !hasBeenApplied);
+  // Empty state: no metric, OR not yet applied, OR no real data returned from the backend.
+  // No mock/demo dataset is ever used.
+  const isEmpty = !hasMetrics || !hasBeenApplied || !hasRealData;
 
-  // Effective dataset: real `data` if provided, else demo (only for standalone), else nothing.
-  const effectiveData = data ?? (showDemoFallback ? demoData : []);
+  const effectiveData = data ?? [];
+
 
 
   const option = useMemo(() => {
