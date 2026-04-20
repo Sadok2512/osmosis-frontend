@@ -382,23 +382,46 @@ const getSectorCoords = (
   return points;
 };
 
+/** Helper: defensively split a possibly-CSV string ("LTE800, LTE1800") into a clean list. */
+const splitMaybeCsv = (raw: unknown): string[] => {
+  if (raw == null) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const out: string[] = [];
+  for (const v of arr) {
+    if (v == null) continue;
+    String(v).split(/[,;|]/).map(s => s.trim()).filter(Boolean).forEach(s => out.push(s));
+  }
+  return [...new Set(out)];
+};
+
 const getSiteDisplayBands = (site: SiteSummary): string[] => {
+  // Prefer cells (already filtered by active dashboard band/techno filters)
   const cellBands = site.cells.length > 0
     ? [...new Set(site.cells.map(c => String(c.bande || '').trim()).filter(Boolean))]
     : [];
 
   if (cellBands.length > 0) return cellBands;
 
-  const siteBand = String((site as any).bande || '').trim();
-  return siteBand ? [siteBand] : [];
+  // Fallback: parsed array from backend (already CSV-split by topoService)
+  if (Array.isArray((site as any).bandes) && (site as any).bandes.length > 0) {
+    return (site as any).bandes as string[];
+  }
+
+  // Last-resort: legacy single `bande` field (may be CSV-mangled — split defensively)
+  return splitMaybeCsv((site as any).bande);
 };
 
 const getSiteDisplayTechs = (site: SiteSummary): string[] => {
+  // Prefer cells (already filtered by active dashboard band/techno filters)
   const cellTechs = site.cells.length > 0
     ? [...new Set(site.cells.map(c => String(c.techno || '').trim()).filter(Boolean))]
     : [];
 
   if (cellTechs.length > 0) return cellTechs;
+
+  // Backend-provided technos array (parsed)
+  const backendTechs = splitMaybeCsv((site as any).technos);
+  if (backendTechs.length > 0) return [...new Set(backendTechs)];
 
   const fallback: string[] = [];
   const siteTech = String(site.techno || '').trim();
@@ -413,6 +436,15 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
   }
 
   return [...new Set(fallback.filter(Boolean))];
+};
+
+/**
+ * Cell count consistent with current filters:
+ * use loaded `cells.length` when available, else fall back to backend count.
+ */
+const getSiteDisplayCellCount = (site: SiteSummary): number => {
+  if (site.cells && site.cells.length > 0) return site.cells.length;
+  return site.cell_count || 0;
 };
 
 const getRenderableCellsForSite = (
