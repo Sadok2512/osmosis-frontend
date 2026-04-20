@@ -1106,3 +1106,71 @@ function MultiTagInput({
     </div>
   );
 }
+
+/* ---------------- KPI Combobox (searchable, virtual-friendly) ---------------- */
+
+function KpiCombobox({
+  value, options, loading, onSelect,
+}: {
+  value: string;
+  options: { key: string; label: string; unit: string }[];
+  loading: boolean;
+  onSelect: (opt: { key: string; label: string; unit: string }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = options.find(o => o.key === value);
+  const displayLabel = current?.label ?? value ?? 'Sélectionner un KPI…';
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm font-bold text-on-surface hover:border-primary/40 transition-colors"
+        >
+          <span className="flex items-center gap-2 truncate">
+            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin text-primary shrink-0" />}
+            <span className="truncate">{displayLabel}</span>
+            {current?.unit && (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">
+                {current.unit}
+              </span>
+            )}
+          </span>
+          <ChevronDown className="w-4 h-4 text-on-surface-variant shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[420px] p-0" align="start">
+        <Command shouldFilter>
+          <CommandInput placeholder={`Rechercher parmi ${options.length} KPIs…`} />
+          <CommandList className="max-h-80">
+            <CommandEmpty>Aucun KPI trouvé.</CommandEmpty>
+            <CommandGroup>
+              {options.slice(0, 500).map(o => (
+                <CommandItem
+                  key={o.key}
+                  value={`${o.label} ${o.key}`}
+                  onSelect={() => { onSelect(o); setOpen(false); }}
+                  className="flex items-center gap-2"
+                >
+                  <Check className={cn('w-3.5 h-3.5', o.key === value ? 'opacity-100 text-primary' : 'opacity-0')} />
+                  <span className="flex-1 truncate text-xs font-bold">{o.label}</span>
+                  {o.unit && (
+                    <span className="text-[9px] font-bold uppercase text-on-surface-variant bg-surface-container-low px-1.5 py-0.5 rounded">
+                      {o.unit}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {options.length > 500 && (
+              <div className="px-3 py-2 text-[10px] text-on-surface-variant border-t border-outline-variant/15">
+                Affichage des 500 premiers résultats — affinez la recherche pour voir les autres ({options.length} au total).
+              </div>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
