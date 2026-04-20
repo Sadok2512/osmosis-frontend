@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import DateRangePopover from './DateRangePopover';
 
 interface Props {
   widget: DynWidget;
@@ -467,47 +468,12 @@ function TimeFiltersToolbar({
           </PopoverContent>
         </Popover>
 
-        {/* From date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
-              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
-              <span>{fromDisp.date}</span>
-              <span className="text-on-surface-variant/60 font-medium">{fromDisp.time}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Début</label>
-            <input
-              type="datetime-local"
-              value={tr.from}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
-            />
-          </PopoverContent>
-        </Popover>
-
-        <span className="text-on-surface-variant/60 font-bold">—</span>
-
-        {/* To date */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
-              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
-              <span>{toDisp.date}</span>
-              <span className="text-on-surface-variant/60 font-medium">{toDisp.time}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Fin</label>
-            <input
-              type="datetime-local"
-              value={tr.to}
-              onChange={(e) => setToDate(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Date range — unified Investigator-style dual calendar */}
+        <DateRangePopover
+          from={tr.from}
+          to={tr.to}
+          onChange={(f, t) => patchData({ timeRange: { ...tr, from: f, to: t, preset: 'custom' } })}
+        />
 
         {/* Période preset */}
         <Popover>

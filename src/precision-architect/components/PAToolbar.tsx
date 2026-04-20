@@ -3,6 +3,7 @@ import { Filter, Calendar, Clock, Flag, ChevronDown, Plus, X, Check } from 'luci
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import DateRangePopover from './DateRangePopover';
 
 type TechnoId = '2g' | '3g' | '4g' | '5g';
 type PeriodPreset = '1j' | '3j' | '7j' | '14j' | '30j' | 'custom';
@@ -167,47 +168,12 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        {/* Date start */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
-              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
-              <span>{fromDisp.date}</span>
-              <span className="text-on-surface-variant/60 font-medium">{fromDisp.time}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Début</label>
-            <input
-              type="datetime-local"
-              value={from}
-              onChange={(e) => { setFrom(e.target.value); setPreset('custom'); }}
-              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
-            />
-          </PopoverContent>
-        </Popover>
-
-        <span className="text-on-surface-variant/60 font-bold">—</span>
-
-        {/* Date end */}
-        <Popover>
-          <PopoverTrigger asChild>
-            <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors">
-              <Calendar className="w-3.5 h-3.5 text-on-surface-variant" />
-              <span>{toDisp.date}</span>
-              <span className="text-on-surface-variant/60 font-medium">{toDisp.time}</span>
-            </button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-3" align="start">
-            <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant block mb-1.5">Fin</label>
-            <input
-              type="datetime-local"
-              value={to}
-              onChange={(e) => { setTo(e.target.value); setPreset('custom'); }}
-              className="px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm focus:outline-none focus:border-primary"
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Date range — unified Investigator-style dual calendar */}
+        <DateRangePopover
+          from={from}
+          to={to}
+          onChange={(f, t) => { setFrom(f); setTo(t); setPreset('custom'); }}
+        />
 
         {/* Période preset */}
         <Popover>
