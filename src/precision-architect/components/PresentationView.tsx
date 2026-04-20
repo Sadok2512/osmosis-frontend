@@ -38,7 +38,8 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
   const pageBg =
     theme.backgroundColor ||
     (theme.background === 'dark' ? '#0a0c0d' : theme.background === 'gradient' ? '#1a1a2e' : '#f8fafc');
-  const cardBg = theme.cardColor || '#ffffff';
+  const isDarkBg = theme.background === 'dark' || theme.background === 'gradient';
+  const cardBg = theme.cardColor || (isDarkBg ? '#16181d' : '#ffffff');
   const titleColor = theme.titleColor || theme.accentColor;
   const textColor = theme.textColor || (theme.background === 'dark' || theme.background === 'gradient' ? '#ffffff' : '#0f172a');
   const radius = theme.borderRadius ?? 16;
