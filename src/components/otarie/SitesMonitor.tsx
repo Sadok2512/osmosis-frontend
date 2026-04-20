@@ -9369,7 +9369,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <button
                           key={kpi.id}
                           onClick={() => {
-                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowKpiDropdown(false); setKpiSearch('');
+                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode('sites'); setShowKpiDropdown(false); setKpiSearch('');
                             // Add to kpiOverlays (avoid duplicates)
                             setKpiOverlays(prev => prev.includes(kpi.id) ? prev : [...prev, kpi.id]);
                             // Save kpiOverlays to active view
@@ -11041,7 +11041,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   overlayVersion={overlayVersion}
                   resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
                   activeKpiOverlayId={mapKpi}
-                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); }}
+                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode('sites'); }}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
                     setKpiOverlays(next);
