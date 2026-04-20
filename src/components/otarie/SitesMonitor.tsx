@@ -9107,7 +9107,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <input type="date" value={kpiDateTo} onChange={e => setKpiDateTo(e.target.value)}
                     className="flex-1 px-1.5 py-1 text-[10px] rounded-lg border border-border/40 bg-background text-foreground" />
                 </div>
-              </div>
             </div>
 
             {/* Gradient bar visualization */}
