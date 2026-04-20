@@ -41,13 +41,16 @@ interface Props {
 
 const PAToolbar: React.FC<Props> = ({ onApply }) => {
   const { data: filterCatalog, isLoading: filtersLoading } = useFilterCatalog();
+  // Mirror Investigator: Vendor/Technology are handled by the Périmètre popover
+  // and must NOT appear in the chip-row dimension picker.
+  const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology', 'Techno']);
   const dimensionOptions = useMemo(() => {
-    if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_DIMENSIONS;
-    const fromBackend = filterCatalog
-      .filter(f => (f as any).is_active !== false)
-      .map(f => f.display_name || f.dimension_key);
-    if (!fromBackend.some(d => d.toLowerCase() === 'vendor')) fromBackend.push('Vendor');
-    return fromBackend;
+    const base = (!filterCatalog || filterCatalog.length === 0)
+      ? FALLBACK_DIMENSIONS
+      : filterCatalog
+          .filter(f => (f as any).is_active !== false)
+          .map(f => f.display_name || f.dimension_key);
+    return base.filter(d => !SCOPE_DIMENSIONS.has(d));
   }, [filterCatalog]);
 
   // Global report-level state — single source of truth for all widgets that inherit.
