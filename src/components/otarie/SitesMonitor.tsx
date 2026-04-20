@@ -1531,6 +1531,179 @@ export interface SiteScope {
   value?: string;
 }
 
+/* ── Progressive filter builder (Add Filter pattern) ── */
+const ProgressiveFilterBuilder: React.FC<{
+  dimensions: { id: string; label: string; values: string[] }[];
+  filters: DashboardSiteFilters;
+  onChange: (next: DashboardSiteFilters) => void;
+}> = ({ dimensions, filters, onChange }) => {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+        setPickerSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pickerOpen]);
+
+  const activeKeys = useMemo(
+    () => Object.entries(filters).filter(([, v]) => v && (v as string[]).length > 0).map(([k]) => k),
+    [filters],
+  );
+
+  const availableDims = useMemo(
+    () => dimensions.filter(d => !activeKeys.includes(d.id)),
+    [dimensions, activeKeys],
+  );
+
+  const filteredAvailable = useMemo(() => {
+    if (!pickerSearch.trim()) return availableDims;
+    const q = pickerSearch.toLowerCase();
+    return availableDims.filter(d => d.label.toLowerCase().includes(q));
+  }, [availableDims, pickerSearch]);
+
+  const addFilter = (dimId: string) => {
+    onChange({ ...filters, [dimId]: [] });
+    setPickerOpen(false);
+    setPickerSearch('');
+  };
+
+  const removeFilter = (dimId: string) => {
+    const next = { ...filters };
+    delete (next as any)[dimId];
+    onChange(next);
+  };
+
+  const updateFilterValues = (dimId: string, vals: string[]) => {
+    onChange({ ...filters, [dimId]: vals });
+  };
+
+  const clearAll = () => onChange({});
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          Filtres de sites <span className="text-muted-foreground/50 font-normal normal-case">(optionnel)</span>
+        </label>
+        {activeKeys.length > 0 && (
+          <button
+            onClick={clearAll}
+            className="text-[9px] font-semibold text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Tout effacer
+          </button>
+        )}
+      </div>
+
+      {/* Active filter chips */}
+      {activeKeys.length > 0 && (
+        <div className="space-y-2 mb-2">
+          {activeKeys.map(key => {
+            const dim = dimensions.find(d => d.id === key);
+            if (!dim) return null;
+            const selected = (filters[key as keyof DashboardSiteFilters] as string[]) || [];
+            return (
+              <div
+                key={key}
+                className="group rounded-lg border border-border bg-muted/20 hover:border-primary/30 hover:bg-muted/40 transition-colors"
+              >
+                <div className="flex items-center gap-2 px-2.5 pt-2">
+                  <span className="text-[9px] font-bold text-primary uppercase tracking-wider flex-1">
+                    {dim.label}
+                  </span>
+                  <button
+                    onClick={() => removeFilter(key)}
+                    className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-60 group-hover:opacity-100"
+                    aria-label={`Retirer ${dim.label}`}
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+                <div className="px-2.5 pb-2 pt-1">
+                  <CreateFilterDropdown
+                    label=""
+                    values={dim.values}
+                    selected={selected}
+                    onChange={(vals) => updateFilterValues(key, vals)}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add filter picker */}
+      {availableDims.length > 0 && (
+        <div ref={pickerRef} className="relative">
+          <button
+            onClick={() => setPickerOpen(!pickerOpen)}
+            className={`w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed text-[11px] font-semibold transition-all ${
+              pickerOpen
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5'
+            }`}
+          >
+            <Plus size={12} />
+            Ajouter un filtre
+          </button>
+
+          {pickerOpen && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+              {availableDims.length > 4 && (
+                <div className="px-2.5 pt-2 pb-1">
+                  <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
+                    <Search size={11} className="text-muted-foreground shrink-0" />
+                    <input
+                      value={pickerSearch}
+                      onChange={e => setPickerSearch(e.target.value)}
+                      placeholder="Rechercher un filtre..."
+                      className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="max-h-[220px] overflow-y-auto py-0.5">
+                {filteredAvailable.length === 0 ? (
+                  <p className="text-[9px] text-muted-foreground/50 text-center py-3 italic">
+                    {availableDims.length === 0 ? 'Tous les filtres ajoutés' : 'Aucun résultat'}
+                  </p>
+                ) : (
+                  filteredAvailable.map(dim => (
+                    <button
+                      key={dim.id}
+                      onClick={() => addFilter(dim.id)}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] text-muted-foreground hover:bg-primary/5 hover:text-primary transition-colors"
+                    >
+                      <span className="font-semibold uppercase tracking-wider">{dim.label}</span>
+                      <span className="text-[9px] text-muted-foreground/60">{dim.values.length}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeKeys.length === 0 && availableDims.length > 0 && (
+        <p className="text-[9px] text-muted-foreground/60 italic mt-2 text-center">
+          Aucun filtre — le dashboard inclura tous les sites
+        </p>
+      )}
+    </div>
+  );
+};
+
 /* ── Multi-select dropdown for dashboard creation filters ── */
 const CreateFilterDropdown: React.FC<{
   label: string;
