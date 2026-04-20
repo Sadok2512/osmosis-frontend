@@ -59,6 +59,42 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       .map(k => ({ key: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || '' }));
   }, [kpiCatalog]);
 
+  // ── Map MonitorKpiCatalogEntry → KpiCatalogEntry (shape expected by KpiSelectorModal)
+  const kpiCatalogForSelector: KpiCatalogEntry[] = useMemo(() => {
+    if (!kpiCatalog || kpiCatalog.length === 0) return [];
+    return kpiCatalog.filter(k => k.is_active !== false).map((k: any) => ({
+      kpi_id: k.kpi_key,
+      kpi_key: k.kpi_key,
+      display_name: k.display_name || k.kpi_key,
+      description: k.description || '',
+      techno_scope: 'both' as const,
+      unit: k.unit || '',
+      value_type: (k.value_type || 'gauge') as any,
+      default_agg: 'avg' as const,
+      allowed_aggs: ['avg' as const],
+      is_map_supported: false,
+      category: k.category || 'Other',
+      color: '#3b82f6',
+      vendor: k.vendor || '',
+      techno: k.techno || '',
+      is_normalized: k.is_normalized ?? false,
+      dimension_type: k.dimension_type || null,
+      dimension_prefix: (k as any).dimension_prefix || null,
+      supported_levels: k.supported_levels || [],
+    } as any));
+  }, [kpiCatalog]);
+
+  // ── Counter catalog (loaded once from backend; used by CounterSelectorModal)
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+      .then(r => (r.ok ? r.json() : []))
+      .then(d => { if (alive) setCounterCatalog(Array.isArray(d) ? d : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const dimensionOptions = useMemo(() => {
     if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_TF_DIMENSIONS;
     const fromBackend = filterCatalog
