@@ -323,18 +323,24 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
         </CollapsibleSection>
       </div>
 
-      <div className="flex gap-2 p-4 border-t border-outline-variant/10 bg-white">
-        <button onClick={resetAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center gap-2">
-          <Reset className="w-3.5 h-3.5" />
-          Reset
-        </button>
-        <button onClick={applyConfig} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-primary text-primary rounded-xl hover:bg-primary/5 transition-all active:scale-95 flex items-center justify-center gap-2">
-          <Apply className="w-3.5 h-3.5" />
-          Apply
-        </button>
-        <button onClick={saveAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
-          <Save className="w-3.5 h-3.5" />
-          Save
+      <div className="flex flex-col gap-2 p-4 border-t border-outline-variant/10 bg-white">
+        <div className="flex gap-2">
+          <button onClick={resetAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center gap-2">
+            <Reset className="w-3.5 h-3.5" />
+            Reset
+          </button>
+          <button onClick={applyConfig} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-primary text-primary rounded-xl hover:bg-primary/5 transition-all active:scale-95 flex items-center justify-center gap-2">
+            <Apply className="w-3.5 h-3.5" />
+            Apply
+          </button>
+          <button onClick={saveAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest bg-primary text-on-primary rounded-xl shadow-lg shadow-primary/30 transition-all active:scale-95 flex items-center justify-center gap-2">
+            <Save className="w-3.5 h-3.5" />
+            Save
+          </button>
+        </div>
+        <button onClick={onClose} className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:text-on-surface hover:bg-surface-container-low rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 border border-outline-variant/20">
+          <X className="w-3.5 h-3.5" />
+          Close Panel
         </button>
       </div>
     </aside>
