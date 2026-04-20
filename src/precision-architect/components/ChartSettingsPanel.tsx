@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag } from 'lucide-react';
 import {
-  DynWidget, ChartWidgetConfig, ChartMetric,
+  DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartGranularity, ChartType,
   LineStyle, AxisSide, FillStyle, BackgroundStyle, LegendPosition,
 } from '../types';
@@ -13,7 +13,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Tab = 'data' | 'appearance' | 'interactions' | 'alerting';
+type Tab = 'data' | 'appearance' | 'jalons';
 
 const KPI_OPTIONS = [
   { key: 'qoe_index', label: 'QoE Index', unit: '%' },
