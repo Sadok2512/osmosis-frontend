@@ -239,6 +239,7 @@ export interface BboxSiteDTO {
   nr_cells?: number;
   cells_2g?: number;
   cells_3g?: number;
+  bcluster?: string | null;
 }
 
 export interface BboxSitesResponse {
@@ -657,6 +658,7 @@ export const topoApi = {
             nr_cells: techSummary.nrCells,
             cells_2g: techSummary.cells2g,
             cells_3g: techSummary.cells3g,
+            bcluster: site.bcluster ?? site.b_cluster ?? site.cluster ?? site.cluster_name ?? null,
           };
         })
         .filter((site: BboxSiteDTO) => Number.isFinite(site.lat) && Number.isFinite(site.lng));
@@ -672,6 +674,7 @@ export const topoApi = {
       if (filters?.dor && filters.dor !== 'ALL') qs.set('dor', filters.dor);
       if (filters?.techno && filters.techno !== 'ALL') qs.set('techno', filters.techno);
       if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
+      if (filters?.bcluster && filters.bcluster !== 'ALL') qs.set('bcluster', filters.bcluster);
       if (filters?.q) qs.set('search', filters.q);
 
       const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
@@ -703,6 +706,7 @@ export const topoApi = {
             nr_cells: 0,
             cells_2g: 0,
             cells_3g: 0,
+            bcluster: row.bcluster ?? row.b_cluster ?? row.cluster ?? row.cluster_name ?? null,
           });
         }
         const entry = siteMap.get(key)!;
@@ -757,14 +761,22 @@ export const topoApi = {
       const sitesData = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
       const rawSites = Array.isArray(sitesData) ? sitesData : (sitesData?.sites || sitesData?.rows || []);
       
-      const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string; code_nidt: string }>();
+      const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string; code_nidt: string; bcluster: string | null }>();
       for (const s of rawSites) {
         const lat = Number(s.latitude ?? s.lat);
         const lng = Number(s.longitude ?? s.lng);
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
         const name = s.site_name || s.nom_site || s.code_nidt;
         const code_nidt = s.code_nidt || name;
-        if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '', code_nidt });
+        if (name) siteCoords.set(name, {
+          lat,
+          lng,
+          plaque: s.plaque || '',
+          dor: s.dor || s.region || '',
+          region: s.region || '',
+          code_nidt,
+          bcluster: s.bcluster ?? s.b_cluster ?? s.cluster ?? s.cluster_name ?? null,
+        });
       }
 
       if (siteCoords.size === 0) {
@@ -815,6 +827,7 @@ export const topoApi = {
               plaque: c.plaque || coords.plaque,
               dor: c.dor || coords.dor,
               region: coords.region,
+              bcluster: c.bcluster ?? c.b_cluster ?? c.cluster ?? c.cluster_name ?? coords.bcluster,
               tac: null,
             });
           }

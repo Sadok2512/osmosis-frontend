@@ -109,6 +109,21 @@ function seededRand(seed: string, min: number, max: number): number {
 
 const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
 
+const BCLUSTER_FIELDS = ['bcluster', 'b_cluster', 'cluster', 'cluster_name', 'b_cluster_name'];
+
+function getFirstStringField(source: any, fields: string[]): string | null {
+  if (!source) return null;
+  for (const field of fields) {
+    const value = source[field];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return null;
+}
+
+function getBclusterValue(source: any): string | null {
+  return getFirstStringField(source, BCLUSTER_FIELDS);
+}
+
 const DOR_MAP: Record<string, string> = {
   'UPR Ile-De-France': 'UPR Ile-De-France',
   'UPR Nord-Est': 'UPR Nord-Est',
@@ -162,6 +177,11 @@ interface TopoRow {
   lac?: number | null;
   hebergeur_leader?: string | null;
   relative_id?: number | string | null;
+  bcluster?: string | null;
+  b_cluster?: string | null;
+  cluster?: string | null;
+  cluster_name?: string | null;
+  b_cluster_name?: string | null;
 }
 
 /**
@@ -278,6 +298,8 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.longitude != null) ext.longitude = extra.longitude;
     if (extra.hebergeur_leader) ext.hebergeur_leader = extra.hebergeur_leader;
     if (extra.relative_id != null) ext.relative_id = extra.relative_id;
+    const bcluster = getBclusterValue(extra);
+    if (bcluster) ext.bcluster = bcluster;
     // Spatial KPIs from ref_cell_daily
     if ((extra as any).intersite_distance_m != null) ext.intersite_distance_m = (extra as any).intersite_distance_m;
     if ((extra as any).overshoot_factor != null) ext.overshoot_factor = (extra as any).overshoot_factor;
@@ -375,6 +397,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       vendor,
       dor: normalizeDorValue(first.dor, first.region),
       plaque: first.plaque || '',
+      bcluster: getBclusterValue(first),
       department: (first.plaque || '').replace('DEPT_', ''),
       cell_count: cells.length,
       qoe_score_avg: cells.length > 0 ? avg(cells.map(c => c.qoe_score_avg)) : 0,
@@ -455,6 +478,31 @@ function hasMatchingFilterValue(
     .some((selectedValue) => normalizedCandidates.includes(selectedValue));
 }
 
+function splitFilterValues(value?: string | null): string[] {
+  if (!value || value === 'ALL') return [];
+  return value
+    .split(/[,/;|]+/)
+    .map(part => part.trim())
+    .filter(Boolean);
+}
+
+function getSiteBclusterCandidates(site: SiteSummary): Array<string | null | undefined> {
+  return [
+    (site as any).bcluster,
+    (site as any).b_cluster,
+    (site as any).cluster,
+    (site as any).cluster_name,
+    (site as any).b_cluster_name,
+    ...(site.cells || []).flatMap((cell: any) => [
+      cell.bcluster,
+      cell.b_cluster,
+      cell.cluster,
+      cell.cluster_name,
+      cell.b_cluster_name,
+    ]),
+  ];
+}
+
 function siteMatchesTechFilter(site: SiteSummary, selected?: string[]): boolean {
   if (!selected || selected.length === 0) return true;
 
@@ -507,6 +555,7 @@ function siteMatchesSearch(site: SiteSummary, search?: string): boolean {
     site.dor,
     site.plaque,
     (site as any).zone_arcep,
+    ...getSiteBclusterCandidates(site),
     ...(site.cells?.map((cell) => cell.cell_id) || []),
   ]
     .map(normalizeFilterValue)
@@ -525,11 +574,28 @@ function filterDashboardSitesLocally(
     if (!hasMatchingFilterValue([site.vendor], siteFilters?.constructeur)) return false;
     if (!hasMatchingFilterValue([site.plaque], siteFilters?.plaque)) return false;
     if (!hasMatchingFilterValue([(site as any).zone_arcep], siteFilters?.zone_arcep)) return false;
+    if (!hasMatchingFilterValue(getSiteBclusterCandidates(site), (siteFilters as any)?.bcluster)) return false;
     if (!siteMatchesTechFilter(site, siteFilters?.techno)) return false;
     if (!siteMatchesBandFilter(site, siteFilters?.bande)) return false;
     if (!siteMatchesSearch(site, search)) return false;
     return true;
   });
+}
+
+function filterSitesByBboxFilters(sites: SiteSummary[], filters?: BboxFilters): SiteSummary[] {
+  if (!filters) return sites;
+
+  const dashboardFilters = {
+    dor: splitFilterValues(filters.dor),
+    constructeur: splitFilterValues(filters.vendor),
+    plaque: splitFilterValues(filters.plaque),
+    zone_arcep: splitFilterValues(filters.zone_arcep),
+    techno: splitFilterValues(filters.techno),
+    bande: splitFilterValues(filters.bande),
+    bcluster: splitFilterValues(filters.bcluster),
+  } as DashboardSiteFilters;
+
+  return filterDashboardSitesLocally(sites, dashboardFilters, filters.q);
 }
 
 function getEmbeddedDashboardSites(
@@ -662,6 +728,7 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     bande: (dto as any).bande || null,
     bandes,
     technos,
+    bcluster: getBclusterValue(dto),
     lte_cells: dto.lte_cells || 0,
     nr_cells: dto.nr_cells || 0,
     cells_2g: (dto as any).cells_2g || 0,
@@ -720,7 +787,8 @@ export async function fetchSitesByBbox(
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
     const allSites = await fetchTopoSites();
-    return { sites: allSites, total: allSites.length };
+    const filteredSites = filterSitesByBboxFilters(allSites, filters);
+    return { sites: filteredSites, total: filteredSites.length };
   }
 }
 

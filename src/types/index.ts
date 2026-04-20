@@ -270,6 +270,7 @@ export interface SiteSummary {
   nr_cells?: number;
   cells_2g?: number;
   cells_3g?: number;
+  bcluster?: string | null;
 }
 
 export interface SiteDetail extends SiteSummary {

@@ -144,7 +144,7 @@ export function getVpsProxyHeaders(extraHeaders?: Record<string, string>): Recor
  * Get the base URL for an edge function / API endpoint.
  */
 export function getApiUrl(functionName: string): string {
-  const clean = functionName.replace(/^\/?(api\/)?/, '');
+  const clean = functionName.replace(/^\/?(api\/)?(v\d+\/)?/, '');
   const source = getPreferredDataSource();
   if (source === 'local') {
     return `${getLocalApiBase()}/api/${clean}`;
