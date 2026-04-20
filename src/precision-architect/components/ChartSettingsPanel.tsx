@@ -1458,49 +1458,52 @@ function JalonsTab({
 
         <div className="space-y-2">
           {thresholds.map(t => (
-            <div key={t.id} className="flex items-center gap-2 p-2.5 border border-outline-variant/20 rounded-xl bg-white">
-              <input
-                type="color"
-                value={t.color}
-                onChange={(e) => updateThreshold(t.id, { color: e.target.value })}
-                className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
-              />
-              <input
-                value={t.label}
-                onChange={(e) => updateThreshold(t.id, { label: e.target.value })}
-                placeholder="Label"
-                className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
-              />
-              <input
-                type="number"
-                value={t.value}
-                onChange={(e) => updateThreshold(t.id, { value: Number(e.target.value) })}
-                placeholder="Value"
-                className="w-24 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
-              />
-              <select
-                value={t.axis}
-                onChange={(e) => updateThreshold(t.id, { axis: e.target.value as AxisSide })}
-                className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-bold uppercase"
-              >
-                <option value="left">Left</option>
-                <option value="right">Right</option>
-              </select>
-              <select
-                value={t.lineStyle}
-                onChange={(e) => updateThreshold(t.id, { lineStyle: e.target.value as LineStyle })}
-                className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
-              >
-                <option value="solid">Solid</option>
-                <option value="dashed">Dashed</option>
-              </select>
-              <button
-                onClick={() => removeThreshold(t.id)}
-                className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
-                aria-label="Remove threshold"
-              >
-                <Trash2 className="w-3.5 h-3.5 text-error" />
-              </button>
+            <div key={t.id} className="p-2.5 border border-outline-variant/20 rounded-xl bg-white space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={t.color}
+                  onChange={(e) => updateThreshold(t.id, { color: e.target.value })}
+                  className="w-8 h-8 rounded-lg cursor-pointer border-0 bg-transparent p-0 shrink-0"
+                />
+                <input
+                  value={t.label}
+                  onChange={(e) => updateThreshold(t.id, { label: e.target.value })}
+                  placeholder="Label"
+                  className="flex-1 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold text-on-surface"
+                />
+                <input
+                  type="number"
+                  value={t.value}
+                  onChange={(e) => updateThreshold(t.id, { value: Number(e.target.value) })}
+                  placeholder="Value"
+                  className="w-24 px-2.5 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+                />
+                <select
+                  value={t.axis}
+                  onChange={(e) => updateThreshold(t.id, { axis: e.target.value as AxisSide })}
+                  className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs font-bold uppercase"
+                >
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+                <select
+                  value={t.lineStyle}
+                  onChange={(e) => updateThreshold(t.id, { lineStyle: e.target.value as LineStyle })}
+                  className="px-2 py-1.5 rounded-md border border-outline-variant/30 bg-white text-xs"
+                >
+                  <option value="solid">Solid</option>
+                  <option value="dashed">Dashed</option>
+                </select>
+                <button
+                  onClick={() => removeThreshold(t.id)}
+                  className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                  aria-label="Remove threshold"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-error" />
+                </button>
+              </div>
+              <ColorSwatchPalette value={t.color} onChange={(c) => updateThreshold(t.id, { color: c })} compact />
             </div>
           ))}
           {thresholds.length === 0 && (
