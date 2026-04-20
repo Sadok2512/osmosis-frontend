@@ -178,11 +178,12 @@ const PAEChart: React.FC<PAEChartProps> = ({
       itemWidth: 10, itemHeight: 6,
     };
 
+    const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible && m.axis === 'right');
     return {
       backgroundColor: bgColor,
       grid: {
         top: legendPos === 'top' ? 36 : (isPresentation ? 24 : 16),
-        right: legendPos === 'right' ? 100 : 16,
+        right: legendPos === 'right' ? 100 : (hasRightAxis ? 48 : 16),
         bottom: legendPos === 'bottom' ? 36 : 28,
         left: 44,
       },
