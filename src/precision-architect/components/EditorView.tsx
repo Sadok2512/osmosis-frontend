@@ -395,7 +395,7 @@ export default function EditorView({
           // Other widget kinds keep the legacy bottom panel.
           const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
-            <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+            <div className="h-[30rem] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
               <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>

@@ -184,7 +184,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   };
 
   return (
-    <div className="h-80 bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+    <div className="h-[30rem] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
       {/* Header — identical to Table-style panel */}
       <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
         <div className="flex items-center gap-4">
