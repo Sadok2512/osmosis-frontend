@@ -72,7 +72,7 @@ export default function EditorView({
   const [activeWidget, setActiveWidget] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(true);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
-  const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting' | 'chat'>('data');
+  const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
   
 
