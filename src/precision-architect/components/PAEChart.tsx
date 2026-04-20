@@ -233,7 +233,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       },
       xAxis: {
         type: 'category' as const,
-        data: effectiveData.map(d => d.time),
+        data: (xAxisLabels && xAxisLabels.length > 0) ? xAxisLabels : effectiveData.map(d => d.time),
         boundaryGap: style.chartType === 'bar',
         axisLine: { lineStyle: { color: splitLine } },
         axisTick: { show: false },
