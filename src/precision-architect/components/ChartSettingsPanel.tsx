@@ -1035,7 +1035,7 @@ function MetricsTab({
                     <Field label="Type">
                       <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
                         {(['line', 'area', 'bar'] as ChartType[]).map(t => {
-                          const active = (m.graphType ?? config.style.chartType) === t;
+                          const active = (m.graphType ?? 'line') === t;
                           return (
                             <button
                               key={t}
