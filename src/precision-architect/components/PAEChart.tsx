@@ -145,7 +145,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
 
       legendData = visible.map(m => m.alias || m.kpiKey);
     } else {
-      // Legacy fallback (no config provided).
+      // No config + no metrics → render empty grid (no demo data anywhere).
       yAxis = [{
         type: 'value' as const,
         axisLine: { show: false },
@@ -153,40 +153,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
         axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
         splitLine: { lineStyle: { color: splitLine, type: 'dashed' as const } },
       }];
-      series = [
-        {
-          name: 'Throughput',
-          type: 'line' as const,
-          smooth: true,
-          showSymbol: false,
-          data: effectiveData.map(d => d.value),
-          lineStyle: {
-            color: primaryColor,
-            width: isPresentation ? 3 : 2.5,
-          },
-          itemStyle: { color: primaryColor },
-          areaStyle: {
-            color: {
-              type: 'linear' as const,
-              x: 0, y: 0, x2: 0, y2: 1,
-              colorStops: [
-                { offset: 0, color: `${primaryColor}55` },
-                { offset: 1, color: `${primaryColor}00` },
-              ],
-            },
-          },
-        },
-        ...(showSecondary ? [{
-          name: 'Baseline',
-          type: 'line' as const,
-          smooth: true,
-          showSymbol: false,
-          data: effectiveData.map(d => d.secondary ?? 0),
-          lineStyle: { color: secondaryColor, width: 1.5, type: 'dashed' as const },
-          itemStyle: { color: secondaryColor },
-        }] : []),
-      ];
-      legendData = showSecondary ? ['Throughput', 'Baseline'] : ['Throughput'];
+      series = [];
+      legendData = [];
     }
 
     const legendPos = cfg?.style.legend.position ?? 'bottom';
