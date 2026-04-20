@@ -78,7 +78,7 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
         {sections.length > 0 && (
           <div className="space-y-4 mb-6">
             {sections.map((s) => (
-              <SectionBlock key={s.id} section={s} />
+              <SectionBlock key={s.id} section={s} editable={false} />
             ))}
           </div>
         )}
