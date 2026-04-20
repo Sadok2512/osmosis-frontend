@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight, Database, Palette, Flag, Filter, Calendar, Clock, Loader2, Search, Check, Cpu } from 'lucide-react';
 import {
   DynWidget, ChartWidgetConfig, ChartMetric, ChartJalon, ChartThreshold,
   DEFAULT_CHART_CONFIG, ChartType, TechnoId, PeriodPreset, GrainOption, ChartFilterChip,
@@ -10,7 +11,10 @@ import { useKpiCatalog, useFilterCatalog } from '@/components/kpi-monitor/api/kp
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import DateRangePopover from './DateRangePopover';
-import BIKpiSelectorModal from '@/components/bi/BIKpiSelectorModal';
+import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
+import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 interface Props {
   widget: DynWidget;
@@ -54,6 +58,42 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       .filter(k => k.is_active !== false)
       .map(k => ({ key: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || '' }));
   }, [kpiCatalog]);
+
+  // ── Map MonitorKpiCatalogEntry → KpiCatalogEntry (shape expected by KpiSelectorModal)
+  const kpiCatalogForSelector: KpiCatalogEntry[] = useMemo(() => {
+    if (!kpiCatalog || kpiCatalog.length === 0) return [];
+    return kpiCatalog.filter(k => k.is_active !== false).map((k: any) => ({
+      kpi_id: k.kpi_key,
+      kpi_key: k.kpi_key,
+      display_name: k.display_name || k.kpi_key,
+      description: k.description || '',
+      techno_scope: 'both' as const,
+      unit: k.unit || '',
+      value_type: (k.value_type || 'gauge') as any,
+      default_agg: 'avg' as const,
+      allowed_aggs: ['avg' as const],
+      is_map_supported: false,
+      category: k.category || 'Other',
+      color: '#3b82f6',
+      vendor: k.vendor || '',
+      techno: k.techno || '',
+      is_normalized: k.is_normalized ?? false,
+      dimension_type: k.dimension_type || null,
+      dimension_prefix: (k as any).dimension_prefix || null,
+      supported_levels: k.supported_levels || [],
+    } as any));
+  }, [kpiCatalog]);
+
+  // ── Counter catalog (loaded once from backend; used by CounterSelectorModal)
+  const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
+  useEffect(() => {
+    let alive = true;
+    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+      .then(r => (r.ok ? r.json() : []))
+      .then(d => { if (alive) setCounterCatalog(Array.isArray(d) ? d : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const dimensionOptions = useMemo(() => {
     if (!filterCatalog || filterCatalog.length === 0) return FALLBACK_TF_DIMENSIONS;
@@ -101,6 +141,26 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
         kpiKey: key,
         alias: opt?.label ?? key,
         unit: opt?.unit ?? '',
+        axis: 'left',
+        color: COLOR_PALETTE[(config.metrics.length + idx) % COLOR_PALETTE.length],
+        lineStyle: 'solid',
+        visible: true,
+      };
+    });
+    setMetrics([...config.metrics, ...newMetrics]);
+  };
+
+  const addCountersFromKeys = (counterNames: string[]) => {
+    const existing = new Set(config.metrics.map(m => m.kpiKey));
+    const toAdd = counterNames.filter(k => !existing.has(k));
+    if (toAdd.length === 0) return;
+    const newMetrics: ChartMetric[] = toAdd.map((name, idx) => {
+      const c = counterCatalog.find((x: any) => x.counter_name === name);
+      return {
+        id: `c-${Date.now()}-${idx}`,
+        kpiKey: name,
+        alias: c?.display_name || name,
+        unit: '',
         axis: 'left',
         color: COLOR_PALETTE[(config.metrics.length + idx) % COLOR_PALETTE.length],
         lineStyle: 'solid',
@@ -198,12 +258,15 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 patchData={patchData}
                 addMetric={addMetric}
                 addMetricsFromKeys={addMetricsFromKeys}
+                addCountersFromKeys={addCountersFromKeys}
                 updateMetric={updateMetric}
                 removeMetric={removeMetric}
                 title={widget.title ?? ''}
                 onTitleChange={(t) => onChange({ title: t })}
                 kpiOptions={kpiOptions}
                 kpisLoading={kpisLoading}
+                kpiCatalogForSelector={kpiCatalogForSelector}
+                counterCatalog={counterCatalog}
                 dimensionOptions={dimensionOptions}
                 filtersLoading={filtersLoading}
               />
@@ -234,19 +297,22 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 /* ---------------- Tab: Data Source (split in 2 sub-sections) ---------------- */
 
 function DataSourceTab({
-  config, patchData, addMetric, addMetricsFromKeys, updateMetric, removeMetric, title, onTitleChange,
-  kpiOptions, kpisLoading, dimensionOptions, filtersLoading,
+  config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   addMetric: () => void;
   addMetricsFromKeys: (keys: string[]) => void;
+  addCountersFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   title: string;
   onTitleChange: (t: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
+  kpiCatalogForSelector: KpiCatalogEntry[];
+  counterCatalog: any[];
   dimensionOptions: string[];
   filtersLoading: boolean;
 }) {
@@ -285,10 +351,13 @@ function DataSourceTab({
           metrics={config.metrics}
           addMetric={addMetric}
           addMetricsFromKeys={addMetricsFromKeys}
+          addCountersFromKeys={addCountersFromKeys}
           updateMetric={updateMetric}
           removeMetric={removeMetric}
           kpiOptions={kpiOptions}
           kpisLoading={kpisLoading}
+          kpiCatalogForSelector={kpiCatalogForSelector}
+          counterCatalog={counterCatalog}
         />
       )}
       {sub === 'time' && (
@@ -681,21 +750,28 @@ function TimeFiltersToolbar({
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
-  metrics, addMetric, addMetricsFromKeys, updateMetric, removeMetric, kpiOptions, kpisLoading,
+  metrics, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog,
 }: {
   metrics: ChartMetric[];
   addMetric: () => void;
   addMetricsFromKeys: (keys: string[]) => void;
+  addCountersFromKeys: (keys: string[]) => void;
   updateMetric: (id: string, patch: Partial<ChartMetric>) => void;
   removeMetric: (id: string) => void;
   kpiOptions: { key: string; label: string; unit: string }[];
   kpisLoading: boolean;
+  kpiCatalogForSelector: KpiCatalogEntry[];
+  counterCatalog: any[];
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [kpiPickerOpen, setKpiPickerOpen] = useState(false);
+  const [counterPickerOpen, setCounterPickerOpen] = useState(false);
 
-  const availableKeys = useMemo(() => kpiOptions.map(o => o.key), [kpiOptions]);
   const selectedKeys = useMemo(() => metrics.map(m => m.kpiKey), [metrics]);
+  const counterKeys = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
+  const selectedKpiKeys = useMemo(() => selectedKeys.filter(k => !counterKeys.has(k)), [selectedKeys, counterKeys]);
+  const selectedCounterKeys = useMemo(() => selectedKeys.filter(k => counterKeys.has(k)), [selectedKeys, counterKeys]);
 
   return (
     <div className="space-y-3">
@@ -703,30 +779,54 @@ function MetricsTab({
         <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
           <span>Metrics · {metrics.length}</span>
           {kpisLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
-          {!kpisLoading && kpiOptions.length > 0 && (
+          {!kpisLoading && kpiCatalogForSelector.length > 0 && (
             <span className="text-[8px] font-bold text-primary/70 normal-case tracking-wide">
-              · {kpiOptions.length} KPIs disponibles
+              · {kpiCatalogForSelector.length} KPIs · {counterCatalog.length} compteurs
             </span>
           )}
         </h4>
-        <button
-          onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" /> Add KPI
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCounterPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-500/40 text-emerald-600 text-xs font-bold hover:bg-emerald-500/10 transition-colors"
+          >
+            <Cpu className="w-3.5 h-3.5" /> Add Counter
+          </button>
+          <button
+            onClick={() => setKpiPickerOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" /> Add KPI
+          </button>
+        </div>
       </div>
 
-      <BIKpiSelectorModal
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        selectedKeys={selectedKeys}
-        availableKeys={availableKeys}
+      {createPortal(
+        <KpiSelectorModal
+          open={kpiPickerOpen}
+          onClose={() => setKpiPickerOpen(false)}
+          catalog={kpiCatalogForSelector}
+          selectedKeys={selectedKpiKeys}
+          onConfirm={(keys) => {
+            const existing = new Set(selectedKeys);
+            const toAdd = keys.filter(k => !existing.has(k));
+            if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+            setKpiPickerOpen(false);
+          }}
+        />,
+        document.body
+      )}
+
+      <CounterSelectorModal
+        open={counterPickerOpen}
+        onClose={() => setCounterPickerOpen(false)}
+        catalog={counterCatalog}
+        selectedKeys={selectedCounterKeys}
         onConfirm={(keys) => {
-          // Add only newly-selected keys (preserve existing metric configs)
           const existing = new Set(selectedKeys);
           const toAdd = keys.filter(k => !existing.has(k));
-          if (toAdd.length > 0) addMetricsFromKeys(toAdd);
+          if (toAdd.length > 0) addCountersFromKeys(toAdd);
+          setCounterPickerOpen(false);
         }}
       />
 
@@ -895,7 +995,7 @@ function MetricsTab({
           <div className="border border-dashed border-outline-variant/30 rounded-xl py-12 flex flex-col items-center gap-3">
             <p className="text-xs text-on-surface-variant">No metrics yet</p>
             <button
-              onClick={() => setPickerOpen(true)}
+              onClick={() => setKpiPickerOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90"
             >
               <Plus className="w-3.5 h-3.5" /> Add your first KPI
