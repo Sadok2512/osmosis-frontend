@@ -884,6 +884,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const splits = filters
           .filter((f: any) => f.is_active !== false && f.is_aggregatable)
           .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
+        // Always include BCluster as a split option
+        if (!splits.find(s => s.key === 'BCLUSTER')) splits.push({ key: 'BCLUSTER', label: 'BCluster' });
         if (splits.length > 0) setSplitOptions(splits);
         else setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
 
@@ -891,6 +893,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const dims = filters
           .filter((f: any) => f.is_active !== false && f.is_filterable)
           .map((f: any) => f.display_name);
+        // Always include BCluster (virtual dimension from saved clusters)
+        if (!dims.includes('BCluster')) dims.push('BCluster');
         if (dims.length > 0) setFilterDimensions(dims);
       } else {
         throw new Error('empty catalog');
