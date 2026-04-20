@@ -150,6 +150,26 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
     setMetrics([...config.metrics, ...newMetrics]);
   };
 
+  const addCountersFromKeys = (counterNames: string[]) => {
+    const existing = new Set(config.metrics.map(m => m.kpiKey));
+    const toAdd = counterNames.filter(k => !existing.has(k));
+    if (toAdd.length === 0) return;
+    const newMetrics: ChartMetric[] = toAdd.map((name, idx) => {
+      const c = counterCatalog.find((x: any) => x.counter_name === name);
+      return {
+        id: `c-${Date.now()}-${idx}`,
+        kpiKey: name,
+        alias: c?.display_name || name,
+        unit: '',
+        axis: 'left',
+        color: COLOR_PALETTE[(config.metrics.length + idx) % COLOR_PALETTE.length],
+        lineStyle: 'solid',
+        visible: true,
+      };
+    });
+    setMetrics([...config.metrics, ...newMetrics]);
+  };
+
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
     setMetrics(config.metrics.map(m => m.id === id ? { ...m, ...patch } : m));
