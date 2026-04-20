@@ -26,7 +26,7 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Chart'}</h3>
         </div>
         <div className="flex-1 min-h-0">
-          <PAEChart variant="editor" height="100%" config={w.config} />
+          <PAEChart variant="editor" height="100%" config={w.config} appliedRev={w.appliedRev} />
         </div>
       </div>
     );

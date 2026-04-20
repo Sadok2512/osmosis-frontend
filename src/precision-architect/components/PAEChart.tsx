@@ -8,13 +8,16 @@ interface PAEChartProps {
   data?: { time: string; value: number; secondary?: number }[];
   /** New: full widget config from settings panel. When provided, supersedes legacy props. */
   config?: ChartWidgetConfig;
+  /** Bumped each time the user clicks "Appliquer" / "Save" in settings. 0 (or undefined) = never applied yet. */
+  appliedRev?: number;
   /** Legacy props (kept for compatibility). */
   primaryColor?: string;
   secondaryColor?: string;
   showSecondary?: boolean;
 }
 
-const defaultData = Array.from({ length: 24 }, (_, i) => {
+/** Demo dataset — only used in the standalone Presentation preview, never inside live widgets. */
+const demoData = Array.from({ length: 24 }, (_, i) => {
   const base = 320 + Math.sin(i / 3) * 60 + Math.cos(i / 2) * 30;
   return {
     time: `${String(i).padStart(2, '0')}:00`,
@@ -26,16 +29,28 @@ const defaultData = Array.from({ length: 24 }, (_, i) => {
 const PAEChart: React.FC<PAEChartProps> = ({
   variant = 'editor',
   height = '100%',
-  data = defaultData,
+  data,
   config,
+  appliedRev,
   primaryColor = '#00685f',
   secondaryColor = '#6bd8cb',
   showSecondary = true,
 }) => {
   const isPresentation = variant === 'presentation';
 
-  // Empty state: no config, or config with no metrics → show placeholder instead of demo data.
-  const isEmpty = !config || !config.metrics || config.metrics.length === 0;
+  // The chart is "live" (driven by the settings panel) when a config is provided.
+  const isLive = !!config;
+  const hasMetrics = !!config && config.metrics.length > 0;
+  const hasBeenApplied = (appliedRev ?? 0) > 0;
+
+  // Live widgets must wait for: (1) at least one metric AND (2) an explicit Apply click.
+  // Standalone usage (no config — e.g. PresentationView demo) keeps showing the demo dataset.
+  const showDemoFallback = !isLive;
+  const isEmpty = isLive && (!hasMetrics || !hasBeenApplied);
+
+  // Effective dataset: real `data` if provided, else demo (only for standalone), else nothing.
+  const effectiveData = data ?? (showDemoFallback ? demoData : []);
+
 
   const option = useMemo(() => {
     const cfg = config ?? null;
@@ -95,7 +110,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           : undefined;
 
         // Vary data per metric so multiple lines are visually distinct.
-        const seriesData = data.map((d, di) => {
+        const seriesData = effectiveData.map((d, di) => {
           const v = m.axis === 'right' ? (d.secondary ?? d.value * 0.65) : d.value;
           // Add a small per-metric offset so additional metrics don't fully overlap.
           return Math.round(v * (1 - idx * 0.12) + (idx * 8));
@@ -135,7 +150,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'line' as const,
           smooth: true,
           showSymbol: false,
-          data: data.map(d => d.value),
+          data: effectiveData.map(d => d.value),
           lineStyle: {
             color: primaryColor,
             width: isPresentation ? 3 : 2.5,
@@ -157,7 +172,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'line' as const,
           smooth: true,
           showSymbol: false,
-          data: data.map(d => d.secondary ?? 0),
+          data: effectiveData.map(d => d.secondary ?? 0),
           lineStyle: { color: secondaryColor, width: 1.5, type: 'dashed' as const },
           itemStyle: { color: secondaryColor },
         }] : []),
@@ -199,7 +214,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       },
       xAxis: {
         type: 'category' as const,
-        data: data.map(d => d.time),
+        data: effectiveData.map(d => d.time),
         boundaryGap: style.chartType === 'bar',
         axisLine: { lineStyle: { color: splitLine } },
         axisTick: { show: false },
@@ -210,9 +225,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [data, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config]);
 
   if (isEmpty) {
+    const isPending = hasMetrics && !hasBeenApplied;
     return (
       <div
         className="flex flex-col items-center justify-center w-full text-center px-6"
@@ -224,9 +240,13 @@ const PAEChart: React.FC<PAEChartProps> = ({
             <path d="M7 14l4-4 4 4 5-6" />
           </svg>
         </div>
-        <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">No KPI selected</p>
-        <p className="text-[11px] text-on-surface-variant max-w-[240px]">
-          Open the settings panel and add a KPI from the catalog to start visualizing data.
+        <p className="text-xs font-black uppercase tracking-widest text-on-surface mb-1">
+          {isPending ? 'Configuration not applied' : 'No KPI selected'}
+        </p>
+        <p className="text-[11px] text-on-surface-variant max-w-[260px]">
+          {isPending
+            ? 'Click "Appliquer" in the settings panel to load data for the selected KPIs.'
+            : 'Open the settings panel and add a KPI from the catalog to start visualizing data.'}
         </p>
       </div>
     );
