@@ -237,15 +237,6 @@ function DataTab({
 }) {
   return (
     <div className="space-y-4">
-      <Field label="Widget title">
-        <input
-          value={title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          placeholder="My chart"
-          className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm text-on-surface focus:outline-none focus:border-primary"
-        />
-      </Field>
-
       <Section title="Network Elements">
         <ToggleRow
           label="Inherit from dashboard"
