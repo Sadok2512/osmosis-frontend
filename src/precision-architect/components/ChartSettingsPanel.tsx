@@ -577,17 +577,13 @@ function MetricsTab({
 
               {expanded && (
                 <div className="px-4 pb-4 pt-1 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <Field label="KPI">
-                    <select
+                  <Field label={`KPI ${kpiOptions.length > 0 ? `· ${kpiOptions.length} disponibles` : ''}`}>
+                    <KpiCombobox
                       value={m.kpiKey}
-                      onChange={(e) => {
-                        const opt = kpiOptions.find(o => o.key === e.target.value);
-                        updateMetric(m.id, { kpiKey: e.target.value, alias: opt?.label, unit: opt?.unit });
-                      }}
-                      className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm font-bold text-on-surface"
-                    >
-                      {kpiOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                    </select>
+                      options={kpiOptions}
+                      loading={kpisLoading}
+                      onSelect={(opt) => updateMetric(m.id, { kpiKey: opt.key, alias: opt.label, unit: opt.unit })}
+                    />
                   </Field>
 
                   <div className="grid grid-cols-2 gap-3">
