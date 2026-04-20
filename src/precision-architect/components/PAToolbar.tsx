@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Plus, X, Check } from 'lucide-react';
+import { Filter, Clock, Flag, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import DateRangePopover from './DateRangePopover';
+import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import type { TechnoId, PeriodPreset, GrainOption } from '../types';
 
@@ -55,10 +56,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
     setTechnos, setRange, setPreset, setGrain, setFilters, apply,
   } = usePAGlobalToolbar();
 
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [draftDim, setDraftDim] = useState<string>('');
-  const [draftVal, setDraftVal] = useState<string>('');
-
   const toggleTechno = (id: TechnoId) =>
     setTechnos(technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id]);
 
@@ -71,16 +68,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
     } else {
       setPreset(p);
     }
-  };
-
-  const removeFilter = (id: string) => setFilters(filters.filter(f => f.id !== id));
-  const clearFilters = () => setFilters([]);
-  const addFilter = () => {
-    if (!draftDim || !draftVal.trim()) return;
-    setFilters([...filters, { id: `f-${Date.now()}`, dimension: draftDim, value: draftVal.trim() }]);
-    setDraftDim('');
-    setDraftVal('');
-    setPickerOpen(false);
   };
 
   const handleApply = () => {
@@ -219,95 +206,13 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
         </div>
       </div>
 
-      {/* Filter chips row */}
-      <div className="px-6 py-2.5 flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
-          <Filter className="w-3.5 h-3.5" />
-          <span>Filtres</span>
-        </div>
-
-        {filters.map(f => (
-          <div
-            key={f.id}
-            className="group flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-amber-100 border border-amber-200 text-[11px] font-bold text-amber-900"
-          >
-            <span className="opacity-70">{f.dimension}:</span>
-            <span>{f.value}</span>
-            <button
-              onClick={() => removeFilter(f.id)}
-              className="w-5 h-5 rounded-full hover:bg-amber-200/80 flex items-center justify-center text-amber-700"
-              aria-label={`Remove ${f.dimension} filter`}
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        ))}
-
-        <div className="relative">
-          <button
-            onClick={() => setPickerOpen(o => !o)}
-            className="flex items-center gap-1.5 h-7 px-3 rounded-full bg-white border border-dashed border-outline-variant/60 text-[11px] font-bold text-on-surface-variant hover:border-primary hover:text-primary transition-colors"
-          >
-            <Plus className="w-3 h-3" />
-            <span>Ajouter filtre</span>
-          </button>
-
-          {pickerOpen && (
-            <div className="absolute z-50 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-outline-variant/20 p-3 space-y-2">
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-                  Dimension {!filtersLoading && `· ${dimensionOptions.length}`}
-                </label>
-                <select
-                  value={draftDim}
-                  onChange={(e) => setDraftDim(e.target.value)}
-                  className="mt-1 w-full h-8 px-2 rounded-lg border border-outline-variant/30 bg-white text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
-                >
-                  <option value="">{filtersLoading ? 'Chargement…' : 'Choisir…'}</option>
-                  {dimensionOptions.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Valeur</label>
-                <input
-                  value={draftVal}
-                  onChange={(e) => setDraftVal(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && addFilter()}
-                  placeholder="Ex. NANTES"
-                  className="mt-1 w-full h-8 px-2 rounded-lg border border-outline-variant/30 bg-white text-xs font-bold text-on-surface focus:outline-none focus:border-primary"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  onClick={() => setPickerOpen(false)}
-                  className="h-7 px-3 rounded-lg text-[11px] font-bold text-on-surface-variant hover:bg-surface-container-low"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={addFilter}
-                  disabled={!draftDim || !draftVal.trim()}
-                  className="h-7 px-3 rounded-lg bg-primary text-on-primary text-[11px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed hover:bg-primary/90"
-                >
-                  Ajouter
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {filters.length > 0 && (
-          <button
-            onClick={clearFilters}
-            className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
-          >
-            <X className="w-3 h-3" />
-            <span>Effacer filtres</span>
-          </button>
-        )}
-      </div>
+      {/* Filter chips row — Investigator-style multi-value chips with backend-driven values */}
+      <PAFilterChips
+        filters={filters}
+        onChange={setFilters}
+        filterDimensions={dimensionOptions}
+        filtersLoading={filtersLoading}
+      />
     </div>
   );
 };
