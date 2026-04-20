@@ -9098,8 +9098,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
 
             {/* ── Date Range ── */}
-            {!kpiOverlayLocked && (
-              <div className="px-3 py-2 border-b border-border/20">
+            <div className="px-3 py-2 border-b border-border/20">
                 <div className="flex items-center gap-1.5">
                   <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Période</span>
                   <input type="date" value={kpiDateFrom} onChange={e => setKpiDateFrom(e.target.value)}
@@ -9109,7 +9108,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     className="flex-1 px-1.5 py-1 text-[10px] rounded-lg border border-border/40 bg-background text-foreground" />
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Gradient bar visualization */}
             <div className="px-3 py-1.5">
