@@ -34,6 +34,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
 }) => {
   const isPresentation = variant === 'presentation';
 
+  // Empty state: no config, or config with no metrics → show placeholder instead of demo data.
+  const isEmpty = !config || !config.metrics || config.metrics.length === 0;
+
   const option = useMemo(() => {
     const cfg = config ?? null;
     const style = cfg?.style ?? DEFAULT_CHART_CONFIG.style;
