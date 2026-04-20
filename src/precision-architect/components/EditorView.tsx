@@ -391,7 +391,7 @@ export default function EditorView({
                 layout={layout}
                 cols={COLS}
                 rowHeight={ROW_HEIGHT}
-                margin={[16, 16]}
+                margin={[spacing, spacing]}
                 containerPadding={[0, 0]}
                 draggableHandle=".widget-drag-handle"
                 isDraggable
@@ -401,7 +401,11 @@ export default function EditorView({
                 onLayoutChange={handleLayoutChange}
               >
                 {widgets.map(w => (
-                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden">
+                  <div
+                    key={w.id}
+                    className="shadow-sm border border-outline-variant/10 p-4 group relative overflow-hidden"
+                    style={{ backgroundColor: cardBg, borderRadius: radius }}
+                  >
                     <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <button
                         onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
