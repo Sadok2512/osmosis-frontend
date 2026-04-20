@@ -47,8 +47,8 @@ interface Props {
   onActivateTab?: (tab: string | null) => void;
 }
 
-const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
-const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology'];
+const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP', 'BCluster'];
+const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology', 'BCluster'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },

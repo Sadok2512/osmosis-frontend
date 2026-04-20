@@ -7,7 +7,7 @@ import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders } from '@/
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
-const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQUE', 'ARCEP'];
+const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQUE', 'ARCEP', 'BCLUSTER'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
 /** Dimensions that can be enriched from VPS topo distinct values (only lightweight endpoints) */
@@ -149,13 +149,39 @@ async function fetchPm(dim: string) {
   notify();
 }
 
+async function fetchBCluster() {
+  const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
+  cache.set('BCLUSTER', entry);
+  try {
+    const res = await fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() });
+    if (res.ok) {
+      const d = await res.json();
+      const bc = (d.filters || []).find((f: any) => f.id === 'bcluster');
+      if (bc?.values?.length) entry.values = bc.values;
+    }
+  } catch {}
+  if (!entry.values.length) {
+    try {
+      const res2 = await fetch(getApiUrl('filters/?status=active&limit=100'), { headers: getApiHeaders() });
+      if (res2.ok) {
+        const d2 = await res2.json();
+        entry.values = (d2.filters || []).map((f: any) => f.name).filter(Boolean);
+      }
+    } catch {}
+  }
+  entry.loading = false;
+  entry.loaded = true;
+  cache.set('BCLUSTER', { ...entry });
+  notify();
+}
+
 export function ensureFilterLoaded(key: string) {
   const cacheKey = isPmDimension(key) ? key : dimToKey(key);
   const entry = cache.get(cacheKey);
   if (entry?.loaded || entry?.loading) return;
   if (inFlight.has(cacheKey)) return;
 
-  const loader = (isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
+  const loader = (cacheKey === 'BCLUSTER' ? fetchBCluster() : isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
     .finally(() => {
       inFlight.delete(cacheKey);
     });
@@ -176,6 +202,7 @@ export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
     Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO',
     Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP',
+    BCluster: 'BCLUSTER', Cluster: 'BCLUSTER',
   };
   return map[dimension] || dimension;
 }
