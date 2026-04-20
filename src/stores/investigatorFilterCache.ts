@@ -194,7 +194,7 @@ export function preloadAllFilters() {
   if (preloaded) return;
   preloaded = true;
   // Warm only the common top-level dimensions to avoid overloading the VPS proxy at startup.
-  ['SITE', 'DOR', 'PLAQUE', 'BAND'].forEach(ensureFilterLoaded);
+  ['SITE', 'DOR', 'PLAQUE', 'BAND', 'BCLUSTER'].forEach(ensureFilterLoaded);
 }
 
 /** Map UI dimension label → cache key */
@@ -202,7 +202,7 @@ export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
     Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO',
     Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP',
-    BCluster: 'BCLUSTER', Cluster: 'BCLUSTER',
+    BCluster: 'BCLUSTER', Cluster: 'BCLUSTER', bcluster: 'BCLUSTER', BCLUSTER: 'BCLUSTER',
   };
   return map[dimension] || dimension;
 }

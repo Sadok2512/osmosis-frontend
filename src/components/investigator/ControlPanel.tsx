@@ -907,6 +907,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         { key: 'DOR', param: 'DOR' },
         { key: 'Plaque', param: 'PLAQUE' },
         { key: 'Zone ARCEP', param: 'ARCEP' },
+        { key: 'BCluster', param: 'BCLUSTER' },
       ];
       Promise.allSettled(
         dimProbes.map(d =>
@@ -918,6 +919,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const available = results
           .filter(r => r.status === 'fulfilled' && (r as any).value.hasData)
           .map(r => (r as any).value.key as string);
+        // BCluster is always available (resolved from saved clusters, not PM)
+        if (!available.includes('BCluster')) available.push('BCluster');
         if (available.length > 0) setFilterDimensions(available);
       });
     });
