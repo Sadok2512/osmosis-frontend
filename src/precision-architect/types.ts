@@ -87,6 +87,60 @@ export interface ChartWidgetConfig {
   thresholds?: ChartThreshold[];
 }
 
+/**
+ * Configuration for a Table widget. Mirrors the chart's data section so
+ * widgets can share the global toolbar (Périmètre / Date / Filters / Grain)
+ * and follow the same Apply-only execution rule.
+ */
+export interface TableColumn {
+  id: string;
+  /** KPI key (matches kpi_catalog.kpi_key). */
+  kpiKey: string;
+  alias?: string;
+  unit?: string;
+  visible: boolean;
+}
+
+export interface TableWidgetConfig {
+  data: {
+    inheritFromDashboard: boolean;
+    technos: TechnoId[];
+    filters: ChartFilterChip[];
+    timeRange: {
+      inherit: boolean;
+      preset: PeriodPreset;
+      from: string;
+      to: string;
+    };
+    granularity: GrainOption;
+  };
+  columns: TableColumn[];
+  /** Dimension to split rows by (e.g. CELL, SITE, PLAQUE). null = aggregate. */
+  splitBy: string | null;
+  /** Cap rows returned. */
+  topN: number;
+  /** Sort: column id (or 'split_value') + direction. */
+  sortBy?: { columnId: string; direction: 'asc' | 'desc' };
+}
+
+export const DEFAULT_TABLE_CONFIG: TableWidgetConfig = {
+  data: {
+    inheritFromDashboard: true,
+    technos: ['2g', '3g', '4g', '5g'],
+    filters: [],
+    timeRange: {
+      inherit: true,
+      preset: '3j',
+      from: '2026-04-13T00:00',
+      to: '2026-04-15T00:00',
+    },
+    granularity: '15min',
+  },
+  columns: [],
+  splitBy: 'CELL',
+  topN: 50,
+};
+
 export interface DynWidget {
   id: string;
   kind: WidgetKind;
@@ -101,6 +155,10 @@ export interface DynWidget {
   config?: ChartWidgetConfig;
   /** Last chart configuration explicitly applied by the user. Used to keep chart data stable across mode switches. */
   appliedConfig?: ChartWidgetConfig;
+  /** Table-specific settings (used by `table` widget). */
+  tableConfig?: TableWidgetConfig;
+  /** Last table configuration explicitly applied by the user. */
+  appliedTableConfig?: TableWidgetConfig;
   /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
   appliedRev?: number;
   layout: WidgetLayout;

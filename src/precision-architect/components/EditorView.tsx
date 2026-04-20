@@ -31,6 +31,7 @@ import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
+import TableSettingsPanel from './TableSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
 
@@ -393,6 +394,17 @@ export default function EditorView({
           if (w.kind === 'chart') {
             return (
               <ChartSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
+          // Table widgets — same dedicated panel pattern as chart.
+          if (w.kind === 'table') {
+            return (
+              <TableSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}

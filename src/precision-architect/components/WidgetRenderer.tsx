@@ -53,7 +53,7 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Table'}</h3>
         </div>
         <div className="flex-1 min-h-0 overflow-hidden">
-          <PATableWidget height="100%" />
+          <PATableWidget height="100%" widget={w} />
         </div>
       </div>
     );
