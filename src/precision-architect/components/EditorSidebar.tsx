@@ -209,7 +209,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const [draft, setDraft] = useState<DraftConfig>(() => readDraft(projectName, activeTheme));
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     general: true,
-    reportInfo: true,
+    reportInfo: false,
     appearance: true,
     layout: false,
     header: false,
