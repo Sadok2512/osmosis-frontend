@@ -38,14 +38,27 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
   const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
-  const layout = useMemo(() => widgets.map(w => ({
+  const unassignedWidgets = useMemo(() => widgets.filter(w => !w.sectionId), [widgets]);
+  const widgetsBySection = useMemo(() => {
+    const map = new Map<string, typeof widgets>();
+    for (const w of widgets) {
+      if (!w.sectionId) continue;
+      if (!map.has(w.sectionId)) map.set(w.sectionId, []);
+      map.get(w.sectionId)!.push(w);
+    }
+    return map;
+  }, [widgets]);
+
+  const buildLayout = (group: typeof widgets) => group.map(w => ({
     i: w.id,
     x: w.layout.x,
     y: w.layout.y,
     w: w.layout.w,
     h: w.layout.h,
     static: true,
-  })), [widgets]);
+  }));
+
+  const layout = useMemo(() => buildLayout(unassignedWidgets), [unassignedWidgets]);
 
   return (
     <div className="h-screen flex flex-col bg-surface text-on-surface overflow-hidden">
