@@ -397,7 +397,6 @@ export default function EditorView({
             )}
 
             {widgets.length > 0 && (
-              <div style={{ minHeight: layout.length > 0 ? Math.max(...layout.map(l => (l.y + l.h) * ROW_HEIGHT + (l.y + l.h) * spacing)) : 0 }}>
               <GridLayout
                 className="layout"
                 layout={layout}
@@ -411,6 +410,7 @@ export default function EditorView({
                 compactType="vertical"
                 preventCollision={false}
                 onLayoutChange={handleLayoutChange}
+                autoSize
               >
                 {widgets.map(w => {
                   // Chart widgets get tighter horizontal padding so the Y axis
@@ -448,7 +448,6 @@ export default function EditorView({
                   );
                 })}
               </GridLayout>
-              </div>
             )}
 
             <div aria-hidden className="shrink-0" style={{ height: 40 }} />
