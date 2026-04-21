@@ -33,7 +33,7 @@ const GRAINS: { id: GrainOption; label: string }[] = [
   { id: '1d', label: '1 j' },
 ];
 
-const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI'];
+const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
 
 interface Props {
   /** Optional callback fired AFTER the global Apply has been recorded. */
@@ -51,7 +51,9 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
       : filterCatalog
           .filter(f => (f as any).is_active !== false)
           .map(f => f.display_name || f.dimension_key);
-    return base.filter(d => !SCOPE_DIMENSIONS.has(d));
+    const filtered = base.filter(d => !SCOPE_DIMENSIONS.has(d));
+    if (!filtered.includes('BCluster')) filtered.push('BCluster');
+    return filtered;
   }, [filterCatalog]);
 
   // Global report-level state — single source of truth for all widgets that inherit.

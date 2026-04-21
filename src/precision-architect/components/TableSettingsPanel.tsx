@@ -18,8 +18,8 @@ interface Props {
   onClose: () => void;
 }
 
-const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Bande', 'Site', 'Cell', 'PCI', 'ECI'];
-const SPLIT_OPTIONS = ['CELL', 'SITE', 'PLAQUE', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', '__none__'];
+const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Bande', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
+const SPLIT_OPTIONS = ['CELL', 'SITE', 'PLAQUE', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', 'BCLUSTER', '__none__'];
 const TOP_N_OPTIONS = [10, 25, 50, 100, 250, 500];
 
 export default function TableSettingsPanel({ widget, onChange, onClose }: Props) {
