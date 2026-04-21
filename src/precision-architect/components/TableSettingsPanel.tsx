@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Eye, EyeOff, Database, Filter, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Database, Filter, ChevronDown, Palette, Flag } from 'lucide-react';
 import {
   DynWidget, TableWidgetConfig, TableColumn, DEFAULT_TABLE_CONFIG, ChartFilterChip,
 } from '../types';
@@ -24,7 +24,7 @@ const TOP_N_OPTIONS = [10, 25, 50, 100, 250, 500];
 
 export default function TableSettingsPanel({ widget, onChange, onClose }: Props) {
   const config: TableWidgetConfig = widget.tableConfig ?? DEFAULT_TABLE_CONFIG;
-  const [tab, setTab] = useState<'data' | 'columns'>('columns');
+  const [tab, setTab] = useState<'data' | 'appearance' | 'jalons'>('data');
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data: kpiCatalog, isLoading: kpisLoading } = useKpiCatalog();
@@ -134,11 +134,13 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
         </div>
       </div>
 
+      {/* Body: left sidebar tabs + content — mirrors ChartSettingsPanel exactly */}
       <div className="flex h-full pb-10">
         <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
           {([
-            { key: 'columns' as const, label: 'KPI Columns', icon: Database },
-            { key: 'data' as const, label: 'Time & Filters', icon: Filter },
+            { key: 'data' as const, label: 'Data Source', icon: Database },
+            { key: 'appearance' as const, label: 'Appearance', icon: Palette },
+            { key: 'jalons' as const, label: 'Jalons & Seuils', icon: Flag },
           ]).map(t => {
             const Icon = t.icon;
             return (
@@ -155,30 +157,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
 
         <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
           <div className="max-w-4xl space-y-5">
-            <div className="rounded-xl border border-outline-variant/20 p-4 bg-surface-container-low/30">
-              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70 mb-2">Card Background</p>
-              <div className="grid grid-cols-2 gap-2 max-w-xs">
-                <button
-                  onClick={() => onChange({ transparentBg: false })}
-                  className={cn(
-                    'py-2.5 rounded-lg text-xs font-bold border transition-colors',
-                    !widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
-                  )}
-                >
-                  ◆ Card BG
-                </button>
-                <button
-                  onClick={() => onChange({ transparentBg: true })}
-                  className={cn(
-                    'py-2.5 rounded-lg text-xs font-bold border transition-colors',
-                    widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
-                  )}
-                >
-                  ◇ Transparent
-                </button>
-              </div>
-            </div>
-            {tab === 'columns' && (
+            {tab === 'data' && (
               <>
                 <div className="flex items-center justify-between">
                   <div>
@@ -251,11 +230,58 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
                     </table>
                   </div>
                 )}
+
+                <div className="pt-2">
+                  <DataInheritOrOverride config={config} patchData={patchData} dimensionOptions={dimensionOptions} filtersLoading={filtersLoading} />
+                </div>
               </>
             )}
 
-            {tab === 'data' && (
-              <DataInheritOrOverride config={config} patchData={patchData} dimensionOptions={dimensionOptions} filtersLoading={filtersLoading} />
+            {tab === 'appearance' && (
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1.5">Widget title</label>
+                  <input
+                    value={widget.title ?? ''}
+                    onChange={(e) => onChange({ title: e.target.value })}
+                    placeholder="Untitled table"
+                    className="w-full max-w-md h-9 px-3 rounded-lg bg-white border border-outline-variant/30 text-sm font-bold text-on-surface focus:outline-none focus:border-primary transition-colors"
+                  />
+                </div>
+
+                <div className="rounded-xl border border-outline-variant/20 p-4 bg-surface-container-low/30">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70 mb-2">Card Background</p>
+                  <div className="grid grid-cols-2 gap-2 max-w-xs">
+                    <button
+                      onClick={() => onChange({ transparentBg: false })}
+                      className={cn(
+                        'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                        !widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                      )}
+                    >
+                      ◆ Card BG
+                    </button>
+                    <button
+                      onClick={() => onChange({ transparentBg: true })}
+                      className={cn(
+                        'py-2.5 rounded-lg text-xs font-bold border transition-colors',
+                        widget.transparentBg ? 'bg-primary text-on-primary border-primary' : 'bg-white border-outline-variant/30 text-on-surface-variant hover:bg-surface-container-low'
+                      )}
+                    >
+                      ◇ Transparent
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {tab === 'jalons' && (
+              <div className="rounded-xl border-2 border-dashed border-outline-variant/40 p-8 text-center">
+                <p className="text-xs font-black uppercase tracking-widest text-on-surface-variant mb-1">Jalons &amp; Seuils</p>
+                <p className="text-[11px] text-on-surface-variant max-w-md mx-auto">
+                  Les jalons et seuils ne s'appliquent pas aux tableaux. Ajoutez-les sur un widget Chart pour mettre en évidence des dates clés ou des seuils KPI.
+                </p>
+              </div>
             )}
           </div>
         </div>
