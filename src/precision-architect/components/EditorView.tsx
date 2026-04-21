@@ -33,7 +33,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -43,7 +43,7 @@ import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
-import StatSettingsPanel from './StatSettingsPanel';
+
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
@@ -197,7 +197,11 @@ export default function EditorView({
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
     if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
-    if (kind === 'stat') newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+    if (kind === 'stat') {
+      newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+      // Stat reuses ChartSettingsPanel so it needs a Chart-shaped config for the Data Source UI.
+      newWidget.config = structuredClone(DEFAULT_CHART_CONFIG);
+    }
     if (kind === 'divider') newWidget.dividerConfig = { ...DEFAULT_DIVIDER_CONFIG };
     if (kind === 'map') {
       newWidget.mapConfig = { ...DEFAULT_MAP_CONFIG };
@@ -619,10 +623,11 @@ export default function EditorView({
             );
           }
 
-          // STAT (KPI Card) uses its own Chart-style settings panel.
+          // STAT (KPI Card) reuses the Chart settings panel for full Data Source parity
+          // (KPI METRICS / TIME & FILTERS, Add Counter / Add KPI, Split, Top N, Appearance, Jalons).
           if (w.kind === 'stat') {
             return (
-              <StatSettingsPanel
+              <ChartSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}
