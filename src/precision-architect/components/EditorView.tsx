@@ -132,16 +132,23 @@ export default function EditorView({
     setActiveSectionId(id);
     setNewSectionId(id);
     // Scroll the canvas all the way down so the user immediately sees the new section at the bottom.
-    setTimeout(() => {
+    // Use multiple attempts with increasing delays to ensure DOM has rendered.
+    const scrollToNew = () => {
+      const el = document.getElementById(`section-${id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        return;
+      }
       const scrollContainer = document.querySelector('.pa-grid-edit') as HTMLElement | null;
       if (scrollContainer) {
         scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
-      } else {
-        document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'end' });
       }
-    }, 80);
+    };
+    setTimeout(scrollToNew, 100);
+    setTimeout(scrollToNew, 300);
+    setTimeout(scrollToNew, 600);
     // Remove the "new" highlight after the animation finishes.
-    setTimeout(() => setNewSectionId((prev) => (prev === id ? null : prev)), 2200);
+    setTimeout(() => setNewSectionId((prev) => (prev === id ? null : prev)), 2500);
   };
 
   const updateSection = (id: string, patch: Partial<PASection>) => {
