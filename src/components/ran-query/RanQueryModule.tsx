@@ -1964,13 +1964,13 @@ const RanQueryModule: React.FC = () => {
                 </button>
                 <div className="ml-auto inline-flex rounded-2xl border border-border/60 bg-muted/20 p-1">
                   <button onClick={() => setDetailMode('table')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'table' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
-                    Table view
+                    Data Table
                   </button>
                   <button onClick={() => setDetailMode('chart')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'chart' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
-                    Charts
+                    Time Series
                   </button>
                   <button onClick={() => setDetailMode('pivot')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'pivot' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
-                    Pivot
+                    Site Pivot
                   </button>
                 </div>
               </div>
