@@ -367,11 +367,24 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   // widgets with KPIs configured respond to the global button).
   const globalStore = usePAGlobalToolbar();
   const widgetAppliedRev = w.appliedRev ?? 0;
-  const cfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
+  const rawCfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
     ? (w.appliedConfig ?? w.config)
     : globalStore.appliedRev > 0
       ? (w.config as ChartWidgetConfig | undefined)
       : undefined;
+  // Ensure cfg has required structure (metrics + data with defaults)
+  const cfg: ChartWidgetConfig | undefined = rawCfg && rawCfg.metrics?.length
+    ? {
+        ...rawCfg,
+        data: rawCfg.data ?? {
+          inheritFromDashboard: true,
+          technos: [],
+          filters: [],
+          timeRange: { inherit: true, preset: '7d', from: '', to: '' },
+          granularity: '1d',
+        },
+      }
+    : undefined;
   const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
   const global = globalStore;
 
