@@ -368,22 +368,6 @@ export default function EditorView({
               </header>
             )}
 
-            {sections.length > 0 && (
-              <div className="space-y-4">
-                {sections.map((s) => (
-                  <SectionBlock
-                    key={s.id}
-                    section={s}
-                    editable
-                    isActive={activeSectionId === s.id}
-                    isNew={newSectionId === s.id}
-                    onChange={(patch) => updateSection(s.id, patch)}
-                    onRemove={() => removeSection(s.id)}
-                  />
-                ))}
-              </div>
-            )}
-
             {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
                 <div className="w-16 h-16 rounded-full bg-white shadow-sm flex items-center justify-center text-primary">
@@ -449,6 +433,23 @@ export default function EditorView({
                   );
                 })}
               </GridLayout>
+            )}
+
+            {/* Sections render AFTER widgets so newly added sections appear at the bottom of the page. */}
+            {sections.length > 0 && (
+              <div className="space-y-4">
+                {sections.map((s) => (
+                  <SectionBlock
+                    key={s.id}
+                    section={s}
+                    editable
+                    isActive={activeSectionId === s.id}
+                    isNew={newSectionId === s.id}
+                    onChange={(patch) => updateSection(s.id, patch)}
+                    onRemove={() => removeSection(s.id)}
+                  />
+                ))}
+              </div>
             )}
             <div aria-hidden className="shrink-0" style={{ height: 120 }} />
           </div>
