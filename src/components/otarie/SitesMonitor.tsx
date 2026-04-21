@@ -7508,7 +7508,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Fallback: if no band-specific items survived filtering, only use techno-level fallback
             // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells)
             const hasActiveBandFilter = localBande !== 'ALL' || (activeDashboardFilters?.bande?.length ?? 0) > 0;
-            if (miniItems.length === 0 && !hasActiveBandFilter) {
+            // In KPI mode, never resurrect filtered cells via the techno fallback —
+            // otherwise hiding a legend level (e.g. "No data") would still draw sectors
+            // for sites whose cells were all filtered out by the legend toggle.
+            if (miniItems.length === 0 && !hasActiveBandFilter && sectorColorMode !== 'kpi') {
               if (has4G && !has5G && enabledTechnos.has('4G')) {
                 const fallbackCell = renderCells.find(c => getCellTechGroup(c.techno) === '4G') ?? renderCells[0];
                 if (fallbackCell) azimuths.forEach(az => miniItems.push({ tech: '4G', az, r: miniRadius, bandKey: null, cell: fallbackCell }));
