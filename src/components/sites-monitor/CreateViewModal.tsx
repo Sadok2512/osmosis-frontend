@@ -111,7 +111,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
     setParamSearchLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const url = getVpsProxyUrl('parser', `/api/v1/topo/param-list?search=${encodeURIComponent(paramSearchQuery)}&limit=50`);
+        const url = getVpsProxyUrl('parser', `/api/v1/topo/param-list?search=${encodeURIComponent(paramSearchQuery)}&object_type=CELL&limit=50`);
         const resp = await fetch(url, { headers: getVpsProxyHeaders() });
         if (resp.ok) {
           const data = await resp.json();
@@ -201,7 +201,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
   const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
     (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim())) ||
-    (viewType === 'parameter' && Object.values(paramFilters).some(v => v.trim()))
+    (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim()))
   );
 
   const handleSave = () => {

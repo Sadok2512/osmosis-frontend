@@ -2423,6 +2423,10 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         settings.viewConditions = conditions;
         settings.siteFilters = conditionsToSiteFilters(conditions);
         settings.topoSearchConfig = config.topoFilters;
+      } else if (config.type === 'parameter') {
+        settings.paramFilters = Object.fromEntries(
+          Object.entries(config.paramFilters || {}).filter(([, v]) => String(v || '').trim())
+        );
       }
       await mapViewsApi.create({
         name: config.name,
@@ -11072,7 +11076,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           try {
                             const qs = new URLSearchParams({ param: pf.parameter, limit: '10000' });
                             if (pf.vendor) qs.set('vendor', pf.vendor);
-                            if (pf.bande) qs.set('techno', pf.bande.startsWith('NR') ? '5G' : '4G');
+                            if (pf.bande) qs.set('bande', pf.bande);
+                            if (pf.site_name) qs.set('site_name', pf.site_name);
+                            if (pf.cell_name) qs.set('cell_name', pf.cell_name);
+                            if (pf.value) qs.set('value', pf.value);
                             // Also apply dashboard filters if present
                             const df = settings.siteFilters || {};
                             if (df.dor?.length) qs.set('dor', df.dor[0]);
