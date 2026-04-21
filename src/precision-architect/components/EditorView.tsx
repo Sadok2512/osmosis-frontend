@@ -20,7 +20,13 @@ import {
   Heading1,
   Hash,
   Minus,
+  ChevronDown,
+  Check,
+  LayoutDashboard,
+  FilePlus,
+  Save,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -296,6 +302,11 @@ export default function EditorView({
           <div className="flex items-center gap-6">
             <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
             <div className="h-6 w-px bg-outline-variant/30" />
+
+            {/* Dashboard switcher */}
+            <DashboardSwitcher />
+
+            <div className="h-6 w-px bg-outline-variant/30" />
             <div className="flex items-center gap-2 group">
               <input
                 value={projectName}
@@ -306,7 +317,7 @@ export default function EditorView({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="bg-surface-container-high p-1 rounded-full flex items-center shadow-inner">
               <button className="px-4 py-1.5 text-sm font-bold bg-white shadow-sm rounded-full text-primary">Edit</button>
               <button
@@ -322,14 +333,47 @@ export default function EditorView({
                 Present
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                const id = usePAReportStore.getState().newDashboard();
+                toast.success('New dashboard created', { description: 'Empty canvas ready to design.' });
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-primary border border-primary/20 hover:bg-primary/5 active:scale-95 transition-all"
+              title="Create a new dashboard"
+            >
+              <FilePlus className="w-4 h-4" />
+              <span>New</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const { activeDashboardId, dashboards, deleteDashboard, projectName: name } = usePAReportStore.getState();
+                if (dashboards.length <= 1) {
+                  toast.error('Cannot delete', { description: 'At least one dashboard must remain.' });
+                  return;
+                }
+                const ok = window.confirm(`Delete dashboard "${name}" ? This cannot be undone.`);
+                if (!ok) return;
+                deleteDashboard(activeDashboardId);
+                toast.success('Dashboard deleted');
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-error border border-error/20 hover:bg-error/5 active:scale-95 transition-all"
+              title="Delete current dashboard"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
+            </button>
+
             <button
               onClick={() => {
                 usePAReportStore.getState().markSaved();
-                toast.success('Report saved', { description: 'Your report is auto-persisted in this browser.' });
+                toast.success('Dashboard saved', { description: 'Auto-persisted in this browser.' });
               }}
-              className="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all"
+              className="flex items-center gap-1.5 bg-primary text-on-primary px-5 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all"
             >
-              Save
+              <Save className="w-4 h-4" />
+              <span>Save</span>
             </button>
           </div>
         </header>
@@ -602,5 +646,115 @@ export default function EditorView({
         </div>
       )}
     </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// DashboardSwitcher — popover listing all saved dashboards with switch / rename
+// ----------------------------------------------------------------------------
+function DashboardSwitcher() {
+  const [open, setOpen] = useState(false);
+  const dashboards = usePAReportStore((s) => s.dashboards);
+  const activeId = usePAReportStore((s) => s.activeDashboardId);
+  const switchDashboard = usePAReportStore((s) => s.switchDashboard);
+  const renameDashboard = usePAReportStore((s) => s.renameDashboard);
+  const deleteDashboard = usePAReportStore((s) => s.deleteDashboard);
+  const newDashboard = usePAReportStore((s) => s.newDashboard);
+
+  const active = dashboards.find((d) => d.id === activeId);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low hover:bg-surface-container border border-outline-variant/20 transition-colors">
+          <LayoutDashboard className="w-4 h-4 text-primary" />
+          <span className="text-sm font-bold text-on-surface max-w-[180px] truncate">
+            {active?.name || 'Untitled Dashboard'}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-0 z-[80]">
+        <div className="p-3 border-b border-outline-variant/15">
+          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+            My Dashboards · {dashboards.length}
+          </p>
+        </div>
+        <div className="max-h-72 overflow-y-auto p-1.5">
+          {dashboards.map((d) => {
+            const isActive = d.id === activeId;
+            return (
+              <div
+                key={d.id}
+                className={cn(
+                  'group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer transition-colors',
+                  isActive ? 'bg-primary/10' : 'hover:bg-surface-container-low'
+                )}
+                onClick={() => {
+                  if (!isActive) switchDashboard(d.id);
+                  setOpen(false);
+                }}
+              >
+                <div className="w-7 h-7 rounded-md bg-white border border-outline-variant/20 flex items-center justify-center shrink-0">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className={cn('text-sm font-bold truncate', isActive ? 'text-primary' : 'text-on-surface')}>
+                      {d.name}
+                    </span>
+                    {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                  </div>
+                  <span className="text-[10px] text-on-surface-variant">
+                    {d.pages.length} page{d.pages.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const name = window.prompt('Rename dashboard', d.name);
+                    if (name && name.trim()) renameDashboard(d.id, name.trim());
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded transition-all"
+                  title="Rename"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (dashboards.length <= 1) {
+                      toast.error('At least one dashboard must remain.');
+                      return;
+                    }
+                    if (window.confirm(`Delete "${d.name}" ?`)) {
+                      deleteDashboard(d.id);
+                      toast.success('Dashboard deleted');
+                    }
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all"
+                  title="Delete"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <div className="border-t border-outline-variant/15 p-2">
+          <button
+            onClick={() => {
+              newDashboard();
+              setOpen(false);
+              toast.success('New dashboard created');
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-primary/10 hover:bg-primary/15 text-primary text-sm font-bold transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Dashboard</span>
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
