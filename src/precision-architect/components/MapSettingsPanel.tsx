@@ -680,4 +680,3 @@ function MapDimensionChip({ label, values, selected, onApply, onRemove }: {
     </div>
   );
 }
-}
