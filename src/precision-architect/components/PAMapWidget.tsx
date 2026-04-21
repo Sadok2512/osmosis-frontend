@@ -198,6 +198,21 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
       }
       return true;
     });
+    // Debug: log filter matching details
+    if (cfg.filters.length > 0 && result.length === 0 && sites.length > 0) {
+      const sample = sites.slice(0, 3);
+      for (const f of cfg.filters) {
+        if (f.values.length === 0) continue;
+        const dim = f.dimension.toUpperCase();
+        const sampleVals = sample.map(s => {
+          if (dim === 'PLAQUE') return s.plaque;
+          if (dim === 'DOR') return s.dor;
+          if (dim === 'VENDOR') return s.vendor;
+          return '?';
+        });
+        console.warn(`[PAMap] Filter MISMATCH: ${f.dimension}=${JSON.stringify(f.values)} but sample site values: ${JSON.stringify(sampleVals)}`);
+      }
+    }
     console.log(`[PAMap] Filter: ${cfg.filters.map(f => `${f.dimension}=${f.values.join(',')}`).join(' ')} → ${result.length}/${sites.length} sites`);
     return result;
   }, [sites, cfg.filters]);
