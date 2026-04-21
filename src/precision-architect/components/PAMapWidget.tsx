@@ -203,7 +203,18 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
       style={{ width: '100%', height }}
       className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${bgClass} border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
     >
-      <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+      {filteredSites.length > 0 ? (
+        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
+      ) : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
+          <div className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-on-surface-variant/60'}`}>
+            Aucune donnée
+          </div>
+          <div className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-on-surface-variant/70'} max-w-xs`}>
+            Connectez une source de données ou ajustez les filtres pour afficher les sites sur la carte.
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       {cfg.showLegend && cfg.kpiOverlay && (
