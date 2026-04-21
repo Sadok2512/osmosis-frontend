@@ -125,6 +125,8 @@ export default function EditorView({
       name: `Section ${idx}`,
       title: 'Add title',
       description: 'Add description or message',
+      // Default brand green (matches --primary HSL 170 70% 35%)
+      titleColor: 'hsl(170 70% 35%)',
     };
     // Always append at the very end of the sections list (which itself is rendered AFTER all widgets).
     // This guarantees the new section appears at the bottom of the page, never on top.
