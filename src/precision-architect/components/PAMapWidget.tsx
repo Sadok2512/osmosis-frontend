@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapWidgetConfig, DEFAULT_MAP_CONFIG } from '../types';
+import { fetchTopoSites } from '@/services/topoService';
+import type { SiteSummary } from '@/types';
 
-interface Site {
+interface MapSite {
   name: string;
   lon: number;
   lat: number;
@@ -16,18 +18,41 @@ interface Site {
   dor: string;
 }
 
-// Mock data removed — map renders only real data when wired to a backend source.
-const FRANCE_SITES: Site[] = [];
-
-const colorFor = (status: Site['status']) =>
+const colorFor = (status: MapSite['status']) =>
   status === 'optimal' ? '#10b981' : status === 'warning' ? '#f59e0b' : '#ef4444';
+
+/** Map a SiteSummary from the topo service to the lightweight MapSite shape. */
+function siteSummaryToMapSite(s: SiteSummary): MapSite | null {
+  const [lon, lat] = s.coordinates ?? [NaN, NaN];
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+
+  const qoe = Number.isFinite(s.qoe_score_avg) ? s.qoe_score_avg : 80;
+  let status: MapSite['status'] = 'optimal';
+  if (qoe < 60) status = 'critical';
+  else if (qoe < 80) status = 'warning';
+
+  const technoList = (s.technos && s.technos.length > 0 ? s.technos : (s.techno ? [s.techno] : [])).join(',');
+  const bandeList = (s.bandes && s.bandes.length > 0 ? s.bandes : (s.bande ? [s.bande] : [])).join(',');
+
+  return {
+    name: s.site_name || s.site_id,
+    lon,
+    lat,
+    intensity: Math.max(0, Math.min(100, Math.round(qoe))),
+    status,
+    vendor: s.vendor || 'Unknown',
+    techno: technoList || '',
+    bande: bandeList || '',
+    plaque: s.plaque || '',
+    dor: s.dor || '',
+  };
+}
 
 interface Props {
   height?: number | string;
   config?: MapWidgetConfig;
 }
 
-// Tile providers
 const TILE_PROVIDERS = {
   'street-light': {
     url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
@@ -53,7 +78,33 @@ const TILE_PROVIDERS = {
     subdomains: '',
     maxZoom: 19,
   },
-};
+} as const;
+
+// ── Module-level cache so multiple map widgets share one fetch ──
+let cachedMapSites: MapSite[] | null = null;
+let inflight: Promise<MapSite[]> | null = null;
+
+async function loadMapSites(): Promise<MapSite[]> {
+  if (cachedMapSites) return cachedMapSites;
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const sites = await fetchTopoSites();
+      const mapped = sites
+        .map(siteSummaryToMapSite)
+        .filter((s): s is MapSite => !!s);
+      cachedMapSites = mapped;
+      return mapped;
+    } catch (err) {
+      console.warn('[PAMapWidget] Failed to load topo sites', err);
+      cachedMapSites = [];
+      return [];
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
+}
 
 const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
   const cfg = config ?? DEFAULT_MAP_CONFIG;
@@ -64,9 +115,31 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const linesLayerRef = useRef<L.LayerGroup | null>(null);
 
+  const [sites, setSites] = useState<MapSite[]>(() => cachedMapSites ?? []);
+  const [loading, setLoading] = useState<boolean>(!cachedMapSites);
+
+  // ─── Load sites from the topology service ───
+  useEffect(() => {
+    let cancelled = false;
+    if (cachedMapSites) {
+      setSites(cachedMapSites);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    loadMapSites().then((data) => {
+      if (cancelled) return;
+      setSites(data);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Filter sites based on widget configuration
   const filteredSites = useMemo(() => {
-    return FRANCE_SITES.filter((s) => {
+    return sites.filter((s) => {
       for (const f of cfg.filters) {
         if (f.values.length === 0) continue;
         const dim = f.dimension.toUpperCase();
@@ -78,11 +151,18 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         else if (dim === 'DOR') v = s.dor;
         else if (dim === 'SITE') v = s.name;
         else if (dim === 'CELL') v = s.name;
-        if (!v || !f.values.includes(v)) return false;
+        // For comma-separated multi-value dims (techno/bande), match if any value listed.
+        if (!v) return false;
+        if (dim === 'TECHNO' || dim === 'BANDE') {
+          const parts = v.split(',').map((p) => p.trim());
+          if (!parts.some((p) => f.values.includes(p))) return false;
+        } else if (!f.values.includes(v)) {
+          return false;
+        }
       }
       return true;
     });
-  }, [cfg.filters]);
+  }, [sites, cfg.filters]);
 
   // ─── Initialise map (once) ───
   useEffect(() => {
@@ -100,7 +180,6 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     markersLayerRef.current = L.layerGroup().addTo(map);
     linesLayerRef.current = L.layerGroup().addTo(map);
 
-    // Force size recalculation after mount
     setTimeout(() => map.invalidateSize(), 50);
 
     return () => {
@@ -152,12 +231,16 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         opacity: 1,
       });
 
+      const technoLine = s.techno ? `<div style="font-size:10px;opacity:0.75">${s.techno}</div>` : '';
       marker.bindTooltip(
-        `<div style="font-weight:700;font-size:11px">${s.name}</div><div style="font-size:10px;opacity:0.75">Load: ${s.intensity}%</div>`,
+        `<div style="font-weight:700;font-size:11px">${s.name}</div>` +
+          `<div style="font-size:10px;opacity:0.75">${s.vendor} · QoE ${s.intensity}</div>` +
+          technoLine,
         { direction: 'top', offset: [0, -8], opacity: 0.95 },
       );
 
-      if (cfg.showLabels && cfg.displayMode === 'sites') {
+      if (cfg.showLabels && cfg.displayMode === 'sites' && filteredSites.length < 200) {
+        // Only show permanent labels for small result sets to avoid label overlap.
         marker.bindTooltip(s.name, {
           permanent: true,
           direction: 'top',
@@ -169,7 +252,6 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
 
       layer.addLayer(marker);
 
-      // Sector ripples (visual hint only)
       if (cfg.showSectors) {
         [0, 120, 240].forEach((angle) => {
           const r = 0.06;
@@ -187,40 +269,55 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         });
       }
     });
+
+    // Auto-fit bounds the first time real sites arrive.
+    const map = mapRef.current;
+    if (map && filteredSites.length > 0) {
+      const bounds = L.latLngBounds(filteredSites.map((s) => [s.lat, s.lon] as [number, number]));
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
+      }
+    }
   }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors]);
 
-  // ─── Render lines when enabled ───
+  // ─── Render inter-site lines (sample backbone overlay) ───
   useEffect(() => {
     const layer = linesLayerRef.current;
     if (!layer) return;
     layer.clearLayers();
-    if (!cfg.showLines) return;
+    if (!cfg.showLines || filteredSites.length === 0) return;
 
-    const known = new Set(filteredSites.map((s) => s.name));
-    const allLinks: { from: [number, number]; to: [number, number] }[] = [
-      { from: [48.8566, 2.3522], to: [45.7640, 4.8357] },
-      { from: [48.8566, 2.3522], to: [47.2184, -1.5536] },
-      { from: [45.7640, 4.8357], to: [43.2965, 5.3698] },
-      { from: [45.7640, 4.8357], to: [43.6108, 3.8767] },
-      { from: [48.8566, 2.3522], to: [50.6292, 3.0573] },
-      { from: [48.8566, 2.3522], to: [48.5734, 7.7521] },
-      { from: [43.6047, 1.4442], to: [44.8378, -0.5792] },
-    ];
+    // Connect each site to its 1-nearest neighbor (cheap visual mesh).
+    // Capped to 400 sites to keep rendering smooth.
+    const subset = filteredSites.slice(0, 400);
+    const drawnPairs = new Set<string>();
 
-    const sitesByCoord = new Map(FRANCE_SITES.map((s) => [`${s.lat.toFixed(4)},${s.lon.toFixed(4)}`, s.name]));
-    const visible = allLinks.filter((l) => {
-      const fromName = sitesByCoord.get(`${l.from[0].toFixed(4)},${l.from[1].toFixed(4)}`);
-      const toName = sitesByCoord.get(`${l.to[0].toFixed(4)},${l.to[1].toFixed(4)}`);
-      return (!fromName || known.has(fromName)) && (!toName || known.has(toName));
-    });
-
-    visible.forEach((l) => {
-      L.polyline([l.from, l.to], {
-        color: cfg.defaultColor || '#10b981',
-        weight: 1.2,
-        opacity: isDark ? 0.5 : 0.4,
-        dashArray: '4 6',
-      }).addTo(layer);
+    subset.forEach((a, i) => {
+      let best: { idx: number; d2: number } | null = null;
+      subset.forEach((b, j) => {
+        if (i === j) return;
+        const dx = a.lon - b.lon;
+        const dy = a.lat - b.lat;
+        const d2 = dx * dx + dy * dy;
+        if (!best || d2 < best.d2) best = { idx: j, d2 };
+      });
+      if (!best) return;
+      const pairKey = i < best.idx ? `${i}-${best.idx}` : `${best.idx}-${i}`;
+      if (drawnPairs.has(pairKey)) return;
+      drawnPairs.add(pairKey);
+      const b = subset[best.idx];
+      L.polyline(
+        [
+          [a.lat, a.lon],
+          [b.lat, b.lon],
+        ],
+        {
+          color: cfg.defaultColor || '#10b981',
+          weight: 1,
+          opacity: isDark ? 0.4 : 0.3,
+          dashArray: '3 5',
+        },
+      ).addTo(layer);
     });
   }, [cfg.showLines, cfg.defaultColor, filteredSites, isDark]);
 
@@ -239,11 +336,20 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
-      {/* Empty data overlay */}
-      {filteredSites.length === 0 && (
+      {/* Loading overlay */}
+      {loading && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
           <div className={`${isDark ? 'bg-slate-900/85 text-slate-200 border-slate-700/50' : 'bg-white/90 text-on-surface-variant border-outline-variant/30'} backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm border text-[10px] font-bold`}>
-            Aucune donnée — connectez une source ou ajustez les filtres
+            Chargement des sites…
+          </div>
+        </div>
+      )}
+
+      {/* Empty state (only when load complete) */}
+      {!loading && filteredSites.length === 0 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
+          <div className={`${isDark ? 'bg-slate-900/85 text-slate-200 border-slate-700/50' : 'bg-white/90 text-on-surface-variant border-outline-variant/30'} backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm border text-[10px] font-bold`}>
+            Aucun site ne correspond aux filtres
           </div>
         </div>
       )}
