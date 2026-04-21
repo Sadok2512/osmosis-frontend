@@ -43,6 +43,7 @@ import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
+import StatSettingsPanel from './StatSettingsPanel';
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
@@ -618,8 +619,19 @@ export default function EditorView({
             );
           }
 
+          // STAT (KPI Card) uses its own Chart-style settings panel.
+          if (w.kind === 'stat') {
+            return (
+              <StatSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
           // Premium manually-edited widgets share a unified settings panel.
-          if (w.kind === 'hero' || w.kind === 'stat' || w.kind === 'divider') {
+          if (w.kind === 'hero' || w.kind === 'divider') {
             return (
               <PremiumWidgetSettingsPanel
                 widget={w}
