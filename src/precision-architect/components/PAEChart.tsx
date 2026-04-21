@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Loader2 } from 'lucide-react';
 import { ChartWidgetConfig, DEFAULT_CHART_CONFIG } from '../types';
@@ -238,6 +238,25 @@ const PAEChart: React.FC<PAEChartProps> = ({
     };
   }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
 
+  // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
+  // the widget card has its real width (fixes right-axis clipping on first paint
+  // in viewer/presentation mode where layout settles after mount).
+  const chartRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const inst = chartRef.current?.getEchartsInstance?.();
+      inst?.resize();
+    });
+    ro.observe(el);
+    const raf = requestAnimationFrame(() => {
+      chartRef.current?.getEchartsInstance?.().resize();
+    });
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [isEmpty]);
+
   if (isEmpty) {
     const copy = emptyReason === 'no-metric'
       ? { title: 'No KPI selected', body: 'Open the settings panel and add a KPI or counter from the catalog to start visualizing data.' }
@@ -266,9 +285,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
     );
   }
 
+
   return (
-    <div style={{ height, width: '100%', position: 'relative' }}>
+    <div ref={containerRef} style={{ height, width: '100%', position: 'relative' }}>
       <ReactECharts
+        ref={chartRef}
         option={option}
         style={{ height: '100%', width: '100%' }}
         opts={{ renderer: 'canvas' }}
