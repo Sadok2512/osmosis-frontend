@@ -12,7 +12,6 @@ import PAStatWidget from './PAStatWidget';
 import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
 
 interface Props {
   widget: DynWidget;
@@ -344,76 +343,43 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   // Strict apply-only contract: render ONLY the snapshot saved at the last
-  // "Appliquer" click on THIS widget. Live edits to w.config must NOT trigger refetches.
-  const widgetAppliedRev = w.appliedRev ?? 0;
-  const cfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
-    ? (w.appliedConfig ?? w.config)
-    : undefined;
-  const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
-
-  // Global report-level toolbar (top of editor) — inherited by default.
+  // "Appliquer" click. Live edits to w.config must NOT trigger refetches.
+  // When global Apply is clicked, use live config for widgets that haven't
+  // been individually applied yet (so all widgets respond to global Apply).
   const global = usePAGlobalToolbar();
+  const cfg: ChartWidgetConfig | undefined = (w.appliedRev ?? 0) > 0
+    ? w.appliedConfig
+    : global.appliedRev > 0
+      ? (w.config as ChartWidgetConfig | undefined)
+      : undefined;
+  const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
 
   // Resolve effective time/filter source: global if widget inherits, else per-widget config.
   const inheritsTime = cfg?.data.timeRange?.inherit !== false; // default true
   const inheritsScope = cfg?.data.inheritFromDashboard !== false; // default true
 
-  // CRITICAL: A widget NEVER fires a backend request unless its own Apply has
-  // been clicked at least once (widgetAppliedRev > 0). The global Apply only
-  // refreshes widgets that have already been applied individually — it must
-  // never trigger a first-time fetch on a brand-new widget.
-  // We SUM widget + global revs (instead of max) so that EVERY click on
-  // "Apply to Dashboard" produces a new _rev and forces a refetch on inheriting
-  // widgets, even if the widget's own rev is already higher than global's.
-  const effectiveAppliedRev = widgetAppliedRev > 0 && (inheritsTime || inheritsScope)
-    ? widgetAppliedRev + global.appliedRev
-    : widgetAppliedRev;
-  const hasBeenApplied = widgetAppliedRev > 0;
-
-  // Debug: trace gating decisions
-  useEffect(() => {
-    console.log('[PA Chart] gate', {
-      widgetId: w.id,
-      widgetAppliedRev,
-      globalAppliedRev: global.appliedRev,
-      effectiveAppliedRev,
-      hasMetrics,
-      hasBeenApplied,
-      hasAppliedConfig: !!w.appliedConfig,
-      cfgMetrics: cfg?.metrics?.length ?? 0,
-    });
-  }, [widgetAppliedRev, global.appliedRev, effectiveAppliedRev, hasMetrics, hasBeenApplied, cfg, w.id, w.appliedConfig]);
-
-
-
-  // Read the FROZEN snapshot taken at the last global Apply click. Editing the
-  // toolbar (period, grain, filters) updates the live store but NOT this snapshot,
-  // so widgets that inherit will not refetch until the user clicks Apply again.
-  const globalSnap = global.applied;
-  const gFrom = globalSnap?.from ?? global.from;
-  const gTo = globalSnap?.to ?? global.to;
-  const gGrain = globalSnap?.grain ?? global.grain;
-  const gTechnos = globalSnap?.technos ?? global.technos;
-  const gFilters = globalSnap?.filters ?? global.filters;
+  // Apply trigger: if inheriting, react to the global Apply; else to the widget's own Apply.
+  const effectiveAppliedRev = inheritsTime || inheritsScope
+    ? Math.max(w.appliedRev ?? 0, global.appliedRev)
+    : (w.appliedRev ?? 0);
+  const hasBeenApplied = effectiveAppliedRev > 0;
 
   const request: TimeseriesRequest | null = useMemo(() => {
     if (!cfg || !hasMetrics || !hasBeenApplied) return null;
 
-    // Pick effective values from FROZEN global snapshot OR per-widget overrides
+    // Pick effective values from global toolbar OR per-widget overrides
     const eff = {
-      from: inheritsTime ? gFrom : cfg.data.timeRange.from,
-      to: inheritsTime ? gTo : cfg.data.timeRange.to,
-      granularity: inheritsTime ? gGrain : cfg.data.granularity,
-      technos: inheritsScope ? gTechnos : cfg.data.technos,
-      filters: inheritsScope ? gFilters : cfg.data.filters,
+      from: inheritsTime ? global.from : cfg.data.timeRange.from,
+      to: inheritsTime ? global.to : cfg.data.timeRange.to,
+      granularity: inheritsTime ? global.grain : cfg.data.granularity,
+      technos: inheritsScope ? global.technos : cfg.data.technos,
+      filters: inheritsScope ? global.filters : cfg.data.filters,
     };
 
-    // ── 1. Filters (chip[] → IN clauses, dimension normalized to backend keys) ──
-    // Use toBackendDimension() — never .toUpperCase() blindly. UI labels like
-    // "Techno", "Constructeur", "Région" must map to RAT, Vendor, DOR.
+    // ── 1. Filters (chip[] → IN clauses, dimension uppercased like Investigator) ──
     const byDim = new Map<string, string[]>();
     eff.filters.forEach(f => {
-      const dim = toBackendDimension(f.dimension);
+      const dim = f.dimension.toUpperCase();
       const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
       byDim.set(dim, arr);
@@ -424,20 +390,23 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       values,
     }));
 
-    // ── 2. Technology perimeter chips (4G/5G…) → RAT filter, only if not "all selected" ──
+    // ── 2. Technology perimeter chips (4G/5G…) → TECHNOLOGY filter, but only if not "all selected" ──
     const ALL_TECHS = new Set(['2g', '3g', '4g', '5g']);
     const selectedTechs = (eff.technos || []).map(t => t.toLowerCase());
     const allSelected = selectedTechs.length >= 4 && selectedTechs.every(t => ALL_TECHS.has(t));
     if (selectedTechs.length > 0 && !allSelected) {
       filters.push({
-        dimension: toBackendDimension('Techno'), // → 'RAT'
+        dimension: 'TECHNOLOGY',
         op: 'IN',
         values: selectedTechs.map(t => t.toUpperCase()),
       });
     }
 
-    // ── 3. Granularity normalization (15min → 15m, etc.) ──
-    const granularity = toBackendGranularity(eff.granularity);
+    // ── 3. Granularity normalization ──
+    const grainMap: Record<string, string> = {
+      'auto': '1h', '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
+    };
+    const granularity = grainMap[eff.granularity] ?? '1h';
 
     // ── 4. Date normalization ──
     const normalizeDate = (raw: string): string => {
@@ -456,22 +425,22 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       filters,
       selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
         kpi_key: m.kpiKey,
+        axis: m.axis,
       })),
       split_by: null,
       top_n: 10,
-      _rev: effectiveAppliedRev,
-    } as TimeseriesRequest & { _rev: number };
+    };
   }, [
     cfg,
     hasMetrics,
     hasBeenApplied,
     inheritsTime,
     inheritsScope,
-    gFrom,
-    gTo,
-    gGrain,
-    gTechnos,
-    gFilters,
+    global.from,
+    global.to,
+    global.grain,
+    global.technos,
+    global.filters,
     effectiveAppliedRev,
   ]);
 
@@ -510,36 +479,16 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     return { seriesByMetric: out, xAxisLabels: labels.map(shortLabel) };
   }, [tsResp, cfg]);
 
-  // Distinguish backend error vs empty perimeter
-  const backendError = (() => {
-    if (error) return (error as any)?.message || 'Erreur backend';
-    const metaErr = (tsResp as any)?.meta?.error;
-    if (metaErr && typeof metaErr === 'string') return metaErr;
-    return null;
-  })();
-  const hasNoData = !isFetching && !backendError && hasBeenApplied && tsResp && (!tsResp.series || tsResp.series.length === 0);
-
   return (
-    <div className="relative w-full h-full">
-      <PAEChart
-        variant="editor"
-        height="100%"
-        config={cfg}
-        appliedRev={effectiveAppliedRev}
-        seriesByMetric={seriesByMetric}
-        xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
-        loading={isFetching}
-      />
-      {backendError && !isFetching && (
-        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
-          <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 max-w-md text-center pointer-events-auto">
-            <div className="text-xs font-bold uppercase tracking-wider mb-1">⚠ Erreur backend</div>
-            <div className="text-xs opacity-80 break-words">{backendError}</div>
-            <div className="text-[10px] opacity-60 mt-1">Réessayez dans 30 s (cold-start probable)</div>
-          </div>
-        </div>
-      )}
-    </div>
+    <PAEChart
+      variant="editor"
+      height="100%"
+      config={cfg}
+      appliedRev={effectiveAppliedRev}
+      seriesByMetric={seriesByMetric}
+      xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
+      loading={isFetching}
+    />
   );
 }
 
