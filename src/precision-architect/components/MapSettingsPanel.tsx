@@ -6,6 +6,7 @@ import {
   Map as MapIconLucide, Satellite,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
 import { ensureFilterLoaded, getFilterValues, dimToKey, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
 import {
