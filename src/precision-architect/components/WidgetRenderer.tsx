@@ -380,7 +380,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
           inheritFromDashboard: true,
           technos: [],
           filters: [],
-          timeRange: { inherit: true, preset: '7d', from: '', to: '' },
+          timeRange: { inherit: true, preset: '7j', from: '', to: '' },
           granularity: '1d',
         },
       }
