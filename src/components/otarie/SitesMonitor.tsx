@@ -5187,6 +5187,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [dashboardActive]);
 
+  // Purge legacy global artifact storage once (pre dashboard-scoping)
+  useEffect(() => { purgeLegacyArtifacts(); }, []);
+
+  // Sync artifacts (custom points, tagged sites, tagged links) with the active dashboard.
+  // No active dashboard → empty (creation is also blocked elsewhere).
+  useEffect(() => {
+    const dbId = dashboardActive ? activeDashboardId : null;
+    activeDashboardIdRef.current = dbId;
+    setCustomPoints(loadCustomPoints(dbId));
+    setTaggedSites(loadTaggedSitesScoped(dbId));
+    setTaggedLinks(loadTaggedLinks(dbId));
+    // Reset transient interaction states
+    setPointCreationMode(false);
+    setLinkCreationMode(false);
+    setLinkSource(null);
+    setSelectedLinkId(null);
+  }, [dashboardActive, activeDashboardId]);
+
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
