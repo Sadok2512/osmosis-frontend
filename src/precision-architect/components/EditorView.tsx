@@ -475,6 +475,17 @@ export default function EditorView({
             );
           }
 
+          // Map widgets — dedicated bottom panel (Data Source / Display / Appearance).
+          if (w.kind === 'map') {
+            return (
+              <MapSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
           // Premium manually-edited widgets share a unified settings panel.
           if (w.kind === 'hero' || w.kind === 'stat' || w.kind === 'divider') {
             return (

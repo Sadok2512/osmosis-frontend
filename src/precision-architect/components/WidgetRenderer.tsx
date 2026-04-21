@@ -37,14 +37,19 @@ export default function WidgetRenderer({ widget: w, editable = false, onChange }
     );
   }
   if (w.kind === 'map') {
+    // Use applied snapshot when present, else live config (so first edits preview live).
+    const mapCfg = w.appliedMapConfig ?? w.mapConfig;
+    const mode = mapCfg?.displayMode ?? 'sites';
     return (
       <div className="h-full flex flex-col">
         <div className="flex items-center justify-between mb-2 widget-drag-handle cursor-move">
           <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Map'}</h3>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Geo sites</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            {mode === 'cells' ? 'Cells view' : 'Sites view'}
+          </span>
         </div>
         <div className="flex-1 min-h-0">
-          <PAMapWidget height="100%" />
+          <PAMapWidget height="100%" config={mapCfg} />
         </div>
       </div>
     );
