@@ -33,7 +33,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -42,6 +42,7 @@ import SectionBlock from './SectionBlock';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
+import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
 
@@ -156,8 +157,12 @@ export default function EditorView({
     if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
     if (kind === 'stat') newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
     if (kind === 'divider') newWidget.dividerConfig = { ...DEFAULT_DIVIDER_CONFIG };
+    if (kind === 'map') {
+      newWidget.mapConfig = { ...DEFAULT_MAP_CONFIG };
+      newWidget.title = 'Network Map';
+    }
     updateWidgets(w => [...w, newWidget]);
-    if (kind === 'hero' || kind === 'stat' || kind === 'divider') {
+    if (kind === 'hero' || kind === 'stat' || kind === 'divider' || kind === 'map') {
       setActiveWidget(newWidget.id);
     }
   };
@@ -463,6 +468,17 @@ export default function EditorView({
           if (w.kind === 'table') {
             return (
               <TableSettingsPanel
+                widget={w}
+                onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
+                onClose={() => setActiveWidget(null)}
+              />
+            );
+          }
+
+          // Map widgets — dedicated bottom panel (Data Source / Display / Appearance).
+          if (w.kind === 'map') {
+            return (
+              <MapSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}

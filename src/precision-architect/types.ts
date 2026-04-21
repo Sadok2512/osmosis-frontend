@@ -209,6 +209,55 @@ export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {
   align: 'center',
 };
 
+/** ───── Map Widget Configuration ───── */
+export type MapDisplayMode = 'sites' | 'cells';
+export type MapTheme = 'light' | 'dark';
+export type MapType = 'street' | 'satellite';
+
+export interface MapFilterChip {
+  id: string;
+  /** Dimension key: VENDOR, DOR, PLAQUE, BANDE, TECHNO, SITE, CELL */
+  dimension: string;
+  values: string[];
+}
+
+export interface MapWidgetConfig {
+  /** Inherit perimeter/filters from the dashboard global toolbar. */
+  inheritFromDashboard: boolean;
+  /** Per-widget filter chips (when not inheriting, or stacked on top). */
+  filters: MapFilterChip[];
+  /** What to render on the map. */
+  displayMode: MapDisplayMode;
+  /** Map appearance. */
+  theme: MapTheme;
+  mapType: MapType;
+  /** Layer toggles. */
+  showLines: boolean;
+  showSectors: boolean;
+  showLabels: boolean;
+  /** Optional KPI overlay + legend. */
+  kpiOverlay: boolean;
+  showLegend: boolean;
+  /** Heatmap visual mode. */
+  heatmap: boolean;
+  /** Default site marker color (hex). Empty = use theme accent. */
+  defaultColor?: string;
+}
+
+export const DEFAULT_MAP_CONFIG: MapWidgetConfig = {
+  inheritFromDashboard: true,
+  filters: [],
+  displayMode: 'sites',
+  theme: 'light',
+  mapType: 'street',
+  showLines: true,
+  showSectors: false,
+  showLabels: true,
+  kpiOverlay: true,
+  showLegend: true,
+  heatmap: false,
+};
+
 export interface DynWidget {
   id: string;
   kind: WidgetKind;
@@ -233,6 +282,10 @@ export interface DynWidget {
   statConfig?: StatWidgetConfig;
   /** Divider widget settings. */
   dividerConfig?: DividerWidgetConfig;
+  /** Map widget settings. */
+  mapConfig?: MapWidgetConfig;
+  /** Last map configuration explicitly applied by the user. */
+  appliedMapConfig?: MapWidgetConfig;
   /** Bumped each time the user clicks "Apply" in the settings panel. Charts can watch this to refetch. */
   appliedRev?: number;
   /** When true, the widget card renders with a transparent background (no card surface). */
