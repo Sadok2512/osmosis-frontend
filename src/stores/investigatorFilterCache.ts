@@ -3,7 +3,7 @@
  * Preloads all standard + PM dimensions once and serves from memory.
  * Falls back to VPS topo data when PM backend lacks certain dimensions.
  */
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
