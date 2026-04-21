@@ -118,14 +118,6 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
             </div>
           )}
 
-          {sections.length > 0 && (
-            <div className="space-y-4">
-              {sections.map((s) => (
-                <SectionBlock key={s.id} section={s} editable={false} />
-              ))}
-            </div>
-          )}
-
           {widgets.length === 0 && sections.length === 0 ? (
             <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
               <h3 className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: textColor }}>No content on this page</h3>
@@ -156,6 +148,15 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
                   </div>
                 ))}
               </GridLayout>
+            </div>
+          )}
+
+          {/* Sections render after widgets so they appear at the bottom of the page. */}
+          {sections.length > 0 && (
+            <div className="space-y-4">
+              {sections.map((s) => (
+                <SectionBlock key={s.id} section={s} editable={false} />
+              ))}
             </div>
           )}
         </main>
