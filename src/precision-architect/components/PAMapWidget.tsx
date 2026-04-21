@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
-import ReactECharts from 'echarts-for-react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { MapWidgetConfig, DEFAULT_MAP_CONFIG } from '../types';
 
 interface Site {
@@ -26,12 +27,44 @@ interface Props {
   config?: MapWidgetConfig;
 }
 
+// Tile providers
+const TILE_PROVIDERS = {
+  'street-light': {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  },
+  'street-dark': {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  },
+  'satellite-light': {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri',
+    subdomains: '',
+    maxZoom: 19,
+  },
+  'satellite-dark': {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles © Esri',
+    subdomains: '',
+    maxZoom: 19,
+  },
+};
+
 const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
   const cfg = config ?? DEFAULT_MAP_CONFIG;
   const isDark = cfg.theme === 'dark';
-  const isSatellite = cfg.mapType === 'satellite';
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const linesLayerRef = useRef<L.LayerGroup | null>(null);
 
-  // ── Apply filters ──
+  // Filter sites based on widget configuration
   const filteredSites = useMemo(() => {
     return FRANCE_SITES.filter((s) => {
       for (const f of cfg.filters) {
@@ -51,174 +84,173 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     });
   }, [cfg.filters]);
 
-  // ── Background tones based on theme + map type ──
-  const bgClass = isDark
-    ? isSatellite
-      ? 'from-slate-950 via-slate-900 to-slate-800'
-      : 'from-slate-900 to-slate-800'
-    : isSatellite
-      ? 'from-emerald-50 via-stone-100 to-amber-50'
-      : 'from-slate-50 to-emerald-50/30';
+  // ─── Initialise map (once) ───
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
 
-  const labelColor = isDark ? '#cbd5e1' : '#475569';
-  const labelEmphasisColor = isDark ? '#f8fafc' : '#0f172a';
-  const tooltipBg = isDark ? 'rgba(2,6,23,0.95)' : 'rgba(15,23,42,0.95)';
-
-  const pointMultiplier = cfg.displayMode === 'cells' ? 3 : 1; // simulate denser cell view by adding sector ripples
-  const seriesData = useMemo(() => {
-    const base = filteredSites.map((s) => ({
-      name: s.name,
-      value: [s.lon, s.lat, s.intensity] as [number, number, number],
-      itemStyle: {
-        color: cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981'),
-        shadowColor: cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981'),
-        shadowBlur: cfg.heatmap ? 24 : 12,
-      },
-    }));
-    if (pointMultiplier === 1) return base;
-    // For "Cells" mode, add jittered satellite points to simulate sectors/beams.
-    const out = [...base];
-    filteredSites.forEach((s) => {
-      const offsets = [[0.04, 0.02], [-0.03, 0.03], [0.02, -0.04]];
-      offsets.forEach(([dx, dy], i) => {
-        out.push({
-          name: `${s.name}#${i + 1}`,
-          value: [s.lon + dx, s.lat + dy, Math.max(20, s.intensity - 10)],
-          itemStyle: {
-            color: cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981'),
-            shadowColor: cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981'),
-            shadowBlur: 8,
-          },
-        });
-      });
+    const map = L.map(containerRef.current, {
+      center: [46.8, 2.5], // France
+      zoom: 6,
+      zoomControl: true,
+      attributionControl: true,
+      preferCanvas: true,
     });
-    return out;
-  }, [filteredSites, cfg.kpiOverlay, cfg.heatmap, cfg.defaultColor, pointMultiplier]);
 
-  const linesData = useMemo(() => {
-    if (!cfg.showLines) return [];
+    mapRef.current = map;
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    linesLayerRef.current = L.layerGroup().addTo(map);
+
+    // Force size recalculation after mount
+    setTimeout(() => map.invalidateSize(), 50);
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      tileLayerRef.current = null;
+      markersLayerRef.current = null;
+      linesLayerRef.current = null;
+    };
+  }, []);
+
+  // ─── Update tile layer when theme/mapType changes ───
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const key = `${cfg.mapType}-${cfg.theme}` as keyof typeof TILE_PROVIDERS;
+    const provider = TILE_PROVIDERS[key] ?? TILE_PROVIDERS['street-light'];
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const tileOpts: L.TileLayerOptions = {
+      attribution: provider.attribution,
+      maxZoom: provider.maxZoom,
+    };
+    if (provider.subdomains) tileOpts.subdomains = provider.subdomains;
+
+    tileLayerRef.current = L.tileLayer(provider.url, tileOpts).addTo(map);
+  }, [cfg.mapType, cfg.theme]);
+
+  // ─── Render markers when sites/config change ───
+  useEffect(() => {
+    const layer = markersLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+
+    filteredSites.forEach((s) => {
+      const color = cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981');
+      const radius = cfg.displayMode === 'cells' ? 4 : 6;
+
+      const marker = L.circleMarker([s.lat, s.lon], {
+        radius,
+        color,
+        fillColor: color,
+        fillOpacity: 0.85,
+        weight: 1.5,
+        opacity: 1,
+      });
+
+      marker.bindTooltip(
+        `<div style="font-weight:700;font-size:11px">${s.name}</div><div style="font-size:10px;opacity:0.75">Load: ${s.intensity}%</div>`,
+        { direction: 'top', offset: [0, -8], opacity: 0.95 },
+      );
+
+      if (cfg.showLabels && cfg.displayMode === 'sites') {
+        marker.bindTooltip(s.name, {
+          permanent: true,
+          direction: 'top',
+          offset: [0, -8],
+          className: 'pa-map-label',
+          opacity: 0.9,
+        });
+      }
+
+      layer.addLayer(marker);
+
+      // Sector ripples (visual hint only)
+      if (cfg.showSectors) {
+        [0, 120, 240].forEach((angle) => {
+          const r = 0.06;
+          const rad = (angle * Math.PI) / 180;
+          L.circleMarker(
+            [s.lat + r * Math.sin(rad), s.lon + r * Math.cos(rad)],
+            {
+              radius: 3,
+              color,
+              fillColor: color,
+              fillOpacity: 0.35,
+              weight: 0,
+            },
+          ).addTo(layer);
+        });
+      }
+    });
+  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors]);
+
+  // ─── Render lines when enabled ───
+  useEffect(() => {
+    const layer = linesLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!cfg.showLines) return;
+
     const known = new Set(filteredSites.map((s) => s.name));
-    const all: { coords: [number, number][] }[] = [
-      { coords: [[2.3522, 48.8566], [4.8357, 45.7640]] },
-      { coords: [[2.3522, 48.8566], [-1.5536, 47.2184]] },
-      { coords: [[4.8357, 45.7640], [5.3698, 43.2965]] },
-      { coords: [[4.8357, 45.7640], [3.8767, 43.6108]] },
-      { coords: [[2.3522, 48.8566], [3.0573, 50.6292]] },
-      { coords: [[2.3522, 48.8566], [7.7521, 48.5734]] },
-      { coords: [[1.4442, 43.6047], [-0.5792, 44.8378]] },
+    const allLinks: { from: [number, number]; to: [number, number] }[] = [
+      { from: [48.8566, 2.3522], to: [45.7640, 4.8357] },
+      { from: [48.8566, 2.3522], to: [47.2184, -1.5536] },
+      { from: [45.7640, 4.8357], to: [43.2965, 5.3698] },
+      { from: [45.7640, 4.8357], to: [43.6108, 3.8767] },
+      { from: [48.8566, 2.3522], to: [50.6292, 3.0573] },
+      { from: [48.8566, 2.3522], to: [48.5734, 7.7521] },
+      { from: [43.6047, 1.4442], to: [44.8378, -0.5792] },
     ];
-    // Filter lines whose endpoints belong to filtered sites.
-    const sitesByCoord = new Map(FRANCE_SITES.map((s) => [`${s.lon},${s.lat}`, s.name]));
-    return all.filter((l) =>
-      l.coords.every((c) => {
-        const name = sitesByCoord.get(`${c[0]},${c[1]}`);
-        return name ? known.has(name) : true;
-      }),
-    );
-  }, [cfg.showLines, filteredSites]);
 
-  const option = useMemo(() => ({
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item' as const,
-      backgroundColor: tooltipBg,
-      borderColor: 'transparent',
-      textStyle: { color: '#f8fafc', fontSize: 11, fontWeight: 600 },
-      formatter: (p: any) => `<b>${p.data.name}</b><br/>Load: ${p.data.value[2]}%`,
-    },
-    grid: { top: 10, right: 10, bottom: 10, left: 10, containLabel: false },
-    xAxis: { type: 'value' as const, min: -5.5, max: 9.5, show: false },
-    yAxis: { type: 'value' as const, min: 41.5, max: 51.5, show: false },
-    series: [
-      {
-        type: cfg.heatmap ? ('effectScatter' as const) : ('scatter' as const),
-        data: seriesData,
-        symbolSize: (val: number[]) => {
-          const base = cfg.displayMode === 'cells' ? 5 : 8;
-          const factor = cfg.displayMode === 'cells' ? 12 : 18;
-          return base + (val[2] / 100) * factor;
-        },
-        rippleEffect: cfg.heatmap ? { brushType: 'stroke' as const, scale: 3.5 } : undefined,
-        showEffectOn: 'render' as const,
-        label: {
-          show: cfg.showLabels && cfg.displayMode === 'sites',
-          position: 'top' as const,
-          formatter: (p: any) => p.data.name,
-          fontSize: 9,
-          fontWeight: 700,
-          color: labelColor,
-        },
-        emphasis: {
-          scale: 1.4,
-          label: { fontSize: 11, color: labelEmphasisColor },
-        },
-        z: 3,
-      },
-      ...(cfg.showLines && linesData.length > 0 ? [{
-        type: 'lines' as const,
-        coordinateSystem: 'cartesian2d' as const,
-        data: linesData,
-        lineStyle: {
-          color: cfg.defaultColor || '#10b981',
-          opacity: isDark ? 0.4 : 0.25,
-          width: 1,
-          curveness: 0.2,
-        },
-        effect: {
-          show: true,
-          period: 6,
-          trailLength: 0.6,
-          color: cfg.defaultColor || '#10b981',
-          symbolSize: 3,
-        },
-        z: 1,
-      }] : []),
-      ...(cfg.showSectors ? [{
-        type: 'scatter' as const,
-        data: filteredSites.flatMap((s) => {
-          // Three sectors per site at 120° spacing — visual hint only.
-          return [0, 120, 240].map((angle) => {
-            const r = 0.06;
-            const rad = (angle * Math.PI) / 180;
-            return {
-              name: `${s.name}·sector`,
-              value: [s.lon + r * Math.cos(rad), s.lat + r * Math.sin(rad), s.intensity / 2],
-              itemStyle: {
-                color: cfg.defaultColor || colorFor(s.status),
-                opacity: 0.35,
-              },
-            };
-          });
-        }),
-        symbol: 'triangle',
-        symbolSize: 8,
-        z: 2,
-        silent: true,
-      }] : []),
-    ],
-  }), [seriesData, linesData, cfg, isDark, labelColor, labelEmphasisColor, tooltipBg, filteredSites]);
+    const sitesByCoord = new Map(FRANCE_SITES.map((s) => [`${s.lat.toFixed(4)},${s.lon.toFixed(4)}`, s.name]));
+    const visible = allLinks.filter((l) => {
+      const fromName = sitesByCoord.get(`${l.from[0].toFixed(4)},${l.from[1].toFixed(4)}`);
+      const toName = sitesByCoord.get(`${l.to[0].toFixed(4)},${l.to[1].toFixed(4)}`);
+      return (!fromName || known.has(fromName)) && (!toName || known.has(toName));
+    });
+
+    visible.forEach((l) => {
+      L.polyline([l.from, l.to], {
+        color: cfg.defaultColor || '#10b981',
+        weight: 1.2,
+        opacity: isDark ? 0.5 : 0.4,
+        dashArray: '4 6',
+      }).addTo(layer);
+    });
+  }, [cfg.showLines, cfg.defaultColor, filteredSites, isDark]);
+
+  // ─── Invalidate size when container resizes ───
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const id = window.setTimeout(() => map.invalidateSize(), 80);
+    return () => window.clearTimeout(id);
+  }, [height]);
 
   return (
     <div
-      style={{ width: '100%', height }}
-      className={`relative rounded-2xl overflow-hidden bg-gradient-to-br ${bgClass} border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
+      style={{ width: '100%', height, position: 'relative' }}
+      className={`rounded-2xl overflow-hidden border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
     >
-      {filteredSites.length > 0 ? (
-        <ReactECharts option={option} style={{ height: '100%', width: '100%' }} opts={{ renderer: 'canvas' }} />
-      ) : (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-6">
-          <div className={`text-xs font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-on-surface-variant/60'}`}>
-            Aucune donnée
-          </div>
-          <div className={`text-[11px] ${isDark ? 'text-slate-500' : 'text-on-surface-variant/70'} max-w-xs`}>
-            Connectez une source de données ou ajustez les filtres pour afficher les sites sur la carte.
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* Empty data overlay */}
+      {filteredSites.length === 0 && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">
+          <div className={`${isDark ? 'bg-slate-900/85 text-slate-200 border-slate-700/50' : 'bg-white/90 text-on-surface-variant border-outline-variant/30'} backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-sm border text-[10px] font-bold`}>
+            Aucune donnée — connectez une source ou ajustez les filtres
           </div>
         </div>
       )}
 
       {/* Legend */}
       {cfg.showLegend && cfg.kpiOverlay && (
-        <div className={`absolute top-3 left-3 ${isDark ? 'bg-slate-900/85 border-slate-700/50' : 'bg-white/85 border-outline-variant/20'} backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border`}>
+        <div className={`absolute top-3 left-3 z-[500] ${isDark ? 'bg-slate-900/85 border-slate-700/50' : 'bg-white/90 border-outline-variant/20'} backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm border`}>
           <div className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-on-surface-variant/60'} mb-1`}>
             {cfg.displayMode === 'sites' ? 'Sites' : 'Cells'} · {filteredSites.length}
           </div>
@@ -231,7 +263,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
       )}
 
       {/* Map type chip */}
-      <div className={`absolute top-3 right-3 ${isDark ? 'bg-slate-900/85 text-slate-200 border-slate-700/50' : 'bg-white/85 text-on-surface-variant border-outline-variant/20'} backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm border text-[9px] font-black uppercase tracking-widest`}>
+      <div className={`absolute top-3 right-3 z-[500] ${isDark ? 'bg-slate-900/85 text-slate-200 border-slate-700/50' : 'bg-white/90 text-on-surface-variant border-outline-variant/20'} backdrop-blur-sm rounded-full px-2.5 py-1 shadow-sm border text-[9px] font-black uppercase tracking-widest`}>
         {cfg.mapType} · {cfg.theme}
       </div>
     </div>
