@@ -163,15 +163,8 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
               </div>
             ) : (
               <>
-                {sections.length > 0 && (
-                  <div className="space-y-4">
-                    {sections.map((s) => (
-                      <SectionBlock key={s.id} section={s} editable={false} />
-                    ))}
-                  </div>
-                )}
-
-                {widgets.length > 0 && (
+                {/* Unassigned widgets render at the top (legacy widgets without a sectionId). */}
+                {unassignedWidgets.length > 0 && (
                   <div className="pa-grid-view w-full">
                     <GridLayout
                       className="layout"
@@ -184,7 +177,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
                       isResizable={false}
                       autoSize
                     >
-                      {widgets.map(w => (
+                      {unassignedWidgets.map(w => (
                         <div
                           key={w.id}
                           className={cn(
@@ -197,6 +190,49 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
                         </div>
                       ))}
                     </GridLayout>
+                  </div>
+                )}
+
+                {/* Sections with their owned widgets, rendered inline. */}
+                {sections.length > 0 && (
+                  <div className="space-y-6">
+                    {sections.map((s) => {
+                      const sectionWidgets = widgetsBySection.get(s.id) ?? [];
+                      const sectionLayout = buildLayout(sectionWidgets);
+                      return (
+                        <div key={s.id} className="space-y-3">
+                          <SectionBlock section={s} editable={false} />
+                          {sectionWidgets.length > 0 && (
+                            <div className="pa-grid-view w-full">
+                              <GridLayout
+                                className="layout"
+                                layout={sectionLayout}
+                                cols={COLS}
+                                rowHeight={ROW_HEIGHT}
+                                margin={[spacing, spacing]}
+                                containerPadding={[0, 0]}
+                                isDraggable={false}
+                                isResizable={false}
+                                autoSize
+                              >
+                                {sectionWidgets.map(w => (
+                                  <div
+                                    key={w.id}
+                                    className={cn(
+                                      'overflow-hidden p-4',
+                                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                                    )}
+                                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+                                  >
+                                    <WidgetRenderer widget={w} />
+                                  </div>
+                                ))}
+                              </GridLayout>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>
