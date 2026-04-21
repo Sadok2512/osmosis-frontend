@@ -800,6 +800,74 @@ function TimeFiltersToolbar({
   );
 }
 
+/* ---------------- Live mini-preview for a single metric ---------------- */
+
+function MetricPreview({ metric }: { metric: ChartMetric }) {
+  // Generate a simple, deterministic wave so the preview stays stable across renders.
+  const points = useMemo(() => {
+    const n = 24;
+    const arr: { x: number; y: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const y = 22 + Math.sin(t * Math.PI * 2.2) * 10 + Math.cos(t * 6) * 3;
+      arr.push({ x: t * 100, y });
+    }
+    return arr;
+  }, []);
+
+  const path = useMemo(() => {
+    if (metric.smooth) {
+      // Cubic smoothing (Catmull-Rom-ish)
+      const d: string[] = [`M ${points[0].x} ${points[0].y}`];
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i - 1] ?? points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2] ?? p2;
+        const c1x = p1.x + (p2.x - p0.x) / 6;
+        const c1y = p1.y + (p2.y - p0.y) / 6;
+        const c2x = p2.x - (p3.x - p1.x) / 6;
+        const c2y = p2.y - (p3.y - p1.y) / 6;
+        d.push(`C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`);
+      }
+      return d.join(' ');
+    }
+    return points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+  }, [points, metric.smooth]);
+
+  const dasharray =
+    metric.lineStyle === 'dashed' ? '4 3' :
+    metric.lineStyle === 'dotted' ? '1 3' :
+    undefined;
+
+  const fillPath = `${path} L 100 50 L 0 50 Z`;
+
+  return (
+    <div className="rounded-xl border border-outline-variant/20 bg-white p-2 flex flex-col gap-1.5">
+      <div className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/70">Preview</div>
+      <svg viewBox="0 0 100 50" preserveAspectRatio="none" className="w-full h-16 rounded-lg bg-surface-container-low/40">
+        {metric.fillArea && (
+          <path d={fillPath} fill={metric.color} opacity={0.18} />
+        )}
+        <path
+          d={path}
+          fill="none"
+          stroke={metric.color}
+          strokeWidth={metric.lineWidth ?? 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={dasharray}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <div className="flex items-center justify-between text-[9px] font-bold text-on-surface-variant/70">
+        <span className="truncate">{metric.alias || metric.kpiKey}</span>
+        <span className="uppercase tracking-wider">{metric.axis}</span>
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- Section: Metrics (inside Data Source tab) ---------------- */
 
 function MetricsTab({
