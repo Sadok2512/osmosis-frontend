@@ -238,6 +238,25 @@ const PAEChart: React.FC<PAEChartProps> = ({
     };
   }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
 
+  // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
+  // the widget card has its real width (fixes right-axis clipping on first paint
+  // in viewer/presentation mode where layout settles after mount).
+  const chartRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      const inst = chartRef.current?.getEchartsInstance?.();
+      inst?.resize();
+    });
+    ro.observe(el);
+    const raf = requestAnimationFrame(() => {
+      chartRef.current?.getEchartsInstance?.().resize();
+    });
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [isEmpty]);
+
   if (isEmpty) {
     const copy = emptyReason === 'no-metric'
       ? { title: 'No KPI selected', body: 'Open the settings panel and add a KPI or counter from the catalog to start visualizing data.' }
