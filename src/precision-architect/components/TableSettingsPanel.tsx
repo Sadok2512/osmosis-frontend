@@ -89,20 +89,48 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
 
   const reset = () => onChange({ tableConfig: { ...DEFAULT_TABLE_CONFIG } });
 
+  const widgetLabel = `TABLE · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
+
   return (
     <div className="h-[clamp(10rem,25vh,19rem)] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
+      {/* Header — identical to Chart settings panel */}
       <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
         <div className="flex items-center gap-4">
-          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Table Settings</span>
+          <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
           <div className="h-4 w-px bg-outline-variant" />
-          <h4 className="font-headline font-bold text-on-surface text-sm">TABLE · {(widget.title && widget.title.trim()) || 'Untitled'}</h4>
+          <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
         <div className="flex gap-2 items-center">
-          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">Widget scope</span>
-          <button onClick={reset} className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors">Reset</button>
-          <button onClick={() => commit(false)} title="Apply changes only to this selected widget (does not refresh the dashboard)" className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors">Apply to Widget</button>
-          <button onClick={() => commit(true)} title="Save and apply changes to this widget" className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm">Save</button>
-          <button onClick={onClose} className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors" aria-label="Close settings"><X className="w-4 h-4" /></button>
+          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
+            Widget scope
+          </span>
+          <button
+            onClick={reset}
+            className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
+          >
+            Reset
+          </button>
+          <button
+            onClick={() => commit(false)}
+            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+            title="Apply changes only to this selected widget (does not refresh the dashboard)"
+          >
+            Apply to Widget
+          </button>
+          <button
+            onClick={() => commit(true)}
+            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
+            title="Save and apply changes to this widget"
+          >
+            Save
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1 text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-colors"
+            aria-label="Close settings"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
