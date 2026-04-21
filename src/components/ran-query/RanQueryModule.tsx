@@ -1043,7 +1043,7 @@ const RanQueryModule: React.FC = () => {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">RAN Query Module</h1>
+            <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">Rapport Builder</h1>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               Create, execute, view, and download telecom KPI / counter reports with vendor, technology, and time filters.
             </p>
