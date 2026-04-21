@@ -154,11 +154,23 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
               )}
               {cfg.filters.map((f) => {
                 const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
+                // Always prefer real distinct values from currently-loaded sites.
+                const liveValues = getMapSitesDistinct(f.dimension);
+                // For free-text dims (SITE/CELL) we still fall back to a text input when no live values exist.
+                const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                // Cap the visible chip count to keep the UI readable; user can search via text input fallback.
+                const MAX_CHIPS = 60;
+                const visibleChips = chipValues.slice(0, MAX_CHIPS);
                 return (
                   <div key={f.id} className="border border-outline-variant/20 rounded-lg p-2 bg-surface-container-low/50">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-[10px] font-black uppercase tracking-widest text-primary">
                         {dim?.label ?? f.dimension}
+                        {liveValues.length > 0 && (
+                          <span className="ml-1.5 text-on-surface-variant/60 font-bold normal-case tracking-normal">
+                            · {liveValues.length} live
+                          </span>
+                        )}
                       </span>
                       <button
                         onClick={() => removeFilter(f.id)}
@@ -168,9 +180,9 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
-                    {dim && dim.sample.length > 0 ? (
+                    {visibleChips.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
-                        {dim.sample.map((val) => {
+                        {visibleChips.map((val) => {
                           const active = f.values.includes(val);
                           return (
                             <button
@@ -187,6 +199,11 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                             </button>
                           );
                         })}
+                        {chipValues.length > MAX_CHIPS && (
+                          <span className="text-[10px] text-on-surface-variant/60 px-1">
+                            +{chipValues.length - MAX_CHIPS} more…
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <input
