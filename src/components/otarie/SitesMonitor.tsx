@@ -5132,7 +5132,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBboxLoading(false);
       setLoading(false);
     }
-  }, []);
+  }, [dashboardActive]);
+
+  // Clear sites & cells when no dashboard is active
+  useEffect(() => {
+    if (!dashboardActive) {
+      if (abortRef.current) abortRef.current.abort();
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+    }
+  }, [dashboardActive]);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
