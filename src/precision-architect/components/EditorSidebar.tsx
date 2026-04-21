@@ -209,6 +209,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const [draft, setDraft] = useState<DraftConfig>(() => readDraft(projectName, activeTheme));
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     general: true,
+    reportInfo: true,
     appearance: true,
     layout: false,
     header: false,
@@ -247,6 +248,14 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
       logoUrl: d.logoUrl,
       showLogo: d.showLogo,
       showDate: d.showDate,
+      showReportName: d.showReportName,
+      reportInfo: {
+        show: d.reportInfoShow,
+        perimeter: d.reportInfoPerimeter,
+        date: d.reportInfoDate,
+        granularity: d.reportInfoGranularity,
+        filters: d.reportInfoFilters,
+      },
     };
   };
 
