@@ -741,7 +741,7 @@ function DashboardSwitcher() {
             );
           })}
         </div>
-        <div className="border-t border-outline-variant/15 p-2">
+        <div className="border-t border-outline-variant/15 p-2 space-y-1.5">
           <button
             onClick={() => {
               newDashboard();
@@ -753,6 +753,35 @@ function DashboardSwitcher() {
             <Plus className="w-4 h-4" />
             <span>New Dashboard</span>
           </button>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => {
+                usePAReportStore.getState().markSaved();
+                toast.success('Dashboard saved');
+              }}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-surface-container-low hover:bg-primary/10 text-primary text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Save</span>
+            </button>
+            <button
+              onClick={() => {
+                if (dashboards.length <= 1) {
+                  toast.error('At least one dashboard must remain.');
+                  return;
+                }
+                if (window.confirm(`Delete "${active?.name}" ?`)) {
+                  deleteDashboard(activeId);
+                  setOpen(false);
+                  toast.success('Dashboard deleted');
+                }
+              }}
+              className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-surface-container-low hover:bg-error/10 text-error text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
+            </button>
+          </div>
         </div>
       </PopoverContent>
     </Popover>
