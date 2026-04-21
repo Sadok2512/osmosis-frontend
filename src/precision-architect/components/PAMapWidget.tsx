@@ -152,24 +152,77 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
   const [sites, setSites] = useState<MapSite[]>(() => cachedMapSites ?? []);
   const [loading, setLoading] = useState<boolean>(!cachedMapSites);
 
-  // ─── Load sites from the topology service ───
+  // ─── Load sites: if filters are set, fetch filtered from backend; else use cache ───
+  const hasActiveFilters = cfg.filters.some(f => f.values.length > 0);
+  const filterKey = JSON.stringify(cfg.filters.filter(f => f.values.length > 0));
   useEffect(() => {
     let cancelled = false;
-    if (cachedMapSites) {
-      setSites(cachedMapSites);
-      setLoading(false);
-      return;
+
+    if (hasActiveFilters) {
+      // Fetch filtered sites directly from backend
+      setLoading(true);
+      (async () => {
+        try {
+          const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
+          const qs = new URLSearchParams({ bbox: '-180,-90,180,90', limit: '50000' });
+          for (const f of cfg.filters) {
+            if (f.values.length === 0) continue;
+            const dim = f.dimension.toLowerCase();
+            const paramMap: Record<string, string> = {
+              plaque: 'plaque', dor: 'dor', vendor: 'constructeur',
+              techno: 'techno', bande: 'bande', bcluster: 'bcluster',
+            };
+            const param = paramMap[dim] || dim;
+            qs.set(param, f.values.join(','));
+          }
+          const url = getVpsProxyUrl('parser', `/api/v1/topo/sites?${qs}`);
+          const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+          const json = await resp.json();
+          const rawSites = Array.isArray(json?.sites) ? json.sites : (Array.isArray(json) ? json : []);
+          const mapped = rawSites
+            .map((s: any): MapSite | null => {
+              const lat = Number(s.latitude ?? s.lat);
+              const lon = Number(s.longitude ?? s.lng);
+              if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+              return {
+                name: s.site_name || s.nom_site || s.code_nidt || '',
+                lat, lon,
+                intensity: 80,
+                status: 'optimal' as const,
+                vendor: s.constructeur || s.vendor || 'Unknown',
+                techno: Array.isArray(s.technos) ? s.technos.join(',') : (s.techno || ''),
+                bande: Array.isArray(s.bandes) ? s.bandes.join(',') : (s.bande || ''),
+                plaque: s.plaque || '',
+                dor: s.dor || s.region || '',
+              };
+            })
+            .filter((s: MapSite | null): s is MapSite => !!s);
+          if (!cancelled) {
+            setSites(mapped);
+            setLoading(false);
+          }
+        } catch (err) {
+          console.warn('[PAMapWidget] Filtered fetch failed', err);
+          if (!cancelled) setLoading(false);
+        }
+      })();
+    } else {
+      // No filters: use shared cache
+      if (cachedMapSites) {
+        setSites(cachedMapSites);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      loadMapSites().then((data) => {
+        if (cancelled) return;
+        setSites(data);
+        setLoading(false);
+      });
     }
-    setLoading(true);
-    loadMapSites().then((data) => {
-      if (cancelled) return;
-      setSites(data);
-      setLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+
+    return () => { cancelled = true; };
+  }, [filterKey, hasActiveFilters]);
 
   // Filter sites based on widget configuration
   const filteredSites = useMemo(() => {
