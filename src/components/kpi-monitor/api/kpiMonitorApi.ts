@@ -428,8 +428,11 @@ export function useTimeseriesQuery(req: TimeseriesRequest | null) {
 }
 
 export function useTableQuery(req: TableRequest | null) {
+  // Stable key: serialize the request so identical payloads don't refetch
+  // on every render (e.g., after a widget resize / drag / unrelated state change).
+  const key = req ? JSON.stringify(req) : 'noop';
   return useQuery({
-    queryKey: ['monitor', 'table', req],
+    queryKey: ['monitor', 'table', key],
     queryFn: async () => {
       try {
         return await fetchTable(req!);
@@ -439,7 +442,11 @@ export function useTableQuery(req: TableRequest | null) {
       }
     },
     enabled: !!req && req.kpi_keys.length > 0,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
