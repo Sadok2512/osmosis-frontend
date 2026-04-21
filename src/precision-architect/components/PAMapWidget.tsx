@@ -173,7 +173,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
 
   // Filter sites based on widget configuration
   const filteredSites = useMemo(() => {
-    return sites.filter((s) => {
+    const result = sites.filter((s) => {
       for (const f of cfg.filters) {
         if (f.values.length === 0) continue;
         const dim = f.dimension.toUpperCase();
@@ -185,17 +185,21 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         else if (dim === 'DOR') v = s.dor;
         else if (dim === 'SITE') v = s.name;
         else if (dim === 'CELL') v = s.name;
-        // For comma-separated multi-value dims (techno/bande), match if any value listed.
         if (!v) return false;
+        // Case-insensitive matching for all dimensions
+        const vLower = v.toLowerCase();
+        const filterLower = f.values.map(fv => fv.toLowerCase());
         if (dim === 'TECHNO' || dim === 'BANDE') {
-          const parts = v.split(',').map((p) => p.trim());
-          if (!parts.some((p) => f.values.includes(p))) return false;
-        } else if (!f.values.includes(v)) {
+          const parts = v.split(',').map((p) => p.trim().toLowerCase());
+          if (!parts.some((p) => filterLower.includes(p))) return false;
+        } else if (!filterLower.includes(vLower)) {
           return false;
         }
       }
       return true;
     });
+    console.log(`[PAMap] Filter: ${cfg.filters.map(f => `${f.dimension}=${f.values.join(',')}`).join(' ')} → ${result.length}/${sites.length} sites`);
+    return result;
   }, [sites, cfg.filters]);
 
   // ─── Initialise map (once) ───
