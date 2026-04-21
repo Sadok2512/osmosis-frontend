@@ -41,6 +41,7 @@ import {
 } from 'recharts';
 
 type ReportStatus = 'Draft' | 'Ready' | 'Running' | 'Completed' | 'Failed';
+type ReportHealth = 'ok' | 'warning' | 'error';
 type TimeMode = 'absolute' | 'relative';
 type Tech = '2G' | '3G' | '4G' | '5G';
 type RelativeUnit = 'minutes' | 'hours' | 'days';
@@ -98,6 +99,7 @@ interface RanReport {
   lastRunAt: string | null;
   results: ReportResultRow[];
   errorMessage?: string;
+  health?: ReportHealth;
   // ── Extended filter & aggregation context ──
   plaques?: string[];
   dors?: string[];
@@ -183,6 +185,7 @@ function fromStoredReports(raw: string | null): RanReport[] {
       ...report,
       status: report.status === 'Running' ? 'Ready' : report.status,
       results: Array.isArray(report.results) ? report.results : [],
+      health: report.health || (report.errorMessage && Array.isArray(report.results) && report.results.length > 0 ? 'warning' : undefined),
       technologies: Array.isArray(report.technologies) ? report.technologies : [],
       kpis: Array.isArray(report.kpis) ? report.kpis : [],
     }));
@@ -236,6 +239,17 @@ function statusClasses(status: ReportStatus): string {
       return 'bg-amber-500/12 text-amber-700 border-amber-500/25';
     default:
       return 'bg-slate-500/12 text-slate-700 border-slate-500/25';
+  }
+}
+
+function healthClasses(health?: ReportHealth): string {
+  switch (health) {
+    case 'warning':
+      return 'bg-amber-500/12 text-amber-700 border-amber-500/25';
+    case 'error':
+      return 'bg-red-500/12 text-red-700 border-red-500/25';
+    default:
+      return 'bg-emerald-500/12 text-emerald-700 border-emerald-500/25';
   }
 }
 
@@ -864,18 +878,20 @@ const RanQueryModule: React.FC = () => {
   const executeReport = useCallback(async (reportId: string) => {
     setIsExecutingId(reportId);
     setResultPage(0);
-    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running' as ReportStatus, errorMessage: undefined, updatedAt: new Date().toISOString() } : report));
+    setReports(prev => prev.map(report => report.id === reportId ? { ...report, status: 'Running' as ReportStatus, health: undefined, errorMessage: undefined, updatedAt: new Date().toISOString() } : report));
     try {
       // Read fresh report state
       const report = reports.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
       const { rows, errors } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
+      const hasData = rows.length > 0;
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
         return {
           ...r,
-          status: (rows.length > 0 ? 'Completed' : 'Failed') as ReportStatus,
+          status: (hasData ? 'Completed' : 'Failed') as ReportStatus,
+          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'error',
           results: rows,
           errorMessage: rows.length === 0 ? (errorMsg || `No data returned. PM data available: 2026-04-14 to 2026-04-18. Your range: ${report.timeConfig.timeMode === 'absolute' ? report.timeConfig.start + ' → ' + report.timeConfig.end : 'Last ' + (report.timeConfig as any).value + ' ' + (report.timeConfig as any).unit}`) : errorMsg,
           lastRunAt: new Date().toISOString(),
@@ -885,7 +901,7 @@ const RanQueryModule: React.FC = () => {
     } catch (err: any) {
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
-        return { ...r, status: 'Failed' as ReportStatus, errorMessage: err?.message || 'Execution failed', updatedAt: new Date().toISOString() };
+        return { ...r, status: 'Failed' as ReportStatus, health: 'error', errorMessage: err?.message || 'Execution failed', updatedAt: new Date().toISOString() };
       }));
     } finally {
       setIsExecutingId(current => current === reportId ? null : current);
@@ -1127,7 +1143,12 @@ const RanQueryModule: React.FC = () => {
                       </div>
                       <span className="text-xs text-muted-foreground">{describeTimeConfig(report.timeConfig)}</span>
                       <span className="font-semibold">{report.kpis.length}</span>
-                      <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', statusClasses(report.status))}>{report.status}</span>
+                      <div className="flex flex-wrap gap-1">
+                        <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', statusClasses(report.status))}>{report.status}</span>
+                        {report.health === 'warning' && (
+                          <span className={cn('inline-flex h-fit w-fit items-center rounded-full border px-2 py-0.5 text-[11px] font-medium leading-tight', healthClasses('warning'))}>Warning</span>
+                        )}
+                      </div>
                       <span className="text-xs text-muted-foreground">{formatDateTime(report.createdAt)}</span>
                       <div className="flex flex-nowrap items-center gap-1.5 justify-end">
                         <button
@@ -1634,6 +1655,12 @@ const RanQueryModule: React.FC = () => {
                   {isExecutingId === selectedReport.id && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
                   {selectedReport.status}
                 </span>
+                {selectedReport.health === 'warning' && (
+                  <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em]', healthClasses('warning'))}>
+                    <AlertTriangle className="h-3 w-3" />
+                    Partial data
+                  </span>
+                )}
                 {selectedReport.errorMessage && (
                   <details className="group w-full max-w-2xl rounded-xl border border-amber-500/25 bg-amber-500/8 px-3 py-2 text-[11px] text-amber-700">
                     <summary className="flex cursor-pointer items-center gap-1.5 font-semibold">
