@@ -35,11 +35,13 @@ const FILTER_DIMENSIONS: { key: string; label: string; sample: string[] }[] = [
   { key: 'CELL', label: 'Cell', sample: [] },
 ];
 
+type MapTab = 'data' | 'display' | 'appearance';
+
 export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   const cfg: MapWidgetConfig = widget.mapConfig ?? DEFAULT_MAP_CONFIG;
   const widgetLabel = `MAP · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
-  const [openSections, setOpenSections] = useState({ data: true, display: true, appearance: true });
+  const [tab, setTab] = useState<MapTab>('data');
   // Re-render whenever the shared sites cache fills/changes so dynamic filter chips appear.
   const [, setCacheTick] = useState(0);
   useEffect(() => subscribeMapSitesCache(() => setCacheTick((t) => t + 1)), []);
@@ -132,175 +134,188 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* ── A. Data Source ── */}
-          <Accordion
-            title="Data Source"
-            icon={<Filter className="w-4 h-4" />}
-            open={openSections.data}
-            onToggle={() => setOpenSections((s) => ({ ...s, data: !s.data }))}
-          >
-            <ToggleRow
-              label="Inherit from Dashboard"
-              value={cfg.inheritFromDashboard}
-              onChange={(v) => update({ inheritFromDashboard: v })}
-            />
+      {/* Body: left sidebar tabs + content (mirrors ChartSettingsPanel) */}
+      <div className="flex flex-1 min-h-0">
+        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 bg-white">
+          {([
+            { key: 'data', label: 'Data Source', icon: Filter },
+            { key: 'display', label: 'Display', icon: Eye },
+            { key: 'appearance', label: 'Appearance', icon: Palette },
+          ] as const).map((t) => {
+            const Icon = t.icon;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  'w-full text-left px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2',
+                  tab === t.key ? 'bg-primary/10 text-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                )}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {t.label}
+              </button>
+            );
+          })}
+        </aside>
 
-            <div className="space-y-2">
-              <Label>Active Filters</Label>
-              <div className="flex flex-wrap items-center gap-2 px-2 py-2 rounded-lg border border-outline-variant/20 bg-surface-container-low/40">
-                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>Filtres</span>
-                </div>
+        <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+          <div className="max-w-3xl space-y-4">
+            {tab === 'data' && (
+              <>
+                <ToggleRow
+                  label="Inherit from Dashboard"
+                  value={cfg.inheritFromDashboard}
+                  onChange={(v) => update({ inheritFromDashboard: v })}
+                />
 
-                {cfg.filters.map((f) => {
-                  const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
-                  const liveValues = getMapSitesDistinct(f.dimension);
-                  const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
-                  return (
-                    <MapDimensionChip
-                      key={f.id}
-                      label={dim?.label ?? f.dimension}
-                      values={chipValues}
-                      selected={f.values}
-                      onApply={(vals) => {
-                        update({
-                          filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
-                        });
-                      }}
-                      onRemove={() => removeFilter(f.id)}
+                <div className="space-y-2">
+                  <Label>Active Filters</Label>
+                  <div className="flex flex-wrap items-center gap-2 px-2 py-2 rounded-lg border border-outline-variant/20 bg-surface-container-low/40">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
+                      <Filter className="w-3.5 h-3.5" />
+                      <span>Filtres</span>
+                    </div>
+
+                    {cfg.filters.map((f) => {
+                      const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
+                      const liveValues = getMapSitesDistinct(f.dimension);
+                      const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                      return (
+                        <MapDimensionChip
+                          key={f.id}
+                          label={dim?.label ?? f.dimension}
+                          values={chipValues}
+                          selected={f.values}
+                          onApply={(vals) => {
+                            update({
+                              filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
+                            });
+                          }}
+                          onRemove={() => removeFilter(f.id)}
+                        />
+                      );
+                    })}
+
+                    <AddFilterDropdown
+                      onAdd={addFilter}
+                      existing={cfg.filters.map((f) => f.dimension)}
                     />
-                  );
-                })}
 
-                <AddFilterDropdown
-                  onAdd={addFilter}
-                  existing={cfg.filters.map((f) => f.dimension)}
+                    {cfg.filters.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => update({ filters: [] })}
+                        className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        <span>Effacer</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {tab === 'display' && (
+              <>
+                <Field label="Display mode">
+                  <Segment<MapDisplayMode>
+                    value={cfg.displayMode}
+                    onChange={(v) => update({ displayMode: v })}
+                    options={[
+                      { value: 'sites', label: 'Sites', icon: <MapPin className="w-3 h-3" /> },
+                      { value: 'cells', label: 'Cells', icon: <Layers className="w-3 h-3" /> },
+                    ]}
+                  />
+                </Field>
+
+                <ToggleRow
+                  label="Show sectors / beams"
+                  value={cfg.showSectors}
+                  onChange={(v) => update({ showSectors: v })}
+                />
+                <ToggleRow
+                  label="Show labels"
+                  value={cfg.showLabels}
+                  onChange={(v) => update({ showLabels: v })}
+                />
+                <ToggleRow
+                  label="Show lines / connections"
+                  value={cfg.showLines}
+                  onChange={(v) => update({ showLines: v })}
+                />
+                <ToggleRow
+                  label="Heatmap mode"
+                  value={cfg.heatmap}
+                  onChange={(v) => update({ heatmap: v })}
+                />
+              </>
+            )}
+
+            {tab === 'appearance' && (
+              <>
+                <Field label="Map theme">
+                  <Segment<MapTheme>
+                    value={cfg.theme}
+                    onChange={(v) => update({ theme: v })}
+                    options={[
+                      { value: 'light', label: 'Light', icon: <Sun className="w-3 h-3" /> },
+                      { value: 'dark', label: 'Dark', icon: <Moon className="w-3 h-3" /> },
+                    ]}
+                  />
+                </Field>
+
+                <Field label="Map type">
+                  <Segment<MapType>
+                    value={cfg.mapType}
+                    onChange={(v) => update({ mapType: v })}
+                    options={[
+                      { value: 'street', label: 'Street', icon: <MapIconLucide className="w-3 h-3" /> },
+                      { value: 'satellite', label: 'Satellite', icon: <Satellite className="w-3 h-3" /> },
+                    ]}
+                  />
+                </Field>
+
+                <ToggleRow
+                  label="KPI overlay"
+                  value={cfg.kpiOverlay}
+                  onChange={(v) => update({ kpiOverlay: v })}
+                />
+                <ToggleRow
+                  label="Show legend"
+                  value={cfg.showLegend}
+                  onChange={(v) => update({ showLegend: v })}
                 />
 
-                {cfg.filters.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => update({ filters: [] })}
-                    className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
-                  >
-                    <X className="w-3 h-3" />
-                    <span>Effacer</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </Accordion>
-
-          {/* ── B. Display Mode ── */}
-          <Accordion
-            title="Display"
-            icon={<Eye className="w-4 h-4" />}
-            open={openSections.display}
-            onToggle={() => setOpenSections((s) => ({ ...s, display: !s.display }))}
-          >
-            <Field label="Display mode">
-              <Segment<MapDisplayMode>
-                value={cfg.displayMode}
-                onChange={(v) => update({ displayMode: v })}
-                options={[
-                  { value: 'sites', label: 'Sites', icon: <MapPin className="w-3 h-3" /> },
-                  { value: 'cells', label: 'Cells', icon: <Layers className="w-3 h-3" /> },
-                ]}
-              />
-            </Field>
-
-            <ToggleRow
-              label="Show sectors / beams"
-              value={cfg.showSectors}
-              onChange={(v) => update({ showSectors: v })}
-            />
-            <ToggleRow
-              label="Show labels"
-              value={cfg.showLabels}
-              onChange={(v) => update({ showLabels: v })}
-            />
-            <ToggleRow
-              label="Show lines / connections"
-              value={cfg.showLines}
-              onChange={(v) => update({ showLines: v })}
-            />
-            <ToggleRow
-              label="Heatmap mode"
-              value={cfg.heatmap}
-              onChange={(v) => update({ heatmap: v })}
-            />
-          </Accordion>
-
-          {/* ── C. Appearance ── */}
-          <Accordion
-            title="Appearance"
-            icon={<Palette className="w-4 h-4" />}
-            open={openSections.appearance}
-            onToggle={() => setOpenSections((s) => ({ ...s, appearance: !s.appearance }))}
-          >
-            <Field label="Map theme">
-              <Segment<MapTheme>
-                value={cfg.theme}
-                onChange={(v) => update({ theme: v })}
-                options={[
-                  { value: 'light', label: 'Light', icon: <Sun className="w-3 h-3" /> },
-                  { value: 'dark', label: 'Dark', icon: <Moon className="w-3 h-3" /> },
-                ]}
-              />
-            </Field>
-
-            <Field label="Map type">
-              <Segment<MapType>
-                value={cfg.mapType}
-                onChange={(v) => update({ mapType: v })}
-                options={[
-                  { value: 'street', label: 'Street', icon: <MapIconLucide className="w-3 h-3" /> },
-                  { value: 'satellite', label: 'Satellite', icon: <Satellite className="w-3 h-3" /> },
-                ]}
-              />
-            </Field>
-
-            <ToggleRow
-              label="KPI overlay"
-              value={cfg.kpiOverlay}
-              onChange={(v) => update({ kpiOverlay: v })}
-            />
-            <ToggleRow
-              label="Show legend"
-              value={cfg.showLegend}
-              onChange={(v) => update({ showLegend: v })}
-            />
-
-            <Field label="Default site color">
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={cfg.defaultColor || '#10b981'}
-                  onChange={(e) => update({ defaultColor: e.target.value })}
-                  className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
-                />
-                <input
-                  type="text"
-                  value={cfg.defaultColor || ''}
-                  placeholder="auto (theme)"
-                  onChange={(e) => update({ defaultColor: e.target.value })}
-                  className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
-                />
-                {cfg.defaultColor && (
-                  <button
-                    onClick={() => update({ defaultColor: '' })}
-                    className="text-[10px] font-bold text-on-surface-variant hover:text-error transition-colors px-2"
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </Field>
-          </Accordion>
+                <Field label="Default site color">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={cfg.defaultColor || '#10b981'}
+                      onChange={(e) => update({ defaultColor: e.target.value })}
+                      className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
+                    />
+                    <input
+                      type="text"
+                      value={cfg.defaultColor || ''}
+                      placeholder="auto (theme)"
+                      onChange={(e) => update({ defaultColor: e.target.value })}
+                      className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+                    />
+                    {cfg.defaultColor && (
+                      <button
+                        onClick={() => update({ defaultColor: '' })}
+                        className="text-[10px] font-bold text-on-surface-variant hover:text-error transition-colors px-2"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </Field>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
