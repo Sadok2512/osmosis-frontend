@@ -83,6 +83,38 @@ const TILE_PROVIDERS = {
 // ── Module-level cache so multiple map widgets share one fetch ──
 let cachedMapSites: MapSite[] | null = null;
 let inflight: Promise<MapSite[]> | null = null;
+const cacheListeners = new Set<(sites: MapSite[]) => void>();
+
+/** Subscribe to the shared map-sites cache. Receives current value immediately. */
+export function subscribeMapSitesCache(cb: (sites: MapSite[]) => void): () => void {
+  cacheListeners.add(cb);
+  if (cachedMapSites) cb(cachedMapSites);
+  else loadMapSites().then((s) => cb(s));
+  return () => { cacheListeners.delete(cb); };
+}
+
+/** Get distinct values for a dimension from currently-loaded sites (sync). */
+export function getMapSitesDistinct(dim: string): string[] {
+  if (!cachedMapSites) return [];
+  const key = dim.toUpperCase();
+  const set = new Set<string>();
+  for (const s of cachedMapSites) {
+    let raw = '';
+    if (key === 'VENDOR') raw = s.vendor;
+    else if (key === 'TECHNO') raw = s.techno;
+    else if (key === 'BANDE') raw = s.bande;
+    else if (key === 'PLAQUE') raw = s.plaque;
+    else if (key === 'DOR') raw = s.dor;
+    else if (key === 'SITE' || key === 'CELL') raw = s.name;
+    if (!raw) continue;
+    if (key === 'TECHNO' || key === 'BANDE') {
+      raw.split(',').map((p) => p.trim()).filter(Boolean).forEach((v) => set.add(v));
+    } else {
+      set.add(raw);
+    }
+  }
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
 
 async function loadMapSites(): Promise<MapSite[]> {
   if (cachedMapSites) return cachedMapSites;
