@@ -285,25 +285,6 @@ const PAEChart: React.FC<PAEChartProps> = ({
     );
   }
 
-  // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
-  // the widget card has its real width (fixes right-axis clipping on first paint
-  // in viewer/presentation mode where layout settles after mount).
-  const chartRef = useRef<any>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
-      const inst = chartRef.current?.getEchartsInstance?.();
-      inst?.resize();
-    });
-    ro.observe(el);
-    // Kick an initial resize on next frame in case the container width was 0 at mount.
-    const raf = requestAnimationFrame(() => {
-      chartRef.current?.getEchartsInstance?.().resize();
-    });
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
-  }, []);
 
   return (
     <div ref={containerRef} style={{ height, width: '100%', position: 'relative' }}>
