@@ -82,6 +82,9 @@ interface ReportResultRow {
   unit: string;
   site_name?: string;
   cell_name?: string;
+  plaque?: string;
+  dor?: string;
+  band?: string;
 }
 
 type AggregationLevel = string;
@@ -394,7 +397,10 @@ async function executeReportApi(
             value: Number(pt.kpi_value ?? pt.value ?? 0),
             unit: pt.unit || unit,
             site_name: pt.site_name,
-            cell_name: pt.cell_name,
+            cell_name: pt.cell_name || pt.ne_name || pt.split_field,
+            plaque: pt.plaque,
+            dor: pt.dor,
+            band: pt.band || pt.source_band,
           });
         }
       }
@@ -462,15 +468,40 @@ async function executeReportApi(
 }
 
 function downloadCsv(report: RanReport) {
-  if (report.results.length === 0) return; // Don't export empty reports
-  const header = ['KPI', 'Vendor', 'Technology', 'Timestamp', 'Value', 'Unit', 'Site', 'Cell'];
+  if (report.results.length === 0) return;
   const escape = (value: unknown) => {
     const text = value == null ? '' : String(value);
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
+  // Build pivot CSV: dimension columns + KPI columns
+  const aggLevels = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const dimHeaders: string[] = ['Timestamp', 'Vendor', 'Technology'];
+  if (aggLevels.includes('plaque')) dimHeaders.push('Plaque');
+  if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimHeaders.push('DOR');
+  if (aggLevels.includes('site')) dimHeaders.push('Site');
+  if (aggLevels.includes('band')) dimHeaders.push('Band');
+  if (aggLevels.includes('cell')) dimHeaders.push('Cell');
+  const kpiSet = new Set<string>();
+  for (const r of report.results) kpiSet.add(r.kpi);
+  const kpis = Array.from(kpiSet);
+  const header = [...dimHeaders, ...kpis];
+  // Pivot rows
+  const rowMap = new Map<string, Record<string, any>>();
+  for (const r of report.results) {
+    const dims = [r.timestamp, r.vendor, r.technology];
+    if (aggLevels.includes('plaque')) dims.push(r.plaque || '');
+    if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dims.push(r.dor || '');
+    if (aggLevels.includes('site')) dims.push(r.site_name || '');
+    if (aggLevels.includes('band')) dims.push(r.band || '');
+    if (aggLevels.includes('cell')) dims.push(r.cell_name || '');
+    const key = dims.join('|');
+    if (!rowMap.has(key)) rowMap.set(key, Object.fromEntries(dimHeaders.map((h, i) => [h, dims[i]])));
+    rowMap.get(key)![r.kpi] = r.value;
+  }
+  const csvRows = Array.from(rowMap.values());
   const csv = [
-    header.join(','),
-    ...report.results.map(row => [row.kpi, row.vendor, row.technology, row.timestamp, row.value, row.unit, row.site_name || '', row.cell_name || ''].map(escape).join(',')),
+    header.map(escape).join(','),
+    ...csvRows.map(row => header.map(h => escape(row[h] ?? '')).join(',')),
   ].join('\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -836,7 +867,50 @@ const RanQueryModule: React.FC = () => {
   }, [selectedReport]);
 
   // Pagination for results table
+  // Build pivot table: rows = unique (timestamp, vendor, techno, agg1, agg2, ...), cols = KPIs
+  const pivotData = useMemo(() => {
+    if (!selectedReport || selectedReport.results.length === 0) return { rows: [], kpis: [], dimCols: [] };
+    const aggLevels = selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell']);
+    // Determine which dimension columns to show
+    const dimCols: { key: string; label: string }[] = [];
+    dimCols.push({ key: '_timestamp', label: 'Timestamp' });
+    dimCols.push({ key: '_vendor', label: 'Vendor' });
+    dimCols.push({ key: '_technology', label: 'Techno' });
+    if (aggLevels.includes('plaque')) dimCols.push({ key: '_plaque', label: 'Plaque' });
+    if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimCols.push({ key: '_dor', label: 'DOR' });
+    if (aggLevels.includes('site')) dimCols.push({ key: '_site', label: 'Site' });
+    if (aggLevels.includes('band')) dimCols.push({ key: '_band', label: 'Band' });
+    if (aggLevels.includes('cell')) dimCols.push({ key: '_cell', label: 'Cell' });
+    // Collect unique KPIs
+    const kpiSet = new Set<string>();
+    for (const r of selectedReport.results) kpiSet.add(r.kpi);
+    const kpis = Array.from(kpiSet);
+    // Build pivot rows: group by dimension key → accumulate KPI values
+    const rowMap = new Map<string, Record<string, any>>();
+    for (const r of selectedReport.results) {
+      const dims: Record<string, string> = {
+        _timestamp: r.timestamp,
+        _vendor: r.vendor,
+        _technology: r.technology,
+        _plaque: r.plaque || '',
+        _dor: r.dor || '',
+        _site: r.site_name || '',
+        _band: r.band || '',
+        _cell: r.cell_name || '',
+      };
+      const rowKey = dimCols.map(d => dims[d.key] || '').join('|');
+      if (!rowMap.has(rowKey)) rowMap.set(rowKey, { ...dims });
+      rowMap.get(rowKey)![r.kpi] = r.value;
+    }
+    return { rows: Array.from(rowMap.values()), kpis, dimCols };
+  }, [selectedReport]);
+
   const PAGE_SIZE = 100;
+  const paginatedPivot = useMemo(() => {
+    return pivotData.rows.slice(resultPage * PAGE_SIZE, (resultPage + 1) * PAGE_SIZE);
+  }, [pivotData, resultPage]);
+  const totalPivotPages = Math.max(1, Math.ceil(pivotData.rows.length / PAGE_SIZE));
+
   const paginatedResults = useMemo(() => {
     if (!selectedReport) return [];
     const start = resultPage * PAGE_SIZE;
@@ -1914,44 +1988,53 @@ const RanQueryModule: React.FC = () => {
               ) : detailMode === 'table' ? (
                 <div>
                   <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{selectedReport.results.length} rows total</span>
-                    {totalPages > 1 && (
+                    <span>{pivotData.rows.length} rows · {pivotData.kpis.length} KPI columns · {pivotData.dimCols.length} dimensions</span>
+                    {totalPivotPages > 1 && (
                       <div className="flex items-center gap-2">
                         <button disabled={resultPage === 0} onClick={() => setResultPage(p => p - 1)} className="rounded-lg border border-border/60 p-1.5 disabled:opacity-30">
                           <ChevronLeft className="h-3.5 w-3.5" />
                         </button>
-                        <span className="font-semibold">Page {resultPage + 1} / {totalPages}</span>
-                        <button disabled={resultPage >= totalPages - 1} onClick={() => setResultPage(p => p + 1)} className="rounded-lg border border-border/60 p-1.5 disabled:opacity-30">
+                        <span className="font-semibold">Page {resultPage + 1} / {totalPivotPages}</span>
+                        <button disabled={resultPage >= totalPivotPages - 1} onClick={() => setResultPage(p => p + 1)} className="rounded-lg border border-border/60 p-1.5 disabled:opacity-30">
                           <ChevronRight className="h-3.5 w-3.5" />
                         </button>
                       </div>
                     )}
                   </div>
-                  <div className="overflow-hidden rounded-2xl border border-border/60">
-                    <div className="grid grid-cols-[1.6fr_0.8fr_0.7fr_1.1fr_0.8fr_0.6fr_1fr_1fr] gap-3 bg-muted/40 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground">
-                      <span>KPI</span>
-                      <span>Vendor</span>
-                      <span>Technology</span>
-                      <span>Timestamp</span>
-                      <span>Value</span>
-                      <span>Unit</span>
-                      <span>Site</span>
-                      <span>Cell</span>
-                    </div>
-                    <div className="divide-y divide-border/50 bg-card">
-                      {paginatedResults.map((result, idx) => (
-                        <div key={`${result.kpi}-${result.timestamp}-${result.vendor}-${idx}`} className="grid grid-cols-[1.6fr_0.8fr_0.7fr_1.1fr_0.8fr_0.6fr_1fr_1fr] gap-3 px-4 py-3 text-sm text-foreground">
-                          <span className="font-bold truncate" title={result.kpi}>{result.kpi}</span>
-                          <span><span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', vendorBadge(result.vendor).bg, vendorBadge(result.vendor).text, vendorBadge(result.vendor).border)}>{result.vendor}</span></span>
-                          <span><span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(result.technology).bg, techBadge(result.technology).text, techBadge(result.technology).border)}>{result.technology}</span></span>
-                          <span className="text-xs text-muted-foreground">{formatDateTime(result.timestamp)}</span>
-                          <span className="font-semibold">{result.value.toFixed(2)}</span>
-                          <span className="text-xs">{result.unit}</span>
-                          <span className="text-xs text-muted-foreground truncate" title={result.site_name}>{result.site_name || '—'}</span>
-                          <span className="text-xs text-muted-foreground truncate" title={result.cell_name}>{result.cell_name || '—'}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="overflow-x-auto rounded-2xl border border-border/60">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/40 sticky top-0 z-10">
+                        <tr>
+                          {pivotData.dimCols.map(d => (
+                            <th key={d.key} className="px-3 py-2.5 text-left text-[10px] font-black uppercase tracking-wider text-muted-foreground whitespace-nowrap">{d.label}</th>
+                          ))}
+                          {pivotData.kpis.map(kpi => (
+                            <th key={kpi} className="px-3 py-2.5 text-right text-[10px] font-black uppercase tracking-wider text-primary whitespace-nowrap" title={kpi}>
+                              {kpi.length > 20 ? kpi.slice(0, 18) + '…' : kpi}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30 bg-card">
+                        {paginatedPivot.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-primary/5 transition-colors">
+                            {pivotData.dimCols.map(d => (
+                              <td key={d.key} className="px-3 py-2 text-foreground whitespace-nowrap">
+                                {d.key === '_timestamp' ? formatDateTime(row[d.key]) :
+                                 d.key === '_vendor' ? <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', vendorBadge(row[d.key]).bg, vendorBadge(row[d.key]).text, vendorBadge(row[d.key]).border)}>{row[d.key]}</span> :
+                                 d.key === '_technology' ? <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(row[d.key]).bg, techBadge(row[d.key]).text, techBadge(row[d.key]).border)}>{row[d.key]}</span> :
+                                 <span className="text-muted-foreground truncate max-w-[150px] block" title={row[d.key]}>{row[d.key] || '—'}</span>}
+                              </td>
+                            ))}
+                            {pivotData.kpis.map(kpi => (
+                              <td key={kpi} className="px-3 py-2 text-right font-semibold tabular-nums text-foreground">
+                                {row[kpi] != null ? Number(row[kpi]).toFixed(4) : <span className="text-muted-foreground/40">—</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               ) : detailMode === 'chart' ? (
