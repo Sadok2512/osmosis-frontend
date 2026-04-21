@@ -20,6 +20,18 @@ export interface PAGlobalToolbarState {
   filters: ChartFilterChip[];
   /** Bumped each time the user clicks "Appliquer" on the top toolbar. */
   appliedRev: number;
+  /** Snapshot of toolbar values frozen at the last Apply click.
+   *  Widgets that inherit MUST read this snapshot — never the live values —
+   *  so that editing the toolbar (period, grain, filters) does NOT trigger
+   *  any backend refetch until the user explicitly clicks Apply. */
+  applied: {
+    technos: TechnoId[];
+    from: string;
+    to: string;
+    preset: PeriodPreset;
+    grain: GrainOption;
+    filters: ChartFilterChip[];
+  } | null;
 }
 
 interface PAGlobalToolbarStore extends PAGlobalToolbarState {
@@ -43,22 +55,40 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>((set) => ({
   grain: '15min',
   filters: [],
   appliedRev: 0,
+  applied: null,
 
   setTechnos: (technos) => set({ technos }),
   setRange: (from, to, preset = 'custom') => set({ from, to, preset }),
   setPreset: (preset) => set({ preset }),
   setGrain: (grain) => set({ grain }),
   setFilters: (filters) => set({ filters }),
-  apply: () => set((s) => ({ appliedRev: s.appliedRev + 1 })),
+  apply: () =>
+    set((s) => ({
+      appliedRev: s.appliedRev + 1,
+      applied: {
+        technos: s.technos,
+        from: s.from,
+        to: s.to,
+        preset: s.preset,
+        grain: s.grain,
+        filters: s.filters,
+      },
+    })),
 }));
 
 /** Selector helper: returns the toolbar values that get merged into a widget config when inheriting. */
 export function selectToolbarSnapshot(s: PAGlobalToolbarState) {
+  const snap = s.applied;
   return {
-    technos: s.technos,
-    timeRange: { preset: s.preset, from: s.from, to: s.to, inherit: true },
-    granularity: s.grain,
-    filters: s.filters,
+    technos: snap?.technos ?? s.technos,
+    timeRange: {
+      preset: snap?.preset ?? s.preset,
+      from: snap?.from ?? s.from,
+      to: snap?.to ?? s.to,
+      inherit: true,
+    },
+    granularity: snap?.grain ?? s.grain,
+    filters: snap?.filters ?? s.filters,
     appliedRev: s.appliedRev,
   };
 }
