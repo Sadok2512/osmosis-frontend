@@ -259,6 +259,60 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return () => { ro.disconnect(); cancelAnimationFrame(raf); };
   }, [isEmpty]);
 
+  // Auto-tune grid.right based on the measured right Y-axis label width.
+  // Runs after each paint so labels like "0.0035" or "1,234,567" never get clipped.
+  useEffect(() => {
+    if (isEmpty) return;
+    const inst = chartRef.current?.getEchartsInstance?.();
+    if (!inst) return;
+
+    const measure = () => {
+      const dom: HTMLElement | undefined = inst.getDom?.();
+      if (!dom) return;
+      // ECharts renders Y-axis labels as <text> nodes inside the SVG/canvas wrapper.
+      // For canvas renderer we instead inspect the option's yAxis label width via
+      // the model — but the simplest robust approach is to render to canvas and
+      // read back computed label widths from echarts internals.
+      const opt: any = inst.getOption?.();
+      const yAxes: any[] = opt?.yAxis ?? [];
+      const rightAxisIdx = yAxes.findIndex((a: any) => a.position === 'right');
+      if (rightAxisIdx === -1) return;
+
+      // Use a hidden canvas to measure the widest label text.
+      const axisModel = inst.getModel?.()?.getComponent?.('yAxis', rightAxisIdx);
+      const ticks = axisModel?.axis?.scale?.getTicks?.() ?? [];
+      const formatter = yAxes[rightAxisIdx]?.axisLabel?.formatter;
+      const fontSize = yAxes[rightAxisIdx]?.axisLabel?.fontSize ?? 9;
+      const fontWeight = yAxes[rightAxisIdx]?.axisLabel?.fontWeight ?? 700;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.font = `${fontWeight} ${fontSize}px sans-serif`;
+
+      let maxWidth = 0;
+      ticks.forEach((t: any) => {
+        const raw = t.value ?? t;
+        const text = typeof formatter === 'function' ? formatter(raw) : String(raw);
+        const w = ctx.measureText(String(text)).width;
+        if (w > maxWidth) maxWidth = w;
+      });
+
+      // Padding = label width + tick spacing + small breathing room.
+      const desired = Math.ceil(maxWidth) + 14;
+      const currentRight = (opt?.grid?.[0]?.right) ?? 0;
+      const target = Math.max(20, desired);
+      // Only patch if the difference is significant to avoid render loops.
+      if (typeof currentRight === 'number' && Math.abs(currentRight - target) >= 4) {
+        inst.setOption({ grid: [{ right: target }] }, false, true);
+      }
+    };
+
+    const raf = requestAnimationFrame(measure);
+    return () => cancelAnimationFrame(raf);
+  }, [option, isEmpty]);
+
+
   if (isEmpty) {
     const copy = emptyReason === 'no-metric'
       ? { title: 'No KPI selected', body: 'Open the settings panel and add a KPI or counter from the catalog to start visualizing data.' }
