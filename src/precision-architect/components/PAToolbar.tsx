@@ -199,6 +199,16 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
         </div>
 
+        {/* Inline filter chips — merged into the same scope row */}
+        <div className="h-5 w-px bg-outline-variant/30 mx-1" />
+        <PAFilterChips
+          filters={filters}
+          onChange={setFilters}
+          filterDimensions={dimensionOptions}
+          filtersLoading={filtersLoading}
+          inline
+        />
+
         <div className="ml-auto">
           <button
             onClick={handleApply}
@@ -208,14 +218,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </button>
         </div>
       </div>
-
-      {/* Filter chips row — Investigator-style multi-value chips with backend-driven values */}
-      <PAFilterChips
-        filters={filters}
-        onChange={setFilters}
-        filterDimensions={dimensionOptions}
-        filtersLoading={filtersLoading}
-      />
     </div>
   );
 };
