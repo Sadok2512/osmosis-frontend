@@ -844,6 +844,39 @@ const RanQueryModule: React.FC = () => {
   }, [selectedReport, resultPage]);
   const totalPages = selectedReport ? Math.max(1, Math.ceil(selectedReport.results.length / PAGE_SIZE)) : 1;
 
+  // Pivot: Site (rows) × Technology (columns), SUM of Value
+  const pivotData = useMemo(() => {
+    if (!selectedReport || selectedReport.results.length === 0) {
+      return { rows: [] as { site: string; values: Record<string, number>; total: number }[], techs: [] as string[], colTotals: {} as Record<string, number>, grandTotal: 0 };
+    }
+    const techSet = new Set<string>();
+    const map = new Map<string, Record<string, number>>();
+    for (const r of selectedReport.results) {
+      const site = (r.site_name && r.site_name.trim()) || '—';
+      const tech = (r.technology && r.technology.trim()) || '—';
+      techSet.add(tech);
+      let entry = map.get(site);
+      if (!entry) { entry = {}; map.set(site, entry); }
+      entry[tech] = (entry[tech] ?? 0) + (Number(r.value) || 0);
+    }
+    const techs = [...techSet].sort();
+    const colTotals: Record<string, number> = {};
+    let grandTotal = 0;
+    const rows = [...map.entries()]
+      .map(([site, values]) => {
+        let total = 0;
+        for (const t of techs) {
+          const v = values[t] ?? 0;
+          total += v;
+          colTotals[t] = (colTotals[t] ?? 0) + v;
+        }
+        grandTotal += total;
+        return { site, values, total };
+      })
+      .sort((a, b) => b.total - a.total);
+    return { rows, techs, colTotals, grandTotal };
+  }, [selectedReport]);
+
   const updateForm = <K extends keyof CreateFormState>(key: K, value: CreateFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
