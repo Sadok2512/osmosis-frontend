@@ -471,7 +471,7 @@ export default function EditorView({
 
             {/* Sections render AFTER widgets + spacer so they always appear at the bottom */}
             {sections.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-4 pl-4">
                 {sections.map((s) => (
                   <SectionBlock
                     key={s.id}
@@ -479,8 +479,32 @@ export default function EditorView({
                     editable
                     isActive={activeSectionId === s.id}
                     isNew={newSectionId === s.id}
+                    isDragging={draggingSectionId === s.id}
+                    isDragOver={dragOverSectionId === s.id && draggingSectionId !== s.id}
                     onChange={(patch) => updateSection(s.id, patch)}
                     onRemove={() => removeSection(s.id)}
+                    onDragStart={(e) => {
+                      setDraggingSectionId(s.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      try { e.dataTransfer.setData('text/plain', s.id); } catch { /* noop */ }
+                    }}
+                    onDragOver={(e) => {
+                      if (!draggingSectionId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragOverSectionId !== s.id) setDragOverSectionId(s.id);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromId = draggingSectionId ?? e.dataTransfer.getData('text/plain');
+                      if (fromId) reorderSections(fromId, s.id);
+                      setDraggingSectionId(null);
+                      setDragOverSectionId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingSectionId(null);
+                      setDragOverSectionId(null);
+                    }}
                   />
                 ))}
               </div>
