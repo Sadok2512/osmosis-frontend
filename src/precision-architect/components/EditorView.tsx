@@ -397,6 +397,7 @@ export default function EditorView({
             )}
 
             {widgets.length > 0 && (
+              <div style={{ minHeight: layout.length > 0 ? Math.max(...layout.map(l => (l.y + l.h) * ROW_HEIGHT + (l.y + l.h) * spacing)) : 0 }}>
               <GridLayout
                 className="layout"
                 layout={layout}
@@ -447,9 +448,12 @@ export default function EditorView({
                   );
                 })}
               </GridLayout>
+              </div>
             )}
 
-            {/* Sections render AFTER widgets so newly added sections appear at the bottom of the page. */}
+            <div aria-hidden className="shrink-0" style={{ height: 40 }} />
+
+            {/* Sections render AFTER widgets + spacer so they always appear at the bottom */}
             {sections.length > 0 && (
               <div className="space-y-4">
                 {sections.map((s) => (
