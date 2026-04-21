@@ -24,7 +24,7 @@ const TOP_N_OPTIONS = [10, 25, 50, 100, 250, 500];
 
 export default function TableSettingsPanel({ widget, onChange, onClose }: Props) {
   const config: TableWidgetConfig = widget.tableConfig ?? DEFAULT_TABLE_CONFIG;
-  const [tab, setTab] = useState<'data' | 'columns'>('columns');
+  const [tab, setTab] = useState<'data' | 'appearance' | 'jalons'>('data');
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const { data: kpiCatalog, isLoading: kpisLoading } = useKpiCatalog();
