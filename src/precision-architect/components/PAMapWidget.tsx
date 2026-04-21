@@ -126,10 +126,12 @@ async function loadMapSites(): Promise<MapSite[]> {
         .map(siteSummaryToMapSite)
         .filter((s): s is MapSite => !!s);
       cachedMapSites = mapped;
+      cacheListeners.forEach((cb) => { try { cb(mapped); } catch {} });
       return mapped;
     } catch (err) {
       console.warn('[PAMapWidget] Failed to load topo sites', err);
       cachedMapSites = [];
+      cacheListeners.forEach((cb) => { try { cb([]); } catch {} });
       return [];
     } finally {
       inflight = null;
