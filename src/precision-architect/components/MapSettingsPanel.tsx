@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Plus, Trash2, ChevronDown, ChevronRight,
+  X, Plus, Trash2, ChevronDown, ChevronRight, Check,
   Filter, Eye, Palette, MapPin, Layers, Sun, Moon,
   Map as MapIconLucide, Satellite,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
 import {
   DynWidget,
