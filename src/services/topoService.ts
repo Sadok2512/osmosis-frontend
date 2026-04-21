@@ -1439,8 +1439,13 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
     }
   }
 
-  kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
-  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId} (source: ${json.source_table || 'compute'})`);
+  // Only cache when we got real data — empty/error responses (e.g. backend
+  // ClickHouse fallback "PM data in ClickHouse — using CH fallback") are
+  // transient and would otherwise pin the legend to "no data" for 5 min.
+  if (valueMap.size > 0 && !json.error) {
+    kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
+  }
+  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId} (source: ${json.source_table || 'compute'}${json.error ? `, error: ${json.error}` : ''})`);
   return valueMap;
 }
 
