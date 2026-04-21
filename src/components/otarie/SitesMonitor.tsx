@@ -5897,7 +5897,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells whenever sector rendering or cell-level filtering needs them.
-    const needsCellData = displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
@@ -6105,12 +6105,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, mapDisplayMode, showBeamSectors, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
+  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
 
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
-    const needsCellData = displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
     if (!needsCellData) return;
 
     const unsub = onCellsCacheUpdate(() => {
@@ -6158,7 +6158,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
 
     return unsub;
-  }, [displayMode, mapDisplayMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
 
   useEffect(() => {
     setCellsCacheLoadedCount(getCellsCacheCount());
@@ -6374,6 +6374,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // pour éviter d'afficher des cercles "concentric tech" qui masquent les valeurs KPI.
   const kpiForcesSectors = sectorColorMode === 'kpi' && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
   const showSectors = ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
+
+  useEffect(() => {
+    if (sectorColorMode !== 'kpi' || paramMode) return;
+    setShowBeamSectors(true);
+    setMapDisplayMode('sites');
+  }, [paramMode, sectorColorMode]);
 
   useEffect(() => {
     if (!showSectors) return;
