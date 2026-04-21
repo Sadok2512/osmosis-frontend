@@ -110,42 +110,46 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
               <h3 className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: textColor }}>No content on this page</h3>
               <p className="text-xs font-bold opacity-70" style={{ color: textColor }}>Switch to Edit mode to start building.</p>
             </div>
-          ) : widgets.length > 0 && (
-            <div className="pa-grid-view w-full">
-              <GridLayout
-                className="layout"
-                layout={layout}
-                cols={COLS}
-                rowHeight={ROW_HEIGHT}
-                margin={[spacing, spacing]}
-                containerPadding={[0, 0]}
-                isDraggable={false}
-                isResizable={false}
-                autoSize
-              >
-                {widgets.map(w => (
-                  <div
-                    key={w.id}
-                    className={cn(
-                      'overflow-hidden p-4',
-                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
-                    )}
-                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
-                  >
-                    <WidgetRenderer widget={w} />
-                  </div>
-                ))}
-              </GridLayout>
-            </div>
-          )}
+          ) : (
+            <>
+              {/* Sections render BEFORE widgets so they act as titles / intros visible right after the header. */}
+              {sections.length > 0 && (
+                <div className="space-y-4">
+                  {sections.map((s) => (
+                    <SectionBlock key={s.id} section={s} editable={false} />
+                  ))}
+                </div>
+              )}
 
-          {/* Sections render after widgets so they appear at the bottom of the page. */}
-          {sections.length > 0 && (
-            <div className="space-y-4">
-              {sections.map((s) => (
-                <SectionBlock key={s.id} section={s} editable={false} />
-              ))}
-            </div>
+              {widgets.length > 0 && (
+                <div className="pa-grid-view w-full">
+                  <GridLayout
+                    className="layout"
+                    layout={layout}
+                    cols={COLS}
+                    rowHeight={ROW_HEIGHT}
+                    margin={[spacing, spacing]}
+                    containerPadding={[0, 0]}
+                    isDraggable={false}
+                    isResizable={false}
+                    autoSize
+                  >
+                    {widgets.map(w => (
+                      <div
+                        key={w.id}
+                        className={cn(
+                          'overflow-hidden p-4',
+                          w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                        )}
+                        style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+                      >
+                        <WidgetRenderer widget={w} />
+                      </div>
+                    ))}
+                  </GridLayout>
+                </div>
+              )}
+            </>
           )}
         </main>
       </div>
