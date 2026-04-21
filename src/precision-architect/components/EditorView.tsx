@@ -402,11 +402,16 @@ export default function EditorView({
                 preventCollision={false}
                 onLayoutChange={handleLayoutChange}
               >
-                {widgets.map(w => (
+                {widgets.map(w => {
+                  // Chart widgets get tighter horizontal padding so the Y axis
+                  // hugs the card's left edge (no wasted whitespace).
+                  const isChart = w.kind === 'chart';
+                  const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
+                  return (
                   <div
                     key={w.id}
                     className={cn(
-                      'p-4 group relative overflow-hidden',
+                      `${padCls} group relative overflow-hidden`,
                       w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
                     )}
                     style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
@@ -430,7 +435,8 @@ export default function EditorView({
                     </div>
                     <WidgetRenderer widget={w} editable onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))} />
                   </div>
-                ))}
+                  );
+                })}
               </GridLayout>
             )}
             <div aria-hidden className="shrink-0" style={{ height: 120 }} />
