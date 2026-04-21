@@ -76,14 +76,6 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
       </header>
 
       <div className="flex-1 min-h-0 overflow-hidden">
-        {sections.length > 0 && (
-          <div className="space-y-4 mb-6">
-            {sections.map((s) => (
-              <SectionBlock key={s.id} section={s} editable={false} />
-            ))}
-          </div>
-        )}
-
         {widgets.length === 0 && sections.length === 0 ? (
           <div className="h-full w-full flex items-center justify-center opacity-50">
             <div className="text-center">
@@ -92,29 +84,42 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
             </div>
           </div>
         ) : (
-          <GridLayout
-            className="layout"
-            layout={layout}
-            cols={COLS}
-            rowHeight={ROW_HEIGHT}
-            margin={[spacing, spacing]}
-            containerPadding={[0, 0]}
-            isDraggable={false}
-            isResizable={false}
-            compactType="vertical"
-          >
-            {widgets.map((w) => (
-              <div
-                key={w.id}
-                className={w.transparentBg ? 'overflow-hidden' : 'overflow-hidden shadow-lg border border-black/5'}
-                style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+          <>
+            {widgets.length > 0 && (
+              <GridLayout
+                className="layout"
+                layout={layout}
+                cols={COLS}
+                rowHeight={ROW_HEIGHT}
+                margin={[spacing, spacing]}
+                containerPadding={[0, 0]}
+                isDraggable={false}
+                isResizable={false}
+                compactType="vertical"
               >
-                <div className="w-full h-full p-4">
-                  <WidgetRenderer widget={w} />
-                </div>
+                {widgets.map((w) => (
+                  <div
+                    key={w.id}
+                    className={w.transparentBg ? 'overflow-hidden' : 'overflow-hidden shadow-lg border border-black/5'}
+                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+                  >
+                    <div className="w-full h-full p-4">
+                      <WidgetRenderer widget={w} />
+                    </div>
+                  </div>
+                ))}
+              </GridLayout>
+            )}
+
+            {/* Sections render after widgets so they appear at the bottom of the slide. */}
+            {sections.length > 0 && (
+              <div className="space-y-4 mt-6">
+                {sections.map((s) => (
+                  <SectionBlock key={s.id} section={s} editable={false} />
+                ))}
               </div>
-            ))}
-          </GridLayout>
+            )}
+          </>
         )}
       </div>
     </div>
