@@ -382,16 +382,26 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
 
 
 
+  // Read the FROZEN snapshot taken at the last global Apply click. Editing the
+  // toolbar (period, grain, filters) updates the live store but NOT this snapshot,
+  // so widgets that inherit will not refetch until the user clicks Apply again.
+  const globalSnap = global.applied;
+  const gFrom = globalSnap?.from ?? global.from;
+  const gTo = globalSnap?.to ?? global.to;
+  const gGrain = globalSnap?.grain ?? global.grain;
+  const gTechnos = globalSnap?.technos ?? global.technos;
+  const gFilters = globalSnap?.filters ?? global.filters;
+
   const request: TimeseriesRequest | null = useMemo(() => {
     if (!cfg || !hasMetrics || !hasBeenApplied) return null;
 
-    // Pick effective values from global toolbar OR per-widget overrides
+    // Pick effective values from FROZEN global snapshot OR per-widget overrides
     const eff = {
-      from: inheritsTime ? global.from : cfg.data.timeRange.from,
-      to: inheritsTime ? global.to : cfg.data.timeRange.to,
-      granularity: inheritsTime ? global.grain : cfg.data.granularity,
-      technos: inheritsScope ? global.technos : cfg.data.technos,
-      filters: inheritsScope ? global.filters : cfg.data.filters,
+      from: inheritsTime ? gFrom : cfg.data.timeRange.from,
+      to: inheritsTime ? gTo : cfg.data.timeRange.to,
+      granularity: inheritsTime ? gGrain : cfg.data.granularity,
+      technos: inheritsScope ? gTechnos : cfg.data.technos,
+      filters: inheritsScope ? gFilters : cfg.data.filters,
     };
 
     // ── 1. Filters (chip[] → IN clauses, dimension uppercased like Investigator) ──
@@ -441,18 +451,11 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       date_to: normalizeDate(eff.to),
       granularity,
       filters,
-      // NOTE: `axis` is purely a rendering choice (left/right Y-axis) and is
-      // intentionally NOT sent to the backend — including it would change the
-      // request payload (and thus the React-Query key) on every axis toggle,
-      // causing an unwanted refetch even though the underlying data is identical.
       selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
         kpi_key: m.kpiKey,
       })),
       split_by: null,
       top_n: 10,
-      // Cache-buster: bumped on every Apply click (widget OR global). Ensures
-      // React Query treats this as a NEW query and forces a refetch — even when
-      // toolbar values are unchanged. Stripped before sending to the backend.
       _rev: effectiveAppliedRev,
     } as TimeseriesRequest & { _rev: number };
   }, [
@@ -461,11 +464,11 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     hasBeenApplied,
     inheritsTime,
     inheritsScope,
-    global.from,
-    global.to,
-    global.grain,
-    global.technos,
-    global.filters,
+    gFrom,
+    gTo,
+    gGrain,
+    gTechnos,
+    gFilters,
     effectiveAppliedRev,
   ]);
 
