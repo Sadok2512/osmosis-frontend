@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight,
   Filter, Eye, Palette, MapPin, Layers, Sun, Moon,
