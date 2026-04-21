@@ -305,6 +305,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
             <textarea value={draft.description} onChange={(e) => update('description', e.target.value)} placeholder="Optional description shown under the title" rows={2} className="w-full px-3 py-2 text-sm rounded-lg border border-outline-variant/30 bg-white focus:outline-none focus:border-primary resize-none" />
           </div>
           <ToggleField label="Show Report Name" value={draft.showReportName} onChange={(v) => update('showReportName', v)} />
+          <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => update('reportInfoShow', v)} />
         </CollapsibleSection>
 
         <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
