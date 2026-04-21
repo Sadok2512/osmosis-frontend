@@ -25,11 +25,11 @@ interface Props {
 }
 
 const FILTER_DIMENSIONS: { key: string; label: string; sample: string[] }[] = [
-  { key: 'VENDOR', label: 'Vendor', sample: ['Ericsson', 'Huawei', 'Nokia', 'ZTE'] },
-  { key: 'DOR', label: 'DOR', sample: ['DOR-NORD', 'DOR-SUD', 'DOR-EST', 'DOR-OUEST', 'DOR-IDF'] },
-  { key: 'PLAQUE', label: 'Plaque', sample: ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Bordeaux', 'Lille', 'Nantes'] },
-  { key: 'BANDE', label: 'Bande', sample: ['B1', 'B3', 'B7', 'B8', 'B20', 'B28', 'B38', 'B41', 'N78'] },
-  { key: 'TECHNO', label: 'Techno', sample: ['2G', '3G', '4G', '5G'] },
+  { key: 'VENDOR', label: 'Vendor', sample: [] },
+  { key: 'DOR', label: 'DOR', sample: [] },
+  { key: 'PLAQUE', label: 'Plaque', sample: [] },
+  { key: 'BANDE', label: 'Bande', sample: [] },
+  { key: 'TECHNO', label: 'Techno', sample: [] },
   { key: 'SITE', label: 'Site', sample: [] },
   { key: 'CELL', label: 'Cell', sample: [] },
 ];
