@@ -1895,6 +1895,9 @@ const RanQueryModule: React.FC = () => {
                   <button onClick={() => setDetailMode('chart')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'chart' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
                     Charts
                   </button>
+                  <button onClick={() => setDetailMode('pivot')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'pivot' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
+                    Pivot
+                  </button>
                 </div>
               </div>
             </SectionCard>
