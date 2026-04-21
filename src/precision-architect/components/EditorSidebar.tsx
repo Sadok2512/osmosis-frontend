@@ -209,7 +209,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const [draft, setDraft] = useState<DraftConfig>(() => readDraft(projectName, activeTheme));
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     general: true,
-    reportInfo: true,
+    reportInfo: false,
     appearance: true,
     layout: false,
     header: false,
@@ -345,7 +345,6 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
           <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1">
             Contextual metadata shown on the right side of the report header.
           </p>
-          <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => updateReportInfo('reportInfoShow', v)} />
           <div className={cn('space-y-1 pt-1 transition-opacity', !draft.reportInfoShow && 'opacity-50 pointer-events-none')}>
             <FieldLabel>Visible fields</FieldLabel>
             <ToggleField label="Perimeter" value={draft.reportInfoPerimeter} onChange={(v) => updateReportInfo('reportInfoPerimeter', v)} />

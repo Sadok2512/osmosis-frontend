@@ -56,7 +56,6 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
     return unsub;
   }, []);
   // Re-render whenever the shared sites cache fills/changes so dynamic filter chips appear.
-  const [, setCacheTick] = useState(0);
   useEffect(() => subscribeMapSitesCache(() => setCacheTick((t) => t + 1)), []);
 
   const update = (patch: Partial<MapWidgetConfig>) => {
