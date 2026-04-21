@@ -290,6 +290,8 @@ export interface DynWidget {
   appliedRev?: number;
   /** When true, the widget card renders with a transparent background (no card surface). */
   transparentBg?: boolean;
+  /** Optional section this widget belongs to. Undefined = unassigned (renders in the top grid). */
+  sectionId?: string;
   layout: WidgetLayout;
 }
 
