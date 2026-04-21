@@ -1978,6 +1978,64 @@ const RanQueryModule: React.FC = () => {
                     )}
                   </div>
                 </div>
+              ) : (
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Pivot Table</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Rows: <span className="font-semibold text-foreground">Site</span> · Columns: <span className="font-semibold text-foreground">Technology</span> · Aggregation: <span className="font-semibold text-foreground">SUM(Value)</span>
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {pivotData.rows.length} site{pivotData.rows.length > 1 ? 's' : ''} × {pivotData.techs.length} techno{pivotData.techs.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {pivotData.rows.length === 0 ? (
+                    <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">No data to pivot</div>
+                  ) : (
+                    <div className="overflow-auto rounded-xl border border-border/60 max-h-[60vh]">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="bg-muted/40 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">Site</th>
+                            {pivotData.techs.map(t => (
+                              <th key={t} className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-l border-border/60">
+                                <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
+                              </th>
+                            ))}
+                            <th className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.14em] text-foreground border-b border-l border-border/60 bg-muted/60">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50 bg-card">
+                          {pivotData.rows.map(r => (
+                            <tr key={r.site} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 font-semibold text-foreground whitespace-nowrap">{r.site}</td>
+                              {pivotData.techs.map(t => {
+                                const v = r.values[t];
+                                return (
+                                  <td key={t} className="px-3 py-2 text-right font-mono text-xs border-l border-border/40">
+                                    {v == null ? <span className="text-muted-foreground">—</span> : v.toFixed(2)}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-3 py-2 text-right font-mono text-xs font-bold text-primary border-l border-border/60 bg-muted/20">{r.total.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-muted/50 sticky bottom-0">
+                          <tr>
+                            <td className="px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-foreground border-t border-border/60">Total</td>
+                            {pivotData.techs.map(t => (
+                              <td key={t} className="px-3 py-2 text-right font-mono text-xs font-bold text-foreground border-t border-l border-border/60">{(pivotData.colTotals[t] ?? 0).toFixed(2)}</td>
+                            ))}
+                            <td className="px-3 py-2 text-right font-mono text-xs font-black text-primary border-t border-l border-border/60 bg-muted/70">{pivotData.grandTotal.toFixed(2)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                </div>
               )}
             </SectionCard>
           </div>
