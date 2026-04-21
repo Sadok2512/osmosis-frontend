@@ -126,13 +126,20 @@ export default function EditorView({
       title: 'Add title',
       description: 'Add description or message',
     };
-    // Always append at the end (after all existing sections + widgets).
+    // Always append at the very end of the sections list (which itself is rendered AFTER all widgets).
+    // This guarantees the new section appears at the bottom of the page, never on top.
     updateSections(s => [...s, newSection]);
     setActiveSectionId(id);
     setNewSectionId(id);
+    // Scroll the canvas all the way down so the user immediately sees the new section at the bottom.
     setTimeout(() => {
-      document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
+      const scrollContainer = document.querySelector('.pa-grid-edit') as HTMLElement | null;
+      if (scrollContainer) {
+        scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+      } else {
+        document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+    }, 80);
     // Remove the "new" highlight after the animation finishes.
     setTimeout(() => setNewSectionId((prev) => (prev === id ? null : prev)), 2200);
   };
