@@ -91,6 +91,8 @@ export default function EditorView({
   const [showSettings, setShowSettings] = useState(true);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [newSectionId, setNewSectionId] = useState<string | null>(null);
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
   
@@ -166,6 +168,19 @@ export default function EditorView({
   const focusSection = (id: string) => {
     setActiveSectionId(id);
     document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const reorderSections = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    updateSections(s => {
+      const list = [...s];
+      const fromIdx = list.findIndex(x => x.id === fromId);
+      const toIdx = list.findIndex(x => x.id === toId);
+      if (fromIdx === -1 || toIdx === -1) return s;
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      return list;
+    });
   };
 
   const addWidget = (kind: WidgetKind) => {
@@ -448,7 +463,7 @@ export default function EditorView({
 
             {/* Sections render AFTER widgets + spacer so they always appear at the bottom */}
             {sections.length > 0 && (
-              <div className="space-y-4">
+              <div className="space-y-4 pl-4">
                 {sections.map((s) => (
                   <SectionBlock
                     key={s.id}
@@ -456,8 +471,32 @@ export default function EditorView({
                     editable
                     isActive={activeSectionId === s.id}
                     isNew={newSectionId === s.id}
+                    isDragging={draggingSectionId === s.id}
+                    isDragOver={dragOverSectionId === s.id && draggingSectionId !== s.id}
                     onChange={(patch) => updateSection(s.id, patch)}
                     onRemove={() => removeSection(s.id)}
+                    onDragStart={(e) => {
+                      setDraggingSectionId(s.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                      try { e.dataTransfer.setData('text/plain', s.id); } catch { /* noop */ }
+                    }}
+                    onDragOver={(e) => {
+                      if (!draggingSectionId) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      if (dragOverSectionId !== s.id) setDragOverSectionId(s.id);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const fromId = draggingSectionId ?? e.dataTransfer.getData('text/plain');
+                      if (fromId) reorderSections(fromId, s.id);
+                      setDraggingSectionId(null);
+                      setDragOverSectionId(null);
+                    }}
+                    onDragEnd={() => {
+                      setDraggingSectionId(null);
+                      setDragOverSectionId(null);
+                    }}
                   />
                 ))}
               </div>
