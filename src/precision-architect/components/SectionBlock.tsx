@@ -5,6 +5,9 @@ import {
   Palette,
   Bold,
   Italic,
+  Underline,
+  List,
+  ListOrdered,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -17,14 +20,15 @@ interface Props {
   section: PASection;
   editable: boolean;
   isActive?: boolean;
+  isNew?: boolean;
   onChange?: (patch: Partial<PASection>) => void;
   onRemove?: () => void;
 }
 
 const STYLE_PRESETS: { id: PASectionTextStyle; label: string; titleSize: number; descSize: number }[] = [
-  { id: 'heading', label: 'Heading', titleSize: 32, descSize: 14 },
-  { id: 'subheading', label: 'Subheading', titleSize: 22, descSize: 13 },
-  { id: 'body', label: 'Body', titleSize: 18, descSize: 14 },
+  { id: 'heading', label: 'H1 — Heading', titleSize: 32, descSize: 14 },
+  { id: 'subheading', label: 'H2 — Subheading', titleSize: 24, descSize: 13 },
+  { id: 'body', label: 'H3 — Body', titleSize: 18, descSize: 14 },
   { id: 'quote', label: 'Quote', titleSize: 20, descSize: 16 },
   { id: 'callout', label: 'Callout', titleSize: 18, descSize: 14 },
 ];
@@ -48,16 +52,23 @@ const BG_SWATCHES = [
   '#0F172A', '#1E293B',
 ];
 
+const SHADOW_CLASS: Record<NonNullable<PASection['shadow']>, string> = {
+  none: 'shadow-none',
+  sm: 'shadow-sm',
+  md: 'shadow-md',
+  lg: 'shadow-xl',
+};
+
 /**
  * Editable text section. Displayed inline in the canvas and anchored
  * via id={`section-${section.id}`} so the sidebar can scroll to it.
  *
  * In edit mode it shows a contextual formatting toolbar (style, font,
- * size, color, alignment, weight). In view mode the formatting is
- * applied but the toolbar is hidden.
+ * size, color, alignment, weight, list, layout). In view mode the
+ * formatting is applied but the toolbar is hidden.
  */
-export default function SectionBlock({ section, editable, isActive, onChange, onRemove }: Props) {
-  const [openPanel, setOpenPanel] = useState<null | 'style' | 'font' | 'color' | 'bg' | 'size'>(null);
+export default function SectionBlock({ section, editable, isActive, isNew, onChange, onRemove }: Props) {
+  const [openPanel, setOpenPanel] = useState<null | 'style' | 'font' | 'color' | 'bg' | 'layout'>(null);
 
   const fontFamily = section.fontFamily ?? 'sans';
   const fontClass = FONT_OPTIONS.find((f) => f.id === fontFamily)?.className ?? 'font-sans';
@@ -69,6 +80,14 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
   const bgColor = section.backgroundColor || undefined;
   const bold = section.bold ?? true;
   const italic = section.italic ?? false;
+  const underline = section.underline ?? false;
+  const listStyle = section.listStyle ?? 'none';
+  const padding = section.padding ?? 24;
+  const radius = section.radius ?? 16;
+  const borderWidth = section.borderWidth ?? 1;
+  const borderColor = section.borderColor || undefined;
+  const shadow = section.shadow ?? 'sm';
+  const fullWidth = section.fullWidth ?? false;
 
   const alignClass =
     align === 'center' ? 'text-center' : align === 'right' ? 'text-right' : 'text-left';
@@ -81,26 +100,73 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
     setOpenPanel(null);
   };
 
+  // Render description: if listStyle is bullet/numbered, split lines into <li>.
+  const renderDescription = () => {
+    if (listStyle === 'none' || !section.description) {
+      return (
+        <p
+          className={cn(
+            'whitespace-pre-wrap leading-relaxed mt-2',
+            italic && 'italic',
+            underline && 'underline',
+            alignClass,
+          )}
+          style={{ fontSize: `${descriptionSize}px`, color: descColor }}
+        >
+          {section.description}
+        </p>
+      );
+    }
+    const items = section.description.split('\n').filter(Boolean);
+    const ListTag = listStyle === 'numbered' ? 'ol' : 'ul';
+    return (
+      <ListTag
+        className={cn(
+          'leading-relaxed mt-2 pl-6',
+          listStyle === 'numbered' ? 'list-decimal' : 'list-disc',
+          italic && 'italic',
+          underline && 'underline',
+          alignClass,
+        )}
+        style={{ fontSize: `${descriptionSize}px`, color: descColor }}
+      >
+        {items.map((line, i) => (
+          <li key={i}>{line}</li>
+        ))}
+      </ListTag>
+    );
+  };
+
   return (
     <section
       id={`section-${section.id}`}
       className={cn(
-        'scroll-mt-24 rounded-2xl border p-6 shadow-sm transition-colors relative group',
-        isActive ? 'border-primary/40 ring-1 ring-primary/20' : 'border-outline-variant/10',
+        'scroll-mt-24 transition-all relative group',
+        SHADOW_CLASS[shadow],
+        isActive ? 'ring-2 ring-primary/40' : '',
+        isNew && 'animate-pulse-once ring-2 ring-primary/60',
         !bgColor && 'bg-white',
         fontClass,
+        fullWidth && '-mx-8',
       )}
-      style={bgColor ? { backgroundColor: bgColor } : undefined}
+      style={{
+        backgroundColor: bgColor,
+        borderRadius: `${radius}px`,
+        padding: `${padding}px`,
+        borderWidth: `${borderWidth}px`,
+        borderStyle: borderWidth > 0 ? 'solid' : 'none',
+        borderColor: borderColor || (isActive ? undefined : 'rgba(0,0,0,0.06)'),
+      }}
     >
       {/* Floating formatting toolbar (edit mode only) */}
       {editable && (
         <div
           className={cn(
-            'absolute -top-3 left-4 flex items-center gap-0.5 bg-white border border-outline-variant/30 rounded-lg shadow-md px-1 py-1 transition-opacity z-10',
+            'absolute -top-3 left-4 flex items-center gap-0.5 bg-white border border-outline-variant/30 rounded-lg shadow-md px-1 py-1 transition-opacity z-10 flex-wrap max-w-[calc(100%-2rem)]',
             isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
           )}
         >
-          {/* Style preset */}
+          {/* Style preset (H1/H2/H3) */}
           <div className="relative">
             <button
               onClick={() => togglePanel('style')}
@@ -111,7 +177,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
               {section.textStyle ?? 'style'}
             </button>
             {openPanel === 'style' && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-outline-variant/30 rounded-lg shadow-lg p-1 min-w-[140px] z-20">
+              <div className="absolute top-full left-0 mt-1 bg-white border border-outline-variant/30 rounded-lg shadow-lg p-1 min-w-[160px] z-20">
                 {STYLE_PRESETS.map((p) => (
                   <button
                     key={p.id}
@@ -190,26 +256,45 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
 
           <div className="w-px h-4 bg-outline-variant/30 mx-0.5" />
 
-          {/* Bold / Italic */}
+          {/* Bold / Italic / Underline */}
           <button
             onClick={() => onChange?.({ bold: !bold })}
-            className={cn(
-              'p-1 rounded hover:bg-primary/5',
-              bold ? 'text-primary bg-primary/10' : 'text-on-surface-variant',
-            )}
+            className={cn('p-1 rounded hover:bg-primary/5', bold ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
             title="Bold title"
           >
             <Bold className="w-3 h-3" />
           </button>
           <button
             onClick={() => onChange?.({ italic: !italic })}
-            className={cn(
-              'p-1 rounded hover:bg-primary/5',
-              italic ? 'text-primary bg-primary/10' : 'text-on-surface-variant',
-            )}
+            className={cn('p-1 rounded hover:bg-primary/5', italic ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
             title="Italic description"
           >
             <Italic className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onChange?.({ underline: !underline })}
+            className={cn('p-1 rounded hover:bg-primary/5', underline ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
+            title="Underline description"
+          >
+            <Underline className="w-3 h-3" />
+          </button>
+
+          <div className="w-px h-4 bg-outline-variant/30 mx-0.5" />
+
+          {/* Lists */}
+          <button
+            onClick={() => onChange?.({ listStyle: listStyle === 'bullet' ? 'none' : 'bullet' })}
+            className={cn('p-1 rounded hover:bg-primary/5', listStyle === 'bullet' ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
+            title="Bullet list (one item per line)"
+          >
+            <List className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => onChange?.({ listStyle: listStyle === 'numbered' ? 'none' : 'numbered' })}
+            className={cn('p-1 rounded hover:bg-primary/5', listStyle === 'numbered' ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
+            title="Numbered list (one item per line)"
+          >
+            <ListOrdered className="w-3 h-3" />
           </button>
 
           <div className="w-px h-4 bg-outline-variant/30 mx-0.5" />
@@ -221,10 +306,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
               <button
                 key={a}
                 onClick={() => onChange?.({ align: a })}
-                className={cn(
-                  'p-1 rounded hover:bg-primary/5',
-                  align === a ? 'text-primary bg-primary/10' : 'text-on-surface-variant',
-                )}
+                className={cn('p-1 rounded hover:bg-primary/5', align === a ? 'text-primary bg-primary/10' : 'text-on-surface-variant')}
                 title={`Align ${a}`}
               >
                 <Icon className="w-3 h-3" />
@@ -242,10 +324,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
               title="Text color"
             >
               <Palette className="w-3 h-3" />
-              <span
-                className="w-3 h-3 rounded border border-outline-variant/40"
-                style={{ backgroundColor: titleColor || '#0F172A' }}
-              />
+              <span className="w-3 h-3 rounded border border-outline-variant/40" style={{ backgroundColor: titleColor || '#0F172A' }} />
             </button>
             {openPanel === 'color' && (
               <div className="absolute top-full left-0 mt-1 bg-white border border-outline-variant/30 rounded-lg shadow-lg p-2 z-20 w-[180px]">
@@ -254,20 +333,13 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
                   {COLOR_SWATCHES.map((c) => (
                     <button
                       key={c}
-                      onClick={() => {
-                        onChange?.({ titleColor: c });
-                      }}
+                      onClick={() => onChange?.({ titleColor: c })}
                       className="w-5 h-5 rounded border border-outline-variant/30 hover:scale-110 transition"
                       style={{ backgroundColor: c }}
                     />
                   ))}
                 </div>
-                <input
-                  type="color"
-                  value={titleColor || '#0F172A'}
-                  onChange={(e) => onChange?.({ titleColor: e.target.value })}
-                  className="w-full h-6 rounded cursor-pointer"
-                />
+                <input type="color" value={titleColor || '#0F172A'} onChange={(e) => onChange?.({ titleColor: e.target.value })} className="w-full h-6 rounded cursor-pointer" />
                 <div className="text-[9px] uppercase text-on-surface-variant mt-2 mb-1">Description color</div>
                 <div className="grid grid-cols-6 gap-1 mb-1">
                   {COLOR_SWATCHES.map((c) => (
@@ -279,12 +351,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
                     />
                   ))}
                 </div>
-                <input
-                  type="color"
-                  value={descColor || '#475569'}
-                  onChange={(e) => onChange?.({ descriptionColor: e.target.value })}
-                  className="w-full h-6 rounded cursor-pointer"
-                />
+                <input type="color" value={descColor || '#475569'} onChange={(e) => onChange?.({ descriptionColor: e.target.value })} className="w-full h-6 rounded cursor-pointer" />
               </div>
             )}
           </div>
@@ -296,10 +363,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
               className="p-1 rounded hover:bg-primary/5 text-on-surface-variant"
               title="Background color"
             >
-              <span
-                className="w-4 h-4 rounded border border-outline-variant/40 flex items-center justify-center text-[9px] font-bold"
-                style={{ backgroundColor: bgColor || '#FFFFFF' }}
-              >
+              <span className="w-4 h-4 rounded border border-outline-variant/40 flex items-center justify-center text-[9px] font-bold" style={{ backgroundColor: bgColor || '#FFFFFF' }}>
                 BG
               </span>
             </button>
@@ -315,20 +379,62 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
                       style={{ backgroundColor: c || '#FFFFFF' }}
                       title={c || 'None'}
                     >
-                      {!c && (
-                        <span className="absolute inset-0 flex items-center justify-center text-[8px] text-on-surface-variant">
-                          ✕
-                        </span>
-                      )}
+                      {!c && <span className="absolute inset-0 flex items-center justify-center text-[8px] text-on-surface-variant">✕</span>}
                     </button>
                   ))}
                 </div>
-                <input
-                  type="color"
-                  value={bgColor || '#FFFFFF'}
-                  onChange={(e) => onChange?.({ backgroundColor: e.target.value })}
-                  className="w-full h-6 rounded cursor-pointer"
-                />
+                <input type="color" value={bgColor || '#FFFFFF'} onChange={(e) => onChange?.({ backgroundColor: e.target.value })} className="w-full h-6 rounded cursor-pointer" />
+              </div>
+            )}
+          </div>
+
+          <div className="w-px h-4 bg-outline-variant/30 mx-0.5" />
+
+          {/* Layout (padding/radius/border/shadow/full-width) */}
+          <div className="relative">
+            <button
+              onClick={() => togglePanel('layout')}
+              className="px-2 py-1 text-[10px] font-semibold text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded"
+              title="Layout & spacing"
+            >
+              Layout
+            </button>
+            {openPanel === 'layout' && (
+              <div className="absolute top-full right-0 mt-1 bg-white border border-outline-variant/30 rounded-lg shadow-lg p-3 z-20 w-[220px] space-y-2">
+                <label className="block text-[9px] uppercase text-on-surface-variant">
+                  Padding ({padding}px)
+                  <input type="range" min={0} max={64} value={padding} onChange={(e) => onChange?.({ padding: Number(e.target.value) })} className="w-full" />
+                </label>
+                <label className="block text-[9px] uppercase text-on-surface-variant">
+                  Radius ({radius}px)
+                  <input type="range" min={0} max={32} value={radius} onChange={(e) => onChange?.({ radius: Number(e.target.value) })} className="w-full" />
+                </label>
+                <label className="block text-[9px] uppercase text-on-surface-variant">
+                  Border ({borderWidth}px)
+                  <input type="range" min={0} max={4} value={borderWidth} onChange={(e) => onChange?.({ borderWidth: Number(e.target.value) })} className="w-full" />
+                </label>
+                <div>
+                  <div className="text-[9px] uppercase text-on-surface-variant mb-1">Border color</div>
+                  <input type="color" value={borderColor || '#e5e7eb'} onChange={(e) => onChange?.({ borderColor: e.target.value })} className="w-full h-6 rounded cursor-pointer" />
+                </div>
+                <div>
+                  <div className="text-[9px] uppercase text-on-surface-variant mb-1">Shadow</div>
+                  <div className="flex gap-1">
+                    {(['none', 'sm', 'md', 'lg'] as const).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => onChange?.({ shadow: s })}
+                        className={cn('flex-1 text-[10px] py-1 rounded border', shadow === s ? 'bg-primary/10 border-primary/40 text-primary' : 'border-outline-variant/30 text-on-surface-variant hover:bg-primary/5')}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <label className="flex items-center gap-2 text-[10px] text-on-surface-variant">
+                  <input type="checkbox" checked={fullWidth} onChange={(e) => onChange?.({ fullWidth: e.target.checked })} />
+                  Full width
+                </label>
               </div>
             )}
           </div>
@@ -383,11 +489,7 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
           />
         ) : (
           <h3
-            className={cn(
-              'tracking-tight',
-              bold ? 'font-black' : 'font-medium',
-              alignClass,
-            )}
+            className={cn('tracking-tight', bold ? 'font-black' : 'font-medium', alignClass)}
             style={{ fontSize: `${titleSize}px`, lineHeight: 1.15, color: titleColor }}
           >
             {section.title || section.name}
@@ -398,26 +500,18 @@ export default function SectionBlock({ section, editable, isActive, onChange, on
           <textarea
             value={section.description}
             onChange={(e) => onChange?.({ description: e.target.value })}
-            placeholder="Add description, message or notes…"
+            placeholder={listStyle !== 'none' ? 'One item per line…' : 'Add description, message or notes…'}
             rows={3}
             className={cn(
               'w-full bg-transparent rounded-xl border border-outline-variant/10 focus:border-primary/40 focus:outline-none focus:ring-0 p-3 placeholder:text-on-surface-variant/50 resize-y leading-relaxed mt-2',
               italic && 'italic',
+              underline && 'underline',
               alignClass,
             )}
             style={{ fontSize: `${descriptionSize}px`, color: descColor }}
           />
         ) : section.description ? (
-          <p
-            className={cn(
-              'whitespace-pre-wrap leading-relaxed mt-2',
-              italic && 'italic',
-              alignClass,
-            )}
-            style={{ fontSize: `${descriptionSize}px`, color: descColor }}
-          >
-            {section.description}
-          </p>
+          renderDescription()
         ) : null}
       </div>
     </section>
