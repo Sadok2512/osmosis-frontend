@@ -20,7 +20,13 @@ import {
   Heading1,
   Hash,
   Minus,
+  ChevronDown,
+  Check,
+  LayoutDashboard,
+  FilePlus,
+  Save,
 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
