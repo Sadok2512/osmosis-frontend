@@ -374,6 +374,15 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 
+      {/* Debug: filter status */}
+      {cfg.filters.length > 0 && (
+        <div className="absolute top-2 left-2 z-[500] pointer-events-none">
+          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-outline-variant/30 text-[9px] font-bold text-on-surface-variant">
+            {filteredSites.length}/{sites.length} sites · {cfg.filters.map(f => `${f.dimension}=${f.values.join(',') || 'all'}`).join(' ')}
+          </div>
+        </div>
+      )}
+
       {/* Loading overlay */}
       {loading && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[500] pointer-events-none">

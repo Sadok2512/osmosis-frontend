@@ -90,9 +90,10 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   };
 
   const applyToWidget = (saveSnapshot: boolean) => {
+    const snapshot = structuredClone(cfg);
     const next: Partial<DynWidget> = {
-      mapConfig: { ...cfg },
-      appliedMapConfig: { ...cfg },
+      mapConfig: snapshot,
+      appliedMapConfig: snapshot,
       appliedRev: (widget.appliedRev ?? 0) + 1,
     };
     onChange(next);
