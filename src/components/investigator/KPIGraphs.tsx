@@ -1496,7 +1496,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const legendItemsCount = Array.isArray(series) ? series.length : 0;
         const MAX_LEGEND_ROWS = 2;
         const legendRows = Math.min(MAX_LEGEND_ROWS, Math.max(1, Math.ceil(legendItemsCount / 5)));
-        const legendHeight = 18 + (legendRows - 1) * 16;
+        const legendHeight = 22 + (legendRows - 1) * 20;
+        // Spacing system between slider and legend (Grafana / Datadog inspired).
+        const LEGEND_TOP_GAP = 20;
+        const LEGEND_BOTTOM_PAD = 8;
 
         const option: any = {
           animation: false,
@@ -1504,7 +1507,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           grid: {
             top: 16,
             right: hasRightAxis ? 62 : 28,
-            bottom: legendHeight + sliderHeight + 16,
+            bottom: legendHeight + sliderHeight + LEGEND_TOP_GAP + LEGEND_BOTTOM_PAD + 8,
             left: 62,
             containLabel: false,
           },
@@ -1523,7 +1526,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               type: 'slider' as const,
               xAxisIndex: 0,
               height: sliderHeight,
-              bottom: legendHeight - 2,
+              bottom: legendHeight + LEGEND_TOP_GAP + LEGEND_BOTTOM_PAD,
               filterMode: 'none' as const,
               start: cfg.zoomWindow?.start,
               end: cfg.zoomWindow?.end,
@@ -1545,15 +1548,27 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               brushSelect: false,
             },
           ],
+          // Subtle separator line between chart/slider and legend.
+          graphic: [
+            {
+              type: 'line' as const,
+              left: 'center',
+              bottom: legendHeight + LEGEND_BOTTOM_PAD + 4,
+              z: 0,
+              shape: { x1: 0, y1: 0, x2: 10000, y2: 0 },
+              style: { stroke: 'rgba(15, 23, 42, 0.06)', lineWidth: 1 },
+              silent: true,
+            },
+          ],
           legend: {
             show: true,
-            bottom: 0,
-            left: 0,
-            right: 8,
+            bottom: LEGEND_BOTTOM_PAD,
+            left: 12,
+            right: 12,
             icon: 'roundRect',
-            itemWidth: 12,
+            itemWidth: 14,
             itemHeight: 4,
-            itemGap: 12,
+            itemGap: 18,
             // Scroll legend: paginates with arrows when items overflow,
             // never overlaps the chart area.
             type: 'scroll' as const,
@@ -1565,11 +1580,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             pageTextStyle: { fontSize: 9, color: PH_COLORS.labelMuted },
             align: 'left' as const,
             textStyle: {
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 500,
               color: PH_COLORS.labelMuted,
               fontFamily: 'Inter, system-ui, sans-serif',
-              padding: [0, 0, 0, 2],
+              padding: [0, 4, 0, 4],
             },
             tooltip: { show: true },
           },
