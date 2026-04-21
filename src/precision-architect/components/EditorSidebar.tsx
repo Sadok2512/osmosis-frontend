@@ -25,12 +25,19 @@ interface EditorSidebarProps {
   onClose: () => void;
 }
 
-type SectionKey = 'general' | 'appearance' | 'layout' | 'header' | 'behavior' | 'advanced';
+type SectionKey = 'general' | 'reportInfo' | 'appearance' | 'layout' | 'header' | 'behavior' | 'advanced';
 
 interface DraftConfig {
   // General
   name: string;
   description: string;
+  showReportName: boolean;
+  // Report Info (right-side metadata)
+  reportInfoShow: boolean;
+  reportInfoPerimeter: boolean;
+  reportInfoDate: boolean;
+  reportInfoGranularity: boolean;
+  reportInfoFilters: boolean;
   // Appearance
   textColor: string;
   backgroundColor: string;
