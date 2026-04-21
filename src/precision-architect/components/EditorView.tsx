@@ -126,11 +126,15 @@ export default function EditorView({
       title: 'Add title',
       description: 'Add description or message',
     };
+    // Always append at the end (after all existing sections + widgets).
     updateSections(s => [...s, newSection]);
     setActiveSectionId(id);
+    setNewSectionId(id);
     setTimeout(() => {
       document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
+    // Remove the "new" highlight after the animation finishes.
+    setTimeout(() => setNewSectionId((prev) => (prev === id ? null : prev)), 2200);
   };
 
   const updateSection = (id: string, patch: Partial<PASection>) => {
