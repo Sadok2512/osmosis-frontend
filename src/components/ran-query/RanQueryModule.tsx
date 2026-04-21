@@ -573,6 +573,7 @@ const RanQueryModule: React.FC = () => {
 
   // ── Catalogs (Investigator-themed selectors) ──
   const [kpiCatalog, setKpiCatalog] = useState<KpiCatalogEntry[]>([]);
+  const [allKpiCatalog, setAllKpiCatalog] = useState<KpiCatalogEntry[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
   const [kpiModalOpen, setKpiModalOpen] = useState(false);
   const [counterModalOpen, setCounterModalOpen] = useState(false);
@@ -603,6 +604,7 @@ const RanQueryModule: React.FC = () => {
       .then(r => r.ok ? r.json() : [])
       .then((data: KpiCatalogEntry[]) => {
         const arr = Array.isArray(data) ? data : [];
+        setAllKpiCatalog(arr);
         // Filter by vendor if a specific vendor is selected
         const filtered = vendor && vendor !== 'Multi-Vendor'
           ? arr.filter(k => !k.vendor || k.vendor.toLowerCase() === vendor.toLowerCase())
@@ -611,7 +613,17 @@ const RanQueryModule: React.FC = () => {
       })
       .catch(() => {
         // Fallback to DB catalog if monitor endpoint is unavailable
-        fetchKpiCatalogFromDB().then(setKpiCatalog).catch(() => setKpiCatalog([]));
+        fetchKpiCatalogFromDB()
+          .then(arr => {
+            setAllKpiCatalog(arr);
+            setKpiCatalog(vendor && vendor !== 'Multi-Vendor'
+              ? arr.filter(k => !k.vendor || k.vendor.toLowerCase() === vendor.toLowerCase())
+              : arr);
+          })
+          .catch(() => {
+            setAllKpiCatalog([]);
+            setKpiCatalog([]);
+          });
       });
     // Counter catalog from PM API
     const counterUrl = vendor && vendor !== 'Multi-Vendor'
@@ -698,7 +710,7 @@ const RanQueryModule: React.FC = () => {
   }, [siteSearch, form.plaques, form.dors]);
 
   // Split current selection into KPI keys vs counter keys
-  const kpiKeySet = useMemo(() => new Set(kpiCatalog.map(k => k.kpi_key)), [kpiCatalog]);
+  const kpiKeySet = useMemo(() => new Set(allKpiCatalog.map(k => k.kpi_key)), [allKpiCatalog]);
   const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
   const counterKeySet = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
   const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
@@ -710,7 +722,7 @@ const RanQueryModule: React.FC = () => {
         .filter(Boolean);
       return Array.from(new Set(parsed.length > 0 ? parsed : fallback));
     };
-    const kpiByKey = new Map(kpiCatalog.map(kpi => [kpi.kpi_key, kpi]));
+    const kpiByKey = new Map([...allKpiCatalog, ...kpiCatalog].map(kpi => [kpi.kpi_key, kpi]));
     const counterByName = new Map(counterCatalog.map((counter: any) => [counter.counter_name, counter]));
     return form.selectedKpis.map(key => {
       const kpi = kpiByKey.get(key);
@@ -744,7 +756,7 @@ const RanQueryModule: React.FC = () => {
         technos: normalizeValues([], form.technologies),
       };
     });
-  }, [counterCatalog, form.selectedKpis, form.technologies, form.vendors, kpiCatalog]);
+  }, [allKpiCatalog, counterCatalog, form.selectedKpis, form.technologies, form.vendors, kpiCatalog]);
 
   const selectedReport = useMemo(
     () => reports.find(report => report.id === selectedReportId) || null,
