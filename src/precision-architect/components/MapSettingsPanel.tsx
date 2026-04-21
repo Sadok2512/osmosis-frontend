@@ -150,69 +150,48 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 
             <div className="space-y-2">
               <Label>Active Filters</Label>
-              {cfg.filters.length === 0 && (
-                <p className="text-[11px] text-on-surface-variant/70 italic">No filters yet — add one below.</p>
-              )}
-              {cfg.filters.map((f) => {
-                const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
-                // Always prefer real distinct values from currently-loaded sites.
-                const liveValues = getMapSitesDistinct(f.dimension);
-                // For free-text dims (SITE/CELL) we still fall back to a text input when no live values exist.
-                const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
-                // Cap the visible chip count to keep the UI readable; user can search via text input fallback.
-                const MAX_CHIPS = 60;
-                const visibleChips = chipValues.slice(0, MAX_CHIPS);
-                return (
-                  <div key={f.id} className="border border-outline-variant/20 rounded-lg p-2 bg-surface-container-low/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                        {dim?.label ?? f.dimension}
-                        {liveValues.length > 0 && (
-                          <span className="ml-1.5 text-on-surface-variant/60 font-bold normal-case tracking-normal">
-                            · {liveValues.length} live
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        onClick={() => removeFilter(f.id)}
-                        className="p-1 text-on-surface-variant hover:text-error hover:bg-error/10 rounded transition-colors"
-                        aria-label="Remove filter"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {chipValues.length > 0 ? (
-                      <MapFilterMultiSelect
-                        values={chipValues}
-                        selected={f.values}
-                        onToggle={(val) => toggleFilterValue(f.id, val)}
-                        label={dim?.label ?? f.dimension}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        placeholder={`Enter ${dim?.label ?? f.dimension} (comma separated)`}
-                        defaultValue={f.values.join(', ')}
-                        onBlur={(e) => {
-                          const vals = e.target.value
-                            .split(',')
-                            .map((v) => v.trim())
-                            .filter(Boolean);
-                          update({
-                            filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
-                          });
-                        }}
-                        className="w-full px-2 py-1 text-[11px] rounded border border-outline-variant/30 focus:outline-none focus:border-primary"
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              <div className="flex flex-wrap items-center gap-2 px-2 py-2 rounded-lg border border-outline-variant/20 bg-surface-container-low/40">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Filtres</span>
+                </div>
 
-              <AddFilterDropdown
-                onAdd={addFilter}
-                existing={cfg.filters.map((f) => f.dimension)}
-              />
+                {cfg.filters.map((f) => {
+                  const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
+                  const liveValues = getMapSitesDistinct(f.dimension);
+                  const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                  return (
+                    <MapDimensionChip
+                      key={f.id}
+                      label={dim?.label ?? f.dimension}
+                      values={chipValues}
+                      selected={f.values}
+                      onApply={(vals) => {
+                        update({
+                          filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
+                        });
+                      }}
+                      onRemove={() => removeFilter(f.id)}
+                    />
+                  );
+                })}
+
+                <AddFilterDropdown
+                  onAdd={addFilter}
+                  existing={cfg.filters.map((f) => f.dimension)}
+                />
+
+                {cfg.filters.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => update({ filters: [] })}
+                    className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>Effacer</span>
+                  </button>
+                )}
+              </div>
             </div>
           </Accordion>
 
