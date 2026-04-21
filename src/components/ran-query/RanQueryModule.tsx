@@ -936,7 +936,7 @@ const RanQueryModule: React.FC = () => {
       dors: form.dors,
       sites: form.sites,
       zoneArcep: form.zoneArcep,
-      aggregation: form.aggregation,
+      aggregations: form.aggregations,
       dimensions: form.dimensions,
       cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
       cluster_name: selectedCluster?.cluster.name,
