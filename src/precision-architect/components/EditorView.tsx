@@ -197,7 +197,11 @@ export default function EditorView({
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
     if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
-    if (kind === 'stat') newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+    if (kind === 'stat') {
+      newWidget.statConfig = { ...DEFAULT_STAT_CONFIG };
+      // Stat reuses ChartSettingsPanel so it needs a Chart-shaped config for the Data Source UI.
+      newWidget.config = structuredClone(DEFAULT_CHART_CONFIG);
+    }
     if (kind === 'divider') newWidget.dividerConfig = { ...DEFAULT_DIVIDER_CONFIG };
     if (kind === 'map') {
       newWidget.mapConfig = { ...DEFAULT_MAP_CONFIG };
