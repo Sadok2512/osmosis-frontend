@@ -20,6 +20,10 @@ interface Props {
   filtersLoading?: boolean;
   /** When true, render compactly without the outer "Filtres" label & padding row — for inline use in the scope toolbar. */
   inline?: boolean;
+  /** Render only the active chips (no "Ajouter filtre" button). */
+  chipsOnly?: boolean;
+  /** Render only the "Ajouter filtre" button (no chips). */
+  addOnly?: boolean;
 }
 
 const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
@@ -302,7 +306,7 @@ const PADimensionChip: React.FC<{
   );
 };
 
-const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading, inline }) => {
+const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading, inline, chipsOnly, addOnly }) => {
   // Group flat ChartFilterChip[] → dimension → values
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -337,45 +341,61 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
 
   const clearAll = () => onChange([]);
 
-  const chipsAndAdd = (
-    <>
-      {activeDims.map(dim => {
-        const vals = (grouped.get(dim) ?? []).filter(v => v !== '');
-        return (
-          <PADimensionChip
-            key={dim}
-            dim={dim}
-            values={vals}
-            onTogglePending={(next) => setDimensionValues(dim, next)}
-            onRemove={() => removeDimension(dim)}
-          />
-        );
-      })}
-
-      <AddFilterDropdown
-        existingKeys={activeDims}
-        onAdd={addDimension}
-        filterDimensions={filterDimensions}
-        loading={filtersLoading}
+  const chipsNode = activeDims.map(dim => {
+    const vals = (grouped.get(dim) ?? []).filter(v => v !== '');
+    return (
+      <PADimensionChip
+        key={dim}
+        dim={dim}
+        values={vals}
+        onTogglePending={(next) => setDimensionValues(dim, next)}
+        onRemove={() => removeDimension(dim)}
       />
+    );
+  });
 
-      {filters.length > 0 && (
-        <button
-          type="button"
-          onClick={clearAll}
-          className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
-        >
-          <X className="w-3 h-3" />
-          <span>Effacer</span>
-        </button>
-      )}
-    </>
+  const addNode = (
+    <AddFilterDropdown
+      existingKeys={activeDims}
+      onAdd={addDimension}
+      filterDimensions={filterDimensions}
+      loading={filtersLoading}
+    />
   );
+
+  const clearNode = filters.length > 0 && (
+    <button
+      type="button"
+      onClick={clearAll}
+      className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
+    >
+      <X className="w-3 h-3" />
+      <span>Effacer</span>
+    </button>
+  );
+
+  // Sub-mode: only chips (active filters), without the add button
+  if (chipsOnly) {
+    if (activeDims.length === 0) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {chipsNode}
+        {clearNode}
+      </div>
+    );
+  }
+
+  // Sub-mode: only the "Ajouter filtre" button
+  if (addOnly) {
+    return <div className="flex items-center">{addNode}</div>;
+  }
 
   if (inline) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        {chipsAndAdd}
+        {chipsNode}
+        {addNode}
+        {clearNode}
       </div>
     );
   }
@@ -386,7 +406,9 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
         <Filter className="w-3.5 h-3.5" />
         <span>Filtres</span>
       </div>
-      {chipsAndAdd}
+      {chipsNode}
+      {addNode}
+      {clearNode}
     </div>
   );
 };
