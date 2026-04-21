@@ -304,6 +304,21 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
             <FieldLabel>Subtitle / Description</FieldLabel>
             <textarea value={draft.description} onChange={(e) => update('description', e.target.value)} placeholder="Optional description shown under the title" rows={2} className="w-full px-3 py-2 text-sm rounded-lg border border-outline-variant/30 bg-white focus:outline-none focus:border-primary resize-none" />
           </div>
+          <ToggleField label="Show Report Name" value={draft.showReportName} onChange={(v) => update('showReportName', v)} />
+        </CollapsibleSection>
+
+        <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
+          <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1">
+            Contextual metadata shown on the right side of the report header.
+          </p>
+          <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => update('reportInfoShow', v)} />
+          <div className={cn('space-y-1 pt-1 transition-opacity', !draft.reportInfoShow && 'opacity-50 pointer-events-none')}>
+            <FieldLabel>Visible fields</FieldLabel>
+            <ToggleField label="Perimeter" value={draft.reportInfoPerimeter} onChange={(v) => update('reportInfoPerimeter', v)} />
+            <ToggleField label="Date" value={draft.reportInfoDate} onChange={(v) => update('reportInfoDate', v)} />
+            <ToggleField label="Granularity" value={draft.reportInfoGranularity} onChange={(v) => update('reportInfoGranularity', v)} />
+            <ToggleField label="Filters" value={draft.reportInfoFilters} onChange={(v) => update('reportInfoFilters', v)} />
+          </div>
         </CollapsibleSection>
 
         <CollapsibleSection title="Appearance" icon={Palette} open={openSections.appearance} onToggle={() => toggle('appearance')}>
