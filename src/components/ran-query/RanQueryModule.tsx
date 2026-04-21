@@ -367,9 +367,11 @@ async function executeReportApi(
           });
         }
       }
+      console.log(`[RapportBuilder] KPI batch ${vendor}: ${batchResults.length} rows from ${(data?.results || []).length} KPIs`);
       return batchResults;
     } catch (err: any) {
       const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
+      console.error(`[RapportBuilder] KPI batch ${vendor} FAILED:`, err);
       errors.push(`KPIs batch (${vendor}): ${msg}`);
       return [];
     }
@@ -423,6 +425,7 @@ async function executeReportApi(
   const allTasks = [...kpiTasks, ...counterTasks];
   const batches = await pLimit(allTasks, MAX_CONCURRENT);
   for (const batch of batches) results.push(...batch);
+  console.log(`[RapportBuilder] Total: ${results.length} rows, ${errors.length} errors, ${allTasks.length} tasks`);
 
   return { rows: results, errors };
 }
