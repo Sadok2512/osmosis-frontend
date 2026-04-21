@@ -6,8 +6,8 @@ import {
   Map as MapIconLucide, Satellite,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
+import { ensureFilterLoaded, getFilterValues, dimToKey, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
 import {
   DynWidget,
   MapWidgetConfig,
@@ -33,6 +33,8 @@ const FILTER_DIMENSIONS: { key: string; label: string; sample: string[] }[] = [
   { key: 'TECHNO', label: 'Techno', sample: [] },
   { key: 'SITE', label: 'Site', sample: [] },
   { key: 'CELL', label: 'Cell', sample: [] },
+  { key: 'BCLUSTER', label: 'BCluster', sample: [] },
+  { key: 'ARCEP', label: 'Zone ARCEP', sample: [] },
 ];
 
 type MapTab = 'data' | 'display' | 'appearance';
@@ -179,8 +181,15 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 
                     {cfg.filters.map((f) => {
                       const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
+                      // Try map cache first, then backend investigator cache
                       const liveValues = getMapSitesDistinct(f.dimension);
-                      const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                      let chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                      if (chipValues.length === 0) {
+                        const cacheKey = dimToKey(f.dimension) || f.dimension.toUpperCase();
+                        ensureFilterLoaded(cacheKey);
+                        const cached = getFilterValues(cacheKey);
+                        if (cached?.values?.length) chipValues = cached.values;
+                      }
                       return (
                         <MapDimensionChip
                           key={f.id}
