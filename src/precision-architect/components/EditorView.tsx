@@ -670,17 +670,6 @@ function DashboardSwitcher() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const name = window.prompt('Rename dashboard', d.name);
-                    if (name && name.trim()) renameDashboard(d.id, name.trim());
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-on-surface-variant hover:text-primary hover:bg-primary/5 rounded transition-all"
-                  title="Rename"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
                     if (dashboards.length <= 1) {
                       toast.error('At least one dashboard must remain.');
                       return;

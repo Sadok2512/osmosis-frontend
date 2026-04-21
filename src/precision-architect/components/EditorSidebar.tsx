@@ -186,6 +186,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const activePageId = usePAReportStore((s) => s.activePageId);
   const setPages = usePAReportStore((s) => s.setPages);
   const markSaved = usePAReportStore((s) => s.markSaved);
+  const renameDashboard = usePAReportStore((s) => s.renameDashboard);
+  const activeDashboardId = usePAReportStore((s) => s.activeDashboardId);
 
   const activePage = pages.find((p) => p.id === activePageId);
   const activeTheme = activePage?.theme ?? DEFAULT_DASHBOARD_THEME;
@@ -205,7 +207,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   useEffect(() => {
     setDraft(readDraft(projectName, activeTheme));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activePageId]);
+  }, [activePageId, activeDashboardId]);
 
   const toggle = (k: SectionKey) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
   const update = <K extends keyof DraftConfig>(k: K, v: DraftConfig[K]) => setDraft((c) => ({ ...c, [k]: v }));
@@ -236,7 +238,11 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
 
   const applyConfig = () => {
     const theme = buildTheme(draft);
-    if (draft.name && draft.name !== projectName) setProjectName(draft.name);
+    if (draft.name && draft.name !== projectName) {
+      setProjectName(draft.name);
+      // Keep the dashboard registry name in sync so the switcher label updates
+      renameDashboard(activeDashboardId, draft.name);
+    }
     setPages((prev) => prev.map((p) => (p.id === activePageId ? { ...p, theme } : p)));
     toast.success('Dashboard settings applied');
   };
