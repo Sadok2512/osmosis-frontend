@@ -433,6 +433,7 @@ export default function EditorView({
                 ))}
               </GridLayout>
             )}
+            <div aria-hidden className="shrink-0" style={{ height: 120 }} />
           </div>
         </div>
 
