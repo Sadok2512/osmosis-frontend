@@ -44,7 +44,7 @@ const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClo
     (filter.topology || []).map((cond, index) => ({
       id: `${filter.id}-preview-${index}`,
       field: cond.dimension,
-      operator: cond.operator === 'not_in' || cond.operator === 'NOT IN' ? 'NOT IN' : 'IN',
+      operator: (cond.operator as string) === 'not_in' || (cond.operator as string) === 'NOT IN' ? 'NOT IN' : 'IN',
       inputMode: 'search',
       values: cond.values || [],
     }))

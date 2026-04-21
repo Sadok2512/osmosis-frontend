@@ -480,16 +480,45 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     return { seriesByMetric: out, xAxisLabels: labels.map(shortLabel) };
   }, [tsResp, cfg]);
 
+  // Distinguish backend error vs empty perimeter
+  const backendError = (() => {
+    if (error) return (error as any)?.message || 'Erreur backend';
+    const metaErr = (tsResp as any)?.meta?.error;
+    if (metaErr && typeof metaErr === 'string') return metaErr;
+    return null;
+  })();
+  const hasNoData = !isFetching && !backendError && hasBeenApplied && tsResp && (!tsResp.series || tsResp.series.length === 0);
+
   return (
-    <PAEChart
-      variant="editor"
-      height="100%"
-      config={cfg}
-      appliedRev={effectiveAppliedRev}
-      seriesByMetric={seriesByMetric}
-      xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
-      loading={isFetching}
-    />
+    <div className="relative w-full h-full">
+      <PAEChart
+        variant="editor"
+        height="100%"
+        config={cfg}
+        appliedRev={effectiveAppliedRev}
+        seriesByMetric={seriesByMetric}
+        xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
+        loading={isFetching}
+      />
+      {backendError && !isFetching && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-lg px-4 py-3 max-w-md text-center pointer-events-auto">
+            <div className="text-xs font-bold uppercase tracking-wider mb-1">⚠ Erreur backend</div>
+            <div className="text-xs opacity-80 break-words">{backendError}</div>
+            <div className="text-[10px] opacity-60 mt-1">Réessayez dans 30 s (cold-start probable)</div>
+          </div>
+        </div>
+      )}
+      {hasNoData && (
+        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
+          <div className="bg-muted/80 border border-border rounded-lg px-4 py-3 max-w-md text-center">
+            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Aucune donnée</div>
+            <div className="text-xs text-muted-foreground">Aucune donnée pour ce périmètre / cette période.</div>
+            <div className="text-[10px] text-muted-foreground/70 mt-1">Élargissez la plage ou retirez un filtre.</div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
