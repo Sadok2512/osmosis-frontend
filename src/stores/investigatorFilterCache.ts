@@ -93,14 +93,14 @@ async function fetchStandard(dim: string) {
   cache.set(dim, entry);
 
   try {
-    const res = await fetch(getApiUrl(`monitor/filters/values?dimension=${dim}`), { headers: getApiHeaders() });
+    const res = await fetchVpsWithRetry(getApiUrl(`monitor/filters/values?dimension=${dim}`), { headers: getApiHeaders() });
     if (!res.ok) throw new Error(`${res.status}`);
     const d = await res.json();
     if (d.values?.length) { entry.values = d.values; entry.loading = false; entry.loaded = true; cache.set(dim, { ...entry }); notify(); }
     else throw new Error('empty');
   } catch {
     try {
-      const res2 = await fetch(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
+      const res2 = await fetchVpsWithRetry(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
       const d2 = await res2.json();
       if (d2.values?.length) { entry.values = d2.values; entry.loading = false; entry.loaded = true; cache.set(dim, { ...entry }); notify(); }
     } catch {}
