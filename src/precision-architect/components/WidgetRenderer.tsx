@@ -343,8 +343,9 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   // Strict apply-only contract: render ONLY the snapshot saved at the last
-  // "Appliquer" click. Live edits to w.config must NOT trigger refetches.
-  const cfg: ChartWidgetConfig | undefined = (w.appliedRev ?? 0) > 0
+  // "Appliquer" click on THIS widget. Live edits to w.config must NOT trigger refetches.
+  const widgetAppliedRev = w.appliedRev ?? 0;
+  const cfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
     ? w.appliedConfig
     : undefined;
   const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
@@ -356,11 +357,15 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   const inheritsTime = cfg?.data.timeRange?.inherit !== false; // default true
   const inheritsScope = cfg?.data.inheritFromDashboard !== false; // default true
 
-  // Apply trigger: if inheriting, react to the global Apply; else to the widget's own Apply.
-  const effectiveAppliedRev = inheritsTime || inheritsScope
-    ? Math.max(w.appliedRev ?? 0, global.appliedRev)
-    : (w.appliedRev ?? 0);
-  const hasBeenApplied = effectiveAppliedRev > 0;
+  // CRITICAL: A widget NEVER fires a backend request unless its own Apply has
+  // been clicked at least once (widgetAppliedRev > 0). The global Apply only
+  // refreshes widgets that have already been applied individually — it must
+  // never trigger a first-time fetch on a brand-new widget.
+  const effectiveAppliedRev = widgetAppliedRev > 0 && (inheritsTime || inheritsScope)
+    ? Math.max(widgetAppliedRev, global.appliedRev)
+    : widgetAppliedRev;
+  const hasBeenApplied = widgetAppliedRev > 0;
+
 
   const request: TimeseriesRequest | null = useMemo(() => {
     if (!cfg || !hasMetrics || !hasBeenApplied) return null;
