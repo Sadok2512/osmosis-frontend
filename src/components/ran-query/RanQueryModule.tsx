@@ -583,7 +583,7 @@ const RanQueryModule: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReportStatus>('ALL');
   const [form, setForm] = useState<CreateFormState>(DEFAULT_FORM);
   const [isExecutingId, setIsExecutingId] = useState<string | null>(null);
-  const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
+  const [detailMode, setDetailMode] = useState<'table' | 'chart' | 'pivot'>('table');
   const [resultPage, setResultPage] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<ClusterSelection | null>(null);
