@@ -1775,7 +1775,7 @@ const RanQueryModule: React.FC = () => {
         {view === 'detail' && selectedReport && (
           <div className="space-y-6">
             <SectionCard title="Report Summary" description="Review report scope, execute the query, and inspect the output.">
-              <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr_1fr_1fr_0.9fr]">
+              <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr_1fr_1fr_0.9fr_1fr]">
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Name</p>
                   <p className="mt-2 text-lg font-black text-foreground">{selectedReport.name}</p>
@@ -1799,6 +1799,14 @@ const RanQueryModule: React.FC = () => {
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">KPI count</p>
                   <p className="mt-2 text-lg font-black text-foreground">{selectedReport.kpis.length}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Aggregation</p>
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {(selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell'])).map(a => (
+                      <span key={a} className="inline-flex items-center rounded-full border border-primary/20 bg-primary/8 px-2 py-0.5 text-[10px] font-semibold text-primary">{a}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-3">
