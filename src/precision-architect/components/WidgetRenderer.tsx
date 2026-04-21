@@ -12,6 +12,7 @@ import PAStatWidget from './PAStatWidget';
 import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
 
 interface Props {
   widget: DynWidget;
@@ -404,10 +405,12 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       filters: inheritsScope ? gFilters : cfg.data.filters,
     };
 
-    // ── 1. Filters (chip[] → IN clauses, dimension uppercased like Investigator) ──
+    // ── 1. Filters (chip[] → IN clauses, dimension normalized to backend keys) ──
+    // Use toBackendDimension() — never .toUpperCase() blindly. UI labels like
+    // "Techno", "Constructeur", "Région" must map to RAT, Vendor, DOR.
     const byDim = new Map<string, string[]>();
     eff.filters.forEach(f => {
-      const dim = f.dimension.toUpperCase();
+      const dim = toBackendDimension(f.dimension);
       const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
       byDim.set(dim, arr);
@@ -418,23 +421,20 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       values,
     }));
 
-    // ── 2. Technology perimeter chips (4G/5G…) → TECHNOLOGY filter, but only if not "all selected" ──
+    // ── 2. Technology perimeter chips (4G/5G…) → RAT filter, only if not "all selected" ──
     const ALL_TECHS = new Set(['2g', '3g', '4g', '5g']);
     const selectedTechs = (eff.technos || []).map(t => t.toLowerCase());
     const allSelected = selectedTechs.length >= 4 && selectedTechs.every(t => ALL_TECHS.has(t));
     if (selectedTechs.length > 0 && !allSelected) {
       filters.push({
-        dimension: 'TECHNOLOGY',
+        dimension: toBackendDimension('Techno'), // → 'RAT'
         op: 'IN',
         values: selectedTechs.map(t => t.toUpperCase()),
       });
     }
 
-    // ── 3. Granularity normalization ──
-    const grainMap: Record<string, string> = {
-      'auto': '1h', '5min': '5min', '15min': '15min', '30min': '15min', '1h': '1h', '1d': '1d',
-    };
-    const granularity = grainMap[eff.granularity] ?? '1h';
+    // ── 3. Granularity normalization (15min → 15m, etc.) ──
+    const granularity = toBackendGranularity(eff.granularity);
 
     // ── 4. Date normalization ──
     const normalizeDate = (raw: string): string => {

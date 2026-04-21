@@ -404,6 +404,25 @@ export function useFilterValues(dimensions: string[], filters?: MonitorFilter[])
   });
 }
 
+// Keep one toast per error message per ~10s to avoid spam.
+const _lastToastAt = new Map<string, number>();
+function _toastBackendError(scope: string, err: unknown) {
+  try {
+    const msg = (err as any)?.message || String(err);
+    const k = `${scope}:${msg}`;
+    const now = Date.now();
+    const prev = _lastToastAt.get(k) || 0;
+    if (now - prev < 10_000) return;
+    _lastToastAt.set(k, now);
+    // Lazy import to avoid coupling this API module to UI at load time.
+    import('sonner').then(({ toast }) => {
+      toast.error(`Backend error (${scope})`, {
+        description: msg.length > 200 ? msg.slice(0, 200) + '…' : msg,
+      });
+    }).catch(() => { /* noop */ });
+  } catch { /* noop */ }
+}
+
 export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) | null) {
   // Stable key: serialize the request so identical payloads don't refetch
   // on every render (e.g., after a widget resize / drag / unrelated state change).
@@ -418,8 +437,18 @@ export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) 
         const { _rev, ...payload } = req!;
         return await fetchTimeseries(payload as TimeseriesRequest);
       } catch (err) {
-        console.warn('[useTimeseriesQuery] Backend unavailable:', err);
-        return { series: [], meta: { granularity_applied: req?.granularity || '1d', total_series: 0 } } as TimeseriesResponse;
+        // Surface the real backend error in meta.error so widgets can
+        // distinguish "no data for this perimeter" from "backend failed".
+        console.warn('[useTimeseriesQuery] Backend error:', err);
+        _toastBackendError('timeseries', err);
+        return {
+          series: [],
+          meta: {
+            granularity_applied: req?.granularity || '1d',
+            total_series: 0,
+            error: (err as any)?.message || String(err),
+          },
+        } as unknown as TimeseriesResponse;
       }
     },
     enabled: !!req && req.selections.length > 0,
@@ -441,8 +470,16 @@ export function useTableQuery(req: TableRequest | null) {
       try {
         return await fetchTable(req!);
       } catch (err) {
-        console.warn('[useTableQuery] Backend unavailable:', err);
-        return { rows: [], total: 0, page: 1, page_size: 50 } as TableResponse;
+        console.warn('[useTableQuery] Backend error:', err);
+        _toastBackendError('table', err);
+        // Attach error in a non-typed `meta` field so callers can detect it.
+        return {
+          rows: [],
+          total: 0,
+          page: 1,
+          page_size: 50,
+          meta: { error: (err as any)?.message || String(err) },
+        } as unknown as TableResponse;
       }
     },
     enabled: !!req && req.kpi_keys.length > 0,
