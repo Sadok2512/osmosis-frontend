@@ -3681,6 +3681,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
   const [kpiLoading, setKpiLoading] = useState(false);
+  const [kpiDataIssue, setKpiDataIssue] = useState<string | null>(null);
   // ── KPI Overlay enhancements ──
   const [kpiAnalysisLevel, setKpiAnalysisLevel] = useState<'site' | 'cell' | 'band'>('cell');
   const [kpiTechnoFilter, setKpiTechnoFilter] = useState<'4G' | '5G'>('4G');
@@ -4908,9 +4909,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     console.log('[KPI Overlay] Effect triggered:', { sectorColorMode, mapKpi, kpiDateFrom, kpiDateTo });
     if (sectorColorMode !== 'kpi' || !mapKpi) {
       setKpiValues(new Map());
+      setKpiDataIssue(null);
       return;
     }
     let cancelled = false;
+    const selectedCatalogKpi = (catalogKpis.length > 0 ? catalogKpis : MAP_KPIS).find(k => k.id === mapKpi);
+    const kpiVendor = selectedCatalogKpi?.vendor && selectedCatalogKpi.vendor !== 'Multi-Vendor'
+      ? selectedCatalogKpi.vendor
+      : (localVendor !== 'ALL' ? localVendor : undefined);
 
     const filters: any = {
       // Keep the backend KPI fetch broad on perimeter dimensions: the map applies
@@ -4918,6 +4924,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
       techno: kpiTechnoFilter,
+      ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
       ...(kpiDateTo ? { date_to: kpiDateTo } : {}),
     };
@@ -4931,24 +4938,31 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (!cancelled) {
           setKpiValues(data);
           setHiddenKpiLevels(new Set());
+          setKpiDataIssue(data.size === 0 ? `No usable KPI values returned for ${mapKpi}${kpiVendor ? ` (${kpiVendor})` : ''} on ${kpiDateFrom} to ${kpiDateTo}.` : null);
           console.log(`[KPI] Loaded ${data.size} values for ${mapKpi} (cached or fresh)`);
         }
       })
-      .catch(err => { console.error('[KPI] Fetch failed:', err); if (!cancelled) setKpiValues(new Map()); })
+      .catch(err => {
+        console.error('[KPI] Fetch failed:', err);
+        if (!cancelled) {
+          setKpiValues(new Map());
+          setKpiDataIssue(`KPI values fetch failed for ${mapKpi}: ${err?.message || 'unknown error'}`);
+        }
+      })
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
+  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
     // 1. Check fetched KPI values by cell_name
     const cellName = cell.cell_id || cell.cell_name || '';
-    const fromKpi = kpiValues.get(cellName);
+    const fromKpi = kpiValues.get(cellName) ?? kpiValues.get(String(cellName).toUpperCase());
     if (fromKpi != null) return fromKpi;
 
     // 2. Check site-level aggregation
     const siteName = cell.site_name || cell.site_id || '';
-    const fromSite = kpiValues.get(`site:${siteName}`);
+    const fromSite = kpiValues.get(`site:${siteName}`) ?? kpiValues.get(`site:${String(siteName).toUpperCase()}`);
     if (fromSite != null) return fromSite;
 
     // 3. Check if the cell object has the KPI directly (from QoE data)
@@ -9341,6 +9355,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <input type="date" value={kpiDateTo} onChange={e => setKpiDateTo(e.target.value)}
                     className="flex-1 px-1.5 py-1 text-[10px] rounded-lg border border-border/40 bg-background text-foreground" />
                 </div>
+                {kpiDataIssue && (
+                  <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[10px] font-semibold leading-snug text-amber-700 dark:text-amber-300">
+                    {kpiDataIssue}
+                  </div>
+                )}
             </div>
 
             {/* Gradient bar visualization */}

@@ -1399,21 +1399,31 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
 
 function buildKpiValueMap(data: any[]): Map<string, number> {
   const valueMap = new Map<string, number>();
+  const setValue = (prefix: string, key: unknown, value: unknown) => {
+    if (key == null || value == null) return;
+    const normalized = String(key).trim();
+    if (!normalized) return;
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    valueMap.set(`${prefix}${normalized}`, numeric);
+    valueMap.set(`${prefix}${normalized.toUpperCase()}`, numeric);
+  };
   for (const row of data) {
-    if (row.cell_name && row.value != null) {
-      valueMap.set(row.cell_name, row.value);
-    }
+    setValue('', row.cell_name || row.cell_id || row.nom_cellule, row.value);
     if (row.site_name && row.value != null) {
-      const siteKey = `site:${row.site_name}`;
+      const siteName = String(row.site_name).trim();
+      const siteKey = `site:${siteName}`;
       const existing = valueMap.get(siteKey);
       if (existing != null) {
-        const countKey = `count:${row.site_name}`;
+        const countKey = `count:${siteName}`;
         const count = (valueMap.get(countKey) || 1) + 1;
         valueMap.set(countKey, count);
-        valueMap.set(siteKey, (existing * (count - 1) + row.value) / count);
+        valueMap.set(siteKey, (existing * (count - 1) + Number(row.value)) / count);
+        valueMap.set(`site:${siteName.toUpperCase()}`, valueMap.get(siteKey)!);
       } else {
-        valueMap.set(siteKey, row.value);
-        valueMap.set(`count:${row.site_name}`, 1);
+        valueMap.set(siteKey, Number(row.value));
+        valueMap.set(`site:${siteName.toUpperCase()}`, Number(row.value));
+        valueMap.set(`count:${siteName}`, 1);
       }
     }
   }
