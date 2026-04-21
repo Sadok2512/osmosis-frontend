@@ -421,9 +421,12 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       date_to: normalizeDate(eff.to),
       granularity,
       filters,
+      // NOTE: `axis` is purely a rendering choice (left/right Y-axis) and is
+      // intentionally NOT sent to the backend — including it would change the
+      // request payload (and thus the React-Query key) on every axis toggle,
+      // causing an unwanted refetch even though the underlying data is identical.
       selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
         kpi_key: m.kpiKey,
-        axis: m.axis,
       })),
       split_by: null,
       top_n: 10,
