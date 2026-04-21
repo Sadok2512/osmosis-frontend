@@ -619,10 +619,11 @@ export default function EditorView({
             );
           }
 
-          // STAT (KPI Card) uses its own Chart-style settings panel.
+          // STAT (KPI Card) reuses the Chart settings panel for full Data Source parity
+          // (KPI METRICS / TIME & FILTERS, Add Counter / Add KPI, Split, Top N, Appearance, Jalons).
           if (w.kind === 'stat') {
             return (
-              <StatSettingsPanel
+              <ChartSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}
