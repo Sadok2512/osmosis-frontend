@@ -278,6 +278,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 counterCatalog={counterCatalog}
                 dimensionOptions={dimensionOptions}
                 filtersLoading={filtersLoading}
+                onApply={() => commitAppliedConfig(false)}
               />
             )}
             {tab === 'appearance' && (
@@ -309,7 +310,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 function DataSourceTab({
   config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
-  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -326,6 +327,7 @@ function DataSourceTab({
   counterCatalog: any[];
   dimensionOptions: string[];
   filtersLoading: boolean;
+  onApply: () => void;
 }) {
   const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
   return (
@@ -379,6 +381,7 @@ function DataSourceTab({
           onTitleChange={onTitleChange}
           dimensionOptions={dimensionOptions}
           filtersLoading={filtersLoading}
+          onApply={onApply}
         />
       )}
     </div>
@@ -388,7 +391,7 @@ function DataSourceTab({
 /* ---------------- Sub-section: Time & Filters ---------------- */
 
 function DataTab({
-  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading,
+  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -396,6 +399,7 @@ function DataTab({
   onTitleChange: (t: string) => void;
   dimensionOptions: string[];
   filtersLoading: boolean;
+  onApply: () => void;
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
@@ -439,6 +443,7 @@ function DataTab({
               patchData={patchData}
               dimensionOptions={dimensionOptions}
               filtersLoading={filtersLoading}
+              onApply={onApply}
             />
           </div>
         )}
@@ -586,12 +591,13 @@ function formatDateDisplay(iso: string): { date: string; time: string } {
 }
 
 function TimeFiltersToolbar({
-  data, patchData, dimensionOptions, filtersLoading,
+  data, patchData, dimensionOptions, filtersLoading, onApply,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   dimensionOptions: string[];
   filtersLoading: boolean;
+  onApply: () => void;
 }) {
   const technos = data.technos ?? [];
   const filters = data.filters ?? [];
@@ -771,6 +777,7 @@ function TimeFiltersToolbar({
         <div className="ml-auto">
           <button
             type="button"
+            onClick={onApply}
             className="h-9 px-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all"
           >
             Appliquer
