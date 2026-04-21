@@ -205,6 +205,9 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
         <div className="flex gap-2 items-center">
+          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
+            Widget scope
+          </span>
           <button
             onClick={resetSettings}
             className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
@@ -214,13 +217,14 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           <button
             onClick={() => commitAppliedConfig(false)}
             className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
-            title="Re-render the chart with current settings"
+            title="Apply changes only to this selected widget (does not refresh the dashboard)"
           >
-            Appliquer
+            Apply to Widget
           </button>
           <button
             onClick={() => commitAppliedConfig(true)}
             className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
+            title="Save and apply changes to this widget"
           >
             Save
           </button>
