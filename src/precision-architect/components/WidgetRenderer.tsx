@@ -362,32 +362,30 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
  *      (project rule: apply-only-backend-execution).
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
-  // Strict apply-only contract: render ONLY the snapshot saved at the last
-  // "Appliquer" click on THIS widget. Live edits to w.config must NOT trigger refetches.
+  // Apply contract: use appliedConfig if widget was individually applied,
+  // OR use live config when global "Apply to Dashboard" was clicked (so ALL
+  // widgets with KPIs configured respond to the global button).
+  const globalStore = usePAGlobalToolbar();
   const widgetAppliedRev = w.appliedRev ?? 0;
   const cfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
     ? (w.appliedConfig ?? w.config)
-    : undefined;
+    : globalStore.appliedRev > 0
+      ? (w.config as ChartWidgetConfig | undefined)
+      : undefined;
   const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
-
-  // Global report-level toolbar (top of editor) — inherited by default.
-  const global = usePAGlobalToolbar();
+  const global = globalStore;
 
   // Resolve effective time/filter source: global if widget inherits, else per-widget config.
   const inheritsTime = cfg?.data.timeRange?.inherit !== false; // default true
   const inheritsScope = cfg?.data.inheritFromDashboard !== false; // default true
 
-  // CRITICAL: A widget NEVER fires a backend request unless its own Apply has
-  // been clicked at least once (widgetAppliedRev > 0). The global Apply only
-  // refreshes widgets that have already been applied individually — it must
-  // never trigger a first-time fetch on a brand-new widget.
-  // We SUM widget + global revs (instead of max) so that EVERY click on
-  // "Apply to Dashboard" produces a new _rev and forces a refetch on inheriting
-  // widgets, even if the widget's own rev is already higher than global's.
-  const effectiveAppliedRev = widgetAppliedRev > 0 && (inheritsTime || inheritsScope)
+  // Effective apply rev: respond to BOTH widget-level and global-level Apply clicks.
+  // Global Apply triggers ALL widgets that have KPIs configured (even if never individually applied).
+  const hasAnyApply = widgetAppliedRev > 0 || global.appliedRev > 0;
+  const effectiveAppliedRev = (inheritsTime || inheritsScope)
     ? widgetAppliedRev + global.appliedRev
     : widgetAppliedRev;
-  const hasBeenApplied = widgetAppliedRev > 0;
+  const hasBeenApplied = hasAnyApply;
 
   // Debug: trace gating decisions
   useEffect(() => {
