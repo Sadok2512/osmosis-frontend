@@ -1392,13 +1392,18 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
     date_to: filters?.date_to || params.get('date_to') || '',
     granularity: '1d',
   };
+  // Backend expects scalar strings (not arrays) for these filters — sending arrays triggers 422
   if (filters?.vendor) computeBody.vendor = filters.vendor;
-  if (filters?.plaque) computeBody.plaque = [filters.plaque];
-  if (filters?.dor) computeBody.dor = [filters.dor];
+  if (filters?.plaque) computeBody.plaque = filters.plaque;
+  if (filters?.dor) computeBody.dor = filters.dor;
   if (filters?.bcluster) computeBody.bcluster = filters.bcluster;
-  if (filters?.band) computeBody.band = [filters.band];
-  if (filters?.techno) computeBody.technology = [filters.techno];
-  if (filters?.site_name) computeBody.site_name = filters.site_name.split(',');
+  if (filters?.band) computeBody.band = filters.band;
+  if (filters?.techno) computeBody.technology = filters.techno;
+  if (filters?.site_name) {
+    // site_name accepts a single value at the API level — pick the first if multiple
+    const firstSite = filters.site_name.split(',')[0]?.trim();
+    if (firstSite) computeBody.site_name = firstSite;
+  }
 
   const computeUrl = getVpsProxyUrl('parser', '/api/v1/pm/kpi/compute');
   const resp = await fetch(computeUrl, {
