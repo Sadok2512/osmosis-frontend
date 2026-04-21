@@ -25,10 +25,17 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
   const sections = activePage?.sections ?? [];
-
-  const focusSection = (id: string) => {
-    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const theme = activePage?.theme;
+  const pageBg = theme?.backgroundColor || (theme?.background === 'dark' ? '#0f172a' : theme?.background === 'gradient' ? '#1a1a2e' : undefined);
+  const cardBg = theme?.cardColor || '#ffffff';
+  const titleColor = theme?.titleColor || theme?.accentColor;
+  const textColor = theme?.textColor;
+  const radius = theme?.borderRadius ?? 16;
+  const spacing = theme?.spacing ?? 16;
+  const padding = theme?.pagePadding ?? 32;
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
+  const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
   const layout = useMemo(() => widgets.map(w => ({
     i: w.id,
@@ -40,8 +47,8 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   })), [widgets]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface">
-      <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/10">
+    <div className="h-screen flex flex-col bg-surface text-on-surface overflow-hidden">
+      <header className="bg-white/80 backdrop-blur-xl flex-shrink-0 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/10">
         <div className="flex items-center gap-6">
           <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
           <div className="h-6 w-px bg-outline-variant/30" />
