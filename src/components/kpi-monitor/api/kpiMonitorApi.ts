@@ -423,6 +423,22 @@ function _toastBackendError(scope: string, err: unknown) {
   } catch { /* noop */ }
 }
 
+/** Transient ClickHouse errors that should be retried with backoff. */
+const TRANSIENT_BACKEND_ERRORS = [
+  'Simultaneous queries on single connection detected',
+  'Unexpected EOF while reading bytes',
+  'connection reset',
+  'BOOT_ERROR',
+];
+
+function isTransientBackendError(msg: unknown): boolean {
+  if (!msg || typeof msg !== 'string') return false;
+  return TRANSIENT_BACKEND_ERRORS.some((needle) => msg.includes(needle));
+}
+
+/** Sleep helper used to add jitter between retries. */
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) | null) {
   // Stable key: serialize the request so identical payloads don't refetch
   // on every render (e.g., after a widget resize / drag / unrelated state change).
@@ -432,24 +448,66 @@ export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) 
   return useQuery({
     queryKey: ['monitor', 'timeseries', key],
     queryFn: async () => {
-      try {
-        // Strip the cache-buster before sending to the backend.
-        const { _rev, ...payload } = req!;
-        return await fetchTimeseries(payload as TimeseriesRequest);
-      } catch (err) {
-        // Surface the real backend error in meta.error so widgets can
-        // distinguish "no data for this perimeter" from "backend failed".
-        console.warn('[useTimeseriesQuery] Backend error:', err);
-        _toastBackendError('timeseries', err);
-        return {
-          series: [],
-          meta: {
-            granularity_applied: req?.granularity || '1d',
-            total_series: 0,
-            error: (err as any)?.message || String(err),
-          },
-        } as unknown as TimeseriesResponse;
+      // Strip the cache-buster before sending to the backend.
+      const { _rev, ...payload } = req!;
+
+      // CRITICAL: ClickHouse can return 200 OK with `{series:[], error:'...'}`
+      // when widgets fire in parallel ("Simultaneous queries on single connection
+      // detected") or when the connection drops mid-stream ("Unexpected EOF").
+      // We treat those as transient and retry up to 3 times with backoff +
+      // jitter so that "Apply to Dashboard" actually populates every widget.
+      const MAX_ATTEMPTS = 3;
+      let lastResp: TimeseriesResponse | null = null;
+      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        try {
+          const resp = await fetchTimeseries(payload as TimeseriesRequest);
+          const respErr = (resp as any)?.error ?? (resp as any)?.meta?.error;
+          if (respErr && isTransientBackendError(respErr)) {
+            lastResp = resp;
+            // Backoff: 400ms, 1200ms, then give up. Jitter avoids waves.
+            const wait = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+            console.warn(`[useTimeseriesQuery] Transient backend error (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${respErr} — retrying in ${wait}ms`);
+            await sleep(wait);
+            continue;
+          }
+          // Normalize: copy top-level `error` into `meta.error` so widgets
+          // can render it consistently.
+          if (respErr && !(resp as any)?.meta?.error) {
+            (resp as any).meta = { ...(resp as any).meta, error: respErr };
+          }
+          return resp;
+        } catch (err) {
+          const msg = (err as any)?.message || String(err);
+          if (isTransientBackendError(msg) && attempt < MAX_ATTEMPTS - 1) {
+            const wait = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+            console.warn(`[useTimeseriesQuery] Transient throw (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${msg} — retrying in ${wait}ms`);
+            await sleep(wait);
+            continue;
+          }
+          // Surface the real backend error in meta.error so widgets can
+          // distinguish "no data for this perimeter" from "backend failed".
+          console.warn('[useTimeseriesQuery] Backend error:', err);
+          _toastBackendError('timeseries', err);
+          return {
+            series: [],
+            meta: {
+              granularity_applied: req?.granularity || '1d',
+              total_series: 0,
+              error: msg,
+            },
+          } as unknown as TimeseriesResponse;
+        }
       }
+      // All retries exhausted — return the last (errored) response so the
+      // widget can show a meaningful message instead of looking "empty".
+      return lastResp ?? ({
+        series: [],
+        meta: {
+          granularity_applied: req?.granularity || '1d',
+          total_series: 0,
+          error: 'Backend transient error after retries',
+        },
+      } as unknown as TimeseriesResponse);
     },
     enabled: !!req && req.selections.length > 0,
     staleTime: 5 * 60 * 1000,        // 5 min — avoid silent refetches
