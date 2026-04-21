@@ -25,10 +25,17 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
   const widgets = activePage?.widgets ?? [];
   const sections = activePage?.sections ?? [];
-
-  const focusSection = (id: string) => {
-    document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
+  const theme = activePage?.theme;
+  const pageBg = theme?.backgroundColor || (theme?.background === 'dark' ? '#0f172a' : theme?.background === 'gradient' ? '#1a1a2e' : undefined);
+  const cardBg = theme?.cardColor || '#ffffff';
+  const titleColor = theme?.titleColor || theme?.accentColor;
+  const textColor = theme?.textColor;
+  const radius = theme?.borderRadius ?? 16;
+  const spacing = theme?.spacing ?? 16;
+  const padding = theme?.pagePadding ?? 32;
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
+  const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
   const layout = useMemo(() => widgets.map(w => ({
     i: w.id,
@@ -40,8 +47,8 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   })), [widgets]);
 
   return (
-    <div className="min-h-screen bg-surface text-on-surface">
-      <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-50 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/10">
+    <div className="h-screen flex flex-col bg-surface text-on-surface overflow-hidden">
+      <header className="bg-white/80 backdrop-blur-xl flex-shrink-0 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/10">
         <div className="flex items-center gap-6">
           <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
           <div className="h-6 w-px bg-outline-variant/30" />
@@ -90,12 +97,26 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         </div>
       )}
 
-      <div className="w-full px-4 sm:px-6 lg:px-10 py-6 lg:py-8">
-        <main className="w-full min-w-0 space-y-6">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Live Report</p>
-            <h2 className="text-3xl sm:text-4xl font-black font-headline tracking-tighter">{activePage?.name ?? 'Overview'}</h2>
-          </div>
+      <div
+        className="flex-grow overflow-y-auto custom-scrollbar"
+        style={{ backgroundColor: pageBg, color: textColor, padding: `${padding}px` }}
+      >
+        <main className={cn('w-full min-w-0 mx-auto space-y-6', widthClass)}>
+          {showHeader ? (
+            <header className={cn('w-full', headerAlign)} style={{ color: textColor }}>
+              {theme?.pageTitle && (
+                <h1 className="text-3xl font-black font-headline" style={{ color: titleColor }}>{theme.pageTitle}</h1>
+              )}
+              {theme?.pageSubtitle && (
+                <p className="text-sm mt-2 opacity-80">{theme.pageSubtitle}</p>
+              )}
+            </header>
+          ) : (
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: titleColor }}>Live Report</p>
+              <h2 className="text-3xl sm:text-4xl font-black font-headline tracking-tighter" style={{ color: titleColor }}>{activePage?.name ?? 'Overview'}</h2>
+            </div>
+          )}
 
           {sections.length > 0 && (
             <div className="space-y-4">
@@ -107,8 +128,8 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
 
           {widgets.length === 0 && sections.length === 0 ? (
             <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
-              <h3 className="text-sm font-black uppercase tracking-widest text-on-surface mb-1">No content on this page</h3>
-              <p className="text-xs font-bold text-on-surface-variant">Switch to Edit mode to start building.</p>
+              <h3 className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: textColor }}>No content on this page</h3>
+              <p className="text-xs font-bold opacity-70" style={{ color: textColor }}>Switch to Edit mode to start building.</p>
             </div>
           ) : widgets.length > 0 && (
             <div className="pa-grid-view w-full">
@@ -117,13 +138,20 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
                 layout={layout}
                 cols={COLS}
                 rowHeight={ROW_HEIGHT}
-                margin={[16, 16]}
+                margin={[spacing, spacing]}
                 containerPadding={[0, 0]}
                 isDraggable={false}
                 isResizable={false}
               >
                 {widgets.map(w => (
-                  <div key={w.id} className="bg-white rounded-2xl shadow-sm border border-outline-variant/10 p-4 overflow-hidden">
+                  <div
+                    key={w.id}
+                    className={cn(
+                      'overflow-hidden p-4',
+                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                    )}
+                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+                  >
                     <WidgetRenderer widget={w} />
                   </div>
                 ))}
