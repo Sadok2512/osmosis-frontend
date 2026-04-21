@@ -406,6 +406,16 @@ export interface DashboardTheme {
   showLogo?: boolean;
   /** Show the report date in the page header. */
   showDate?: boolean;
+  /** Show the report name (title) in the page header (left side). */
+  showReportName?: boolean;
+  /** Report Info block displayed on the right side of the report header. */
+  reportInfo?: {
+    show: boolean;
+    perimeter: boolean;
+    date: boolean;
+    granularity: boolean;
+    filters: boolean;
+  };
 }
 
 export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
@@ -421,6 +431,14 @@ export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
   headerAlign: 'left',
   showLogo: true,
   showDate: true,
+  showReportName: true,
+  reportInfo: {
+    show: true,
+    perimeter: true,
+    date: true,
+    granularity: true,
+    filters: true,
+  },
 };
 
 export interface PAPage {
