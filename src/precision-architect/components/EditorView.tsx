@@ -169,6 +169,19 @@ export default function EditorView({
     document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const reorderSections = (fromId: string, toId: string) => {
+    if (fromId === toId) return;
+    updateSections(s => {
+      const list = [...s];
+      const fromIdx = list.findIndex(x => x.id === fromId);
+      const toIdx = list.findIndex(x => x.id === toId);
+      if (fromIdx === -1 || toIdx === -1) return s;
+      const [moved] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, moved);
+      return list;
+    });
+  };
+
   const addWidget = (kind: WidgetKind) => {
     const size = DEFAULT_SIZES[kind];
     const spot = findFreeSpot(widgets, size.w);
