@@ -188,7 +188,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   };
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
-  const widgetLabel = `CHART · ${widget.id.slice(0, 18)}`;
+  const widgetLabel = `CHART · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
   const resetSettings = () => {
     onChange({ config: { ...DEFAULT_CHART_CONFIG } });

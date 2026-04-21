@@ -95,7 +95,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-primary">Table Settings</span>
           <div className="h-4 w-px bg-outline-variant" />
-          <h4 className="font-headline font-bold text-on-surface text-sm">TABLE · {widget.id.slice(0, 18)}</h4>
+          <h4 className="font-headline font-bold text-on-surface text-sm">TABLE · {(widget.title && widget.title.trim()) || 'Untitled'}</h4>
         </div>
         <div className="flex gap-2 items-center">
           <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">Widget scope</span>

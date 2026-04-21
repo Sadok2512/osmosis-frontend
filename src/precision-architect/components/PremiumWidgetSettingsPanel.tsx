@@ -28,7 +28,7 @@ interface Props {
  */
 export default function PremiumWidgetSettingsPanel({ widget, onChange, onClose }: Props) {
   const kind = widget.kind;
-  const widgetLabel = `${kind.toUpperCase()} · ${widget.id.slice(0, 18)}`;
+  const widgetLabel = `${kind.toUpperCase()} · ${((widget as any).title && (widget as any).title.trim()) || 'Untitled'}`;
 
   return (
     <div className="h-[clamp(10rem,25vh,19rem)] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0 flex flex-col">
