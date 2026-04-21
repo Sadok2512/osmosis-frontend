@@ -347,6 +347,7 @@ async function executeReportApi(
       const data = await res.json();
       const batchResults: ReportResultRow[] = [];
       for (const kpiResult of (data?.results || [])) {
+        if (kpiResult.skipped) continue; // Vendor mismatch — skip silently
         if (kpiResult.error && (!kpiResult.series || kpiResult.series.length === 0)) {
           errors.push(`KPI ${kpiResult.kpi_code} (${vendor}): ${kpiResult.error}`);
           continue;
