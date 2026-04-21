@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight,
@@ -6,6 +6,7 @@ import {
   Map as MapIconLucide, Satellite,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
 import {
   DynWidget,
   MapWidgetConfig,
