@@ -11,7 +11,7 @@ export interface WidgetLayout {
 
 export type ChartGranularity = 'auto' | '5min' | '15min' | '1h' | '1d';
 export type ChartType = 'line' | 'area' | 'bar';
-export type LineStyle = 'solid' | 'dashed';
+export type LineStyle = 'solid' | 'dashed' | 'dotted';
 export type AxisSide = 'left' | 'right';
 export type LegendPosition = 'top' | 'bottom' | 'right';
 export type FillStyle = 'none' | 'gradient' | 'solid';
@@ -28,6 +28,12 @@ export interface ChartMetric {
   visible: boolean;
   /** Per-metric graph type override (line/area/bar). Falls back to global style.chartType when undefined. */
   graphType?: ChartType;
+  /** Per-metric line thickness in px (1-4). Defaults to 2. */
+  lineWidth?: number;
+  /** Per-metric smoothing for line/area series. */
+  smooth?: boolean;
+  /** Whether to fill the area under the line. */
+  fillArea?: boolean;
 }
 
 export interface ChartThreshold {
