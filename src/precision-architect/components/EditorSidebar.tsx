@@ -227,6 +227,39 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const toggle = (k: SectionKey) => setOpenSections((s) => ({ ...s, [k]: !s[k] }));
   const update = <K extends keyof DraftConfig>(k: K, v: DraftConfig[K]) => setDraft((c) => ({ ...c, [k]: v }));
 
+  /** Patch the active page's theme immediately (used for visibility toggles
+   *  so users see the header update without having to click "Apply"). */
+  const patchTheme = (patch: Partial<DashboardTheme>) => {
+    setPages((prev) =>
+      prev.map((p) =>
+        p.id === activePageId ? { ...p, theme: { ...DEFAULT_DASHBOARD_THEME, ...(p.theme ?? {}), ...patch } } : p,
+      ),
+    );
+  };
+
+  /** Update a draft field AND immediately push it to the active page theme. */
+  const updateLive = <K extends keyof DraftConfig>(k: K, v: DraftConfig[K], themePatch: Partial<DashboardTheme>) => {
+    update(k, v);
+    patchTheme(themePatch);
+  };
+
+  /** Update a Report Info sub-field with live propagation. */
+  const updateReportInfo = (
+    k: 'reportInfoShow' | 'reportInfoPerimeter' | 'reportInfoDate' | 'reportInfoGranularity' | 'reportInfoFilters',
+    v: boolean,
+  ) => {
+    update(k, v);
+    const currentRi = activeTheme.reportInfo ?? DEFAULT_DASHBOARD_THEME.reportInfo!;
+    const map: Record<typeof k, keyof NonNullable<DashboardTheme['reportInfo']>> = {
+      reportInfoShow: 'show',
+      reportInfoPerimeter: 'perimeter',
+      reportInfoDate: 'date',
+      reportInfoGranularity: 'granularity',
+      reportInfoFilters: 'filters',
+    };
+    patchTheme({ reportInfo: { ...currentRi, [map[k]]: v } });
+  };
+
   const buildTheme = (d: DraftConfig): DashboardTheme => {
     const { background, bgColor } = presetToBackground(d.themePreset, d.backgroundColor);
     return {
