@@ -185,10 +185,14 @@ export default function EditorView({
 
   const addWidget = (kind: WidgetKind) => {
     const size = DEFAULT_SIZES[kind];
-    const spot = findFreeSpot(widgets, size.w);
+    // Determine target group: active section (if any) or unassigned (top grid).
+    const targetSectionId = activeSectionId ?? undefined;
+    const targetGroup = widgets.filter(w => (w.sectionId ?? undefined) === targetSectionId);
+    const spot = findFreeSpot(targetGroup, size.w);
     const newWidget: DynWidget = {
       id: `${kind}-${Date.now()}`,
       kind,
+      sectionId: targetSectionId,
       layout: { x: spot.x, y: spot.y, w: size.w, h: size.h },
     };
     if (kind === 'hero') newWidget.heroConfig = { ...DEFAULT_HERO_CONFIG };
@@ -201,6 +205,12 @@ export default function EditorView({
     updateWidgets(w => [...w, newWidget]);
     if (kind === 'hero' || kind === 'stat' || kind === 'divider' || kind === 'map') {
       setActiveWidget(newWidget.id);
+    }
+    // Scroll to the section the widget was added into so the user sees it land in place.
+    if (targetSectionId) {
+      setTimeout(() => {
+        document.getElementById(`section-${targetSectionId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 120);
     }
   };
   const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
@@ -220,7 +230,22 @@ export default function EditorView({
     }
   };
 
-  const layout = useMemo(() => widgets.map(w => ({
+  // Group widgets: unassigned (top grid) + per-section (rendered with each section).
+  const unassignedWidgets = useMemo(
+    () => widgets.filter(w => !w.sectionId),
+    [widgets]
+  );
+  const widgetsBySection = useMemo(() => {
+    const map = new Map<string, DynWidget[]>();
+    for (const w of widgets) {
+      if (!w.sectionId) continue;
+      if (!map.has(w.sectionId)) map.set(w.sectionId, []);
+      map.get(w.sectionId)!.push(w);
+    }
+    return map;
+  }, [widgets]);
+
+  const buildLayout = (group: DynWidget[]) => group.map(w => ({
     i: w.id,
     x: w.layout.x,
     y: w.layout.y,
@@ -228,7 +253,9 @@ export default function EditorView({
     h: w.layout.h,
     minW: 2,
     minH: 2,
-  })), [widgets]);
+  }));
+
+  const layout = useMemo(() => buildLayout(unassignedWidgets), [unassignedWidgets]);
 
   const handleLayoutChange = (next: Array<{ i: string; x: number; y: number; w: number; h: number }>) => {
     updateWidgets(prev => prev.map(w => {
