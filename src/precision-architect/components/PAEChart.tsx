@@ -201,14 +201,14 @@ const PAEChart: React.FC<PAEChartProps> = ({
       padding: [2, 4, 2, 4] as [number, number, number, number],
     };
 
-    const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible && m.axis === 'right');
+    const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible !== false && m.axis === 'right');
     return {
       backgroundColor: bgColor,
       grid: {
         top: legendPos === 'top' && showLegend ? legendBlockSize + 16 : (isPresentation ? 28 : 20),
-        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 48 : 12),
+        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 56 : 16),
         bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 12 : 32,
-        left: 8,
+        left: 4,
         containLabel: true,
       },
       legend,
