@@ -919,7 +919,7 @@ const RanQueryModule: React.FC = () => {
   const totalPages = selectedReport ? Math.max(1, Math.ceil(selectedReport.results.length / PAGE_SIZE)) : 1;
 
   // Pivot: Site (rows) × Technology (columns), SUM of Value
-  const pivotData = useMemo(() => {
+  const sitePivotData = useMemo(() => {
     if (!selectedReport || selectedReport.results.length === 0) {
       return { rows: [] as { site: string; values: Record<string, number>; total: number }[], techs: [] as string[], colTotals: {} as Record<string, number>, grandTotal: 0 };
     }
@@ -2071,10 +2071,10 @@ const RanQueryModule: React.FC = () => {
                       </p>
                     </div>
                     <span className="text-[11px] text-muted-foreground">
-                      {pivotData.rows.length} site{pivotData.rows.length > 1 ? 's' : ''} × {pivotData.techs.length} techno{pivotData.techs.length > 1 ? 's' : ''}
+                      {sitePivotData.rows.length} site{sitePivotData.rows.length > 1 ? 's' : ''} × {sitePivotData.techs.length} techno{sitePivotData.techs.length > 1 ? 's' : ''}
                     </span>
                   </div>
-                  {pivotData.rows.length === 0 ? (
+                  {sitePivotData.rows.length === 0 ? (
                     <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">No data to pivot</div>
                   ) : (
                     <div className="overflow-auto rounded-xl border border-border/60 max-h-[60vh]">
@@ -2082,7 +2082,7 @@ const RanQueryModule: React.FC = () => {
                         <thead className="bg-muted/40 sticky top-0 z-10">
                           <tr>
                             <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">Site</th>
-                            {pivotData.techs.map(t => (
+                            {sitePivotData.techs.map(t => (
                               <th key={t} className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-l border-border/60">
                                 <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
                               </th>
@@ -2091,10 +2091,10 @@ const RanQueryModule: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border/50 bg-card">
-                          {pivotData.rows.map(r => (
+                          {sitePivotData.rows.map(r => (
                             <tr key={r.site} className="hover:bg-muted/30">
                               <td className="px-3 py-2 font-semibold text-foreground whitespace-nowrap">{r.site}</td>
-                              {pivotData.techs.map(t => {
+                              {sitePivotData.techs.map(t => {
                                 const v = r.values[t];
                                 return (
                                   <td key={t} className="px-3 py-2 text-right font-mono text-xs border-l border-border/40">
@@ -2109,10 +2109,10 @@ const RanQueryModule: React.FC = () => {
                         <tfoot className="bg-muted/50 sticky bottom-0">
                           <tr>
                             <td className="px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-foreground border-t border-border/60">Total</td>
-                            {pivotData.techs.map(t => (
-                              <td key={t} className="px-3 py-2 text-right font-mono text-xs font-bold text-foreground border-t border-l border-border/60">{(pivotData.colTotals[t] ?? 0).toFixed(2)}</td>
+                            {sitePivotData.techs.map(t => (
+                              <td key={t} className="px-3 py-2 text-right font-mono text-xs font-bold text-foreground border-t border-l border-border/60">{(sitePivotData.colTotals[t] ?? 0).toFixed(2)}</td>
                             ))}
-                            <td className="px-3 py-2 text-right font-mono text-xs font-black text-primary border-t border-l border-border/60 bg-muted/70">{pivotData.grandTotal.toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right font-mono text-xs font-black text-primary border-t border-l border-border/60 bg-muted/70">{sitePivotData.grandTotal.toFixed(2)}</td>
                           </tr>
                         </tfoot>
                       </table>
