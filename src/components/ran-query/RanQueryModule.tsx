@@ -84,7 +84,7 @@ interface ReportResultRow {
   cell_name?: string;
 }
 
-type AggregationLevel = 'cell' | 'band' | 'site' | 'plaque' | 'bcluster';
+type AggregationLevel = string;
 
 interface RanReport {
   id: string;
@@ -105,7 +105,8 @@ interface RanReport {
   dors?: string[];
   sites?: string[];
   zoneArcep?: string[];
-  aggregation?: AggregationLevel;
+  aggregation?: AggregationLevel; // legacy single
+  aggregations?: string[];
   dimensions?: string[];
   cluster_id?: number;
   cluster_name?: string;
@@ -128,7 +129,7 @@ interface CreateFormState {
   dors: string[];
   sites: string[];
   zoneArcep: string[];
-  aggregation: AggregationLevel;
+  aggregations: string[];
   dimensions: string[];
   granularity: Granularity;
 }
@@ -137,12 +138,16 @@ const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
 const TECH_OPTIONS: Tech[] = ['2G', '3G', '4G', '5G'];
 const STATUS_OPTIONS: ReportStatus[] = ['Draft', 'Ready', 'Running', 'Completed', 'Failed'];
 const VENDOR_OPTIONS = ['Ericsson', 'Nokia', 'Huawei', 'Samsung', 'Alcatel'];
-const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string; description: string }[] = [
-  { value: 'cell', label: 'Cell', description: 'Per-cell granularity (highest detail).' },
-  { value: 'band', label: 'Band', description: 'Aggregated by frequency band.' },
-  { value: 'site', label: 'Site', description: 'Per-site totals across all cells.' },
-  { value: 'plaque', label: 'Plaque', description: 'Aggregated by operational plaque.' },
-  { value: 'bcluster', label: 'BCluster', description: 'Aggregated by saved cluster scope.' },
+const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
+  { value: 'cell', label: 'Cell' },
+  { value: 'site', label: 'Site' },
+  { value: 'band', label: 'Band' },
+  { value: 'plaque', label: 'Plaque' },
+  { value: 'dor', label: 'DOR' },
+  { value: 'dr', label: 'DR' },
+  { value: 'region', label: 'Region (UPR)' },
+  { value: 'arcep', label: 'Zone ARCEP' },
+  { value: 'bcluster', label: 'BCluster' },
 ];
 const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
 
@@ -166,7 +171,7 @@ const DEFAULT_FORM = (): CreateFormState => {
     dors: [],
     sites: [],
     zoneArcep: [],
-    aggregation: 'cell',
+    aggregations: ['cell'],
     dimensions: [],
     granularity: '1h',
   };
@@ -307,7 +312,13 @@ function buildFilterPayload(report: RanReport) {
   if (report.sites && report.sites.length > 0) base.site_name = report.sites;
   if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
   if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
-  if (report.aggregation && report.aggregation !== 'cell') base.split_by_field = report.aggregation === 'site' ? 'site_name' : report.aggregation === 'band' ? 'band' : report.aggregation === 'plaque' ? 'plaque' : report.aggregation === 'bcluster' ? 'bcluster' : 'cell_name';
+  // Multi-aggregation: use first non-cell aggregation as split_by
+  const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const primaryAgg = aggList.find(a => a !== 'cell') || null;
+  if (primaryAgg) {
+    const aggMap: Record<string, string> = { site: 'site_name', band: 'band', plaque: 'plaque', bcluster: 'bcluster', dor: 'dor', dr: 'dor', region: 'region', arcep: 'zone_arcep' };
+    base.split_by_field = aggMap[primaryAgg] || primaryAgg;
+  }
   if (report.dimensions && report.dimensions.length > 0) base.dimensions = report.dimensions;
   if (report.cluster_id) base.cluster_id = report.cluster_id;
   return { vendors, base };
@@ -584,6 +595,7 @@ const RanQueryModule: React.FC = () => {
   const [topoError, setTopoError] = useState<string | null>(null);
   const [dimensionOpts, setDimensionOpts] = useState<string[]>(DEFAULT_DIMENSIONS);
   const [dimensionLoading, setDimensionLoading] = useState(true);
+  const [aggregationOptions, setAggregationOptions] = useState(FALLBACK_AGGREGATION_OPTIONS);
 
   // Site search (live debounced)
   const [siteSearch, setSiteSearch] = useState('');
@@ -680,6 +692,22 @@ const RanQueryModule: React.FC = () => {
       })
       .catch(() => setDimensionOpts(DEFAULT_DIMENSIONS))
       .finally(() => setDimensionLoading(false));
+  }, []);
+
+  // Load aggregation options from backend filter catalog
+  useEffect(() => {
+    fetch(getApiUrl('monitor/catalog/filters'), { headers: getApiHeaders() })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const items = Array.isArray(data) ? data : data.filters || data.data || [];
+        const agg = items
+          .filter((f: any) => f.is_aggregatable && f.is_active !== false)
+          .map((f: any) => ({ value: (f.dimension_key || '').toLowerCase(), label: f.display_name || f.dimension_key }));
+        // Always include BCluster
+        if (!agg.find((a: any) => a.value === 'bcluster')) agg.push({ value: 'bcluster', label: 'BCluster' });
+        if (agg.length > 0) setAggregationOptions(agg);
+      })
+      .catch(() => {});
   }, []);
 
   // Live site search (debounced) — narrowed by current Plaque / DOR selection
@@ -869,7 +897,7 @@ const RanQueryModule: React.FC = () => {
         dors: form.dors,
         sites: form.sites,
         zoneArcep: form.zoneArcep,
-        aggregation: form.aggregation,
+        aggregations: form.aggregations,
         dimensions: form.dimensions,
         cluster_id: selectedCluster ? Number(selectedCluster.cluster.id) : undefined,
         cluster_name: selectedCluster?.cluster.name,
@@ -933,7 +961,7 @@ const RanQueryModule: React.FC = () => {
       dors: r.dors ?? [],
       sites: r.sites ?? [],
       zoneArcep: r.zoneArcep ?? [],
-      aggregation: r.aggregation ?? 'cell',
+      aggregations: r.aggregations ?? (r.aggregation ? [r.aggregation] : ['cell']),
       dimensions: r.dimensions ?? [],
       granularity: r.timeConfig.granularity ?? '1h',
     });
@@ -1658,25 +1686,35 @@ const RanQueryModule: React.FC = () => {
             </SectionCard>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <SectionCard title="Aggregation" description="Choose how KPI / counter results are grouped in the report.">
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  {AGGREGATION_OPTIONS.map(opt => {
-                    const active = form.aggregation === opt.value;
+              <SectionCard title="Aggregation" description="Select one or more aggregation levels. Results will be split by the primary selection.">
+                <div className="flex flex-wrap gap-2">
+                  {aggregationOptions.map(opt => {
+                    const active = form.aggregations.includes(opt.value);
                     return (
                       <button
                         key={opt.value}
-                        onClick={() => updateForm('aggregation', opt.value)}
+                        onClick={() => {
+                          const next = active
+                            ? form.aggregations.filter(a => a !== opt.value)
+                            : [...form.aggregations, opt.value];
+                          updateForm('aggregations', next.length > 0 ? next : ['cell']);
+                        }}
                         className={cn(
-                          'flex flex-col items-start gap-1 rounded-2xl border px-4 py-3 text-left transition-all',
-                          active ? 'border-primary/40 bg-primary/8 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
+                          'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all',
+                          active ? 'border-primary/40 bg-primary/12 text-primary' : 'border-border/60 bg-background text-foreground hover:border-primary/25'
                         )}
                       >
-                        <span className="text-sm font-bold">{opt.label}</span>
-                        <span className={cn('text-[11px] leading-snug', active ? 'text-primary/80' : 'text-muted-foreground')}>{opt.description}</span>
+                        {active && <CheckCircle2 className="h-3 w-3" />}
+                        {opt.label}
                       </button>
                     );
                   })}
                 </div>
+                {form.aggregations.length > 1 && (
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    Primary split: <strong>{aggregationOptions.find(a => a.value === (form.aggregations.find(a => a !== 'cell') || form.aggregations[0]))?.label}</strong>
+                  </p>
+                )}
               </SectionCard>
 
               <SectionCard title="Dimension" description="Add complementary dimensions (Neighbors, PMQAP, Transport, …) to enrich the report.">
