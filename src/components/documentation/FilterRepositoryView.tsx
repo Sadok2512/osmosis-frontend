@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, Plus, Filter as FilterIcon,
-  MoreVertical, Eye, Pencil, Copy, Trash2, Star,
-  ChevronLeft, ChevronRight, BarChart3, Loader2, Globe, Lock,
-  Users, FolderOpen, CheckCircle2, Layers,
+  Search, Plus, Filter as FilterIcon, MoreVertical, Eye, Pencil, Copy,
+  Trash2, Star, ChevronLeft, ChevronRight, BarChart3, Loader2, Globe,
+  Lock, Users, FolderOpen, CheckCircle2, Network,
+  SlidersHorizontal, RotateCcw, ShieldCheck, Activity,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { NetworkFilter, FilterVisibility } from './filterTypes';
@@ -67,7 +67,6 @@ const FilterRepositoryView: React.FC = () => {
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
-  // Current user (for "Me" filter & private filtering). Pulled from existing filter list owners.
   const currentUser = useMemo(() => {
     try { return localStorage.getItem('osmosis_username') || 'system'; } catch { return 'system'; }
   }, []);
@@ -118,13 +117,30 @@ const FilterRepositoryView: React.FC = () => {
 
   useEffect(() => { setPage(1); }, [search, techFilter, vendorFilter, visibilityFilter, statusFilter, ownerFilter]);
 
-  // ── Stats ──
   const stats = useMemo(() => ({
     total: filters.length,
     public: filters.filter(f => f.visibility === 'public').length,
     private: filters.filter(f => f.visibility === 'private').length,
     active: filters.filter(f => f.status === 'active').length,
   }), [filters]);
+
+  const activeFilterCount = [
+    search.trim(),
+    techFilter !== 'All' ? techFilter : '',
+    vendorFilter !== 'All' ? vendorFilter : '',
+    visibilityFilter !== 'All' ? visibilityFilter : '',
+    statusFilter !== 'All' ? statusFilter : '',
+    ownerFilter !== 'All' ? ownerFilter : '',
+  ].filter(Boolean).length;
+
+  const resetFilters = () => {
+    setSearch('');
+    setTechFilter('All');
+    setVendorFilter('All');
+    setVisibilityFilter('All');
+    setStatusFilter('All');
+    setOwnerFilter('All');
+  };
 
   const handleCreate = async (data: any) => {
     try {
@@ -136,18 +152,17 @@ const FilterRepositoryView: React.FC = () => {
         parameters: data.parameters,
         logic: data.logic,
       });
-      // Persist visibility too if backend supports it
       if (created?.id && data.visibility) {
         try { await updateFilter(created.id, { visibility: data.visibility }); } catch {}
       }
       setShowCreate(false);
-      toast.success(`Cluster "${data.name}" créé`);
+      toast.success(`Cluster "${data.name}" cree`);
       if (data.topology?.length > 0) {
         countFilterMatching(created.id).catch(() => {});
       }
       loadFilters();
-    } catch (err) {
-      toast.error('Erreur lors de la création du cluster');
+    } catch {
+      toast.error('Erreur lors de la creation du cluster');
     }
   };
 
@@ -165,17 +180,17 @@ const FilterRepositoryView: React.FC = () => {
       });
       setEditFilter(null);
       setSelectedFilter(null);
-      toast.success(`Cluster "${data.name}" mis à jour`);
+      toast.success(`Cluster "${data.name}" mis a jour`);
       loadFilters();
-    } catch (err) {
-      toast.error('Erreur lors de la mise à jour');
+    } catch {
+      toast.error('Erreur lors de la mise a jour');
     }
   };
 
   const handleDuplicate = async (filter: NetworkFilter) => {
     try {
       await duplicateFilter(filter.id);
-      toast.success(`Cluster dupliqué`);
+      toast.success('Cluster duplique');
       setActionMenuId(null);
       loadFilters();
     } catch {
@@ -188,7 +203,7 @@ const FilterRepositoryView: React.FC = () => {
     try {
       await deleteFilter(filter.id);
       if (selectedFilter?.id === filter.id) setSelectedFilter(null);
-      toast.success(`Cluster supprimé`);
+      toast.success('Cluster supprime');
       setActionMenuId(null);
       loadFilters();
     } catch {
@@ -197,96 +212,119 @@ const FilterRepositoryView: React.FC = () => {
   };
 
   const fmtDate = (iso: string) => {
-    if (!iso) return '—';
+    if (!iso) return '-';
     const d = new Date(iso);
     return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gradient-to-br from-muted/20 to-background">
+    <div className="h-full flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.12),transparent_34%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted))/0.34)]">
+      <div className="shrink-0 px-6 pt-5 pb-4">
+        <div className="rounded-[28px] border border-border/50 bg-card/85 shadow-sm backdrop-blur-xl overflow-hidden">
+          <div className="px-5 py-5 border-b border-border/40 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-800 text-white">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-sky-100">
+                  <Network className="h-3.5 w-3.5" />
+                  Network References
+                </div>
+                <h2 className="mt-3 text-2xl font-black tracking-tight">Filters repository</h2>
+                <p className="mt-1 max-w-2xl text-sm text-slate-300">
+                  Create, audit and reuse topology filters for RAN scopes, dashboards and investigations.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-sky-400 px-4 py-2.5 text-xs font-black text-slate-950 shadow-lg shadow-sky-950/30 transition-all hover:-translate-y-0.5 hover:bg-sky-300"
+              >
+                <Plus className="h-4 w-4" /> Create filter
+              </button>
+            </div>
 
-      {/* ── STATS ROW ── */}
-      <div className="shrink-0 px-6 pt-5 pb-3 grid grid-cols-4 gap-3">
-        <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total Clusters" value={stats.total} accent="primary" />
-        <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} accent="emerald" />
-        <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} accent="amber" />
-        <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} accent="sky" />
-      </div>
+            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total filters" value={stats.total} accent="primary" />
+              <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} accent="emerald" />
+              <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} accent="amber" />
+              <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} accent="sky" />
+            </div>
+          </div>
 
-      {/* ── TOOLBAR ── */}
-      <div className="shrink-0 px-6 pb-3">
-        <div className="flex items-center gap-3 flex-wrap">
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all"
-          >
-            <Plus className="w-4 h-4" /> New Cluster
-          </button>
+          <div className="space-y-3 px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                <input
+                  type="text"
+                  placeholder="Search by name, owner, region or vendor"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="h-11 w-full rounded-2xl border border-border/60 bg-background/80 pl-10 pr-4 text-sm shadow-inner outline-none transition focus:border-sky-400/60 focus:ring-4 focus:ring-sky-500/10"
+                />
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-3 py-2 text-xs font-bold text-muted-foreground">
+                <SlidersHorizontal className="h-4 w-4" />
+                {filtered.length.toLocaleString('fr-FR')} shown
+                <span className="h-4 w-px bg-border" />
+                {activeFilterCount} active filters
+              </div>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={resetFilters}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-background px-3 py-2 text-xs font-bold text-foreground transition hover:bg-muted"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" /> Reset
+                </button>
+              )}
+            </div>
 
-          <div className="relative flex-1 min-w-[220px] max-w-md">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
-            <input
-              type="text"
-              placeholder="Search clusters by name, region, vendor…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-full border border-border/40 bg-card/80 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 backdrop-blur-sm"
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
+              <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
+              <ChipGroup
+                label="Visibility"
+                options={['All', 'public', 'private']}
+                value={visibilityFilter}
+                onChange={v => setVisibilityFilter(v as any)}
+                renderOption={o => o === 'public' ? 'Public' : o === 'private' ? 'Private' : 'All'}
+              />
+              <ChipGroup
+                label="Status"
+                options={['All', 'draft', 'active', 'archived']}
+                value={statusFilter}
+                onChange={v => setStatusFilter(v as any)}
+                renderOption={o => o === 'All' ? 'All' : o.charAt(0).toUpperCase() + o.slice(1)}
+              />
+              <ChipGroup label="Owner" options={['All', 'Me']} value={ownerFilter} onChange={v => setOwnerFilter(v as any)} />
+            </div>
           </div>
         </div>
-
-        {/* Filter chip row */}
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
-          <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
-          <ChipGroup
-            label="Visibility"
-            options={['All', 'public', 'private']}
-            value={visibilityFilter}
-            onChange={v => setVisibilityFilter(v as any)}
-            renderOption={o => o === 'public' ? '🟢 Public' : o === 'private' ? '🔒 Private' : 'All'}
-          />
-          <ChipGroup
-            label="Status"
-            options={['All', 'draft', 'active', 'archived']}
-            value={statusFilter}
-            onChange={v => setStatusFilter(v as any)}
-            renderOption={o => o === 'All' ? 'All' : o.charAt(0).toUpperCase() + o.slice(1)}
-          />
-          <ChipGroup
-            label="Owner"
-            options={['All', 'Me']}
-            value={ownerFilter}
-            onChange={v => setOwnerFilter(v as any)}
-          />
-        </div>
       </div>
 
-      {/* ── TABLE ── */}
-      <div className="flex-1 mx-6 mb-4 rounded-2xl bg-card/90 backdrop-blur-sm border border-border/20 shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-1 mx-6 mb-4 rounded-[24px] bg-card/95 backdrop-blur-sm border border-border/50 shadow-sm flex flex-col overflow-hidden">
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="w-6 h-6 animate-spin text-sky-500" />
+            <span className="text-xs font-semibold">Loading network filters...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-16">
-            <FilterIcon className="w-12 h-12 mb-3 opacity-20" />
-            <p className="text-base font-semibold">No clusters match your filters</p>
-            <p className="text-xs mt-1 opacity-60">Try adjusting filters, or create a new cluster</p>
-            <button onClick={() => setShowCreate(true)} className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
-              <Plus className="w-4 h-4" /> Create cluster
+            <div className="mb-4 rounded-3xl bg-muted/50 p-5">
+              <FilterIcon className="w-10 h-10 opacity-40" />
+            </div>
+            <p className="text-base font-bold text-foreground">No filters match this view</p>
+            <p className="text-xs mt-1 opacity-70">Adjust the search criteria or create a new reusable network filter.</p>
+            <button onClick={() => setShowCreate(true)} className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-slate-950 text-white text-xs font-bold hover:bg-slate-800 transition-colors">
+              <Plus className="w-4 h-4" /> Create filter
             </button>
           </div>
         ) : (
           <>
-            {/* Header */}
-            <div className="grid grid-cols-[2.4fr_1fr_0.7fr_1fr_1.1fr_0.9fr_0.9fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
-              {['NAME', 'SCOPE', 'TECH', 'VENDOR', 'VISIBILITY · STATUS', 'OWNER', 'UPDATED', ''].map(h => (
-                <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{h}</span>
+            <div className="grid grid-cols-[2.2fr_0.9fr_0.75fr_1fr_1.15fr_0.95fr_0.85fr_88px] px-5 py-3 border-b border-border/50 bg-muted/35">
+              {['Filter', 'Scope', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
+                <span key={h} className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground/70">{h}</span>
               ))}
             </div>
 
-            {/* Rows */}
             <div className="flex-1 overflow-y-auto divide-y divide-border/10">
               {paginated.map(filter => {
                 const techs = inferTech(filter);
@@ -299,32 +337,31 @@ const FilterRepositoryView: React.FC = () => {
                   <div
                     key={filter.id}
                     onClick={() => setSelectedFilter(filter)}
-                    className="grid grid-cols-[2.4fr_1fr_0.7fr_1fr_1.1fr_0.9fr_0.9fr_60px] px-5 py-3.5 items-center cursor-pointer group hover:bg-primary/[0.03] transition-colors"
+                    className="grid grid-cols-[2.2fr_0.9fr_0.75fr_1fr_1.15fr_0.95fr_0.85fr_88px] px-5 py-4 items-center cursor-pointer group hover:bg-sky-500/[0.04] transition-colors"
                   >
-                    {/* Name + description */}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <FolderOpen className="w-3.5 h-3.5 text-primary/60 shrink-0" />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white">
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
                         <span className="text-[13px] font-bold text-foreground truncate">{filter.name}</span>
                       </div>
                       {filter.description && (
-                        <p className="text-[11px] text-muted-foreground truncate mt-0.5 ml-5">{filter.description}</p>
+                        <p className="text-[11px] text-muted-foreground truncate mt-1 ml-10">{filter.description}</p>
                       )}
                     </div>
 
-                    {/* Scope */}
                     <div className="flex items-center gap-1.5">
-                      <Layers className="w-3 h-3 text-muted-foreground/50" />
+                      <Activity className="w-3.5 h-3.5 text-sky-500" />
                       {filter.matching_objects != null ? (
-                        <span className="text-xs font-bold text-primary tabular-nums">
+                        <span className="text-xs font-black text-foreground tabular-nums">
                           {filter.matching_objects.toLocaleString('fr-FR')} <span className="font-normal text-muted-foreground">cells</span>
                         </span>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+                        <span className="text-[10px] text-muted-foreground/50 italic">Not counted</span>
                       )}
                     </div>
 
-                    {/* Tech */}
                     <div className="flex items-center gap-1 flex-wrap">
                       {techs.map(t => {
                         const badge = TECH_BADGE[t];
@@ -338,7 +375,6 @@ const FilterRepositoryView: React.FC = () => {
                       })}
                     </div>
 
-                    {/* Vendor */}
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {vendorParts.map(v => (
@@ -348,7 +384,6 @@ const FilterRepositoryView: React.FC = () => {
                       <span className="text-[10px] text-muted-foreground truncate">{region}</span>
                     </div>
 
-                    {/* Visibility · Status */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         isPublic ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
@@ -365,7 +400,6 @@ const FilterRepositoryView: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Owner */}
                     <div className="flex items-center gap-1.5 min-w-0">
                       <div className="w-5 h-5 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
                         <Users className="w-3 h-3 text-muted-foreground" />
@@ -373,16 +407,22 @@ const FilterRepositoryView: React.FC = () => {
                       <span className="text-xs text-muted-foreground font-medium truncate">{filter.created_by}</span>
                     </div>
 
-                    {/* Updated */}
                     <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(filter.updated_at || filter.created_at)}</span>
 
-                    {/* Actions */}
-                    <div className="relative flex justify-end">
+                    <div className="relative flex justify-end gap-1">
+                      <button
+                        onClick={e => { e.stopPropagation(); setSelectedFilter(filter); }}
+                        className="p-1.5 rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground transition-all"
+                        title="Open"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === filter.id ? null : filter.id); }}
-                        className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted/60 transition-all"
+                        className="p-1.5 rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground transition-all"
+                        title="More actions"
                       >
-                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                        <MoreVertical className="w-4 h-4" />
                       </button>
 
                       {actionMenuId === filter.id && (
@@ -421,10 +461,9 @@ const FilterRepositoryView: React.FC = () => {
               })}
             </div>
 
-            {/* Pagination */}
             <div className="shrink-0 px-5 py-3 border-t border-border/20 flex items-center justify-between bg-muted/10">
               <span className="text-[11px] text-muted-foreground">
-                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}–{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} clusters
+                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}-{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} filters
               </span>
               <div className="flex items-center gap-1">
                 <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
@@ -432,10 +471,10 @@ const FilterRepositoryView: React.FC = () => {
                 </button>
                 {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map(p => (
                   <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                    page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
+                    page === p ? 'bg-slate-950 text-white shadow-sm' : 'text-muted-foreground hover:bg-muted'
                   }`}>{p}</button>
                 ))}
-                {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">…</span>}
+                {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">...</span>}
                 <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </button>
@@ -445,7 +484,6 @@ const FilterRepositoryView: React.FC = () => {
         )}
       </div>
 
-      {/* Drawer */}
       {selectedFilter && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/30 backdrop-blur-[2px]" onClick={() => setSelectedFilter(null)}>
           <div className="w-[420px] h-full bg-card shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
@@ -460,14 +498,11 @@ const FilterRepositoryView: React.FC = () => {
         </div>
       )}
 
-      {/* Modals */}
       {showCreate && <ClusterBuilderWizard onSubmit={handleCreate} onClose={() => setShowCreate(false)} />}
       {editFilter && <ClusterBuilderWizard onSubmit={handleEdit} onClose={() => setEditFilter(null)} initialData={editFilter} editMode />}
     </div>
   );
 };
-
-/* ── Sub-components ── */
 
 interface StatCardProps {
   icon: React.ReactNode;
@@ -475,22 +510,23 @@ interface StatCardProps {
   value: number;
   accent: 'primary' | 'emerald' | 'amber' | 'sky';
 }
+
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accent }) => {
   const accents = {
-    primary: 'bg-primary/10 text-primary',
-    emerald: 'bg-emerald-500/10 text-emerald-600',
-    amber: 'bg-amber-500/10 text-amber-600',
-    sky: 'bg-sky-500/10 text-sky-600',
+    primary: 'bg-white/10 text-sky-100 border-white/10',
+    emerald: 'bg-emerald-400/15 text-emerald-100 border-emerald-300/20',
+    amber: 'bg-amber-400/15 text-amber-100 border-amber-300/20',
+    sky: 'bg-sky-400/15 text-sky-100 border-sky-300/20',
   };
   return (
-    <div className="rounded-2xl bg-card/90 backdrop-blur-sm border border-border/20 p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className={`rounded-2xl border p-3 shadow-sm backdrop-blur-sm ${accents[accent]}`}>
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accents[accent]}`}>
+        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
           {icon}
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{label}</p>
-          <p className="text-2xl font-black text-foreground tabular-nums leading-tight">{value}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider opacity-80">{label}</p>
+          <p className="text-2xl font-black tabular-nums leading-tight">{value}</p>
         </div>
       </div>
     </div>
@@ -504,15 +540,16 @@ interface ChipGroupProps {
   onChange: (v: string) => void;
   renderOption?: (o: string) => string;
 }
+
 const ChipGroup: React.FC<ChipGroupProps> = ({ label, options, value, onChange, renderOption }) => (
-  <div className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-card/70 border border-border/30 backdrop-blur-sm">
-    <span className="text-[10px] font-bold uppercase text-muted-foreground/70 px-1">{label}:</span>
+  <div className="inline-flex items-center gap-1 rounded-2xl border border-border/50 bg-background/70 px-2 py-1 shadow-sm">
+    <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground/70 px-1">{label}</span>
     {options.map(o => (
       <button
         key={o}
         onClick={() => onChange(o)}
-        className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
-          value === o ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all ${
+          value === o ? 'bg-slate-950 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
         }`}
       >
         {renderOption ? renderOption(o) : (o === 'All' ? 'All' : o)}
@@ -528,6 +565,7 @@ interface ActionItemProps {
   disabled?: boolean;
   tone?: 'default' | 'destructive';
 }
+
 const ActionItem: React.FC<ActionItemProps> = ({ icon, label, onClick, disabled, tone = 'default' }) => (
   <button
     onClick={onClick}
