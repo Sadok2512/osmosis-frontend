@@ -376,6 +376,7 @@ export default function EditorView({
                     section={s}
                     editable
                     isActive={activeSectionId === s.id}
+                    isNew={newSectionId === s.id}
                     onChange={(patch) => updateSection(s.id, patch)}
                     onRemove={() => removeSection(s.id)}
                   />
