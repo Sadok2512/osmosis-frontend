@@ -346,7 +346,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   // "Appliquer" click on THIS widget. Live edits to w.config must NOT trigger refetches.
   const widgetAppliedRev = w.appliedRev ?? 0;
   const cfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
-    ? w.appliedConfig
+    ? (w.appliedConfig ?? w.config)
     : undefined;
   const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
 
@@ -365,6 +365,21 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     ? Math.max(widgetAppliedRev, global.appliedRev)
     : widgetAppliedRev;
   const hasBeenApplied = widgetAppliedRev > 0;
+
+  // Debug: trace gating decisions
+  useEffect(() => {
+    console.log('[PA Chart] gate', {
+      widgetId: w.id,
+      widgetAppliedRev,
+      globalAppliedRev: global.appliedRev,
+      effectiveAppliedRev,
+      hasMetrics,
+      hasBeenApplied,
+      hasAppliedConfig: !!w.appliedConfig,
+      cfgMetrics: cfg?.metrics?.length ?? 0,
+    });
+  }, [widgetAppliedRev, global.appliedRev, effectiveAppliedRev, hasMetrics, hasBeenApplied, cfg, w.id, w.appliedConfig]);
+
 
 
   const request: TimeseriesRequest | null = useMemo(() => {
