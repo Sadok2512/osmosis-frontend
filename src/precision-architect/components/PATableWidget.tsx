@@ -29,10 +29,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const global = usePAGlobalToolbar();
   const inheritsTime = cfg?.data.timeRange?.inherit !== false;
   const inheritsScope = cfg?.data.inheritFromDashboard !== false;
-  const effectiveAppliedRev = inheritsTime || inheritsScope
-    ? Math.max(w?.appliedRev ?? 0, global.appliedRev)
-    : (w?.appliedRev ?? 0);
-  const hasBeenApplied = effectiveAppliedRev > 0;
+  // SUM widget + global revs (instead of max) so that "Apply to Dashboard"
+  // always produces a fresh _rev and forces inheriting widgets to refetch,
+  // even when the widget's local rev is already higher than global's.
+  const widgetRev = w?.appliedRev ?? 0;
+  const effectiveAppliedRev = (inheritsTime || inheritsScope)
+    ? widgetRev + global.appliedRev
+    : widgetRev;
+  const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
 
   const request: TableRequest | null = useMemo(() => {
     if (!cfg || !hasColumns || !hasBeenApplied) return null;

@@ -362,8 +362,11 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   // been clicked at least once (widgetAppliedRev > 0). The global Apply only
   // refreshes widgets that have already been applied individually — it must
   // never trigger a first-time fetch on a brand-new widget.
+  // We SUM widget + global revs (instead of max) so that EVERY click on
+  // "Apply to Dashboard" produces a new _rev and forces a refetch on inheriting
+  // widgets, even if the widget's own rev is already higher than global's.
   const effectiveAppliedRev = widgetAppliedRev > 0 && (inheritsTime || inheritsScope)
-    ? Math.max(widgetAppliedRev, global.appliedRev)
+    ? widgetAppliedRev + global.appliedRev
     : widgetAppliedRev;
   const hasBeenApplied = widgetAppliedRev > 0;
 
