@@ -464,7 +464,7 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
 }
 
 
-/* ── Multi-select filter with search ── */
+/* ── Multi-select filter with inline button chips ── */
 function MapFilterMultiSelect({ values, selected, onToggle, label }: {
   values: string[];
   selected: string[];
@@ -472,66 +472,87 @@ function MapFilterMultiSelect({ values, selected, onToggle, label }: {
   label: string;
 }) {
   const [search, setSearch] = useState('');
-  const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const INITIAL_LIMIT = 24;
+
   const filtered = search
     ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
     : values;
+  const visible = showAll || search ? filtered : filtered.slice(0, INITIAL_LIMIT);
+  const hiddenCount = filtered.length - visible.length;
+
+  const allSelected = selected.length > 0 && selected.length === values.length;
 
   return (
-    <div>
-      {/* Selected chips */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-2">
-          {selected.map(val => (
-            <button key={val} onClick={() => onToggle(val)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-on-primary border border-primary">
-              {val} <X className="w-2.5 h-2.5" />
-            </button>
-          ))}
+    <div className="space-y-2">
+      {/* Search + bulk actions */}
+      {values.length > 8 && (
+        <div className="flex items-center gap-1.5">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={`Search ${label}...`}
+            className="flex-1 px-2 py-1 rounded-md border border-outline-variant/30 bg-white text-[11px] outline-none focus:ring-2 focus:ring-primary/20"
+          />
+          <button
+            onClick={() => {
+              if (allSelected) {
+                selected.forEach((v) => onToggle(v));
+              } else {
+                values.filter((v) => !selected.includes(v)).forEach((v) => onToggle(v));
+              }
+            }}
+            className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+          >
+            {allSelected ? 'Clear' : 'All'}
+          </button>
         </div>
       )}
-      {/* Toggle dropdown */}
-      <button onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-[11px] font-medium text-on-surface-variant hover:border-primary/40 transition-colors">
-        <Filter className="w-3 h-3" />
-        <span>{selected.length > 0 ? `${selected.length} selected` : `Select ${label}...`}</span>
-        <ChevronDown className={cn("w-3 h-3 ml-auto transition-transform", expanded && "rotate-180")} />
-      </button>
-      {/* Dropdown */}
-      {expanded && (
-        <div className="mt-1 border border-outline-variant/30 rounded-lg bg-white shadow-lg overflow-hidden">
-          <div className="p-2 border-b border-outline-variant/20">
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search..." autoFocus
-              className="w-full px-3 py-1.5 rounded-md border border-outline-variant/30 bg-surface-container-low text-xs outline-none focus:ring-2 focus:ring-primary/20" />
-          </div>
-          <div className="max-h-[200px] overflow-y-auto">
-            {filtered.length === 0 && (
-              <p className="px-3 py-4 text-[10px] text-on-surface-variant text-center">No match</p>
-            )}
-            {filtered.map(val => {
-              const active = selected.includes(val);
-              return (
-                <button key={val} onClick={() => onToggle(val)}
-                  className={cn(
-                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px] transition-colors",
-                    active ? "bg-primary/10 text-primary font-bold" : "text-on-surface hover:bg-surface-container-low"
-                  )}>
-                  <span className={cn(
-                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
-                    active ? "border-primary bg-primary text-white" : "border-outline-variant/40 bg-white"
-                  )}>
-                    {active && <span className="text-[8px] font-black">✓</span>}
-                  </span>
-                  <span className="truncate">{val}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center justify-between px-3 py-1.5 border-t border-outline-variant/20 bg-surface-container-low/50">
-            <span className="text-[9px] text-on-surface-variant">{filtered.length} values</span>
-            <button onClick={() => setExpanded(false)} className="text-[10px] font-bold text-primary">Done</button>
-          </div>
+
+      {/* Inline button chips */}
+      <div className="flex flex-wrap gap-1.5">
+        {visible.length === 0 && (
+          <p className="text-[10px] text-on-surface-variant/60 italic py-1">No match</p>
+        )}
+        {visible.map((val) => {
+          const active = selected.includes(val);
+          return (
+            <button
+              key={val}
+              onClick={() => onToggle(val)}
+              className={cn(
+                'px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
+                active
+                  ? 'bg-primary text-on-primary border-primary shadow-sm'
+                  : 'bg-white text-on-surface border-outline-variant/40 hover:border-primary/50 hover:text-primary'
+              )}
+            >
+              {val}
+            </button>
+          );
+        })}
+        {hiddenCount > 0 && (
+          <button
+            onClick={() => setShowAll(true)}
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-dashed border-primary/40 text-primary hover:bg-primary/5 transition-colors"
+          >
+            +{hiddenCount} more
+          </button>
+        )}
+        {showAll && filtered.length > INITIAL_LIMIT && !search && (
+          <button
+            onClick={() => setShowAll(false)}
+            className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-dashed border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low transition-colors"
+          >
+            Show less
+          </button>
+        )}
+      </div>
+
+      {/* Footer count */}
+      {selected.length > 0 && (
+        <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/70">
+          {selected.length} / {values.length} selected
         </div>
       )}
     </div>
