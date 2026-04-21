@@ -75,7 +75,7 @@ const SHADOW_CLASS: Record<NonNullable<PASection['shadow']>, string> = {
  * size, color, alignment, weight, list, layout). In view mode the
  * formatting is applied but the toolbar is hidden.
  */
-export default function SectionBlock({ section, editable, isActive, isNew, onChange, onRemove }: Props) {
+export default function SectionBlock({ section, editable, isActive, isNew, onChange, onRemove, onDragStart, onDragOver, onDrop, onDragEnd, isDragging, isDragOver }: Props) {
   const [openPanel, setOpenPanel] = useState<null | 'style' | 'font' | 'color' | 'bg' | 'layout'>(null);
 
   const fontFamily = section.fontFamily ?? 'sans';
