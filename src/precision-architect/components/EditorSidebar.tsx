@@ -119,14 +119,35 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <div className="flex items-center gap-2">
-        <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent" />
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-outline-variant/30 bg-surface-container-low focus:outline-none focus:border-primary" />
-      </div>
-      <ColorSwatchPalette value={value} onChange={onChange} />
+    <div className="border border-outline-variant/15 rounded-lg overflow-hidden bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-2 px-2.5 py-2 hover:bg-surface-container-low transition-colors"
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <span
+            className="w-5 h-5 rounded-md border border-outline-variant/40 shrink-0"
+            style={{ backgroundColor: value || 'transparent' }}
+          />
+          <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant truncate">{label}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-mono text-on-surface-variant/70">{value}</span>
+          {open ? <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant" /> : <ChevronRight className="w-3.5 h-3.5 text-on-surface-variant" />}
+        </div>
+      </button>
+      {open && (
+        <div className="px-2.5 pb-2.5 pt-1 border-t border-outline-variant/10 space-y-2">
+          <div className="flex items-center gap-2">
+            <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent" />
+            <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 px-3 py-2 text-xs font-mono rounded-lg border border-outline-variant/30 bg-surface-container-low focus:outline-none focus:border-primary" />
+          </div>
+          <ColorSwatchPalette value={value} onChange={onChange} />
+        </div>
+      )}
     </div>
   );
 }
