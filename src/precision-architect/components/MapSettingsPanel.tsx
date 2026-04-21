@@ -35,11 +35,13 @@ const FILTER_DIMENSIONS: { key: string; label: string; sample: string[] }[] = [
   { key: 'CELL', label: 'Cell', sample: [] },
 ];
 
+type MapTab = 'data' | 'display' | 'appearance';
+
 export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   const cfg: MapWidgetConfig = widget.mapConfig ?? DEFAULT_MAP_CONFIG;
   const widgetLabel = `MAP · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
-  const [openSections, setOpenSections] = useState({ data: true, display: true, appearance: true });
+  const [tab, setTab] = useState<MapTab>('data');
   // Re-render whenever the shared sites cache fills/changes so dynamic filter chips appear.
   const [, setCacheTick] = useState(0);
   useEffect(() => subscribeMapSitesCache(() => setCacheTick((t) => t + 1)), []);
