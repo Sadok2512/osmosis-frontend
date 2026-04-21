@@ -702,6 +702,49 @@ const RanQueryModule: React.FC = () => {
   const selectedKpiKeys = useMemo(() => form.selectedKpis.filter(k => kpiKeySet.has(k)), [form.selectedKpis, kpiKeySet]);
   const counterKeySet = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
   const selectedCounterKeys = useMemo(() => form.selectedKpis.filter(k => counterKeySet.has(k)), [form.selectedKpis, counterKeySet]);
+  const selectedMetricRows = useMemo(() => {
+    const normalizeValues = (values: Array<string | undefined | null>, fallback: string[]) => {
+      const parsed = values
+        .flatMap(value => String(value || '').split(/[\/,]/))
+        .map(value => value.trim())
+        .filter(Boolean);
+      return Array.from(new Set(parsed.length > 0 ? parsed : fallback));
+    };
+    const kpiByKey = new Map(kpiCatalog.map(kpi => [kpi.kpi_key, kpi]));
+    const counterByName = new Map(counterCatalog.map((counter: any) => [counter.counter_name, counter]));
+    return form.selectedKpis.map(key => {
+      const kpi = kpiByKey.get(key);
+      if (kpi) {
+        return {
+          key,
+          label: kpi.display_name && kpi.display_name !== key ? kpi.display_name : key,
+          secondary: kpi.display_name && kpi.display_name !== key ? key : kpi.category || '',
+          type: 'KPI' as const,
+          vendors: normalizeValues([kpi.vendor], form.vendors),
+          technos: normalizeValues([kpi.techno || (kpi.techno_scope === 'both' ? '' : kpi.techno_scope)], form.technologies),
+        };
+      }
+      const counter = counterByName.get(key);
+      if (counter) {
+        return {
+          key,
+          label: counter.display_name && counter.display_name !== key ? counter.display_name : key,
+          secondary: counter.display_name && counter.display_name !== key ? key : counter.family || counter.object_type || '',
+          type: 'Counter' as const,
+          vendors: normalizeValues([counter.vendor], form.vendors),
+          technos: normalizeValues([counter.techno], form.technologies),
+        };
+      }
+      return {
+        key,
+        label: key,
+        secondary: 'Manual entry',
+        type: 'Manual' as const,
+        vendors: normalizeValues([], form.vendors),
+        technos: normalizeValues([], form.technologies),
+      };
+    });
+  }, [counterCatalog, form.selectedKpis, form.technologies, form.vendors, kpiCatalog]);
 
   const selectedReport = useMemo(
     () => reports.find(report => report.id === selectedReportId) || null,
@@ -1048,11 +1091,58 @@ const RanQueryModule: React.FC = () => {
             </button>
           )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {form.selectedKpis.length > 0 ? form.selectedKpis.map(kpi => (
-            <MetricPill key={kpi} label={kpi} onRemove={() => updateForm('selectedKpis', form.selectedKpis.filter(item => item !== kpi))} />
-          )) : <p className="text-sm text-muted-foreground">No KPI or counter selected yet.</p>}
-        </div>
+        {selectedMetricRows.length > 0 ? (
+          <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
+            <div className="grid grid-cols-[1.6fr_0.55fr_0.9fr_0.9fr_42px] gap-3 bg-muted/40 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">
+              <span>KPI / Counter</span>
+              <span>Type</span>
+              <span>Vendor</span>
+              <span>Techno</span>
+              <span></span>
+            </div>
+            <div className="max-h-72 divide-y divide-border/40 overflow-y-auto">
+              {selectedMetricRows.map(item => (
+                <div key={item.key} className="grid grid-cols-[1.6fr_0.55fr_0.9fr_0.9fr_42px] items-center gap-3 px-3 py-2.5 text-sm">
+                  <div className="min-w-0">
+                    <p className="truncate font-bold text-foreground" title={item.label}>{item.label}</p>
+                    {item.secondary && <p className="mt-0.5 truncate text-[10px] text-muted-foreground" title={item.secondary}>{item.secondary}</p>}
+                  </div>
+                  <span className={cn(
+                    'w-fit rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                    item.type === 'KPI' ? 'border-primary/20 bg-primary/10 text-primary' :
+                    item.type === 'Counter' ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700' :
+                    'border-slate-500/20 bg-slate-500/10 text-slate-600'
+                  )}>
+                    {item.type}
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {item.vendors.length > 0 ? item.vendors.map(vendor => (
+                      <span key={vendor} className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium', vendorBadge(vendor).bg, vendorBadge(vendor).text, vendorBadge(vendor).border)}>
+                        {vendor}
+                      </span>
+                    )) : <span className="text-[11px] text-muted-foreground">-</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {item.technos.length > 0 ? item.technos.map(techno => (
+                      <span key={techno} className={cn('inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(techno).bg, techBadge(techno).text, techBadge(techno).border)}>
+                        {techno}
+                      </span>
+                    )) : <span className="text-[11px] text-muted-foreground">-</span>}
+                  </div>
+                  <button
+                    onClick={() => updateForm('selectedKpis', form.selectedKpis.filter(metric => metric !== item.key))}
+                    className="justify-self-end rounded-lg p-1.5 text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive"
+                    title="Remove"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No KPI or counter selected yet.</p>
+        )}
       </div>
     </div>
   );
