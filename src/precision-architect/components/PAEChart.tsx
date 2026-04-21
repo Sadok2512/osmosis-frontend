@@ -113,7 +113,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
       series = visible.map((m, idx) => {
         const metricType = m.graphType ?? style.chartType;
         const seriesType = metricType === 'bar' ? 'bar' : 'line';
-        const wantsArea = (metricType === 'area' || (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')) && seriesType === 'line';
+        const wantsArea = seriesType === 'line' && (
+          (m as any).fillArea === true ||
+          metricType === 'area' ||
+          (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')
+        );
         const opacityRatio = Math.max(0, Math.min(100, style.opacity)) / 100;
         const areaStyle = wantsArea
           ? style.fill === 'gradient'
@@ -136,17 +140,22 @@ const PAEChart: React.FC<PAEChartProps> = ({
           ? backendSeries.map(p => p.value)
           : [];
 
+        const lineType =
+          m.lineStyle === 'dashed' ? 'dashed' as const :
+          m.lineStyle === 'dotted' ? 'dotted' as const :
+          'solid' as const;
+
         return {
           name: m.alias || m.kpiKey,
           type: seriesType,
-          smooth: style.smooth,
+          smooth: (m as any).smooth ?? style.smooth,
           showSymbol: false,
           yAxisIndex: m.axis === 'right' && hasRight ? 1 : 0,
           data: seriesData,
           lineStyle: seriesType === 'line' ? {
             color: m.color,
-            width: style.lineThickness,
-            type: m.lineStyle === 'dashed' ? 'dashed' as const : 'solid' as const,
+            width: (m as any).lineWidth ?? style.lineThickness,
+            type: lineType,
           } : undefined,
           itemStyle: { color: m.color },
           areaStyle,
