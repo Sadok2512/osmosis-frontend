@@ -18,6 +18,8 @@ interface Props {
   onChange: (next: ChartFilterChip[]) => void;
   filterDimensions: string[];
   filtersLoading?: boolean;
+  /** When true, render compactly without the outer "Filtres" label & padding row — for inline use in the scope toolbar. */
+  inline?: boolean;
 }
 
 const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
