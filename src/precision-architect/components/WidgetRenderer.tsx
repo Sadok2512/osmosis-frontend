@@ -322,6 +322,35 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
   );
 }
 
+/* ---------- Map widget (responds to local + global Apply) ---------- */
+function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
+  const global = usePAGlobalToolbar();
+  // Mirror chart logic: prefer applied snapshot once the user clicked Apply (locally OR globally).
+  // Live config is used as a fallback so newly-added map widgets render immediately while editing.
+  const mapCfg = (w.appliedRev ?? 0) > 0
+    ? (w.appliedMapConfig ?? w.mapConfig)
+    : global.appliedRev > 0
+      ? (w.mapConfig ?? w.appliedMapConfig)
+      : (w.mapConfig ?? w.appliedMapConfig);
+  const mode = mapCfg?.displayMode ?? 'sites';
+  // Force remount when either local or global Apply is bumped, so PAMapWidget
+  // picks up the freshest config (theme, mapType, filters, layers).
+  const renderKey = `${w.id}-${w.appliedRev ?? 0}-${global.appliedRev}`;
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-2 widget-drag-handle cursor-move">
+        <h3 className="text-sm font-black text-on-surface font-headline">{w.title ?? 'Map'}</h3>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          {mode === 'cells' ? 'Cells view' : 'Sites view'}
+        </span>
+      </div>
+      <div className="flex-1 min-h-0">
+        <PAMapWidget key={renderKey} height="100%" config={mapCfg} />
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Chart widget with backend integration ---------- */
 /**
  * Builds a TimeseriesRequest mirroring the Investigator flow:
