@@ -5070,8 +5070,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr, dashboardActive, activeDashboardFilters]);
 
   // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
+  // Gated: no fetch unless a dashboard is active
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
+    if (!dashboardActive) {
+      if (abortRef.current) abortRef.current.abort();
+      setBboxLoading(false);
+      setLoading(false);
+      return;
+    }
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
