@@ -673,6 +673,10 @@ const TechPanes: React.FC = () => {
       const p5 = map.createPane('pane5G');
       p5.style.zIndex = '500';
     }
+    if (!map.getPane('paneParam')) {
+      const pp = map.createPane('paneParam');
+      pp.style.zIndex = '650';
+    }
   }, [map]);
   return null;
 };
@@ -4523,6 +4527,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!paramSelected) return;
     setParamConfirmed(paramSelected);
     setParamMode(true);
+    setShowBeamSectors(false);
+    setMapDisplayMode('points');
+    setSectorColorMode('topo');
     setParamLoading(true);
     setParamPanelOpen(false);
     try {
@@ -4585,6 +4592,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const paramUniqueValues = useMemo(() => {
     return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort();
+  }, [paramPoints]);
+
+  const paramRenderPoints = useMemo(() => {
+    const groups = new Map<string, typeof paramPoints>();
+    for (const point of paramPoints) {
+      const key = `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
+      const group = groups.get(key);
+      if (group) group.push(point);
+      else groups.set(key, [point]);
+    }
+
+    return paramPoints.map(point => {
+      const key = `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
+      const group = groups.get(key) || [point];
+      const index = Math.max(0, group.findIndex(p => p.id === point.id));
+      if (group.length <= 1) {
+        return { ...point, displayLatitude: point.latitude, displayLongitude: point.longitude };
+      }
+
+      const angle = (Math.PI * 2 * index) / group.length;
+      const radius = Math.min(0.00045, 0.0001 + group.length * 0.000006);
+      return {
+        ...point,
+        displayLatitude: point.latitude + Math.sin(angle) * radius,
+        displayLongitude: point.longitude + Math.cos(angle) * radius,
+      };
+    });
   }, [paramPoints]);
   // Fetch dashboards list, archive legacy auto-dashboards, auto-activate saved dashboard
   useEffect(() => {
@@ -6471,7 +6505,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // En mode KPI, on force toujours le rendu des secteurs (même si l'utilisateur a désactivé BEAMS)
   // pour éviter d'afficher des cercles "concentric tech" qui masquent les valeurs KPI.
   const kpiForcesSectors = sectorColorMode === 'kpi' && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
-  const showSectors = ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
+  const showSectors = !paramMode && ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
 
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
@@ -7240,19 +7274,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
 
-        {paramMode && !paramLoading && paramPoints.length > 0 && (
-          <FitHighlightBounds coords={paramPoints.map(p => [p.latitude, p.longitude] as [number, number])} />
+        {paramMode && !paramLoading && paramRenderPoints.length > 0 && (
+          <FitHighlightBounds coords={paramRenderPoints.map(p => [p.displayLatitude, p.displayLongitude] as [number, number])} />
         )}
-        {paramMode && !paramLoading && paramPoints.map(pt => (
+        {paramMode && !paramLoading && paramRenderPoints.map(pt => (
           <CircleMarker
             key={pt.id}
-            center={[pt.latitude, pt.longitude]}
-            radius={6}
+            center={[pt.displayLatitude, pt.displayLongitude]}
+            radius={7}
+            pane="paneParam"
             pathOptions={{
               fillColor: paramValueColor(pt.value),
-              fillOpacity: 0.85,
-              color: 'hsl(var(--border))',
-              weight: 0.5,
+              fillOpacity: 0.92,
+              color: 'hsl(var(--background))',
+              weight: 2,
             }}
           >
             <Popup>
@@ -11069,6 +11104,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         setParamConfirmed(pf.parameter);
                         setParamSelected(pf.parameter);
                         setSectorColorMode('topo');
+                        setShowBeamSectors(false);
+                        setMapDisplayMode('points');
                         setKpiOverlayLocked(false);
                         // Load parameter data via /topo/param-map
                         setParamLoading(true);
