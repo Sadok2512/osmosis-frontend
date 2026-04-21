@@ -373,7 +373,13 @@ async function executeReportApi(
       const batchResults: ReportResultRow[] = [];
       for (const kpiResult of (data?.results || [])) {
         if (kpiResult.skipped) continue; // Vendor mismatch — skip silently
-        if (kpiResult.error && (!kpiResult.series || kpiResult.series.length === 0)) {
+        // Skip internal fallback messages (not real errors)
+        const isInternalMsg = kpiResult.error && (
+          kpiResult.error.includes('ClickHouse') ||
+          kpiResult.error.includes('fallback') ||
+          kpiResult.error.includes('CH fallback')
+        );
+        if (kpiResult.error && !isInternalMsg && (!kpiResult.series || kpiResult.series.length === 0)) {
           errors.push(`KPI ${kpiResult.kpi_code} (${vendor}): ${kpiResult.error}`);
           continue;
         }
