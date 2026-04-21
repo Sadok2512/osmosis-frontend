@@ -39,6 +39,9 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   const widgetLabel = `MAP · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
   const [openSections, setOpenSections] = useState({ data: true, display: true, appearance: true });
+  // Re-render whenever the shared sites cache fills/changes so dynamic filter chips appear.
+  const [, setCacheTick] = useState(0);
+  useEffect(() => subscribeMapSitesCache(() => setCacheTick((t) => t + 1)), []);
 
   const update = (patch: Partial<MapWidgetConfig>) => {
     onChange({ mapConfig: { ...cfg, ...patch } });
