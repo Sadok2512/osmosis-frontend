@@ -86,14 +86,17 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
       prev.map((page) => ({
         ...page,
         widgets: page.widgets.map((w: DynWidget) => {
-          // Only widgets that actually fetch data need the snapshot bump.
-          if (w.kind !== 'chart' && w.kind !== 'table') return w;
+          // Only widgets that actually fetch / render data need the snapshot bump.
+          if (w.kind !== 'chart' && w.kind !== 'table' && w.kind !== 'map') return w;
           const next: DynWidget = { ...w, appliedRev: (w.appliedRev ?? 0) + 1 };
           if (w.kind === 'chart' && w.config) {
             next.appliedConfig = structuredClone(w.config);
           }
           if (w.kind === 'table' && w.tableConfig) {
             next.appliedTableConfig = structuredClone(w.tableConfig);
+          }
+          if (w.kind === 'map' && w.mapConfig) {
+            next.appliedMapConfig = structuredClone(w.mapConfig);
           }
           return next;
         }),
