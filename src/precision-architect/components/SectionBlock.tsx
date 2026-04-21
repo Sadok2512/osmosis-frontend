@@ -148,11 +148,16 @@ export default function SectionBlock({ section, editable, isActive, isNew, onCha
   return (
     <section
       id={`section-${section.id}`}
+      onDragOver={editable ? onDragOver : undefined}
+      onDrop={editable ? onDrop : undefined}
+      onDragEnd={editable ? onDragEnd : undefined}
       className={cn(
         'scroll-mt-24 transition-all relative group',
         SHADOW_CLASS[shadow],
         isActive ? 'ring-2 ring-primary/40' : '',
         isNew && 'animate-pulse-once ring-2 ring-primary/60',
+        isDragging && 'opacity-40',
+        isDragOver && 'ring-2 ring-primary ring-offset-2',
         !bgColor && 'bg-white',
         fontClass,
         fullWidth && '-mx-8',
@@ -166,6 +171,23 @@ export default function SectionBlock({ section, editable, isActive, isNew, onCha
         borderColor: borderColor || (isActive ? undefined : 'rgba(0,0,0,0.06)'),
       }}
     >
+      {/* Drag handle (edit mode only) — appears on hover, left side of the section */}
+      {editable && onDragStart && (
+        <div
+          draggable
+          onDragStart={onDragStart}
+          className={cn(
+            'absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-7 h-10 rounded-md bg-white border border-outline-variant/40 shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing transition-opacity',
+            isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
+          title="Drag to reorder"
+          aria-label="Drag to reorder section"
+          role="button"
+        >
+          <GripVertical className="w-4 h-4 text-on-surface-variant" />
+        </div>
+      )}
+
       {/* Floating formatting toolbar (edit mode only) */}
       {editable && (
         <div
