@@ -12,6 +12,7 @@ import {
   AlignCenter,
   AlignRight,
   Settings2,
+  GripVertical,
 } from 'lucide-react';
 import { PASection, PASectionFontFamily, PASectionTextStyle, PASectionAlign } from '../types';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,13 @@ interface Props {
   isNew?: boolean;
   onChange?: (patch: Partial<PASection>) => void;
   onRemove?: () => void;
+  /** Drag-and-drop reordering (edit mode only). */
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
+  isDragging?: boolean;
+  isDragOver?: boolean;
 }
 
 const STYLE_PRESETS: { id: PASectionTextStyle; label: string; titleSize: number; descSize: number }[] = [
