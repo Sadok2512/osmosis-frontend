@@ -405,8 +405,11 @@ export function useFilterValues(dimensions: string[], filters?: MonitorFilter[])
 }
 
 export function useTimeseriesQuery(req: TimeseriesRequest | null) {
+  // Stable key: serialize the request so identical payloads don't refetch
+  // on every render (e.g., after a widget resize / drag / unrelated state change).
+  const key = req ? JSON.stringify(req) : 'noop';
   return useQuery({
-    queryKey: ['monitor', 'timeseries', req],
+    queryKey: ['monitor', 'timeseries', key],
     queryFn: async () => {
       try {
         return await fetchTimeseries(req!);
@@ -416,8 +419,11 @@ export function useTimeseriesQuery(req: TimeseriesRequest | null) {
       }
     },
     enabled: !!req && req.selections.length > 0,
-    staleTime: 30 * 1000,
+    staleTime: 5 * 60 * 1000,        // 5 min — avoid silent refetches
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   });
 }
 
