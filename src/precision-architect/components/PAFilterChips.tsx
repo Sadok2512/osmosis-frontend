@@ -302,7 +302,7 @@ const PADimensionChip: React.FC<{
   );
 };
 
-const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading }) => {
+const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading, inline }) => {
   // Group flat ChartFilterChip[] → dimension → values
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -337,13 +337,8 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
 
   const clearAll = () => onChange([]);
 
-  return (
-    <div className="px-4 py-2.5 flex flex-wrap items-center gap-2">
-      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
-        <Filter className="w-3.5 h-3.5" />
-        <span>Filtres</span>
-      </div>
-
+  const chipsAndAdd = (
+    <>
       {activeDims.map(dim => {
         const vals = (grouped.get(dim) ?? []).filter(v => v !== '');
         return (
@@ -371,9 +366,27 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
           className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
         >
           <X className="w-3 h-3" />
-          <span>Effacer filtres</span>
+          <span>Effacer</span>
         </button>
       )}
+    </>
+  );
+
+  if (inline) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {chipsAndAdd}
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-2.5 flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
+        <Filter className="w-3.5 h-3.5" />
+        <span>Filtres</span>
+      </div>
+      {chipsAndAdd}
     </div>
   );
 };
