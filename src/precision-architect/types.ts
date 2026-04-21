@@ -350,6 +350,22 @@ export interface PASection {
   bold?: boolean;
   /** Italic description. */
   italic?: boolean;
+  /** Underline description. */
+  underline?: boolean;
+  /** Description list style. */
+  listStyle?: 'none' | 'bullet' | 'numbered';
+  /** Inner padding (px). */
+  padding?: number;
+  /** Border radius (px). */
+  radius?: number;
+  /** Border width (px). */
+  borderWidth?: number;
+  /** Border color (hex). */
+  borderColor?: string;
+  /** Drop shadow intensity. */
+  shadow?: 'none' | 'sm' | 'md' | 'lg';
+  /** Make the section span full width (ignores page max width). */
+  fullWidth?: boolean;
 }
 
 /** Dashboard-level theme applied to the canvas background and widget accents. */
