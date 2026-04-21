@@ -3627,7 +3627,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localBande, setLocalBande] = useState('ALL');
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
-  const [mapKpi, setMapKpi] = useState('cssr');
+  const [mapKpi, setMapKpi] = useState('');
   const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
   const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
@@ -4777,7 +4777,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   // ── KPI Catalog: loaded from backend /api/v1/kpi/catalog ──
-  const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string }[]>([]);
+  const [catalogKpis, setCatalogKpis] = useState<{ id: string; label: string; unit: string; category: string; techno?: string; vendor?: string }[]>([]);
   useEffect(() => {
     (async () => {
       try {
@@ -4790,6 +4790,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           label: k.label,
           unit: k.unit || '',
           category: k.category || 'OTHER',
+          techno: k.techno || 'all',
+          vendor: k.vendor || '',
         }));
         setCatalogKpis(kpis);
         console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from backend catalog`);
@@ -4811,33 +4813,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } catch (e) {
         console.warn('[SitesMonitor] KPI catalog fetch failed, using fallback', e);
         setCatalogKpis([
-          { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
-          { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
-          { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
-          { id: 'thp_dl', label: 'Throughput DL', unit: 'Mbps', category: 'THROUGHPUT' },
-          { id: 'thp_ul', label: 'Throughput UL', unit: 'Mbps', category: 'THROUGHPUT' },
-          { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
-          { id: 'isd', label: 'Inter-site Distance', unit: 'km', category: 'SPATIAL' },
-          { id: 'cell_range', label: 'Cell Range', unit: 'km', category: 'SPATIAL' },
+          { id: 'EUTRAN_Cell_Availability_Wo_BLU', label: 'Cell Availability', unit: '%', category: 'RF', techno: '4G', vendor: 'Nokia' },
+          { id: 'CELL_UNPLAN_UNAVAIL_Time', label: 'Cell Unplanned Unavailability', unit: 's', category: 'RF', techno: '4G', vendor: 'Nokia' },
+          { id: 'CSSR_END_USER_w_CN%', label: 'CSSR End User', unit: '%', category: 'RF', techno: '4G', vendor: 'Ericsson' },
+          { id: 'Test_Cell_Availability', label: 'Cell Availability', unit: '%', category: 'RF', techno: '5G', vendor: 'Nokia' },
         ]);
       }
     })();
   }, []);
   const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
-    { id: 'cssr', label: 'CSSR', unit: '%', category: 'RF' },
-    { id: 'drop_rate', label: 'Drop Rate', unit: '%', category: 'RF' },
-    { id: 'prb_dl', label: 'PRB Usage DL', unit: '%', category: 'RF' },
-    { id: 'overshoot', label: 'Overshooting', unit: '%', category: 'SPATIAL' },
+    { id: 'EUTRAN_Cell_Availability_Wo_BLU', label: 'Cell Availability', unit: '%', category: 'RF', techno: '4G', vendor: 'Nokia' },
+    { id: 'CELL_UNPLAN_UNAVAIL_Time', label: 'Cell Unplanned Unavailability', unit: 's', category: 'RF', techno: '4G', vendor: 'Nokia' },
+    { id: 'CSSR_END_USER_w_CN%', label: 'CSSR End User', unit: '%', category: 'RF', techno: '4G', vendor: 'Ericsson' },
+    { id: 'Test_Cell_Availability', label: 'Cell Availability', unit: '%', category: 'RF', techno: '5G', vendor: 'Nokia' },
   ];
+
+  const getDefaultMapKpi = useCallback((kpis: typeof MAP_KPIS, techno = kpiTechnoFilter) => {
+    const preferred = [
+      'EUTRAN_Cell_Availability_Wo_BLU',
+      'CELL_UNPLAN_UNAVAIL_Time',
+      'Test_Cell_Availability',
+      'CSSR_END_USER_w_CN%',
+    ];
+    const compatible = kpis.filter(k => {
+      const kt = String(k.techno || 'all').toLowerCase();
+      return kt === 'all' || kt === techno.toLowerCase();
+    });
+    return preferred.find(id => compatible.some(k => k.id === id))
+      || preferred.find(id => kpis.some(k => k.id === id))
+      || compatible[0]?.id
+      || kpis[0]?.id
+      || '';
+  }, [kpiTechnoFilter]);
 
   useEffect(() => {
     if (!MAP_KPIS.length) return;
-    // Don't override mapKpi if it was explicitly set (e.g. by a view activation)
-    // — even if not yet in catalog (catalog may still be loading or KPI is engine-only)
-    if (!mapKpi) {
-      setMapKpi(MAP_KPIS[0].id);
+    // Replace legacy fallback IDs such as "cssr" with live KPI engine keys.
+    const currentKpi = MAP_KPIS.find(k => k.id === mapKpi);
+    const currentExists = Boolean(currentKpi);
+    const currentTechno = String(currentKpi?.techno || 'all').toLowerCase();
+    const currentCompatible = currentTechno === 'all' || currentTechno === kpiTechnoFilter.toLowerCase();
+    if (!mapKpi || (!kpiOverlayLocked && (!currentExists || !currentCompatible))) {
+      setMapKpi(getDefaultMapKpi(MAP_KPIS));
     }
-  }, [MAP_KPIS, mapKpi]);
+  }, [MAP_KPIS, getDefaultMapKpi, kpiOverlayLocked, kpiTechnoFilter, mapKpi]);
 
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
   // Uses in-memory cache (5min TTL) — re-selecting same KPI returns instantly without flash
@@ -11185,7 +11204,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       });
                     }
                   }}
-                  catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: 'all', threshold_warning: null, threshold_critical: null }))}
+                  catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: k.techno || 'all', threshold_warning: null, threshold_critical: null }))}
                 />
                </div>
               </>
