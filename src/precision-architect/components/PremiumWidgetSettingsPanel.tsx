@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, Type as TypeIcon, Palette, AlignLeft, AlignCenter, AlignRight, Minus } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { X, Type as TypeIcon, Palette, AlignLeft, AlignCenter, AlignRight, Minus, Database } from 'lucide-react';
+import { useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import {
   DynWidget,
   HeroWidgetConfig,
@@ -150,9 +151,64 @@ function HeroEditor({ cfg, onUpdate }: { cfg: HeroWidgetConfig; onUpdate: (c: He
 
 /* ----- Stat card editor ----- */
 function StatEditor({ cfg, onUpdate }: { cfg: StatWidgetConfig; onUpdate: (c: StatWidgetConfig) => void }) {
+  const { data: kpiCatalog } = useKpiCatalog();
+  const [kpiSearch, setKpiSearch] = useState('');
+  const filteredKpis = useMemo(() => {
+    const q = kpiSearch.toLowerCase();
+    return (kpiCatalog || []).filter(k =>
+      !q || k.kpi_key.toLowerCase().includes(q) || (k.display_name || '').toLowerCase().includes(q)
+    ).slice(0, 30);
+  }, [kpiCatalog, kpiSearch]);
+
   return (
     <div className="space-y-6">
-      <Section icon={<TypeIcon className="w-4 h-4" />} title="Content">
+      <Section icon={<Database className="w-4 h-4" />} title="KPI Source (optional)">
+        <Field label="KPI Key">
+          <div className="space-y-1">
+            <input
+              type="text"
+              value={cfg.kpiKey || ''}
+              onChange={(e) => { onUpdate({ ...cfg, kpiKey: e.target.value }); setKpiSearch(e.target.value); }}
+              onFocus={() => setKpiSearch(cfg.kpiKey || '')}
+              placeholder="Search KPI (e.g. DL_VOLUME)..."
+              className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-mono focus:outline-none focus:border-primary"
+            />
+            {kpiSearch && filteredKpis.length > 0 && (
+              <div className="max-h-36 overflow-y-auto rounded-lg border border-outline-variant/20 bg-white shadow-lg">
+                {filteredKpis.map(k => (
+                  <button key={k.kpi_key} onClick={() => {
+                    onUpdate({ ...cfg, kpiKey: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || cfg.unit });
+                    setKpiSearch('');
+                  }}
+                    className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-primary/5 transition-colors"
+                  >
+                    <span className="font-bold">{k.display_name || k.kpi_key}</span>
+                    {k.unit && <span className="ml-1 text-on-surface-variant/50">({k.unit})</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </Field>
+        <Field label="Aggregation">
+          <SegmentControl
+            value={cfg.aggregation || 'avg'}
+            options={[
+              { value: 'avg', label: 'Avg' },
+              { value: 'sum', label: 'Sum' },
+              { value: 'min', label: 'Min' },
+              { value: 'max', label: 'Max' },
+              { value: 'last', label: 'Last' },
+            ]}
+            onChange={(v) => onUpdate({ ...cfg, aggregation: v as any })}
+          />
+        </Field>
+        {cfg.kpiKey && (
+          <p className="text-[10px] text-on-surface-variant/60">Value computed from backend over the full period. No granularity — single aggregated number.</p>
+        )}
+      </Section>
+
+      <Section icon={<TypeIcon className="w-4 h-4" />} title="Content (manual override)">
         <Field label="Label">
           <input
             type="text"
@@ -163,7 +219,7 @@ function StatEditor({ cfg, onUpdate }: { cfg: StatWidgetConfig; onUpdate: (c: St
           />
         </Field>
         <div className="grid grid-cols-[1fr_120px] gap-4">
-          <Field label="Value">
+          <Field label={cfg.kpiKey ? 'Fallback value' : 'Value'}>
             <input
               type="text"
               value={cfg.value}

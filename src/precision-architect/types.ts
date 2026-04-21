@@ -169,6 +169,10 @@ export interface StatWidgetConfig {
   label: string;
   value: string;
   unit: string;
+  /** KPI key to fetch from backend. When set, value is computed automatically. */
+  kpiKey?: string;
+  /** Aggregation function: avg, sum, min, max, last */
+  aggregation?: 'avg' | 'sum' | 'min' | 'max' | 'last';
   /** Optional accent color (hex). Empty = primary token. */
   accentColor?: string;
   theme: StatTheme;
