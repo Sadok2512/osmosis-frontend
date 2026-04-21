@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  X, Plus, Trash2, ChevronDown, ChevronRight,
+  X, Plus, Trash2, ChevronDown, ChevronRight, Check,
   Filter, Eye, Palette, MapPin, Layers, Sun, Moon,
   Map as MapIconLucide, Satellite,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
 import {
   DynWidget,
@@ -149,69 +150,48 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 
             <div className="space-y-2">
               <Label>Active Filters</Label>
-              {cfg.filters.length === 0 && (
-                <p className="text-[11px] text-on-surface-variant/70 italic">No filters yet — add one below.</p>
-              )}
-              {cfg.filters.map((f) => {
-                const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
-                // Always prefer real distinct values from currently-loaded sites.
-                const liveValues = getMapSitesDistinct(f.dimension);
-                // For free-text dims (SITE/CELL) we still fall back to a text input when no live values exist.
-                const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
-                // Cap the visible chip count to keep the UI readable; user can search via text input fallback.
-                const MAX_CHIPS = 60;
-                const visibleChips = chipValues.slice(0, MAX_CHIPS);
-                return (
-                  <div key={f.id} className="border border-outline-variant/20 rounded-lg p-2 bg-surface-container-low/50">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                        {dim?.label ?? f.dimension}
-                        {liveValues.length > 0 && (
-                          <span className="ml-1.5 text-on-surface-variant/60 font-bold normal-case tracking-normal">
-                            · {liveValues.length} live
-                          </span>
-                        )}
-                      </span>
-                      <button
-                        onClick={() => removeFilter(f.id)}
-                        className="p-1 text-on-surface-variant hover:text-error hover:bg-error/10 rounded transition-colors"
-                        aria-label="Remove filter"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {chipValues.length > 0 ? (
-                      <MapFilterMultiSelect
-                        values={chipValues}
-                        selected={f.values}
-                        onToggle={(val) => toggleFilterValue(f.id, val)}
-                        label={dim?.label ?? f.dimension}
-                      />
-                    ) : (
-                      <input
-                        type="text"
-                        placeholder={`Enter ${dim?.label ?? f.dimension} (comma separated)`}
-                        defaultValue={f.values.join(', ')}
-                        onBlur={(e) => {
-                          const vals = e.target.value
-                            .split(',')
-                            .map((v) => v.trim())
-                            .filter(Boolean);
-                          update({
-                            filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
-                          });
-                        }}
-                        className="w-full px-2 py-1 text-[11px] rounded border border-outline-variant/30 focus:outline-none focus:border-primary"
-                      />
-                    )}
-                  </div>
-                );
-              })}
+              <div className="flex flex-wrap items-center gap-2 px-2 py-2 rounded-lg border border-outline-variant/20 bg-surface-container-low/40">
+                <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 mr-1">
+                  <Filter className="w-3.5 h-3.5" />
+                  <span>Filtres</span>
+                </div>
 
-              <AddFilterDropdown
-                onAdd={addFilter}
-                existing={cfg.filters.map((f) => f.dimension)}
-              />
+                {cfg.filters.map((f) => {
+                  const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
+                  const liveValues = getMapSitesDistinct(f.dimension);
+                  const chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
+                  return (
+                    <MapDimensionChip
+                      key={f.id}
+                      label={dim?.label ?? f.dimension}
+                      values={chipValues}
+                      selected={f.values}
+                      onApply={(vals) => {
+                        update({
+                          filters: cfg.filters.map((x) => (x.id === f.id ? { ...x, values: vals } : x)),
+                        });
+                      }}
+                      onRemove={() => removeFilter(f.id)}
+                    />
+                  );
+                })}
+
+                <AddFilterDropdown
+                  onAdd={addFilter}
+                  existing={cfg.filters.map((f) => f.dimension)}
+                />
+
+                {cfg.filters.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => update({ filters: [] })}
+                    className="flex items-center gap-1 h-7 px-2 text-[11px] font-bold text-on-surface-variant hover:text-error transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                    <span>Effacer</span>
+                  </button>
+                )}
+              </div>
             </div>
           </Accordion>
 
@@ -546,97 +526,157 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
 }
 
 
-/* ── Multi-select filter with inline button chips ── */
-function MapFilterMultiSelect({ values, selected, onToggle, label }: {
+/* ── Compact dimension chip with multi-value popover (Investigator-style) ── */
+function MapDimensionChip({ label, values, selected, onApply, onRemove }: {
+  label: string;
   values: string[];
   selected: string[];
-  onToggle: (val: string) => void;
-  label: string;
+  onApply: (next: string[]) => void;
+  onRemove: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const [showAll, setShowAll] = useState(false);
-  const INITIAL_LIMIT = 24;
+  const [pending, setPending] = useState<string[]>([]);
+  const [freeText, setFreeText] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setPending([...selected]);
+      setFreeText(values.length === 0 ? selected.join(', ') : '');
+      setSearch('');
+    }
+  }, [open]);
 
   const filtered = search
-    ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    ? values.filter((v) => v.toLowerCase().includes(search.toLowerCase()))
     : values;
-  const visible = showAll || search ? filtered : filtered.slice(0, INITIAL_LIMIT);
-  const hiddenCount = filtered.length - visible.length;
 
-  const allSelected = selected.length > 0 && selected.length === values.length;
+  const togglePending = (val: string) => {
+    setPending((prev) => prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val]);
+  };
+
+  const handleConfirm = () => {
+    if (values.length === 0) {
+      const vals = freeText.split(',').map((v) => v.trim()).filter(Boolean);
+      onApply(vals);
+    } else {
+      onApply(pending);
+    }
+    setOpen(false);
+  };
+
+  const displayText =
+    selected.length === 0 ? 'Tous'
+    : selected.length === 1 ? selected[0]
+    : `${selected.length} sélectionnés`;
+
+  const active = selected.length > 0;
 
   return (
-    <div className="space-y-2">
-      {/* Search + bulk actions */}
-      {values.length > 8 && (
-        <div className="flex items-center gap-1.5">
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${label}...`}
-            className="flex-1 px-2 py-1 rounded-md border border-outline-variant/30 bg-white text-[11px] outline-none focus:ring-2 focus:ring-primary/20"
-          />
+    <div className="flex items-center">
+      <Popover open={open} onOpenChange={(v) => { if (!v) setSearch(''); setOpen(v); }}>
+        <PopoverTrigger asChild>
           <button
-            onClick={() => {
-              if (allSelected) {
-                selected.forEach((v) => onToggle(v));
-              } else {
-                values.filter((v) => !selected.includes(v)).forEach((v) => onToggle(v));
-              }
-            }}
-            className="px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-widest text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-colors whitespace-nowrap"
+            className={cn(
+              'inline-flex items-center gap-1.5 h-7 pl-2.5 pr-2 rounded-l-full text-[11px] font-bold border border-r-0 transition-all cursor-pointer',
+              active
+                ? 'bg-primary/10 text-primary border-primary/40'
+                : 'bg-white text-on-surface-variant border-outline-variant/40 hover:border-primary/50 hover:text-primary'
+            )}
           >
-            {allSelected ? 'Clear' : 'All'}
+            <span className="opacity-70 font-normal">{label}:</span>
+            <span className="font-bold truncate max-w-[140px]">{displayText}</span>
+            <ChevronDown className={cn('w-3 h-3 opacity-50 transition-transform', open && 'rotate-180')} />
           </button>
-        </div>
-      )}
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0 rounded-xl shadow-xl border border-border/60 overflow-hidden z-[10000]" align="start" sideOffset={4}>
+          <div className="px-3 py-2.5 border-b border-border/30 bg-muted/30">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sélectionner — {label}</h4>
+          </div>
 
-      {/* Inline button chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {visible.length === 0 && (
-          <p className="text-[10px] text-on-surface-variant/60 italic py-1">No match</p>
-        )}
-        {visible.map((val) => {
-          const active = selected.includes(val);
-          return (
+          {values.length === 0 ? (
+            <div className="p-3 space-y-2">
+              <p className="text-[10px] text-muted-foreground">Aucune valeur live — entrez manuellement (séparées par virgule).</p>
+              <input
+                value={freeText}
+                onChange={(e) => setFreeText(e.target.value)}
+                placeholder={`ex: ${label} A, ${label} B`}
+                className="w-full px-2 py-1.5 text-xs rounded-md border border-border/50 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <>
+              <div className="p-2.5">
+                <div className="relative">
+                  <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/50" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Rechercher..."
+                    className="w-full pl-7 pr-3 py-2 rounded-full border border-border/50 bg-background text-xs outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-[240px] overflow-y-auto px-1.5 pb-1">
+                {filtered.length === 0 && (
+                  <div className="px-3 py-6 text-[10px] text-muted-foreground text-center">Aucun résultat</div>
+                )}
+                {filtered.slice(0, 200).map((val) => {
+                  const isChecked = pending.includes(val);
+                  return (
+                    <button
+                      key={val}
+                      onClick={() => togglePending(val)}
+                      className={cn(
+                        'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2',
+                        isChecked ? 'text-primary bg-primary/5' : 'text-foreground hover:bg-muted/40'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all',
+                        isChecked ? 'border-primary bg-primary text-primary-foreground' : 'border-border/60 bg-background'
+                      )}>
+                        {isChecked && <Check className="w-3 h-3" />}
+                      </span>
+                      <span className="flex-1 truncate">{val}</span>
+                    </button>
+                  );
+                })}
+                {filtered.length > 200 && (
+                  <div className="px-3 py-2 text-[9px] text-muted-foreground text-center italic">
+                    +{filtered.length - 200} résultats — affinez la recherche
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          <div className="flex items-center justify-between px-3 py-2 border-t border-border/40 bg-muted/20">
             <button
-              key={val}
-              onClick={() => onToggle(val)}
-              className={cn(
-                'px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all',
-                active
-                  ? 'bg-primary text-on-primary border-primary shadow-sm'
-                  : 'bg-white text-on-surface border-outline-variant/40 hover:border-primary/50 hover:text-primary'
-              )}
+              onClick={() => { setPending([]); setFreeText(''); }}
+              className="text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              {val}
+              Reset
             </button>
-          );
-        })}
-        {hiddenCount > 0 && (
-          <button
-            onClick={() => setShowAll(true)}
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-dashed border-primary/40 text-primary hover:bg-primary/5 transition-colors"
-          >
-            +{hiddenCount} more
-          </button>
-        )}
-        {showAll && filtered.length > INITIAL_LIMIT && !search && (
-          <button
-            onClick={() => setShowAll(false)}
-            className="px-2.5 py-1 rounded-full text-[10px] font-bold border border-dashed border-outline-variant/40 text-on-surface-variant hover:bg-surface-container-low transition-colors"
-          >
-            Show less
-          </button>
-        )}
-      </div>
-
-      {/* Footer count */}
-      {selected.length > 0 && (
-        <div className="text-[9px] font-bold uppercase tracking-widest text-on-surface-variant/70">
-          {selected.length} / {values.length} selected
-        </div>
-      )}
+            <button
+              onClick={handleConfirm}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+            >
+              <Check className="w-3 h-3" /> Appliquer
+            </button>
+          </div>
+        </PopoverContent>
+      </Popover>
+      <button
+        onClick={onRemove}
+        className="h-7 w-7 inline-flex items-center justify-center rounded-r-full border border-l-0 border-outline-variant/40 bg-white hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
+        aria-label={`Remove ${label} filter`}
+      >
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
