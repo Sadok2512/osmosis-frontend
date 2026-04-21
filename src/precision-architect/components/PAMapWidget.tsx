@@ -8,27 +8,15 @@ interface Site {
   lat: number;
   intensity: number; // 0-100
   status: 'optimal' | 'warning' | 'critical';
-  vendor: 'Ericsson' | 'Huawei' | 'Nokia';
-  techno: '4G' | '5G';
+  vendor: string;
+  techno: string;
   bande: string;
   plaque: string;
   dor: string;
 }
 
-const FRANCE_SITES: Site[] = [
-  { name: 'Paris-Nord',       lon: 2.3522,  lat: 48.8566, intensity: 92, status: 'optimal',  vendor: 'Ericsson', techno: '5G', bande: 'N78', plaque: 'Paris',     dor: 'DOR-IDF' },
-  { name: 'Lyon-Centre',      lon: 4.8357,  lat: 45.7640, intensity: 78, status: 'optimal',  vendor: 'Huawei',   techno: '4G', bande: 'B7',  plaque: 'Lyon',      dor: 'DOR-EST' },
-  { name: 'Marseille-Port',   lon: 5.3698,  lat: 43.2965, intensity: 54, status: 'warning',  vendor: 'Nokia',    techno: '4G', bande: 'B3',  plaque: 'Marseille', dor: 'DOR-SUD' },
-  { name: 'Toulouse-Sud',     lon: 1.4442,  lat: 43.6047, intensity: 81, status: 'optimal',  vendor: 'Ericsson', techno: '5G', bande: 'N78', plaque: 'Toulouse',  dor: 'DOR-SUD' },
-  { name: 'Bordeaux-Ouest',   lon: -0.5792, lat: 44.8378, intensity: 67, status: 'warning',  vendor: 'Huawei',   techno: '4G', bande: 'B20', plaque: 'Bordeaux',  dor: 'DOR-OUEST' },
-  { name: 'Lille-Métropole',  lon: 3.0573,  lat: 50.6292, intensity: 88, status: 'optimal',  vendor: 'Nokia',    techno: '5G', bande: 'N78', plaque: 'Lille',     dor: 'DOR-NORD' },
-  { name: 'Nantes-Atlantique',lon: -1.5536, lat: 47.2184, intensity: 73, status: 'optimal',  vendor: 'Ericsson', techno: '4G', bande: 'B7',  plaque: 'Nantes',    dor: 'DOR-OUEST' },
-  { name: 'Strasbourg-Est',   lon: 7.7521,  lat: 48.5734, intensity: 41, status: 'critical', vendor: 'Huawei',   techno: '4G', bande: 'B3',  plaque: 'Lyon',      dor: 'DOR-EST' },
-  { name: 'Nice-Côte',        lon: 7.2620,  lat: 43.7102, intensity: 62, status: 'warning',  vendor: 'Nokia',    techno: '4G', bande: 'B7',  plaque: 'Marseille', dor: 'DOR-SUD' },
-  { name: 'Rennes-Centre',    lon: -1.6778, lat: 48.1173, intensity: 85, status: 'optimal',  vendor: 'Ericsson', techno: '5G', bande: 'N78', plaque: 'Nantes',    dor: 'DOR-OUEST' },
-  { name: 'Montpellier',      lon: 3.8767,  lat: 43.6108, intensity: 35, status: 'critical', vendor: 'Huawei',   techno: '4G', bande: 'B20', plaque: 'Marseille', dor: 'DOR-SUD' },
-  { name: 'Brest',            lon: -4.4860, lat: 48.3904, intensity: 70, status: 'optimal',  vendor: 'Nokia',    techno: '4G', bande: 'B8',  plaque: 'Nantes',    dor: 'DOR-OUEST' },
-];
+// Mock data removed — map renders only real data when wired to a backend source.
+const FRANCE_SITES: Site[] = [];
 
 const colorFor = (status: Site['status']) =>
   status === 'optimal' ? '#10b981' : status === 'warning' ? '#f59e0b' : '#ef4444';
