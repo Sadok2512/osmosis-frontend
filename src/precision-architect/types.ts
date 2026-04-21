@@ -321,11 +321,35 @@ export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
   thresholds: [],
 };
 
+export type PASectionTextStyle = 'heading' | 'subheading' | 'body' | 'quote' | 'callout';
+export type PASectionFontFamily = 'sans' | 'serif' | 'mono' | 'display';
+export type PASectionAlign = 'left' | 'center' | 'right';
+
 export interface PASection {
   id: string;
   name: string;
   title: string;
   description: string;
+  /** Visual style preset for the section block. */
+  textStyle?: PASectionTextStyle;
+  /** Font family for the title + description. */
+  fontFamily?: PASectionFontFamily;
+  /** Title font size in pixels. */
+  titleSize?: number;
+  /** Description font size in pixels. */
+  descriptionSize?: number;
+  /** Hex color for the title. Empty = inherit. */
+  titleColor?: string;
+  /** Hex color for the description. Empty = inherit. */
+  descriptionColor?: string;
+  /** Hex color for the section background. Empty = default surface. */
+  backgroundColor?: string;
+  /** Text alignment inside the section. */
+  align?: PASectionAlign;
+  /** Bold title. */
+  bold?: boolean;
+  /** Italic description. */
+  italic?: boolean;
 }
 
 /** Dashboard-level theme applied to the canvas background and widget accents. */
