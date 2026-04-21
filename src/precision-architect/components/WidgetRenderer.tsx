@@ -342,9 +342,11 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
  *      (project rule: apply-only-backend-execution).
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
+  // Strict apply-only contract: render ONLY the snapshot saved at the last
+  // "Appliquer" click. Live edits to w.config must NOT trigger refetches.
   const cfg: ChartWidgetConfig | undefined = (w.appliedRev ?? 0) > 0
-    ? (w.appliedConfig ?? w.config)
-    : w.config;
+    ? w.appliedConfig
+    : undefined;
   const hasMetrics = !!cfg && cfg.metrics.some((metric) => metric.visible !== false);
 
   // Global report-level toolbar (top of editor) — inherited by default.
