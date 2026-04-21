@@ -500,61 +500,71 @@ export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) 
 
       // CRITICAL: ClickHouse can return 200 OK with `{series:[], error:'...'}`
       // when widgets fire in parallel ("Simultaneous queries on single connection
-      // detected") or when the connection drops mid-stream ("Unexpected EOF").
-      // We treat those as transient and retry up to 3 times with backoff +
-      // jitter so that "Apply to Dashboard" actually populates every widget.
-      const MAX_ATTEMPTS = 3;
+      // detected", "Code: 210. Bad file descriptor", "[Errno 9]") or when the
+      // connection drops mid-stream ("Unexpected EOF"). We treat those as
+      // transient and retry up to 5 times with exponential backoff + jitter
+      // so that "Apply to Dashboard" actually populates every widget — even
+      // when 10+ charts hit the backend at once.
+      const MAX_ATTEMPTS = 5;
       let lastResp: TimeseriesResponse | null = null;
-      for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-        try {
-          const resp = await fetchTimeseries(payload as TimeseriesRequest);
-          const respErr = (resp as any)?.error ?? (resp as any)?.meta?.error;
-          if (respErr && isTransientBackendError(respErr)) {
-            lastResp = resp;
-            // Backoff: 400ms, 1200ms, then give up. Jitter avoids waves.
-            const wait = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
-            console.warn(`[useTimeseriesQuery] Transient backend error (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${respErr} — retrying in ${wait}ms`);
-            await sleep(wait);
-            continue;
+
+      // Acquire a concurrency slot BEFORE we start (and release it after the
+      // last attempt) so multiple widgets serialize themselves on the client.
+      await _acquireSlot();
+      try {
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          try {
+            const resp = await fetchTimeseries(payload as TimeseriesRequest);
+            const respErr = (resp as any)?.error ?? (resp as any)?.meta?.error;
+            if (respErr && isTransientBackendError(respErr)) {
+              lastResp = resp;
+              // Backoff: 500ms, 1s, 2s, 4s, then give up. Jitter avoids waves.
+              const wait = 500 * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+              console.warn(`[useTimeseriesQuery] Transient backend error (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${respErr} — retrying in ${wait}ms`);
+              await sleep(wait);
+              continue;
+            }
+            // Normalize: copy top-level `error` into `meta.error` so widgets
+            // can render it consistently.
+            if (respErr && !(resp as any)?.meta?.error) {
+              (resp as any).meta = { ...(resp as any).meta, error: respErr };
+            }
+            return resp;
+          } catch (err) {
+            const msg = (err as any)?.message || String(err);
+            if (isTransientBackendError(msg) && attempt < MAX_ATTEMPTS - 1) {
+              const wait = 500 * Math.pow(2, attempt) + Math.floor(Math.random() * 400);
+              console.warn(`[useTimeseriesQuery] Transient throw (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${msg} — retrying in ${wait}ms`);
+              await sleep(wait);
+              continue;
+            }
+            // Surface the real backend error in meta.error so widgets can
+            // distinguish "no data for this perimeter" from "backend failed".
+            console.warn('[useTimeseriesQuery] Backend error:', err);
+            _toastBackendError('timeseries', err);
+            return {
+              series: [],
+              meta: {
+                granularity_applied: req?.granularity || '1d',
+                total_series: 0,
+                error: msg,
+              },
+            } as unknown as TimeseriesResponse;
           }
-          // Normalize: copy top-level `error` into `meta.error` so widgets
-          // can render it consistently.
-          if (respErr && !(resp as any)?.meta?.error) {
-            (resp as any).meta = { ...(resp as any).meta, error: respErr };
-          }
-          return resp;
-        } catch (err) {
-          const msg = (err as any)?.message || String(err);
-          if (isTransientBackendError(msg) && attempt < MAX_ATTEMPTS - 1) {
-            const wait = 400 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
-            console.warn(`[useTimeseriesQuery] Transient throw (attempt ${attempt + 1}/${MAX_ATTEMPTS}): ${msg} — retrying in ${wait}ms`);
-            await sleep(wait);
-            continue;
-          }
-          // Surface the real backend error in meta.error so widgets can
-          // distinguish "no data for this perimeter" from "backend failed".
-          console.warn('[useTimeseriesQuery] Backend error:', err);
-          _toastBackendError('timeseries', err);
-          return {
-            series: [],
-            meta: {
-              granularity_applied: req?.granularity || '1d',
-              total_series: 0,
-              error: msg,
-            },
-          } as unknown as TimeseriesResponse;
         }
+        // All retries exhausted — return the last (errored) response so the
+        // widget can show a meaningful message instead of looking "empty".
+        return lastResp ?? ({
+          series: [],
+          meta: {
+            granularity_applied: req?.granularity || '1d',
+            total_series: 0,
+            error: 'Backend transient error after retries',
+          },
+        } as unknown as TimeseriesResponse);
+      } finally {
+        _releaseSlot();
       }
-      // All retries exhausted — return the last (errored) response so the
-      // widget can show a meaningful message instead of looking "empty".
-      return lastResp ?? ({
-        series: [],
-        meta: {
-          granularity_applied: req?.granularity || '1d',
-          total_series: 0,
-          error: 'Backend transient error after retries',
-        },
-      } as unknown as TimeseriesResponse);
     },
     enabled: !!req && req.selections.length > 0,
     staleTime: 5 * 60 * 1000,        // 5 min — avoid silent refetches
