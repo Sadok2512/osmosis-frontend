@@ -583,7 +583,7 @@ const RanQueryModule: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'ALL' | ReportStatus>('ALL');
   const [form, setForm] = useState<CreateFormState>(DEFAULT_FORM);
   const [isExecutingId, setIsExecutingId] = useState<string | null>(null);
-  const [detailMode, setDetailMode] = useState<'table' | 'chart'>('table');
+  const [detailMode, setDetailMode] = useState<'table' | 'chart' | 'pivot'>('table');
   const [resultPage, setResultPage] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<ClusterSelection | null>(null);
@@ -843,6 +843,39 @@ const RanQueryModule: React.FC = () => {
     return selectedReport.results.slice(start, start + PAGE_SIZE);
   }, [selectedReport, resultPage]);
   const totalPages = selectedReport ? Math.max(1, Math.ceil(selectedReport.results.length / PAGE_SIZE)) : 1;
+
+  // Pivot: Site (rows) × Technology (columns), SUM of Value
+  const pivotData = useMemo(() => {
+    if (!selectedReport || selectedReport.results.length === 0) {
+      return { rows: [] as { site: string; values: Record<string, number>; total: number }[], techs: [] as string[], colTotals: {} as Record<string, number>, grandTotal: 0 };
+    }
+    const techSet = new Set<string>();
+    const map = new Map<string, Record<string, number>>();
+    for (const r of selectedReport.results) {
+      const site = (r.site_name && r.site_name.trim()) || '—';
+      const tech = (r.technology && r.technology.trim()) || '—';
+      techSet.add(tech);
+      let entry = map.get(site);
+      if (!entry) { entry = {}; map.set(site, entry); }
+      entry[tech] = (entry[tech] ?? 0) + (Number(r.value) || 0);
+    }
+    const techs = [...techSet].sort();
+    const colTotals: Record<string, number> = {};
+    let grandTotal = 0;
+    const rows = [...map.entries()]
+      .map(([site, values]) => {
+        let total = 0;
+        for (const t of techs) {
+          const v = values[t] ?? 0;
+          total += v;
+          colTotals[t] = (colTotals[t] ?? 0) + v;
+        }
+        grandTotal += total;
+        return { site, values, total };
+      })
+      .sort((a, b) => b.total - a.total);
+    return { rows, techs, colTotals, grandTotal };
+  }, [selectedReport]);
 
   const updateForm = <K extends keyof CreateFormState>(key: K, value: CreateFormState[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -1862,6 +1895,9 @@ const RanQueryModule: React.FC = () => {
                   <button onClick={() => setDetailMode('chart')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'chart' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
                     Charts
                   </button>
+                  <button onClick={() => setDetailMode('pivot')} className={cn('rounded-xl px-3 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', detailMode === 'pivot' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground')}>
+                    Pivot
+                  </button>
                 </div>
               </div>
             </SectionCard>
@@ -1918,7 +1954,7 @@ const RanQueryModule: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : detailMode === 'chart' ? (
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                     Time Series {chartData && 'kpis' in chartData ? `(${chartData.kpis.length} KPI${chartData.kpis.length > 1 ? 's' : ''})` : ''}
@@ -1941,6 +1977,64 @@ const RanQueryModule: React.FC = () => {
                       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No chart data available</div>
                     )}
                   </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Pivot Table</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Rows: <span className="font-semibold text-foreground">Site</span> · Columns: <span className="font-semibold text-foreground">Technology</span> · Aggregation: <span className="font-semibold text-foreground">SUM(Value)</span>
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground">
+                      {pivotData.rows.length} site{pivotData.rows.length > 1 ? 's' : ''} × {pivotData.techs.length} techno{pivotData.techs.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {pivotData.rows.length === 0 ? (
+                    <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">No data to pivot</div>
+                  ) : (
+                    <div className="overflow-auto rounded-xl border border-border/60 max-h-[60vh]">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="bg-muted/40 sticky top-0 z-10">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-border/60">Site</th>
+                            {pivotData.techs.map(t => (
+                              <th key={t} className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.14em] text-muted-foreground border-b border-l border-border/60">
+                                <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(t).bg, techBadge(t).text, techBadge(t).border)}>{t}</span>
+                              </th>
+                            ))}
+                            <th className="px-3 py-2 text-right text-[11px] font-black uppercase tracking-[0.14em] text-foreground border-b border-l border-border/60 bg-muted/60">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/50 bg-card">
+                          {pivotData.rows.map(r => (
+                            <tr key={r.site} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 font-semibold text-foreground whitespace-nowrap">{r.site}</td>
+                              {pivotData.techs.map(t => {
+                                const v = r.values[t];
+                                return (
+                                  <td key={t} className="px-3 py-2 text-right font-mono text-xs border-l border-border/40">
+                                    {v == null ? <span className="text-muted-foreground">—</span> : v.toFixed(2)}
+                                  </td>
+                                );
+                              })}
+                              <td className="px-3 py-2 text-right font-mono text-xs font-bold text-primary border-l border-border/60 bg-muted/20">{r.total.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-muted/50 sticky bottom-0">
+                          <tr>
+                            <td className="px-3 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-foreground border-t border-border/60">Total</td>
+                            {pivotData.techs.map(t => (
+                              <td key={t} className="px-3 py-2 text-right font-mono text-xs font-bold text-foreground border-t border-l border-border/60">{(pivotData.colTotals[t] ?? 0).toFixed(2)}</td>
+                            ))}
+                            <td className="px-3 py-2 text-right font-mono text-xs font-black text-primary border-t border-l border-border/60 bg-muted/70">{pivotData.grandTotal.toFixed(2)}</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </SectionCard>
