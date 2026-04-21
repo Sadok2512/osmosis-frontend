@@ -1385,15 +1385,57 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
   if (filters?.date_from) params.set('date_from', filters.date_from);
   if (filters?.date_to) params.set('date_to', filters.date_to);
 
-  const url = getVpsProxyUrl('parser', `/api/v1/kpi/cell-values?${params}`);
-  const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-  if (!resp.ok) throw new Error(`KPI fetch failed: ${resp.status}`);
-  const json = await resp.json();
-  if (json.unavailable) throw new Error('VPS unavailable — no fallback');
+  // Use /pm/kpi/compute (ClickHouse) instead of /kpi/cell-values (KPI Engine tables empty)
+  const computeBody: Record<string, any> = {
+    kpi_code: kpiId,
+    date_from: filters?.date_from || params.get('date_from') || '',
+    date_to: filters?.date_to || params.get('date_to') || '',
+    granularity: '1d',
+  };
+  if (filters?.vendor) computeBody.vendor = filters.vendor;
+  if (filters?.plaque) computeBody.plaque = [filters.plaque];
+  if (filters?.dor) computeBody.dor = [filters.dor];
+  if (filters?.bcluster) computeBody.bcluster = filters.bcluster;
+  if (filters?.band) computeBody.band = [filters.band];
+  if (filters?.techno) computeBody.technology = [filters.techno];
+  if (filters?.site_name) computeBody.site_name = filters.site_name.split(',');
 
-  const valueMap = buildKpiValueMap(json.data || []);
+  const computeUrl = getVpsProxyUrl('parser', '/api/v1/pm/kpi/compute');
+  const resp = await fetch(computeUrl, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(computeBody),
+  });
+  if (!resp.ok) throw new Error(`KPI compute failed: ${resp.status}`);
+  const json = await resp.json();
+
+  // Build value map from compute series (kpi_value per cell)
+  const series: any[] = json.series || [];
+  const valueMap = new Map<string, number>();
+  for (const pt of series) {
+    const cellName = pt.cell_name || pt.ne_name || pt.split_field || '';
+    const siteName = pt.site_name || '';
+    const val = pt.kpi_value;
+    if (val == null || !Number.isFinite(val)) continue;
+    if (cellName) valueMap.set(cellName, val);
+    // Site-level aggregation (rolling average)
+    if (siteName) {
+      const siteKey = `site:${siteName}`;
+      const existing = valueMap.get(siteKey);
+      if (existing != null) {
+        const countKey = `count:${siteName}`;
+        const count = (valueMap.get(countKey) || 1) + 1;
+        valueMap.set(countKey, count);
+        valueMap.set(siteKey, (existing * (count - 1) + val) / count);
+      } else {
+        valueMap.set(siteKey, val);
+        valueMap.set(`count:${siteName}`, 1);
+      }
+    }
+  }
+
   kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
-  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId}`);
+  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId} (source: ${json.source_table || 'compute'})`);
   return valueMap;
 }
 
