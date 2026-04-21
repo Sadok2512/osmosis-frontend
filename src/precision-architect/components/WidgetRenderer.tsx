@@ -514,15 +514,6 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
           </div>
         </div>
       )}
-      {hasNoData && (
-        <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
-          <div className="bg-muted/80 border border-border rounded-lg px-4 py-3 max-w-md text-center">
-            <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Aucune donnée</div>
-            <div className="text-xs text-muted-foreground">Aucune donnée pour ce périmètre / cette période.</div>
-            <div className="text-[10px] text-muted-foreground/70 mt-1">Élargissez la plage ou retirez un filtre.</div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
