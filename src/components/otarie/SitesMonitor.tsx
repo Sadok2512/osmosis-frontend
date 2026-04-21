@@ -5954,7 +5954,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           totalCells++;
           const v = getCellKpiValue(c);
           if (!isNaN(v)) matchedCells++;
-          else if (sampleCellIds.length < 5) sampleCellIds.push(String(c.cell_id || c.cell_name || ''));
+          else if (sampleCellIds.length < 5) sampleCellIds.push(String((c as any).cell_id || (c as any).cell_name || ''));
           counts[getKpiLevel(v)]++;
         }
       }
