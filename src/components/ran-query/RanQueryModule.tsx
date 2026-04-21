@@ -1954,7 +1954,7 @@ const RanQueryModule: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              ) : (
+              ) : detailMode === 'chart' ? (
                 <div className="rounded-2xl border border-border/60 bg-background/60 p-4">
                   <p className="mb-4 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                     Time Series {chartData && 'kpis' in chartData ? `(${chartData.kpis.length} KPI${chartData.kpis.length > 1 ? 's' : ''})` : ''}
