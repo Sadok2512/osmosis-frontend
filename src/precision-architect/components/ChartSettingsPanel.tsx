@@ -1010,146 +1010,238 @@ function MetricsTab({
               </div>
 
               {expanded && (
-                <div className="px-4 pb-4 pt-3 border-t border-outline-variant/15 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
-                  <Field label={`KPI ${kpiOptions.length > 0 ? `· ${kpiOptions.length} disponibles` : ''}`}>
-                    <KpiCombobox
-                      value={m.kpiKey}
-                      options={kpiOptions}
-                      loading={kpisLoading}
-                      onSelect={(opt) => updateMetric(m.id, { kpiKey: opt.key, alias: opt.label, unit: opt.unit })}
-                    />
-                  </Field>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="Alias">
-                      <input
-                        value={m.alias ?? ''}
-                        onChange={(e) => updateMetric(m.id, { alias: e.target.value })}
-                        placeholder="Display name"
-                        className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm"
-                      />
-                    </Field>
-                    <Field label="Unit">
-                      <input
-                        value={m.unit ?? ''}
-                        onChange={(e) => updateMetric(m.id, { unit: e.target.value })}
-                        placeholder="auto"
-                        className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm"
-                      />
-                    </Field>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
-                    <Field label="Axis">
-                      <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
-                        {(['left', 'right'] as AxisSide[]).map(side => (
-                          <button
-                            key={side}
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateMetric(m.id, { axis: side });
-                            }}
-                            className={cn(
-                              'flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors',
-                              m.axis === side ? 'bg-primary text-on-primary' : 'bg-white text-on-surface-variant hover:bg-surface-container-low'
-                            )}
-                          >
-                            {side}
-                          </button>
-                        ))}
-                      </div>
-                    </Field>
-                    <Field label="Type">
-                      <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden">
-                        {(['line', 'area', 'bar'] as ChartType[]).map(t => {
-                          const active = (m.graphType ?? 'line') === t;
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                updateMetric(m.id, { graphType: t });
-                              }}
-                              className={cn(
-                                'flex-1 py-2 text-[11px] font-bold uppercase tracking-wider transition-colors',
-                                active ? 'bg-primary text-on-primary' : 'bg-white text-on-surface-variant hover:bg-surface-container-low'
-                              )}
-                            >
-                              {t}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </Field>
-                    <Field label="Line style">
-                      <select
-                        value={m.lineStyle}
-                        onChange={(e) => updateMetric(m.id, { lineStyle: e.target.value as LineStyle })}
-                        className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-sm"
-                      >
-                        <option value="solid">Solid</option>
-                        <option value="dashed">Dashed</option>
-                      </select>
-                    </Field>
-                  </div>
-
-                  <Field label="Color">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg ring-2 ring-white shadow-md shrink-0"
-                        style={{ background: m.color }}
-                      />
-                      <div className="flex flex-wrap gap-1.5 flex-1">
-                        {COLOR_PALETTE.map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              updateMetric(m.id, { color: c });
-                            }}
-                            className={cn(
-                              'w-6 h-6 rounded-full transition-all hover:scale-110 cursor-pointer',
-                              m.color === c ? 'ring-2 ring-on-surface ring-offset-2' : 'ring-1 ring-outline-variant/30'
-                            )}
-                            style={{ background: c }}
-                            aria-label={`Color ${c}`}
+                <div className="px-4 pb-4 pt-3 border-t border-outline-variant/15 animate-in fade-in slide-in-from-top-1 duration-150">
+                  {/* Top: live preview + KPI info */}
+                  <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr] gap-3 mb-3">
+                    <MetricPreview metric={m} />
+                    <div className="space-y-2">
+                      <Field label={`KPI ${kpiOptions.length > 0 ? `· ${kpiOptions.length}` : ''}`}>
+                        <KpiCombobox
+                          value={m.kpiKey}
+                          options={kpiOptions}
+                          loading={kpisLoading}
+                          onSelect={(opt) => updateMetric(m.id, { kpiKey: opt.key, alias: opt.label, unit: opt.unit })}
+                        />
+                      </Field>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Field label="Alias">
+                          <input
+                            value={m.alias ?? ''}
+                            onChange={(e) => updateMetric(m.id, { alias: e.target.value })}
+                            placeholder="Display name"
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-outline-variant/30 bg-white text-xs"
                           />
-                        ))}
-                      </div>
-                      <label
-                        className="flex items-center gap-1.5 border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-white shrink-0 cursor-pointer hover:border-primary/40 transition-colors"
-                        title="Pick a custom color"
-                      >
-                        <span
-                          className="w-5 h-5 rounded ring-1 ring-outline-variant/40 shrink-0 pointer-events-none"
-                          style={{ background: m.color }}
-                        />
-                        <input
-                          type="color"
-                          value={m.color}
-                          onChange={(e) => updateMetric(m.id, { color: e.target.value })}
-                          className="sr-only"
-                        />
-                        <input
-                          type="text"
-                          value={m.color}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (/^#[0-9a-fA-F]{0,6}$/.test(v)) updateMetric(m.id, { color: v });
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-20 text-[11px] font-mono text-on-surface bg-transparent outline-none uppercase"
-                        />
-                      </label>
-                      <div className="basis-full">
-                        <ColorSwatchPalette value={m.color} onChange={(c) => updateMetric(m.id, { color: c })} compact />
+                        </Field>
+                        <Field label="Unit">
+                          <input
+                            value={m.unit ?? ''}
+                            onChange={(e) => updateMetric(m.id, { unit: e.target.value })}
+                            placeholder="auto"
+                            className="w-full px-2.5 py-1.5 rounded-lg border border-outline-variant/30 bg-white text-xs"
+                          />
+                        </Field>
                       </div>
                     </div>
-                  </Field>
+                  </div>
+
+                  {/* Section: Style */}
+                  <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-3 mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Style</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateMetric(m.id, {
+                            color: COLOR_PALETTE[0],
+                            lineStyle: 'solid',
+                            lineWidth: 2,
+                            smooth: false,
+                            fillArea: false,
+                          });
+                        }}
+                        className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant hover:text-primary transition-colors"
+                        title="Reset style"
+                      >
+                        Reset style
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Field label="Color">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className="w-9 h-9 rounded-lg ring-2 ring-white shadow-md shrink-0"
+                            style={{ background: m.color }}
+                            title={m.color}
+                          />
+                          <label
+                            className="flex-1 flex items-center gap-1.5 border border-outline-variant/30 rounded-lg px-2 py-1.5 bg-white cursor-pointer hover:border-primary/40 transition-colors"
+                            title="Pick a custom color"
+                          >
+                            <Palette className="w-3.5 h-3.5 text-on-surface-variant" />
+                            <input
+                              type="color"
+                              value={m.color}
+                              onChange={(e) => updateMetric(m.id, { color: e.target.value })}
+                              className="sr-only"
+                            />
+                            <input
+                              type="text"
+                              value={m.color}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                if (/^#[0-9a-fA-F]{0,6}$/.test(v)) updateMetric(m.id, { color: v });
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex-1 text-[11px] font-mono text-on-surface bg-transparent outline-none uppercase"
+                            />
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-8 gap-1.5">
+                          {COLOR_PALETTE.map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateMetric(m.id, { color: c });
+                              }}
+                              className={cn(
+                                'aspect-square rounded-md transition-all hover:scale-110 cursor-pointer',
+                                m.color === c
+                                  ? 'ring-2 ring-on-surface ring-offset-1 scale-105'
+                                  : 'ring-1 ring-outline-variant/30'
+                              )}
+                              style={{ background: c }}
+                              aria-label={`Color ${c}`}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </Field>
+
+                      <div className="space-y-2">
+                        <Field label="Line style">
+                          <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
+                            {(['solid', 'dashed', 'dotted'] as LineStyle[]).map(style => {
+                              const active = m.lineStyle === style;
+                              return (
+                                <button
+                                  key={style}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { lineStyle: style }); }}
+                                  title={style}
+                                  className={cn(
+                                    'flex-1 flex items-center justify-center gap-1.5 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors',
+                                    active ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      'inline-block w-6',
+                                      style === 'solid' && 'border-t-2 border-current',
+                                      style === 'dashed' && 'border-t-2 border-dashed border-current',
+                                      style === 'dotted' && 'border-t-2 border-dotted border-current',
+                                    )}
+                                  />
+                                  {style}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </Field>
+
+                        <Field label={`Thickness · ${m.lineWidth ?? 2}px`}>
+                          <input
+                            type="range"
+                            min={1}
+                            max={4}
+                            step={1}
+                            value={m.lineWidth ?? 2}
+                            onChange={(e) => updateMetric(m.id, { lineWidth: Number(e.target.value) })}
+                            className="w-full accent-primary"
+                          />
+                        </Field>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Axis & Display */}
+                  <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-3">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Axis & Display</div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <Field label="Axis">
+                        <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
+                          {(['left', 'right'] as AxisSide[]).map(side => (
+                            <button
+                              key={side}
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { axis: side }); }}
+                              className={cn(
+                                'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors',
+                                m.axis === side ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                              )}
+                            >
+                              {side}
+                            </button>
+                          ))}
+                        </div>
+                      </Field>
+
+                      <Field label="Type">
+                        <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
+                          {(['line', 'area', 'bar'] as ChartType[]).map(t => {
+                            const active = (m.graphType ?? 'line') === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { graphType: t }); }}
+                                className={cn(
+                                  'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors',
+                                  active ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
+                                )}
+                              >
+                                {t}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </Field>
+
+                      <Field label="Smoothing">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { smooth: !m.smooth }); }}
+                          className={cn(
+                            'w-full py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-colors',
+                            m.smooth
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-white text-on-surface-variant border-outline-variant/30 hover:border-primary/30'
+                          )}
+                        >
+                          {m.smooth ? 'On' : 'Off'}
+                        </button>
+                      </Field>
+
+                      <Field label="Fill area">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { fillArea: !m.fillArea }); }}
+                          className={cn(
+                            'w-full py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg border transition-colors',
+                            m.fillArea
+                              ? 'bg-primary text-on-primary border-primary'
+                              : 'bg-white text-on-surface-variant border-outline-variant/30 hover:border-primary/30'
+                          )}
+                        >
+                          {m.fillArea ? 'On' : 'Off'}
+                        </button>
+                      </Field>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
