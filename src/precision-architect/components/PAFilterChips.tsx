@@ -20,6 +20,10 @@ interface Props {
   filtersLoading?: boolean;
   /** When true, render compactly without the outer "Filtres" label & padding row — for inline use in the scope toolbar. */
   inline?: boolean;
+  /** Render only the active chips (no "Ajouter filtre" button). */
+  chipsOnly?: boolean;
+  /** Render only the "Ajouter filtre" button (no chips). */
+  addOnly?: boolean;
 }
 
 const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
