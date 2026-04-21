@@ -401,7 +401,18 @@ function Segment<T extends string>({
 
 function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; existing: string[] }) {
   const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState<{ left: number; top: number; width: number } | null>(null);
   const available = FILTER_DIMENSIONS.filter((d) => !existing.includes(d.key));
+
+  const handleToggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      // Position dropdown ABOVE the button, anchored to its top edge.
+      setCoords({ left: r.left, top: r.top, width: r.width });
+    }
+    setOpen((o) => !o);
+  };
 
   if (available.length === 0) {
     return (
@@ -412,16 +423,25 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={handleToggle}
         className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg border-2 border-dashed border-primary/30 text-primary text-[11px] font-black uppercase tracking-widest hover:bg-primary/5 transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
         Add Filter
       </button>
-      {open && (
+      {open && coords && createPortal(
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-outline-variant/20 rounded-lg shadow-xl z-50 py-1 max-h-56 overflow-y-auto">
+          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+          <div
+            className="fixed bg-white border border-outline-variant/20 rounded-lg shadow-xl z-[61] py-1 max-h-64 overflow-y-auto"
+            style={{
+              left: coords.left,
+              top: coords.top - 8,
+              width: coords.width,
+              transform: 'translateY(-100%)',
+            }}
+          >
             {available.map((d) => (
               <button
                 key={d.key}
@@ -432,7 +452,8 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
               </button>
             ))}
           </div>
-        </>
+        </>,
+        document.body
       )}
     </div>
   );
