@@ -7,6 +7,7 @@ import { ViewMode, PAPage } from '../types';
 import { cn } from '@/lib/utils';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
+import ReportHeader from './ReportHeader';
 
 const GridLayout = WidthProvider(ReactGridLayout);
 
@@ -102,21 +103,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         style={{ backgroundColor: pageBg, color: textColor, padding: `${padding}px` }}
       >
         <main className={cn('w-full min-w-0 mx-auto space-y-6', widthClass)}>
-          {showHeader ? (
-            <header className={cn('w-full', headerAlign)} style={{ color: textColor }}>
-              {theme?.pageTitle && (
-                <h1 className="text-3xl font-black font-headline" style={{ color: titleColor }}>{theme.pageTitle}</h1>
-              )}
-              {theme?.pageSubtitle && (
-                <p className="text-sm mt-2 opacity-80">{theme.pageSubtitle}</p>
-              )}
-            </header>
-          ) : (
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: titleColor }}>Live Report</p>
-              <h2 className="text-3xl sm:text-4xl font-black font-headline tracking-tighter" style={{ color: titleColor }}>{activePage?.name ?? 'Overview'}</h2>
-            </div>
-          )}
+          <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
 
           {widgets.length === 0 && sections.length === 0 ? (
             <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">

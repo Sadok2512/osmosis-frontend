@@ -39,6 +39,7 @@ import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
+import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
@@ -373,16 +374,7 @@ export default function EditorView({
           }}
         >
           <div className={cn(widthClass, 'mx-auto')} style={{ display: 'flex', flexDirection: 'column', gap: spacing }}>
-            {showHeader && (
-              <header className={cn('w-full', headerAlign)} style={{ color: textColor }}>
-                {theme?.pageTitle && (
-                  <h1 className="text-3xl font-black font-headline" style={{ color: titleColor }}>{theme.pageTitle}</h1>
-                )}
-                {theme?.pageSubtitle && (
-                  <p className="text-sm mt-2 opacity-80">{theme.pageSubtitle}</p>
-                )}
-              </header>
-            )}
+            <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
 
             {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
