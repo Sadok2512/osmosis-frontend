@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Check } from 'lucide-react';
+import { Filter, Clock, Flag, ChevronDown, Check, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
