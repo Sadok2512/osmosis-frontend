@@ -90,6 +90,8 @@ export default function EditorView({
   const [showSettings, setShowSettings] = useState(true);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const [newSectionId, setNewSectionId] = useState<string | null>(null);
+  const [draggingSectionId, setDraggingSectionId] = useState<string | null>(null);
+  const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
   
