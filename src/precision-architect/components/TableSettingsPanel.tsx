@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Eye, EyeOff, Database, Filter, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Eye, EyeOff, Database, Filter, ChevronDown, Palette, Flag } from 'lucide-react';
 import {
   DynWidget, TableWidgetConfig, TableColumn, DEFAULT_TABLE_CONFIG, ChartFilterChip,
 } from '../types';
