@@ -512,11 +512,7 @@ export const topoApi = {
   },
 
   listFull: async (limit = 100000) => {
-    if (isLocalExpress()) {
-      return fetchJson<{ rows: any[]; total: number }>(localUrl(`topo?limit=${limit}&full=1`));
-    }
-
-    // VPS: /topo/cells lacks coordinates → merge with /topo/sites for lat/lng
+    // Always use /topo/cells + /topo/sites merge (the /topo?full=1 endpoint doesn't exist)
     const cellsQs = new URLSearchParams({ limit: String(limit) });
     const sitesQs = new URLSearchParams({ bbox: '-180,-90,180,90', limit: '50000' });
 
