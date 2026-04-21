@@ -700,17 +700,59 @@ export interface CustomMapPoint {
 }
 
 const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
+const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
 
-function loadCustomPoints(): CustomMapPoint[] {
+function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
+  if (!dashboardId) return null;
+  return `${base}__db_${dashboardId}`;
+}
+
+function loadCustomPoints(dashboardId?: string | null): CustomMapPoint[] {
+  const key = scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId);
+  if (!key) return [];
   try {
-    const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
+    const saved = localStorage.getItem(key);
     const pts: CustomMapPoint[] = saved ? JSON.parse(saved) : [];
     return pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && (p.lat !== 0 || p.lon !== 0));
   } catch { return []; }
 }
 
-function persistCustomPoints(points: CustomMapPoint[]) {
-  try { localStorage.setItem(CUSTOM_POINTS_KEY, JSON.stringify(points)); } catch {}
+function persistCustomPoints(points: CustomMapPoint[], dashboardId?: string | null) {
+  const key = scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(points)); } catch {}
+}
+
+function loadTaggedSitesScoped(dashboardId?: string | null): SiteSummary[] {
+  const key = scopedStorageKey(TAGGED_SITES_KEY, dashboardId);
+  if (!key) return [];
+  try { const saved = localStorage.getItem(key); return saved ? JSON.parse(saved) : []; } catch { return []; }
+}
+
+function persistTaggedSitesScoped(sites: SiteSummary[], dashboardId?: string | null) {
+  const key = scopedStorageKey(TAGGED_SITES_KEY, dashboardId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(sites)); } catch {}
+}
+
+function purgeDashboardArtifacts(dashboardId: string) {
+  try {
+    localStorage.removeItem(scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId)!);
+    localStorage.removeItem(scopedStorageKey(TAGGED_SITES_KEY, dashboardId)!);
+    localStorage.removeItem(`osmosis_tagged_links__db_${dashboardId}`);
+  } catch {}
+}
+
+/** One-shot purge of legacy global artifact keys (run once on app load). */
+function purgeLegacyArtifacts() {
+  const FLAG = 'osmosis_artifacts_legacy_purged_v1';
+  if (localStorage.getItem(FLAG)) return;
+  try {
+    localStorage.removeItem(CUSTOM_POINTS_KEY);
+    localStorage.removeItem(TAGGED_SITES_KEY);
+    localStorage.removeItem('osmosis_tagged_links');
+    localStorage.setItem(FLAG, '1');
+  } catch {}
 }
 
 // Map click handler for custom point creation
