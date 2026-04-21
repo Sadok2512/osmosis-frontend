@@ -45,6 +45,16 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   const widgetLabel = `MAP · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
   const [tab, setTab] = useState<MapTab>('data');
+  // Re-render when backend filter cache loads values
+  const [, setCacheTick] = useState(0);
+  useEffect(() => {
+    // Preload common filter dimensions
+    ['PLAQUE', 'DOR', 'VENDOR', 'BANDE', 'TECHNO', 'BCLUSTER', 'ARCEP'].forEach(d => {
+      try { ensureFilterLoaded(d); } catch {}
+    });
+    const unsub = subscribeCacheUpdates(() => setCacheTick(t => t + 1));
+    return unsub;
+  }, []);
   // Re-render whenever the shared sites cache fills/changes so dynamic filter chips appear.
   const [, setCacheTick] = useState(0);
   useEffect(() => subscribeMapSitesCache(() => setCacheTick((t) => t + 1)), []);
@@ -182,15 +192,13 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 
                     {cfg.filters.map((f) => {
                       const dim = FILTER_DIMENSIONS.find((d) => d.key === f.dimension);
-                      // Try map cache first, then backend investigator cache
+                      // Merge: backend investigator cache (complete) + map cache (live)
+                      const cacheKey = dimToKey(f.dimension) || f.dimension.toUpperCase();
+                      const cached = getFilterValues(cacheKey);
+                      const backendValues = cached?.values ?? [];
                       const liveValues = getMapSitesDistinct(f.dimension);
-                      let chipValues = liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
-                      if (chipValues.length === 0) {
-                        const cacheKey = dimToKey(f.dimension) || f.dimension.toUpperCase();
-                        ensureFilterLoaded(cacheKey);
-                        const cached = getFilterValues(cacheKey);
-                        if (cached?.values?.length) chipValues = cached.values;
-                      }
+                      // Use backend values (more complete), fallback to map cache
+                      const chipValues = backendValues.length > 0 ? backendValues : liveValues.length > 0 ? liveValues : (dim?.sample ?? []);
                       return (
                         <MapDimensionChip
                           key={f.id}
