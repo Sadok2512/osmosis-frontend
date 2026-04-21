@@ -208,6 +208,30 @@ export const usePAReportStore = create<PAReportState>()(
         dashboards: s.dashboards,
         activeDashboardId: s.activeDashboardId,
       }),
+      // CRITICAL: without a migrate function, zustand DROPS the persisted state
+      // when `version` changes — which is why widgets lost their `appliedConfig`
+      // and `appliedRev`, causing "Apply to Dashboard" to look broken.
+      // We accept any prior shape and let the runtime re-fill missing fields
+      // with safe defaults.
+      migrate: (persistedState: any, fromVersion: number) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState;
+        // v0/v1 → v2: pages already had the right shape; nothing structural to change.
+        // Keep dashboards/activeDashboardId if present, otherwise fall back to defaults.
+        const next = { ...persistedState };
+        if (!Array.isArray(next.dashboards) || next.dashboards.length === 0) {
+          next.dashboards = [INITIAL_DASHBOARD];
+        }
+        if (!next.activeDashboardId) {
+          next.activeDashboardId = next.dashboards[0]?.id ?? INITIAL_DASHBOARD.id;
+        }
+        if (!Array.isArray(next.pages) || next.pages.length === 0) {
+          next.pages = INITIAL_PAGES;
+        }
+        if (!next.activePageId) {
+          next.activePageId = next.pages[0]?.id ?? 'page-1';
+        }
+        return next;
+      },
     },
   ),
 );
