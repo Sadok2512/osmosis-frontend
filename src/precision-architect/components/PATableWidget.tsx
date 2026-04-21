@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
 import { useTableQuery, TableRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { toBackendDimension } from '../lib/monitorDimensions';
 
 interface Props {
   height?: number | string;
@@ -43,9 +44,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       filters: inheritsScope ? global.filters : cfg.data.filters,
     };
 
+    // Normalize dimensions to backend keys (Techno → RAT, Constructeur → Vendor, …)
     const byDim = new Map<string, string[]>();
     eff.filters.forEach(f => {
-      const dim = f.dimension.toUpperCase();
+      const dim = toBackendDimension(f.dimension);
       const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
       byDim.set(dim, arr);
@@ -58,7 +60,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     const selected = (eff.technos || []).map(t => t.toLowerCase());
     const allSelected = selected.length >= 4 && selected.every(t => ALL_TECHS.has(t));
     if (selected.length > 0 && !allSelected) {
-      filters.push({ dimension: 'TECHNOLOGY', op: 'IN', values: selected.map(t => t.toUpperCase()) });
+      filters.push({ dimension: toBackendDimension('Techno'), op: 'IN', values: selected.map(t => t.toUpperCase()) });
     }
 
     const normalizeDate = (raw: string): string => {
@@ -179,7 +181,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
                   <td className="px-4 py-2.5 font-black text-on-surface tabular-nums">{r.split_value || '—'}</td>
                 )}
                 {visibleColumns.map(col => {
-                  const v = r[col.kpiKey];
+                  const raw = r[col.kpiKey];
+                  // Backend may return either a scalar or an object {avg,min,max}.
+                  // Pick `avg` when an aggregated bag is returned.
+                  const v = raw && typeof raw === 'object' && !Array.isArray(raw)
+                    ? (raw.avg ?? raw.value ?? raw.min ?? raw.max ?? null)
+                    : raw;
                   return (
                     <td key={col.id} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
                       {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
