@@ -485,8 +485,8 @@ export default function SectionBlock({ section, editable, isActive, isNew, onCha
       )}
 
       <div className={cn('flex flex-col gap-2', alignClass)}>
-        <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-          {editable ? (
+        {editable ? (
+          <p className="text-[10px] font-black uppercase tracking-widest text-primary">
             <input
               value={section.name}
               onChange={(e) => onChange?.({ name: e.target.value })}
@@ -496,10 +496,12 @@ export default function SectionBlock({ section, editable, isActive, isNew, onCha
                 alignClass,
               )}
             />
-          ) : (
-            section.name
-          )}
-        </p>
+          </p>
+        ) : section.name ? (
+          <p className={cn('text-[11px] font-black uppercase tracking-widest text-primary', alignClass)}>
+            {section.name}
+          </p>
+        ) : null}
 
         {editable ? (
           <input
