@@ -6,7 +6,8 @@ import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import type { TechnoId, PeriodPreset, GrainOption } from '../types';
+import { usePAReportStore } from '../stores/paReportStore';
+import type { TechnoId, PeriodPreset, GrainOption, DynWidget } from '../types';
 
 const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
@@ -73,8 +74,31 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
     }
   };
 
+  const setPages = usePAReportStore((s) => s.setPages);
+
   const handleApply = () => {
     apply();
+    // CRITICAL: "Apply to Dashboard" must apply to ALL widgets in the dashboard,
+    // not only those individually applied. We snapshot config -> appliedConfig
+    // (and tableConfig -> appliedTableConfig) and bump appliedRev for every
+    // widget on every page so that brand-new charts also fetch immediately.
+    setPages((prev) =>
+      prev.map((page) => ({
+        ...page,
+        widgets: page.widgets.map((w: DynWidget) => {
+          // Only widgets that actually fetch data need the snapshot bump.
+          if (w.kind !== 'chart' && w.kind !== 'table') return w;
+          const next: DynWidget = { ...w, appliedRev: (w.appliedRev ?? 0) + 1 };
+          if (w.kind === 'chart' && w.config) {
+            next.appliedConfig = structuredClone(w.config);
+          }
+          if (w.kind === 'table' && w.tableConfig) {
+            next.appliedTableConfig = structuredClone(w.tableConfig);
+          }
+          return next;
+        }),
+      })),
+    );
     onApply?.();
   };
 
