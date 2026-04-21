@@ -199,7 +199,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
         </div>
 
-        {/* Inline active filter chips — merged into the same scope row */}
+        {/* Inline active filter chips + add button — merged into the same scope row */}
         {filters.length > 0 && <div className="h-5 w-px bg-outline-variant/30 mx-1" />}
         <PAFilterChips
           filters={filters}
@@ -207,6 +207,13 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           filterDimensions={dimensionOptions}
           filtersLoading={filtersLoading}
           chipsOnly
+        />
+        <PAFilterChips
+          filters={filters}
+          onChange={setFilters}
+          filterDimensions={dimensionOptions}
+          filtersLoading={filtersLoading}
+          addOnly
         />
 
         <div className="ml-auto flex items-center gap-2">
@@ -222,17 +229,6 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
             Apply to Dashboard
           </button>
         </div>
-      </div>
-
-      {/* Add-filter row — always on its own line below the scope row */}
-      <div className="px-6 py-2 flex items-center">
-        <PAFilterChips
-          filters={filters}
-          onChange={setFilters}
-          filterDimensions={dimensionOptions}
-          filtersLoading={filtersLoading}
-          addOnly
-        />
       </div>
     </div>
   );
