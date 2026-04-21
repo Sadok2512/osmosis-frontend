@@ -6294,7 +6294,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const cells = cellMap.get(ts.site_id);
           return cells ? { ...ts, cells } : ts;
         });
-        try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+        persistTaggedSitesScoped(next, activeDashboardIdRef.current);
         return next;
       });
     })();
