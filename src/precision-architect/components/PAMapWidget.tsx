@@ -23,7 +23,7 @@ const colorFor = (status: MapSite['status']) =>
 
 /** Map a SiteSummary from the topo service to the lightweight MapSite shape. */
 function siteSummaryToMapSite(s: SiteSummary): MapSite | null {
-  const [lon, lat] = s.coordinates ?? [NaN, NaN];
+  const [lat, lon] = s.coordinates ?? [NaN, NaN];
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const qoe = Number.isFinite(s.qoe_score_avg) ? s.qoe_score_avg : 80;
