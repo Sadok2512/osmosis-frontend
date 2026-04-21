@@ -180,31 +180,13 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
-                    {visibleChips.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {visibleChips.map((val) => {
-                          const active = f.values.includes(val);
-                          return (
-                            <button
-                              key={val}
-                              onClick={() => toggleFilterValue(f.id, val)}
-                              className={cn(
-                                'px-2 py-0.5 rounded-full text-[10px] font-bold border transition-colors',
-                                active
-                                  ? 'bg-primary text-on-primary border-primary'
-                                  : 'bg-white text-on-surface-variant border-outline-variant/30 hover:border-primary/40'
-                              )}
-                            >
-                              {val}
-                            </button>
-                          );
-                        })}
-                        {chipValues.length > MAX_CHIPS && (
-                          <span className="text-[10px] text-on-surface-variant/60 px-1">
-                            +{chipValues.length - MAX_CHIPS} more…
-                          </span>
-                        )}
-                      </div>
+                    {chipValues.length > 0 ? (
+                      <MapFilterMultiSelect
+                        values={chipValues}
+                        selected={f.values}
+                        onToggle={(val) => toggleFilterValue(f.id, val)}
+                        label={dim?.label ?? f.dimension}
+                      />
                     ) : (
                       <input
                         type="text"
@@ -476,6 +458,81 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
           </div>
         </>,
         document.body
+      )}
+    </div>
+  );
+}
+
+
+/* ── Multi-select filter with search ── */
+function MapFilterMultiSelect({ values, selected, onToggle, label }: {
+  values: string[];
+  selected: string[];
+  onToggle: (val: string) => void;
+  label: string;
+}) {
+  const [search, setSearch] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const filtered = search
+    ? values.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    : values;
+
+  return (
+    <div>
+      {/* Selected chips */}
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {selected.map(val => (
+            <button key={val} onClick={() => onToggle(val)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-on-primary border border-primary">
+              {val} <X className="w-2.5 h-2.5" />
+            </button>
+          ))}
+        </div>
+      )}
+      {/* Toggle dropdown */}
+      <button onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-3 py-2 rounded-lg border border-outline-variant/30 bg-white text-[11px] font-medium text-on-surface-variant hover:border-primary/40 transition-colors">
+        <Filter className="w-3 h-3" />
+        <span>{selected.length > 0 ? `${selected.length} selected` : `Select ${label}...`}</span>
+        <ChevronDown className={cn("w-3 h-3 ml-auto transition-transform", expanded && "rotate-180")} />
+      </button>
+      {/* Dropdown */}
+      {expanded && (
+        <div className="mt-1 border border-outline-variant/30 rounded-lg bg-white shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-outline-variant/20">
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search..." autoFocus
+              className="w-full px-3 py-1.5 rounded-md border border-outline-variant/30 bg-surface-container-low text-xs outline-none focus:ring-2 focus:ring-primary/20" />
+          </div>
+          <div className="max-h-[200px] overflow-y-auto">
+            {filtered.length === 0 && (
+              <p className="px-3 py-4 text-[10px] text-on-surface-variant text-center">No match</p>
+            )}
+            {filtered.map(val => {
+              const active = selected.includes(val);
+              return (
+                <button key={val} onClick={() => onToggle(val)}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-1.5 text-left text-[11px] transition-colors",
+                    active ? "bg-primary/10 text-primary font-bold" : "text-on-surface hover:bg-surface-container-low"
+                  )}>
+                  <span className={cn(
+                    "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all",
+                    active ? "border-primary bg-primary text-white" : "border-outline-variant/40 bg-white"
+                  )}>
+                    {active && <span className="text-[8px] font-black">✓</span>}
+                  </span>
+                  <span className="truncate">{val}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center justify-between px-3 py-1.5 border-t border-outline-variant/20 bg-surface-container-low/50">
+            <span className="text-[9px] text-on-surface-variant">{filtered.length} values</span>
+            <button onClick={() => setExpanded(false)} className="text-[10px] font-bold text-primary">Done</button>
+          </div>
+        </div>
       )}
     </div>
   );
