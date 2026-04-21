@@ -742,39 +742,49 @@ export default function EditorView({
         </button>
       )}
 
-      {!activeWidget && (
-        <div className="fixed right-8 bottom-48 z-[60] flex flex-col items-end gap-4 overflow-visible">
-          <div className="bg-white rounded-2xl shadow-2xl border border-outline-variant/10 p-2 flex flex-col gap-1 w-12 hover:w-48 transition-all duration-300 group overflow-hidden">
-            {([
-              { icon: Heading1, label: 'Hero Title', kind: 'hero' as const },
-              { icon: Hash, label: 'Stat Card', kind: 'stat' as const },
-              { icon: Minus, label: 'Divider', kind: 'divider' as const },
-              { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
-              { icon: MapIcon, label: 'Map', kind: 'map' as const },
-              { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
-              { icon: TableIcon, label: 'Table', kind: 'table' as const },
-              { icon: TypeIcon, label: 'Text', kind: 'text' as const },
-              { icon: ImageIcon, label: 'Image', kind: 'image' as const },
-            ]).map((tool) => (
-              <button
-                key={tool.label}
-                onClick={() => addWidget(tool.kind)}
-                className="flex items-center gap-4 p-3 hover:bg-primary/5 rounded-xl transition-all w-full text-left active:scale-95"
-              >
-                <tool.icon className="w-5 h-5 text-primary shrink-0" />
-                <span className="font-bold text-xs uppercase tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-300 overflow-hidden">{tool.label}</span>
-              </button>
-            ))}
-          </div>
-          <button
-            onClick={() => addWidget('chart')}
-            className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
-            aria-label="Add chart"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        </div>
-      )}
+      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} bottom-8 z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
+        <AnimatePresence>
+          {toolboxOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 12, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.95 }}
+              transition={{ duration: 0.18 }}
+              className="bg-white rounded-2xl shadow-2xl border border-outline-variant/20 p-2 flex flex-col gap-1 w-56"
+            >
+              <div className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Add widget</div>
+              {([
+                { icon: Heading1, label: 'Hero Title', kind: 'hero' as const },
+                { icon: Hash, label: 'Stat Card', kind: 'stat' as const },
+                { icon: Minus, label: 'Divider', kind: 'divider' as const },
+                { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
+                { icon: MapIcon, label: 'Map', kind: 'map' as const },
+                { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
+                { icon: TableIcon, label: 'Table', kind: 'table' as const },
+                { icon: TypeIcon, label: 'Text', kind: 'text' as const },
+                { icon: ImageIcon, label: 'Image', kind: 'image' as const },
+              ]).map((tool) => (
+                <button
+                  key={tool.label}
+                  onClick={() => { addWidget(tool.kind); setToolboxOpen(false); }}
+                  className="flex items-center gap-3 px-3 py-2.5 hover:bg-primary/5 rounded-xl transition-all w-full text-left active:scale-95"
+                >
+                  <tool.icon className="w-5 h-5 text-primary shrink-0" />
+                  <span className="font-bold text-xs uppercase tracking-wider text-on-surface">{tool.label}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <button
+          onClick={() => setToolboxOpen(v => !v)}
+          className="w-14 h-14 rounded-full bg-primary text-on-primary shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-110 active:scale-90 transition-transform"
+          aria-label="Add widget"
+          title="Add widget"
+        >
+          <Plus className={`w-6 h-6 transition-transform ${toolboxOpen ? 'rotate-45' : ''}`} />
+        </button>
+      </div>
     </div>
   );
 }
