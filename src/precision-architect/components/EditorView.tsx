@@ -432,28 +432,12 @@ export default function EditorView({
               </div>
             )}
 
-            {widgets.length > 0 && (
-              <GridLayout
-                className="layout"
-                layout={layout}
-                cols={COLS}
-                rowHeight={ROW_HEIGHT}
-                margin={[spacing, spacing]}
-                containerPadding={[0, 0]}
-                draggableHandle=".widget-drag-handle"
-                isDraggable
-                isResizable
-                compactType="vertical"
-                preventCollision={false}
-                onLayoutChange={handleLayoutChange}
-                autoSize
-              >
-                {widgets.map(w => {
-                  // Chart widgets get tighter horizontal padding so the Y axis
-                  // hugs the card's left edge (no wasted whitespace).
-                  const isChart = w.kind === 'chart';
-                  const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
-                  return (
+            {(() => {
+              // Helper to render a widget card (used by both unassigned grid and per-section grids).
+              const renderWidgetCard = (w: DynWidget) => {
+                const isChart = w.kind === 'chart';
+                const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
+                return (
                   <div
                     key={w.id}
                     className={cn(
@@ -481,53 +465,117 @@ export default function EditorView({
                     </div>
                     <WidgetRenderer widget={w} editable onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))} />
                   </div>
-                  );
-                })}
-              </GridLayout>
-            )}
+                );
+              };
 
-            <div aria-hidden className="shrink-0" style={{ height: 40 }} />
+              return (
+                <>
+                  {/* Unassigned widgets — top grid (legacy / pre-section widgets). */}
+                  {unassignedWidgets.length > 0 && (
+                    <GridLayout
+                      className="layout"
+                      layout={layout}
+                      cols={COLS}
+                      rowHeight={ROW_HEIGHT}
+                      margin={[spacing, spacing]}
+                      containerPadding={[0, 0]}
+                      draggableHandle=".widget-drag-handle"
+                      isDraggable
+                      isResizable
+                      compactType="vertical"
+                      preventCollision={false}
+                      onLayoutChange={handleLayoutChange}
+                      autoSize
+                    >
+                      {unassignedWidgets.map(renderWidgetCard)}
+                    </GridLayout>
+                  )}
 
-            {/* Sections render AFTER widgets + spacer so they always appear at the bottom */}
-            {sections.length > 0 && (
-              <div className="space-y-4 pl-4">
-                {sections.map((s) => (
-                  <SectionBlock
-                    key={s.id}
-                    section={s}
-                    editable
-                    isActive={activeSectionId === s.id}
-                    isNew={newSectionId === s.id}
-                    isDragging={draggingSectionId === s.id}
-                    isDragOver={dragOverSectionId === s.id && draggingSectionId !== s.id}
-                    onChange={(patch) => updateSection(s.id, patch)}
-                    onRemove={() => removeSection(s.id)}
-                    onDragStart={(e) => {
-                      setDraggingSectionId(s.id);
-                      e.dataTransfer.effectAllowed = 'move';
-                      try { e.dataTransfer.setData('text/plain', s.id); } catch { /* noop */ }
-                    }}
-                    onDragOver={(e) => {
-                      if (!draggingSectionId) return;
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = 'move';
-                      if (dragOverSectionId !== s.id) setDragOverSectionId(s.id);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const fromId = draggingSectionId ?? e.dataTransfer.getData('text/plain');
-                      if (fromId) reorderSections(fromId, s.id);
-                      setDraggingSectionId(null);
-                      setDragOverSectionId(null);
-                    }}
-                    onDragEnd={() => {
-                      setDraggingSectionId(null);
-                      setDragOverSectionId(null);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
+                  {sections.length > 0 && (
+                    <div aria-hidden className="shrink-0" style={{ height: 24 }} />
+                  )}
+
+                  {/* Sections — each renders its header + its own grid of owned widgets. */}
+                  {sections.length > 0 && (
+                    <div className="space-y-6">
+                      {sections.map((s) => {
+                        const sectionWidgets = widgetsBySection.get(s.id) ?? [];
+                        const sectionLayout = buildLayout(sectionWidgets);
+                        return (
+                          <div key={s.id} className="space-y-3">
+                            <SectionBlock
+                              section={s}
+                              editable
+                              isActive={activeSectionId === s.id}
+                              isNew={newSectionId === s.id}
+                              isDragging={draggingSectionId === s.id}
+                              isDragOver={dragOverSectionId === s.id && draggingSectionId !== s.id}
+                              onChange={(patch) => updateSection(s.id, patch)}
+                              onRemove={() => removeSection(s.id)}
+                              onDragStart={(e) => {
+                                setDraggingSectionId(s.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                                try { e.dataTransfer.setData('text/plain', s.id); } catch { /* noop */ }
+                              }}
+                              onDragOver={(e) => {
+                                if (!draggingSectionId) return;
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'move';
+                                if (dragOverSectionId !== s.id) setDragOverSectionId(s.id);
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const fromId = draggingSectionId ?? e.dataTransfer.getData('text/plain');
+                                if (fromId) reorderSections(fromId, s.id);
+                                setDraggingSectionId(null);
+                                setDragOverSectionId(null);
+                              }}
+                              onDragEnd={() => {
+                                setDraggingSectionId(null);
+                                setDragOverSectionId(null);
+                              }}
+                            />
+                            {sectionWidgets.length > 0 ? (
+                              <GridLayout
+                                className="layout"
+                                layout={sectionLayout}
+                                cols={COLS}
+                                rowHeight={ROW_HEIGHT}
+                                margin={[spacing, spacing]}
+                                containerPadding={[0, 0]}
+                                draggableHandle=".widget-drag-handle"
+                                isDraggable
+                                isResizable
+                                compactType="vertical"
+                                preventCollision={false}
+                                onLayoutChange={handleLayoutChange}
+                                autoSize
+                              >
+                                {sectionWidgets.map(renderWidgetCard)}
+                              </GridLayout>
+                            ) : (
+                              <button
+                                onClick={() => setActiveSectionId(s.id)}
+                                className={cn(
+                                  "w-full border-2 border-dashed rounded-2xl p-6 text-xs font-bold uppercase tracking-widest transition-all",
+                                  activeSectionId === s.id
+                                    ? "border-primary/60 bg-primary/5 text-primary"
+                                    : "border-outline-variant/40 text-on-surface-variant hover:border-primary/40 hover:text-primary"
+                                )}
+                              >
+                                {activeSectionId === s.id
+                                  ? "✓ Active section — new widgets land here"
+                                  : "Click to activate · then add widgets from the toolbox"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             <div aria-hidden className="shrink-0" style={{ height: 120 }} />
           </div>
         </div>
