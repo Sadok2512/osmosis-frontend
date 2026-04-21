@@ -404,15 +404,19 @@ export function useFilterValues(dimensions: string[], filters?: MonitorFilter[])
   });
 }
 
-export function useTimeseriesQuery(req: TimeseriesRequest | null) {
+export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) | null) {
   // Stable key: serialize the request so identical payloads don't refetch
   // on every render (e.g., after a widget resize / drag / unrelated state change).
+  // Callers can include a `_rev` cache-buster to force a refetch on demand
+  // (e.g., when the user clicks "Apply" with unchanged toolbar values).
   const key = req ? JSON.stringify(req) : 'noop';
   return useQuery({
     queryKey: ['monitor', 'timeseries', key],
     queryFn: async () => {
       try {
-        return await fetchTimeseries(req!);
+        // Strip the cache-buster before sending to the backend.
+        const { _rev, ...payload } = req!;
+        return await fetchTimeseries(payload as TimeseriesRequest);
       } catch (err) {
         console.warn('[useTimeseriesQuery] Backend unavailable:', err);
         return { series: [], meta: { granularity_applied: req?.granularity || '1d', total_series: 0 } } as TimeseriesResponse;

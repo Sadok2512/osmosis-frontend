@@ -450,7 +450,11 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       })),
       split_by: null,
       top_n: 10,
-    };
+      // Cache-buster: bumped on every Apply click (widget OR global). Ensures
+      // React Query treats this as a NEW query and forces a refetch — even when
+      // toolbar values are unchanged. Stripped before sending to the backend.
+      _rev: effectiveAppliedRev,
+    } as TimeseriesRequest & { _rev: number };
   }, [
     cfg,
     hasMetrics,
