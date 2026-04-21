@@ -18,19 +18,37 @@ export interface TaggedLink {
 
 const STORAGE_KEY = 'osmosis_tagged_links';
 
-export function loadTaggedLinks(): TaggedLink[] {
+function scopedKey(dashboardId?: string | null): string | null {
+  if (!dashboardId) return null;
+  return `${STORAGE_KEY}__db_${dashboardId}`;
+}
+
+export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {
+  const key = scopedKey(dashboardId);
+  if (!key) return [];
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : [];
   } catch {
     return [];
   }
 }
 
-export function persistTaggedLinks(links: TaggedLink[]): void {
+export function persistTaggedLinks(links: TaggedLink[], dashboardId?: string | null): void {
+  const key = scopedKey(dashboardId);
+  if (!key) return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
+    localStorage.setItem(key, JSON.stringify(links));
   } catch {}
+}
+
+export function purgeTaggedLinks(dashboardId: string): void {
+  try { localStorage.removeItem(`${STORAGE_KEY}__db_${dashboardId}`); } catch {}
+}
+
+/** Remove the legacy global key (pre dashboard-scoping). */
+export function purgeLegacyTaggedLinks(): void {
+  try { localStorage.removeItem(STORAGE_KEY); } catch {}
 }
 
 export function createTaggedLink(

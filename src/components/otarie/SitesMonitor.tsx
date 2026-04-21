@@ -700,17 +700,59 @@ export interface CustomMapPoint {
 }
 
 const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
+const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
 
-function loadCustomPoints(): CustomMapPoint[] {
+function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
+  if (!dashboardId) return null;
+  return `${base}__db_${dashboardId}`;
+}
+
+function loadCustomPoints(dashboardId?: string | null): CustomMapPoint[] {
+  const key = scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId);
+  if (!key) return [];
   try {
-    const saved = localStorage.getItem(CUSTOM_POINTS_KEY);
+    const saved = localStorage.getItem(key);
     const pts: CustomMapPoint[] = saved ? JSON.parse(saved) : [];
     return pts.filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lon) && (p.lat !== 0 || p.lon !== 0));
   } catch { return []; }
 }
 
-function persistCustomPoints(points: CustomMapPoint[]) {
-  try { localStorage.setItem(CUSTOM_POINTS_KEY, JSON.stringify(points)); } catch {}
+function persistCustomPoints(points: CustomMapPoint[], dashboardId?: string | null) {
+  const key = scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(points)); } catch {}
+}
+
+function loadTaggedSitesScoped(dashboardId?: string | null): SiteSummary[] {
+  const key = scopedStorageKey(TAGGED_SITES_KEY, dashboardId);
+  if (!key) return [];
+  try { const saved = localStorage.getItem(key); return saved ? JSON.parse(saved) : []; } catch { return []; }
+}
+
+function persistTaggedSitesScoped(sites: SiteSummary[], dashboardId?: string | null) {
+  const key = scopedStorageKey(TAGGED_SITES_KEY, dashboardId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(sites)); } catch {}
+}
+
+function purgeDashboardArtifacts(dashboardId: string) {
+  try {
+    localStorage.removeItem(scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId)!);
+    localStorage.removeItem(scopedStorageKey(TAGGED_SITES_KEY, dashboardId)!);
+    localStorage.removeItem(`osmosis_tagged_links__db_${dashboardId}`);
+  } catch {}
+}
+
+/** One-shot purge of legacy global artifact keys (run once on app load). */
+function purgeLegacyArtifacts() {
+  const FLAG = 'osmosis_artifacts_legacy_purged_v1';
+  if (localStorage.getItem(FLAG)) return;
+  try {
+    localStorage.removeItem(CUSTOM_POINTS_KEY);
+    localStorage.removeItem(TAGGED_SITES_KEY);
+    localStorage.removeItem('osmosis_tagged_links');
+    localStorage.setItem(FLAG, '1');
+  } catch {}
 }
 
 // Map click handler for custom point creation
@@ -2260,6 +2302,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handleDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
+    purgeDashboardArtifacts(dbId);
     setExpandedDashboardId(null);
     if (activeDashboardId === dbId) {
       onActiveDashboardIdChange(null);
@@ -2271,6 +2314,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
     await dashboardsApi.update(dbId, { is_archived: true });
+    purgeDashboardArtifacts(dbId);
     setExpandedDashboardId(null);
     if (activeDashboardId === dbId) {
       onActiveDashboardIdChange(null);
@@ -4147,35 +4191,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged'>('dashboard');
 
-  // ── Tagged / pinned sites (persistent) ──
-  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>(() => {
-    try {
-      const saved = localStorage.getItem('osmosis_tagged_sites');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  // ── Tagged / pinned sites (scoped per dashboard) ──
+  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>([]);
   const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
+  // dashboardIdRef is used inside callbacks so we always read latest activeDashboardId
+  const activeDashboardIdRef = useRef<string | null>(null);
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
-    try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+    persistTaggedSitesScoped(next, activeDashboardIdRef.current);
   }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
+    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
-      try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+      persistTaggedSitesScoped(next, activeDashboardIdRef.current);
       return next;
     });
   }, []);
 
-  // ── Custom Map Points ──
-  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>(loadCustomPoints);
+  // ── Custom Map Points (scoped per dashboard) ──
+  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>([]);
   const [pointCreationMode, setPointCreationMode] = useState(false);
   const [renamingPointId, setRenamingPointId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
   const addCustomPoint = useCallback((lat: number, lon: number) => {
+    if (!activeDashboardIdRef.current) return;
     setCustomPoints(prev => {
       const idx = prev.length + 1;
       const pt: CustomMapPoint = {
@@ -4187,7 +4230,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         createdAt: new Date().toISOString(),
       };
       const next = [...prev, pt];
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
     setPointCreationMode(false);
@@ -4196,7 +4239,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const deleteCustomPoint = useCallback((id: string) => {
     setCustomPoints(prev => {
       const next = prev.filter(p => p.id !== id);
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
   }, []);
@@ -4205,23 +4248,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!newName.trim()) return;
     setCustomPoints(prev => {
       const next = prev.map(p => p.id === id ? { ...p, name: newName.trim() } : p);
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
     setRenamingPointId(null);
     setRenameValue('');
   }, []);
-  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
+  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>([]);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
     if (!from || !to) return;
+    if (!activeDashboardIdRef.current) return;
     const link = createTaggedLink(from, to);
     setTaggedLinks(prev => {
       const next = [...prev, link];
-      persistTaggedLinks(next);
+      persistTaggedLinks(next, activeDashboardIdRef.current);
       return next;
     });
     setLinkCreationMode(false);
@@ -4231,7 +4275,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const deleteTaggedLink = useCallback((linkId: string) => {
     setTaggedLinks(prev => {
       const next = prev.filter(l => l.id !== linkId);
-      persistTaggedLinks(next);
+      persistTaggedLinks(next, activeDashboardIdRef.current);
       return next;
     });
     if (selectedLinkId === linkId) setSelectedLinkId(null);
@@ -5144,6 +5188,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setLoading(false);
     }
   }, [dashboardActive]);
+
+  // Purge legacy global artifact storage once (pre dashboard-scoping)
+  useEffect(() => { purgeLegacyArtifacts(); }, []);
+
+  // Sync artifacts (custom points, tagged sites, tagged links) with the active dashboard.
+  // No active dashboard → empty (creation is also blocked elsewhere).
+  useEffect(() => {
+    const dbId = dashboardActive ? activeDashboardId : null;
+    activeDashboardIdRef.current = dbId;
+    setCustomPoints(loadCustomPoints(dbId));
+    setTaggedSites(loadTaggedSitesScoped(dbId));
+    setTaggedLinks(loadTaggedLinks(dbId));
+    // Reset transient interaction states
+    setPointCreationMode(false);
+    setLinkCreationMode(false);
+    setLinkSource(null);
+    setSelectedLinkId(null);
+  }, [dashboardActive, activeDashboardId]);
 
   // Debounced viewport change handler
   const handleViewportForFetch = useCallback((v: ViewportState) => {
@@ -6252,7 +6314,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const cells = cellMap.get(ts.site_id);
           return cells ? { ...ts, cells } : ts;
         });
-        try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+        persistTaggedSitesScoped(next, activeDashboardIdRef.current);
         return next;
       });
     })();
