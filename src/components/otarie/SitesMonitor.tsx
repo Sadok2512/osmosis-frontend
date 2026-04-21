@@ -5941,6 +5941,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (sectorColorMode !== 'kpi') return counts;
     const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
     const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
+    let totalCells = 0, matchedCells = 0, sampleCellIds: string[] = [], sampleKpiKeys: string[] = [];
+    if (kpiValues.size > 0) sampleKpiKeys = Array.from(kpiValues.keys()).slice(0, 5);
     for (const s of mapFilteredSites) {
       const cells = s.cells || [];
       if (cells.length === 0) {
@@ -5949,8 +5951,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } else {
         for (const c of cells) {
           if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande)) continue;
-          counts[getKpiLevel(getCellKpiValue(c))]++;
+          totalCells++;
+          const v = getCellKpiValue(c);
+          if (!isNaN(v)) matchedCells++;
+          else if (sampleCellIds.length < 5) sampleCellIds.push(String(c.cell_id || c.cell_name || ''));
+          counts[getKpiLevel(v)]++;
         }
+      }
+    }
+    if (sectorColorMode === 'kpi' && totalCells > 0) {
+      console.log(`[KPI Legend] cells=${totalCells} matched=${matchedCells} kpiValuesSize=${kpiValues.size}`);
+      if (matchedCells === 0) {
+        console.log('[KPI Legend] sample unmatched cell_ids:', sampleCellIds);
+        console.log('[KPI Legend] sample kpiValues keys:', sampleKpiKeys);
       }
     }
     return counts;
