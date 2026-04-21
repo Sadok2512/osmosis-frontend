@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Shield, Layers, Database, Clock, User, Hash, MapPin, Radio, Cpu, Copy, Pencil, Trash2, Lock, Unlock, Globe, ShieldAlert } from 'lucide-react';
 import type { NetworkFilter } from './filterTypes';
 import { FILTER_STATUS_CONFIG, FILTER_PERMISSION_CONFIG, FILTER_VISIBILITY_CONFIG } from './filterTypes';
+import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
+import type { TopologyConditionState } from './cluster-builder/TopologyConditionCard';
 
 interface FilterDetailsDrawerProps {
   filter: NetworkFilter;
@@ -38,6 +40,15 @@ const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClo
   const permCfg = FILTER_PERMISSION_CONFIG[filter.permission];
   const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility];
   const isLocked = filter.permission === 'locked';
+  const previewConditions = useMemo<TopologyConditionState[]>(() => (
+    (filter.topology || []).map((cond, index) => ({
+      id: `${filter.id}-preview-${index}`,
+      field: cond.dimension,
+      operator: cond.operator === 'not_in' || cond.operator === 'NOT IN' ? 'NOT IN' : 'IN',
+      inputMode: 'search',
+      values: cond.values || [],
+    }))
+  ), [filter.id, filter.topology]);
 
   return (
     <div className="h-full flex flex-col bg-card border-l border-border">
@@ -131,6 +142,16 @@ const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClo
                 </div>
               ))}
             </div>
+          </Section>
+        )}
+
+        {filter.topology.length > 0 && (
+          <Section title="Filtered Elements" icon={<Database className="w-4 h-4" />}>
+            <ClusterPreviewTable
+              topoConditions={previewConditions}
+              maxRows={60}
+              title="Filtered elements preview"
+            />
           </Section>
         )}
 

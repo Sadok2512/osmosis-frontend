@@ -486,7 +486,7 @@ const FilterRepositoryView: React.FC = () => {
 
       {selectedFilter && (
         <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/30 backdrop-blur-[2px]" onClick={() => setSelectedFilter(null)}>
-          <div className="w-[420px] h-full bg-card shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
+          <div className="h-full w-[min(860px,92vw)] bg-card shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
             <FilterDetailsDrawer
               filter={selectedFilter}
               onClose={() => setSelectedFilter(null)}

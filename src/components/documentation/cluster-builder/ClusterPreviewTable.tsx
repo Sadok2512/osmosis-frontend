@@ -8,6 +8,9 @@ interface Props {
   topoConditions: TopologyConditionState[];
   totalMatched?: number;
   onViewFull?: () => void;
+  maxRows?: number;
+  title?: string;
+  description?: string;
 }
 
 interface PreviewCell {
@@ -44,7 +47,7 @@ interface PreviewSite {
   status?: string;
 }
 
-const PREVIEW_LIMIT = 50;
+const DEFAULT_PREVIEW_LIMIT = 60;
 
 // Map wizard dimension keys → backend query param keys
 const DIM_TO_QS: Record<string, string> = {
@@ -56,9 +59,9 @@ const DIM_TO_QS: Record<string, string> = {
   region: 'region',
 };
 
-function buildQueryString(conds: TopologyConditionState[]): string {
+function buildQueryString(conds: TopologyConditionState[], limit: number): string {
   const qs = new URLSearchParams();
-  qs.set('limit', String(PREVIEW_LIMIT));
+  qs.set('limit', String(limit));
   qs.set('include_cells', '1');
   for (const c of conds) {
     if (c.operator !== 'IN' || !c.values.length) continue;
@@ -70,9 +73,17 @@ function buildQueryString(conds: TopologyConditionState[]): string {
 
 type SortKey = 'site_name' | 'vendor' | 'region' | 'cell_count';
 
-const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, onViewFull }) => {
+const ClusterPreviewTable: React.FC<Props> = ({
+  topoConditions,
+  totalMatched,
+  onViewFull,
+  maxRows = DEFAULT_PREVIEW_LIMIT,
+  title = 'Preview Results',
+  description,
+}) => {
   const [sites, setSites] = useState<PreviewSite[]>([]);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('site_name');
@@ -88,7 +99,7 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
 
   useEffect(() => {
     if (validConds.length === 0) { setSites([]); return; }
-    const qs = buildQueryString(validConds);
+    const qs = buildQueryString(validConds, maxRows);
     const controller = new AbortController();
     setLoading(true);
     setError(null);
@@ -97,7 +108,7 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
     topoApi.filteredSites(qs)
       .then((rows: any[]) => {
         if (controller.signal.aborted) return;
-        setSites((rows || []).slice(0, PREVIEW_LIMIT));
+        setSites((rows || []).slice(0, maxRows));
       })
       .catch((e) => {
         if (controller.signal.aborted) return;
@@ -106,7 +117,7 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [validConds]);
+  }, [validConds, maxRows]);
 
   const enriched = useMemo(() => sites.map(s => ({
     site_id: s.site_id || s.code_nidt || s.site_name || '',
@@ -170,11 +181,21 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
+    setExporting(true);
     const headers = ['Site Name', 'Vendor', 'Region', 'Cell Name', 'Techno', 'Band', 'PCI/ECI', 'Status'];
     const rows: any[] = [];
-    filtered.forEach(s => {
-      const cells = cellsCache[s.site_id] || s.cells || [];
+    const nextCache: Record<string, PreviewCell[]> = {};
+    for (const s of filtered) {
+      let cells = cellsCache[s.site_id] || s.cells || [];
+      if (cells.length === 0 && s.site_id) {
+        try {
+          cells = await fetchSiteCells(s.site_id, s.site_name);
+          nextCache[s.site_id] = cells;
+        } catch {
+          nextCache[s.site_id] = [];
+        }
+      }
       if (cells.length === 0) {
         rows.push([s.site_name, s.vendor, s.region, '', '', '', '', s.status]);
       } else {
@@ -186,15 +207,19 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
           c.etat_cellule || c.admin_state || c.oper_state || c.status || s.status,
         ]));
       }
-    });
+    }
+    if (Object.keys(nextCache).length) {
+      setCellsCache(prev => ({ ...prev, ...nextCache }));
+    }
     const csv = [headers, ...rows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `cluster-preview-${Date.now()}.csv`;
+    a.download = `filtered-elements-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    setExporting(false);
   };
 
   const total = totalMatched ?? sites.length;
@@ -205,11 +230,11 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
       {/* Header */}
       <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Preview Results</h4>
+          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">{title}</h4>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {hasConds && total > 0
-              ? <>Showing first <strong className="text-foreground">{Math.min(filtered.length, PREVIEW_LIMIT)}</strong> of <strong className="text-foreground">{total.toLocaleString('fr-FR')}</strong> matched sites — click a row to expand cells</>
-              : 'Define topology filters to preview matching sites'}
+            {description || (hasConds && total > 0
+              ? <>Showing first <strong className="text-foreground">{Math.min(filtered.length, maxRows)}</strong> of <strong className="text-foreground">{total.toLocaleString('fr-FR')}</strong> matched sites - click a row to expand cells</>
+              : 'Define topology filters to preview matching sites')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -224,10 +249,10 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
           </div>
           <button
             onClick={handleExport}
-            disabled={!filtered.length}
+            disabled={!filtered.length || exporting}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-40 transition-colors"
           >
-            <Download className="w-3 h-3" /> Export
+            {exporting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} CSV
           </button>
           {onViewFull && (
             <button
@@ -366,9 +391,9 @@ const ClusterPreviewTable: React.FC<Props> = ({ topoConditions, totalMatched, on
               </tbody>
             </table>
           </div>
-          {total > PREVIEW_LIMIT && (
+          {total > maxRows && (
             <div className="px-4 py-2 border-t border-border/50 text-[11px] text-muted-foreground text-center bg-muted/20">
-              Only first {PREVIEW_LIMIT} sites are displayed
+              Only first {maxRows} sites are displayed
             </div>
           )}
         </>
