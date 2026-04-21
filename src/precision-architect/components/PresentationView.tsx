@@ -96,6 +96,7 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
                 isDraggable={false}
                 isResizable={false}
                 compactType="vertical"
+                autoSize
               >
                 {widgets.map((w) => (
                   <div

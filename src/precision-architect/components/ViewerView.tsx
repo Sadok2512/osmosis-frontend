@@ -134,6 +134,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
                 containerPadding={[0, 0]}
                 isDraggable={false}
                 isResizable={false}
+                autoSize
               >
                 {widgets.map(w => (
                   <div
