@@ -420,8 +420,8 @@ function AddFilterDropdown({ onAdd, existing }: { onAdd: (key: string) => void; 
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 mt-1 bg-white border border-outline-variant/20 rounded-lg shadow-xl z-20 py-1 max-h-56 overflow-y-auto">
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 bottom-full mb-1 bg-white border border-outline-variant/20 rounded-lg shadow-xl z-50 py-1 max-h-56 overflow-y-auto">
             {available.map((d) => (
               <button
                 key={d.key}
