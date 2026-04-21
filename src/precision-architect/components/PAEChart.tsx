@@ -245,17 +245,35 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // in viewer/presentation mode where layout settles after mount).
   const chartRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Safe resolver for the underlying ECharts instance.
+   * `react-echarts` (v3+) exposes `getEchartsInstance()`, but older builds /
+   * forwarded refs may instead expose `echartsElement`, an internal `_chart`,
+   * or already be the instance itself. We try each path so `.resize()` always
+   * has a valid target.
+   */
+  const getInst = (): any | null => {
+    const r: any = chartRef.current;
+    if (!r) return null;
+    if (typeof r.getEchartsInstance === 'function') return r.getEchartsInstance();
+    if (r.echartsElement && typeof r.echartsElement.resize === 'function') return r.echartsElement;
+    if (r.ele && typeof r.ele.resize === 'function') return r.ele;
+    if (r._chart && typeof r._chart.resize === 'function') return r._chart;
+    if (typeof r.resize === 'function') return r;
+    return null;
+  };
+
+  const safeResize = () => {
+    try { getInst()?.resize(); } catch { /* swallow — chart not ready yet */ }
+  };
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(() => {
-      const inst = chartRef.current?.getEchartsInstance?.();
-      inst?.resize();
-    });
+    const ro = new ResizeObserver(() => safeResize());
     ro.observe(el);
-    const raf = requestAnimationFrame(() => {
-      chartRef.current?.getEchartsInstance?.().resize();
-    });
+    const raf = requestAnimationFrame(safeResize);
     return () => { ro.disconnect(); cancelAnimationFrame(raf); };
   }, [isEmpty]);
 
@@ -263,7 +281,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // Runs after each paint so labels like "0.0035" or "1,234,567" never get clipped.
   useEffect(() => {
     if (isEmpty) return;
-    const inst = chartRef.current?.getEchartsInstance?.();
+    const inst = getInst();
     if (!inst) return;
 
     const measure = () => {
