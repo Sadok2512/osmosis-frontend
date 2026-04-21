@@ -776,18 +776,29 @@ const RanQueryModule: React.FC = () => {
   // Build time-series chart data: group by timestamp, one line per KPI
   const chartData = useMemo(() => {
     if (!selectedReport || selectedReport.results.length === 0) return [];
-    // Group by timestamp
-    const tsMap = new Map<string, Record<string, number>>();
+    // Group by timestamp — compute AVERAGE per KPI per timestamp
+    const tsMap = new Map<string, Record<string, { sum: number; count: number }>>();
     const kpiSet = new Set<string>();
     for (const row of selectedReport.results) {
       const ts = row.timestamp;
       if (!tsMap.has(ts)) tsMap.set(ts, {});
       const bucket = tsMap.get(ts)!;
-      bucket[row.kpi] = (bucket[row.kpi] ?? 0) + row.value;
+      if (!bucket[row.kpi]) bucket[row.kpi] = { sum: 0, count: 0 };
+      bucket[row.kpi].sum += row.value;
+      bucket[row.kpi].count += 1;
       kpiSet.add(row.kpi);
     }
     const sorted = Array.from(tsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    return { points: sorted.map(([ts, vals]) => ({ ts, ...vals })), kpis: Array.from(kpiSet) };
+    return {
+      points: sorted.map(([ts, vals]) => {
+        const avg: Record<string, any> = { ts };
+        for (const [kpi, { sum, count }] of Object.entries(vals)) {
+          avg[kpi] = count > 0 ? Number((sum / count).toFixed(4)) : 0;
+        }
+        return avg;
+      }),
+      kpis: Array.from(kpiSet),
+    };
   }, [selectedReport]);
 
   // Pagination for results table
