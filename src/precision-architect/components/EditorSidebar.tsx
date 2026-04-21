@@ -71,9 +71,16 @@ function presetToBackground(preset: DraftConfig['themePreset'], explicit: string
 
 function readDraft(projectName: string, theme: DashboardTheme): DraftConfig {
   const t = { ...DEFAULT_DASHBOARD_THEME, ...theme };
+  const ri = t.reportInfo ?? DEFAULT_DASHBOARD_THEME.reportInfo!;
   return {
     name: t.pageTitle || projectName,
     description: t.pageSubtitle ?? '',
+    showReportName: t.showReportName !== false,
+    reportInfoShow: ri.show !== false,
+    reportInfoPerimeter: ri.perimeter !== false,
+    reportInfoDate: ri.date !== false,
+    reportInfoGranularity: ri.granularity !== false,
+    reportInfoFilters: ri.filters !== false,
     textColor: t.textColor ?? '#0f172a',
     backgroundColor: t.backgroundColor ?? (t.background === 'dark' ? '#0f172a' : t.background === 'gradient' ? '#1a1a2e' : '#f8fafc'),
     cardColor: t.cardColor ?? '#ffffff',
