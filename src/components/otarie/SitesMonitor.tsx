@@ -4189,35 +4189,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged'>('dashboard');
 
-  // ── Tagged / pinned sites (persistent) ──
-  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>(() => {
-    try {
-      const saved = localStorage.getItem('osmosis_tagged_sites');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
+  // ── Tagged / pinned sites (scoped per dashboard) ──
+  const [taggedSites, setTaggedSites] = useState<SiteSummary[]>([]);
   const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
+  // dashboardIdRef is used inside callbacks so we always read latest activeDashboardId
+  const activeDashboardIdRef = useRef<string | null>(null);
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
-    try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+    persistTaggedSitesScoped(next, activeDashboardIdRef.current);
   }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
+    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
-      try { localStorage.setItem('osmosis_tagged_sites', JSON.stringify(next)); } catch {}
+      persistTaggedSitesScoped(next, activeDashboardIdRef.current);
       return next;
     });
   }, []);
 
-  // ── Custom Map Points ──
-  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>(loadCustomPoints);
+  // ── Custom Map Points (scoped per dashboard) ──
+  const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>([]);
   const [pointCreationMode, setPointCreationMode] = useState(false);
   const [renamingPointId, setRenamingPointId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
   const addCustomPoint = useCallback((lat: number, lon: number) => {
+    if (!activeDashboardIdRef.current) return;
     setCustomPoints(prev => {
       const idx = prev.length + 1;
       const pt: CustomMapPoint = {
@@ -4229,7 +4228,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         createdAt: new Date().toISOString(),
       };
       const next = [...prev, pt];
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
     setPointCreationMode(false);
@@ -4238,7 +4237,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const deleteCustomPoint = useCallback((id: string) => {
     setCustomPoints(prev => {
       const next = prev.filter(p => p.id !== id);
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
   }, []);
@@ -4247,23 +4246,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!newName.trim()) return;
     setCustomPoints(prev => {
       const next = prev.map(p => p.id === id ? { ...p, name: newName.trim() } : p);
-      persistCustomPoints(next);
+      persistCustomPoints(next, activeDashboardIdRef.current);
       return next;
     });
     setRenamingPointId(null);
     setRenameValue('');
   }, []);
-  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>(loadTaggedLinks);
+  const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>([]);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
   const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
     if (!from || !to) return;
+    if (!activeDashboardIdRef.current) return;
     const link = createTaggedLink(from, to);
     setTaggedLinks(prev => {
       const next = [...prev, link];
-      persistTaggedLinks(next);
+      persistTaggedLinks(next, activeDashboardIdRef.current);
       return next;
     });
     setLinkCreationMode(false);
@@ -4273,7 +4273,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const deleteTaggedLink = useCallback((linkId: string) => {
     setTaggedLinks(prev => {
       const next = prev.filter(l => l.id !== linkId);
-      persistTaggedLinks(next);
+      persistTaggedLinks(next, activeDashboardIdRef.current);
       return next;
     });
     if (selectedLinkId === linkId) setSelectedLinkId(null);
