@@ -302,6 +302,11 @@ export default function EditorView({
           <div className="flex items-center gap-6">
             <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
             <div className="h-6 w-px bg-outline-variant/30" />
+
+            {/* Dashboard switcher */}
+            <DashboardSwitcher />
+
+            <div className="h-6 w-px bg-outline-variant/30" />
             <div className="flex items-center gap-2 group">
               <input
                 value={projectName}
@@ -312,7 +317,7 @@ export default function EditorView({
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="bg-surface-container-high p-1 rounded-full flex items-center shadow-inner">
               <button className="px-4 py-1.5 text-sm font-bold bg-white shadow-sm rounded-full text-primary">Edit</button>
               <button
@@ -328,14 +333,47 @@ export default function EditorView({
                 Present
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                const id = usePAReportStore.getState().newDashboard();
+                toast.success('New dashboard created', { description: 'Empty canvas ready to design.' });
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-primary border border-primary/20 hover:bg-primary/5 active:scale-95 transition-all"
+              title="Create a new dashboard"
+            >
+              <FilePlus className="w-4 h-4" />
+              <span>New</span>
+            </button>
+
+            <button
+              onClick={() => {
+                const { activeDashboardId, dashboards, deleteDashboard, projectName: name } = usePAReportStore.getState();
+                if (dashboards.length <= 1) {
+                  toast.error('Cannot delete', { description: 'At least one dashboard must remain.' });
+                  return;
+                }
+                const ok = window.confirm(`Delete dashboard "${name}" ? This cannot be undone.`);
+                if (!ok) return;
+                deleteDashboard(activeDashboardId);
+                toast.success('Dashboard deleted');
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold text-error border border-error/20 hover:bg-error/5 active:scale-95 transition-all"
+              title="Delete current dashboard"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Delete</span>
+            </button>
+
             <button
               onClick={() => {
                 usePAReportStore.getState().markSaved();
-                toast.success('Report saved', { description: 'Your report is auto-persisted in this browser.' });
+                toast.success('Dashboard saved', { description: 'Auto-persisted in this browser.' });
               }}
-              className="bg-primary text-on-primary px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all"
+              className="flex items-center gap-1.5 bg-primary text-on-primary px-5 py-2 rounded-xl font-bold text-sm shadow-lg shadow-primary/20 hover:bg-primary-container active:scale-95 transition-all"
             >
-              Save
+              <Save className="w-4 h-4" />
+              <span>Save</span>
             </button>
           </div>
         </header>
