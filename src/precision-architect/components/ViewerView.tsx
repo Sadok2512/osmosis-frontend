@@ -98,60 +98,98 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
         </div>
       )}
 
-      <div
-        className="flex-grow overflow-y-auto custom-scrollbar"
-        style={{ backgroundColor: pageBg, color: textColor, padding: `${padding}px` }}
-      >
-        <main className={cn('w-full min-w-0 mx-auto space-y-6', widthClass)}>
-          <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
-
-          {widgets.length === 0 && sections.length === 0 ? (
-            <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
-              <h3 className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: textColor }}>No content on this page</h3>
-              <p className="text-xs font-bold opacity-70" style={{ color: textColor }}>Switch to Edit mode to start building.</p>
-            </div>
-          ) : (
-            <>
-              {/* Sections render BEFORE widgets so they act as titles / intros visible right after the header. */}
-              {sections.length > 0 && (
-                <div className="space-y-4">
-                  {sections.map((s) => (
-                    <SectionBlock key={s.id} section={s} editable={false} />
-                  ))}
-                </div>
-              )}
-
-              {widgets.length > 0 && (
-                <div className="pa-grid-view w-full">
-                  <GridLayout
-                    className="layout"
-                    layout={layout}
-                    cols={COLS}
-                    rowHeight={ROW_HEIGHT}
-                    margin={[spacing, spacing]}
-                    containerPadding={[0, 0]}
-                    isDraggable={false}
-                    isResizable={false}
-                    autoSize
+      <div className="flex-grow flex overflow-hidden">
+        {/* Left sidebar: section navigation */}
+        {sections.length > 0 && (
+          <aside className="w-60 flex-shrink-0 border-r border-outline-variant/10 bg-white/60 backdrop-blur-sm overflow-y-auto custom-scrollbar">
+            <div className="p-4">
+              <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-3 px-2">
+                Sections
+              </p>
+              <nav className="flex flex-col gap-1">
+                {sections.map((s, i) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      const el = document.getElementById(`section-${s.id}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }}
+                    className="text-left px-3 py-2 rounded-lg hover:bg-primary/5 group transition-colors flex items-start gap-2"
                   >
-                    {widgets.map(w => (
-                      <div
-                        key={w.id}
-                        className={cn(
-                          'overflow-hidden p-4',
-                          w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
-                        )}
-                        style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
-                      >
-                        <WidgetRenderer widget={w} />
+                    <span className="text-[10px] font-black text-on-surface-variant/50 mt-0.5 w-5 flex-shrink-0">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      {s.name && (
+                        <div className="text-[10px] font-black uppercase tracking-widest text-primary truncate">
+                          {s.name}
+                        </div>
+                      )}
+                      <div className="text-xs font-bold text-on-surface group-hover:text-primary truncate">
+                        {s.title || s.name || 'Untitled section'}
                       </div>
+                    </div>
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </aside>
+        )}
+
+        <div
+          className="flex-grow overflow-y-auto custom-scrollbar"
+          style={{ backgroundColor: pageBg, color: textColor, padding: `${padding}px` }}
+        >
+          <main className={cn('w-full min-w-0 mx-auto space-y-6', widthClass)}>
+            <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
+
+            {widgets.length === 0 && sections.length === 0 ? (
+              <div className="border-2 border-dashed border-outline-variant/40 rounded-2xl p-16 text-center">
+                <h3 className="text-sm font-black uppercase tracking-widest mb-1" style={{ color: textColor }}>No content on this page</h3>
+                <p className="text-xs font-bold opacity-70" style={{ color: textColor }}>Switch to Edit mode to start building.</p>
+              </div>
+            ) : (
+              <>
+                {sections.length > 0 && (
+                  <div className="space-y-4">
+                    {sections.map((s) => (
+                      <SectionBlock key={s.id} section={s} editable={false} />
                     ))}
-                  </GridLayout>
-                </div>
-              )}
-            </>
-          )}
-        </main>
+                  </div>
+                )}
+
+                {widgets.length > 0 && (
+                  <div className="pa-grid-view w-full">
+                    <GridLayout
+                      className="layout"
+                      layout={layout}
+                      cols={COLS}
+                      rowHeight={ROW_HEIGHT}
+                      margin={[spacing, spacing]}
+                      containerPadding={[0, 0]}
+                      isDraggable={false}
+                      isResizable={false}
+                      autoSize
+                    >
+                      {widgets.map(w => (
+                        <div
+                          key={w.id}
+                          className={cn(
+                            'overflow-hidden p-4',
+                            w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                          )}
+                          style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+                        >
+                          <WidgetRenderer widget={w} />
+                        </div>
+                      ))}
+                    </GridLayout>
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );
