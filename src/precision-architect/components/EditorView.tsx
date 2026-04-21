@@ -33,7 +33,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -43,7 +43,7 @@ import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
-import StatSettingsPanel from './StatSettingsPanel';
+
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
