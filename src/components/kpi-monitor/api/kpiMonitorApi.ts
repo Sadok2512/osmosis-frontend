@@ -429,6 +429,22 @@ const TRANSIENT_BACKEND_ERRORS = [
   'Unexpected EOF while reading bytes',
   'connection reset',
   'BOOT_ERROR',
+  // ClickHouse native protocol drops the socket under concurrent load.
+  // Surfaces as either the ClickHouse "Code: 210" message or the raw
+  // Python OSError("[Errno 9] Bad file descriptor").
+  'Bad file descriptor',
+  'Code: 210',
+  'Errno 9',
+  'Broken pipe',
+  'ECONNRESET',
+  'EPIPE',
+  // Cloudflare / VPS proxy hiccups
+  '502',
+  '503',
+  '504',
+  'Bad Gateway',
+  'Gateway Timeout',
+  'Service Unavailable',
 ];
 
 function isTransientBackendError(msg: unknown): boolean {
@@ -438,6 +454,37 @@ function isTransientBackendError(msg: unknown): boolean {
 
 /** Sleep helper used to add jitter between retries. */
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Tiny client-side concurrency limiter for /query/timeseries calls.
+ * The backend ClickHouse driver crashes under heavy parallelism
+ * ("Simultaneous queries on single connection", "Bad file descriptor").
+ * We cap to MAX_PARALLEL in-flight requests and stagger releases with a
+ * small jitter so dashboards with 10+ widgets don't blast the backend
+ * all at once on "Apply to Dashboard".
+ */
+const MAX_PARALLEL_TIMESERIES = 2;
+let _inFlight = 0;
+const _waiters: Array<() => void> = [];
+
+async function _acquireSlot(): Promise<void> {
+  if (_inFlight < MAX_PARALLEL_TIMESERIES) {
+    _inFlight++;
+    return;
+  }
+  await new Promise<void>((resolve) => _waiters.push(resolve));
+  _inFlight++;
+}
+
+function _releaseSlot(): void {
+  _inFlight = Math.max(0, _inFlight - 1);
+  const next = _waiters.shift();
+  if (next) {
+    // Stagger release with a tiny jitter to avoid two queries firing on
+    // the exact same tick (which is what triggers the ClickHouse race).
+    setTimeout(next, 60 + Math.floor(Math.random() * 90));
+  }
+}
 
 export function useTimeseriesQuery(req: (TimeseriesRequest & { _rev?: number }) | null) {
   // Stable key: serialize the request so identical payloads don't refetch
