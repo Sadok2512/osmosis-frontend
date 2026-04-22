@@ -285,12 +285,14 @@ const getZoomAwareRadius = (
   // Zoom < 12: adaptive scaling allowed for overview decluttering.
 
   // Global radius by zoom — same for every site at a given zoom level
+  // Zoom 13 = max visual cap. Beyond Z13, radius stays at Z13 size.
+  const effectiveZoom = Math.min(zoom, 13);
   let baseMeters: number;
-  if (zoom <= 9)  baseMeters = 150;
-  else if (zoom <= 10) baseMeters = 200;
-  else if (zoom <= 11) baseMeters = 280;
-  else if (zoom <= 12) baseMeters = 350;
-  else baseMeters = 420; // zoom 13+ capped — same as Z13 for all higher zooms
+  if (effectiveZoom <= 9)  baseMeters = 150;
+  else if (effectiveZoom <= 10) baseMeters = 200;
+  else if (effectiveZoom <= 11) baseMeters = 280;
+  else if (effectiveZoom <= 12) baseMeters = 350;
+  else baseMeters = 420; // zoom 13+ capped
 
   // Viewport scaling (global, same for all sites)
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
