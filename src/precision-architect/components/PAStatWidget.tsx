@@ -83,10 +83,10 @@ export default function PAStatWidget({ widget }: Props) {
   }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev,
       global.from, global.to, global.technos, global.filters, global.applied]);
 
-  // Display value: backend-computed or manual
+  // Display value: backend-computed only (no manual mock fallback)
   const displayValue = hasKpi && computedValue != null
     ? formatStat(computedValue, cfg.unit)
-    : cfg.value || '—';
+    : '—';
 
   const themeClasses =
     cfg.theme === 'dark'
@@ -119,22 +119,30 @@ export default function PAStatWidget({ widget }: Props) {
         className="text-[10px] font-black uppercase tracking-[0.25em] mb-3 opacity-70"
         style={{ color: cfg.theme === 'dark' ? accent : undefined }}
       >
-        {cfg.label || cfg.kpiKey || 'Label'}
+        {cfg.label || cfg.kpiKey || 'Select a KPI'}
       </span>
 
       <div className="flex items-baseline gap-2">
         <span className="text-5xl font-black font-headline tracking-tighter leading-none">
           {displayValue}
         </span>
-        {cfg.unit && (
+        {cfg.unit && hasKpi && computedValue != null && (
           <span className="text-base font-medium opacity-60">{cfg.unit}</span>
         )}
       </div>
 
+      {!hasKpi && (
+        <span className="text-[9px] text-on-surface-variant/50 mt-2">
+          Pick a KPI in settings to load a backend value
+        </span>
+      )}
       {hasKpi && computedValue == null && !loading && hasBeenApplied && (
         <span className="text-[9px] text-on-surface-variant/50 mt-2">No data for this period</span>
       )}
-      {hasKpi && periodLabel && (
+      {hasKpi && !hasBeenApplied && !loading && (
+        <span className="text-[9px] text-on-surface-variant/50 mt-2">Click Apply to load</span>
+      )}
+      {hasKpi && periodLabel && computedValue != null && (
         <span className="text-[9px] text-on-surface-variant/60 mt-2">
           Period aggregate · {periodLabel}
         </span>
