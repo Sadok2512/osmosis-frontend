@@ -30,12 +30,13 @@ export const getZoomAwareRadius = (
   const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
   targetPx *= vpScale;
 
-  // Stronger density shrinking (densityFactor 0..1, 0 = very dense → shrink hard)
-  const densityScale = 0.30 + 0.70 * Math.max(0, Math.min(1, densityFactor));
+  // Density shrinking — softer floor so beams stay visible in dense urban zones.
+  // densityFactor 0..1 (0 = very dense). Floor raised from 0.30 → 0.55 to keep beams readable.
+  const densityScale = 0.55 + 0.45 * Math.max(0, Math.min(1, densityFactor));
   targetPx *= densityScale;
 
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(12, Math.min(420, targetPx * mpp));
+  return Math.max(20, Math.min(420, targetPx * mpp));
 };
 
 /**
