@@ -170,9 +170,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
       // No config + no metrics → render empty grid (no demo data anywhere).
       yAxis = [{
         type: 'value' as const,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
+        axisLine: { show: true, lineStyle: { color: axisLineColor, width: 1 } },
+        axisTick: { show: true, lineStyle: { color: axisLineColor } },
+        axisLabel: { fontSize: 11, color: labelColor, fontWeight: 600, margin: 8 },
         splitLine: { lineStyle: { color: splitLine, type: 'dashed' as const } },
       }];
       series = [];
