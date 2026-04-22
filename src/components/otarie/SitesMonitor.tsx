@@ -4485,8 +4485,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [paramSearch, setParamSearch] = useState('');
 
   // Load available parameters from VPS backend, fallback to Supabase parameter_dump
+  const [showParamDropdown, setShowParamDropdown] = useState(false);
   useEffect(() => {
-    if (!paramPanelOpen || paramAvailable.length > 0) return;
+    if ((!paramPanelOpen && !showParamDropdown && !paramMode) || paramAvailable.length > 0) return;
     (async () => {
       setParamAvailableLoading(true);
       let loaded = false;
