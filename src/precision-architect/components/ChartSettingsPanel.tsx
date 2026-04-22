@@ -286,6 +286,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 dimensionOptions={dimensionOptions}
                 filtersLoading={filtersLoading}
                 onApply={() => commitAppliedConfig(false)}
+                isStat={widget.kind === 'stat'}
               />
             )}
             {tab === 'appearance' && (
@@ -317,7 +318,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 function DataSourceTab({
   config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
-  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -335,6 +336,7 @@ function DataSourceTab({
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
   return (
@@ -389,6 +391,7 @@ function DataSourceTab({
           dimensionOptions={dimensionOptions}
           filtersLoading={filtersLoading}
           onApply={onApply}
+          isStat={isStat}
         />
       )}
     </div>
@@ -398,7 +401,7 @@ function DataSourceTab({
 /* ---------------- Sub-section: Time & Filters ---------------- */
 
 function DataTab({
-  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply,
+  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -407,6 +410,7 @@ function DataTab({
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
@@ -429,7 +433,7 @@ function DataTab({
     <div className="space-y-4">
       <Section title="Time & Filters">
         {inherits ? (
-          <InheritedFromToolbarCard onOverride={enableOverride} />
+          <InheritedFromToolbarCard onOverride={enableOverride} isStat={isStat} />
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5">
@@ -451,6 +455,7 @@ function DataTab({
               dimensionOptions={dimensionOptions}
               filtersLoading={filtersLoading}
               onApply={onApply}
+              isStat={isStat}
             />
           </div>
         )}
@@ -461,7 +466,7 @@ function DataTab({
 
 /* ---------------- Inherited-from-toolbar summary card ---------------- */
 
-function InheritedFromToolbarCard({ onOverride }: { onOverride: () => void }) {
+function InheritedFromToolbarCard({ onOverride, isStat }: { onOverride: () => void; isStat?: boolean }) {
   // Read the live global toolbar values so the user can see what they'll get.
   const technos = usePAGlobalToolbar((s) => s.technos);
   const from = usePAGlobalToolbar((s) => s.from);
@@ -503,14 +508,18 @@ function InheritedFromToolbarCard({ onOverride }: { onOverride: () => void }) {
 
       {/* Live read-only summary of inherited values */}
       <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-1 pt-2 border-t border-primary/10">
-        <SummaryRow label="Périmètre" value={
-          technos.length === 0
-            ? <span className="italic text-on-surface-variant/70">aucune techno</span>
-            : <span className="flex flex-wrap gap-1">{technos.map(t => (
-                <span key={t} className="px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide bg-primary/15 text-primary">{t.toUpperCase()}</span>
-              ))}</span>
-        } />
-        <SummaryRow label="Période" value={`${preset.toUpperCase()} · ${grain}`} />
+        {!isStat && (
+          <SummaryRow label="Périmètre" value={
+            technos.length === 0
+              ? <span className="italic text-on-surface-variant/70">aucune techno</span>
+              : <span className="flex flex-wrap gap-1">{technos.map(t => (
+                  <span key={t} className="px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide bg-primary/15 text-primary">{t.toUpperCase()}</span>
+                ))}</span>
+          } />
+        )}
+        {!isStat && (
+          <SummaryRow label="Période" value={`${preset.toUpperCase()} · ${grain}`} />
+        )}
         <SummaryRow label="Du" value={fmt(from)} />
         <SummaryRow label="Au" value={fmt(to)} />
         <div className="col-span-2">
@@ -598,13 +607,14 @@ function formatDateDisplay(iso: string): { date: string; time: string } {
 }
 
 function TimeFiltersToolbar({
-  data, patchData, dimensionOptions, filtersLoading, onApply,
+  data, patchData, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   const technos = data.technos ?? [];
   const filters = data.filters ?? [];
@@ -665,7 +675,8 @@ function TimeFiltersToolbar({
     <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 overflow-visible">
       {/* Scope / date row */}
       <div className="px-4 py-3 flex flex-wrap items-center gap-2.5 border-b border-outline-variant/10">
-        {/* Périmètre — interactive techno toggles */}
+        {/* Périmètre — interactive techno toggles (hidden for STAT widgets) */}
+        {!isStat && (
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -715,6 +726,7 @@ function TimeFiltersToolbar({
             </div>
           </PopoverContent>
         </Popover>
+        )}
 
         {/* Date range — unified Investigator-style dual calendar */}
         <DateRangePopover
@@ -750,7 +762,8 @@ function TimeFiltersToolbar({
           </PopoverContent>
         </Popover>
 
-        {/* Grain */}
+        {/* Grain (hidden for STAT widgets) */}
+        {!isStat && (
         <Popover>
           <PopoverTrigger asChild>
             <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary transition-colors">
@@ -775,6 +788,7 @@ function TimeFiltersToolbar({
             ))}
           </PopoverContent>
         </Popover>
+        )}
 
         <TFPill icon={<Flag className="w-3.5 h-3.5 text-rose-500" />}>
           <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
