@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Calendar, MapPin, Clock, Filter, Move } from 'lucide-react';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
