@@ -277,7 +277,7 @@ function PhotoBox({
         src={url}
         alt="Report"
         className={cn('w-full object-cover', position === 'full' ? 'h-48' : 'h-auto')}
-        style={position === 'full' ? undefined : { maxHeight: Math.max(96, width * 0.9) }}
+        style={position === 'full' ? undefined : { maxHeight: Math.max(96, effectiveWidth * 0.9) }}
         draggable={false}
       />
 
