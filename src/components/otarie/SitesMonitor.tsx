@@ -7602,10 +7602,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
-          // Skip site when KPI legend filter hides its level
+          // Skip site when KPI legend filter hides all its cells (cell-level logic, not site average)
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
-            const siteLevel = getKpiLevel(getSiteKpiValue(site));
-            if (hiddenKpiLevels.has(siteLevel)) return null;
+            if (!siteMatchesKpiLegend(site)) return null;
           }
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
@@ -8028,10 +8027,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
-          // KPI legend filter: skip site if its KPI level is hidden
+          // KPI legend filter: skip site if all its cells are hidden (cell-level logic)
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
-            const siteKpiVal = getSiteKpiValue(site);
-            if (hiddenKpiLevels.has(getKpiLevel(siteKpiVal))) return null;
+            if (!siteMatchesKpiLegend(site)) return null;
           }
           if (isIndoor) {
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(renderSiteForCells);
