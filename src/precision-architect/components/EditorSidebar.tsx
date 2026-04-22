@@ -344,7 +344,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3">
         <CollapsibleSection title="General" icon={Settings2} open={openSections.general} onToggle={() => toggle('general')}>
           <div>
             <FieldLabel>Dashboard / Report Name</FieldLabel>
