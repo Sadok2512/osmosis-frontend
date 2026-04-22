@@ -9358,7 +9358,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <span className="w-px h-7 bg-border/50 shrink-0" />
 
             {/* ── KPI mode: dropdown selector + active label ── */}
-            {sectorColorMode === 'kpi' && !paramMode && (
+            {/* Keep KPI controls visible even in paramMode so the legacy toolbar (KPI + Network/Views/Color buttons) stays present. */}
+            {sectorColorMode === 'kpi' && (
               <>
                 {/* KPI dropdown trigger */}
                 <div className="relative shrink-0">
@@ -9455,7 +9456,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             )}
 
             {/* ── Topo mode: inline tech filter + layer switcher + label ── */}
-            {sectorColorMode === 'topo' && !paramMode && (
+            {/* Keep Topo controls visible even in paramMode so the legacy toolbar (Network/Views/Color buttons) stays present. */}
+            {sectorColorMode === 'topo' && (
               <>
 
                 {/* Band selector in Topo mode */}
@@ -9578,19 +9580,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </>
             )}
 
-            {/* ── Parameters mode: current selection ── */}
-            {paramMode && (
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] font-bold text-foreground">{paramConfirmed}</span>
-                <span className="text-[9px] text-muted-foreground">({paramSiteMarkers.length} sites)</span>
-                <button
-                  onClick={handleParamReset}
-                  className="text-[9px] font-bold text-destructive hover:text-destructive/80 transition-colors"
-                >
-                  ✕ Reset
-                </button>
-              </div>
-            )}
+            {/* Param mode duplicate "current selection" block removed —
+                the chip + search at the start of the toolbar (above) already
+                surfaces the active parameter and reset action. Keeping it
+                avoided the legacy bar being replaced by a minimal one. */}
           </div>
 
           {/* Scroll-right button */}
