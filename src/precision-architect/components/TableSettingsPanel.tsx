@@ -348,7 +348,6 @@ function ColumnsTab({
           )}
         </h4>
         <div className="flex items-center gap-2">
-          <SplitByPicker value={config.splitBy} onChange={(v) => patch({ splitBy: v })} />
           <TopNPicker value={config.topN} onChange={(v) => patch({ topN: v })} />
           <button
             onClick={() => setCounterPickerOpen(true)}
