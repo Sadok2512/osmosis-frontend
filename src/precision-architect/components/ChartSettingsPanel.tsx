@@ -1077,6 +1077,14 @@ function MetricsTab({
                     />
                     {m.lineStyle}
                   </span>
+                  {m.splitBy && m.splitBy !== '__none__' && (
+                    <span
+                      className="inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-700"
+                      title={`Split by ${m.splitBy} — one series per value`}
+                    >
+                      Split: {m.splitBy}
+                    </span>
+                  )}
                 </div>
               </div>
 
