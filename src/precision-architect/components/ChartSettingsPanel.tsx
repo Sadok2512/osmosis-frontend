@@ -895,29 +895,29 @@ function MetricsTab({
   const selectedCounterKeys = useMemo(() => selectedKeys.filter(k => counterKeys.has(k)), [selectedKeys, counterKeys]);
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
-          <span>Metrics · {metrics.length}</span>
-          {kpisLoading && <Loader2 className="w-3 h-3 animate-spin text-primary" />}
+    <div className="space-y-3 min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant flex items-center gap-2 min-w-0">
+          <span className="truncate">Metrics · {metrics.length}</span>
+          {kpisLoading && <Loader2 className="w-3 h-3 animate-spin text-primary shrink-0" />}
           {!kpisLoading && kpiCatalogForSelector.length > 0 && (
-            <span className="text-[8px] font-bold text-primary/70 normal-case tracking-wide">
+            <span className="text-[8px] font-bold text-primary/70 normal-case tracking-wide truncate">
               · {kpiCatalogForSelector.length} KPIs · {counterCatalog.length} compteurs
             </span>
           )}
         </h4>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setCounterPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-500/40 text-emerald-600 text-xs font-bold hover:bg-emerald-500/10 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-emerald-500/40 text-emerald-600 text-xs font-bold hover:bg-emerald-500/10 transition-colors whitespace-nowrap"
           >
-            <Cpu className="w-3.5 h-3.5" /> Add Counter
+            <Cpu className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Add</span> Counter
           </button>
           <button
             onClick={() => setKpiPickerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap"
           >
-            <Plus className="w-3.5 h-3.5" /> Add KPI
+            <Plus className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Add</span> KPI
           </button>
         </div>
       </div>
