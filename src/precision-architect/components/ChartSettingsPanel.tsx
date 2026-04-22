@@ -263,8 +263,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           })}
         </aside>
 
-        <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
-          <div className="max-w-4xl">
+        <div className="flex-1 min-w-0 p-6 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div className="max-w-4xl min-w-0">
             {tab === 'data' && (
               <DataSourceTab
                 config={config}
