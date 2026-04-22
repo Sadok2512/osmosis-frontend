@@ -47,6 +47,8 @@ import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
+import { exportReportToPDF, exportReportToPPTX } from '../lib/exportReport';
+import { FileDown, Presentation } from 'lucide-react';
 
 interface EditorViewProps {
   projectName: string;
