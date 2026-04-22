@@ -137,6 +137,9 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
+  const splitInUse = (cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : 'CELL';
+  const sourceTables = (tableResp as any)?.source_tables;
+
   if (emptyReason) {
     const copy = emptyReason === 'no-column'
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
@@ -144,7 +147,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'backend'
       ? { title: 'Backend returned no usable table data', body: backendMessage }
-      : { title: 'No data returned', body: 'No rows for this perimeter / period / filters.' };
+      : {
+          title: 'No data returned',
+          body: `No rows for split "${splitInUse}" on this period/filters. Try widening the date range, removing filters, or switching the split dimension.`,
+        };
     return (
       <div
         style={{ height }}
