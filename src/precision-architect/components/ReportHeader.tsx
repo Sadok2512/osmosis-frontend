@@ -130,26 +130,23 @@ export default function ReportHeader({
     />
   ) : null;
 
-  if (photoPosition === 'top' || photoPosition === 'full') {
-    return (
-      <header className="w-full flex flex-col gap-4 overflow-visible">
-        {photoBlock}
-        <div className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          {titleBlock}
-          {infoBlock}
-        </div>
-      </header>
-    );
-  }
+  // Anchor for the floating logo — defaults to top/left/right based on photoPosition
+  const floatingAnchorClass =
+    photoPosition === 'right'
+      ? 'top-0 right-0'
+      : photoPosition === 'top' || photoPosition === 'full'
+      ? 'top-0 left-1/2 -translate-x-1/2'
+      : 'top-0 left-0';
 
   return (
-    <header className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 overflow-visible">
-      <div className="flex items-start gap-4 min-w-0 flex-1 overflow-visible">
-        {photoPosition === 'left' && photoBlock}
-        {titleBlock}
-        {photoPosition === 'right' && photoBlock}
-      </div>
+    <header className="relative w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 overflow-visible">
+      <div className="flex-1 min-w-0">{titleBlock}</div>
       {infoBlock}
+      {photoBlock && (
+        <div className={cn('absolute z-10 pointer-events-auto', floatingAnchorClass)}>
+          {photoBlock}
+        </div>
+      )}
     </header>
   );
 }
