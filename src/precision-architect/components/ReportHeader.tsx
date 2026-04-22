@@ -174,69 +174,95 @@ function PhotoBox({
   onPositionChange,
   onOffsetChange,
 }: PhotoBoxProps) {
-  const resizeRef = useRef<{ x: number; w: number } | null>(null);
-  const moveRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
   const [dragging, setDragging] = useState<false | 'resize' | 'move'>(false);
+  const [localOffset, setLocalOffset] = useState<{ x: number; y: number } | null>(null);
+  const [localWidth, setLocalWidth] = useState<number | null>(null);
 
-  const stopAll = useCallback(() => {
-    resizeRef.current = null;
-    moveRef.current = null;
-    setDragging(false);
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', stopAll);
-  }, []);
+  const stateRef = useRef({ position, onResize, onOffsetChange });
+  stateRef.current = { position, onResize, onOffsetChange };
 
-  const onPointerMove = useCallback(
-    (e: PointerEvent) => {
-      if (resizeRef.current) {
-        const dx = e.clientX - resizeRef.current.x;
-        const factor = position === 'right' ? -1 : 1;
-        const next = Math.max(PHOTO_MIN, Math.min(PHOTO_MAX, resizeRef.current.w + dx * factor));
-        onResize(Math.round(next));
-        return;
-      }
-      if (moveRef.current) {
-        const dx = e.clientX - moveRef.current.x;
-        const dy = e.clientY - moveRef.current.y;
-        const nextX = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, moveRef.current.ox + dx));
-        const nextY = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, moveRef.current.oy + dy));
-        onOffsetChange(Math.round(nextX), Math.round(nextY));
-      }
-    },
-    [onOffsetChange, onResize, position],
-  );
+  const dragRef = useRef<
+    | { type: 'resize'; startX: number; startW: number }
+    | { type: 'move'; startX: number; startY: number; startOX: number; startOY: number }
+    | null
+  >(null);
 
   useEffect(() => {
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', stopAll);
+    if (!dragging) return;
+
+    const handleMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      e.preventDefault();
+      if (d.type === 'resize') {
+        const dx = e.clientX - d.startX;
+        const factor = stateRef.current.position === 'right' ? -1 : 1;
+        const next = Math.max(PHOTO_MIN, Math.min(PHOTO_MAX, d.startW + dx * factor));
+        setLocalWidth(Math.round(next));
+      } else {
+        const dx = e.clientX - d.startX;
+        const dy = e.clientY - d.startY;
+        const nextX = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, d.startOX + dx));
+        const nextY = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, d.startOY + dy));
+        setLocalOffset({ x: Math.round(nextX), y: Math.round(nextY) });
+      }
     };
-  }, [onPointerMove, stopAll]);
+
+    const handleUp = () => {
+      const d = dragRef.current;
+      if (d?.type === 'resize') {
+        setLocalWidth((w) => {
+          if (w != null) stateRef.current.onResize(w);
+          return null;
+        });
+      } else if (d?.type === 'move') {
+        setLocalOffset((o) => {
+          if (o) stateRef.current.onOffsetChange(o.x, o.y);
+          return null;
+        });
+      }
+      dragRef.current = null;
+      setDragging(false);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+  }, [dragging]);
 
   const beginResize = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    resizeRef.current = { x: e.clientX, w: width };
-    moveRef.current = null;
+    dragRef.current = { type: 'resize', startX: e.clientX, startW: width };
     setDragging('resize');
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', stopAll);
   };
 
   const beginMove = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    moveRef.current = { x: e.clientX, y: e.clientY, ox: offsetX, oy: offsetY };
-    resizeRef.current = null;
+    dragRef.current = {
+      type: 'move',
+      startX: e.clientX,
+      startY: e.clientY,
+      startOX: offsetX,
+      startOY: offsetY,
+    };
     setDragging('move');
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', stopAll);
   };
+
+  const effectiveWidth = localWidth ?? width;
+  const effectiveX = localOffset?.x ?? offsetX;
+  const effectiveY = localOffset?.y ?? offsetY;
 
   const wrapperStyle: React.CSSProperties =
     position === 'full'
-      ? { width: '100%', transform: `translate(${offsetX}px, ${offsetY}px)` }
-      : { width, transform: `translate(${offsetX}px, ${offsetY}px)` };
+      ? { width: '100%', transform: `translate(${effectiveX}px, ${effectiveY}px)` }
+      : { width: effectiveWidth, transform: `translate(${effectiveX}px, ${effectiveY}px)` };
 
   return (
     <div
