@@ -36,7 +36,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG, DEFAULT_DASHBOARD_THEME, DashboardTheme } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -127,8 +127,10 @@ export default function EditorView({
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, sections: updater(p.sections ?? []) } : p));
   };
 
-  const patchActivePageTheme = (patch: Partial<NonNullable<PAPage['theme']>>) => {
-    setPages(prev => prev.map(p => p.id === activePageId ? { ...p, theme: { ...(p.theme ?? {}), ...patch } } : p));
+  const patchActivePageTheme = (patch: Partial<DashboardTheme>) => {
+    setPages(prev => prev.map(p => p.id === activePageId
+      ? { ...p, theme: { ...DEFAULT_DASHBOARD_THEME, ...(p.theme ?? {}), ...patch } }
+      : p));
   };
 
   const addSection = () => {
