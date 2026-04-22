@@ -79,6 +79,7 @@ export interface TableRequest {
   date_to: string;
   filters: MonitorFilter[];
   kpi_keys: string[];
+  granularity?: string;
   top_n?: number;
   page?: number;
   page_size?: number;
