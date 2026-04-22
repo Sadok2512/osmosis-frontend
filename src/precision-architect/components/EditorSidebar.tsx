@@ -345,6 +345,52 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
           </div>
           <ToggleField label="Show Report Name" value={draft.showReportName} onChange={(v) => updateLive('showReportName', v, { showReportName: v })} />
           <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => updateReportInfo('reportInfoShow', v)} />
+          <ToggleField
+            label="Show Photo"
+            value={draft.showPhoto}
+            onChange={(v) => updateLive('showPhoto', v, { showPhoto: v })}
+          />
+          {draft.showPhoto && (
+            <div className="space-y-2 pl-3 border-l-2 border-primary/20">
+              <FieldLabel>Header Photo</FieldLabel>
+              {draft.photoUrl && (
+                <div className="rounded-lg overflow-hidden border border-outline-variant/20 bg-white">
+                  <img src={draft.photoUrl} alt="Header preview" className="w-full h-24 object-cover" />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <label className="flex-1 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const url = String(reader.result || '');
+                        updateLive('photoUrl', url, { photoUrl: url, showPhoto: true });
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <span className="block text-center text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-dashed border-outline-variant/40 hover:border-primary hover:bg-primary/5 transition-colors text-on-surface-variant">
+                    {draft.photoUrl ? 'Replace photo' : 'Upload photo'}
+                  </span>
+                </label>
+                {draft.photoUrl && (
+                  <button
+                    type="button"
+                    onClick={() => updateLive('photoUrl', '', { photoUrl: '' })}
+                    className="text-[10px] font-black uppercase tracking-widest px-3 py-2 rounded-lg border border-outline-variant/30 hover:bg-surface-container-low text-on-surface-variant"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </CollapsibleSection>
 
         <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
