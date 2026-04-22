@@ -180,6 +180,8 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
   const [showGrid, setShowGrid] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const [cursorVisible, setCursorVisible] = useState(true);
+  const [showSectionNav, setShowSectionNav] = useState(false);
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
   const cursorTimer = useRef<number | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
 
