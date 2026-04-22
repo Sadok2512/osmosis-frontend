@@ -157,13 +157,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const rows = tableResp?.rows ?? [];
   const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
-  // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'not-applied' | 'missing-filter' | 'backend' | 'no-data' | null =
+  // Empty states — only block rendering for config issues, NOT for empty data
+  const emptyReason: 'no-column' | 'not-applied' | 'missing-filter' | 'backend' | null =
     !hasColumns ? 'no-column'
     : (!hasBeenApplied) ? 'not-applied'
     : missingRequirements ? 'missing-filter'
     : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
-    : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
   const splitInUse = (() => {
@@ -179,12 +178,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'missing-filter'
       ? { title: 'Filtre de périmètre requis', body: `Ajoutez au moins un filtre (Plaque, Site, Vendor, DOR ou Bande) ${!hasDateRange ? 'et une période' : ''} avant de lancer la requête. Configurez dans la barre globale ou dans les paramètres du widget.` }
-      : emptyReason === 'backend'
-      ? { title: 'Backend returned no usable table data', body: backendMessage }
-      : {
-          title: 'No data returned',
-          body: `No rows for split "${splitInUse}" on this period/filters. Try widening the date range, removing filters, or switching the split dimension.`,
-        };
+      : { title: 'Backend returned no usable table data', body: backendMessage };
     return (
       <div
         style={{ height }}
@@ -238,6 +232,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
             </tr>
           </thead>
           <tbody>
+            {rows.length === 0 && !isFetching && (
+              <tr className="border-b border-outline-variant/10">
+                {splitInUse && <td className="px-4 py-2.5 font-black text-on-surface-variant/40">—</td>}
+                {visibleColumns.map(col => (
+                  <td key={col.id} className="px-4 py-2.5 text-right text-on-surface-variant/40">—</td>
+                ))}
+              </tr>
+            )}
             {rows.map((r, i) => (
               <tr key={`${r.split_value}-${i}`} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
                 {splitInUse && (
