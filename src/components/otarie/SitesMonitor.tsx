@@ -7612,7 +7612,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
+          // Concentric rings policy: in 'sites' mode (no detailed sectors), ALWAYS use concentric
+          // tech rings — never mini-sectors. Mini-sectors are reserved for tagged sites only.
+          const showMiniSectors = isTagged && renderSiteCells.length > 0 && !isIndoor;
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
