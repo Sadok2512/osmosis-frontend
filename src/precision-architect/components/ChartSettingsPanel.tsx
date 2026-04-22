@@ -318,7 +318,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 function DataSourceTab({
   config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
-  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply,
+  kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -336,6 +336,7 @@ function DataSourceTab({
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
   return (
@@ -390,6 +391,7 @@ function DataSourceTab({
           dimensionOptions={dimensionOptions}
           filtersLoading={filtersLoading}
           onApply={onApply}
+          isStat={isStat}
         />
       )}
     </div>
