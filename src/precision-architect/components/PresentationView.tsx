@@ -201,6 +201,29 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
   const next = useCallback(() => goTo(index + 1), [goTo, index]);
   const prev = useCallback(() => goTo(index - 1), [goTo, index]);
 
+  const scrollToSection = useCallback((sectionId: string) => {
+    setActiveSectionId(sectionId);
+    // The slide is rendered in a scaled container; the scrollable element is `.slide-content`.
+    // Find the section node inside the currently-visible slide and scroll its parent scroller.
+    requestAnimationFrame(() => {
+      const node = document.getElementById(`pa-section-${sectionId}`);
+      if (!node) return;
+      // Walk up to find the scrollable slide-content ancestor
+      let scroller: HTMLElement | null = node.parentElement;
+      while (scroller && !scroller.classList.contains('slide-content')) {
+        scroller = scroller.parentElement;
+      }
+      if (scroller) {
+        const offsetTop = node.offsetTop - 24;
+        scroller.scrollTo({ top: offsetTop, behavior: 'smooth' });
+      } else {
+        node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      // Briefly flash a focus ring
+      node.classList.add('pa-section-flash');
+      window.setTimeout(() => node.classList.remove('pa-section-flash'), 1400);
+    });
+  }, []);
   // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
