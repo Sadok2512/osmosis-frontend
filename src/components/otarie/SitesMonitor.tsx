@@ -531,7 +531,8 @@ const isCellVisibleForKpiOverlay = (
   // Auto-hide sites whose vendor doesn't match the KPI's vendor
   if (kpiVendorFilter && siteVendor && siteVendor.toLowerCase() !== kpiVendorFilter.toLowerCase()) return false;
   const techGroup = getCellTechGroup(cell.techno);
-  if (!techGroup || techGroup !== kpiTechnoFilter) return false;
+  if (!techGroup) return false;
+  // Show all technologies that have KPI data — don't hard-filter by kpiTechnoFilter
   if (!enabledTechnos.has(techGroup)) return false;
   if (localTechno !== 'ALL' && techGroup !== localTechno) return false;
   if (localBande !== 'ALL' && cell.bande !== localBande) return false;
@@ -4984,7 +4985,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // dashboard/view perimeter client-side when deciding which cells/sectors to render.
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
-      techno: kpiTechnoFilter,
       level: kpiAnalysisLevel,
       ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
@@ -5017,7 +5017,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
+  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
