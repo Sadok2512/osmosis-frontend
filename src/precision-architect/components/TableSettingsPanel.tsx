@@ -416,80 +416,86 @@ function ColumnsTab({
             <div
               key={c.id}
               className={cn(
-                'group border rounded-xl bg-white transition-all',
+                'group border rounded-xl bg-white transition-all min-w-0 overflow-hidden',
                 expanded ? 'border-primary/50 shadow-md ring-1 ring-primary/20' : 'border-outline-variant/25 hover:border-primary/30 hover:shadow-sm'
               )}
             >
               {/* Row */}
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 shrink-0 cursor-grab" />
+              <div className="px-3 py-2.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 shrink-0 cursor-grab" />
 
-                <span
-                  className="w-3.5 h-3.5 rounded-full ring-2 ring-white shadow-sm shrink-0"
-                  style={{ background: color }}
-                  aria-label="Color indicator"
-                />
+                  <span
+                    className="w-3.5 h-3.5 rounded-full ring-2 ring-white shadow-sm shrink-0"
+                    style={{ background: color }}
+                    aria-label="Color indicator"
+                  />
 
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="font-bold text-sm text-on-surface truncate">
-                    {c.alias || kpiLabel}
-                  </span>
-                  {isCounter && (
-                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 shrink-0">
-                      Counter
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="font-bold text-sm text-on-surface truncate" title={c.alias || kpiLabel}>
+                      {c.alias || kpiLabel}
                     </span>
-                  )}
+                    {isCounter && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 shrink-0">
+                        Counter
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => updateColumn(c.id, { visible: !c.visible })}
+                      className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors"
+                      title={c.visible ? 'Hide' : 'Show'}
+                    >
+                      {c.visible
+                        ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
+                        : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
+                    </button>
+
+                    <button
+                      onClick={() => setExpandedId(expanded ? null : c.id)}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors',
+                        expanded ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface hover:bg-primary/10 hover:text-primary'
+                      )}
+                    >
+                      {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => removeColumn(c.id)}
+                      className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-error" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Mirrors Chart's badges (axis · type · style) for visual parity */}
-                <span
-                  className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary shrink-0"
-                  title="Column"
-                >
-                  COL
-                </span>
-                <span
-                  className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
-                  title="Numeric value"
-                >
-                  num
-                </span>
-                <span
-                  className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
-                  title="Format"
-                >
-                  <span className="w-4 h-0.5 rounded-full bg-on-surface-variant" />
-                  auto
-                </span>
-
-                <button
-                  onClick={() => updateColumn(c.id, { visible: !c.visible })}
-                  className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors shrink-0"
-                  title={c.visible ? 'Hide' : 'Show'}
-                >
-                  {c.visible
-                    ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
-                    : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
-                </button>
-
-                <button
-                  onClick={() => setExpandedId(expanded ? null : c.id)}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors shrink-0',
-                    expanded ? 'bg-primary text-on-primary' : 'bg-surface-container-low text-on-surface hover:bg-primary/10 hover:text-primary'
-                  )}
-                >
-                  {expanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                  Edit
-                </button>
-
-                <button
-                  onClick={() => removeColumn(c.id)}
-                  className="p-1.5 hover:bg-error/10 rounded-md transition-colors shrink-0"
-                  title="Remove"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-error" />
-                </button>
+                {/* Badges wrap below name on narrow widths */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pl-7">
+                  <span
+                    className="inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary"
+                    title="Column"
+                  >
+                    COL
+                  </span>
+                  <span
+                    className="inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-low text-on-surface-variant"
+                    title="Numeric value"
+                  >
+                    num
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-low text-on-surface-variant"
+                    title="Format"
+                  >
+                    <span className="w-3 h-0.5 rounded-full bg-on-surface-variant" />
+                    auto
+                  </span>
+                </div>
               </div>
 
               {/* Expanded editor */}
