@@ -620,7 +620,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       <PAEChart
         variant="editor"
         height="100%"
-        config={cfg}
+        config={renderCfg}
         appliedRev={effectiveAppliedRev}
         seriesByMetric={seriesByMetric}
         xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
