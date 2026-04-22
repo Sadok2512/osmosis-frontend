@@ -306,7 +306,7 @@ function PhotoBox({
           </div>
 
           <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-            {position === 'full' ? '100%' : `${width}px`} · x:{offsetX} y:{offsetY}
+            {position === 'full' ? '100%' : `${effectiveWidth}px`} · x:{effectiveX} y:{effectiveY}
           </div>
 
           {position !== 'full' && (
