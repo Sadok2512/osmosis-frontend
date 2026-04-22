@@ -8191,11 +8191,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (mapTechnoFilter === 'ALL') {
             // Group cells by band+azimuth for band-based sizing
             const cellItems: { tech: string; az: number; radius: number; bandKey: string | null; cell: typeof site.cells[0] }[] = [];
+            // Detect "all azimuths = 0" pattern (missing azimut data) → spread by sector number
+            const allAzZero = renderSiteCells.length > 1
+              && renderSiteCells.every(c => Number(c.azimut) === 0);
             for (const cell of renderSiteCells) {
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
               let az = Number(cell.azimut);
-              if (!Number.isFinite(az) || az < 0 || az > 360) {
+              if (!Number.isFinite(az) || az < 0 || az > 360 || allAzZero) {
                 // Fallback: assign azimuth based on sector number (tri-sector heuristic)
                 const sNum = getSectorNumber(cell.cell_id);
                 const heuristicAz = [0, 0, 120, 240]; // index 0=fallback, 1=0°, 2=120°, 3=240°
