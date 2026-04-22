@@ -1391,7 +1391,8 @@ export async function fetchKpiCellValues(
     kpi_code: kpiId,
     date_from: filters?.date_from || '',
     date_to: filters?.date_to || '',
-    granularity: '1d',
+    // Use full-period granularity for map overlay: one value per cell (not per day)
+    granularity: 'total',
   };
   // Backend expects scalar strings (not arrays) for these filters — sending arrays triggers 422
   if (filters?.vendor) computeBody.vendor = filters.vendor;
@@ -1413,11 +1414,15 @@ export async function fetchKpiCellValues(
   console.log('[KPI compute] request', { kpiId, level, body: computeBody });
 
   const computeUrl = getVpsProxyUrl('parser', '/api/v1/pm/kpi/compute');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120_000); // 120s timeout
   const resp = await fetch(computeUrl, {
     method: 'POST',
     headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(computeBody),
+    signal: controller.signal,
   });
+  clearTimeout(timeoutId);
   if (!resp.ok) throw new Error(`KPI compute failed: ${resp.status}`);
   const json = await resp.json();
 
