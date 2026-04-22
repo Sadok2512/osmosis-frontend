@@ -358,28 +358,28 @@ export default function OdccDetectorConsole() {
   };
 
   return (
-    <div className="h-full overflow-hidden bg-[#f4f8f5] text-slate-950">
-      <header className="border-b border-emerald-900/10 bg-white/90 px-8 py-5 shadow-sm">
+    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-foreground">
+      <header className="border-b border-border/50 bg-background/80 px-6 py-5 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-700/20">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)]">
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-emerald-700">ODCC</p>
-                <h1 className="text-2xl font-black tracking-tight">NE Detector Console</h1>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS / ODCC</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">NE Detector Console</h1>
               </div>
             </div>
-            <p className="mt-2 max-w-3xl text-sm font-medium text-slate-600">
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
               Frontend-only workspace for detector rules, manual runs, detected NE results, and parameter set operations. Backend wiring is intentionally disabled.
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-700">
+            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
               <Plus className="mr-2 inline h-4 w-4" /> Create Detector
             </button>
-            <button onClick={exportCsv} className="rounded-xl border border-emerald-700/20 bg-white px-4 py-2 text-xs font-black uppercase tracking-wider text-emerald-700 hover:bg-emerald-50">
+            <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
               <Download className="mr-2 inline h-4 w-4" /> Export Results
             </button>
           </div>
@@ -387,7 +387,7 @@ export default function OdccDetectorConsole() {
       </header>
 
       <main className="flex h-[calc(100%-105px)] overflow-hidden">
-        <aside className="w-72 shrink-0 border-r border-emerald-900/10 bg-white/80 p-5">
+        <aside className="w-72 shrink-0 border-r border-border/50 bg-background/70 p-5 backdrop-blur-sm">
           <div className="grid grid-cols-2 gap-3">
             <Metric label="Active" value={stats.active} icon={<ShieldCheck />} />
             <Metric label="Open" value={stats.open} icon={<AlertTriangle />} />
@@ -403,14 +403,14 @@ export default function OdccDetectorConsole() {
               ['parameter_sets', 'Parameter Sets', Database],
               ['audit', 'Audit Logs', FileJson],
             ].map(([id, label, Icon]) => (
-              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition', tab === id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-700/20' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-800')}>
+              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-all', tab === id ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.22)]' : 'text-muted-foreground hover:bg-primary/8 hover:text-primary')}>
                 {React.createElement(Icon as typeof Radar, { className: 'h-4 w-4' })}
                 {label as string}
               </button>
             ))}
           </nav>
-          <div className="mt-6 rounded-2xl border border-emerald-900/10 bg-emerald-50 p-4 text-xs text-emerald-950">
-            <p className="font-black uppercase tracking-wider">MVP mode</p>
+          <div className="mt-6 rounded-2xl border border-border/60 bg-card p-4 text-xs text-muted-foreground shadow-sm">
+            <p className="font-black uppercase tracking-[0.14em] text-foreground">MVP mode</p>
             <p className="mt-1 leading-relaxed">All detector actions are simulated in local React state. No backend endpoints are called.</p>
           </div>
         </aside>
@@ -467,10 +467,10 @@ export default function OdccDetectorConsole() {
 
 function Metric({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactElement }) {
   return (
-    <div className="rounded-2xl border border-emerald-900/10 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-slate-950">{value}</p>
+    <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-black text-foreground">{value}</p>
     </div>
   );
 }
@@ -487,26 +487,26 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
 }) {
   return (
     <Panel title="Detector List" action={<SearchBox value={query} onChange={setQuery} />}>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
               {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {detectors.map(detector => (
-              <tr key={detector.id} className="border-t border-slate-100">
+              <tr key={detector.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
                 <td className="px-4 py-4">
-                  <p className="font-black text-slate-950">{detector.name}</p>
-                  <p className="font-mono text-[11px] text-slate-500">{detector.code}</p>
+                  <p className="font-bold text-foreground">{detector.name}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{detector.code}</p>
                 </td>
                 <td className="px-4 py-4"><Pill>{detector.scopeLevel}</Pill></td>
                 <td className="px-4 py-4">{modeLabel(detector)}</td>
                 <td className="px-4 py-4 font-bold">{detector.scheduleFrequency}</td>
-                <td className="px-4 py-4 text-xs text-slate-600">{filterSummary(detector)}</td>
+                <td className="px-4 py-4 text-xs text-muted-foreground">{filterSummary(detector)}</td>
                 <td className="px-4 py-4"><StatusPill value={detector.status} /></td>
-                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-slate-300" />}</td>
+                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-muted-foreground/40" />}</td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-1.5">
                     <IconButton title="Run now" onClick={() => onRun(detector)}><Play /></IconButton>
@@ -539,7 +539,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
   const patchFilters = (key: keyof Detector['filters'], value: string) => patch({ filters: { ...draft.filters, [key]: splitCsv(value) } });
   const updateCriterion = (id: string, p: Partial<Criterion>) => patch({ criteria: draft.criteria.map(c => c.id === id ? { ...c, ...p } : c) });
   return (
-    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">Frontend draft</span>}>
+    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-black text-primary">Frontend draft</span>}>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card title="A. General">
           <Field label="Name"><input value={draft.name} onChange={e => patch({ name: e.target.value })} className="input" /></Field>
@@ -572,13 +572,13 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
 
         <Card title="F. Criteria Builder">
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-500">Logic</span>
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Logic</span>
             <Select value={draft.criteriaLogic} values={['AND', 'OR']} onChange={v => patch({ criteriaLogic: v as 'AND' | 'OR' })} />
-            <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-lg bg-emerald-600 px-3 py-2 text-xs font-black text-white">Add condition</button>
+            <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground transition-all hover:bg-primary/90">Add condition</button>
           </div>
           <div className="space-y-3">
             {draft.criteria.map(c => (
-              <div key={c.id} className="grid grid-cols-7 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div key={c.id} className="grid grid-cols-7 gap-2 rounded-xl border border-border/60 bg-muted/30 p-3">
                 <Select value={c.type} values={['kpi', 'parameter', 'inventory']} onChange={v => updateCriterion(c.id, { type: v as Criterion['type'] })} />
                 <input value={c.code} onChange={e => updateCriterion(c.id, { code: e.target.value })} className="input col-span-2 font-mono" />
                 <Select value={c.aggregation} values={['avg', 'sum', 'min', 'max', 'last']} onChange={v => updateCriterion(c.id, { aggregation: v as Criterion['aggregation'] })} />
@@ -597,7 +597,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
               ['allowExport', 'Allow export'],
               ['allowParameterApply', 'Allow parameter apply'],
             ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold">
+              <label key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-sm font-bold text-foreground">
                 <input type="checkbox" checked={Boolean(draft.output[key as keyof Detector['output']])} onChange={e => patch({ output: { ...draft.output, [key]: e.target.checked } })} />
                 {label}
               </label>
@@ -615,7 +615,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
             <ActionButton onClick={onValidate} icon={<CheckCircle2 />}>Validate</ActionButton>
             <ActionButton onClick={onRunTest} icon={<Play />}>Run test</ActionButton>
           </div>
-          <pre className="mt-4 max-h-80 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-emerald-100">{JSON.stringify(toApiPayload(draft), null, 2)}</pre>
+          <pre className="mt-4 max-h-80 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-blue-100">{JSON.stringify(toApiPayload(draft), null, 2)}</pre>
         </Card>
       </div>
     </Panel>
@@ -627,7 +627,7 @@ function RunsTable({ runs, detectors }: { runs: DetectorRun[]; detectors: Detect
     <Panel title="Runs History">
       <SimpleTable headers={['Created', 'Detector', 'Trigger', 'Mode', 'Period', 'Granularity', 'Matched', 'Status']}>
         {runs.map(run => (
-          <tr key={run.id} className="border-t border-slate-100">
+          <tr key={run.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td>{formatDate(run.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === run.detectorId)?.name || run.detectorId}</Td>
             <Td>{run.triggerType}</Td>
@@ -656,7 +656,7 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
     <Panel title="Detection Results" action={<div className="flex gap-2"><ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton><ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton></div>}>
       <SimpleTable headers={['', 'Detection time', 'Severity', 'Hierarchy', 'NE', 'Tech', 'Vendor', 'KPI', 'Value', 'Threshold', 'Status', 'Actions']}>
         {results.map(r => (
-          <tr key={r.id} className="border-t border-slate-100">
+          <tr key={r.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></Td>
             <Td>{formatDate(r.detectedAt)}</Td>
             <Td><SeverityPill value={r.severity} /></Td>
@@ -688,8 +688,8 @@ function ParameterSets({ sets, setSets, onExport }: { sets: ParameterSet[]; setS
     <Panel title="Parameter Set Manager" action={<ActionButton onClick={add} icon={<Plus />} primary>New set</ActionButton>}>
       <SimpleTable headers={['Name', 'Target level', 'Items', 'Enabled', 'Updated', 'Actions']}>
         {sets.map(set => (
-          <tr key={set.id} className="border-t border-slate-100">
-            <Td><p className="font-black">{set.name}</p><p className="font-mono text-[11px] text-slate-500">{set.code}</p></Td>
+          <tr key={set.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+            <Td><p className="font-bold text-foreground">{set.name}</p><p className="font-mono text-[11px] text-muted-foreground">{set.code}</p></Td>
             <Td>{set.targetLevel}</Td>
             <Td>{set.items.length}</Td>
             <Td>{set.enabled ? 'Yes' : 'No'}</Td>
@@ -707,7 +707,7 @@ function AuditTable({ audit, detectors }: { audit: AuditLog[]; detectors: Detect
     <Panel title="Audit Logs">
       <SimpleTable headers={['Time', 'Detector', 'Action', 'Actor', 'Payload']}>
         {audit.map(row => (
-          <tr key={row.id} className="border-t border-slate-100">
+          <tr key={row.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td>{formatDate(row.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === row.detectorId)?.code || row.detectorId}</Td>
             <Td><StatusPill value={row.action} /></Td>
@@ -724,7 +724,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-black tracking-tight">{title}</h2>
+        <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
         {action}
       </div>
       {children}
@@ -734,15 +734,15 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-emerald-900/10 bg-white p-5 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-emerald-700"><Layers3 className="h-4 w-4" />{title}</h3>
+    <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-xs font-black uppercase tracking-wider text-slate-500">{label}<div className="mt-1">{children}</div></label>;
+  return <label className="block text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
 }
 
 function Select({ value, values, labels, onChange }: { value: string; values: string[]; labels?: string[]; onChange: (v: string) => void }) {
@@ -756,18 +756,18 @@ function Select({ value, values, labels, onChange }: { value: string; values: st
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="relative">
-      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-10 w-72 rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-semibold outline-none focus:border-emerald-500" />
+      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-2xl border border-border/60 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
     </div>
   );
 }
 
 function SimpleTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
       <div className="overflow-auto">
         <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}</tr>
           </thead>
           <tbody>{children}</tbody>
@@ -778,35 +778,41 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-3 align-top text-slate-700">{children}</td>;
+  return <td className="px-4 py-3 align-top text-foreground">{children}</td>;
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-800">{children}</span>;
+  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">{children}</span>;
 }
 
 function StatusPill({ value }: { value: string }) {
   const color = value === 'active' || value === 'success' || value === 'resolved'
-    ? 'bg-emerald-100 text-emerald-800'
+    ? 'bg-emerald-500/12 text-emerald-700 border-emerald-500/25'
     : value === 'failed' || value === 'critical'
-      ? 'bg-red-100 text-red-800'
+      ? 'bg-red-500/12 text-red-700 border-red-500/25'
       : value === 'draft' || value === 'pending'
-        ? 'bg-amber-100 text-amber-800'
-        : 'bg-slate-100 text-slate-700';
-  return <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider', color)}>{value}</span>;
+        ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
+        : 'bg-slate-500/12 text-slate-700 border-slate-500/25';
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
 }
 
 function SeverityPill({ value }: { value: Severity }) {
-  const color = value === 'critical' ? 'bg-red-600 text-white' : value === 'major' ? 'bg-orange-100 text-orange-800' : value === 'warning' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800';
-  return <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider', color)}>{value}</span>;
+  const color = value === 'critical'
+    ? 'bg-red-500/12 text-red-700 border-red-500/25'
+    : value === 'major'
+      ? 'bg-orange-500/12 text-orange-700 border-orange-500/25'
+      : value === 'warning'
+        ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
+        : 'bg-blue-500/12 text-blue-700 border-blue-500/25';
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
-  return <button title={title} onClick={onClick} className={cn('rounded-lg border p-2 transition', danger ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-slate-200 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
+  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
 }
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-wider transition', primary ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-700' : 'border border-emerald-700/20 bg-white text-emerald-700 hover:bg-emerald-50')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function splitCsv(value: string): string[] {
