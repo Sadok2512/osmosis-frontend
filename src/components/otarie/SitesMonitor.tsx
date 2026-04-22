@@ -4962,6 +4962,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
       techno: kpiTechnoFilter,
+      level: kpiAnalysisLevel,
       ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
       ...(kpiDateTo ? { date_to: kpiDateTo } : {}),
@@ -4993,24 +4994,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
-    // 1. Check fetched KPI values by cell_name
     const cellName = cell.cell_id || cell.cell_name || '';
-    const fromKpi = kpiValues.get(cellName) ?? kpiValues.get(String(cellName).toUpperCase());
+    const siteName = cell.site_name || cell.site_id || '';
+    const bandName = cell.bande || cell.band || '';
+
+    // Level-aware lookup priority
+    if (kpiAnalysisLevel === 'band' && bandName && siteName) {
+      const fromBand = kpiValues.get(`band:${siteName}:${bandName}`);
+      if (fromBand != null) return fromBand;
+    }
+
+    if (kpiAnalysisLevel === 'site') {
+      const fromSite = kpiValues.get(`site:${siteName}`);
+      if (fromSite != null) return fromSite;
+    }
+
+    // Cell-level: direct lookup
+    const fromKpi = kpiValues.get(cellName);
     if (fromKpi != null) return fromKpi;
 
-    // 2. Check site-level aggregation
-    const siteName = cell.site_name || cell.site_id || '';
-    const fromSite = kpiValues.get(`site:${siteName}`) ?? kpiValues.get(`site:${String(siteName).toUpperCase()}`);
+    // Fallback: site-level average (always computed)
+    const fromSite = kpiValues.get(`site:${siteName}`);
     if (fromSite != null) return fromSite;
 
-    // 3. Check if the cell object has the KPI directly (from QoE data)
-    if (cell[mapKpi] != null) return cell[mapKpi];
-
-    // 4. Fallback to QoE score if available
-    if (cell.qoe_score_avg != null && cell.qoe_score_avg > 0) return cell.qoe_score_avg;
-
-    // 5. No data available — return NaN to signal "no value"
     return NaN;
+  };
+
+  /** Get site-level KPI value: proper average across all visible cells */
+  const getSiteKpiValue = (site: any): number => {
+    // 1. Direct site key
+    const siteName = site.site_name || site.site_id || '';
+    const fromSite = kpiValues.get(`site:${siteName}`);
+    if (fromSite != null) return fromSite;
+
+    // 2. Aggregate from cell values
+    const cells = site.cells || [];
+    if (cells.length === 0) return NaN;
+    const vals = cells
+      .map((c: any) => {
+        const cn = c.cell_id || c.cell_name || '';
+        return kpiValues.get(cn);
+      })
+      .filter((v: any): v is number => v != null && Number.isFinite(v));
+    if (vals.length === 0) return NaN;
+    return vals.reduce((a: number, b: number) => a + b, 0) / vals.length;
   };
 
   const getKpiColor = (value: number): string => {
@@ -7397,7 +7424,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
           // KPI coloring: use site-level KPI value when in KPI mode
-          const kpiColor = sectorColorMode === 'kpi' ? getKpiColor(kpiValues.get(`site:${site.site_name || site.site_id}`) ?? (site.cells.length > 0 ? getCellKpiValue(site.cells[0]) : NaN)) : null;
+          const kpiColor = sectorColorMode === 'kpi' ? getKpiColor(getSiteKpiValue(site)) : null;
           // Color view override: if a "View by Color" dimension is active, use that instead
           const colorViewOverride = getColorViewFill(site);
           const color = colorViewOverride || kpiColor || topoColor;

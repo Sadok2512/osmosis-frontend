@@ -1367,29 +1367,30 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
 const kpiValueCache = new Map<string, { data: Map<string, number>; ts: number }>();
 const KPI_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: string; techno?: string; band?: string; dor?: string; plaque?: string; zone_arcep?: string; region?: string; site_name?: string; bcluster?: string; date_from?: string; date_to?: string }): Promise<Map<string, number>> {
-  const cacheKey = `${kpiId}_${JSON.stringify(filters || {})}`;
+/**
+ * Fetch KPI values for map overlay — level-aware (cell / site / band).
+ * Uses /pm/kpi/compute (ClickHouse) which always has data.
+ */
+export async function fetchKpiCellValues(
+  kpiId: string,
+  filters?: {
+    vendor?: string; techno?: string; band?: string; dor?: string;
+    plaque?: string; zone_arcep?: string; region?: string;
+    site_name?: string; bcluster?: string;
+    date_from?: string; date_to?: string;
+    level?: 'cell' | 'site' | 'band';
+  },
+): Promise<Map<string, number>> {
+  const level = filters?.level || 'cell';
+  const cacheKey = `${kpiId}_${level}_${JSON.stringify(filters || {})}`;
   const cached = kpiValueCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < KPI_CACHE_TTL) return cached.data;
 
-  const params = new URLSearchParams({ kpi_id: kpiId, limit: '50000' });
-  if (filters?.vendor) params.set('vendor', filters.vendor);
-  if (filters?.techno) params.set('techno', filters.techno);
-  if (filters?.band) params.set('band', filters.band);
-  if (filters?.dor) params.set('dor', filters.dor);
-  if (filters?.plaque) params.set('plaque', filters.plaque);
-  if (filters?.zone_arcep) params.set('zone_arcep', filters.zone_arcep);
-  if (filters?.region) params.set('region', filters.region);
-  if (filters?.site_name) params.set('site_name', filters.site_name);
-  if (filters?.bcluster) params.set('bcluster', filters.bcluster);
-  if (filters?.date_from) params.set('date_from', filters.date_from);
-  if (filters?.date_to) params.set('date_to', filters.date_to);
-
-  // Use /pm/kpi/compute (ClickHouse) instead of /kpi/cell-values (KPI Engine tables empty)
+  // Build compute request body
   const computeBody: Record<string, any> = {
     kpi_code: kpiId,
-    date_from: filters?.date_from || params.get('date_from') || '',
-    date_to: filters?.date_to || params.get('date_to') || '',
+    date_from: filters?.date_from || '',
+    date_to: filters?.date_to || '',
     granularity: '1d',
   };
   // Backend expects scalar strings (not arrays) for these filters — sending arrays triggers 422
@@ -1405,6 +1406,12 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
     if (firstSite) computeBody.site_name = firstSite;
   }
 
+  // Level-aware split: site mode aggregates by site_name, band by band
+  if (level === 'site') computeBody.split_by_field = 'site_name';
+  else if (level === 'band') computeBody.split_by_field = 'band';
+
+  console.log('[KPI compute] request', { kpiId, level, body: computeBody });
+
   const computeUrl = getVpsProxyUrl('parser', '/api/v1/pm/kpi/compute');
   const resp = await fetch(computeUrl, {
     method: 'POST',
@@ -1414,38 +1421,63 @@ export async function fetchKpiCellValues(kpiId: string, filters?: { vendor?: str
   if (!resp.ok) throw new Error(`KPI compute failed: ${resp.status}`);
   const json = await resp.json();
 
-  // Build value map from compute series (kpi_value per cell)
   const series: any[] = json.series || [];
+  console.log('[KPI compute] response', { kpiId, level, seriesLength: series.length, source: json.source_table, error: json.error || 'none' });
+
+  if (series.length === 0 && json.error) {
+    console.warn(`[KPI compute] No data: ${json.error}`);
+  }
+
+  // Build value map keyed by the appropriate level
   const valueMap = new Map<string, number>();
+
   for (const pt of series) {
-    const cellName = pt.cell_name || pt.ne_name || pt.split_field || '';
-    const siteName = pt.site_name || '';
     const val = pt.kpi_value;
     if (val == null || !Number.isFinite(val)) continue;
+
+    const cellName = pt.cell_name || pt.ne_name || pt.split_field || '';
+    const siteName = pt.site_name || '';
+    const bandName = pt.band || pt.source_band || '';
+
+    // Always store cell-level values (used for cell overlay + fallback)
     if (cellName) valueMap.set(cellName, val);
-    // Site-level aggregation (rolling average)
+
+    // Site-level aggregation (rolling average across all cells of a site)
     if (siteName) {
       const siteKey = `site:${siteName}`;
+      const countKey = `count:${siteName}`;
       const existing = valueMap.get(siteKey);
       if (existing != null) {
-        const countKey = `count:${siteName}`;
         const count = (valueMap.get(countKey) || 1) + 1;
         valueMap.set(countKey, count);
         valueMap.set(siteKey, (existing * (count - 1) + val) / count);
       } else {
         valueMap.set(siteKey, val);
-        valueMap.set(`count:${siteName}`, 1);
+        valueMap.set(countKey, 1);
+      }
+    }
+
+    // Band-level: composite key site:band for band overlay mode
+    if (bandName && siteName) {
+      const bandKey = `band:${siteName}:${bandName}`;
+      const bandCountKey = `bandcount:${siteName}:${bandName}`;
+      const existing = valueMap.get(bandKey);
+      if (existing != null) {
+        const count = (valueMap.get(bandCountKey) || 1) + 1;
+        valueMap.set(bandCountKey, count);
+        valueMap.set(bandKey, (existing * (count - 1) + val) / count);
+      } else {
+        valueMap.set(bandKey, val);
+        valueMap.set(bandCountKey, 1);
       }
     }
   }
 
-  // Only cache when we got real data — empty/error responses (e.g. backend
-  // ClickHouse fallback "PM data in ClickHouse — using CH fallback") are
-  // transient and would otherwise pin the legend to "no data" for 5 min.
+  // Only cache when we got real data — transient errors shouldn't persist
   if (valueMap.size > 0 && !json.error) {
     kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
   }
-  console.log(`[TopoService] KPI values: ${valueMap.size} entries for kpi=${kpiId} (source: ${json.source_table || 'compute'}${json.error ? `, error: ${json.error}` : ''})`);
+  console.log(`[KPI overlay] ${valueMap.size} entries for ${kpiId} level=${level} (${series.length} raw points, source: ${json.source_table || 'compute'}${json.error ? `, warn: ${json.error}` : ''})`);
   return valueMap;
 }
 
