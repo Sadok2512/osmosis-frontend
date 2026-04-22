@@ -109,11 +109,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // Only send a real split_by when the user picked a dimension.
-    // Sending null (instead of omitting) prevents the backend from falling
-    // back to its CELL default and aggregates everything into a single row.
-    const effectiveSplitBy =
-      cfg.splitBy && cfg.splitBy !== '__none__' ? cfg.splitBy : null;
+    // Per-KPI split: derive an effective global split_by from columns.
+    // Priority order:
+    //   1. If any visible column defines its own splitBy → use that (first one wins).
+    //   2. Else fall back to the legacy widget-level cfg.splitBy.
+    //   3. Else null = aggregate (one row per KPI).
+    const columnSplit = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const legacySplit = cfg.splitBy && cfg.splitBy !== '__none__' ? cfg.splitBy : null;
+    const effectiveSplitBy = columnSplit ?? legacySplit;
 
     return {
       date_from: normalizeDate(eff.from),
