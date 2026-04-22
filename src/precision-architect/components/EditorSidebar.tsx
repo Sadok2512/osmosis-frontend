@@ -380,7 +380,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
                     }}
                   />
                   <span className="block text-center text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-dashed border-outline-variant/40 hover:border-primary hover:bg-primary/5 transition-colors text-on-surface-variant">
-                    {draft.photoUrl ? 'Replace photo' : 'Upload photo'}
+                    {draft.photoUrl ? 'Replace logo' : 'Upload logo'}
                   </span>
                 </label>
                 {draft.photoUrl && (
