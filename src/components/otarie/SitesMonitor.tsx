@@ -5983,20 +5983,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return counts;
   }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande]);
 
-  // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
-  // Kept as a coarse global fallback for indoor sites and edge cases.
-  const sectorDensityFactor = useMemo(() => {
-    const count = visibleSites.length;
-    if (count > 500) return 0;
-    if (count > 300) return 0.15;
-    if (count > 150) return 0.3;
-    if (count > 80) return 0.5;
-    if (count > 30) return 0.7;
-    return 1;
-  }, [visibleSites.length]);
-
-  // Smart Auto density-adaptive beam rendering:
+  // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
+  // The legacy global `sectorDensityFactor` (based on total visible count) has been
+  // removed — it was double-shrinking beams in dense zones on top of Smart Auto.
   // Recomputed when the visible set or zoom changes.
   const siteDensityMap = useMemo<Map<string, SiteDensityInfo>>(() => {
     if (!visibleSites || visibleSites.length === 0) return new Map();
@@ -6006,10 +5996,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return computeSmartAutoDensity(points, viewport.zoom);
   }, [visibleSites, viewport.zoom]);
 
-  /** Per-site density factor for getZoomAwareRadius — falls back to the global value when missing. */
+  /** Per-site density factor for getZoomAwareRadius — Smart Auto only, neutral (1.0) when missing. */
   const getSiteDensityFactor = (siteId: string): number => {
     const info = siteDensityMap.get(siteId);
-    if (!info) return sectorDensityFactor;
+    if (!info) return 1; // neutral: no shrink when site is unknown to Smart Auto
     return beamScaleToDensityFactor(info.beamScale);
   };
 
