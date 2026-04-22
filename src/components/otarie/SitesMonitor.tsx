@@ -5107,48 +5107,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(cell)));
   }, [sectorColorMode, hiddenKpiLevels, getKpiLevel, getCellKpiValue]);
 
-  const siteMatchesKpiLegend = useCallback((site: SiteSummary) => {
-    if (sectorColorMode !== 'kpi' || hiddenKpiLevels.size === 0) return true;
-    const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
-    const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
-    const cells = (site.cells || []).filter(c =>
-      isCellVisibleForKpiOverlay(
-        c,
-        kpiTechnoFilter,
-        enabledTechnos,
-        isBandEnabled,
-        dashBand,
-        dashTechno,
-        localTechno,
-        localBande,
-        kpiOverlayVendor,
-        site.vendor,
-      ),
-    );
-
-    if (cells.length === 0) {
-      const val = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
-      return !hiddenKpiLevels.has(getKpiLevel(val));
-    }
-
-    return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
-  }, [
-    sectorColorMode,
-    hiddenKpiLevels,
-    dashboardActive,
-    activeDashboardFilters,
-    kpiTechnoFilter,
-    enabledTechnos,
-    isBandEnabled,
-    localTechno,
-    localBande,
-    kpiOverlayVendor,
-    kpiValues,
-    mapKpi,
-    getKpiLevel,
-    getCellKpiValue,
-  ]);
-
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
   const currentThreshold = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
