@@ -109,13 +109,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // Per-KPI split: derive an effective global split_by from columns.
-    // Priority order:
-    //   1. If any visible column defines its own splitBy → use that (first one wins).
-    //   2. Else fall back to the legacy widget-level cfg.splitBy.
-    //   3. Else null = aggregate (one row per KPI).
+    // Per-KPI split: once any column carries a splitBy field, widget-level legacy
+    // split must no longer take over. This avoids resurrecting an old saved
+    // cfg.splitBy='CELL' after the user explicitly chose "No split" in Edit KPI.
+    const hasPerColumnSplitState = resolvedColumns.some(c => 'splitBy' in c);
     const columnSplit = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    const legacySplit = cfg.splitBy && cfg.splitBy !== '__none__' ? cfg.splitBy : null;
+    const legacySplit = (!hasPerColumnSplitState && cfg.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
     const effectiveSplitBy = columnSplit ?? legacySplit;
 
     return {
@@ -170,7 +169,13 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
-  const splitInUse = (cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
+  const splitInUse = (() => {
+    const cols = (cfg?.columns ?? []).filter(c => c.visible);
+    const hasPerColumnSplitState = cols.some(c => 'splitBy' in c);
+    const columnSplit = cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const legacySplit = (!hasPerColumnSplitState && cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
+    return columnSplit ?? legacySplit;
+  })();
   const sourceTables = (tableResp as any)?.source_tables;
 
   if (emptyReason) {
@@ -213,7 +218,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/10 bg-surface-container-low/40">
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60">
-            {cfg?.splitBy ? `By ${cfg.splitBy}` : 'Aggregated'}
+            {splitInUse ? `By ${splitInUse}` : 'Aggregated'}
           </span>
           <span className="text-xs font-black text-on-surface">{visibleColumns.length} KPI · {rows.length} rows</span>
         </div>
@@ -227,7 +232,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-white z-10">
             <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
-              {cfg?.splitBy && <th className="text-left px-4 py-2.5">{cfg.splitBy}</th>}
+              {splitInUse && <th className="text-left px-4 py-2.5">{splitInUse}</th>}
               {visibleColumns.map(col => (
                 <th key={col.id} className="text-right px-4 py-2.5">
                   <span className="inline-flex items-center gap-1">
@@ -241,7 +246,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
           <tbody>
             {rows.map((r, i) => (
               <tr key={`${r.split_value}-${i}`} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
-                {cfg?.splitBy && (
+                {splitInUse && (
                   <td className="px-4 py-2.5 font-black text-on-surface tabular-nums">{r.split_value || '—'}</td>
                 )}
                 {visibleColumns.map(col => {
