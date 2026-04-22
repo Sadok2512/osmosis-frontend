@@ -11,6 +11,7 @@ import {
   ChevronDown, RotateCcw
 } from 'lucide-react';
 import { AppTab } from '../../types';
+import { Wand2 } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { getStoredSession } from '@/services/adminAuth';
 import { WidgetItem } from '../bi/dashboardTypes';
@@ -25,7 +26,7 @@ import {
 } from '@/components/ui/tooltip';
 import operatorLogo from '@/assets/operator-logo.png';
 
-type DashboardType = 'map' | 'analytic_qoe';
+type DashboardType = 'map' | 'analytic_qoe' | 'precision_architect';
 type Visibility = 'private' | 'public' | 'shared';
 type SortKey = 'updated' | 'name' | 'owner';
 
@@ -156,6 +157,17 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     hoverBg: 'hover:bg-teal-50/40 dark:hover:bg-teal-950/10',
     label: 'PM',
     icon: <BarChart2 className="w-4 h-4" />,
+  },
+  precision_architect: {
+    iconBg: 'bg-primary/10',
+    iconBgHover: 'group-hover:bg-primary/20',
+    iconColor: 'text-primary',
+    badgeBg: 'bg-primary/10',
+    badgeText: 'text-primary',
+    cardAccent: 'border-l-primary',
+    hoverBg: 'hover:bg-primary/5',
+    label: 'Precision Architect',
+    icon: <Wand2 className="w-4 h-4" />,
   },
 };
 
@@ -637,6 +649,59 @@ const ReadOnlyWidget: React.FC<{ widget: any }> = ({ widget }) => {
   return null;
 };
 
+/* ─── Precision Architect read-only preview ─── */
+const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }> = ({ widgets, onOpen }) => {
+  const payload = (widgets || []).find((w: any) => w?._type === 'precision_architect_payload');
+  const pages: any[] = Array.isArray(payload?.pages) ? payload.pages : [];
+  const totalWidgets = pages.reduce((acc, p) => acc + (Array.isArray(p?.widgets) ? p.widgets.length : 0), 0);
+  const totalSections = pages.reduce((acc, p) => acc + (Array.isArray(p?.sections) ? p.sections.length : 0), 0);
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Wand2 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Rapport Precision Architect</h3>
+            <p className="text-xs text-muted-foreground">
+              {pages.length} page{pages.length > 1 ? 's' : ''} · {totalSections} section{totalSections !== 1 ? 's' : ''} · {totalWidgets} widget{totalWidgets !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground mt-4">
+          L'aperçu interactif des rapports Precision Architect n'est pas disponible ici. Ouvrez le rapport dans son éditeur dédié pour visualiser les pages, sections et widgets.
+        </p>
+
+        {pages.length > 0 && (
+          <div className="mt-6 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pages</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {pages.map((p: any, idx: number) => (
+                <div key={p?.id ?? idx} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-medium text-foreground truncate">{p?.name || `Page ${idx + 1}`}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    {(p?.widgets?.length || 0)} widget{(p?.widgets?.length || 0) !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={onOpen}
+          className="mt-6 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> Ouvrir dans Precision Architect
+        </button>
+      </div>
+    </div>
+  );
+};
 /* ═══════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════ */
@@ -692,8 +757,15 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   const openInEditor = (id: string) => {
+    const target = dashboards.find((d) => d.id === id);
     localStorage.setItem('osmosis_open_dashboard_id', id);
-    setActiveTab?.('traffic');
+    // Precision Architect dashboards have their own editor — route there
+    // instead of the BI Studio so the saved pages/widgets actually load.
+    if (target?.dashboardType === 'precision_architect') {
+      setActiveTab?.('precision_architect');
+    } else {
+      setActiveTab?.('traffic');
+    }
   };
 
   const exportDashboard = (db: EnhancedDashboard) => {
@@ -796,19 +868,26 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
 
         <div className="flex-1 overflow-auto p-6"
           style={dashBgColor ? { backgroundColor: dashBgColor } : undefined}>
-          <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
-            {renderWidgets.map((widget: any, idx: number) => {
-              const layout = widget.layout || { w: 12, h: 4 };
-              const w = Math.min(layout.w || 6, 12);
-              const h = layout.h || 3;
-              return (
-                <div key={idx} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm min-w-0"
-                  style={{ gridColumn: `span ${w}`, gridRow: `span ${h}` }}>
-                  <ReadOnlyWidget widget={widget} />
-                </div>
-              );
-            })}
-          </div>
+          {selected.dashboardType === 'precision_architect' ? (
+            <PrecisionArchitectPreview
+              widgets={selected.widgets as any[]}
+              onOpen={() => openInEditor(selected.id)}
+            />
+          ) : (
+            <div className="grid grid-cols-12 gap-4" style={{ gridAutoRows: '80px' }}>
+              {renderWidgets.map((widget: any, idx: number) => {
+                const layout = widget.layout || { w: 12, h: 4 };
+                const w = Math.min(layout.w || 6, 12);
+                const h = layout.h || 3;
+                return (
+                  <div key={idx} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm min-w-0"
+                    style={{ gridColumn: `span ${w}`, gridRow: `span ${h}` }}>
+                    <ReadOnlyWidget widget={widget} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
