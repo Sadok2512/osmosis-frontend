@@ -109,17 +109,23 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // No split_by in the table payload.
+    // Only send a real split_by when the user picked a dimension.
+    // Sending null (instead of omitting) prevents the backend from falling
+    // back to its CELL default and aggregates everything into a single row.
+    const effectiveSplitBy =
+      cfg.splitBy && cfg.splitBy !== '__none__' ? cfg.splitBy : null;
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: resolvedColumns.filter(c => c.source !== 'counter').map(c => c.kpiKey),
+      split_by: effectiveSplitBy,
       top_n: cfg.topN,
       granularity: toBackendGranularity(cfg.data.granularity || '1d'),
       columns: resolvedColumns,
       _rev: effectiveAppliedRev,
-    } as TableRequest & { _rev: number; granularity: string; columns: TableColumn[] };
+    } as TableRequest & { _rev: number; granularity: string; columns: TableColumn[]; split_by: string | null };
   }, [
     cfg,
     hasColumns,
@@ -161,7 +167,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
-  const splitInUse = (cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : 'CELL';
+  const splitInUse = (cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
   const sourceTables = (tableResp as any)?.source_tables;
 
   if (emptyReason) {
