@@ -3,7 +3,7 @@ import { ArrowUp, ArrowDown, Loader2, TableIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
-import { useTableQuery, TableRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { useTableQuery, TableRequest, MonitorFilter, useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { toBackendDimension } from '../lib/monitorDimensions';
 
