@@ -4996,6 +4996,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // dashboard/view perimeter client-side when deciding which cells/sectors to render.
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
+      techno: kpiTechnoFilter,
       level: kpiAnalysisLevel,
       ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
