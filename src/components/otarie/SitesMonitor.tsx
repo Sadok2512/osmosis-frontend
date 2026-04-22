@@ -4520,7 +4520,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
       setParamAvailableLoading(false);
     })();
-  }, [paramPanelOpen]);
+  }, [paramPanelOpen, showParamDropdown, paramMode]);
 
   const paramFilteredList = useMemo(() => {
     if (!paramSearch) return paramAvailable;
