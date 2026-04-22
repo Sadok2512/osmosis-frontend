@@ -4549,26 +4549,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => clearTimeout(timer);
   }, [paramSearch]);
 
-  const handleParamConfirm = useCallback(async () => {
-    if (!paramSelected) return;
-    setParamConfirmed(paramSelected);
+  const handleParamConfirm = useCallback(async (nextParam?: string) => {
+    const targetParam = nextParam ?? paramSelected;
+    if (!targetParam) return;
+    setParamConfirmed(targetParam);
+    setParamSelected(targetParam);
     setParamMode(true);
     setShowBeamSectors(false);
     setMapDisplayMode('points');
     setSectorColorMode('topo');
     setParamLoading(true);
     setParamPanelOpen(false);
+    setShowParamDropdown(false);
     try {
       const bbox = viewport.bounds
         ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
         : '-180,-90,180,90';
       // Parameter overlay fetches ALL matching data in viewport (no dashboard filters)
       const filterParams = new URLSearchParams();
-      filterParams.set('param', paramSelected);
+      filterParams.set('param', targetParam);
       filterParams.set('bbox', bbox);
       filterParams.set('limit', '10000');
       const paramMapUrl = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`);
-      console.log('[SitesMonitor] param-map request:', { param: paramSelected, bbox, filters: filterParams.toString(), url: paramMapUrl });
+      console.log('[SitesMonitor] param-map request:', { param: targetParam, bbox, filters: filterParams.toString(), url: paramMapUrl });
       const resp = await fetch(paramMapUrl, {
         headers: getVpsProxyHeaders(),
       });
@@ -4585,7 +4588,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               site_name: site.site_name,
               latitude: site.latitude,
               longitude: site.longitude,
-              parameter: paramSelected,
+              parameter: targetParam,
               value: cell.value,
               bande: cell.bande,
               vendor: site.constructeur,
@@ -4607,6 +4610,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setParamSelected(null);
     setParamPoints([]);
     setParamPanelOpen(false);
+    setShowParamDropdown(false);
+    setParamSearch('');
   }, []);
 
   const paramValueColor = useCallback((val: string | null): string => {
