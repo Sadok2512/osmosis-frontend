@@ -60,6 +60,152 @@ export const computeDensityFactor = (visibleCount: number): number => {
   return 1;
 };
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Smart Auto: density-adaptive beam rendering (hexbin sites/km² + percentile)
+// ───────────────────────────────────────────────────────────────────────────────
+
+export interface SitePoint {
+  id: string;
+  lat: number;
+  lng: number;
+}
+
+export interface SiteDensityInfo {
+  /** Local density in sites/km² (raw) */
+  density: number;
+  /** Percentile rank in [0, 1] across the visible set */
+  percentile: number;
+  /** Final beam scale ∈ [0.65, 1.20] */
+  beamScale: number;
+  /** Adaptive opacity multiplier ∈ [0.55, 1.0] (lower in dense zones) */
+  opacityScale: number;
+}
+
+/** Pick a hex cell size (in km) appropriate for the current zoom level. */
+const hexSizeKmForZoom = (zoom: number): number => {
+  if (zoom <= 6) return 50;
+  if (zoom <= 8) return 20;
+  if (zoom <= 10) return 8;
+  if (zoom <= 11) return 4;
+  if (zoom <= 12) return 2;
+  if (zoom <= 13) return 1;
+  if (zoom <= 14) return 0.5;
+  return 0.25;
+};
+
+/**
+ * Hexbin-based local density: sites/km² for each input site.
+ * Uses an axial hex grid (flat-top) sized proportionally to current zoom.
+ * Returns a Map keyed by site id with full SiteDensityInfo (density, percentile,
+ * beamScale, opacityScale).
+ *
+ * Formula (Smart Auto):
+ *   beamScale   = clamp(1.20 - 0.55 * sqrt(percentile), 0.65, 1.20)
+ *   opacityScale = clamp(1.00 - 0.45 * percentile,       0.55, 1.00)
+ */
+export const computeSmartAutoDensity = (
+  sites: SitePoint[],
+  zoom: number,
+): Map<string, SiteDensityInfo> => {
+  const result = new Map<string, SiteDensityInfo>();
+  if (!sites || sites.length === 0) return result;
+
+  const hexKm = hexSizeKmForZoom(zoom);
+  // Hex area (flat-top, edge length = hexKm/2 → height = hexKm)
+  // Approximation: area ≈ (3√3/2) * a²  with a = hexKm/2  →  ~0.6495 * hexKm²
+  const hexAreaKm2 = (3 * Math.sqrt(3) / 2) * Math.pow(hexKm / 2, 2);
+
+  // Convert lat/lng → planar km via equirectangular projection around mean lat.
+  const meanLat = sites.reduce((s, p) => s + p.lat, 0) / sites.length;
+  const cosLat = Math.cos((meanLat * Math.PI) / 180);
+  const KM_PER_DEG_LAT = 111.32;
+  const toXY = (lat: number, lng: number): [number, number] => [
+    lng * KM_PER_DEG_LAT * cosLat,
+    lat * KM_PER_DEG_LAT,
+  ];
+
+  // Axial hex bin assignment (pointy-top), size = hexKm/2
+  const size = hexKm / 2;
+  const binOf = (x: number, y: number): string => {
+    // pointy-top axial coords
+    const q = ((Math.sqrt(3) / 3) * x - (1 / 3) * y) / size;
+    const r = ((2 / 3) * y) / size;
+    // round to nearest hex
+    let rq = Math.round(q);
+    let rr = Math.round(r);
+    const rs = Math.round(-q - r);
+    const dq = Math.abs(rq - q);
+    const dr = Math.abs(rr - r);
+    const ds = Math.abs(rs - (-q - r));
+    if (dq > dr && dq > ds) rq = -rr - rs;
+    else if (dr > ds) rr = -rq - rs;
+    return `${rq},${rr}`;
+  };
+
+  const counts = new Map<string, number>();
+  const siteBin = new Map<string, string>();
+  for (const s of sites) {
+    const [x, y] = toXY(s.lat, s.lng);
+    const key = binOf(x, y);
+    siteBin.set(s.id, key);
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  // Compute density per site (sites/km²) and the sorted distribution for percentile rank.
+  const densities: number[] = [];
+  const siteDensity = new Map<string, number>();
+  for (const s of sites) {
+    const key = siteBin.get(s.id)!;
+    const d = (counts.get(key) ?? 1) / hexAreaKm2;
+    siteDensity.set(s.id, d);
+    densities.push(d);
+  }
+  densities.sort((a, b) => a - b);
+
+  const percentileOf = (d: number): number => {
+    // binary search for first index where densities[i] >= d → fraction strictly below
+    let lo = 0;
+    let hi = densities.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (densities[mid] < d) lo = mid + 1;
+      else hi = mid;
+    }
+    return densities.length <= 1 ? 0 : lo / (densities.length - 1);
+  };
+
+  for (const s of sites) {
+    const density = siteDensity.get(s.id) ?? 0;
+    const percentile = percentileOf(density);
+    const beamScale = Math.max(
+      0.65,
+      Math.min(1.20, 1.20 - 0.55 * Math.sqrt(percentile)),
+    );
+    const opacityScale = Math.max(
+      0.55,
+      Math.min(1.0, 1.0 - 0.45 * percentile),
+    );
+    result.set(s.id, { density, percentile, beamScale, opacityScale });
+  }
+
+  return result;
+};
+
+/**
+ * Convert a Smart Auto beamScale (∈ [0.65, 1.20]) into the legacy
+ * `densityFactor` parameter expected by getZoomAwareRadius (∈ [0, 1]).
+ *
+ * getZoomAwareRadius applies: targetPx *= 0.30 + 0.70 * densityFactor
+ * We want the resulting overall multiplier on radius to equal beamScale,
+ * relative to the baseline densityFactor = 1 (i.e. multiplier 1.0).
+ *
+ *   0.30 + 0.70 * df = beamScale  →  df = (beamScale - 0.30) / 0.70
+ */
+export const beamScaleToDensityFactor = (beamScale: number): number => {
+  const df = (beamScale - 0.30) / 0.70;
+  return Math.max(0, Math.min(1, df));
+};
+
 /** Generate sector polygon points (wedge shape) */
 export const getSectorCoords = (
   center: [number, number],

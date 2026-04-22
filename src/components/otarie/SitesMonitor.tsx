@@ -61,7 +61,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
-import { getBandSizeScale, getBandRenderOrder, getCellCountScale } from './map/sectorSizing';
+import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
 import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
@@ -5957,6 +5957,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
+  // Kept as a coarse global fallback for indoor sites and edge cases.
   const sectorDensityFactor = useMemo(() => {
     const count = visibleSites.length;
     if (count > 500) return 0;
@@ -5966,6 +5967,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (count > 30) return 0.7;
     return 1;
   }, [visibleSites.length]);
+
+  // Smart Auto density-adaptive beam rendering:
+  // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
+  // Recomputed when the visible set or zoom changes.
+  const siteDensityMap = useMemo<Map<string, SiteDensityInfo>>(() => {
+    if (!visibleSites || visibleSites.length === 0) return new Map();
+    const points = visibleSites
+      .filter(s => Number.isFinite(s.coordinates?.[0]) && Number.isFinite(s.coordinates?.[1]))
+      .map(s => ({ id: s.site_id, lat: s.coordinates[0], lng: s.coordinates[1] }));
+    return computeSmartAutoDensity(points, viewport.zoom);
+  }, [visibleSites, viewport.zoom]);
+
+  /** Per-site density factor for getZoomAwareRadius — falls back to the global value when missing. */
+  const getSiteDensityFactor = (siteId: string): number => {
+    const info = siteDensityMap.get(siteId);
+    if (!info) return sectorDensityFactor;
+    return beamScaleToDensityFactor(info.beamScale);
+  };
+
+  /** Per-site opacity multiplier (1 in sparse zones, down to 0.55 in dense zones). */
+  const getSiteOpacityScale = (siteId: string): number => {
+    const info = siteDensityMap.get(siteId);
+    return info ? info.opacityScale : 1;
+  };
 
   // Viewport width for responsive sector sizing
   const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
@@ -7440,9 +7465,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             };
             // Cell-count density scale: dense sites get bigger sectors (sqrt scaling, clamped)
             const cellCountScale = getCellCountScale(renderSiteCells.length);
-            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7 * cellCountScale;
-            // PRO #2/#3: lighter fill + stronger outline for readability
-            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08);
+            // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
+            const siteDF = getSiteDensityFactor(site.site_id);
+            const siteOpacityScale = getSiteOpacityScale(site.site_id);
+            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * 0.7 * cellCountScale;
+            // PRO #2/#3: lighter fill + stronger outline for readability — dense zones get extra opacity dampening
+            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale;
             const azimuths = getValidSectorAzimuths(renderSiteForCells);
             if (azimuths.length === 0) return null;
             // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
@@ -7784,7 +7812,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           const cellCountScale = getCellCountScale(renderSiteCells.length);
-          const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
+          // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
+          const siteDF = getSiteDensityFactor(site.site_id);
+          const siteOpacityScale = getSiteOpacityScale(site.site_id);
+          const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
@@ -8060,7 +8091,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
                         // PRO #2: transparency 0.35–0.55 makes overlaps readable
-                        fillOpacity: isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor))),
+                        fillOpacity: (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale),
                         weight: isHovered ? 2 : 1.5, // PRO #3: stronger border
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.9),
                       }}
@@ -8179,7 +8210,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity),
+                      fillOpacity: (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale),
                       weight: strokeWeight,
                       opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
