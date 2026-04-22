@@ -1054,7 +1054,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map(db => (
               <div key={db.id}
-                onClick={() => setSelectedId(db.id)}
+                onClick={() => openDashboard(db.id)}
                 className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-2xl p-5 hover:shadow-lg transition-all ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 <div className="flex items-start justify-between mb-3">
                   <div className={`w-10 h-10 rounded-xl ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center transition-colors`}>
@@ -1077,7 +1077,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <TooltipProvider delayDuration={200}>
                       <Tooltip><TooltipTrigger asChild>
-                        <button onClick={(e) => { e.stopPropagation(); setSelectedId(db.id); }}
+                        <button onClick={(e) => { e.stopPropagation(); openDashboard(db.id); }}
                           className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                           <Eye className="w-4 h-4" />
                         </button>
@@ -1119,7 +1119,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
 
             {filtered.map(db => (
               <div key={db.id}
-                onClick={() => setSelectedId(db.id)}
+                onClick={() => openDashboard(db.id)}
                 className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-xl grid grid-cols-1 md:grid-cols-[1fr_minmax(120px,1.2fr)_130px_100px_150px_110px] gap-2 md:gap-4 items-center px-5 py-4 hover:shadow-md hover:-translate-y-[1px] transition-all duration-150 ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
                 {/* Name + type badge */}
                 <div className="flex items-center gap-3 min-w-0">
@@ -1165,7 +1165,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                 <div className="flex justify-center items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip><TooltipTrigger asChild>
-                      <button onClick={() => setSelectedId(db.id)}
+                      <button onClick={() => openDashboard(db.id)}
                         className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
                         <Eye className="w-4 h-4" />
                       </button>
