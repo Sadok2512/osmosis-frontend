@@ -163,6 +163,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   if (emptyReason) {
     const copy = emptyReason === 'no-column'
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
+      : emptyReason === 'only-counters'
+      ? {
+          title: 'Compteurs PM non supportés',
+          body: 'Cette table n\'accepte que des KPIs du catalogue (endpoint /monitor/query/table). Ajoute au moins un KPI via "Add KPI" pour voir des données.',
+        }
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'backend'
