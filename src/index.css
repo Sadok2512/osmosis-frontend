@@ -415,7 +415,7 @@ All colors MUST be HSL.
 
 
 /* Precision Architect — flash highlight when navigating to a section */
-.precision-architect .pa-section-flash {
+.pa-section-flash {
   animation: pa-section-flash-anim 1.4s ease-out;
 }
 @keyframes pa-section-flash-anim {
