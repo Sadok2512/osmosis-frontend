@@ -53,6 +53,7 @@ interface PAReportState {
   deleteDashboard: (id: string) => void;
   switchDashboard: (id: string) => void;
   renameDashboard: (id: string, name: string) => void;
+  setDashboardVisibility: (id: string, visibility: PADashboardVisibility) => void;
 }
 
 const INITIAL_PAGES: PAPage[] = [
@@ -68,6 +69,7 @@ const INITIAL_DASHBOARD: PADashboard = {
   pages: INITIAL_PAGES,
   activePageId: 'page-1',
   updatedAt: Date.now(),
+  visibility: 'private',
 };
 
 export const usePAReportStore = create<PAReportState>()(
@@ -116,6 +118,7 @@ export const usePAReportStore = create<PAReportState>()(
           pages: [{ id: firstPageId, name: 'Page 1', widgets: [], sections: [] }],
           activePageId: firstPageId,
           updatedAt: Date.now(),
+          visibility: 'private',
         };
         set((s) => ({
           dashboards: [...s.dashboards, fresh],
@@ -129,7 +132,7 @@ export const usePAReportStore = create<PAReportState>()(
 
       saveActiveDashboard: () =>
         set((s) => {
-          const exists = s.dashboards.some((d) => d.id === s.activeDashboardId);
+          const existing = s.dashboards.find((d) => d.id === s.activeDashboardId);
           const snapshot: PADashboard = {
             id: s.activeDashboardId,
             name: s.projectName,
@@ -137,8 +140,9 @@ export const usePAReportStore = create<PAReportState>()(
             pages: s.pages,
             activePageId: s.activePageId,
             updatedAt: Date.now(),
+            visibility: existing?.visibility ?? 'private',
           };
-          const dashboards = exists
+          const dashboards = existing
             ? s.dashboards.map((d) => (d.id === s.activeDashboardId ? snapshot : d))
             : [...s.dashboards, snapshot];
           return { dashboards };
