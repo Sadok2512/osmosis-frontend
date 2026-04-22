@@ -4771,7 +4771,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     setActiveDashboardId(dbId);
     setShowDashboardDropdown(false);
-  }, [dashboardList]);
+  }, [dashboardList, sectorColorMode]);
 
   // Coverage simulation state
   const [showCoverageSim, setShowCoverageSim] = useState(false);
