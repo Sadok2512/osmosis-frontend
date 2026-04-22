@@ -5914,6 +5914,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Check if a site has at least one cell matching any enabled band
   const siteHasEnabledBand = useCallback((site: any): boolean => {
+    // If 0 band is enabled, nothing can match → hide immediately, no pass-through.
+    if (enabledBands.size === 0) return false;
     // If cells are loaded, check at cell level (strict)
     if (site.cells?.length) {
       return site.cells.some((cell: any) => isBandEnabled(cell.bande, cell.techno));
@@ -5924,7 +5926,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (cellLoadAttemptedRef.current.has(site.site_id)) return false;
     // Not loaded yet → temporary pass-through until background fetch completes.
     return true;
-  }, [isBandEnabled]);
+  }, [isBandEnabled, enabledBands]);
 
   // Sites filtered by techno AND band (for map rendering only)
   const mapFilteredSites = useMemo(() => {
