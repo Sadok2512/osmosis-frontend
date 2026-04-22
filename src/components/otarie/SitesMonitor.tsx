@@ -9736,7 +9736,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       ]).map(lvl => (
                         <button
                           key={lvl.key}
-                          onClick={() => { setKpiAnalysisLevel(lvl.key); setMapDisplayMode(lvl.key === 'cell' ? 'points' : 'sites'); if (lvl.key !== 'cell') setShowBeamSectors(true); }}
+                          onClick={() => { setKpiAnalysisLevel(lvl.key); setMapDisplayMode('sites'); setShowBeamSectors(true); }}
                           className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
                             kpiAnalysisLevel === lvl.key
                               ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
@@ -10021,7 +10021,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <button
                           key={kpi.id}
                           onClick={() => {
-                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode(kpiAnalysisLevel === 'cell' ? 'points' : 'sites'); setShowKpiDropdown(false); setKpiSearch('');
+                            setMapKpi(kpi.id); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode('sites'); setShowKpiDropdown(false); setKpiSearch('');
                             // Add to kpiOverlays (avoid duplicates)
                             setKpiOverlays(prev => prev.includes(kpi.id) ? prev : [...prev, kpi.id]);
                             // Save kpiOverlays to active view
@@ -11701,7 +11701,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   overlayVersion={overlayVersion}
                   resolveKpiLabel={(id) => MAP_KPIS.find(k => k.id === id)?.label || id}
                   activeKpiOverlayId={mapKpi}
-                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode(kpiAnalysisLevel === 'cell' ? 'points' : 'sites'); }}
+                  onActivateKpiOverlay={(kpiId) => { setMapKpi(kpiId); setSectorColorMode('kpi'); setShowBeamSectors(true); setMapDisplayMode('sites'); }}
                   onRemoveKpiOverlay={(kpiId) => {
                     const next = kpiOverlays.filter(k => k !== kpiId);
                     setKpiOverlays(next);
