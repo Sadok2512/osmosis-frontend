@@ -532,64 +532,54 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
 
           <AnimatePresence>
             {showSectionNav && (
-              <>
-                {/* Click-outside catcher */}
-                <div
-                  className="fixed inset-0 z-[68]"
-                  onClick={() => setShowSectionNav(false)}
-                  aria-hidden
-                />
-                <motion.div
-                  initial={{ opacity: 0, x: 16, scale: 0.96 }}
-                  animate={{ opacity: 1, x: 0, scale: 1 }}
-                  exit={{ opacity: 0, x: 16, scale: 0.96 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                  className="fixed bottom-24 right-20 z-[71] w-72 max-h-[60vh] rounded-xl bg-[#0f1115]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
-                  role="dialog"
-                  aria-label="Sections"
-                >
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-primary">Navigate</p>
-                      <p className="text-sm font-bold text-white truncate">{currentPage.name}</p>
-                    </div>
+              <motion.div
+                initial={{ opacity: 0, x: 16, scale: 0.96 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 16, scale: 0.96 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="fixed bottom-24 right-20 z-[71] w-72 max-h-[60vh] rounded-xl bg-[#0f1115]/95 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+                role="dialog"
+                aria-label="Sections"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-primary">Navigate</p>
+                    <p className="text-sm font-bold text-white truncate">{currentPage.name}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowSectionNav(false)}
+                    className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-white/70"
+                    aria-label="Close"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
+                  {(currentPage.sections ?? []).map((s, i) => (
                     <button
-                      onClick={() => setShowSectionNav(false)}
-                      className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center text-white/70"
-                      aria-label="Close"
+                      key={s.id}
+                      onClick={() => scrollToSection(s.id)}
+                      className={cn(
+                        'w-full text-left px-4 py-2.5 flex items-start gap-3 transition-colors group',
+                        activeSectionId === s.id
+                          ? 'bg-primary/15 text-white'
+                          : 'text-white/80 hover:bg-white/5 hover:text-white',
+                      )}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      <span className="text-[10px] font-black tabular-nums text-white/40 mt-0.5 w-5">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <span className="text-sm font-semibold truncate flex-1">
+                        {s.title || `Section ${i + 1}`}
+                      </span>
                     </button>
-                  </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar py-1">
-                    {(currentPage.sections ?? []).map((s, i) => (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          scrollToSection(s.id);
-                          setShowSectionNav(false);
-                        }}
-                        className={cn(
-                          'w-full text-left px-4 py-2.5 flex items-start gap-3 transition-colors group',
-                          activeSectionId === s.id
-                            ? 'bg-primary/15 text-white'
-                            : 'text-white/80 hover:bg-white/5 hover:text-white',
-                        )}
-                      >
-                        <span className="text-[10px] font-black tabular-nums text-white/40 mt-0.5 w-5">
-                          {String(i + 1).padStart(2, '0')}
-                        </span>
-                        <span className="text-sm font-semibold truncate flex-1">
-                          {s.title || `Section ${i + 1}`}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="px-4 py-2 border-t border-white/10 text-[10px] uppercase tracking-widest text-white/40">
-                    Press <kbd className="px-1 py-0.5 bg-white/10 rounded">S</kbd> to toggle · <kbd className="px-1 py-0.5 bg-white/10 rounded">Esc</kbd> to close
-                  </div>
-                </motion.div>
-              </>
+                  ))}
+                </div>
+                <div className="px-4 py-2 border-t border-white/10 text-[10px] uppercase tracking-widest text-white/40">
+                  Press <kbd className="px-1 py-0.5 bg-white/10 rounded">S</kbd> to toggle · <kbd className="px-1 py-0.5 bg-white/10 rounded">Esc</kbd> to close
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
         </>
