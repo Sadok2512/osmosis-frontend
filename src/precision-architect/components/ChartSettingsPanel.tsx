@@ -47,6 +47,9 @@ const FALLBACK_TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techn
 
 const COLOR_PALETTE = ['#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#10b981', '#ec4899'];
 
+// Mirrors the table widget — same backend dimensions accepted by /monitor/query/timeseries.
+const SPLIT_OPTIONS = ['CELL', 'SITE', 'PLAQUE', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', 'BCLUSTER', '__none__'];
+
 export default function ChartSettingsPanel({ widget, onChange, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('data');
   const config: ChartWidgetConfig = widget.config ?? DEFAULT_CHART_CONFIG;
@@ -1074,6 +1077,14 @@ function MetricsTab({
                     />
                     {m.lineStyle}
                   </span>
+                  {m.splitBy && m.splitBy !== '__none__' && (
+                    <span
+                      className="inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-700"
+                      title={`Split by ${m.splitBy} — one series per value`}
+                    >
+                      Split: {m.splitBy}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -1239,7 +1250,7 @@ function MetricsTab({
                   {/* Section: Axis & Display */}
                   <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Axis & Display</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       <Field label="Axis">
                         <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
                           {(['left', 'right'] as AxisSide[]).map(side => (
@@ -1307,6 +1318,42 @@ function MetricsTab({
                         >
                           {m.fillArea ? 'On' : 'Off'}
                         </button>
+                      </Field>
+
+                      <Field label="Split by">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center justify-between gap-1 py-2 px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-outline-variant/30 bg-white text-on-surface hover:border-primary/30 transition-colors"
+                              title="Split this KPI into one series per dimension value"
+                            >
+                              <span className="truncate">{m.splitBy && m.splitBy !== '__none__' ? m.splitBy : 'None'}</span>
+                              <ChevronDown className="w-3 h-3 shrink-0" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-1" align="end">
+                            {SPLIT_OPTIONS.map(opt => {
+                              const v = opt === '__none__' ? null : opt;
+                              const label = opt === '__none__' ? 'None (aggregate)' : opt;
+                              const active = (m.splitBy ?? null) === v;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { splitBy: v }); }}
+                                  className={cn(
+                                    'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                                    active ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </PopoverContent>
+                        </Popover>
                       </Field>
                     </div>
                   </div>

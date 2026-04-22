@@ -479,15 +479,22 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       return raw;
     };
 
+    // Per-metric split (mirrors the table widget). The first visible metric
+    // with a non-null splitBy drives split_by for the whole request — the
+    // backend supports a single split dimension per call.
+    const visibleMetrics = cfg.metrics.filter(m => m.visible !== false);
+    const rawSplitBy = visibleMetrics.find(m => m.splitBy && m.splitBy !== '__none__')?.splitBy ?? null;
+    const effectiveSplitBy = rawSplitBy ? toBackendDimension(rawSplitBy) : null;
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       granularity,
       filters,
-      selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
+      selections: visibleMetrics.map(m => ({
         kpi_key: m.kpiKey,
       })),
-      split_by: null,
+      split_by: effectiveSplitBy,
       top_n: 10,
       _rev: effectiveAppliedRev,
     } as TimeseriesRequest & { _rev: number };
@@ -523,8 +530,23 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     if (error) console.warn('[PA Chart] ✖ error', error);
   }, [tsResp, error]);
 
-  const { seriesByMetric, xAxisLabels } = useMemo(() => {
-    const empty = { seriesByMetric: {} as Record<string, { time: string; value: number }[]>, xAxisLabels: [] as string[] };
+  // When split_by is active, expand each metric into one virtual series per
+  // split_value (e.g. one line per BAND). The expanded metrics share the
+  // parent's style but get a distinct color from a deterministic palette and
+  // a "<alias> · <split_value>" label, plus a stable derived id used as the
+  // seriesByMetric key.
+  const SPLIT_PALETTE = [
+    '#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#3b82f6', '#10b981', '#ec4899', '#14b8a6', '#f97316',
+    '#6366f1', '#84cc16',
+  ];
+
+  const { seriesByMetric, xAxisLabels, expandedMetrics } = useMemo(() => {
+    const empty = {
+      seriesByMetric: {} as Record<string, { time: string; value: number }[]>,
+      xAxisLabels: [] as string[],
+      expandedMetrics: cfg?.metrics ?? [],
+    };
     if (!tsResp || !cfg || !tsResp.series || tsResp.series.length === 0) return empty;
 
     const tsSet = new Set<string>();
@@ -532,13 +554,57 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     const labels = Array.from(tsSet).sort();
 
     const out: Record<string, { time: string; value: number }[]> = {};
+    const expanded: typeof cfg.metrics = [];
+
     cfg.metrics.forEach(m => {
       const points = tsResp.series.filter(p => p.kpi_key === m.kpiKey);
-      const byTs = new Map(points.map(p => [p.ts, p.value]));
-      out[m.id] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+      const splitActive = !!m.splitBy && m.splitBy !== '__none__';
+
+      if (!splitActive) {
+        const byTs = new Map(points.map(p => [p.ts, p.value]));
+        out[m.id] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+        expanded.push(m);
+        return;
+      }
+
+      // Group points by split_value
+      const bySplit = new Map<string, typeof points>();
+      points.forEach(p => {
+        const sv = p.split_value || '∅';
+        if (!bySplit.has(sv)) bySplit.set(sv, []);
+        bySplit.get(sv)!.push(p);
+      });
+
+      // Stable order: alphabetical
+      const splitValues = Array.from(bySplit.keys()).sort();
+
+      splitValues.forEach((sv, idx) => {
+        const seriesId = `${m.id}::${sv}`;
+        const seriesPts = bySplit.get(sv)!;
+        const byTs = new Map(seriesPts.map(p => [p.ts, p.value]));
+        out[seriesId] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+        expanded.push({
+          ...m,
+          id: seriesId,
+          alias: `${m.alias || m.kpiKey} · ${sv}`,
+          color: SPLIT_PALETTE[idx % SPLIT_PALETTE.length],
+        });
+      });
     });
-    return { seriesByMetric: out, xAxisLabels: labels.map(shortLabel) };
+
+    return {
+      seriesByMetric: out,
+      xAxisLabels: labels.map(shortLabel),
+      expandedMetrics: expanded,
+    };
   }, [tsResp, cfg]);
+
+  // Build the config passed to PAEChart with potentially expanded metrics.
+  const renderCfg = useMemo(() => {
+    if (!cfg) return cfg;
+    if (expandedMetrics === cfg.metrics) return cfg;
+    return { ...cfg, metrics: expandedMetrics };
+  }, [cfg, expandedMetrics]);
 
   // Distinguish backend error vs empty perimeter
   const backendError = (() => {
@@ -554,7 +620,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       <PAEChart
         variant="editor"
         height="100%"
-        config={cfg}
+        config={renderCfg}
         appliedRev={effectiveAppliedRev}
         seriesByMetric={seriesByMetric}
         xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
