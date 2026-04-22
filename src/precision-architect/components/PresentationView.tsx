@@ -330,19 +330,19 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowSections((v) => !v)}
+                onClick={() => setShowSectionNav((v) => !v)}
                 className={cn(
                   'h-10 px-3 rounded-lg border flex items-center gap-2 transition-all text-xs font-bold uppercase tracking-wider',
-                  showSections
+                  showSectionNav
                     ? 'bg-primary border-primary text-white'
                     : 'bg-white/5 border-white/10 hover:bg-white/10 text-white',
                 )}
                 title="Sections (S)"
               >
-                <List className="w-4 h-4" />
+                <ListTree className="w-4 h-4" />
                 Sections
                 <span className="ml-1 px-1.5 py-0.5 rounded bg-white/15 text-[10px]">
-                  {currentSections.length}
+                  {(currentPage?.sections ?? []).length}
                 </span>
               </button>
               <button
