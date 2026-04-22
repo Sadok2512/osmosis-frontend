@@ -419,7 +419,14 @@ function mergeTableResponses(responses: TableResponse[], topN: number): TableRes
     Object.assign(sourceTables, response.source_tables || {});
     for (const row of response.rows || []) {
       const split = row.split_value || 'Total';
-      bySplit.set(split, { ...(bySplit.get(split) || { split_value: split }), ...row, split_value: split });
+      const existing = bySplit.get(split) || { split_value: split };
+      // Backend returns {kpi_key, avg, min, max} — transform to {[kpi_key]: avg}
+      // so the frontend can access r[col.kpiKey] directly.
+      if (row.kpi_key && row.avg != null) {
+        existing[row.kpi_key] = row.avg;
+      }
+      // Also keep all other fields (site_name, dor, band, vendor, etc.)
+      bySplit.set(split, { ...existing, ...row, split_value: split });
     }
   }
 
