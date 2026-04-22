@@ -296,7 +296,6 @@ function usePATableQuery(req: PATableRequest | null) {
       if (kpiColumns.length > 0) {
         responses.push(await fetchTable({
           ...basePayload,
-          granularity,
           kpi_keys: kpiColumns.map(col => col.kpiKey),
         }));
       }

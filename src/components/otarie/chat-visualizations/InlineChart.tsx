@@ -101,7 +101,10 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       }))
     : [];
 
-  const commonProps = { data, margin: { top: 24, right: 16, left: 8, bottom: 8 } };
+  const commonProps = { data, margin: { top: 28, right: 24, left: 12, bottom: 16 } };
+
+  const axisTick = { fontSize: 11, fill: 'hsl(var(--foreground))', fontWeight: 600 } as const;
+  const axisLineStyle = { stroke: 'hsl(var(--border))', strokeWidth: 1 } as const;
 
   const renderChart = () => {
     switch (chartType) {
@@ -136,11 +139,11 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       case 'stacked_bar':
         return (
           <BarChart {...commonProps} barCategoryGap="18%">
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+            <XAxis dataKey={xKey} tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickMargin={8} interval={0} />
+            <YAxis tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickFormatter={formatValue} tickMargin={6} width={48} />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
             {yKeys.map((key, i) => (
               <Bar
                 key={key}
@@ -156,11 +159,11 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       case 'bar':
         return (
           <BarChart {...commonProps} barCategoryGap="18%">
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} domain={[0, Math.ceil(maxVal * 1.15)]} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+            <XAxis dataKey={xKey} tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickMargin={8} interval={0} />
+            <YAxis tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickFormatter={formatValue} tickMargin={6} width={48} domain={[0, Math.ceil(maxVal * 1.15)]} />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--accent))', opacity: 0.15, radius: 4 }} />
-            {!colorByX && yKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />}
+            {!colorByX && yKeys.length > 1 && <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />}
             {yKeys.map((key, i) => (
               <Bar key={key} dataKey={key} fill={palette[i % palette.length]} radius={[6, 6, 0, 0]} maxBarSize={56}>
                 {colorByX && data.map((_, di) => (
@@ -171,7 +174,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
                   position="top"
                   offset={10}
                   style={{
-                    fontSize: 10,
+                    fontSize: 11,
                     fontWeight: 700,
                     fill: colorByX ? 'hsl(var(--foreground))' : palette[i % palette.length],
                     textShadow: '0 1px 2px hsl(var(--background))',
@@ -186,11 +189,11 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       default: // line
         return (
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} vertical={false} />
-            <XAxis dataKey={xKey} tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={formatValue} />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+            <XAxis dataKey={xKey} tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickMargin={8} interval={0} />
+            <YAxis tick={axisTick} axisLine={axisLineStyle} tickLine={axisLineStyle} tickFormatter={formatValue} tickMargin={6} width={48} />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
+            <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(v: string) => <span className="text-foreground font-medium">{v}</span>} />
             {yKeys.map((key, i) => (
               <Line
                 key={key}
@@ -289,7 +292,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={280}>
         {renderChart()}
       </ResponsiveContainer>
     </div>
