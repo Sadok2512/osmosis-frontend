@@ -9248,7 +9248,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 KPI
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                onClick={() => { setSectorColorMode('topo'); setMapDisplayMode('points'); setShowBeamSectors(false); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                   sectorColorMode === 'topo' && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
@@ -11422,6 +11422,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else if (settings._isDashboardOnly) {
                       setKpiOverlays([]);
                       setSectorColorMode('topo');
+                      setMapDisplayMode('points');
+                      setShowBeamSectors(false);
                       setKpiOverlayLocked(false);
                     }
 
@@ -11587,6 +11589,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         setMapKpi(next[next.length - 1]);
                       } else {
                         setSectorColorMode('topo');
+                        setMapDisplayMode('points');
+                        setShowBeamSectors(false);
                       }
                     }
                     // Persist to view
