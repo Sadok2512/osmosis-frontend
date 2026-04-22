@@ -6849,7 +6849,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setBeamVisibility((settings as any).beamVisibility);
       localStorage.setItem('osmosis_beam_visibility', String((settings as any).beamVisibility));
     }
-  }, []);
+  }, [sectorColorMode]);
 
   const siteRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
