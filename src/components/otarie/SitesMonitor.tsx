@@ -9352,8 +9352,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             <span className="w-px h-7 bg-border/50 shrink-0" />
 
             {/* ── KPI mode: dropdown selector + active label ── */}
-            {/* Keep KPI controls visible even in paramMode so the legacy toolbar (KPI + Network/Views/Color buttons) stays present. */}
-            {sectorColorMode === 'kpi' && (
+            {/* Mode KPI et Paramètre sont mutuellement exclusifs. */}
+            {sectorColorMode === 'kpi' && !paramMode && (
               <>
                 {/* KPI dropdown trigger */}
                 <div className="relative shrink-0">
