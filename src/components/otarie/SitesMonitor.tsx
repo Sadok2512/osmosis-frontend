@@ -8327,7 +8327,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
                         // Density-adaptive: opacity drops hard in dense zones to prevent color blending
-                        fillOpacity: Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale) * (sectorColorMode === 'kpi' && !isFocusFaded ? kpiOverlayIntensity * kpiOverlayTransparency : 1)),
+                        // In KPI mode: use sliders directly (bypass density fade) so 100% transp = fully opaque
+                        fillOpacity: (sectorColorMode as string) === 'kpi' && !isFocusFaded
+                          ? Math.min(1, (isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
+                          : Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale)),
                         // Density-adaptive: stroke weight reduced/hidden in dense zones
                         weight: isHovered ? 2 : Math.max(0.3, 1.5 * (densityInfo?.strokeScale ?? 1)),
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : Math.min(0.9, 0.9 * (densityInfo?.strokeScale ?? 1))),
