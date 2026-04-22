@@ -297,6 +297,7 @@ function usePATableQuery(req: PATableRequest | null) {
         responses.push(await fetchTable({
           ...basePayload,
           kpi_keys: kpiColumns.map(col => col.kpiKey),
+          granularity,
         }));
       }
 
