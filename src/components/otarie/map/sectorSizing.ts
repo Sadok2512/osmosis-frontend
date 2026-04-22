@@ -76,10 +76,16 @@ export interface SiteDensityInfo {
   density: number;
   /** Percentile rank in [0, 1] across the visible set */
   percentile: number;
-  /** Final beam scale ∈ [0.65, 1.20] */
+  /** Final beam scale ∈ [0.40, 1.15] */
   beamScale: number;
-  /** Adaptive opacity multiplier ∈ [0.55, 1.0] (lower in dense zones) */
+  /** Adaptive opacity multiplier ∈ [0.15, 0.85] (lower in dense zones) */
   opacityScale: number;
+  /** Stroke scale ∈ [0.2, 1.0] (reduced/hidden in dense zones) */
+  strokeScale: number;
+  /** Whether this site should be rendered (LOD filtering) */
+  visible: boolean;
+  /** Rendering priority (0=low, 1=high) — for importance-based filtering */
+  priority: number;
 }
 
 /** Pick a hex cell size (in km) appropriate for the current zoom level. */
@@ -175,21 +181,35 @@ export const computeSmartAutoDensity = (
     return densities.length <= 1 ? 0 : lo / (densities.length - 1);
   };
 
+  // Assign a stable hash-based priority to each site for consistent LOD filtering
+  const hashPriority = (id: string): number => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+    return (Math.abs(h) % 1000) / 1000;
+  };
+
   for (const s of sites) {
     const density = siteDensity.get(s.id) ?? 0;
-    const percentile = percentileOf(density);
-    // Softer shrink curve — keep beams clearly visible even in densest zones.
-    // Floor raised 0.65 → 0.80 so urban beams remain readable.
-    const beamScale = Math.max(
-      0.80,
-      Math.min(1.20, 1.20 - 0.40 * Math.sqrt(percentile)),
-    );
-    // Gentle opacity damping: only the densest zones get a small fade. Floor 0.85 keeps beams clearly visible.
-    const opacityScale = Math.max(
-      0.85,
-      Math.min(1.0, 1.0 - 0.15 * percentile),
-    );
-    result.set(s.id, { density, percentile, beamScale, opacityScale });
+    const p = percentileOf(density);
+
+    // Size: aggressive shrink in dense zones
+    const beamScale = Math.max(0.40, Math.min(1.15, 1.15 - 0.70 * Math.sqrt(p)));
+
+    // Opacity: strong fade in dense zones (prevents color blending)
+    const opacityScale = Math.max(0.15, Math.min(0.85, 0.85 - 0.65 * p));
+
+    // Stroke: reduce/hide outlines in dense zones (reduces visual noise)
+    const strokeScale = Math.max(0.2, Math.min(1.0, 1.0 - 0.70 * p));
+
+    // LOD filtering: in very dense areas, only render a subset
+    const priority = hashPriority(s.id);
+    let visible = true;
+    if (p > 0.95) visible = priority < 0.10;
+    else if (p > 0.90) visible = priority < 0.30;
+    else if (p > 0.85) visible = priority < 0.50;
+    else if (p > 0.80) visible = priority < 0.70;
+
+    result.set(s.id, { density, percentile: p, beamScale, opacityScale, strokeScale, visible, priority });
   }
 
   return result;

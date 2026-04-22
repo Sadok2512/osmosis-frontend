@@ -7812,12 +7812,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
         {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
+          // LOD filtering: skip sites in very dense areas to reduce overdraw
+          const densityInfo = siteDensityMap.get(site.site_id);
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
+          const isTaggedSite = isSiteTagged(site.site_id);
+          if (densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
-          const isTaggedSite = isSiteTagged(site.site_id);
           // Inverse zoom scaling for tagged sites: much larger than normal, while staying adaptive
           const getTaggedRadiusDetail = (zoom: number) => {
             const BASE = 650;
@@ -8107,10 +8110,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
-                        // PRO #2: transparency 0.35–0.55 makes overlaps readable
+                        // Density-adaptive: opacity drops hard in dense zones to prevent color blending
                         fillOpacity: (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale),
-                        weight: isHovered ? 2 : 1.5, // PRO #3: stronger border
-                        opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.9),
+                        // Density-adaptive: stroke weight reduced/hidden in dense zones
+                        weight: isHovered ? 2 : Math.max(0.3, 1.5 * (densityInfo?.strokeScale ?? 1)),
+                        opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : Math.min(0.9, 0.9 * (densityInfo?.strokeScale ?? 1))),
                       }}
                       eventHandlers={{
                         click: () => handleSiteClick(site),
