@@ -649,7 +649,61 @@ const ReadOnlyWidget: React.FC<{ widget: any }> = ({ widget }) => {
   return null;
 };
 
-/* ═══════════════════════════════════════════════════
+/* ─── Precision Architect read-only preview ─── */
+const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }> = ({ widgets, onOpen }) => {
+  const payload = (widgets || []).find((w: any) => w?._type === 'precision_architect_payload');
+  const pages: any[] = Array.isArray(payload?.pages) ? payload.pages : [];
+  const totalWidgets = pages.reduce((acc, p) => acc + (Array.isArray(p?.widgets) ? p.widgets.length : 0), 0);
+  const totalSections = pages.reduce((acc, p) => acc + (Array.isArray(p?.sections) ? p.sections.length : 0), 0);
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Wand2 className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Rapport Precision Architect</h3>
+            <p className="text-xs text-muted-foreground">
+              {pages.length} page{pages.length > 1 ? 's' : ''} · {totalSections} section{totalSections !== 1 ? 's' : ''} · {totalWidgets} widget{totalWidgets !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+
+        <p className="text-sm text-muted-foreground mt-4">
+          L'aperçu interactif des rapports Precision Architect n'est pas disponible ici. Ouvrez le rapport dans son éditeur dédié pour visualiser les pages, sections et widgets.
+        </p>
+
+        {pages.length > 0 && (
+          <div className="mt-6 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pages</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {pages.map((p: any, idx: number) => (
+                <div key={p?.id ?? idx} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
+                  <LayoutDashboard className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs font-medium text-foreground truncate">{p?.name || `Page ${idx + 1}`}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">
+                    {(p?.widgets?.length || 0)} widget{(p?.widgets?.length || 0) !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={onOpen}
+          className="mt-6 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> Ouvrir dans Precision Architect
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
    MAIN COMPONENT
    ═══════════════════════════════════════════════════ */
 const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
