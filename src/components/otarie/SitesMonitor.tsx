@@ -9526,64 +9526,62 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   Site Name
                 </button>
 
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-
-                {/* Network Info right panel toggle */}
-                <button
-                  onClick={() => setShowRightPanel(prev => !prev)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
-                    showRightPanel
-                      ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
-                  }`}
-                >
-                  <Signal size={12} />
-                  Network Info
-                </button>
-
-                <span className="w-px h-7 bg-border/50 shrink-0" />
-
-                {/* Views / Dashboard toggle */}
-                <button
-                  onClick={() => {
-                    if (inventoryTab === 'dashboard' && !panelCollapsed) {
-                      setPanelCollapsed(true);
-                    } else {
-                      setInventoryTab('dashboard');
-                      setPanelCollapsed(false);
-                    }
-                  }}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
-                    inventoryTab === 'dashboard' && !panelCollapsed
-                      ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
-                  }`}
-                >
-                  <Layers size={12} />
-                  Views
-                </button>
-
-                {/* View by Color selector — button only (dropdown rendered outside overflow container) */}
-                <button
-                  ref={(el) => { (window as any).__colorViewBtnRef = el; }}
-                  onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
-                    colorViewMode !== 'none'
-                      ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
-                      : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
-                  }`}
-                >
-                  <Palette size={12} />
-                  {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
-                </button>
               </>
             )}
 
-            {/* Param mode duplicate "current selection" block removed —
-                the chip + search at the start of the toolbar (above) already
-                surfaces the active parameter and reset action. Keeping it
-                avoided the legacy bar being replaced by a minimal one. */}
+            {/* ── Always-visible legacy controls: Network Info / Views / Couleur ──
+                Sortis du bloc Topo pour rester présents quel que soit sectorColorMode
+                (none / kpi / topo) et même en mode Paramètre. */}
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* Network Info right panel toggle */}
+            <button
+              onClick={() => setShowRightPanel(prev => !prev)}
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                showRightPanel
+                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-sm shadow-red-500/20'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+              }`}
+            >
+              <Signal size={12} />
+              Network Info
+            </button>
+
+            <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* Views / Dashboard toggle */}
+            <button
+              onClick={() => {
+                if (inventoryTab === 'dashboard' && !panelCollapsed) {
+                  setPanelCollapsed(true);
+                } else {
+                  setInventoryTab('dashboard');
+                  setPanelCollapsed(false);
+                }
+              }}
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg shrink-0 flex items-center gap-1.5 ${
+                inventoryTab === 'dashboard' && !panelCollapsed
+                  ? 'bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-sm shadow-primary/20'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+              }`}
+            >
+              <Layers size={12} />
+              Views
+            </button>
+
+            {/* View by Color selector — button only (dropdown rendered outside overflow container) */}
+            <button
+              ref={(el) => { (window as any).__colorViewBtnRef = el; }}
+              onClick={() => setShowColorViewDropdown(!showColorViewDropdown)}
+              className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider transition-all rounded-lg flex items-center gap-1.5 shrink-0 ${
+                colorViewMode !== 'none'
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-sm shadow-violet-500/20'
+                  : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted border border-border/40'
+              }`}
+            >
+              <Palette size={12} />
+              {colorViewMode !== 'none' ? COLOR_VIEW_LABELS[colorViewMode] : 'Couleur'}
+            </button>
           </div>
 
           {/* Scroll-right button */}
