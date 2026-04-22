@@ -280,24 +280,36 @@ const getZoomAwareRadius = (
   densityFactor: number = 1, // 0..1 — lower = denser area = smaller sectors
   viewportWidth: number = 1400, // CSS px
 ): number => {
-  // Zoom-based target pixel size: compact at low zoom, larger at high zoom
-  let targetPx: number;
-  if (zoom <= 9) targetPx = 44;
-  else if (zoom <= 10) targetPx = 56;
-  else if (zoom <= 11) targetPx = 68;
-  else if (zoom <= 12) targetPx = 76;
-  else targetPx = 84;
+  // Geographic-space radius in meters — beams represent real antenna coverage.
+  // At low zoom beams are compact (overview), at high zoom they spread to reveal structure.
+  //
+  // Key change: radius is computed in GEOGRAPHIC space (meters), not screen space.
+  // This means zooming in naturally separates beams because the map scale changes
+  // but the meter-radius stays proportional to actual coverage.
 
-  // Viewport scaling: shrink on small screens, slight grow on large
+  // Base geographic radius by zoom — progressive increase with zoom
+  // Low zoom: tight compact beams (overview mode)
+  // High zoom: beams spread to realistic coverage footprint
+  let baseMeters: number;
+  if (zoom <= 9)  baseMeters = 150;   // compact overview
+  else if (zoom <= 10) baseMeters = 200;
+  else if (zoom <= 11) baseMeters = 280;
+  else if (zoom <= 12) baseMeters = 350;
+  else if (zoom <= 13) baseMeters = 420;
+  else if (zoom <= 14) baseMeters = 500;
+  else if (zoom <= 15) baseMeters = 600;
+  else baseMeters = 700;  // very zoomed in — near-realistic coverage
+
+  // Viewport scaling
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
-  targetPx *= vpScale;
+  baseMeters *= vpScale;
 
-  // Density scaling: reduce size in crowded areas (densityFactor 0→0.5x, 1→1x)
-  const densityScale = 0.5 + 0.5 * Math.max(0, Math.min(1, densityFactor));
-  targetPx *= densityScale;
+  // Density scaling: reduce size in crowded areas (densityFactor 0→0.35x, 1→1x)
+  const densityScale = 0.35 + 0.65 * Math.max(0, Math.min(1, densityFactor));
+  baseMeters *= densityScale;
 
-  const mpp = metersPerPixel(lat, zoom);
-  return Math.max(30, Math.min(1200, targetPx * mpp));
+  // Clamp: never too small (invisible) or too large (unrealistic)
+  return Math.max(20, Math.min(2000, baseMeters));
 };
 
 const inferSiteTechState = (site: SiteSummary): { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean } => {
