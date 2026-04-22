@@ -9653,12 +9653,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             {/* Gradient bar visualization */}
             <div className="px-3 py-1.5">
-              <div className="h-2 rounded-full overflow-hidden flex">
+              <div className="h-2 rounded-full overflow-hidden flex" style={{ opacity: Math.min(1, kpiOverlayIntensity) }}>
                 <div className="flex-1" style={{ background: currentThreshold.colorRed || '#8E44AD' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorOrange || '#f59e0b' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorGreen || '#27AE60' }} />
               </div>
             </div>
+
+            {/* Global color intensity slider — applies uniformly to all KPI levels */}
+            <div className="px-3 pb-2 pt-1 border-b border-border/20">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Intensité</span>
+                <Slider
+                  min={20}
+                  max={150}
+                  step={5}
+                  value={[Math.round(kpiOverlayIntensity * 100)]}
+                  onValueChange={(v) => {
+                    const next = Math.max(0.2, Math.min(1.5, (v[0] ?? 100) / 100));
+                    setKpiOverlayIntensity(next);
+                    localStorage.setItem('osmosis_kpi_overlay_intensity', String(next));
+                  }}
+                  className="flex-1"
+                />
+                <span className="text-[10px] font-bold tabular-nums text-foreground w-10 text-right">{Math.round(kpiOverlayIntensity * 100)}%</span>
+              </div>
+            </div>
+
 
             {/* Legend rows — click to filter */}
             <div className="px-3 py-1.5 space-y-0.5">
