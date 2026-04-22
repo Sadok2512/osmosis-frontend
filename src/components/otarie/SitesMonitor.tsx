@@ -290,10 +290,7 @@ const getZoomAwareRadius = (
   else if (zoom <= 10) baseMeters = 200;
   else if (zoom <= 11) baseMeters = 280;
   else if (zoom <= 12) baseMeters = 350;
-  else if (zoom <= 13) baseMeters = 420;
-  else if (zoom <= 14) baseMeters = 500;
-  else if (zoom <= 15) baseMeters = 600;
-  else baseMeters = 700;
+  else baseMeters = 420; // zoom 13+ capped — same as Z13 for all higher zooms
 
   // Viewport scaling (global, same for all sites)
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
