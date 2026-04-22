@@ -169,7 +169,13 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
-  const splitInUse = (cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
+  const splitInUse = (() => {
+    const cols = (cfg?.columns ?? []).filter(c => c.visible);
+    const hasPerColumnSplitState = cols.some(c => 'splitBy' in c);
+    const columnSplit = cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const legacySplit = (!hasPerColumnSplitState && cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
+    return columnSplit ?? legacySplit;
+  })();
   const sourceTables = (tableResp as any)?.source_tables;
 
   if (emptyReason) {
