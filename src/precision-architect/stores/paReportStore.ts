@@ -95,6 +95,8 @@ interface PAReportState {
   switchDashboard: (id: string) => void;
   renameDashboard: (id: string, name: string) => void;
   setDashboardVisibility: (id: string, visibility: PADashboardVisibility) => void;
+  /** Pull all PA dashboards from the central Supabase store and merge into local list. */
+  loadDashboardsFromCloud: () => Promise<void>;
 }
 
 const INITIAL_PAGES: PAPage[] = [
