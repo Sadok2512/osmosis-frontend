@@ -109,13 +109,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // Per-KPI split: once any column carries a splitBy field, widget-level legacy
-    // split must no longer take over. This avoids resurrecting an old saved
-    // cfg.splitBy='CELL' after the user explicitly chose "No split" in Edit KPI.
-    const hasPerColumnSplitState = resolvedColumns.some(c => 'splitBy' in c);
-    const columnSplit = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    const legacySplit = (!hasPerColumnSplitState && cfg.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
-    const effectiveSplitBy = columnSplit ?? legacySplit;
+    // Split is driven exclusively by per-column state. The legacy widget-level
+    // cfg.splitBy is intentionally ignored so old saved values can never resurrect
+    // a split after the user chose "No split" in Edit KPI.
+    const effectiveSplitBy = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
 
     return {
       date_from: normalizeDate(eff.from),
