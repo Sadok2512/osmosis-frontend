@@ -333,8 +333,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   };
 
   return (
-    <aside className="w-[400px] bg-surface-container-low h-full shadow-2xl z-50 border-l border-outline-variant/20 flex flex-col">
-      <header className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/10 bg-white">
+    <aside className="w-full sm:w-[400px] bg-surface-container-low shadow-2xl border-l border-outline-variant/20 flex flex-col h-screen max-h-screen overflow-hidden">
+      <header className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-outline-variant/10 bg-white">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-primary">Configuring</p>
           <h3 className="text-lg font-black font-headline text-on-surface">Dashboard Report</h3>
@@ -344,7 +344,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
         </button>
       </header>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-3">
         <CollapsibleSection title="General" icon={Settings2} open={openSections.general} onToggle={() => toggle('general')}>
           <div>
             <FieldLabel>Dashboard / Report Name</FieldLabel>
@@ -524,7 +524,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
         </CollapsibleSection>
       </div>
 
-      <div className="flex flex-col gap-2 p-4 border-t border-outline-variant/10 bg-white">
+      <div className="shrink-0 flex flex-col gap-2 p-4 border-t border-outline-variant/10 bg-white">
         <div className="flex gap-2">
           <button onClick={resetAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center gap-2">
             <Reset className="w-3.5 h-3.5" />
