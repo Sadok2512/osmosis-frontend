@@ -5975,6 +5975,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi, dashboardActive, activeDashboardFilters, kpiTechnoFilter, enabledTechnos, isBandEnabled, localTechno, localBande]);
 
+  const taggedSitesInView = useMemo(() => {
+    return taggedSites.filter(s => {
+      const lat = s.coordinates?.[0];
+      const lng = s.coordinates?.[1];
+      if (lat == null || lng == null || Number.isNaN(lat) || Number.isNaN(lng)) return false;
+      return !viewport.bounds || viewport.bounds.contains(L.latLng(lat, lng));
+    });
+  }, [taggedSites, viewport.bounds]);
+
+  const sitesPendingCells = useMemo(() => {
+    const merged = new Map<string, SiteSummary>();
+    for (const site of visibleSites) merged.set(site.site_id, site);
+    for (const site of taggedSitesInView) {
+      if (!merged.has(site.site_id)) merged.set(site.site_id, site);
+    }
+    return Array.from(merged.values());
+  }, [visibleSites, taggedSitesInView]);
+
+  const hasTaggedSitesNeedingCells = useMemo(
+    () => taggedSitesInView.some(site => site.cells.length === 0),
+    [taggedSitesInView],
+  );
+
   // Cell counts per KPI level (used in the legend). Computed from all
   // dashboard-filtered sites (mapFilteredSites), independent of legend toggles
   // so counts remain stable when the user hides/shows levels.
@@ -6086,11 +6109,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells whenever sector rendering or cell-level filtering needs them.
-    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only' || hasTaggedSitesNeedingCells;
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
-    const sitesNeedingCellsRaw = visibleSites.filter(
+    const sitesNeedingCellsRaw = sitesPendingCells.filter(
       s => s.cells.length === 0
         && !cellLoadingRef.current.has(s.site_id)
         && !cellLoadAttemptedRef.current.has(s.site_id)
@@ -6188,6 +6211,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const cells = resolveSiteCells(s);
               return cells && cells.length > 0 ? { ...s, cells } : s;
             }));
+            setTaggedSites(prev => {
+              let changed = false;
+              const next = prev.map(s => {
+                if (s.cells.length > 0) return s;
+                const cells = resolveSiteCells(s);
+                if (!cells || cells.length === 0) return s;
+                changed = true;
+                return { ...s, cells };
+              });
+              if (!changed) return prev;
+              persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+              return next;
+            });
 
             if (queue.length > 0) {
               await new Promise(resolve => setTimeout(resolve, DELAY_MS));
@@ -6275,6 +6311,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const cells = resolveSiteCells(s);
           return cells && cells.length > 0 ? { ...s, cells } : s;
         }));
+        setTaggedSites(prev => {
+          let changed = false;
+          const next = prev.map(s => {
+            const cells = resolveSiteCells(s);
+            if (!cells || cells.length === 0) return s;
+            if (s.cells.length === cells.length && s.cells.every((cell, index) => cell.cell_id === cells[index]?.cell_id)) return s;
+            changed = true;
+            return { ...s, cells };
+          });
+          if (!changed) return prev;
+          persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+          return next;
+        });
       } catch (err) {
         console.warn('[SitesMonitor] Bulk cell load failed', err);
         sitesNeedingCells.forEach(s => {
@@ -6294,13 +6343,37 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => {
       if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     };
-  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, visibleSites, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters]);
+  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, sitesPendingCells, viewport.bounds, hasCellLevelConditions, isBandFilterActive, currentBboxFilters, hasTaggedSitesNeedingCells]);
 
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
-    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only';
+    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only' || hasTaggedSitesNeedingCells;
     if (!needsCellData) return;
+
+    const mapCachedCellsToProperties = (cachedCells: any[]) => cachedCells.map((c: any) => {
+      const cellName = c.cell_name || c.nom_cellule || '';
+      const sectorIdx = getSectorNumber(cellName) || 1;
+      return {
+        cell_id: cellName,
+        cell_name: cellName,
+        techno: c.techno || '4G',
+        bande: c.band || c.bande || '',
+        vendor: c.vendor || c.constructeur || null,
+        azimut: c.azimut ?? Math.round((360 / 3) * (sectorIdx - 1)),
+        tilt: c.tilt ?? null,
+        pci: c.pci ?? null,
+        eci: c.eci ?? null,
+        nci: c.nci ?? null,
+        cid: c.cid ?? null,
+        tac: c.tac ?? null,
+        etat_cellule: c.etat_cellule ?? null,
+        essentiel: c.essentiel ?? null,
+        zone_arcep: c.zone_arcep ?? null,
+        plaque: c.plaque ?? null,
+        dor: c.dor ?? null,
+      } as unknown as CellProperties;
+    });
 
     const unsub = onCellsCacheUpdate(() => {
       setCellsCacheLoadedCount(getCellsCacheCount());
@@ -6314,40 +6387,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const cachedCells = getCellsFromCacheForSite(siteName);
           if (cachedCells.length === 0) return s;
           changed = true;
-          // Build cell objects matching expected format
-          const cells = cachedCells.map((c: any) => {
-            const cellName = c.cell_name || c.nom_cellule || '';
-            const sectorIdx = getSectorNumber(cellName) || 1;
-            return {
-              cell_id: cellName,
-              cell_name: cellName,
-              techno: c.techno || '4G',
-              bande: c.band || c.bande || '',
-              vendor: c.vendor || c.constructeur || null,
-              azimut: c.azimut ?? Math.round((360 / 3) * (sectorIdx - 1)),
-              tilt: c.tilt ?? null,
-              pci: c.pci ?? null,
-              eci: c.eci ?? null,
-              nci: c.nci ?? null,
-              cid: c.cid ?? null,
-              tac: c.tac ?? null,
-              etat_cellule: c.etat_cellule ?? null,
-              essentiel: c.essentiel ?? null,
-              zone_arcep: c.zone_arcep ?? null,
-              plaque: c.plaque ?? null,
-              dor: c.dor ?? null,
-            } as unknown as CellProperties;
-          });
+          const cells = mapCachedCellsToProperties(cachedCells);
           cellLoadAttemptedRef.current.add(s.site_id);
           return { ...s, cells };
         });
         if (!changed) return prev;
         return next;
       });
+      setTaggedSites(prev => {
+        let changed = false;
+        const next = prev.map(s => {
+          if (s.cells.length > 0) return s;
+          const siteName = s.site_name || s.site_id;
+          const cachedCells = getCellsFromCacheForSite(siteName);
+          if (cachedCells.length === 0) return s;
+          changed = true;
+          const cells = mapCachedCellsToProperties(cachedCells);
+          cellLoadAttemptedRef.current.add(s.site_id);
+          return { ...s, cells };
+        });
+        if (!changed) return prev;
+        persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+        return next;
+      });
     });
 
     return unsub;
-  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive]);
+  }, [displayMode, mapDisplayMode, sectorColorMode, showBeamSectors, hasCellLevelConditions, isBandFilterActive, hasTaggedSitesNeedingCells, taggedDisplayMode]);
 
   useEffect(() => {
     setCellsCacheLoadedCount(getCellsCacheCount());
