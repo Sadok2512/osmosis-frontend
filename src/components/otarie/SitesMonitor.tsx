@@ -9277,7 +9277,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                onClick={() => setShowParamDropdown(v => !v)}
+                onClick={() => {
+                  console.log('[SitesMonitor] Param mode toggle clicked', { paramMode, showParamDropdown, sectorColorMode, showRightPanel });
+                  setShowParamDropdown(v => !v);
+                }}
                 title="Mode Paramètre — sélectionnez un paramètre à afficher"
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
                   paramMode || activeViewType === 'parameter'
