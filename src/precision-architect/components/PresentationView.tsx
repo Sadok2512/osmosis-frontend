@@ -111,7 +111,7 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
               {sections.map((s) => {
                 const sectionWidgets = widgetsBySection.get(s.id) ?? [];
                 return (
-                  <div key={s.id} className="space-y-3">
+                  <div key={s.id} id={`pa-section-${s.id}`} className="space-y-3 scroll-mt-6">
                     <SectionBlock section={s} editable={false} />
                     {sectionWidgets.length > 0 && <div className="w-full">{renderGrid(sectionWidgets)}</div>}
                   </div>
