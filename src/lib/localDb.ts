@@ -57,22 +57,35 @@ function useLocal(): boolean {
   return src === 'local' || src === 'vps';
 }
 
+// Retry on transient edge-function cold-starts (BOOT_ERROR) and gateway hiccups
+const TRANSIENT_STATUSES = new Set([502, 503, 504]);
+
+function backoffDelay(attempt: number): number {
+  // Exponential backoff with jitter: ~600ms, 1.2s, 2.4s, 4s (+/- 200ms)
+  const base = Math.min(600 * Math.pow(2, attempt), 4000);
+  return base + Math.floor(Math.random() * 200);
+}
+
 async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise<T> {
-  const maxRetries = 3;
+  const maxRetries = 4;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const resp = await fetch(fetchUrl, { headers: getHeaders(), ...init });
-      if (resp.status === 503 && attempt < maxRetries) {
-        console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${500 * (attempt + 1)}ms...`);
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      if (TRANSIENT_STATUSES.has(resp.status) && attempt < maxRetries) {
+        const delay = backoffDelay(attempt);
+        console.warn(`[localDb] ${resp.status} on attempt ${attempt + 1}, retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.json();
     } catch (err) {
-      if (attempt < maxRetries && (err instanceof TypeError || (err as Error).message?.includes('503'))) {
-        console.warn(`[localDb] Fetch error attempt ${attempt + 1}:`, (err as Error).message);
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      const msg = (err as Error).message || '';
+      const isTransient = err instanceof TypeError || /\b(502|503|504|BOOT_ERROR)\b/.test(msg);
+      if (attempt < maxRetries && isTransient) {
+        const delay = backoffDelay(attempt);
+        console.warn(`[localDb] Fetch error attempt ${attempt + 1} (${msg}), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       throw err;
@@ -82,22 +95,26 @@ async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise
 }
 
 async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal): Promise<T> {
-  const maxRetries = 3;
+  const maxRetries = 4;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const resp = await fetch(fetchUrl, { signal, headers: getHeaders() });
-      if (resp.status === 503 && attempt < maxRetries) {
-        console.warn(`[localDb] 503 on attempt ${attempt + 1}, retrying in ${500 * (attempt + 1)}ms...`);
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      if (TRANSIENT_STATUSES.has(resp.status) && attempt < maxRetries) {
+        const delay = backoffDelay(attempt);
+        console.warn(`[localDb] ${resp.status} on attempt ${attempt + 1}, retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.json();
     } catch (err) {
       if (signal?.aborted) throw err;
-      if (attempt < maxRetries && (err instanceof TypeError || (err as Error).message?.includes('503'))) {
-        console.warn(`[localDb] Fetch error attempt ${attempt + 1}:`, (err as Error).message);
-        await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+      const msg = (err as Error).message || '';
+      const isTransient = err instanceof TypeError || /\b(502|503|504|BOOT_ERROR)\b/.test(msg);
+      if (attempt < maxRetries && isTransient) {
+        const delay = backoffDelay(attempt);
+        console.warn(`[localDb] Fetch error attempt ${attempt + 1} (${msg}), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
         continue;
       }
       throw err;
