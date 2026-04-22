@@ -292,7 +292,7 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={280}>
         {renderChart()}
       </ResponsiveContainer>
     </div>
