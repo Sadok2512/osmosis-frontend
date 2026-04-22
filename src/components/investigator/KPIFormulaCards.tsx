@@ -1,6 +1,6 @@
 import React from 'react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
-import { Calculator, Cpu, Layers, Tag, Zap } from 'lucide-react';
+import { Calculator, Cpu, Layers, Table2, Tag, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface KpiExplain {
@@ -100,42 +100,68 @@ const KPIFormulaCards: React.FC<Props> = ({ selectedKpis }) => {
 
             {/* Formula */}
             {ex && (ex.numerator || ex.denominator) && (
-              <div className="px-4 pb-3 space-y-2">
+              <div className="px-4 pb-4 space-y-3">
                 {/* Numerator */}
-                <div className="rounded-lg bg-green-500/5 border border-green-500/15 px-3 py-2">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-black bg-green-500/15 text-green-500">N</span>
-                    <span className="text-[8px] font-bold text-green-600/70 uppercase tracking-wider">Numerator</span>
+                <div className="rounded-xl border border-emerald-500/20 overflow-hidden bg-card">
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-500/10 border-b border-emerald-500/20">
+                    <span className="text-xs font-bold tracking-[0.15em] text-emerald-700 dark:text-emerald-400 uppercase">
+                      Numerator
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-card border border-emerald-500/30 text-emerald-700 dark:text-emerald-400">
+                      {numCounters.length} {numCounters.length > 1 ? 'Counters' : 'Counter'}
+                    </span>
                   </div>
-                  <code className="text-[9px] text-foreground/80 font-mono leading-relaxed break-all block">
-                    {ex.numerator || '—'}
-                  </code>
-                  {numCounters.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {numCounters.map(c => (
-                        <span key={c} className="px-1.5 py-0.5 rounded text-[7px] font-mono font-bold bg-green-500/10 text-green-600 border border-green-500/15">{c}</span>
-                      ))}
-                    </div>
-                  )}
+                  <div className="p-3 space-y-2">
+                    {numCounters.length > 0 ? (
+                      numCounters.map((c) => (
+                        <div key={c} className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/50 px-3 py-2.5">
+                          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                            <Table2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-mono font-semibold text-foreground truncate">{c}</div>
+                            <div className="text-[10px] text-muted-foreground">PM counter</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <code className="text-[10px] text-muted-foreground font-mono block px-2 py-1">
+                        {ex.numerator || '—'}
+                      </code>
+                    )}
+                  </div>
                 </div>
 
                 {/* Denominator */}
                 {ex.denominator && (
-                  <div className="rounded-lg bg-blue-500/5 border border-blue-500/15 px-3 py-2">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-black bg-blue-500/15 text-blue-500">D</span>
-                      <span className="text-[8px] font-bold text-blue-600/70 uppercase tracking-wider">Denominator</span>
+                  <div className="rounded-xl border border-blue-500/20 overflow-hidden bg-card">
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-blue-500/10 border-b border-blue-500/20">
+                      <span className="text-xs font-bold tracking-[0.15em] text-blue-700 dark:text-blue-400 uppercase">
+                        Denominator
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-card border border-blue-500/30 text-blue-700 dark:text-blue-400">
+                        {denCounters.length} {denCounters.length > 1 ? 'Counters' : 'Counter'}
+                      </span>
                     </div>
-                    <code className="text-[9px] text-foreground/80 font-mono leading-relaxed break-all block">
-                      {ex.denominator}
-                    </code>
-                    {denCounters.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {denCounters.map(c => (
-                          <span key={c} className="px-1.5 py-0.5 rounded text-[7px] font-mono font-bold bg-blue-500/10 text-blue-600 border border-blue-500/15">{c}</span>
-                        ))}
-                      </div>
-                    )}
+                    <div className="p-3 space-y-2">
+                      {denCounters.length > 0 ? (
+                        denCounters.map((c) => (
+                          <div key={c} className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/50 px-3 py-2.5">
+                            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                              <Table2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-mono font-semibold text-foreground truncate">{c}</div>
+                              <div className="text-[10px] text-muted-foreground">PM counter</div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <code className="text-[10px] text-muted-foreground font-mono block px-2 py-1">
+                          {ex.denominator}
+                        </code>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
