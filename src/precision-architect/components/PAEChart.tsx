@@ -67,8 +67,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
     const cfg = config ?? null;
     const style = cfg?.style ?? DEFAULT_CHART_CONFIG.style;
     const isDark = style.background === 'dark' || isPresentation;
-    const labelColor = isDark ? 'rgba(255,255,255,0.55)' : '#565e74';
-    const splitLine = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const labelColor = isDark ? 'rgba(255,255,255,0.85)' : '#1e293b';
+    const axisLineColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.35)';
+    const splitLine = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
     const bgColor =
       style.background === 'transparent' ? 'transparent'
       : style.background === 'dark' ? '#0f172a'
