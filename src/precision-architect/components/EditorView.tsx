@@ -127,6 +127,10 @@ export default function EditorView({
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, sections: updater(p.sections ?? []) } : p));
   };
 
+  const patchActivePageTheme = (patch: Partial<NonNullable<PAPage['theme']>>) => {
+    setPages(prev => prev.map(p => p.id === activePageId ? { ...p, theme: { ...(p.theme ?? {}), ...patch } } : p));
+  };
+
   const addSection = () => {
     const id = `section-${Date.now()}`;
     const idx = (activePage?.sections?.length ?? 0) + 1;
@@ -494,7 +498,14 @@ export default function EditorView({
           }}
         >
           <div className={cn(widthClass, 'mx-auto')} style={{ display: 'flex', flexDirection: 'column', gap: spacing }}>
-            <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
+            <ReportHeader
+              theme={theme}
+              projectName={projectName}
+              pageName={activePage?.name}
+              size="md"
+              editable
+              onThemePatch={patchActivePageTheme}
+            />
 
             {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">
