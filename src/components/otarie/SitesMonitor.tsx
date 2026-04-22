@@ -4028,7 +4028,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
-  const [sectorColorMode, setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
+  const [sectorColorMode, _setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
+  const setSectorColorMode = useCallback((mode: 'topo' | 'kpi') => {
+    console.trace(`[MODE CHANGE] sectorColorMode → ${mode}`);
+    _setSectorColorMode(mode);
+  }, []);
   const [topoResetCounter, setTopoResetCounter] = useState(0);
   const [bandColors, setBandColors] = useState<Record<string, string>>(loadCustomBandColors);
   const [editingColorBand, setEditingColorBand] = useState<string | null>(null);
