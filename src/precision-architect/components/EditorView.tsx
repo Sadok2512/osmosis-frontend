@@ -47,6 +47,8 @@ import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
 import { toast } from 'sonner';
+import { exportReportToPDF, exportReportToPPTX } from '../lib/exportReport';
+import { FileDown, Presentation } from 'lucide-react';
 
 interface EditorViewProps {
   projectName: string;
@@ -364,10 +366,49 @@ export default function EditorView({
             <span>Add New Page</span>
           </button>
           <div className="mt-4 space-y-1">
-            <button className="w-full flex items-center gap-3 px-4 py-2 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors">
-              <Settings className="w-4 h-4" />
-              Settings
-            </button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button className="w-full flex items-center gap-3 px-4 py-2 text-on-surface-variant text-xs font-bold uppercase tracking-widest hover:text-primary transition-colors">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="right" align="end" className="w-64 p-2">
+                <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+                  Export report
+                </div>
+                <button
+                  onClick={async () => {
+                    const t = toast.loading('Generating PDF…');
+                    try {
+                      await exportReportToPDF(projectName);
+                      toast.success('PDF exported', { id: t });
+                    } catch (e: any) {
+                      toast.error(`PDF export failed: ${e?.message ?? 'unknown'}`, { id: t });
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                >
+                  <FileDown className="w-4 h-4 text-primary" />
+                  Export as PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    const t = toast.loading('Generating PowerPoint…');
+                    try {
+                      await exportReportToPPTX(projectName);
+                      toast.success('PPTX exported', { id: t });
+                    } catch (e: any) {
+                      toast.error(`PPTX export failed: ${e?.message ?? 'unknown'}`, { id: t });
+                    }
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-container-high rounded-lg transition-colors"
+                >
+                  <Presentation className="w-4 h-4 text-primary" />
+                  Export as PowerPoint
+                </button>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
       </aside>
