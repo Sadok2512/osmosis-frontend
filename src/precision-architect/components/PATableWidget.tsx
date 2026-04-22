@@ -135,22 +135,30 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     validKpiKeys,
   ]);
 
-  // Notify the user once per Apply when PM counters were dropped from the payload.
+  // Notify the user once per Apply when PM counters or unknown KPIs were dropped.
   const lastWarnedRevRef = useRef<number | null>(null);
   useEffect(() => {
     if (!request) return;
     const ignored = (request as any)._ignoredCounters as string[] | undefined;
+    const unknown = (request as any)._unknownKpis as string[] | undefined;
     const rev = (request as any)._rev as number;
-    if (ignored && ignored.length > 0 && lastWarnedRevRef.current !== rev) {
-      lastWarnedRevRef.current = rev;
-      toast.warning(
-        `${ignored.length} compteur(s) PM ignoré(s)`,
-        {
+    if (lastWarnedRevRef.current !== rev) {
+      if (ignored && ignored.length > 0) {
+        lastWarnedRevRef.current = rev;
+        toast.warning(`${ignored.length} compteur(s) PM ignoré(s)`, {
           description:
             `L'endpoint /monitor/query/table accepte uniquement des KPIs du catalogue. ` +
             `Compteurs ignorés: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? '…' : ''}`,
-        }
-      );
+        });
+      }
+      if (unknown && unknown.length > 0) {
+        lastWarnedRevRef.current = rev;
+        toast.warning(`${unknown.length} KPI(s) inconnu(s) du catalogue`, {
+          description:
+            `Ces KPIs ne sont pas exposés par /monitor/catalog/kpis et ont été retirés du payload : ` +
+            `${unknown.slice(0, 3).join(', ')}${unknown.length > 3 ? '…' : ''}.`,
+        });
+      }
     }
     console.log('[PA Table] ▶ POST /monitor/query/table', request);
   }, [request]);
