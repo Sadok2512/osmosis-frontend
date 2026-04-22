@@ -29,6 +29,7 @@ export default function ReportHeader({ theme, projectName, pageName, size = 'md'
   const showReportName = theme?.showReportName !== false;
   const reportInfo = theme?.reportInfo ?? { show: true, perimeter: true, date: true, granularity: true, filters: true };
   const showInfoBlock = reportInfo.show !== false;
+  const showPhoto = !!theme?.showPhoto && !!theme?.photoUrl;
 
   const titleColor = theme?.titleColor || theme?.accentColor;
   const headerAlignClass = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
@@ -50,8 +51,8 @@ export default function ReportHeader({ theme, projectName, pageName, size = 'md'
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   };
 
-  // If the user disabled BOTH blocks, render nothing.
-  if (!showReportName && !showInfoBlock) return null;
+  // If the user disabled ALL blocks, render nothing.
+  if (!showReportName && !showInfoBlock && !showPhoto) return null;
 
   const infoItems: Array<{ key: string; icon: typeof Calendar; label: string; value: string }> = [];
   if (reportInfo.perimeter) {
@@ -71,16 +72,30 @@ export default function ReportHeader({ theme, projectName, pageName, size = 'md'
 
   return (
     <header className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-      {showReportName ? (
-        <div className={cn('min-w-0 flex-1', headerAlignClass)}>
-          <h1 className={titleClass} style={{ color: titleColor }}>
-            {titleText}
-          </h1>
-          {subtitleText && <p className="text-sm mt-2 opacity-80">{subtitleText}</p>}
-        </div>
-      ) : (
-        <div />
-      )}
+      <div className="flex items-start gap-4 min-w-0 flex-1">
+        {showPhoto && (
+          <div className="shrink-0 rounded-xl overflow-hidden border border-outline-variant/20 shadow-sm bg-white">
+            <img
+              src={theme!.photoUrl!}
+              alt="Report"
+              className={cn(
+                'object-cover',
+                size === 'lg' ? 'w-32 h-32' : size === 'sm' ? 'w-12 h-12' : 'w-20 h-20',
+              )}
+            />
+          </div>
+        )}
+        {showReportName ? (
+          <div className={cn('min-w-0 flex-1', headerAlignClass)}>
+            <h1 className={titleClass} style={{ color: titleColor }}>
+              {titleText}
+            </h1>
+            {subtitleText && <p className="text-sm mt-2 opacity-80">{subtitleText}</p>}
+          </div>
+        ) : (
+          <div className="flex-1" />
+        )}
+      </div>
 
       {showInfoBlock && infoItems.length > 0 && (
         <aside className="shrink-0 sm:max-w-sm w-full sm:w-auto">
