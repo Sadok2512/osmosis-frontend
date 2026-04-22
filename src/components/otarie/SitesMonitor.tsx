@@ -4614,31 +4614,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort();
   }, [paramPoints]);
 
-  const paramRenderPoints = useMemo(() => {
-    const groups = new Map<string, typeof paramPoints>();
+  // Group param points by site → one marker per site with multi-value detection
+  const paramSiteMarkers = useMemo(() => {
+    const siteMap = new Map<string, { site_name: string; latitude: number; longitude: number; vendor: string | null; values: Set<string>; cells: typeof paramPoints }>();
     for (const point of paramPoints) {
-      const key = `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
-      const group = groups.get(key);
-      if (group) group.push(point);
-      else groups.set(key, [point]);
-    }
-
-    return paramPoints.map(point => {
-      const key = `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
-      const group = groups.get(key) || [point];
-      const index = Math.max(0, group.findIndex(p => p.id === point.id));
-      if (group.length <= 1) {
-        return { ...point, displayLatitude: point.latitude, displayLongitude: point.longitude };
+      const key = point.site_name || `${point.latitude.toFixed(6)},${point.longitude.toFixed(6)}`;
+      const existing = siteMap.get(key);
+      if (existing) {
+        existing.values.add(point.value || '(vide)');
+        existing.cells.push(point);
+      } else {
+        siteMap.set(key, {
+          site_name: point.site_name || '',
+          latitude: point.latitude,
+          longitude: point.longitude,
+          vendor: point.vendor,
+          values: new Set([point.value || '(vide)']),
+          cells: [point],
+        });
       }
-
-      const angle = (Math.PI * 2 * index) / group.length;
-      const radius = Math.min(0.00045, 0.0001 + group.length * 0.000006);
-      return {
-        ...point,
-        displayLatitude: point.latitude + Math.sin(angle) * radius,
-        displayLongitude: point.longitude + Math.cos(angle) * radius,
-      };
-    });
+    }
+    return Array.from(siteMap.values()).map((s, i) => ({
+      ...s,
+      id: i,
+      isMultiValue: s.values.size > 1,
+      singleValue: s.values.size === 1 ? [...s.values][0] : null,
+      distinctValues: [...s.values].sort(),
+    }));
   }, [paramPoints]);
   // Fetch dashboards list, archive legacy auto-dashboards, auto-activate saved dashboard
   useEffect(() => {
@@ -7439,34 +7441,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
 
-        {paramMode && !paramLoading && paramRenderPoints.length > 0 && (
-          <FitHighlightBounds coords={paramRenderPoints.map(p => [p.displayLatitude, p.displayLongitude] as [number, number])} />
+        {paramMode && !paramLoading && paramSiteMarkers.length > 0 && (
+          <FitHighlightBounds coords={paramSiteMarkers.map(p => [p.latitude, p.longitude] as [number, number])} />
         )}
-        {paramMode && !paramLoading && paramRenderPoints.map(pt => (
-          <CircleMarker
-            key={pt.id}
-            center={[pt.displayLatitude, pt.displayLongitude]}
-            radius={7}
-            pane="paneParam"
-            pathOptions={{
-              fillColor: paramValueColor(pt.value),
-              fillOpacity: 0.92,
-              color: 'hsl(var(--background))',
-              weight: 2,
-            }}
-          >
-            <Popup>
-              <div className="text-xs space-y-1 min-w-[180px]">
-                <div className="font-bold text-sm">{pt.cell_name || pt.site_name || `#${pt.id}`}</div>
-                <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{pt.parameter}</span></div>
-                <div className="flex justify-between"><span className="opacity-60">Valeur</span><span className="font-semibold" style={{ color: paramValueColor(pt.value) }}>{pt.value ?? '—'}</span></div>
-                {pt.bande && <div className="flex justify-between"><span className="opacity-60">Bande</span><span>{pt.bande}</span></div>}
-                {pt.vendor && <div className="flex justify-between"><span className="opacity-60">Vendor</span><span>{pt.vendor}</span></div>}
-                {pt.dn && <div className="flex justify-between"><span className="opacity-60">MO</span><span className="truncate max-w-[120px]">{pt.dn}</span></div>}
-              </div>
-            </Popup>
-          </CircleMarker>
-        ))}
+        {paramMode && !paramLoading && paramSiteMarkers.map(site => {
+          // Multi-value sites: pie-like split marker via SVG DivIcon
+          if (site.isMultiValue) {
+            const vals = site.distinctValues;
+            const n = vals.length;
+            const sz = 18;
+            const r = sz / 2;
+            const slices = vals.map((v, i) => {
+              const a0 = (2 * Math.PI * i) / n - Math.PI / 2;
+              const a1 = (2 * Math.PI * (i + 1)) / n - Math.PI / 2;
+              const x0 = r + r * Math.cos(a0);
+              const y0 = r + r * Math.sin(a0);
+              const x1 = r + r * Math.cos(a1);
+              const y1 = r + r * Math.sin(a1);
+              const large = a1 - a0 > Math.PI ? 1 : 0;
+              return `<path d="M${r},${r} L${x0},${y0} A${r},${r} 0 ${large} 1 ${x1},${y1} Z" fill="${paramValueColor(v === '(vide)' ? null : v)}" />`;
+            }).join('');
+            const svg = `<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r}" fill="none" stroke="white" stroke-width="2"/>${slices}<circle cx="${r}" cy="${r}" r="${r}" fill="none" stroke="white" stroke-width="1.5"/></svg>`;
+            return (
+              <Marker
+                key={`param-site-${site.id}`}
+                position={[site.latitude, site.longitude]}
+                pane="paneParam"
+                icon={L.divIcon({ className: '', iconSize: [sz, sz], iconAnchor: [r, r], html: svg })}
+              >
+                <Popup>
+                  <div className="text-xs space-y-1 min-w-[200px]">
+                    <div className="font-bold text-sm">{site.site_name}</div>
+                    <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{paramConfirmed}</span></div>
+                    <div className="text-[10px] font-semibold text-orange-500 mt-1">Multi-valeur ({vals.length} valeurs distinctes)</div>
+                    {site.cells.map((c, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(c.value) }} />
+                        <span className="truncate">{c.cell_name || '?'}</span>
+                        <span className="ml-auto font-semibold" style={{ color: paramValueColor(c.value) }}>{c.value ?? '—'}</span>
+                      </div>
+                    ))}
+                    {site.vendor && <div className="flex justify-between mt-1"><span className="opacity-60">Vendor</span><span>{site.vendor}</span></div>}
+                  </div>
+                </Popup>
+              </Marker>
+            );
+          }
+          // Single-value site: simple colored dot
+          return (
+            <CircleMarker
+              key={`param-site-${site.id}`}
+              center={[site.latitude, site.longitude]}
+              radius={7}
+              pane="paneParam"
+              pathOptions={{
+                fillColor: paramValueColor(site.singleValue === '(vide)' ? null : site.singleValue),
+                fillOpacity: 0.92,
+                color: 'white',
+                weight: 2,
+              }}
+            >
+              <Popup>
+                <div className="text-xs space-y-1 min-w-[180px]">
+                  <div className="font-bold text-sm">{site.site_name}</div>
+                  <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{paramConfirmed}</span></div>
+                  <div className="flex justify-between"><span className="opacity-60">Valeur</span><span className="font-semibold" style={{ color: paramValueColor(site.singleValue === '(vide)' ? null : site.singleValue) }}>{site.singleValue ?? '—'}</span></div>
+                  <div className="flex justify-between"><span className="opacity-60">Cellules</span><span>{site.cells.length}</span></div>
+                  {site.vendor && <div className="flex justify-between"><span className="opacity-60">Vendor</span><span>{site.vendor}</span></div>}
+                </div>
+              </Popup>
+            </CircleMarker>
+          );
+        })}
 
         {/* Heatmap layer */}
         {!paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
@@ -8967,14 +9013,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Value legend */}
           {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
             <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3.5 max-h-[240px] overflow-y-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
-              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramPoints.length} pts</div>
+              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramSiteMarkers.length} sites</div>
+              {paramSiteMarkers.some(s => s.isMultiValue) && (
+                <div className="flex items-center gap-2 text-[10px] mb-1 text-orange-500 font-semibold">
+                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #ef4444)' }} />
+                  <span>Multi-valeur ({paramSiteMarkers.filter(s => s.isMultiValue).length} sites)</span>
+                </div>
+              )}
               <div className="space-y-0.5">
-                {paramUniqueValues.map(v => (
-                  <div key={v} className="flex items-center gap-2 text-[10px]">
-                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
-                    <span className="truncate max-w-[140px]">{v}</span>
-                  </div>
-                ))}
+                {paramUniqueValues.map(v => {
+                  const count = paramSiteMarkers.filter(s => s.distinctValues.includes(v)).length;
+                  return (
+                    <div key={v} className="flex items-center gap-2 text-[10px]">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
+                      <span className="truncate max-w-[110px]">{v}</span>
+                      <span className="ml-auto text-muted-foreground">{count}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -9024,8 +9080,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               <span className="w-px h-6 bg-border/60" />
               <div className="flex items-center gap-2 px-3">
-                <span className="text-sm font-medium text-muted-foreground">Points</span>
-                <span className="text-base font-bold text-foreground">{paramPoints.length}</span>
+                <span className="text-sm font-medium text-muted-foreground">Sites</span>
+                <span className="text-base font-bold text-foreground">{paramSiteMarkers.length}</span>
               </div>
             </>
           ) : (
@@ -9428,7 +9484,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {paramMode && (
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] font-bold text-foreground">{paramConfirmed}</span>
-                <span className="text-[9px] text-muted-foreground">({paramPoints.length} pts)</span>
+                <span className="text-[9px] text-muted-foreground">({paramSiteMarkers.length} sites)</span>
                 <button
                   onClick={handleParamReset}
                   className="text-[9px] font-bold text-destructive hover:text-destructive/80 transition-colors"
