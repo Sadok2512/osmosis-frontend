@@ -202,6 +202,13 @@ export const usePAReportStore = create<PAReportState>()(
           dashboards: s.dashboards.map((d) => (d.id === id ? { ...d, name } : d)),
           projectName: id === s.activeDashboardId ? name : s.projectName,
         })),
+
+      setDashboardVisibility: (id, visibility) =>
+        set((s) => ({
+          dashboards: s.dashboards.map((d) =>
+            d.id === id ? { ...d, visibility, updatedAt: Date.now() } : d,
+          ),
+        })),
     }),
     {
       name: 'precision-architect-report',
