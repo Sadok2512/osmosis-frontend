@@ -209,9 +209,9 @@ export const DEFAULT_HERO_CONFIG: HeroWidgetConfig = {
 };
 
 export const DEFAULT_STAT_CONFIG: StatWidgetConfig = {
-  label: 'Peak Rate',
-  value: '1.42',
-  unit: 'Tb/s',
+  label: '',
+  value: '',
+  unit: '',
   referencePeriodId: 'last_7_days',
   theme: 'dark',
   showPulse: false,
