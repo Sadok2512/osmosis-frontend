@@ -11,6 +11,7 @@ import {
   ChevronDown, RotateCcw
 } from 'lucide-react';
 import { AppTab } from '../../types';
+import { Wand2 } from 'lucide-react';
 import { SavedDashboard } from '../bi/DashboardManager';
 import { getStoredSession } from '@/services/adminAuth';
 import { WidgetItem } from '../bi/dashboardTypes';
