@@ -61,7 +61,7 @@ const HeatmapLayer = ({ points, radius = 25, blur = 15, maxZoom, minOpacity = 0.
 import { fetchSiteDetails } from '../../services/api';
 import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
-import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, type SiteDensityInfo } from './map/sectorSizing';
+import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, getTaggedRadius, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
 import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
@@ -7486,22 +7486,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           if (showMiniSectors) {
-            // Inverse zoom scaling for tagged sites: much larger at low zoom, still adaptive at high zoom
-            const getTaggedRadius = (zoom: number) => {
-              const CAP = 13;
-              const ez = Math.min(zoom, CAP);
-              const BASE = 650;
-              const MIN_RADIUS = 320;
-              const MAX_RADIUS = 4200;
-              const REF_ZOOM = 12;
-              const scale = Math.pow(2, REF_ZOOM - ez);
-              let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
-              if (zoom > CAP) {
-                const boost = zoom === 14 ? 1.10 : 1.20;
-                r = (r * boost) / Math.pow(2, zoom - CAP);
-              }
-              return r;
-            };
             // At zoom 12+: uniform sizing — no per-site variation
             const isUniformZoom = viewport.zoom >= 12;
             const cellCountScale = isUniformZoom ? 1 : getCellCountScale(renderSiteCells.length);
@@ -7844,22 +7828,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
-          // Inverse zoom scaling for tagged sites: much larger than normal, while staying adaptive
-          const getTaggedRadiusDetail = (zoom: number) => {
-            const CAP = 13;
-            const ez = Math.min(zoom, CAP);
-            const BASE = 650;
-            const MIN_RADIUS = 320;
-            const MAX_RADIUS = 4200;
-            const REF_ZOOM = 12;
-            const scale = Math.pow(2, REF_ZOOM - ez);
-            let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
-            if (zoom > CAP) {
-              const boost = zoom === 14 ? 1.10 : 1.20;
-              r = (r * boost) / Math.pow(2, zoom - CAP);
-            }
-            return r;
-          };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
           // At zoom < 12: adaptive scaling for overview decluttering
@@ -7867,7 +7835,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const cellCountScale = isUniformZoom ? 1 : getCellCountScale(renderSiteCells.length);
           const siteDF = isUniformZoom ? 1 : getSiteDensityFactor(site.site_id);
           const siteOpacityScale = isUniformZoom ? 1 : getSiteOpacityScale(site.site_id);
-          const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
+          const zoomRadius = isTaggedSite ? getTaggedRadius(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
