@@ -350,13 +350,13 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
           <ToggleField label="Show Report Name" value={draft.showReportName} onChange={(v) => updateLive('showReportName', v, { showReportName: v })} />
           <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => updateReportInfo('reportInfoShow', v)} />
           <ToggleField
-            label="Show Photo"
+            label="Add Logo"
             value={draft.showPhoto}
             onChange={(v) => updateLive('showPhoto', v, { showPhoto: v })}
           />
           {draft.showPhoto && (
             <div className="space-y-2 pl-3 border-l-2 border-primary/20">
-              <FieldLabel>Header Photo</FieldLabel>
+              <FieldLabel>Header Logo</FieldLabel>
               {draft.photoUrl && (
                 <div className="rounded-lg overflow-hidden border border-outline-variant/20 bg-white">
                   <img src={draft.photoUrl} alt="Header preview" className="w-full h-24 object-cover" />
@@ -380,7 +380,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
                     }}
                   />
                   <span className="block text-center text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-dashed border-outline-variant/40 hover:border-primary hover:bg-primary/5 transition-colors text-on-surface-variant">
-                    {draft.photoUrl ? 'Replace photo' : 'Upload photo'}
+                    {draft.photoUrl ? 'Replace logo' : 'Upload logo'}
                   </span>
                 </label>
                 {draft.photoUrl && (
