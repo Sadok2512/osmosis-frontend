@@ -181,9 +181,10 @@ export const computeSmartAutoDensity = (
       0.65,
       Math.min(1.20, 1.20 - 0.55 * Math.sqrt(percentile)),
     );
+    // Gentle opacity damping: only the densest zones get a small fade. Floor 0.85 keeps beams clearly visible.
     const opacityScale = Math.max(
-      0.55,
-      Math.min(1.0, 1.0 - 0.45 * percentile),
+      0.85,
+      Math.min(1.0, 1.0 - 0.15 * percentile),
     );
     result.set(s.id, { density, percentile, beamScale, opacityScale });
   }
