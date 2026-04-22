@@ -6669,34 +6669,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  // En mode KPI, on force les secteurs seulement pour les niveaux Site/Bande.
-  // Le niveau Cellule doit rester en rendu point/cellule, sinon la carte retombe
-  // sur des marqueurs de site agrégés au lieu d'afficher les cellules.
-  const kpiForcesSectors = sectorColorMode === 'kpi'
-    && kpiAnalysisLevel !== 'cell'
-    && mapDisplayMode === 'sites'
-    && viewport.zoom >= SITES_TO_CELLS_ZOOM;
+  // En mode KPI, on force toujours le rendu des secteurs (même si l'utilisateur a désactivé BEAMS)
+  // pour éviter d'afficher des cercles "concentric tech" qui masquent les valeurs KPI.
+  const kpiForcesSectors = sectorColorMode === 'kpi' && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
   const showSectors = !paramMode && ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
 
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
-    if (kpiAnalysisLevel === 'cell') {
-      setMapDisplayMode('points');
-      return;
-    }
     setShowBeamSectors(true);
     setMapDisplayMode('sites');
-  }, [paramMode, sectorColorMode, kpiAnalysisLevel]);
-
-  useEffect(() => {
-    if (paramMode || sectorColorMode !== 'topo') return;
-    if (mapDisplayMode !== 'points') {
-      setMapDisplayMode('points');
-    }
-    if (showBeamSectors) {
-      setShowBeamSectors(false);
-    }
-  }, [paramMode, sectorColorMode, mapDisplayMode, showBeamSectors]);
+  }, [paramMode, sectorColorMode]);
 
   useEffect(() => {
     if (!showSectors) return;
@@ -7533,12 +7515,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Heatmap layer */}
-        {!paramMode && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
+        {!paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers */}
-        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
@@ -7597,7 +7579,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
           // KPI coloring: use site-level KPI value when in KPI mode
@@ -7746,14 +7728,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               : renderCells;
 
             // Fallback: if no band-specific items survived filtering, only use techno-level fallback
-            // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells).
-            // We must consider ALL band-filter sources: local select, dashboard filter, AND the bottom
-            // toolbar `enabledBands` toggles — otherwise disabling bands in the toolbar would still
-            // leak fallback 4G/5G sectors onto the map.
-            const hasActiveBandFilter =
-              localBande !== 'ALL'
-              || (activeDashboardFilters?.bande?.length ?? 0) > 0
-              || isBandFilterActive;
+            // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells)
+            const hasActiveBandFilter = localBande !== 'ALL' || (activeDashboardFilters?.bande?.length ?? 0) > 0;
             if (miniItems.length === 0 && !hasActiveBandFilter && kpiVisibleCells.length > 0) {
               if (has4G && !has5G && enabledTechnos.has('4G')) {
                 const fallbackCell = kpiVisibleCells.find(c => getCellTechGroup(c.techno) === '4G') ?? kpiVisibleCells[0];
@@ -7825,7 +7801,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {!paramMode && mapDisplayMode === 'sites' && !showSectors && (() => {
+        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -7997,7 +7973,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && showSectors && renderSites.map(site => {
+        {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
           // LOD filtering: skip sites in very dense areas to reduce overdraw
           const densityInfo = siteDensityMap.get(site.site_id);
           const isHovered = hoveredSiteId === site.site_id;
@@ -9258,7 +9234,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 KPI
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setMapDisplayMode('points'); setShowBeamSectors(false); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                onClick={() => { setSectorColorMode('topo'); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
                   sectorColorMode === 'topo' && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
@@ -9269,20 +9245,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                onClick={() => {
-                  if (paramMode) {
-                    // Exit param mode
-                    handleParamReset();
-                  } else {
-                    // Enter param mode — open search dropdown
-                    setParamPanelOpen(true);
-                    setSectorColorMode('topo');
-                  }
-                }}
+                disabled
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  paramMode || paramPanelOpen
+                  activeViewType === 'parameter'
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground/40 cursor-not-allowed'
                 }`}
               >
                 <MapPin size={11} />
@@ -9291,109 +9258,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
 
             <span className="w-px h-7 bg-border/50 shrink-0" />
-
-            {/* ── Param mode: search dropdown + active label ── */}
-            {(paramMode || paramPanelOpen) && (
-              <>
-                <div className="relative shrink-0">
-                  <button
-                    onClick={() => setParamPanelOpen(v => !v)}
-                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-600 transition-all hover:bg-orange-500/15"
-                  >
-                    <MapPin size={12} />
-                    <span className="max-w-[160px] truncate">{paramConfirmed || 'Sélectionner...'}</span>
-                    {paramLoading ? (
-                      <span className="inline-block w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
-                    ) : (
-                      paramPanelOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />
-                    )}
-                  </button>
-                  {paramPanelOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-[320px] bg-card border border-border rounded-xl shadow-2xl z-[2000] max-h-[400px] overflow-hidden">
-                      <div className="p-3 border-b border-border">
-                        <input
-                          autoFocus
-                          type="text"
-                          placeholder="Rechercher un paramètre..."
-                          className="w-full px-3 py-2 bg-muted/50 border border-border/50 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/30"
-                          value={paramSearch}
-                          onChange={e => setParamSearch(e.target.value)}
-                        />
-                      </div>
-                      <div className="overflow-y-auto max-h-[320px]">
-                        {paramFilteredList.length === 0 && !paramAvailableLoading && (
-                          <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                            {paramSearch.length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun paramètre trouvé'}
-                          </div>
-                        )}
-                        {paramAvailableLoading && (
-                          <div className="px-4 py-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
-                            <span className="inline-block w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
-                            Recherche...
-                          </div>
-                        )}
-                        {paramFilteredList.map(p => (
-                          <button
-                            key={p}
-                            onClick={() => {
-                              setParamSelected(p);
-                              // Use a microtask to ensure paramSelected is set before handleParamConfirm reads it
-                              setTimeout(() => {
-                                // Directly trigger the fetch inline since handleParamConfirm reads stale paramSelected
-                                setParamConfirmed(p);
-                                setParamMode(true);
-                                setShowBeamSectors(false);
-                                setMapDisplayMode('points');
-                                setSectorColorMode('topo');
-                                setParamLoading(true);
-                                setParamPanelOpen(false);
-                                const bbox = viewport.bounds
-                                  ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
-                                  : '-180,-90,180,90';
-                                const filterParams = new URLSearchParams();
-                                filterParams.set('param', p);
-                                filterParams.set('bbox', bbox);
-                                filterParams.set('limit', '10000');
-                                fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`), { headers: getVpsProxyHeaders() })
-                                  .then(r => r.json())
-                                  .then(data => {
-                                    if (data.sites && data.sites.length > 0) {
-                                      const points: any[] = [];
-                                      let id = 0;
-                                      for (const site of data.sites) {
-                                        for (const cell of (site.cells || [])) {
-                                          points.push({ id: id++, cell_name: cell.cell_name, site_name: site.site_name, latitude: site.latitude, longitude: site.longitude, parameter: p, value: cell.value, bande: cell.bande, vendor: site.constructeur, dn: null });
-                                        }
-                                      }
-                                      setParamPoints(points);
-                                    } else { setParamPoints([]); }
-                                  })
-                                  .catch(() => setParamPoints([]))
-                                  .finally(() => setParamLoading(false));
-                              }, 0);
-                            }}
-                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-muted/50 transition-colors border-b border-border/30 ${
-                              p === paramConfirmed ? 'bg-orange-500/10 text-orange-600 font-bold' : ''
-                            }`}
-                          >
-                            {p}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {paramMode && (
-                  <button
-                    onClick={handleParamReset}
-                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20 shrink-0"
-                    title="Fermer l'overlay paramètre"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </>
-            )}
 
             {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
@@ -9736,7 +9600,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       ]).map(lvl => (
                         <button
                           key={lvl.key}
-                          onClick={() => { setKpiAnalysisLevel(lvl.key); setMapDisplayMode('sites'); setShowBeamSectors(true); }}
+                          onClick={() => setKpiAnalysisLevel(lvl.key)}
                           className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
                             kpiAnalysisLevel === lvl.key
                               ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
@@ -11439,10 +11303,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       setKpiOverlayLocked(true);
                       setSectorColorMode('kpi');
                       setShowKpiLegend(true);
-                      // Match the map rendering mode to the KPI overlay analysis level.
+                      // Force-enable sector beams + sites display mode so cell-level KPI overlay
+                      // becomes visible as soon as zoom permits (>= SITES_TO_CELLS_ZOOM).
                       if (cfg.level === 'cell') {
-                        setMapDisplayMode('points');
-                      } else {
                         setShowBeamSectors(true);
                         setMapDisplayMode('sites');
                       }
@@ -11544,8 +11407,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     } else if (settings._isDashboardOnly) {
                       setKpiOverlays([]);
                       setSectorColorMode('topo');
-                      setMapDisplayMode('points');
-                      setShowBeamSectors(false);
                       setKpiOverlayLocked(false);
                     }
 
@@ -11711,8 +11572,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         setMapKpi(next[next.length - 1]);
                       } else {
                         setSectorColorMode('topo');
-                        setMapDisplayMode('points');
-                        setShowBeamSectors(false);
                       }
                     }
                     // Persist to view
