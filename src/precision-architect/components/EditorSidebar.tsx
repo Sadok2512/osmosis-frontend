@@ -333,8 +333,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   };
 
   return (
-    <aside className="w-[400px] bg-surface-container-low h-full shadow-2xl z-50 border-l border-outline-variant/20 flex flex-col">
-      <header className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/10 bg-white">
+    <aside className="w-full sm:w-[400px] bg-surface-container-low shadow-2xl border-l border-outline-variant/20 flex flex-col h-screen max-h-screen overflow-hidden">
+      <header className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-outline-variant/10 bg-white">
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-primary">Configuring</p>
           <h3 className="text-lg font-black font-headline text-on-surface">Dashboard Report</h3>
