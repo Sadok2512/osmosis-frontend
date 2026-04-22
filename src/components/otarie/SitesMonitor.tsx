@@ -6676,14 +6676,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  // En mode KPI, on force toujours le rendu des secteurs (même si l'utilisateur a désactivé BEAMS)
-  // pour éviter d'afficher des cercles "concentric tech" qui masquent les valeurs KPI.
-  const kpiForcesSectors = sectorColorMode === 'kpi' && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
-  const showSectors = !paramMode && ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
+  // In KPI mode: ALWAYS force sector rendering (regardless of showBeamSectors state).
+  // In Topo mode: sectors only if user enabled beams AND zoom >= threshold.
+  const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode;
+  const showSectors = !paramMode && (
+    kpiForcesSectors
+    || (viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
+    || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites')
+  );
 
+  // When entering KPI mode, ensure display settings are correct
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
-    setShowBeamSectors(true);
     setMapDisplayMode('sites');
   }, [paramMode, sectorColorMode]);
 
@@ -9237,6 +9241,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 onClick={() => {
                   if (!activeViewId) return;
                   setSectorColorMode('kpi');
+                  setMapDisplayMode('sites');
                 }}
                 title={!activeViewId ? 'Activez une Vue pour utiliser le mode KPI' : 'Mode KPI'}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
