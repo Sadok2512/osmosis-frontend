@@ -762,7 +762,8 @@ function TimeFiltersToolbar({
           </PopoverContent>
         </Popover>
 
-        {/* Grain */}
+        {/* Grain (hidden for STAT widgets) */}
+        {!isStat && (
         <Popover>
           <PopoverTrigger asChild>
             <button type="button" className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary transition-colors">
@@ -787,6 +788,7 @@ function TimeFiltersToolbar({
             ))}
           </PopoverContent>
         </Popover>
+        )}
 
         <TFPill icon={<Flag className="w-3.5 h-3.5 text-rose-500" />}>
           <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
