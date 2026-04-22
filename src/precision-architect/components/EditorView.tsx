@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Layout as LayoutIcon,
   Edit3,
@@ -936,6 +936,13 @@ function DashboardSwitcher() {
   const renameDashboard = usePAReportStore((s) => s.renameDashboard);
   const deleteDashboard = usePAReportStore((s) => s.deleteDashboard);
   const newDashboard = usePAReportStore((s) => s.newDashboard);
+  const loadDashboardsFromCloud = usePAReportStore((s) => s.loadDashboardsFromCloud);
+
+  // Hydrate the local list with PA dashboards stored in the central
+  // Supabase `dashboards` table so previously-saved reports show up here.
+  useEffect(() => {
+    void loadDashboardsFromCloud();
+  }, [loadDashboardsFromCloud]);
 
   const active = dashboards.find((d) => d.id === activeId);
 

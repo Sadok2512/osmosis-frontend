@@ -47,14 +47,19 @@ async function loadAllDashboardsFromDB(): Promise<SavedDashboard[]> {
   try {
     const data = await dashboardsApi.list();
     if (!data || !Array.isArray(data)) return [];
-    return data.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description || '',
-      isShared: row.is_shared ?? true,
-      widgets: row.widgets as WidgetItem[],
-      updatedAt: row.updated_at,
-    }));
+    return data
+      // Precision Architect reports live in the same table but have their own
+      // editor (PA's DashboardSwitcher); keep them out of the BI Studio list
+      // so they don't try to render as BI widgets.
+      .filter((row: any) => row.dashboard_type !== 'precision_architect')
+      .map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        isShared: row.is_shared ?? true,
+        widgets: row.widgets as WidgetItem[],
+        updatedAt: row.updated_at,
+      }));
   } catch (e) {
     console.error('[DashboardManager] Failed to load dashboards:', e);
     return [];

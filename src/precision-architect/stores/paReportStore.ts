@@ -1,6 +1,47 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PAPage, ViewMode } from '../types';
+import { dashboardsApi } from '@/lib/localDb';
+
+const PA_DASHBOARD_TYPE = 'precision_architect';
+
+/** Push a single PA dashboard to the global Supabase `dashboards` table so it
+ * appears in the central Dashboard list (alongside BI Studio dashboards). */
+async function syncDashboardToCloud(d: PADashboard) {
+  try {
+    const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+    await dashboardsApi.upsert({
+      id: d.id,
+      name: d.name || d.projectName || 'Untitled Report',
+      description: 'Precision Architect report',
+      // Wrap PA-specific payload so the BI list can identify and (later) re-open it
+      widgets: [
+        {
+          _type: 'precision_architect_payload',
+          projectName: d.projectName,
+          pages: d.pages,
+          activePageId: d.activePageId,
+          updatedAt: d.updatedAt,
+          visibility: d.visibility ?? 'private',
+        } as any,
+      ],
+      is_shared: (d.visibility ?? 'private') === 'public',
+      dashboard_type: PA_DASHBOARD_TYPE,
+      visibility: d.visibility ?? 'private',
+      owner_username: session?.username,
+    });
+  } catch (e) {
+    console.error('[paReportStore] Failed to sync dashboard to cloud:', e);
+  }
+}
+
+async function deleteDashboardFromCloud(id: string) {
+  try {
+    await dashboardsApi.remove(id);
+  } catch (e) {
+    console.error('[paReportStore] Failed to remove dashboard from cloud:', e);
+  }
+}
 
 /**
  * Persists the entire Precision Architect report (project name + pages + widgets)
@@ -54,6 +95,8 @@ interface PAReportState {
   switchDashboard: (id: string) => void;
   renameDashboard: (id: string, name: string) => void;
   setDashboardVisibility: (id: string, visibility: PADashboardVisibility) => void;
+  /** Pull all PA dashboards from the central Supabase store and merge into local list. */
+  loadDashboardsFromCloud: () => Promise<void>;
 }
 
 const INITIAL_PAGES: PAPage[] = [
@@ -95,6 +138,8 @@ export const usePAReportStore = create<PAReportState>()(
       markSaved: () => {
         get().saveActiveDashboard();
         set((s) => ({ savedRev: s.savedRev + 1, lastSavedAt: Date.now() }));
+        const fresh = get().dashboards.find((d) => d.id === get().activeDashboardId);
+        if (fresh) void syncDashboardToCloud(fresh);
       },
       resetReport: () =>
         set({
@@ -105,7 +150,6 @@ export const usePAReportStore = create<PAReportState>()(
         }),
 
       newDashboard: (name) => {
-        // Snapshot the current dashboard before switching away
         get().saveActiveDashboard();
 
         const id = `dashboard-${Date.now()}`;
@@ -127,6 +171,7 @@ export const usePAReportStore = create<PAReportState>()(
           pages: fresh.pages,
           activePageId: fresh.activePageId,
         }));
+        void syncDashboardToCloud(fresh);
         return id;
       },
 
@@ -148,10 +193,10 @@ export const usePAReportStore = create<PAReportState>()(
           return { dashboards };
         }),
 
-      deleteDashboard: (id) =>
+      deleteDashboard: (id) => {
+        void deleteDashboardFromCloud(id);
         set((s) => {
           const remaining = s.dashboards.filter((d) => d.id !== id);
-          // Always keep at least one dashboard
           if (remaining.length === 0) {
             const firstPageId = `page-${Date.now()}`;
             const fresh: PADashboard = {
@@ -170,7 +215,6 @@ export const usePAReportStore = create<PAReportState>()(
               activePageId: fresh.activePageId,
             };
           }
-          // If we deleted the active one, switch to the first remaining
           if (id === s.activeDashboardId) {
             const next = remaining[0];
             return {
@@ -182,10 +226,10 @@ export const usePAReportStore = create<PAReportState>()(
             };
           }
           return { dashboards: remaining };
-        }),
+        });
+      },
 
       switchDashboard: (id) => {
-        // Snapshot current before switching
         get().saveActiveDashboard();
         const target = get().dashboards.find((d) => d.id === id);
         if (!target) return;
@@ -197,18 +241,57 @@ export const usePAReportStore = create<PAReportState>()(
         });
       },
 
-      renameDashboard: (id, name) =>
+      renameDashboard: (id, name) => {
         set((s) => ({
-          dashboards: s.dashboards.map((d) => (d.id === id ? { ...d, name } : d)),
+          dashboards: s.dashboards.map((d) => (d.id === id ? { ...d, name, updatedAt: Date.now() } : d)),
           projectName: id === s.activeDashboardId ? name : s.projectName,
-        })),
+        }));
+        const updated = get().dashboards.find((d) => d.id === id);
+        if (updated) void syncDashboardToCloud(updated);
+      },
 
-      setDashboardVisibility: (id, visibility) =>
+      setDashboardVisibility: (id, visibility) => {
         set((s) => ({
           dashboards: s.dashboards.map((d) =>
             d.id === id ? { ...d, visibility, updatedAt: Date.now() } : d,
           ),
-        })),
+        }));
+        const updated = get().dashboards.find((d) => d.id === id);
+        if (updated) void syncDashboardToCloud(updated);
+      },
+
+      loadDashboardsFromCloud: async () => {
+        try {
+          const rows = await dashboardsApi.list();
+          const cloudPa: PADashboard[] = (rows || [])
+            .filter((r: any) => r.dashboard_type === PA_DASHBOARD_TYPE)
+            .map((r: any) => {
+              const payload = Array.isArray(r.widgets)
+                ? r.widgets.find((w: any) => w?._type === 'precision_architect_payload')
+                : null;
+              return {
+                id: r.id,
+                name: r.name,
+                projectName: payload?.projectName || r.name,
+                pages: Array.isArray(payload?.pages) && payload.pages.length > 0
+                  ? payload.pages
+                  : INITIAL_PAGES,
+                activePageId: payload?.activePageId || 'page-1',
+                updatedAt: payload?.updatedAt || new Date(r.updated_at).getTime() || Date.now(),
+                visibility: (r.visibility === 'public' ? 'public' : 'private') as PADashboardVisibility,
+              };
+            });
+          if (cloudPa.length === 0) return;
+          set((s) => {
+            const byId = new Map<string, PADashboard>();
+            for (const d of s.dashboards) byId.set(d.id, d);
+            for (const d of cloudPa) byId.set(d.id, d);
+            return { dashboards: Array.from(byId.values()) };
+          });
+        } catch (e) {
+          console.warn('[paReportStore] loadDashboardsFromCloud failed:', e);
+        }
+      },
     }),
     {
       name: 'precision-architect-report',
