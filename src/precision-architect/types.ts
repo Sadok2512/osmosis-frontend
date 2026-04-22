@@ -10,7 +10,7 @@ export interface WidgetLayout {
 }
 
 export type ChartGranularity = 'auto' | '5min' | '15min' | '1h' | '1d';
-export type ChartType = 'line' | 'area' | 'bar';
+export type ChartType = 'line' | 'area' | 'bar' | 'stackedBar' | 'stackedArea' | 'stepLine';
 export type LineStyle = 'solid' | 'dashed' | 'dotted';
 export type AxisSide = 'left' | 'right';
 export type LegendPosition = 'top' | 'bottom' | 'right';
