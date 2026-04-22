@@ -218,7 +218,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/10 bg-surface-container-low/40">
         <div className="flex items-center gap-3">
           <span className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60">
-            {cfg?.splitBy ? `By ${cfg.splitBy}` : 'Aggregated'}
+            {splitInUse ? `By ${splitInUse}` : 'Aggregated'}
           </span>
           <span className="text-xs font-black text-on-surface">{visibleColumns.length} KPI · {rows.length} rows</span>
         </div>
