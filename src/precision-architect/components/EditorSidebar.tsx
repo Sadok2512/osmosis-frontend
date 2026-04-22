@@ -350,13 +350,13 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
           <ToggleField label="Show Report Name" value={draft.showReportName} onChange={(v) => updateLive('showReportName', v, { showReportName: v })} />
           <ToggleField label="Show Report Info" value={draft.reportInfoShow} onChange={(v) => updateReportInfo('reportInfoShow', v)} />
           <ToggleField
-            label="Show Photo"
+            label="Add Logo"
             value={draft.showPhoto}
             onChange={(v) => updateLive('showPhoto', v, { showPhoto: v })}
           />
           {draft.showPhoto && (
             <div className="space-y-2 pl-3 border-l-2 border-primary/20">
-              <FieldLabel>Header Photo</FieldLabel>
+              <FieldLabel>Header Logo</FieldLabel>
               {draft.photoUrl && (
                 <div className="rounded-lg overflow-hidden border border-outline-variant/20 bg-white">
                   <img src={draft.photoUrl} alt="Header preview" className="w-full h-24 object-cover" />
