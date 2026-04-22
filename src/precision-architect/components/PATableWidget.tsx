@@ -217,51 +217,77 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
         )}
       </div>
       <div className="flex-1 overflow-auto custom-scrollbar">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-white z-10">
-            <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
-              {splitInUse && <th className="text-left px-4 py-2.5">{splitInUse}</th>}
-              {visibleColumns.map(col => (
-                <th key={col.id} className="text-right px-4 py-2.5">
-                  <span className="inline-flex items-center gap-1">
-                    {col.alias || col.kpiKey}
-                    {col.unit && <span className="text-on-surface-variant/50 normal-case">({col.unit})</span>}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && !isFetching && (
-              <tr className="border-b border-outline-variant/10">
-                {splitInUse && <td className="px-4 py-2.5 font-black text-on-surface-variant/40">—</td>}
-                {visibleColumns.map(col => (
-                  <td key={col.id} className="px-4 py-2.5 text-right text-on-surface-variant/40">—</td>
-                ))}
-              </tr>
-            )}
-            {rows.map((r, i) => (
-              <tr key={`${r.split_value}-${i}`} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
-                {splitInUse && (
-                  <td className="px-4 py-2.5 font-black text-on-surface tabular-nums">{r.split_value || '—'}</td>
+        {(() => {
+          // Build context columns: Timestamp + active filters + split dimension
+          const hasTs = rows.some(r => r.ts);
+          const filterContextCols = effectiveFilters
+            .reduce((acc, f) => {
+              const dim = toBackendDimension(f.dimension);
+              if (!acc.find(a => a.dim === dim)) acc.push({ dim, values: [f.value] });
+              else acc.find(a => a.dim === dim)!.values.push(f.value);
+              return acc;
+            }, [] as { dim: string; values: string[] }[]);
+
+          return (
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-white z-10">
+                <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
+                  {hasTs && <th className="text-left px-4 py-2.5">Timestamp</th>}
+                  {filterContextCols.map(fc => (
+                    <th key={fc.dim} className="text-left px-4 py-2.5">{fc.dim}</th>
+                  ))}
+                  {splitInUse && <th className="text-left px-4 py-2.5">{splitInUse}</th>}
+                  {visibleColumns.map(col => (
+                    <th key={col.id} className="text-right px-4 py-2.5">
+                      <span className="inline-flex items-center gap-1">
+                        {col.alias || col.kpiKey}
+                        {col.unit && <span className="text-on-surface-variant/50 normal-case">({col.unit})</span>}
+                      </span>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.length === 0 && !isFetching && (
+                  <tr className="border-b border-outline-variant/10">
+                    {hasTs && <td className="px-4 py-2.5 text-on-surface-variant/40">—</td>}
+                    {filterContextCols.map(fc => (
+                      <td key={fc.dim} className="px-4 py-2.5 text-on-surface-variant/40">—</td>
+                    ))}
+                    {splitInUse && <td className="px-4 py-2.5 text-on-surface-variant/40">—</td>}
+                    {visibleColumns.map(col => (
+                      <td key={col.id} className="px-4 py-2.5 text-right text-on-surface-variant/40">—</td>
+                    ))}
+                  </tr>
                 )}
-                {visibleColumns.map(col => {
-                  const raw = r[col.kpiKey];
-                  // Backend may return either a scalar or an object {avg,min,max}.
-                  // Pick `avg` when an aggregated bag is returned.
-                  const v = raw && typeof raw === 'object' && !Array.isArray(raw)
-                    ? (raw.avg ?? raw.value ?? raw.min ?? raw.max ?? null)
-                    : raw;
-                  return (
-                    <td key={col.id} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
-                      {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                {rows.map((r, i) => (
+                  <tr key={`${r.split_value}-${i}`} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
+                    {hasTs && (
+                      <td className="px-4 py-2.5 font-mono text-on-surface tabular-nums whitespace-nowrap">{r.ts || '—'}</td>
+                    )}
+                    {filterContextCols.map(fc => (
+                      <td key={fc.dim} className="px-4 py-2.5 text-on-surface">{fc.values.join(', ')}</td>
+                    ))}
+                    {splitInUse && (
+                      <td className="px-4 py-2.5 font-black text-on-surface tabular-nums">{r.split_value || r.site_name || '—'}</td>
+                    )}
+                    {visibleColumns.map(col => {
+                      const raw = r[col.kpiKey];
+                      const v = raw && typeof raw === 'object' && !Array.isArray(raw)
+                        ? (raw.avg ?? raw.value ?? raw.min ?? raw.max ?? null)
+                        : raw;
+                      return (
+                        <td key={col.id} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
+                          {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          );
+        })()}
       </div>
     </div>
   );
