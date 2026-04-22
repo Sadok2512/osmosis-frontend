@@ -7582,6 +7582,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
         {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+          // Skip site when KPI legend filter hides its level
+          if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
+            const siteLevel = getKpiLevel(getSiteKpiValue(site));
+            if (hiddenKpiLevels.has(siteLevel)) return null;
+          }
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
           // KPI coloring: use site-level KPI value when in KPI mode
@@ -8336,6 +8341,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const detailCells = sectorColorMode === 'kpi'
             ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor) && isCellVisibleForKpiLegend(cell))
             : baseDetailCells;
+          // Skip site entirely when KPI legend filter hides all its cells
+          if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0 && detailCells.length === 0) return null;
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
