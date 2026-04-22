@@ -3705,6 +3705,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
+  // Global KPI overlay color intensity multiplier (applied to all colored cells/beams/points)
+  const [kpiOverlayIntensity, setKpiOverlayIntensity] = useState<number>(() => {
+    const saved = parseFloat(localStorage.getItem('osmosis_kpi_overlay_intensity') || '');
+    return Number.isFinite(saved) && saved > 0 ? Math.min(1.5, Math.max(0.2, saved)) : 1;
+  });
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
@@ -7552,7 +7557,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isHovered ? '#fff' : 'transparent',
                       fillColor: color,
-                      fillOpacity: 0.9,
+                      fillOpacity: Math.min(1, 0.9 * (sectorColorMode === 'kpi' ? kpiOverlayIntensity : 1)),
                       weight: isHovered ? 2 : 0,
                     }}
                     eventHandlers={{
@@ -7764,7 +7769,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       pathOptions={{
                         color: isHovered ? '#fff' : deriveStrokeColor(techColor),
                         fillColor: techColor,
-                        fillOpacity: isHovered ? 0.5 : miniOpacity,
+                        fillOpacity: Math.min(1, (isHovered ? 0.5 : miniOpacity) * (sectorColorMode === 'kpi' ? kpiOverlayIntensity : 1)),
                         weight: isHovered ? 2 : 1.5, // PRO #3: stronger outline
                         opacity: isHovered ? 1 : 0.85,
                       }}
@@ -8277,7 +8282,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
                         // Density-adaptive: opacity drops hard in dense zones to prevent color blending
-                        fillOpacity: (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale),
+                        fillOpacity: Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale) * (sectorColorMode === 'kpi' && !isFocusFaded ? kpiOverlayIntensity : 1)),
                         // Density-adaptive: stroke weight reduced/hidden in dense zones
                         weight: isHovered ? 2 : Math.max(0.3, 1.5 * (densityInfo?.strokeScale ?? 1)),
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : Math.min(0.9, 0.9 * (densityInfo?.strokeScale ?? 1))),
@@ -8399,7 +8404,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale),
+                      fillOpacity: Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale) * (sectorColorMode === 'kpi' && !isFocusFaded ? kpiOverlayIntensity : 1)),
                       weight: strokeWeight,
                       opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
@@ -9648,12 +9653,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
             {/* Gradient bar visualization */}
             <div className="px-3 py-1.5">
-              <div className="h-2 rounded-full overflow-hidden flex">
+              <div className="h-2 rounded-full overflow-hidden flex" style={{ opacity: Math.min(1, kpiOverlayIntensity) }}>
                 <div className="flex-1" style={{ background: currentThreshold.colorRed || '#8E44AD' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorOrange || '#f59e0b' }} />
                 <div className="flex-1" style={{ background: currentThreshold.colorGreen || '#27AE60' }} />
               </div>
             </div>
+
+            {/* Global color intensity slider — applies uniformly to all KPI levels */}
+            <div className="px-3 pb-2 pt-1 border-b border-border/20">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Intensité</span>
+                <Slider
+                  min={20}
+                  max={150}
+                  step={5}
+                  value={[Math.round(kpiOverlayIntensity * 100)]}
+                  onValueChange={(v) => {
+                    const next = Math.max(0.2, Math.min(1.5, (v[0] ?? 100) / 100));
+                    setKpiOverlayIntensity(next);
+                    localStorage.setItem('osmosis_kpi_overlay_intensity', String(next));
+                  }}
+                  className="flex-1"
+                />
+                <span className="text-[10px] font-bold tabular-nums text-foreground w-10 text-right">{Math.round(kpiOverlayIntensity * 100)}%</span>
+              </div>
+            </div>
+
 
             {/* Legend rows — click to filter */}
             <div className="px-3 py-1.5 space-y-0.5">
