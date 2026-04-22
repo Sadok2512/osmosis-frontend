@@ -7546,8 +7546,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
-        {/* Points mode — individual cell markers */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
+        {/* Points mode — individual cell markers (NEVER in KPI mode — KPI always uses sectors) */}
+        {!paramMode && !paramPanelOpen && sectorColorMode !== 'kpi' && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
