@@ -4549,26 +4549,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => clearTimeout(timer);
   }, [paramSearch]);
 
-  const handleParamConfirm = useCallback(async () => {
-    if (!paramSelected) return;
-    setParamConfirmed(paramSelected);
+  const handleParamConfirm = useCallback(async (nextParam?: string) => {
+    const targetParam = nextParam ?? paramSelected;
+    if (!targetParam) return;
+    setParamConfirmed(targetParam);
+    setParamSelected(targetParam);
     setParamMode(true);
     setShowBeamSectors(false);
     setMapDisplayMode('points');
     setSectorColorMode('topo');
     setParamLoading(true);
     setParamPanelOpen(false);
+    setShowParamDropdown(false);
     try {
       const bbox = viewport.bounds
         ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
         : '-180,-90,180,90';
       // Parameter overlay fetches ALL matching data in viewport (no dashboard filters)
       const filterParams = new URLSearchParams();
-      filterParams.set('param', paramSelected);
+      filterParams.set('param', targetParam);
       filterParams.set('bbox', bbox);
       filterParams.set('limit', '10000');
       const paramMapUrl = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`);
-      console.log('[SitesMonitor] param-map request:', { param: paramSelected, bbox, filters: filterParams.toString(), url: paramMapUrl });
+      console.log('[SitesMonitor] param-map request:', { param: targetParam, bbox, filters: filterParams.toString(), url: paramMapUrl });
       const resp = await fetch(paramMapUrl, {
         headers: getVpsProxyHeaders(),
       });
@@ -4585,7 +4588,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               site_name: site.site_name,
               latitude: site.latitude,
               longitude: site.longitude,
-              parameter: paramSelected,
+              parameter: targetParam,
               value: cell.value,
               bande: cell.bande,
               vendor: site.constructeur,
@@ -4607,6 +4610,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setParamSelected(null);
     setParamPoints([]);
     setParamPanelOpen(false);
+    setShowParamDropdown(false);
+    setParamSearch('');
   }, []);
 
   const paramValueColor = useCallback((val: string | null): string => {
@@ -9304,8 +9309,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* ── Param mode: active parameter selector (mirrors KPI dropdown) ── */}
             {(paramMode || showParamDropdown || activeViewType === 'parameter') && (
               <>
-                <div className="relative shrink-0">
+                <div className="shrink-0">
                   <button
+                    ref={(el) => { (window as any).__paramDropdownBtnRef = el; }}
                     onClick={() => setShowParamDropdown(v => !v)}
                     className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-600 dark:text-orange-400 transition-all hover:bg-orange-500/15"
                   >
@@ -9317,44 +9323,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       showParamDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />
                     )}
                   </button>
-                  {showParamDropdown && (
-                    <div className="absolute z-[1100] top-full left-0 mt-2 w-[320px] bg-card border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col">
-                      <div className="p-2 border-b border-border">
-                        <input
-                          autoFocus
-                          value={paramSearch}
-                          onChange={e => setParamSearch(e.target.value)}
-                          placeholder="Rechercher un paramètre…"
-                          className="w-full px-2.5 py-1.5 text-xs rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
-                        />
-                      </div>
-                      <div className="max-h-[320px] overflow-y-auto p-1">
-                        {paramAvailableLoading ? (
-                          <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">Chargement…</div>
-                        ) : paramFilteredList.length === 0 ? (
-                          <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
-                        ) : paramFilteredList.slice(0, 200).map(p => (
-                          <button
-                            key={p}
-                            onClick={() => {
-                              setParamSelected(p);
-                              setShowParamDropdown(false);
-                              setParamSearch('');
-                              // Auto-confirm so the map updates immediately, mirroring KPI selection UX
-                              setTimeout(() => handleParamConfirm(), 0);
-                            }}
-                            className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-md transition-colors text-left ${
-                              paramConfirmed === p
-                                ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold'
-                                : 'text-foreground hover:bg-accent'
-                            }`}
-                          >
-                            <span className="truncate">{p}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <button
                   onClick={handleParamReset}
@@ -10037,6 +10005,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
+      {showParamDropdown && (() => {
+        const btn = (window as any).__paramDropdownBtnRef as HTMLElement | null;
+        const rect = btn?.getBoundingClientRect();
+        const top = rect ? rect.bottom + 6 : 100;
+        const left = rect ? rect.left : 400;
+        return (
+          <>
+            <div className="fixed inset-0 z-[1199]" onClick={() => setShowParamDropdown(false)} />
+            <div
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              style={{ top, left }}
+            >
+              <div className="p-2 border-b border-border/40">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    value={paramSearch}
+                    onChange={e => setParamSearch(e.target.value)}
+                    placeholder="Rechercher un paramètre..."
+                    className="w-full pl-7 pr-3 py-1.5 text-[10px] rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[360px] overflow-y-auto p-1">
+                {paramAvailableLoading ? (
+                  <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">Chargement…</div>
+                ) : paramFilteredList.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
+                ) : paramFilteredList.slice(0, 200).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setParamSearch('');
+                      void handleParamConfirm(p);
+                    }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-2 text-[11px] rounded-xl transition-colors text-left ${
+                      paramConfirmed === p
+                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold'
+                        : 'text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{p}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </>
