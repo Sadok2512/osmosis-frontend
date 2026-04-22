@@ -286,6 +286,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 dimensionOptions={dimensionOptions}
                 filtersLoading={filtersLoading}
                 onApply={() => commitAppliedConfig(false)}
+                isStat={widget.kind === 'stat'}
               />
             )}
             {tab === 'appearance' && (
