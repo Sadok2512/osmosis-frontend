@@ -33,6 +33,7 @@ type RunStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
 type Severity = 'info' | 'warning' | 'major' | 'critical';
 type ResultStatus = 'open' | 'acknowledged' | 'resolved' | 'ignored';
 type Tab = 'detectors' | 'builder' | 'runs' | 'results' | 'parameter_sets' | 'audit';
+type FilterKey = keyof Detector['filters'];
 
 interface Criterion {
   id: string;
@@ -215,6 +216,19 @@ const seedParameterSets: ParameterSet[] = [
       { parameterCode: 'EARFCN', parameterValue: '1850', technology: '4G', vendor: 'NOKIA', band: 'L1800' },
     ],
   },
+];
+
+const FILTER_DEFINITIONS: { key: FilterKey; label: string; placeholder: string; values: string[] }[] = [
+  { key: 'country', label: 'Country', placeholder: 'Search country...', values: ['FR', 'TN', 'BE', 'ES', 'DE'] },
+  { key: 'department', label: 'Department', placeholder: 'Search department...', values: ['44', '75', '59', '69', '31', '13', '92'] },
+  { key: 'dor', label: 'DOR', placeholder: 'Search DOR...', values: ['DOR_OUEST', 'DOR_NORD', 'DOR_EST', 'DOR_SUD', 'DOR_IDF'] },
+  { key: 'plaque', label: 'Plaque', placeholder: 'Search plaque...', values: ['NANTES', 'LILLE', 'PARIS', 'LYON', 'TOULOUSE', 'MARSEILLE', 'TUNIS'] },
+  { key: 'siteCodes', label: 'Site', placeholder: 'Search site...', values: ['HAUTE_INDRE', 'BASSE_GOULAINE', 'LOMPRET_DEM', 'BIZERTE_CENTRE', 'NANTES_CENTRE'] },
+  { key: 'cellCodes', label: 'Cell', placeholder: 'Search cell...', values: ['HAUTE_INDRE_ENB1_E1', 'BASSE_GOULAINE_L18_01', 'LOMPRET_DEM_N78_01', 'BIZERTE_CENTRE_L18_01'] },
+  { key: 'technology', label: 'Technology', placeholder: 'Search technology...', values: ['2G', '3G', '4G', '5G'] },
+  { key: 'vendor', label: 'Vendor', placeholder: 'Search vendor...', values: ['NOKIA', 'ERICSSON', 'HUAWEI', 'SAMSUNG', 'ALCATEL'] },
+  { key: 'band', label: 'Band', placeholder: 'Search band...', values: ['L700', 'L800', 'L1800', 'L2100', 'L2600', 'N78', 'NR700'] },
+  { key: 'tags', label: 'Tags', placeholder: 'Search tag...', values: ['VIP', 'dense-urban', 'rural', 'high-traffic', 'critical-site'] },
 ];
 
 export default function OdccDetectorConsole() {
@@ -535,9 +549,30 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
   onRunTest: () => void;
   onValidate: () => void;
 }) {
+  const [isAddingFilter, setIsAddingFilter] = useState(false);
+  const [filterKey, setFilterKey] = useState<FilterKey>('plaque');
+  const [filterSearch, setFilterSearch] = useState('');
   const patch = (p: Partial<Detector>) => setDraft({ ...draft, ...p, updatedAt: nowIso() });
-  const patchFilters = (key: keyof Detector['filters'], value: string) => patch({ filters: { ...draft.filters, [key]: splitCsv(value) } });
+  const patchFilterValues = (key: FilterKey, values: string[]) => patch({ filters: { ...draft.filters, [key]: values } });
+  const addFilterValue = (key: FilterKey, value: string) => {
+    const clean = value.trim();
+    if (!clean) return;
+    const current = draft.filters[key] || [];
+    if (current.some(item => item.toLowerCase() === clean.toLowerCase())) return;
+    patchFilterValues(key, [...current, clean]);
+    setFilterSearch('');
+  };
+  const removeFilterValue = (key: FilterKey, value: string) => {
+    patchFilterValues(key, (draft.filters[key] || []).filter(item => item !== value));
+  };
   const updateCriterion = (id: string, p: Partial<Criterion>) => patch({ criteria: draft.criteria.map(c => c.id === id ? { ...c, ...p } : c) });
+  const selectedFilterDefinition = FILTER_DEFINITIONS.find(item => item.key === filterKey) || FILTER_DEFINITIONS[0];
+  const selectedFilterValues = draft.filters[filterKey] || [];
+  const filteredFilterOptions = selectedFilterDefinition.values
+    .filter(value => !selectedFilterValues.includes(value))
+    .filter(value => value.toLowerCase().includes(filterSearch.trim().toLowerCase()))
+    .slice(0, 8);
+  const activeFilterCount = FILTER_DEFINITIONS.reduce((count, item) => count + (draft.filters[item.key]?.length || 0), 0);
   return (
     <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-black text-primary">Frontend draft</span>}>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
@@ -558,15 +593,112 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
         </Card>
 
         <Card title="C. NE Filters">
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              ['country', 'Country'], ['department', 'Department'], ['dor', 'DOR'], ['plaque', 'Plaque'],
-              ['siteCodes', 'Site list'], ['cellCodes', 'Cell list'], ['technology', 'Technology'], ['vendor', 'Vendor'], ['band', 'Band'], ['tags', 'Tags'],
-            ].map(([key, label]) => (
-              <Field key={key} label={`${label} CSV`}>
-                <input value={(draft.filters[key as keyof Detector['filters']] || []).join(', ')} onChange={e => patchFilters(key as keyof Detector['filters'], e.target.value)} className="input" />
-              </Field>
-            ))}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+              <div>
+                <p className="text-sm font-bold text-foreground">Build NE scope with reusable filters</p>
+                <p className="mt-1 text-xs text-muted-foreground">Add Country, Department, DOR, Plaque, Site, Cell, vendor, technology, band, or tag filters from a searchable list.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddingFilter(value => !value)}
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" /> Add filter
+              </button>
+            </div>
+
+            {activeFilterCount > 0 ? (
+              <div className="space-y-3">
+                {FILTER_DEFINITIONS.filter(item => (draft.filters[item.key] || []).length > 0).map(item => (
+                  <div key={item.key} className="rounded-2xl border border-border/60 bg-background p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</span>
+                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-bold text-muted-foreground transition-colors hover:text-destructive">Clear</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(draft.filters[item.key] || []).map(value => (
+                        <button
+                          key={`${item.key}-${value}`}
+                          type="button"
+                          onClick={() => removeFilterValue(item.key, value)}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition-all hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
+                          title="Remove filter"
+                        >
+                          {value}
+                          <XCircle className="h-3.5 w-3.5" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-5 text-sm text-muted-foreground">
+                No NE filters selected. Click Add filter to define the target population.
+              </div>
+            )}
+
+            {isAddingFilter && (
+              <div className="rounded-2xl border border-primary/20 bg-background p-4 shadow-sm">
+                <div className="grid gap-3 md:grid-cols-[0.8fr_1.2fr_auto]">
+                  <Field label="Filter type">
+                    <Select
+                      value={filterKey}
+                      values={FILTER_DEFINITIONS.map(item => item.key)}
+                      labels={FILTER_DEFINITIONS.map(item => item.label)}
+                      onChange={value => {
+                        setFilterKey(value as FilterKey);
+                        setFilterSearch('');
+                      }}
+                    />
+                  </Field>
+                  <Field label="Search value">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <input
+                        value={filterSearch}
+                        onChange={event => setFilterSearch(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault();
+                            addFilterValue(filterKey, filterSearch);
+                          }
+                        }}
+                        placeholder={selectedFilterDefinition.placeholder}
+                        className="input pl-11"
+                      />
+                    </div>
+                  </Field>
+                  <div className="flex items-end">
+                    <button
+                      type="button"
+                      onClick={() => addFilterValue(filterKey, filterSearch)}
+                      className="h-11 rounded-xl border border-border/60 bg-card px-4 text-xs font-black uppercase tracking-[0.14em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
+                    >
+                      Add value
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Available {selectedFilterDefinition.label}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {filteredFilterOptions.length > 0 ? filteredFilterOptions.map(value => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => addFilterValue(filterKey, value)}
+                        className="rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
+                      >
+                        {value}
+                      </button>
+                    )) : (
+                      <span className="text-xs text-muted-foreground">No list match. Type a custom value and click Add value.</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -813,10 +945,6 @@ function IconButton({ title, children, onClick, danger }: { title: string; child
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
   return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
-}
-
-function splitCsv(value: string): string[] {
-  return value.split(',').map(v => v.trim()).filter(Boolean);
 }
 
 function filterSummary(detector: Detector): string {
