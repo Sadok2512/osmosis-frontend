@@ -145,7 +145,9 @@ export const DEFAULT_TABLE_CONFIG: TableWidgetConfig = {
     granularity: '15min',
   },
   columns: [],
-  splitBy: 'CELL',
+  // Aggregate by default — one row per KPI. The user can opt into a row split
+  // (CELL, SITE, PLAQUE, …) from the table settings panel.
+  splitBy: null,
   topN: 50,
 };
 
