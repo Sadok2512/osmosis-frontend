@@ -50,15 +50,25 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const gTechnos = globalSnap?.technos ?? global.technos;
   const gFilters = globalSnap?.filters ?? global.filters;
 
+  // Check if required perimeter filter is present (global or widget-level)
+  const effectiveFilters = inheritsScope ? gFilters : (cfg?.data.filters ?? []);
+  const PERIMETER_DIMS = new Set(['PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND', 'BCLUSTER',
+    'Plaque', 'Site', 'Constructeur', 'DOR', 'Bande', 'BCluster']);
+  const hasPerimeterFilter = effectiveFilters.some(f => PERIMETER_DIMS.has(f.dimension) || PERIMETER_DIMS.has(toBackendDimension(f.dimension)));
+  const effectiveFrom = inheritsTime ? gFrom : (cfg?.data.timeRange.from ?? '');
+  const effectiveTo = inheritsTime ? gTo : (cfg?.data.timeRange.to ?? '');
+  const hasDateRange = !!effectiveFrom && !!effectiveTo;
+  const missingRequirements = !hasPerimeterFilter || !hasDateRange;
+
   const request: TableRequest | null = useMemo(() => {
-    if (!cfg || !hasColumns || !hasBeenApplied) return null;
+    if (!cfg || !hasColumns || !hasBeenApplied || missingRequirements) return null;
 
     const eff = {
-      from: inheritsTime ? gFrom : cfg.data.timeRange.from,
-      to: inheritsTime ? gTo : cfg.data.timeRange.to,
+      from: effectiveFrom,
+      to: effectiveTo,
       // Périmètre techno: toujours hérité de la barre globale du rapport.
       technos: gTechnos,
-      filters: inheritsScope ? gFilters : cfg.data.filters,
+      filters: effectiveFilters,
     };
 
     // Normalize dimensions to backend keys (Techno → RAT, Constructeur → Vendor, …)
@@ -114,12 +124,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     cfg,
     hasColumns,
     hasBeenApplied,
-    inheritsTime,
-    inheritsScope,
-    gFrom,
-    gTo,
+    missingRequirements,
+    effectiveFrom,
+    effectiveTo,
     gTechnos,
-    gFilters,
+    effectiveFilters,
     effectiveAppliedRev,
     validKpiKeys,
   ]);
@@ -144,9 +153,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
   // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'not-applied' | 'backend' | 'no-data' | null =
+  const emptyReason: 'no-column' | 'not-applied' | 'missing-filter' | 'backend' | 'no-data' | null =
     !hasColumns ? 'no-column'
     : (!hasBeenApplied) ? 'not-applied'
+    : missingRequirements ? 'missing-filter'
     : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
@@ -159,6 +169,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
+      : emptyReason === 'missing-filter'
+      ? { title: 'Filtre de périmètre requis', body: `Ajoutez au moins un filtre (Plaque, Site, Vendor, DOR ou Bande) ${!hasDateRange ? 'et une période' : ''} avant de lancer la requête. Configurez dans la barre globale ou dans les paramètres du widget.` }
       : emptyReason === 'backend'
       ? { title: 'Backend returned no usable table data', body: backendMessage }
       : {
