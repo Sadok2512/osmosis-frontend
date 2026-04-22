@@ -1,6 +1,47 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { PAPage, ViewMode } from '../types';
+import { dashboardsApi } from '@/lib/localDb';
+
+const PA_DASHBOARD_TYPE = 'precision_architect';
+
+/** Push a single PA dashboard to the global Supabase `dashboards` table so it
+ * appears in the central Dashboard list (alongside BI Studio dashboards). */
+async function syncDashboardToCloud(d: PADashboard) {
+  try {
+    const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
+    await dashboardsApi.upsert({
+      id: d.id,
+      name: d.name || d.projectName || 'Untitled Report',
+      description: 'Precision Architect report',
+      // Wrap PA-specific payload so the BI list can identify and (later) re-open it
+      widgets: [
+        {
+          _type: 'precision_architect_payload',
+          projectName: d.projectName,
+          pages: d.pages,
+          activePageId: d.activePageId,
+          updatedAt: d.updatedAt,
+          visibility: d.visibility ?? 'private',
+        } as any,
+      ],
+      is_shared: (d.visibility ?? 'private') === 'public',
+      dashboard_type: PA_DASHBOARD_TYPE,
+      visibility: d.visibility ?? 'private',
+      owner_username: session?.username,
+    });
+  } catch (e) {
+    console.error('[paReportStore] Failed to sync dashboard to cloud:', e);
+  }
+}
+
+async function deleteDashboardFromCloud(id: string) {
+  try {
+    await dashboardsApi.remove(id);
+  } catch (e) {
+    console.error('[paReportStore] Failed to remove dashboard from cloud:', e);
+  }
+}
 
 /**
  * Persists the entire Precision Architect report (project name + pages + widgets)
