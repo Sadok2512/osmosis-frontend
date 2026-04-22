@@ -529,7 +529,7 @@ export default function EditorView({
               // Helper to render a widget card (used by both unassigned grid and per-section grids).
               const renderWidgetCard = (w: DynWidget) => {
                 const isChart = w.kind === 'chart';
-                const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
+                const padCls = isChart ? 'pt-3 pb-3 pl-3 pr-3' : 'p-4';
                 const isActiveWidget = activeWidget === w.id;
                 return (
                   <div
