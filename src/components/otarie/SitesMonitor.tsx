@@ -531,7 +531,8 @@ const isCellVisibleForKpiOverlay = (
   // Auto-hide sites whose vendor doesn't match the KPI's vendor
   if (kpiVendorFilter && siteVendor && siteVendor.toLowerCase() !== kpiVendorFilter.toLowerCase()) return false;
   const techGroup = getCellTechGroup(cell.techno);
-  if (!techGroup || techGroup !== kpiTechnoFilter) return false;
+  if (!techGroup) return false;
+  // No hard techno filter — show all techs that have KPI data. Vendor guard handles cross-vendor.
   if (!enabledTechnos.has(techGroup)) return false;
   if (localTechno !== 'ALL' && techGroup !== localTechno) return false;
   if (localBande !== 'ALL' && cell.bande !== localBande) return false;
@@ -4995,7 +4996,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // dashboard/view perimeter client-side when deciding which cells/sectors to render.
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
-      techno: kpiTechnoFilter,
       level: kpiAnalysisLevel,
       ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
@@ -5028,7 +5028,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
+  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
@@ -8373,10 +8373,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             : baseDetailCells;
           // Skip site entirely when KPI legend filter hides all its cells
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0 && detailCells.length === 0) return null;
-          // Debug: log first site to verify filtering
-          if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0 && site === renderSites[0]) {
-            console.log('[KPI Legend Debug]', { siteName: site.site_name, hiddenLevels: [...hiddenKpiLevels], baseCells: baseDetailCells.length, filteredCells: detailCells.length, sampleValues: baseDetailCells.slice(0, 3).map(c => ({ id: c.cell_id, val: getCellKpiValue(c), level: getKpiLevel(getCellKpiValue(c)) })) });
-          }
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
