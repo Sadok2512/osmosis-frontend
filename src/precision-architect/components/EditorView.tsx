@@ -957,6 +957,12 @@ function DashboardSwitcher() {
         <div className="max-h-72 overflow-y-auto p-1.5">
           {dashboards.map((d) => {
             const isActive = d.id === activeId;
+            const isPublic = (d as any).visibility === 'public';
+            const updatedLabel = d.updatedAt
+              ? new Date(d.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+                ' · ' +
+                new Date(d.updatedAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+              : '';
             return (
               <div
                 key={d.id}
@@ -978,9 +984,22 @@ function DashboardSwitcher() {
                       {d.name}
                     </span>
                     {isActive && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    <span
+                      className={cn(
+                        'ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border shrink-0',
+                        isPublic
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-slate-100 text-slate-600 border-slate-200',
+                      )}
+                      title={isPublic ? 'Visible to everyone' : 'Only visible to you'}
+                    >
+                      {isPublic ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+                      {isPublic ? 'Public' : 'Private'}
+                    </span>
                   </div>
                   <span className="text-[10px] text-on-surface-variant">
                     {d.pages.length} page{d.pages.length > 1 ? 's' : ''}
+                    {updatedLabel ? ` · saved ${updatedLabel}` : ''}
                   </span>
                 </div>
                 <button
