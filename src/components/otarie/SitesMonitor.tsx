@@ -525,7 +525,11 @@ const isCellVisibleForKpiOverlay = (
   dashboardTechnoFilter?: string[] | null,
   localTechno: string = 'ALL',
   localBande: string = 'ALL',
+  kpiVendorFilter?: string | null,
+  siteVendor?: string | null,
 ) => {
+  // Auto-hide sites whose vendor doesn't match the KPI's vendor
+  if (kpiVendorFilter && siteVendor && siteVendor.toLowerCase() !== kpiVendorFilter.toLowerCase()) return false;
   const techGroup = getCellTechGroup(cell.techno);
   if (!techGroup || techGroup !== kpiTechnoFilter) return false;
   if (!enabledTechnos.has(techGroup)) return false;
@@ -3695,6 +3699,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [localZoneArcep, setLocalZoneArcep] = useState('ALL');
   const [localTechno, setLocalTechno] = useState<'ALL' | '4G' | '5G'>('ALL');
   const [mapKpi, setMapKpi] = useState('');
+  const [kpiOverlayVendor, setKpiOverlayVendor] = useState<string | null>(null);
   const [kpiOverlays, setKpiOverlays] = useState<string[]>([]);
   const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
@@ -4963,6 +4968,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (sectorColorMode !== 'kpi' || !mapKpi) {
       setKpiValues(new Map());
       setKpiDataIssue(null);
+      setKpiOverlayVendor(null);
       return;
     }
     let cancelled = false;
@@ -4986,6 +4992,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Only show loading spinner if this is a fresh fetch (not cached)
     // Keep existing kpiValues visible during fetch to avoid flash
     setKpiLoading(true);
+
+    // Store the KPI vendor so the renderer can auto-hide non-matching vendor sites
+    setKpiOverlayVendor(kpiVendor || null);
 
     fetchKpiCellValues(mapKpi, filters)
       .then(data => {
@@ -5955,7 +5964,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
       const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
       candidates = candidates.filter(s => {
-        const cells = (s.cells || []).filter(c => isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande));
+        const cells = (s.cells || []).filter(c => isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, s.vendor));
         if (cells.length === 0) {
           const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
           return !hiddenKpiLevels.has(getKpiLevel(val));
@@ -6013,7 +6022,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         counts[getKpiLevel(val)]++;
       } else {
         for (const c of cells) {
-          if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande)) continue;
+          if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, s.vendor)) continue;
           counts[getKpiLevel(getCellKpiValue(c))]++;
         }
       }
@@ -7438,7 +7447,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseCellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
           const cellsToRender = sectorColorMode === 'kpi'
-            ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande) && isCellVisibleForKpiLegend(cell))
+            ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor) && isCellVisibleForKpiLegend(cell))
             : baseCellsToRender;
           return (
             <React.Fragment key={site.site_id}>
@@ -7575,7 +7584,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
               if (sectorColorMode === 'kpi') {
-                if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande)) continue;
+                if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande, kpiOverlayVendor, site.vendor)) continue;
                 if (!isCellVisibleForKpiLegend(cell)) continue;
               } else {
                 if (tech === '2G' && !enabledTechnos.has('2G')) continue;
@@ -7633,6 +7642,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     dashboardActive ? activeDashboardFilters?.techno ?? null : null,
                     localTechno,
                     localBande,
+                    kpiOverlayVendor,
+                    site.vendor,
                   ) && isCellVisibleForKpiLegend(cell),
                 )
               : renderCells;
@@ -8239,7 +8250,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseDetailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
           const detailCells = sectorColorMode === 'kpi'
-            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande) && isCellVisibleForKpiLegend(cell))
+            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor) && isCellVisibleForKpiLegend(cell))
             : baseDetailCells;
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
