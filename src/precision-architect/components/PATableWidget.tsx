@@ -232,7 +232,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-white z-10">
             <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
-              {cfg?.splitBy && <th className="text-left px-4 py-2.5">{cfg.splitBy}</th>}
+              {splitInUse && <th className="text-left px-4 py-2.5">{splitInUse}</th>}
               {visibleColumns.map(col => (
                 <th key={col.id} className="text-right px-4 py-2.5">
                   <span className="inline-flex items-center gap-1">
