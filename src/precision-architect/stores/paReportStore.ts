@@ -11,6 +11,8 @@ import type { PAPage, ViewMode } from '../types';
  * own pages/widgets/theme). The store keeps a list of dashboards plus the
  * currently active one, and exposes new/save/delete/rename helpers.
  */
+export type PADashboardVisibility = 'private' | 'public';
+
 export interface PADashboard {
   id: string;
   name: string;
@@ -18,6 +20,8 @@ export interface PADashboard {
   pages: PAPage[];
   activePageId: string;
   updatedAt: number;
+  /** Visibility tag — purely metadata in this offline-first store, surfaced in the dashboard list. */
+  visibility?: PADashboardVisibility;
 }
 
 interface PAReportState {
