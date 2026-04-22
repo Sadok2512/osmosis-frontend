@@ -7879,6 +7879,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const TECH_PANES: Record<string, string> = { '2G': 'pane2G', '3G': 'pane3G', '4G': 'pane4G', '5G': 'pane5G' };
 
           const allRings: React.ReactNode[] = [];
+          // Debug: log tech distribution in circleSites
+          if (circleSites.length > 0 && !(window as any).__techDebugLogged) {
+            const techCounts = { '2G': 0, '3G': 0, '4G': 0, '5G': 0 };
+            for (const s of circleSites) {
+              const st = inferSiteTechState(s);
+              if (st.has2G) techCounts['2G']++;
+              if (st.has3G) techCounts['3G']++;
+              if (st.has4G) techCounts['4G']++;
+              if (st.has5G) techCounts['5G']++;
+            }
+            console.log('[Concentric Debug]', { circleSites: circleSites.length, techCounts, enabledTechnos: [...enabledTechnos], mapTechnoFilter, showBeamSectors, showSectors, sectorColorMode });
+            (window as any).__techDebugLogged = true;
+          }
 
           for (const tech of TECH_ORDER) {
             if (!enabledTechnos.has(tech)) continue;
