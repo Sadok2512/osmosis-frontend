@@ -9259,11 +9259,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                disabled
+                onClick={() => {
+                  if (paramMode) {
+                    // Exit param mode
+                    handleParamReset();
+                  } else {
+                    // Enter param mode — open search dropdown
+                    setParamPanelOpen(true);
+                    setSectorColorMode('topo');
+                  }
+                }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  activeViewType === 'parameter'
+                  paramMode || paramPanelOpen
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-muted-foreground/40 cursor-not-allowed'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <MapPin size={11} />
@@ -9272,6 +9281,109 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
 
             <span className="w-px h-7 bg-border/50 shrink-0" />
+
+            {/* ── Param mode: search dropdown + active label ── */}
+            {(paramMode || paramPanelOpen) && (
+              <>
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setParamPanelOpen(v => !v)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-600 transition-all hover:bg-orange-500/15"
+                  >
+                    <MapPin size={12} />
+                    <span className="max-w-[160px] truncate">{paramConfirmed || 'Sélectionner...'}</span>
+                    {paramLoading ? (
+                      <span className="inline-block w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                    ) : (
+                      paramPanelOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </button>
+                  {paramPanelOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-[320px] bg-card border border-border rounded-xl shadow-2xl z-[2000] max-h-[400px] overflow-hidden">
+                      <div className="p-3 border-b border-border">
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Rechercher un paramètre..."
+                          className="w-full px-3 py-2 bg-muted/50 border border-border/50 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                          value={paramSearch}
+                          onChange={e => setParamSearch(e.target.value)}
+                        />
+                      </div>
+                      <div className="overflow-y-auto max-h-[320px]">
+                        {paramFilteredList.length === 0 && !paramAvailableLoading && (
+                          <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                            {paramSearch.length < 2 ? 'Tapez au moins 2 caractères' : 'Aucun paramètre trouvé'}
+                          </div>
+                        )}
+                        {paramAvailableLoading && (
+                          <div className="px-4 py-4 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+                            <span className="inline-block w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                            Recherche...
+                          </div>
+                        )}
+                        {paramFilteredList.map(p => (
+                          <button
+                            key={p}
+                            onClick={() => {
+                              setParamSelected(p);
+                              // Use a microtask to ensure paramSelected is set before handleParamConfirm reads it
+                              setTimeout(() => {
+                                // Directly trigger the fetch inline since handleParamConfirm reads stale paramSelected
+                                setParamConfirmed(p);
+                                setParamMode(true);
+                                setShowBeamSectors(false);
+                                setMapDisplayMode('points');
+                                setSectorColorMode('topo');
+                                setParamLoading(true);
+                                setParamPanelOpen(false);
+                                const bbox = viewport.bounds
+                                  ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
+                                  : '-180,-90,180,90';
+                                const filterParams = new URLSearchParams();
+                                filterParams.set('param', p);
+                                filterParams.set('bbox', bbox);
+                                filterParams.set('limit', '10000');
+                                fetch(getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`), { headers: getVpsProxyHeaders() })
+                                  .then(r => r.json())
+                                  .then(data => {
+                                    if (data.sites && data.sites.length > 0) {
+                                      const points: any[] = [];
+                                      let id = 0;
+                                      for (const site of data.sites) {
+                                        for (const cell of (site.cells || [])) {
+                                          points.push({ id: id++, cell_name: cell.cell_name, site_name: site.site_name, latitude: site.latitude, longitude: site.longitude, parameter: p, value: cell.value, bande: cell.bande, vendor: site.constructeur, dn: null });
+                                        }
+                                      }
+                                      setParamPoints(points);
+                                    } else { setParamPoints([]); }
+                                  })
+                                  .catch(() => setParamPoints([]))
+                                  .finally(() => setParamLoading(false));
+                              }, 0);
+                            }}
+                            className={`w-full text-left px-4 py-2.5 text-xs hover:bg-muted/50 transition-colors border-b border-border/30 ${
+                              p === paramConfirmed ? 'bg-orange-500/10 text-orange-600 font-bold' : ''
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {paramMode && (
+                  <button
+                    onClick={handleParamReset}
+                    className="px-2.5 py-1.5 rounded-lg text-[9px] font-bold text-red-500 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20 shrink-0"
+                    title="Fermer l'overlay paramètre"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </>
+            )}
 
             {/* ── KPI mode: dropdown selector + active label ── */}
             {sectorColorMode === 'kpi' && !paramMode && (
