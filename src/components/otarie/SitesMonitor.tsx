@@ -10011,6 +10011,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         );
       })()}
 
+      {showParamDropdown && (() => {
+        const btn = (window as any).__paramDropdownBtnRef as HTMLElement | null;
+        const rect = btn?.getBoundingClientRect();
+        const top = rect ? rect.bottom + 6 : 100;
+        const left = rect ? rect.left : 400;
+        return (
+          <>
+            <div className="fixed inset-0 z-[1199]" onClick={() => setShowParamDropdown(false)} />
+            <div
+              className="fixed z-[1200] bg-card/98 backdrop-blur-xl border border-border rounded-2xl shadow-2xl w-[320px] overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150 pointer-events-auto"
+              style={{ top, left }}
+            >
+              <div className="p-2 border-b border-border/40">
+                <div className="relative">
+                  <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    value={paramSearch}
+                    onChange={e => setParamSearch(e.target.value)}
+                    placeholder="Rechercher un paramètre..."
+                    className="w-full pl-7 pr-3 py-1.5 text-[10px] rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[360px] overflow-y-auto p-1">
+                {paramAvailableLoading ? (
+                  <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">Chargement…</div>
+                ) : paramFilteredList.length === 0 ? (
+                  <div className="py-4 text-center text-xs text-muted-foreground">Aucun paramètre</div>
+                ) : paramFilteredList.slice(0, 200).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => {
+                      setParamSearch('');
+                      void handleParamConfirm(p);
+                    }}
+                    className={`w-full flex items-center gap-2 px-2.5 py-2 text-[11px] rounded-xl transition-colors text-left ${
+                      paramConfirmed === p
+                        ? 'bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold'
+                        : 'text-foreground hover:bg-accent'
+                    }`}
+                  >
+                    <MapPin size={12} className="shrink-0" />
+                    <span className="truncate">{p}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        );
+      })()}
+
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
