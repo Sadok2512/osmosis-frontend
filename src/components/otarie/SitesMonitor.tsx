@@ -8091,7 +8091,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
                         // PRO #2: transparency 0.35–0.55 makes overlaps readable
-                        fillOpacity: isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor))),
+                        fillOpacity: (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale),
                         weight: isHovered ? 2 : 1.5, // PRO #3: stronger border
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : 0.9),
                       }}
