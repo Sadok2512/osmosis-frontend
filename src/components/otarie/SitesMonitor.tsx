@@ -7894,9 +7894,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const br = getBaseRadius(isHov, isSel);
               const colorOverride = getColorViewFill(site);
 
-              // Determine which techs this site has to compute proper concentric scale
+              // Determine which VISIBLE techs this site has (only enabled ones count for sizing)
               const st = inferSiteTechState(site);
               const siteTechs = TECH_ORDER.filter(t => {
+                if (!enabledTechnos.has(t)) return false;
+                if (mapTechnoFilter !== 'ALL' && mapTechnoFilter !== t) return false;
                 if (t === '2G') return st.has2G;
                 if (t === '3G') return st.has3G;
                 if (t === '4G') return st.has4G;
