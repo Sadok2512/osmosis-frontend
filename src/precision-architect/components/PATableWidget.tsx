@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ArrowUp, ArrowDown, Loader2, TableIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
 import { useTableQuery, TableRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
@@ -81,16 +82,24 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       return raw;
     };
 
+    // Only send real KPI columns to /monitor/query/table.
+    // PM counter columns (id prefix "cnt-") are not supported by this endpoint
+    // and would cause the backend to return 0 rows. They are filtered out and
+    // a toast notifies the user (once per apply).
+    const kpiOnlyColumns = cfg.columns.filter(c => c.visible && !c.id.startsWith('cnt-'));
+    const counterColumns = cfg.columns.filter(c => c.visible && c.id.startsWith('cnt-'));
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
-      kpi_keys: cfg.columns.filter(c => c.visible).map(c => c.kpiKey),
+      kpi_keys: kpiOnlyColumns.map(c => c.kpiKey),
       top_n: cfg.topN ?? 10,
       page: 1,
       page_size: Math.max(cfg.topN ?? 10, 50),
       _rev: effectiveAppliedRev,
-    } as TableRequest & { _rev: number };
+      _ignoredCounters: counterColumns.map(c => c.alias || c.kpiKey),
+    } as TableRequest & { _rev: number; _ignoredCounters: string[] };
   }, [
     cfg,
     hasColumns,
