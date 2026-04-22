@@ -7836,7 +7836,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
             const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
+            const showMini = isTagged && renderSiteCells.length > 0 && !isIndoor;
             return !showMini;
           });
 
