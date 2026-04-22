@@ -8456,7 +8456,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isFocusCell ? '#fff' : (isHovered ? '#fff' : strokeColor),
                       fillColor: fillColor,
-                      fillOpacity: Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale) * (sectorColorMode === 'kpi' && !isFocusFaded ? kpiOverlayIntensity * kpiOverlayTransparency : 1)),
+                      fillOpacity: sectorColorMode === 'kpi' && !isFocusFaded && !isFaded && !isCellDimmed
+                        ? Math.min(1, (isFocusCell || isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
+                        : Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale)),
                       weight: strokeWeight,
                       opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
