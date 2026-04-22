@@ -9302,18 +9302,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                onClick={() => {
-                  console.log('[SitesMonitor] Param mode toggle clicked', { paramMode, showParamDropdown, sectorColorMode, showRightPanel });
-                  // Activer PARAM désactive l'overlay KPI
-                  if (sectorColorMode === 'kpi') setSectorColorMode('topo');
-                  setShowKpiLegend(false);
-                  setShowParamDropdown(v => !v);
-                }}
-                title="Mode Paramètre — sélectionnez un paramètre à afficher"
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Le mode Paramètre s'active uniquement via une Vue de type Paramètre"
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl cursor-not-allowed ${
                   paramMode || activeViewType === 'parameter'
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground/40'
                 }`}
               >
                 <MapPin size={11} />
