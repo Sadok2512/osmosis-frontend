@@ -324,41 +324,86 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     if (!layer) return;
     layer.clearLayers();
 
-    filteredSites.forEach((s) => {
-      const color = cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981');
-      const radius = cfg.displayMode === 'cells' ? 4 : 6;
+    // Concentric tech-ring config: outer→inner = 2G > 3G > 4G > 5G
+    // Only render rings for techs actually present on the site.
+    const TECH_ORDER: ('2G' | '3G' | '4G' | '5G')[] = ['2G', '3G', '4G', '5G'];
+    const TECH_COLORS: Record<string, string> = {
+      '2G': '#8E44AD',
+      '3G': '#3498DB',
+      '4G': '#F39C12',
+      '5G': '#27AE60',
+    };
+    const detectTechs = (raw: string): ('2G' | '3G' | '4G' | '5G')[] => {
+      const v = String(raw || '').toUpperCase();
+      const out: ('2G' | '3G' | '4G' | '5G')[] = [];
+      if (v.includes('GSM') || v.includes('2G')) out.push('2G');
+      if (v.includes('UMTS') || v.includes('WCDMA') || v.includes('3G')) out.push('3G');
+      if (v.includes('LTE') || v.includes('4G')) out.push('4G');
+      if (v.includes('NR') || v.includes('5G')) out.push('5G');
+      return out;
+    };
 
-      const marker = L.circleMarker([s.lat, s.lon], {
-        radius,
-        color,
-        fillColor: color,
-        fillOpacity: 0.85,
-        weight: 1.5,
-        opacity: 1,
+    filteredSites.forEach((s) => {
+      const baseRadius = cfg.displayMode === 'cells' ? 5 : 8;
+      const siteTechs = detectTechs(s.techno);
+
+      // KPI overlay mode → single circle colored by status (no tech rings)
+      // Single tech → single full circle in tech color
+      // Multiple techs → concentric rings (largest 2G outer, smallest 5G inner)
+      const useKpiColor = !!cfg.kpiOverlay;
+      const overrideColor = useKpiColor ? colorFor(s.status) : (cfg.defaultColor || null);
+
+      const renderTechs: (('2G' | '3G' | '4G' | '5G') | null)[] =
+        siteTechs.length > 0 && !useKpiColor && !cfg.defaultColor
+          ? siteTechs
+          : [null]; // single circle fallback
+
+      renderTechs.forEach((tech, idx) => {
+        // Concentric scale: outermost (2G) full radius, each inner ring smaller.
+        let ringRadius = baseRadius;
+        if (renderTechs.length > 1) {
+          const step = 1.0 / renderTechs.length;
+          const scale = 1.0 - idx * step;
+          ringRadius = Math.max(Math.round(baseRadius * scale), 2);
+        }
+
+        const fillColor = tech
+          ? TECH_COLORS[tech]
+          : (overrideColor || '#10b981');
+
+        const marker = L.circleMarker([s.lat, s.lon], {
+          radius: ringRadius,
+          color: fillColor,
+          fillColor,
+          fillOpacity: renderTechs.length > 1 ? 0.65 : 0.85,
+          weight: 1.25,
+          opacity: 1,
+          pane: 'markerPane',
+        });
+
+        const technoLine = s.techno ? `<div style="font-size:10px;opacity:0.75">${s.techno}</div>` : '';
+        marker.bindTooltip(
+          `<div style="font-weight:700;font-size:11px">${s.name}</div>` +
+            `<div style="font-size:10px;opacity:0.75">${s.vendor} · QoE ${s.intensity}</div>` +
+            technoLine,
+          { direction: 'top', offset: [0, -8], opacity: 0.95 },
+        );
+
+        if (idx === 0 && cfg.showLabels && cfg.displayMode === 'sites' && filteredSites.length < 200) {
+          marker.bindTooltip(s.name, {
+            permanent: true,
+            direction: 'top',
+            offset: [0, -8],
+            className: 'pa-map-label',
+            opacity: 0.9,
+          });
+        }
+
+        layer.addLayer(marker);
       });
 
-      const technoLine = s.techno ? `<div style="font-size:10px;opacity:0.75">${s.techno}</div>` : '';
-      marker.bindTooltip(
-        `<div style="font-weight:700;font-size:11px">${s.name}</div>` +
-          `<div style="font-size:10px;opacity:0.75">${s.vendor} · QoE ${s.intensity}</div>` +
-          technoLine,
-        { direction: 'top', offset: [0, -8], opacity: 0.95 },
-      );
-
-      if (cfg.showLabels && cfg.displayMode === 'sites' && filteredSites.length < 200) {
-        // Only show permanent labels for small result sets to avoid label overlap.
-        marker.bindTooltip(s.name, {
-          permanent: true,
-          direction: 'top',
-          offset: [0, -8],
-          className: 'pa-map-label',
-          opacity: 0.9,
-        });
-      }
-
-      layer.addLayer(marker);
-
       if (cfg.showSectors) {
+        const color = useKpiColor ? colorFor(s.status) : (cfg.defaultColor || '#10b981');
         [0, 120, 240].forEach((angle) => {
           const r = 0.06;
           const rad = (angle * Math.PI) / 180;
