@@ -9263,6 +9263,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={() => {
                   if (!activeViewId) return;
+                  // Activer KPI désactive le mode Paramètre
+                  if (paramMode || paramConfirmed) handleParamReset();
                   setSectorColorMode('kpi');
                   setMapDisplayMode('sites');
                 }}
@@ -9270,7 +9272,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
                   !activeViewId
                     ? 'text-muted-foreground/40 cursor-not-allowed'
-                    : sectorColorMode === 'kpi' && activeViewType !== 'parameter'
+                    : sectorColorMode === 'kpi' && !paramMode && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -9279,9 +9281,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 KPI
               </button>
               <button
-                onClick={() => { setSectorColorMode('topo'); setShowBeamSectors(false); setMapDisplayMode('sites'); setTopoResetCounter(c => c + 1); setShowRightPanel(true); setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }}
+                onClick={() => {
+                  if (paramMode || paramConfirmed) handleParamReset();
+                  setSectorColorMode('topo');
+                  setShowBeamSectors(false);
+                  setMapDisplayMode('sites');
+                  setTopoResetCounter(c => c + 1);
+                  setShowRightPanel(true);
+                  setFocusMode('global');
+                  setSelectedSiteId(null);
+                  setSelectedSiteSnapshot(null);
+                }}
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                  sectorColorMode === 'topo' && activeViewType !== 'parameter'
+                  sectorColorMode === 'topo' && !paramMode && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
@@ -9292,6 +9304,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <button
                 onClick={() => {
                   console.log('[SitesMonitor] Param mode toggle clicked', { paramMode, showParamDropdown, sectorColorMode, showRightPanel });
+                  // Activer PARAM désactive l'overlay KPI
+                  if (sectorColorMode === 'kpi') setSectorColorMode('topo');
+                  setShowKpiLegend(false);
                   setShowParamDropdown(v => !v);
                 }}
                 title="Mode Paramètre — sélectionnez un paramètre à afficher"
