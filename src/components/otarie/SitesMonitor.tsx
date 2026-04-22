@@ -7465,9 +7465,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             };
             // Cell-count density scale: dense sites get bigger sectors (sqrt scaling, clamped)
             const cellCountScale = getCellCountScale(renderSiteCells.length);
-            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * 0.7 * cellCountScale;
-            // PRO #2/#3: lighter fill + stronger outline for readability
-            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08);
+            // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
+            const siteDF = getSiteDensityFactor(site.site_id);
+            const siteOpacityScale = getSiteOpacityScale(site.site_id);
+            const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * 0.7 * cellCountScale;
+            // PRO #2/#3: lighter fill + stronger outline for readability — dense zones get extra opacity dampening
+            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale;
             const azimuths = getValidSectorAzimuths(renderSiteForCells);
             if (azimuths.length === 0) return null;
             // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
