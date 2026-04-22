@@ -112,22 +112,27 @@ const PAEChart: React.FC<PAEChartProps> = ({
         }] : []),
       ];
 
-      // Stacking applies only when the *global* chart type is bar or area AND
-      // the user explicitly opted in. Mixed metric types within a stacked chart
-      // share the same stack id only when their seriesType matches.
-      const stackEnabled = !!style.stacked && (style.chartType === 'bar' || style.chartType === 'area');
+      // Stacking applies when the *global* chart type is bar/area + opt-in,
+      // OR when a per-metric type explicitly requests stacking.
+      const globalStackOptIn = !!style.stacked && (style.chartType === 'bar' || style.chartType === 'area');
 
       series = visible.map((m, idx) => {
         const metricType = m.graphType ?? style.chartType;
-        const seriesType = metricType === 'bar' ? 'bar' : 'line';
+        const isBar = metricType === 'bar' || metricType === 'stackedBar';
+        const isStep = metricType === 'stepLine';
+        const isStackedAreaMetric = metricType === 'stackedArea';
+        const isStackedBarMetric = metricType === 'stackedBar';
+        const seriesType = isBar ? 'bar' : 'line';
         const wantsArea = seriesType === 'line' && (
           (m as any).fillArea === true ||
           metricType === 'area' ||
+          isStackedAreaMetric ||
           (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')
         );
         // Stack id: same axis + same seriesType (bar↔bar, area↔area). Pure
         // lines never stack — they remain trend overlays.
-        const canStack = stackEnabled && (seriesType === 'bar' || wantsArea);
+        const metricStackOptIn = isStackedBarMetric || isStackedAreaMetric;
+        const canStack = (globalStackOptIn || metricStackOptIn) && (seriesType === 'bar' || wantsArea);
         const stackId = canStack
           ? `pa-stack-${m.axis === 'right' ? 'r' : 'l'}-${seriesType === 'bar' ? 'bar' : 'area'}`
           : undefined;
@@ -162,7 +167,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
           name: m.alias || m.kpiKey,
           type: seriesType,
           stack: stackId,
-          smooth: (m as any).smooth ?? style.smooth,
+          // Step lines render as horizontal-then-vertical stairs (state changes).
+          step: isStep ? ('end' as const) : false,
+          // Smoothing is meaningless on step lines and on bars.
+          smooth: isStep || isBar ? false : ((m as any).smooth ?? style.smooth),
           showSymbol: false,
           // Treat null/undefined safely so stacked series don't break on missing slots.
           connectNulls: seriesType === 'line',
