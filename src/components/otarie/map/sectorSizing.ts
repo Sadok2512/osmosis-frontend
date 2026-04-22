@@ -43,9 +43,9 @@ export const getZoomAwareRadius = (
  * Tagged site radius with inverse zoom scaling.
  */
 export const getTaggedRadius = (zoom: number): number => {
-  const BASE = 350;
-  const MIN_RADIUS = 200;
-  const MAX_RADIUS = 2500;
+  const BASE = 700;
+  const MIN_RADIUS = 400;
+  const MAX_RADIUS = 5000;
   const REF_ZOOM = 12;
   const scale = Math.pow(2, REF_ZOOM - zoom);
   return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
