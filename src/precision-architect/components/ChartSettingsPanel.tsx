@@ -1242,7 +1242,7 @@ function MetricsTab({
                   {/* Section: Axis & Display */}
                   <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 p-3">
                     <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-2">Axis & Display</div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                       <Field label="Axis">
                         <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
                           {(['left', 'right'] as AxisSide[]).map(side => (
