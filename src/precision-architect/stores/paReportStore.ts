@@ -11,6 +11,8 @@ import type { PAPage, ViewMode } from '../types';
  * own pages/widgets/theme). The store keeps a list of dashboards plus the
  * currently active one, and exposes new/save/delete/rename helpers.
  */
+export type PADashboardVisibility = 'private' | 'public';
+
 export interface PADashboard {
   id: string;
   name: string;
@@ -18,6 +20,8 @@ export interface PADashboard {
   pages: PAPage[];
   activePageId: string;
   updatedAt: number;
+  /** Visibility tag — purely metadata in this offline-first store, surfaced in the dashboard list. */
+  visibility?: PADashboardVisibility;
 }
 
 interface PAReportState {
@@ -49,6 +53,7 @@ interface PAReportState {
   deleteDashboard: (id: string) => void;
   switchDashboard: (id: string) => void;
   renameDashboard: (id: string, name: string) => void;
+  setDashboardVisibility: (id: string, visibility: PADashboardVisibility) => void;
 }
 
 const INITIAL_PAGES: PAPage[] = [
@@ -64,6 +69,7 @@ const INITIAL_DASHBOARD: PADashboard = {
   pages: INITIAL_PAGES,
   activePageId: 'page-1',
   updatedAt: Date.now(),
+  visibility: 'private',
 };
 
 export const usePAReportStore = create<PAReportState>()(
@@ -112,6 +118,7 @@ export const usePAReportStore = create<PAReportState>()(
           pages: [{ id: firstPageId, name: 'Page 1', widgets: [], sections: [] }],
           activePageId: firstPageId,
           updatedAt: Date.now(),
+          visibility: 'private',
         };
         set((s) => ({
           dashboards: [...s.dashboards, fresh],
@@ -125,7 +132,7 @@ export const usePAReportStore = create<PAReportState>()(
 
       saveActiveDashboard: () =>
         set((s) => {
-          const exists = s.dashboards.some((d) => d.id === s.activeDashboardId);
+          const existing = s.dashboards.find((d) => d.id === s.activeDashboardId);
           const snapshot: PADashboard = {
             id: s.activeDashboardId,
             name: s.projectName,
@@ -133,8 +140,9 @@ export const usePAReportStore = create<PAReportState>()(
             pages: s.pages,
             activePageId: s.activePageId,
             updatedAt: Date.now(),
+            visibility: existing?.visibility ?? 'private',
           };
-          const dashboards = exists
+          const dashboards = existing
             ? s.dashboards.map((d) => (d.id === s.activeDashboardId ? snapshot : d))
             : [...s.dashboards, snapshot];
           return { dashboards };
@@ -193,6 +201,13 @@ export const usePAReportStore = create<PAReportState>()(
         set((s) => ({
           dashboards: s.dashboards.map((d) => (d.id === id ? { ...d, name } : d)),
           projectName: id === s.activeDashboardId ? name : s.projectName,
+        })),
+
+      setDashboardVisibility: (id, visibility) =>
+        set((s) => ({
+          dashboards: s.dashboards.map((d) =>
+            d.id === id ? { ...d, visibility, updatedAt: Date.now() } : d,
+          ),
         })),
     }),
     {

@@ -206,11 +206,17 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const markSaved = usePAReportStore((s) => s.markSaved);
   const renameDashboard = usePAReportStore((s) => s.renameDashboard);
   const activeDashboardId = usePAReportStore((s) => s.activeDashboardId);
+  const dashboards = usePAReportStore((s) => s.dashboards);
+  const setDashboardVisibility = usePAReportStore((s) => s.setDashboardVisibility);
+  const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
 
   const activePage = pages.find((p) => p.id === activePageId);
   const activeTheme = activePage?.theme ?? DEFAULT_DASHBOARD_THEME;
 
-  const [draft, setDraft] = useState<DraftConfig>(() => readDraft(projectName, activeTheme));
+  const [draft, setDraft] = useState<DraftConfig>(() => {
+    const base = readDraft(projectName, activeTheme);
+    return { ...base, visibility: activeDashboard?.visibility ?? base.visibility };
+  });
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     general: true,
     reportInfo: false,
@@ -224,7 +230,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   // Reset the draft when the user switches active page so the panel reflects the
   // new page's saved theme (otherwise stale fields hide the issue).
   useEffect(() => {
-    setDraft(readDraft(projectName, activeTheme));
+    const base = readDraft(projectName, activeTheme);
+    setDraft({ ...base, visibility: activeDashboard?.visibility ?? base.visibility });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePageId, activeDashboardId]);
 
@@ -395,6 +402,44 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
               </div>
             </div>
           )}
+          <div className="pt-2 border-t border-outline-variant/15">
+            <FieldLabel>Visibility</FieldLabel>
+            <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1 mb-2">
+              Choose who can see this dashboard in the dashboard list.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  update('visibility', 'private');
+                  setDashboardVisibility(activeDashboardId, 'private');
+                }}
+                className={cn(
+                  'flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest border-2 transition-all',
+                  draft.visibility === 'private'
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline-variant/30 text-on-surface-variant hover:border-primary/30',
+                )}
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                Private
+              </button>
+              <button
+                onClick={() => {
+                  update('visibility', 'public');
+                  setDashboardVisibility(activeDashboardId, 'public');
+                }}
+                className={cn(
+                  'flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest border-2 transition-all',
+                  draft.visibility === 'public'
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline-variant/30 text-on-surface-variant hover:border-primary/30',
+                )}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Public
+              </button>
+            </div>
+          </div>
         </CollapsibleSection>
 
         <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
