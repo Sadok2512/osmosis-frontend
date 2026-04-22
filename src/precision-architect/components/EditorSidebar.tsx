@@ -402,9 +402,45 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
               </div>
             </div>
           )}
+          <div className="pt-2 border-t border-outline-variant/15">
+            <FieldLabel>Visibility</FieldLabel>
+            <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1 mb-2">
+              Choose who can see this dashboard in the dashboard list.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  update('visibility', 'private');
+                  setDashboardVisibility(activeDashboardId, 'private');
+                }}
+                className={cn(
+                  'flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest border-2 transition-all',
+                  draft.visibility === 'private'
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline-variant/30 text-on-surface-variant hover:border-primary/30',
+                )}
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+                Private
+              </button>
+              <button
+                onClick={() => {
+                  update('visibility', 'public');
+                  setDashboardVisibility(activeDashboardId, 'public');
+                }}
+                className={cn(
+                  'flex items-center justify-center gap-2 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest border-2 transition-all',
+                  draft.visibility === 'public'
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-outline-variant/30 text-on-surface-variant hover:border-primary/30',
+                )}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                Public
+              </button>
+            </div>
+          </div>
         </CollapsibleSection>
-
-        <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
           <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1">
             Contextual metadata shown on the right side of the report header.
           </p>
