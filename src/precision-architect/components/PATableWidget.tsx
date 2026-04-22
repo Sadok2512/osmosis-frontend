@@ -222,9 +222,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
         {(() => {
           // Build context columns: Timestamp + active filters + split dimension
           const hasTs = rows.some(r => r.ts);
+          // Exclude filter dimensions that are already shown as split column
+          const splitDim = splitInUse ? splitInUse.toUpperCase() : null;
           const filterContextCols = effectiveFilters
             .reduce((acc, f) => {
               const dim = toBackendDimension(f.dimension);
+              if (splitDim && dim.toUpperCase() === splitDim) return acc; // skip — shown in split column
               if (!acc.find(a => a.dim === dim)) acc.push({ dim, values: [f.value] });
               else acc.find(a => a.dim === dim)!.values.push(f.value);
               return acc;
