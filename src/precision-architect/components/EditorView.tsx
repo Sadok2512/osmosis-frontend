@@ -36,7 +36,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 
 const GridLayout = WidthProvider(ReactGridLayout);
-import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG } from '../types';
+import { ViewMode, PAPage, PASection, WidgetKind, DynWidget, WidgetLayout, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, DEFAULT_MAP_CONFIG, DEFAULT_CHART_CONFIG, DEFAULT_DASHBOARD_THEME, DashboardTheme } from '../types';
 import { cn } from '@/lib/utils';
 import EditorSidebar from './EditorSidebar';
 import PAToolbar from './PAToolbar';
@@ -125,6 +125,12 @@ export default function EditorView({
 
   const updateSections = (updater: (s: PASection[]) => PASection[]) => {
     setPages(prev => prev.map(p => p.id === activePageId ? { ...p, sections: updater(p.sections ?? []) } : p));
+  };
+
+  const patchActivePageTheme = (patch: Partial<DashboardTheme>) => {
+    setPages(prev => prev.map(p => p.id === activePageId
+      ? { ...p, theme: { ...DEFAULT_DASHBOARD_THEME, ...(p.theme ?? {}), ...patch } }
+      : p));
   };
 
   const addSection = () => {
@@ -494,7 +500,14 @@ export default function EditorView({
           }}
         >
           <div className={cn(widthClass, 'mx-auto')} style={{ display: 'flex', flexDirection: 'column', gap: spacing }}>
-            <ReportHeader theme={theme} projectName={projectName} pageName={activePage?.name} size="md" />
+            <ReportHeader
+              theme={theme}
+              projectName={projectName}
+              pageName={activePage?.name}
+              size="md"
+              editable
+              onThemePatch={patchActivePageTheme}
+            />
 
             {widgets.length === 0 && sections.length === 0 && (
               <div className="bg-white/40 border-2 border-dashed border-outline-variant/60 p-16 rounded-2xl flex flex-col items-center justify-center gap-4 text-center">

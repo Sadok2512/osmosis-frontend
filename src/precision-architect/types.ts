@@ -418,6 +418,10 @@ export interface DashboardTheme {
   showPhoto?: boolean;
   /** Data URL or remote URL of the header photo. */
   photoUrl?: string;
+  /** Header photo position relative to the title block. */
+  photoPosition?: 'left' | 'right' | 'top' | 'full';
+  /** Header photo width in pixels (height is auto, max-height is capped). */
+  photoSize?: number;
   /** Report Info block displayed on the right side of the report header. */
   reportInfo?: {
     show: boolean;
@@ -444,6 +448,8 @@ export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
   showReportName: true,
   showPhoto: false,
   photoUrl: '',
+  photoPosition: 'left',
+  photoSize: 128,
   reportInfo: {
     show: true,
     perimeter: true,
