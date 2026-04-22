@@ -112,7 +112,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     // Split is driven exclusively by per-column state. The legacy widget-level
     // cfg.splitBy is intentionally ignored so old saved values can never resurrect
     // a split after the user chose "No split" in Edit KPI.
-    const effectiveSplitBy = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const rawSplitBy = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const effectiveSplitBy = rawSplitBy ? toBackendDimension(rawSplitBy) : null;
 
     return {
       date_from: normalizeDate(eff.from),
@@ -167,7 +168,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
 
   const splitInUse = (() => {
     const cols = (cfg?.columns ?? []).filter(c => c.visible);
-    return cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    const raw = cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
+    return raw ? toBackendDimension(raw) : null;
   })();
   const sourceTables = (tableResp as any)?.source_tables;
 
