@@ -414,6 +414,10 @@ export interface DashboardTheme {
   showDate?: boolean;
   /** Show the report name (title) in the page header (left side). */
   showReportName?: boolean;
+  /** Show a photo/illustration in the page header. */
+  showPhoto?: boolean;
+  /** Data URL or remote URL of the header photo. */
+  photoUrl?: string;
   /** Report Info block displayed on the right side of the report header. */
   reportInfo?: {
     show: boolean;
@@ -438,6 +442,8 @@ export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
   showLogo: true,
   showDate: true,
   showReportName: true,
+  showPhoto: false,
+  photoUrl: '',
   reportInfo: {
     show: true,
     perimeter: true,
