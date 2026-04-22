@@ -887,7 +887,8 @@ export default function EditorView({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className="fixed top-0 right-0 h-screen z-[60] w-full sm:w-[400px] max-w-full pointer-events-auto"
+              className="z-[60] w-full sm:w-[400px] max-w-full pointer-events-auto flex flex-col"
+              style={{ position: 'fixed', top: 0, right: 0, bottom: 0, height: '100vh' }}
               onKeyDown={(e) => { if (e.key === 'Escape') setShowSettings(false); }}
               tabIndex={-1}
             >
