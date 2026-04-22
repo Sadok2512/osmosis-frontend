@@ -34,6 +34,8 @@ export interface ChartMetric {
   smooth?: boolean;
   /** Whether to fill the area under the line. */
   fillArea?: boolean;
+  /** Per-metric split dimension (CELL, SITE, PLAQUE, BANDE, …). null/undefined = aggregate (single series). */
+  splitBy?: string | null;
 }
 
 export interface ChartThreshold {
