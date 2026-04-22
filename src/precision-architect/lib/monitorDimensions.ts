@@ -55,6 +55,19 @@ const UI_TO_BACKEND: Record<string, string> = {
   BCLUSTER: 'BCluster',
 };
 
+function normalizeDimensionAlias(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+const NORMALIZED_UI_TO_BACKEND = Object.fromEntries(
+  Object.entries(UI_TO_BACKEND).map(([key, mapped]) => [normalizeDimensionAlias(key), mapped]),
+);
+
 /**
  * Map any UI dimension label / cache key to the dimension string the
  * monitor backend expects in MonitorFilter.dimension.
@@ -64,7 +77,8 @@ const UI_TO_BACKEND: Record<string, string> = {
  */
 export function toBackendDimension(uiDim: string): string {
   if (!uiDim) return uiDim;
-  return UI_TO_BACKEND[uiDim] ?? uiDim;
+  const trimmed = uiDim.replace(/\s+/g, ' ').trim();
+  return UI_TO_BACKEND[trimmed] ?? NORMALIZED_UI_TO_BACKEND[normalizeDimensionAlias(trimmed)] ?? trimmed;
 }
 
 /**
