@@ -8,25 +8,16 @@ interface ReportHeaderProps {
   theme: DashboardTheme | undefined;
   projectName: string;
   pageName?: string;
-  /** Visual scale: 'editor' | 'viewer' | 'presentation'. */
   size?: 'sm' | 'md' | 'lg';
-  /** When true, the photo shows resize/position controls (edit mode only). */
   editable?: boolean;
-  /** Live patch the page theme (used when editable=true). */
   onThemePatch?: (patch: Partial<DashboardTheme>) => void;
 }
 
 const PHOTO_MIN = 64;
 const PHOTO_MAX = 480;
+const OFFSET_MIN = -240;
+const OFFSET_MAX = 240;
 
-/**
- * Renders the report header with three independent blocks:
- *  - Photo (configurable position): controlled by `theme.showPhoto`
- *  - Report Name (left): controlled by `theme.showReportName`
- *  - Report Info (right): controlled by `theme.reportInfo.show`
- *
- * In edit mode, the photo gains a drag-to-resize handle and a quick position picker.
- */
 export default function ReportHeader({
   theme,
   projectName,
@@ -47,6 +38,8 @@ export default function ReportHeader({
   const showPhoto = !!theme?.showPhoto && !!theme?.photoUrl;
   const photoPosition = theme?.photoPosition ?? 'left';
   const photoSize = Math.max(PHOTO_MIN, Math.min(PHOTO_MAX, theme?.photoSize ?? 128));
+  const photoOffsetX = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, theme?.photoOffsetX ?? 0));
+  const photoOffsetY = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, theme?.photoOffsetY ?? 0));
 
   const titleColor = theme?.titleColor || theme?.accentColor;
   const headerAlignClass =
@@ -69,7 +62,6 @@ export default function ReportHeader({
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   };
 
-  // Bail early if nothing visible.
   if (!showReportName && !showInfoBlock && !showPhoto) return null;
 
   const infoItems: Array<{ key: string; icon: typeof Calendar; label: string; value: string }> = [];
@@ -129,16 +121,18 @@ export default function ReportHeader({
       url={theme!.photoUrl!}
       width={photoSize}
       position={photoPosition}
+      offsetX={photoOffsetX}
+      offsetY={photoOffsetY}
       editable={editable}
       onResize={(w) => onThemePatch?.({ photoSize: w })}
-      onPositionChange={(p) => onThemePatch?.({ photoPosition: p })}
+      onPositionChange={(p) => onThemePatch?.({ photoPosition: p, photoOffsetX: 0, photoOffsetY: 0 })}
+      onOffsetChange={(x, y) => onThemePatch?.({ photoOffsetX: x, photoOffsetY: y })}
     />
   ) : null;
 
-  // Layout depends on photo position.
   if (photoPosition === 'top' || photoPosition === 'full') {
     return (
-      <header className="w-full flex flex-col gap-4">
+      <header className="w-full flex flex-col gap-4 overflow-visible">
         {photoBlock}
         <div className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           {titleBlock}
@@ -148,10 +142,9 @@ export default function ReportHeader({
     );
   }
 
-  // Left or right placement: photo sits inline with the title.
   return (
-    <header className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-      <div className="flex items-start gap-4 min-w-0 flex-1">
+    <header className="w-full flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 overflow-visible">
+      <div className="flex items-start gap-4 min-w-0 flex-1 overflow-visible">
         {photoPosition === 'left' && photoBlock}
         {titleBlock}
         {photoPosition === 'right' && photoBlock}
@@ -165,53 +158,88 @@ interface PhotoBoxProps {
   url: string;
   width: number;
   position: 'left' | 'right' | 'top' | 'full';
+  offsetX: number;
+  offsetY: number;
   editable: boolean;
   onResize: (w: number) => void;
   onPositionChange: (p: 'left' | 'right' | 'top' | 'full') => void;
+  onOffsetChange: (x: number, y: number) => void;
 }
 
-function PhotoBox({ url, width, position, editable, onResize, onPositionChange }: PhotoBoxProps) {
-  const startRef = useRef<{ x: number; y: number; w: number } | null>(null);
-  const [dragging, setDragging] = useState(false);
+function PhotoBox({
+  url,
+  width,
+  position,
+  offsetX,
+  offsetY,
+  editable,
+  onResize,
+  onPositionChange,
+  onOffsetChange,
+}: PhotoBoxProps) {
+  const resizeRef = useRef<{ x: number; w: number } | null>(null);
+  const moveRef = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const [dragging, setDragging] = useState<false | 'resize' | 'move'>(false);
+
+  const stopAll = useCallback(() => {
+    resizeRef.current = null;
+    moveRef.current = null;
+    setDragging(false);
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', stopAll);
+  }, []);
 
   const onPointerMove = useCallback(
     (e: PointerEvent) => {
-      if (!startRef.current) return;
-      const dx = e.clientX - startRef.current.x;
-      // For 'right' position, drag-left should grow the image; mirror delta.
-      const factor = position === 'right' ? -1 : 1;
-      const next = Math.max(PHOTO_MIN, Math.min(PHOTO_MAX, startRef.current.w + dx * factor));
-      onResize(Math.round(next));
+      if (resizeRef.current) {
+        const dx = e.clientX - resizeRef.current.x;
+        const factor = position === 'right' ? -1 : 1;
+        const next = Math.max(PHOTO_MIN, Math.min(PHOTO_MAX, resizeRef.current.w + dx * factor));
+        onResize(Math.round(next));
+        return;
+      }
+      if (moveRef.current) {
+        const dx = e.clientX - moveRef.current.x;
+        const dy = e.clientY - moveRef.current.y;
+        const nextX = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, moveRef.current.ox + dx));
+        const nextY = Math.max(OFFSET_MIN, Math.min(OFFSET_MAX, moveRef.current.oy + dy));
+        onOffsetChange(Math.round(nextX), Math.round(nextY));
+      }
     },
-    [onResize, position],
+    [onOffsetChange, onResize, position],
   );
-
-  const onPointerUp = useCallback(() => {
-    startRef.current = null;
-    setDragging(false);
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
-  }, [onPointerMove]);
 
   useEffect(() => {
     return () => {
       window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointerup', stopAll);
     };
-  }, [onPointerMove, onPointerUp]);
+  }, [onPointerMove, stopAll]);
 
-  const beginDrag = (e: React.PointerEvent) => {
+  const beginResize = (e: React.PointerEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    startRef.current = { x: e.clientX, y: e.clientY, w: width };
-    setDragging(true);
+    resizeRef.current = { x: e.clientX, w: width };
+    moveRef.current = null;
+    setDragging('resize');
     window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointerup', stopAll);
   };
 
-  // 'full' fills the row; explicit width is ignored for full-width.
+  const beginMove = (e: React.PointerEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    moveRef.current = { x: e.clientX, y: e.clientY, ox: offsetX, oy: offsetY };
+    resizeRef.current = null;
+    setDragging('move');
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', stopAll);
+  };
+
   const wrapperStyle: React.CSSProperties =
-    position === 'full' ? { width: '100%' } : { width };
+    position === 'full'
+      ? { width: '100%', transform: `translate(${offsetX}px, ${offsetY}px)` }
+      : { width, transform: `translate(${offsetX}px, ${offsetY}px)` };
 
   return (
     <div
@@ -232,9 +260,14 @@ function PhotoBox({ url, width, position, editable, onResize, onPositionChange }
 
       {editable && (
         <>
-          {/* Position picker (top-left) */}
           <div className="absolute top-2 left-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white rounded-lg p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Move className="w-3 h-3 mx-1 opacity-70" />
+            <button
+              onPointerDown={beginMove}
+              className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded hover:bg-white/15 text-white"
+              title="Drag to move"
+            >
+              <Move className="w-3 h-3" /> Move
+            </button>
             {(['left', 'right', 'top', 'full'] as const).map((p) => (
               <button
                 key={p}
@@ -249,18 +282,16 @@ function PhotoBox({ url, width, position, editable, onResize, onPositionChange }
             ))}
           </div>
 
-          {/* Size badge (top-right) */}
           <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-            {position === 'full' ? '100%' : `${width}px`}
+            {position === 'full' ? '100%' : `${width}px`} · x:{offsetX} y:{offsetY}
           </div>
 
-          {/* Resize handle (bottom-right corner) — disabled for 'full' since width is constrained */}
           {position !== 'full' && (
             <div
-              onPointerDown={beginDrag}
+              onPointerDown={beginResize}
               className={cn(
                 'absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize bg-primary/90 text-white rounded-tl-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity',
-                dragging && 'opacity-100',
+                dragging === 'resize' && 'opacity-100',
               )}
               title="Drag to resize"
             >
