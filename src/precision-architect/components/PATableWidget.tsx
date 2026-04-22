@@ -109,13 +109,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // Per-KPI split: derive an effective global split_by from columns.
-    // Priority order:
-    //   1. If any visible column defines its own splitBy → use that (first one wins).
-    //   2. Else fall back to the legacy widget-level cfg.splitBy.
-    //   3. Else null = aggregate (one row per KPI).
+    // Per-KPI split: once any column carries a splitBy field, widget-level legacy
+    // split must no longer take over. This avoids resurrecting an old saved
+    // cfg.splitBy='CELL' after the user explicitly chose "No split" in Edit KPI.
+    const hasPerColumnSplitState = resolvedColumns.some(c => 'splitBy' in c);
     const columnSplit = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    const legacySplit = cfg.splitBy && cfg.splitBy !== '__none__' ? cfg.splitBy : null;
+    const legacySplit = (!hasPerColumnSplitState && cfg.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
     const effectiveSplitBy = columnSplit ?? legacySplit;
 
     return {
