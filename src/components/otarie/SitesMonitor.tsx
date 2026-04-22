@@ -7823,7 +7823,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isHovered = hoveredSiteId === site.site_id;
           const isSelectedSite = selectedSiteId === site.site_id;
           const isTaggedSite = isSiteTagged(site.site_id);
-          if (densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
+          // LOD filtering: only at zoom < 12 (overview declutter). At zoom 12+ all sites render.
+          if (viewport.zoom < 12 && densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
