@@ -9268,17 +9268,45 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 Topo
               </button>
               <button
-                disabled
+                onClick={() => setShowParamDropdown(v => !v)}
+                title="Mode Paramètre — sélectionnez un paramètre à afficher"
                 className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl ${
-                  activeViewType === 'parameter'
+                  paramMode || activeViewType === 'parameter'
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-muted-foreground/40 cursor-not-allowed'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 <MapPin size={11} />
                 Param
               </button>
             </div>
+
+            {/* ── Param mode: active parameter selector (mirrors KPI dropdown) ── */}
+            {paramMode && (
+              <>
+                <div className="relative shrink-0">
+                  <button
+                    onClick={() => setShowParamDropdown(v => !v)}
+                    className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] font-bold text-orange-600 dark:text-orange-400 transition-all hover:bg-orange-500/15"
+                  >
+                    <MapPin size={12} />
+                    <span className="max-w-[180px] truncate">{paramConfirmed || 'Sélectionner…'}</span>
+                    {paramLoading ? (
+                      <span className="inline-block w-3 h-3 border-2 border-orange-500/30 border-t-orange-500 rounded-full animate-spin" />
+                    ) : (
+                      showParamDropdown ? <ChevronUp size={10} /> : <ChevronDown size={10} />
+                    )}
+                  </button>
+                </div>
+                <button
+                  onClick={handleParamReset}
+                  className="px-2 py-1.5 rounded-lg text-[9px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent transition-all shrink-0"
+                  title="Quitter le mode Paramètre"
+                >
+                  <X size={11} />
+                </button>
+              </>
+            )}
 
             <span className="w-px h-7 bg-border/50 shrink-0" />
 
