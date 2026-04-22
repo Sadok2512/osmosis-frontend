@@ -37,15 +37,20 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     ? widgetRev + global.appliedRev
     : widgetRev;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
+  const globalSnap = global.applied;
+  const gFrom = globalSnap?.from ?? global.from;
+  const gTo = globalSnap?.to ?? global.to;
+  const gTechnos = globalSnap?.technos ?? global.technos;
+  const gFilters = globalSnap?.filters ?? global.filters;
 
   const request: TableRequest | null = useMemo(() => {
     if (!cfg || !hasColumns || !hasBeenApplied) return null;
 
     const eff = {
-      from: inheritsTime ? global.from : cfg.data.timeRange.from,
-      to: inheritsTime ? global.to : cfg.data.timeRange.to,
-      technos: inheritsScope ? global.technos : cfg.data.technos,
-      filters: inheritsScope ? global.filters : cfg.data.filters,
+      from: inheritsTime ? gFrom : cfg.data.timeRange.from,
+      to: inheritsTime ? gTo : cfg.data.timeRange.to,
+      technos: inheritsScope ? gTechnos : cfg.data.technos,
+      filters: inheritsScope ? gFilters : cfg.data.filters,
     };
 
     // Normalize dimensions to backend keys (Techno → RAT, Constructeur → Vendor, …)
@@ -80,7 +85,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: cfg.columns.filter(c => c.visible).map(c => c.kpiKey),
-      split_by: cfg.splitBy,
+      split_by: cfg.splitBy ? toBackendDimension(cfg.splitBy) : null,
       top_n: cfg.topN,
     };
   }, [
@@ -89,10 +94,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     hasBeenApplied,
     inheritsTime,
     inheritsScope,
-    global.from,
-    global.to,
-    global.technos,
-    global.filters,
+    gFrom,
+    gTo,
+    gTechnos,
+    gFilters,
     effectiveAppliedRev,
   ]);
 
