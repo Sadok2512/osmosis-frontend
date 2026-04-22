@@ -1,6 +1,6 @@
 import React from 'react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
-import { Calculator, Cpu, Layers, Tag, Zap } from 'lucide-react';
+import { Calculator, Cpu, Layers, Table2, Tag, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface KpiExplain {
