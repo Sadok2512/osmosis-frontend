@@ -508,14 +508,18 @@ function InheritedFromToolbarCard({ onOverride, isStat }: { onOverride: () => vo
 
       {/* Live read-only summary of inherited values */}
       <div className="grid grid-cols-2 gap-x-6 gap-y-2 px-1 pt-2 border-t border-primary/10">
-        <SummaryRow label="Périmètre" value={
-          technos.length === 0
-            ? <span className="italic text-on-surface-variant/70">aucune techno</span>
-            : <span className="flex flex-wrap gap-1">{technos.map(t => (
-                <span key={t} className="px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide bg-primary/15 text-primary">{t.toUpperCase()}</span>
-              ))}</span>
-        } />
-        <SummaryRow label="Période" value={`${preset.toUpperCase()} · ${grain}`} />
+        {!isStat && (
+          <SummaryRow label="Périmètre" value={
+            technos.length === 0
+              ? <span className="italic text-on-surface-variant/70">aucune techno</span>
+              : <span className="flex flex-wrap gap-1">{technos.map(t => (
+                  <span key={t} className="px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide bg-primary/15 text-primary">{t.toUpperCase()}</span>
+                ))}</span>
+          } />
+        )}
+        {!isStat && (
+          <SummaryRow label="Période" value={`${preset.toUpperCase()} · ${grain}`} />
+        )}
         <SummaryRow label="Du" value={fmt(from)} />
         <SummaryRow label="Au" value={fmt(to)} />
         <div className="col-span-2">
