@@ -305,8 +305,11 @@ const getZoomAwareRadius = (
   }
 
   // Inverse-zoom compensation: shrink meter radius so visual size stays constant beyond Z13.
+  // Apply a slight boost at high zoom for better readability:
+  //   Z14 → 1.10×, Z15+ → 1.20× the Z13 visual size.
   if (zoom > CAP_ZOOM) {
-    baseMeters /= Math.pow(2, zoom - CAP_ZOOM);
+    const boost = zoom === 14 ? 1.10 : 1.20;
+    baseMeters = (baseMeters * boost) / Math.pow(2, zoom - CAP_ZOOM);
   }
 
   return Math.max(1, baseMeters);
@@ -7493,8 +7496,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const REF_ZOOM = 12;
               const scale = Math.pow(2, REF_ZOOM - ez);
               let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
-              // Inverse-zoom compensation beyond Z13
-              if (zoom > CAP) r /= Math.pow(2, zoom - CAP);
+              if (zoom > CAP) {
+                const boost = zoom === 14 ? 1.10 : 1.20;
+                r = (r * boost) / Math.pow(2, zoom - CAP);
+              }
               return r;
             };
             // At zoom 12+: uniform sizing — no per-site variation
@@ -7849,8 +7854,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const REF_ZOOM = 12;
             const scale = Math.pow(2, REF_ZOOM - ez);
             let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
-            // Inverse-zoom compensation beyond Z13
-            if (zoom > CAP) r /= Math.pow(2, zoom - CAP);
+            if (zoom > CAP) {
+              const boost = zoom === 14 ? 1.10 : 1.20;
+              r = (r * boost) / Math.pow(2, zoom - CAP);
+            }
             return r;
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
