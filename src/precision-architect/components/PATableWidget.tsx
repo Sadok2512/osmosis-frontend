@@ -246,7 +246,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
           <tbody>
             {rows.map((r, i) => (
               <tr key={`${r.split_value}-${i}`} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
-                {cfg?.splitBy && (
+                {splitInUse && (
                   <td className="px-4 py-2.5 font-black text-on-surface tabular-nums">{r.split_value || '—'}</td>
                 )}
                 {visibleColumns.map(col => {
