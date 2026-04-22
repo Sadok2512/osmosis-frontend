@@ -9456,7 +9456,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             )}
 
             {/* ── Topo mode: inline tech filter + layer switcher + label ── */}
-            {sectorColorMode === 'topo' && !paramMode && (
+            {/* Keep Topo controls visible even in paramMode so the legacy toolbar (Network/Views/Color buttons) stays present. */}
+            {sectorColorMode === 'topo' && (
               <>
 
                 {/* Band selector in Topo mode */}
