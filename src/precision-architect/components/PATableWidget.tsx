@@ -168,10 +168,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
 
   const splitInUse = (() => {
     const cols = (cfg?.columns ?? []).filter(c => c.visible);
-    const hasPerColumnSplitState = cols.some(c => 'splitBy' in c);
-    const columnSplit = cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    const legacySplit = (!hasPerColumnSplitState && cfg?.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
-    return columnSplit ?? legacySplit;
+    return cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
   })();
   const sourceTables = (tableResp as any)?.source_tables;
 
