@@ -226,6 +226,34 @@ export default function EditorView({
   };
   const removeWidget = (id: string) => updateWidgets(w => w.filter(x => x.id !== id));
 
+  const duplicateWidget = (id: string) => {
+    const src = widgets.find(x => x.id === id);
+    if (!src) return;
+    const targetGroup = widgets.filter(w => (w.sectionId ?? undefined) === (src.sectionId ?? undefined));
+    const spot = findFreeSpot(targetGroup, src.layout.w);
+    const clone: DynWidget = structuredClone(src);
+    clone.id = `${src.kind}-${Date.now()}`;
+    clone.layout = { x: spot.x, y: spot.y, w: src.layout.w, h: src.layout.h };
+    if (src.title) clone.title = `${src.title} (copy)`;
+    updateWidgets(ws => [...ws, clone]);
+    toast.success('Widget duplicated');
+  };
+
+  const exportWidgetToPNG = async (id: string) => {
+    const el = document.querySelector(`[data-pa-widget-id="${id}"]`) as HTMLElement | null;
+    if (!el) { toast.error('Widget not found'); return; }
+    const w = widgets.find(x => x.id === id);
+    const filename = (w?.title || w?.kind || 'widget').toString().replace(/\s+/g, '_');
+    const t = toast.loading('Exporting PNG…');
+    try {
+      const { exportElementToPNG } = await import('@/lib/exportUtils');
+      await exportElementToPNG(el, filename);
+      toast.success('PNG exported', { id: t });
+    } catch (e: any) {
+      toast.error(`Export failed: ${e?.message ?? 'unknown'}`, { id: t });
+    }
+  };
+
   const addPage = () => {
     const newId = `page-${Date.now()}`;
     setPages(prev => [...prev, { id: newId, name: `Page ${prev.length + 1}`, widgets: [], sections: [] }]);
