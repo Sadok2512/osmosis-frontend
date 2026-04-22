@@ -79,7 +79,6 @@ export interface TableRequest {
   date_to: string;
   filters: MonitorFilter[];
   kpi_keys: string[];
-  split_by: string | null;
   top_n?: number;
   page?: number;
   page_size?: number;
@@ -587,8 +586,8 @@ export function useTableQuery(req: TableRequest | null) {
     queryFn: async () => {
       try {
         // Strip UI-only fields (_rev, _ignoredCounters, _unknownKpis) before POST.
-        const { _rev, _ignoredCounters, _unknownKpis, ...payload } =
-          req! as TableRequest & { _rev?: number; _ignoredCounters?: string[]; _unknownKpis?: string[] };
+        const { split_by, _rev, _ignoredCounters, _unknownKpis, ...payload } =
+          req! as TableRequest & { split_by?: string | null; _rev?: number; _ignoredCounters?: string[]; _unknownKpis?: string[] };
         return await fetchTable(payload as TableRequest);
       } catch (err) {
         console.warn('[useTableQuery] Backend error:', err);
