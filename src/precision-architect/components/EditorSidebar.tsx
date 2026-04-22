@@ -32,6 +32,8 @@ interface DraftConfig {
   name: string;
   description: string;
   showReportName: boolean;
+  showPhoto: boolean;
+  photoUrl: string;
   // Report Info (right-side metadata)
   reportInfoShow: boolean;
   reportInfoPerimeter: boolean;
@@ -76,6 +78,8 @@ function readDraft(projectName: string, theme: DashboardTheme): DraftConfig {
     name: t.pageTitle || projectName,
     description: t.pageSubtitle ?? '',
     showReportName: t.showReportName !== false,
+    showPhoto: !!t.showPhoto,
+    photoUrl: t.photoUrl ?? '',
     reportInfoShow: ri.show !== false,
     reportInfoPerimeter: ri.perimeter !== false,
     reportInfoDate: ri.date !== false,
@@ -282,6 +286,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
       showLogo: d.showLogo,
       showDate: d.showDate,
       showReportName: d.showReportName,
+      showPhoto: d.showPhoto,
+      photoUrl: d.photoUrl,
       reportInfo: {
         show: d.reportInfoShow,
         perimeter: d.reportInfoPerimeter,
