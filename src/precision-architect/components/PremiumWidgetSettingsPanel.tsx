@@ -15,6 +15,7 @@ import {
 } from '../types';
 import { cn } from '@/lib/utils';
 import ColorSwatchPalette from './ColorSwatchPalette';
+import { DEFAULT_REFERENCE_PERIODS, listReferencePeriods } from '../lib/referencePeriods';
 
 interface Props {
   widget: DynWidget;
@@ -153,6 +154,12 @@ function HeroEditor({ cfg, onUpdate }: { cfg: HeroWidgetConfig; onUpdate: (c: He
 function StatEditor({ cfg, onUpdate }: { cfg: StatWidgetConfig; onUpdate: (c: StatWidgetConfig) => void }) {
   const { data: kpiCatalog } = useKpiCatalog();
   const [kpiSearch, setKpiSearch] = useState('');
+  const [referencePeriods, setReferencePeriods] = useState(DEFAULT_REFERENCE_PERIODS);
+  useEffect(() => {
+    let alive = true;
+    listReferencePeriods().then(periods => { if (alive) setReferencePeriods(periods); });
+    return () => { alive = false; };
+  }, []);
   const filteredKpis = useMemo(() => {
     const q = kpiSearch.toLowerCase();
     return (kpiCatalog || []).filter(k =>
@@ -202,6 +209,20 @@ function StatEditor({ cfg, onUpdate }: { cfg: StatWidgetConfig; onUpdate: (c: St
             ]}
             onChange={(v) => onUpdate({ ...cfg, aggregation: v as any })}
           />
+        </Field>
+        <Field label="Reference Period">
+          <select
+            value={cfg.referencePeriodId || referencePeriods.find(p => p.isDefault)?.id || referencePeriods[0]?.id || 'last_7_days'}
+            onChange={(e) => onUpdate({ ...cfg, referencePeriodId: e.target.value })}
+            className="w-full max-w-sm px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-bold bg-white focus:outline-none focus:border-primary"
+          >
+            {referencePeriods.map(period => (
+              <option key={period.id} value={period.id}>{period.name}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-[10px] text-on-surface-variant/60">
+            KPI widgets are period-based aggregates. The value is calculated once over the full selected reference period, without time granularity buckets.
+          </p>
         </Field>
         {cfg.kpiKey && (
           <p className="text-[10px] text-on-surface-variant/60">Value computed from backend over the full period. No granularity — single aggregated number.</p>

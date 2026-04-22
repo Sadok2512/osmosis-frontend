@@ -171,6 +171,8 @@ export interface StatWidgetConfig {
   unit: string;
   /** KPI key to fetch from backend. When set, value is computed automatically. */
   kpiKey?: string;
+  /** Backend-defined reusable reference period used for period-based KPI aggregation. */
+  referencePeriodId?: string;
   /** Aggregation function: avg, sum, min, max, last */
   aggregation?: 'avg' | 'sum' | 'min' | 'max' | 'last';
   /** Optional accent color (hex). Empty = primary token. */
@@ -202,9 +204,27 @@ export const DEFAULT_STAT_CONFIG: StatWidgetConfig = {
   label: 'Peak Rate',
   value: '1.42',
   unit: 'Tb/s',
+  referencePeriodId: 'last_7_days',
   theme: 'dark',
   showPulse: false,
 };
+
+export type ReferencePeriodRule =
+  | { type: 'relative'; value: number; unit: 'hours' | 'days' | 'weeks' | 'months'; end: 'now' }
+  | { type: 'month_to_date' }
+  | { type: 'previous_month' }
+  | { type: 'quarter_to_date' }
+  | { type: 'custom'; from: string; to: string };
+
+export interface ReferencePeriod {
+  id: string;
+  name: string;
+  rule: ReferencePeriodRule;
+  description?: string;
+  order?: number;
+  isDefault?: boolean;
+  enabled?: boolean;
+}
 
 export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {
   label: '',

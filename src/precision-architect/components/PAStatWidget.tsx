@@ -2,16 +2,17 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { DynWidget, DEFAULT_STAT_CONFIG } from '../types';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import { fetchTimeseries, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { fetchSummary, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { toBackendDimension } from '../lib/monitorDimensions';
+import { listReferencePeriods, resolveReferencePeriodRange } from '../lib/referencePeriods';
 
 interface Props {
   widget: DynWidget;
 }
 
 /**
- * KPI Stat Card — fetches a single KPI aggregated over the full period.
- * No granularity — computes one value (avg/sum/min/max) across all data points.
+ * KPI Stat Card: fetches one backend summary value for the selected Reference Period.
+ * No granularity is sent for STAT/KPI widgets.
  */
 export default function PAStatWidget({ widget }: Props) {
   const cfg = widget.statConfig ?? DEFAULT_STAT_CONFIG;
@@ -19,6 +20,7 @@ export default function PAStatWidget({ widget }: Props) {
   const global = usePAGlobalToolbar();
   const [computedValue, setComputedValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [periodLabel, setPeriodLabel] = useState<string>('');
 
   const hasKpi = !!cfg.kpiKey;
   const widgetRev = widget.appliedRev ?? 0;
@@ -30,8 +32,6 @@ export default function PAStatWidget({ widget }: Props) {
     let cancelled = false;
 
     const snap = global.applied;
-    const gFrom = snap?.from ?? global.from;
-    const gTo = snap?.to ?? global.to;
     const gTechnos = snap?.technos ?? global.technos;
     const gFilters = snap?.filters ?? global.filters;
 
@@ -54,38 +54,33 @@ export default function PAStatWidget({ widget }: Props) {
     }
 
     setLoading(true);
-    fetchTimeseries({
-      date_from: gFrom.split('T')[0],
-      date_to: gTo.split('T')[0],
-      granularity: '1d',
-      filters,
-      selections: [{ kpi_key: cfg.kpiKey! }],
-      split_by: null,
-      top_n: 1,
-    })
-      .then(resp => {
+    listReferencePeriods()
+      .then(periods => {
+        const selected = periods.find(p => p.id === cfg.referencePeriodId) || periods.find(p => p.isDefault) || periods[0];
+        const range = resolveReferencePeriodRange(selected);
+        if (!cancelled) setPeriodLabel(range.label);
+        return fetchSummary({
+          date_from: range.from,
+          date_to: range.to,
+          filters,
+          kpi_keys: [cfg.kpiKey!],
+        });
+      })
+      .then(summary => {
         if (cancelled) return;
-        const values = (resp.series || [])
-          .map(p => p.value)
-          .filter((v): v is number => v != null && Number.isFinite(v));
-        if (values.length === 0) {
+        const item = (summary || []).find(s => s.kpi_key === cfg.kpiKey) || summary?.[0];
+        const value = item?.value;
+        if (value == null || !Number.isFinite(value)) {
           setComputedValue(null);
           return;
         }
-        const agg = cfg.aggregation || 'avg';
-        let result: number;
-        if (agg === 'sum') result = values.reduce((a, b) => a + b, 0);
-        else if (agg === 'min') result = Math.min(...values);
-        else if (agg === 'max') result = Math.max(...values);
-        else if (agg === 'last') result = values[values.length - 1];
-        else result = values.reduce((a, b) => a + b, 0) / values.length;
-        setComputedValue(result);
+        setComputedValue(value);
       })
       .catch(() => { if (!cancelled) setComputedValue(null); })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.aggregation, widgetRev, global.appliedRev,
+  }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev,
       global.from, global.to, global.technos, global.filters, global.applied]);
 
   // Display value: backend-computed or manual
@@ -138,6 +133,11 @@ export default function PAStatWidget({ widget }: Props) {
 
       {hasKpi && computedValue == null && !loading && hasBeenApplied && (
         <span className="text-[9px] text-on-surface-variant/50 mt-2">No data for this period</span>
+      )}
+      {hasKpi && periodLabel && (
+        <span className="text-[9px] text-on-surface-variant/60 mt-2">
+          Period aggregate · {periodLabel}
+        </span>
       )}
 
       {/* subtle accent bar */}
