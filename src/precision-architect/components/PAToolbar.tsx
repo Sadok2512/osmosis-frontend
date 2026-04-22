@@ -112,9 +112,9 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
   const grainLabel = GRAINS.find(g => g.id === grain)?.label ?? grain;
 
   return (
-    <div className="bg-surface-container-low/40 border-b border-outline-variant/20">
-      {/* Scope / date row */}
-      <div className="px-6 py-3 flex flex-wrap items-center gap-3 border-b border-outline-variant/10">
+    <div className="bg-white sticky top-[60px] z-[65] border-b border-outline-variant/20 shadow-sm">
+      {/* Scope / date row — flex-wrap so on narrow widths items wrap to a 2nd line instead of being clipped */}
+      <div className="px-6 py-3 flex flex-wrap items-center gap-2 gap-y-2 border-b border-outline-variant/10">
         <Popover>
           <PopoverTrigger asChild>
             <button
