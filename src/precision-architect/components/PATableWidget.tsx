@@ -99,13 +99,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ),
     }));
 
-    // No split_by, no top_n, no pagination — backend aggregates by default.
+    // No split_by in the table payload.
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: resolvedColumns.filter(c => c.source !== 'counter').map(c => c.kpiKey),
-      split_by: cfg.splitBy ? toBackendDimension(cfg.splitBy) : null,
       top_n: cfg.topN,
       granularity: toBackendGranularity(cfg.data.granularity || '1d'),
       columns: resolvedColumns,
@@ -315,10 +314,6 @@ async function fetchCounterTable(req: TableRequest & { counter_names: string[]; 
     granularity: req.granularity,
   };
 
-  if (req.split_by) {
-    body.split_by_dimension = true;
-    body.split_by_field = req.split_by;
-  }
   applyCounterFilters(body, req.filters);
 
   const res = await fetch(getApiUrl('pm/counters/timeseries'), {
@@ -337,7 +332,7 @@ async function fetchCounterTable(req: TableRequest & { counter_names: string[]; 
 
   for (const point of series) {
     const counterId = point.counter_id || point.counter_name || String(point.counter || '').split('@')[0] || req.counter_names[0];
-    const splitValue = req.split_by ? (point.dimension_key || point.split_value || point.split_field || '—') : 'Total';
+    const splitValue = point.dimension_key || point.split_value || point.split_field || 'Total';
     const value = Number(point.value ?? point.kpi_value ?? point.val);
     if (!Number.isFinite(value)) continue;
     const row = bySplit.get(splitValue) || { split_value: splitValue };
