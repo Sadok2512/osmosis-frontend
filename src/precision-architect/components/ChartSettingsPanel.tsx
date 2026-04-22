@@ -1008,6 +1008,46 @@ function MetricsTab({
 
                   {/* Right-side actions cluster (always reachable) */}
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Inline Split By — always visible so users can split without expanding the card */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn(
+                            'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border transition-colors',
+                            m.splitBy && m.splitBy !== '__none__'
+                              ? 'bg-violet-500/10 text-violet-700 border-violet-500/30'
+                              : 'bg-white text-on-surface-variant border-outline-variant/40 hover:border-violet-400/40 hover:text-violet-700'
+                          )}
+                          title="Split this KPI into one series per dimension value"
+                        >
+                          <span>Split: {m.splitBy && m.splitBy !== '__none__' ? m.splitBy : 'None'}</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-44 p-1" align="end">
+                        {SPLIT_OPTIONS.map(opt => {
+                          const v = opt === '__none__' ? null : opt;
+                          const label = opt === '__none__' ? 'None (aggregate)' : opt;
+                          const active = (m.splitBy ?? null) === v;
+                          return (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { splitBy: v }); }}
+                              className={cn(
+                                'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                                active ? 'bg-violet-500/10 text-violet-700' : 'text-on-surface hover:bg-surface-container-low'
+                              )}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </PopoverContent>
+                    </Popover>
+
                     <button
                       onClick={() => updateMetric(m.id, { visible: !m.visible })}
                       className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors"
