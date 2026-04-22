@@ -607,13 +607,14 @@ function formatDateDisplay(iso: string): { date: string; time: string } {
 }
 
 function TimeFiltersToolbar({
-  data, patchData, dimensionOptions, filtersLoading, onApply,
+  data, patchData, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   const technos = data.technos ?? [];
   const filters = data.filters ?? [];
