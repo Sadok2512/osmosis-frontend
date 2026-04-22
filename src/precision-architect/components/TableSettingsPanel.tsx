@@ -350,7 +350,6 @@ function ColumnsTab({
           )}
         </h4>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <SplitByPicker value={config.splitBy} onChange={(v) => patch({ splitBy: v })} />
           <TopNPicker value={config.topN} onChange={(v) => patch({ topN: v })} />
           <button
             onClick={() => setCounterPickerOpen(true)}
@@ -526,6 +525,16 @@ function ColumnsTab({
                         className="w-full px-2.5 py-1.5 rounded-lg border border-outline-variant/30 bg-white text-xs"
                       />
                     </Field>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70">Split by</span>
+                    <SplitByPicker
+                      value={c.splitBy ?? null}
+                      onChange={(v) => updateColumn(c.id, { splitBy: v })}
+                    />
+                    <span className="text-[10px] text-on-surface-variant/60">
+                      {c.splitBy ? `One row per ${c.splitBy}` : 'Aggregate (single row)'}
+                    </span>
                   </div>
                 </div>
               )}
