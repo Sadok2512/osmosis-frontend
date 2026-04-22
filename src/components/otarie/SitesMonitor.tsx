@@ -6689,6 +6689,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [paramMode, sectorColorMode, kpiAnalysisLevel]);
 
   useEffect(() => {
+    if (paramMode || sectorColorMode !== 'topo') return;
+    if (mapDisplayMode !== 'points') {
+      setMapDisplayMode('points');
+    }
+    if (showBeamSectors) {
+      setShowBeamSectors(false);
+    }
+  }, [paramMode, sectorColorMode, mapDisplayMode, showBeamSectors]);
+
+  useEffect(() => {
     if (!showSectors) return;
 
     let changed = false;
