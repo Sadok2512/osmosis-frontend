@@ -4744,7 +4744,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (settings.mapKpi && MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
       if (settings.mapTechnoFilter) setMapTechnoFilter(settings.mapTechnoFilter);
       if (settings.enabledBands) setEnabledBands(new Set(settings.enabledBands));
-      if (settings.sectorColorMode) setSectorColorMode(settings.sectorColorMode);
+      // Guard: never overwrite an active KPI overlay with a saved 'topo' mode.
+      // Only an explicit user click on the Topo button should leave KPI mode.
+      if (settings.sectorColorMode && sectorColorMode !== 'kpi') setSectorColorMode(settings.sectorColorMode);
       if (settings.mapDisplayMode) setMapDisplayMode(settings.mapDisplayMode);
       if (settings.showBandPanel !== undefined) setShowBandPanel(settings.showBandPanel);
       if (settings.showLegend !== undefined) setShowLegend(settings.showLegend);
@@ -6828,7 +6830,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
     setMapTechnoFilter(settings.mapTechnoFilter as any);
     setEnabledBands(new Set(settings.enabledBands));
-    setSectorColorMode(settings.sectorColorMode);
+    // Guard: do not overwrite KPI overlay when loading a saved view in 'topo' mode.
+    if (sectorColorMode !== 'kpi') setSectorColorMode(settings.sectorColorMode);
     setMapDisplayMode(settings.mapDisplayMode);
     setShowBandPanel(settings.showBandPanel);
     setShowLegend(settings.showLegend);
