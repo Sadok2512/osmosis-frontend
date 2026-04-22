@@ -4,7 +4,7 @@ import {
   Radio, Settings, Layout, Bell,
   Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
   Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut,
-  Search, Wand2, LibraryBig
+  Search, Wand2, Radar
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
@@ -28,6 +28,7 @@ const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
   { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
   
   { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
+  { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
   { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
   { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },

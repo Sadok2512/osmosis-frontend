@@ -24,6 +24,7 @@ const SentinelPage = lazy(() => import('../components/sentinel/SentinelPage'));
 const InvestigatorPage = lazy(() => import('../components/investigator/InvestigatorPage'));
 const RanQueryModule = lazy(() => import('../components/ran-query/RanQueryModule'));
 const NetworkTopologyPage = lazy(() => import('../components/otarie/NetworkTopologyPage'));
+const OdccDetectorConsole = lazy(() => import('../components/odcc/OdccDetectorConsole'));
 const PrecisionArchitectPage = lazy(() => import('./PrecisionArchitect'));
 
 import { Filters, KPIType, SiteSummary, AppTab } from '../types';
@@ -67,6 +68,7 @@ const Index: React.FC = () => {
       parameters: true,
       pulse_report: true,
       sentinel: true,
+      odcc: true,
       topology: true,
       ran_query: true,
     };
@@ -146,6 +148,8 @@ const Index: React.FC = () => {
         return <SubscriberExperience filters={filters} />;
       case 'detector':
         return <DetectorConsole />;
+      case 'odcc':
+        return <OdccDetectorConsole />;
       case 'settings':
         return <SettingsPanel sidebarTheme={sidebarTheme} setSidebarTheme={setSidebarTheme} accentColor={accentColor} setAccentColor={setAccentColor} enabledModules={enabledModules} setEnabledModules={setEnabledModules} />;
       case 'docs':
