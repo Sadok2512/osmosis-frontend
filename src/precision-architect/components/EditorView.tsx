@@ -28,6 +28,8 @@ import {
   LayoutDashboard,
   FilePlus,
   Save,
+  Globe,
+  Lock,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { motion, AnimatePresence } from 'motion/react';
