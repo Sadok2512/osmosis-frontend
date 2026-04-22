@@ -422,6 +422,10 @@ export interface DashboardTheme {
   photoPosition?: 'left' | 'right' | 'top' | 'full';
   /** Header photo width in pixels (height is auto, max-height is capped). */
   photoSize?: number;
+  /** Fine-tuned horizontal offset applied to the photo. */
+  photoOffsetX?: number;
+  /** Fine-tuned vertical offset applied to the photo. */
+  photoOffsetY?: number;
   /** Report Info block displayed on the right side of the report header. */
   reportInfo?: {
     show: boolean;
@@ -450,6 +454,8 @@ export const DEFAULT_DASHBOARD_THEME: DashboardTheme = {
   photoUrl: '',
   photoPosition: 'left',
   photoSize: 128,
+  photoOffsetX: 0,
+  photoOffsetY: 0,
   reportInfo: {
     show: true,
     perimeter: true,

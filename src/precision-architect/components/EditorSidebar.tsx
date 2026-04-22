@@ -288,9 +288,10 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
       showReportName: d.showReportName,
       showPhoto: d.showPhoto,
       photoUrl: d.photoUrl,
-      // Position/size are tweaked directly on the canvas via drag handles; preserve them.
       photoPosition: activeTheme.photoPosition ?? DEFAULT_DASHBOARD_THEME.photoPosition,
       photoSize: activeTheme.photoSize ?? DEFAULT_DASHBOARD_THEME.photoSize,
+      photoOffsetX: activeTheme.photoOffsetX ?? DEFAULT_DASHBOARD_THEME.photoOffsetX,
+      photoOffsetY: activeTheme.photoOffsetY ?? DEFAULT_DASHBOARD_THEME.photoOffsetY,
       reportInfo: {
         show: d.reportInfoShow,
         perimeter: d.reportInfoPerimeter,
