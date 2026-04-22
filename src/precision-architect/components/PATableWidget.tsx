@@ -113,8 +113,24 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     effectiveAppliedRev,
   ]);
 
+  // Notify the user once per Apply when PM counters were dropped from the payload.
+  const lastWarnedRevRef = useRef<number | null>(null);
   useEffect(() => {
-    if (request) console.log('[PA Table] ▶ POST /monitor/query/table', request);
+    if (!request) return;
+    const ignored = (request as any)._ignoredCounters as string[] | undefined;
+    const rev = (request as any)._rev as number;
+    if (ignored && ignored.length > 0 && lastWarnedRevRef.current !== rev) {
+      lastWarnedRevRef.current = rev;
+      toast.warning(
+        `${ignored.length} compteur(s) PM ignoré(s)`,
+        {
+          description:
+            `L'endpoint /monitor/query/table accepte uniquement des KPIs du catalogue. ` +
+            `Compteurs ignorés: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? '…' : ''}`,
+        }
+      );
+    }
+    console.log('[PA Table] ▶ POST /monitor/query/table', request);
   }, [request]);
 
   const { data: tableResp, isFetching, error } = useTableQuery(request);
@@ -128,12 +144,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     () => (cfg?.columns ?? []).filter(c => c.visible),
     [cfg],
   );
+  const hasOnlyCounters = hasColumns && (cfg?.columns ?? []).filter(c => c.visible).every(c => c.id.startsWith('cnt-'));
   const rows = tableResp?.rows ?? [];
   const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
   // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'not-applied' | 'backend' | 'no-data' | null =
+  const emptyReason: 'no-column' | 'only-counters' | 'not-applied' | 'backend' | 'no-data' | null =
     !hasColumns ? 'no-column'
+    : hasOnlyCounters ? 'only-counters'
     : (!hasBeenApplied) ? 'not-applied'
     : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
