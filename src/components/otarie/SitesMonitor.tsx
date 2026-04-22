@@ -8358,10 +8358,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseDetailCells = getRenderableCellsForSite(renderSiteForCells, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
           const detailCells = sectorColorMode === 'kpi'
-            ? baseDetailCells.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor) && isCellVisibleForKpiLegend(cell))
+            ? baseDetailCells.filter(cell => {
+                const overlay = isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor);
+                const legend = isCellVisibleForKpiLegend(cell);
+                return overlay && legend;
+              })
             : baseDetailCells;
           // Skip site entirely when KPI legend filter hides all its cells
           if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0 && detailCells.length === 0) return null;
+          // Debug: log first site to verify filtering
+          if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0 && site === renderSites[0]) {
+            console.log('[KPI Legend Debug]', { siteName: site.site_name, hiddenLevels: [...hiddenKpiLevels], baseCells: baseDetailCells.length, filteredCells: detailCells.length, sampleValues: baseDetailCells.slice(0, 3).map(c => ({ id: c.cell_id, val: getCellKpiValue(c), level: getKpiLevel(getCellKpiValue(c)) })) });
+          }
           const max4GRadiusPerAz = new Map<number, number>();
             const hasAny4G = detailCells.some(c => getCellTechGroup(c.techno) === '4G');
             const hasAny5G = detailCells.some(c => getCellTechGroup(c.techno) === '5G');
