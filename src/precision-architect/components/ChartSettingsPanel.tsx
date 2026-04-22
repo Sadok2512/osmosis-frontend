@@ -1324,20 +1324,27 @@ function MetricsTab({
                       </Field>
 
                       <Field label="Type">
-                        <div className="flex border border-outline-variant/30 rounded-lg overflow-hidden bg-white">
-                          {(['line', 'area', 'bar'] as ChartType[]).map(t => {
-                            const active = (m.graphType ?? 'line') === t;
+                        <div className="grid grid-cols-3 gap-1 border border-outline-variant/30 rounded-lg p-1 bg-white">
+                          {([
+                            { v: 'line',        l: 'Line' },
+                            { v: 'area',        l: 'Area' },
+                            { v: 'bar',         l: 'Bar' },
+                            { v: 'stackedBar',  l: 'Stack Bar' },
+                            { v: 'stackedArea', l: 'Stack Area' },
+                            { v: 'stepLine',    l: 'Step' },
+                          ] as { v: ChartType; l: string }[]).map(({ v, l }) => {
+                            const active = (m.graphType ?? 'line') === v;
                             return (
                               <button
-                                key={t}
+                                key={v}
                                 type="button"
-                                onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { graphType: t }); }}
+                                onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { graphType: v }); }}
                                 className={cn(
-                                  'flex-1 py-2 text-[10px] font-bold uppercase tracking-wider transition-colors',
+                                  'py-1.5 px-1 text-[9px] font-bold uppercase tracking-wider rounded-md transition-colors',
                                   active ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-container-low'
                                 )}
                               >
-                                {t}
+                                {l}
                               </button>
                             );
                           })}
