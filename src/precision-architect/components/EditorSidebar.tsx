@@ -441,6 +441,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
             </div>
           </div>
         </CollapsibleSection>
+
+        <CollapsibleSection title="Report Info" icon={PanelTop} open={openSections.reportInfo} onToggle={() => toggle('reportInfo')}>
           <p className="text-[10px] text-on-surface-variant/70 leading-relaxed -mt-1">
             Contextual metadata shown on the right side of the report header.
           </p>
