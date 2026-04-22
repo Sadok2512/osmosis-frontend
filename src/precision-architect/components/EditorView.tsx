@@ -801,7 +801,6 @@ export default function EditorView({
                 { icon: Minus, label: 'Divider', kind: 'divider' as const },
                 { icon: BarChart3, label: 'Chart', kind: 'chart' as const },
                 { icon: MapIcon, label: 'Map', kind: 'map' as const },
-                { icon: LayoutIcon, label: 'KPI Card', kind: 'kpi' as const },
                 { icon: TableIcon, label: 'Table', kind: 'table' as const },
                 { icon: TypeIcon, label: 'Text', kind: 'text' as const },
                 { icon: ImageIcon, label: 'Image', kind: 'image' as const },
