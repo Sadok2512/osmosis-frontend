@@ -856,17 +856,34 @@ export default function EditorView({
         })()}
       </div>
 
+      {/* Floating right config sidebar — overlays canvas, never resizes the dashboard grid. */}
       <AnimatePresence>
         {showSettings && (
-          <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="flex-shrink-0"
-          >
-            <EditorSidebar onClose={() => setShowSettings(false)} />
-          </motion.div>
+          <>
+            {/* Light backdrop on small screens for focus; transparent on desktop so the dashboard stays readable. */}
+            <motion.div
+              key="pa-sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setShowSettings(false)}
+              className="fixed inset-0 z-[55] bg-black/20 lg:bg-transparent lg:pointer-events-none"
+              aria-hidden
+            />
+            <motion.div
+              key="pa-sidebar-floating"
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+              className="fixed top-0 right-0 h-screen z-[60] w-full sm:w-[400px] max-w-full pointer-events-auto"
+              onKeyDown={(e) => { if (e.key === 'Escape') setShowSettings(false); }}
+              tabIndex={-1}
+            >
+              <EditorSidebar onClose={() => setShowSettings(false)} />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
