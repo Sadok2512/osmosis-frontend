@@ -112,6 +112,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
         }] : []),
       ];
 
+      // Stacking applies only when the *global* chart type is bar or area AND
+      // the user explicitly opted in. Mixed metric types within a stacked chart
+      // share the same stack id only when their seriesType matches.
+      const stackEnabled = !!style.stacked && (style.chartType === 'bar' || style.chartType === 'area');
+
       series = visible.map((m, idx) => {
         const metricType = m.graphType ?? style.chartType;
         const seriesType = metricType === 'bar' ? 'bar' : 'line';
@@ -120,6 +125,12 @@ const PAEChart: React.FC<PAEChartProps> = ({
           metricType === 'area' ||
           (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')
         );
+        // Stack id: same axis + same seriesType (bar↔bar, area↔area). Pure
+        // lines never stack — they remain trend overlays.
+        const canStack = stackEnabled && (seriesType === 'bar' || wantsArea);
+        const stackId = canStack
+          ? `pa-stack-${m.axis === 'right' ? 'r' : 'l'}-${seriesType === 'bar' ? 'bar' : 'area'}`
+          : undefined;
         const opacityRatio = Math.max(0, Math.min(100, style.opacity)) / 100;
         const areaStyle = wantsArea
           ? style.fill === 'gradient'
@@ -150,8 +161,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
         return {
           name: m.alias || m.kpiKey,
           type: seriesType,
+          stack: stackId,
           smooth: (m as any).smooth ?? style.smooth,
           showSymbol: false,
+          // Treat null/undefined safely so stacked series don't break on missing slots.
+          connectNulls: seriesType === 'line',
           yAxisIndex: m.axis === 'right' && hasRight ? 1 : 0,
           data: seriesData,
           lineStyle: seriesType === 'line' ? {
@@ -159,7 +173,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
             width: (m as any).lineWidth ?? style.lineThickness,
             type: lineType,
           } : undefined,
-          itemStyle: { color: m.color },
+          itemStyle: { color: m.color, borderRadius: seriesType === 'bar' ? [3, 3, 0, 0] : 0 },
           areaStyle,
           emphasis: { focus: 'series' as const },
         };
@@ -240,7 +254,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels, config?.style.stacked]);
 
   // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
   // the widget card has its real width (fixes right-axis clipping on first paint
