@@ -206,11 +206,17 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   const markSaved = usePAReportStore((s) => s.markSaved);
   const renameDashboard = usePAReportStore((s) => s.renameDashboard);
   const activeDashboardId = usePAReportStore((s) => s.activeDashboardId);
+  const dashboards = usePAReportStore((s) => s.dashboards);
+  const setDashboardVisibility = usePAReportStore((s) => s.setDashboardVisibility);
+  const activeDashboard = dashboards.find((d) => d.id === activeDashboardId);
 
   const activePage = pages.find((p) => p.id === activePageId);
   const activeTheme = activePage?.theme ?? DEFAULT_DASHBOARD_THEME;
 
-  const [draft, setDraft] = useState<DraftConfig>(() => readDraft(projectName, activeTheme));
+  const [draft, setDraft] = useState<DraftConfig>(() => {
+    const base = readDraft(projectName, activeTheme);
+    return { ...base, visibility: activeDashboard?.visibility ?? base.visibility };
+  });
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     general: true,
     reportInfo: false,
@@ -224,7 +230,8 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
   // Reset the draft when the user switches active page so the panel reflects the
   // new page's saved theme (otherwise stale fields hide the issue).
   useEffect(() => {
-    setDraft(readDraft(projectName, activeTheme));
+    const base = readDraft(projectName, activeTheme);
+    setDraft({ ...base, visibility: activeDashboard?.visibility ?? base.visibility });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activePageId, activeDashboardId]);
 
