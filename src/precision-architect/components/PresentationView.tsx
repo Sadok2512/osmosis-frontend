@@ -41,89 +41,85 @@ function SlideContent({ page, projectName }: { page: PAPage; projectName: string
     (theme.background === 'dark' ? '#0a0c0d' : theme.background === 'gradient' ? '#1a1a2e' : '#f8fafc');
   const isDarkBg = theme.background === 'dark' || theme.background === 'gradient';
   const cardBg = theme.cardColor || (isDarkBg ? '#16181d' : '#ffffff');
-  const titleColor = theme.titleColor || theme.accentColor;
-  const textColor = theme.textColor || (theme.background === 'dark' || theme.background === 'gradient' ? '#ffffff' : '#0f172a');
+  const textColor = theme.textColor || (isDarkBg ? '#ffffff' : '#0f172a');
   const radius = theme.borderRadius ?? 16;
   const spacing = theme.spacing ?? 16;
   const padding = theme.pagePadding ?? 48;
-  const headerAlign =
-    theme.headerAlign === 'center' ? 'text-center' : theme.headerAlign === 'right' ? 'text-right' : 'text-left';
 
-  const layout = widgets.map((w) => ({
-    i: w.id,
-    x: w.layout.x,
-    y: w.layout.y,
-    w: w.layout.w,
-    h: w.layout.h,
-    static: true,
-  }));
+  // Mirror ViewerView ownership: widgets without sectionId render first; section-owned widgets render inside their section.
+  const unassignedWidgets = widgets.filter((w) => !w.sectionId);
+  const widgetsBySection = new Map<string, typeof widgets>();
+  for (const w of widgets) {
+    if (!w.sectionId) continue;
+    if (!widgetsBySection.has(w.sectionId)) widgetsBySection.set(w.sectionId, []);
+    widgetsBySection.get(w.sectionId)!.push(w);
+  }
+
+  const buildLayout = (group: typeof widgets) =>
+    group.map((w) => ({ i: w.id, x: w.layout.x, y: w.layout.y, w: w.layout.w, h: w.layout.h, static: true }));
+
+  const renderGrid = (group: typeof widgets) => {
+    if (group.length === 0) return null;
+    return (
+      <GridLayout
+        className="layout"
+        layout={buildLayout(group)}
+        cols={COLS}
+        rowHeight={ROW_HEIGHT}
+        margin={[spacing, spacing]}
+        containerPadding={[0, 0]}
+        isDraggable={false}
+        isResizable={false}
+        autoSize
+      >
+        {group.map((w) => (
+          <div
+            key={w.id}
+            className={w.transparentBg ? 'overflow-hidden' : 'overflow-hidden shadow-lg border border-black/5'}
+            style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
+          >
+            <div className="w-full h-full p-4">
+              <WidgetRenderer widget={w} />
+            </div>
+          </div>
+        ))}
+      </GridLayout>
+    );
+  };
 
   return (
     <div
-      className="slide-content w-full h-full overflow-hidden flex flex-col"
+      className="slide-content w-full h-full overflow-auto custom-scrollbar"
       style={{ backgroundColor: pageBg, color: textColor, padding }}
     >
-      {/* Slide header */}
-      <header className={cn('w-full mb-6', headerAlign)}>
-        <p className="text-xs font-black uppercase tracking-[0.3em] opacity-60 mb-2" style={{ color: theme.accentColor }}>
-          {theme.operatorName || projectName}
-        </p>
-        {(theme.pageTitle || page.name) && (
-          <h1 className="text-6xl font-black font-headline tracking-tight" style={{ color: titleColor }}>
-            {theme.pageTitle || page.name}
-          </h1>
-        )}
-        {theme.pageSubtitle && <p className="text-xl mt-3 opacity-75 max-w-4xl">{theme.pageSubtitle}</p>}
-      </header>
+      <ReportHeader theme={theme} projectName={projectName} pageName={page.name} size="lg" />
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        {widgets.length === 0 && sections.length === 0 ? (
-          <div className="h-full w-full flex items-center justify-center opacity-50">
-            <div className="text-center">
-              <p className="text-2xl font-black uppercase tracking-widest mb-2">Empty slide</p>
-              <p className="text-base opacity-70">Add widgets in the editor to populate this slide.</p>
-            </div>
+      {widgets.length === 0 && sections.length === 0 ? (
+        <div className="h-full w-full flex items-center justify-center opacity-50 mt-12">
+          <div className="text-center">
+            <p className="text-2xl font-black uppercase tracking-widest mb-2">Empty slide</p>
+            <p className="text-base opacity-70">Add widgets in the editor to populate this slide.</p>
           </div>
-        ) : (
-          <>
-            {widgets.length > 0 && (
-              <GridLayout
-                className="layout"
-                layout={layout}
-                cols={COLS}
-                rowHeight={ROW_HEIGHT}
-                margin={[spacing, spacing]}
-                containerPadding={[0, 0]}
-                isDraggable={false}
-                isResizable={false}
-                compactType="vertical"
-                autoSize
-              >
-                {widgets.map((w) => (
-                  <div
-                    key={w.id}
-                    className={w.transparentBg ? 'overflow-hidden' : 'overflow-hidden shadow-lg border border-black/5'}
-                    style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
-                  >
-                    <div className="w-full h-full p-4">
-                      <WidgetRenderer widget={w} />
-                    </div>
-                  </div>
-                ))}
-              </GridLayout>
-            )}
+        </div>
+      ) : (
+        <div className="space-y-6 mt-6">
+          {unassignedWidgets.length > 0 && <div className="w-full">{renderGrid(unassignedWidgets)}</div>}
 
-            {/* Sections render after widgets so they appear at the bottom of the slide. */}
-            {sections.length > 0 && (
-              <div className="space-y-4 mt-6">
-                {sections.map((s) => (
-                  <SectionBlock key={s.id} section={s} editable={false} />
-                ))}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+          {sections.length > 0 && (
+            <div className="space-y-6">
+              {sections.map((s) => {
+                const sectionWidgets = widgetsBySection.get(s.id) ?? [];
+                return (
+                  <div key={s.id} className="space-y-3">
+                    <SectionBlock section={s} editable={false} />
+                    {sectionWidgets.length > 0 && <div className="w-full">{renderGrid(sectionWidgets)}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
