@@ -3,7 +3,7 @@ import { ArrowUp, ArrowDown, Loader2, TableIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
-import { useTableQuery, TableRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { useTableQuery, TableRequest, MonitorFilter, useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { toBackendDimension } from '../lib/monitorDimensions';
 
@@ -28,6 +28,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const hasColumns = !!cfg && cfg.columns.length > 0;
 
   const global = usePAGlobalToolbar();
+  const { data: kpiCatalog } = useKpiCatalog();
+  const validKpiKeys = useMemo(() => {
+    const arr = Array.isArray(kpiCatalog) ? kpiCatalog : [];
+    return new Set(arr.map((k: any) => k.kpi_key));
+  }, [kpiCatalog]);
   const inheritsTime = cfg?.data.timeRange?.inherit !== false;
   const inheritsScope = cfg?.data.inheritFromDashboard !== false;
   // SUM widget + global revs (instead of max) so that "Apply to Dashboard"
@@ -86,20 +91,36 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     // PM counter columns (id prefix "cnt-") are not supported by this endpoint
     // and would cause the backend to return 0 rows. They are filtered out and
     // a toast notifies the user (once per apply).
-    const kpiOnlyColumns = cfg.columns.filter(c => c.visible && !c.id.startsWith('cnt-'));
-    const counterColumns = cfg.columns.filter(c => c.visible && c.id.startsWith('cnt-'));
+    const visibleCols = cfg.columns.filter(c => c.visible);
+    const counterColumns = visibleCols.filter(c => c.id.startsWith('cnt-'));
+    const kpiCandidateColumns = visibleCols.filter(c => !c.id.startsWith('cnt-'));
+
+    // Validate against backend KPI catalog when available — drop unknown keys
+    // (the backend silently returns 0 rows otherwise).
+    const catalogReady = validKpiKeys.size > 0;
+    const kpiOnlyColumns = catalogReady
+      ? kpiCandidateColumns.filter(c => validKpiKeys.has(c.kpiKey))
+      : kpiCandidateColumns;
+    const unknownColumns = catalogReady
+      ? kpiCandidateColumns.filter(c => !validKpiKeys.has(c.kpiKey))
+      : [];
+
+    // Map UI split (e.g., "CELL", "SITE", "__none__") to backend split_by.
+    const splitBy = (cfg.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
 
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: kpiOnlyColumns.map(c => c.kpiKey),
+      split_by: splitBy,
       top_n: cfg.topN ?? 10,
       page: 1,
       page_size: Math.max(cfg.topN ?? 10, 50),
       _rev: effectiveAppliedRev,
       _ignoredCounters: counterColumns.map(c => c.alias || c.kpiKey),
-    } as TableRequest & { _rev: number; _ignoredCounters: string[] };
+      _unknownKpis: unknownColumns.map(c => c.kpiKey),
+    } as TableRequest & { _rev: number; _ignoredCounters: string[]; _unknownKpis: string[] };
   }, [
     cfg,
     hasColumns,
@@ -111,24 +132,33 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     gTechnos,
     gFilters,
     effectiveAppliedRev,
+    validKpiKeys,
   ]);
 
-  // Notify the user once per Apply when PM counters were dropped from the payload.
+  // Notify the user once per Apply when PM counters or unknown KPIs were dropped.
   const lastWarnedRevRef = useRef<number | null>(null);
   useEffect(() => {
     if (!request) return;
     const ignored = (request as any)._ignoredCounters as string[] | undefined;
+    const unknown = (request as any)._unknownKpis as string[] | undefined;
     const rev = (request as any)._rev as number;
-    if (ignored && ignored.length > 0 && lastWarnedRevRef.current !== rev) {
-      lastWarnedRevRef.current = rev;
-      toast.warning(
-        `${ignored.length} compteur(s) PM ignoré(s)`,
-        {
+    if (lastWarnedRevRef.current !== rev) {
+      if (ignored && ignored.length > 0) {
+        lastWarnedRevRef.current = rev;
+        toast.warning(`${ignored.length} compteur(s) PM ignoré(s)`, {
           description:
             `L'endpoint /monitor/query/table accepte uniquement des KPIs du catalogue. ` +
             `Compteurs ignorés: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? '…' : ''}`,
-        }
-      );
+        });
+      }
+      if (unknown && unknown.length > 0) {
+        lastWarnedRevRef.current = rev;
+        toast.warning(`${unknown.length} KPI(s) inconnu(s) du catalogue`, {
+          description:
+            `Ces KPIs ne sont pas exposés par /monitor/catalog/kpis et ont été retirés du payload : ` +
+            `${unknown.slice(0, 3).join(', ')}${unknown.length > 3 ? '…' : ''}.`,
+        });
+      }
     }
     console.log('[PA Table] ▶ POST /monitor/query/table', request);
   }, [request]);
