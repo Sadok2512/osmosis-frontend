@@ -6669,16 +6669,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  // En mode KPI, on force toujours le rendu des secteurs (même si l'utilisateur a désactivé BEAMS)
-  // pour éviter d'afficher des cercles "concentric tech" qui masquent les valeurs KPI.
-  const kpiForcesSectors = sectorColorMode === 'kpi' && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
+  // En mode KPI, on force les secteurs seulement pour les niveaux Site/Bande.
+  // Le niveau Cellule doit rester en rendu point/cellule, sinon la carte retombe
+  // sur des marqueurs de site agrégés au lieu d'afficher les cellules.
+  const kpiForcesSectors = sectorColorMode === 'kpi'
+    && kpiAnalysisLevel !== 'cell'
+    && mapDisplayMode === 'sites'
+    && viewport.zoom >= SITES_TO_CELLS_ZOOM;
   const showSectors = !paramMode && ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
 
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
+    if (kpiAnalysisLevel === 'cell') {
+      setMapDisplayMode('points');
+      return;
+    }
     setShowBeamSectors(true);
     setMapDisplayMode('sites');
-  }, [paramMode, sectorColorMode]);
+  }, [paramMode, sectorColorMode, kpiAnalysisLevel]);
 
   useEffect(() => {
     if (!showSectors) return;
