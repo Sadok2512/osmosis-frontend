@@ -26,7 +26,7 @@ import {
 } from '@/components/ui/tooltip';
 import operatorLogo from '@/assets/operator-logo.png';
 
-type DashboardType = 'map' | 'analytic_qoe';
+type DashboardType = 'map' | 'analytic_qoe' | 'precision_architect';
 type Visibility = 'private' | 'public' | 'shared';
 type SortKey = 'updated' | 'name' | 'owner';
 
@@ -157,6 +157,17 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     hoverBg: 'hover:bg-teal-50/40 dark:hover:bg-teal-950/10',
     label: 'PM',
     icon: <BarChart2 className="w-4 h-4" />,
+  },
+  precision_architect: {
+    iconBg: 'bg-primary/10',
+    iconBgHover: 'group-hover:bg-primary/20',
+    iconColor: 'text-primary',
+    badgeBg: 'bg-primary/10',
+    badgeText: 'text-primary',
+    cardAccent: 'border-l-primary',
+    hoverBg: 'hover:bg-primary/5',
+    label: 'Precision Architect',
+    icon: <Wand2 className="w-4 h-4" />,
   },
 };
 
@@ -693,8 +704,15 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   };
 
   const openInEditor = (id: string) => {
+    const target = dashboards.find((d) => d.id === id);
     localStorage.setItem('osmosis_open_dashboard_id', id);
-    setActiveTab?.('traffic');
+    // Precision Architect dashboards have their own editor — route there
+    // instead of the BI Studio so the saved pages/widgets actually load.
+    if (target?.dashboardType === 'precision_architect') {
+      setActiveTab?.('precision_architect');
+    } else {
+      setActiveTab?.('traffic');
+    }
   };
 
   const exportDashboard = (db: EnhancedDashboard) => {
