@@ -107,6 +107,8 @@ export interface TableColumn {
   alias?: string;
   unit?: string;
   visible: boolean;
+  /** Per-KPI split dimension (CELL, SITE, PLAQUE, …). null/undefined = aggregate. */
+  splitBy?: string | null;
 }
 
 export interface TableWidgetConfig {
