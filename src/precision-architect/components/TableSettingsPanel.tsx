@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, Eye, EyeOff, GripVertical, ChevronDown, ChevronRight,
@@ -41,11 +41,22 @@ const COLOR_PALETTE = ['#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6', '#
 export default function TableSettingsPanel({ widget, onChange, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('data');
   const config: TableWidgetConfig = widget.tableConfig ?? DEFAULT_TABLE_CONFIG;
+  const configRef = useRef<TableWidgetConfig>(structuredClone(config));
+
+  useEffect(() => {
+    configRef.current = structuredClone(widget.tableConfig ?? DEFAULT_TABLE_CONFIG);
+  }, [widget.id, widget.tableConfig]);
+
+  const emitConfig = (nextConfig: TableWidgetConfig) => {
+    configRef.current = structuredClone(nextConfig);
+    onChange({ tableConfig: nextConfig });
+  };
 
   const commit = (closeAfter = false) => {
+    const nextConfig = structuredClone(configRef.current);
     onChange({
-      tableConfig: config,
-      appliedTableConfig: structuredClone(config),
+      tableConfig: nextConfig,
+      appliedTableConfig: structuredClone(nextConfig),
       appliedRev: (widget.appliedRev ?? 0) + 1,
     });
     if (closeAfter) onClose();
@@ -98,12 +109,25 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
     return fromBackend;
   }, [filterCatalog]);
 
-  const patch = (p: Partial<TableWidgetConfig>) => onChange({ tableConfig: { ...config, ...p } });
-  const patchData = (p: Partial<TableWidgetConfig['data']>) => patch({ data: { ...config.data, ...p } });
-  const setColumns = (cols: TableColumn[]) => patch({ columns: cols });
+  const patch = (p: Partial<TableWidgetConfig>) => {
+    const nextConfig = { ...configRef.current, ...p };
+    emitConfig(nextConfig);
+  };
+  const patchData = (p: Partial<TableWidgetConfig['data']>) => {
+    const nextConfig = {
+      ...configRef.current,
+      data: { ...configRef.current.data, ...p },
+    };
+    emitConfig(nextConfig);
+  };
+  const setColumns = (cols: TableColumn[]) => {
+    const nextConfig = { ...configRef.current, columns: cols };
+    emitConfig(nextConfig);
+  };
 
   const addColumnsFromKeys = (keys: string[]) => {
-    const existing = new Set(config.columns.map(c => c.kpiKey));
+    const current = configRef.current;
+    const existing = new Set(current.columns.map(c => c.kpiKey));
     const toAdd = keys.filter(k => !existing.has(k));
     if (toAdd.length === 0) return;
     const next: TableColumn[] = toAdd.map((key, idx) => {
@@ -117,11 +141,12 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
         visible: true,
       };
     });
-    setColumns([...config.columns, ...next]);
+    setColumns([...current.columns, ...next]);
   };
 
   const addCountersFromKeys = (counterNames: string[]) => {
-    const existing = new Set(config.columns.map(c => c.kpiKey));
+    const current = configRef.current;
+    const existing = new Set(current.columns.map(c => c.kpiKey));
     const toAdd = counterNames.filter(k => !existing.has(k));
     if (toAdd.length === 0) return;
     const next: TableColumn[] = toAdd.map((name, idx) => {
@@ -135,14 +160,18 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
         visible: true,
       };
     });
-    setColumns([...config.columns, ...next]);
+    setColumns([...current.columns, ...next]);
   };
 
   const updateColumn = (id: string, p: Partial<TableColumn>) =>
-    setColumns(config.columns.map(c => c.id === id ? { ...c, ...p } : c));
-  const removeColumn = (id: string) => setColumns(config.columns.filter(c => c.id !== id));
+    setColumns(configRef.current.columns.map(c => c.id === id ? { ...c, ...p } : c));
+  const removeColumn = (id: string) => setColumns(configRef.current.columns.filter(c => c.id !== id));
 
-  const reset = () => { onChange({ tableConfig: { ...DEFAULT_TABLE_CONFIG } }); setTab('data'); };
+  const reset = () => {
+    const nextConfig = structuredClone(DEFAULT_TABLE_CONFIG);
+    emitConfig(nextConfig);
+    setTab('data');
+  };
 
   const widgetLabel = `TABLE · ${(widget.title && widget.title.trim()) || 'Untitled'}`;
 
