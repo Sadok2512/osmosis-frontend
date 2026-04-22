@@ -95,6 +95,9 @@ export interface TableResponse {
   total: number;
   page: number;
   page_size: number;
+  meta?: { error?: string; info?: string };
+  info?: string;
+  source_tables?: Record<string, string>;
 }
 
 export interface SummaryRequest {
@@ -583,7 +586,8 @@ export function useTableQuery(req: TableRequest | null) {
     queryKey: ['monitor', 'table', key],
     queryFn: async () => {
       try {
-        return await fetchTable(req!);
+        const { _rev, ...payload } = req! as TableRequest & { _rev?: number };
+        return await fetchTable(payload as TableRequest);
       } catch (err) {
         console.warn('[useTableQuery] Backend error:', err);
         _toastBackendError('table', err);

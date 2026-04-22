@@ -87,7 +87,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       kpi_keys: cfg.columns.filter(c => c.visible).map(c => c.kpiKey),
       split_by: cfg.splitBy ? toBackendDimension(cfg.splitBy) : null,
       top_n: cfg.topN,
-    };
+      _rev: effectiveAppliedRev,
+    } as TableRequest & { _rev: number };
   }, [
     cfg,
     hasColumns,
@@ -117,11 +118,13 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     [cfg],
   );
   const rows = tableResp?.rows ?? [];
+  const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
   // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'not-applied' | 'no-data' | null =
+  const emptyReason: 'no-column' | 'not-applied' | 'backend' | 'no-data' | null =
     !hasColumns ? 'no-column'
     : (!hasBeenApplied) ? 'not-applied'
+    : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
     : null;
 
@@ -130,6 +133,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
+      : emptyReason === 'backend'
+      ? { title: 'Backend returned no usable table data', body: backendMessage }
       : { title: 'No data returned', body: 'No rows for this perimeter / period / filters.' };
     return (
       <div
