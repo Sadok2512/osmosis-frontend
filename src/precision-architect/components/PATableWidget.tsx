@@ -105,22 +105,17 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? kpiCandidateColumns.filter(c => !validKpiKeys.has(c.kpiKey))
       : [];
 
-    // Split is intentionally disabled in PA tables — always aggregate.
-    const splitBy = null;
-
+    // Mirror the chart payload exactly: only date / filters / kpi_keys.
+    // No split_by, no top_n, no pagination — backend aggregates by default.
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: kpiOnlyColumns.map(c => c.kpiKey),
-      split_by: splitBy,
-      top_n: cfg.topN ?? 10,
-      page: 1,
-      page_size: Math.max(cfg.topN ?? 10, 50),
       _rev: effectiveAppliedRev,
       _ignoredCounters: counterColumns.map(c => c.alias || c.kpiKey),
       _unknownKpis: unknownColumns.map(c => c.kpiKey),
-    } as TableRequest & { _rev: number; _ignoredCounters: string[]; _unknownKpis: string[] };
+    } as unknown as TableRequest & { _rev: number; _ignoredCounters: string[]; _unknownKpis: string[] };
   }, [
     cfg,
     hasColumns,

@@ -586,7 +586,9 @@ export function useTableQuery(req: TableRequest | null) {
     queryKey: ['monitor', 'table', key],
     queryFn: async () => {
       try {
-        const { _rev, ...payload } = req! as TableRequest & { _rev?: number };
+        // Strip UI-only fields (_rev, _ignoredCounters, _unknownKpis) before POST.
+        const { _rev, _ignoredCounters, _unknownKpis, ...payload } =
+          req! as TableRequest & { _rev?: number; _ignoredCounters?: string[]; _unknownKpis?: string[] };
         return await fetchTable(payload as TableRequest);
       } catch (err) {
         console.warn('[useTableQuery] Backend error:', err);
