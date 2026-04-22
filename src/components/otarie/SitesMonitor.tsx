@@ -5101,11 +5101,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return 'red';
   }, [kpiThresholds, mapKpi]);
 
+  const ALL_KPI_LEVELS: ('green' | 'orange' | 'red' | 'gray')[] = ['green', 'orange', 'red', 'gray'];
   const toggleKpiLevel = useCallback((level: 'green' | 'orange' | 'red' | 'gray') => {
     setHiddenKpiLevels(prev => {
-      const next = new Set(prev);
-      if (next.has(level)) next.delete(level);
-      else next.add(level);
+      const othersHidden = ALL_KPI_LEVELS.filter(l => l !== level);
+      const isIsolated = othersHidden.every(l => prev.has(l)) && !prev.has(level);
+      // If already isolated on this level → show all (clear filter)
+      if (isIsolated) return new Set<'green' | 'orange' | 'red' | 'gray'>();
+      // Otherwise → isolate: hide all others, show only clicked level
+      const next = new Set<'green' | 'orange' | 'red' | 'gray'>(othersHidden);
       return next;
     });
   }, []);
@@ -8016,6 +8020,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           /* ── Indoor sites: circle with "I" instead of sectors (rendered at all zooms including sector zoom) ── */
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
+          // KPI legend filter: skip site if its KPI level is hidden
+          if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
+            const siteKpiVal = getSiteKpiValue(site);
+            if (hiddenKpiLevels.has(getKpiLevel(siteKpiVal))) return null;
+          }
           if (isIndoor) {
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(renderSiteForCells);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
