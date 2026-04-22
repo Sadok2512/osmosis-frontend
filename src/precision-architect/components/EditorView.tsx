@@ -518,28 +518,60 @@ export default function EditorView({
                 return (
                   <div
                     key={w.id}
+                    data-pa-widget-id={w.id}
                     className={cn(
                       `${padCls} group relative overflow-hidden`,
                       w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
                     )}
                     style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
                   >
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                      <button
-                        onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
-                        className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-white shadow-md border border-outline-variant/20 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
-                        aria-label="Edit widget"
-                      >
-                        <SlidersHorizontal className="w-3 h-3" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => removeWidget(w.id)}
-                        className="w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-error hover:bg-error/10 transition-colors"
-                        aria-label="Remove widget"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            className="w-7 h-7 rounded-full bg-white shadow-md border border-outline-variant/20 flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-colors"
+                            aria-label="Widget actions"
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="w-3.5 h-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          align="end"
+                          className="w-44 p-1 z-[80]"
+                          onMouseDown={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={() => { setActiveWidget(w.id); setShowSettings(true); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-on-surface hover:bg-primary/5 hover:text-primary rounded-md transition-colors"
+                          >
+                            <SlidersHorizontal className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => duplicateWidget(w.id)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-on-surface hover:bg-primary/5 hover:text-primary rounded-md transition-colors"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                            Duplicate
+                          </button>
+                          <button
+                            onClick={() => exportWidgetToPNG(w.id)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-on-surface hover:bg-primary/5 hover:text-primary rounded-md transition-colors"
+                          >
+                            <ImageDownIcon className="w-3.5 h-3.5" />
+                            Export PNG
+                          </button>
+                          <div className="my-1 h-px bg-outline-variant/20" />
+                          <button
+                            onClick={() => removeWidget(w.id)}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-error hover:bg-error/10 rounded-md transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <WidgetRenderer widget={w} editable onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))} />
                   </div>
