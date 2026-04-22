@@ -878,7 +878,7 @@ export default function EditorView({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               onClick={() => setShowSettings(false)}
-              className="fixed inset-0 z-[55] bg-black/20 lg:bg-transparent lg:pointer-events-none"
+              className="fixed inset-0 z-[85] bg-black/20 lg:bg-transparent lg:pointer-events-none"
               aria-hidden
             />
             <motion.div
@@ -887,7 +887,7 @@ export default function EditorView({
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className="z-[60] w-full sm:w-[400px] max-w-full pointer-events-auto flex flex-col"
+              className="z-[90] w-full sm:w-[400px] max-w-full pointer-events-auto flex flex-col"
               style={{ position: 'fixed', top: 0, right: 0, bottom: 0, height: '100vh' }}
               onKeyDown={(e) => { if (e.key === 'Escape') setShowSettings(false); }}
               tabIndex={-1}
