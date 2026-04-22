@@ -3711,6 +3711,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const saved = parseFloat(localStorage.getItem('osmosis_kpi_overlay_intensity') || '');
     return Number.isFinite(saved) && saved > 0 ? Math.min(1.5, Math.max(0.2, saved)) : 1;
   });
+  // Global KPI overlay transparency (0 = fully transparent, 1 = fully opaque) — multiplies on top of intensity
+  const [kpiOverlayTransparency, setKpiOverlayTransparency] = useState<number>(() => {
+    const saved = parseFloat(localStorage.getItem('osmosis_kpi_overlay_transparency') || '');
+    return Number.isFinite(saved) && saved >= 0 && saved <= 1 ? saved : 1;
+  });
   const [showKpiThresholdEditor, setShowKpiThresholdEditor] = useState(false);
   const [kpiSearch, setKpiSearch] = useState('');
   const [kpiValues, setKpiValues] = useState<Map<string, number>>(new Map());
