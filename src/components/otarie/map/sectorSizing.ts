@@ -178,9 +178,11 @@ export const computeSmartAutoDensity = (
   for (const s of sites) {
     const density = siteDensity.get(s.id) ?? 0;
     const percentile = percentileOf(density);
+    // Softer shrink curve — keep beams clearly visible even in densest zones.
+    // Floor raised 0.65 → 0.80 so urban beams remain readable.
     const beamScale = Math.max(
-      0.65,
-      Math.min(1.20, 1.20 - 0.55 * Math.sqrt(percentile)),
+      0.80,
+      Math.min(1.20, 1.20 - 0.40 * Math.sqrt(percentile)),
     );
     // Gentle opacity damping: only the densest zones get a small fade. Floor 0.85 keeps beams clearly visible.
     const opacityScale = Math.max(
@@ -194,17 +196,17 @@ export const computeSmartAutoDensity = (
 };
 
 /**
- * Convert a Smart Auto beamScale (∈ [0.65, 1.20]) into the legacy
+ * Convert a Smart Auto beamScale (∈ [0.80, 1.20]) into the legacy
  * `densityFactor` parameter expected by getZoomAwareRadius (∈ [0, 1]).
  *
- * getZoomAwareRadius applies: targetPx *= 0.30 + 0.70 * densityFactor
+ * getZoomAwareRadius applies: targetPx *= 0.55 + 0.45 * densityFactor
  * We want the resulting overall multiplier on radius to equal beamScale,
  * relative to the baseline densityFactor = 1 (i.e. multiplier 1.0).
  *
- *   0.30 + 0.70 * df = beamScale  →  df = (beamScale - 0.30) / 0.70
+ *   0.55 + 0.45 * df = beamScale  →  df = (beamScale - 0.55) / 0.45
  */
 export const beamScaleToDensityFactor = (beamScale: number): number => {
-  const df = (beamScale - 0.30) / 0.70;
+  const df = (beamScale - 0.55) / 0.45;
   return Math.max(0, Math.min(1, df));
 };
 
