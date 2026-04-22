@@ -101,7 +101,10 @@ const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
       }))
     : [];
 
-  const commonProps = { data, margin: { top: 24, right: 16, left: 8, bottom: 8 } };
+  const commonProps = { data, margin: { top: 28, right: 24, left: 12, bottom: 16 } };
+
+  const axisTick = { fontSize: 11, fill: 'hsl(var(--foreground))', fontWeight: 600 } as const;
+  const axisLineStyle = { stroke: 'hsl(var(--border))', strokeWidth: 1 } as const;
 
   const renderChart = () => {
     switch (chartType) {
