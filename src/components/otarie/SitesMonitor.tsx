@@ -7533,12 +7533,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Heatmap layer */}
-        {!paramMode && !paramPanelOpen && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
+        {!paramMode && sectorColorMode !== 'topo' && mapDisplayMode === 'heatmap' && (
           <HeatmapLayer points={heatmapPoints} radius={35} blur={25} minOpacity={0.3} />
         )}
 
         {/* Points mode — individual cell markers */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'points' && renderSites.map(site => {
+        {!paramMode && mapDisplayMode === 'points' && renderSites.map(site => {
           const showCellLabels = viewport.zoom >= 13;
           const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
@@ -7597,7 +7597,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* Sites mode — Mini sectors or circle markers when full sectors not visible */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && renderSites.map(site => {
           const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
           const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
           // KPI coloring: use site-level KPI value when in KPI mode
@@ -7825,7 +7825,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
 
         {/* ── Two-pass rendering: ALL 4G circles first (bottom), then ALL 5G circles (top) ── */}
-        {!paramMode && !paramPanelOpen && mapDisplayMode === 'sites' && !showSectors && (() => {
+        {!paramMode && mapDisplayMode === 'sites' && !showSectors && (() => {
           // Collect renderable sites (non-indoor, non-miniSector)
           const circleSites = renderSites.filter(site => {
             const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
@@ -7997,7 +7997,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
 
         {/* Detailed sectors (only when zoomed in, sites mode) — professional low-opacity with strokes */}
-        {!paramMode && !paramPanelOpen && showSectors && renderSites.map(site => {
+        {!paramMode && showSectors && renderSites.map(site => {
           // LOD filtering: skip sites in very dense areas to reduce overdraw
           const densityInfo = siteDensityMap.get(site.site_id);
           const isHovered = hoveredSiteId === site.site_id;
