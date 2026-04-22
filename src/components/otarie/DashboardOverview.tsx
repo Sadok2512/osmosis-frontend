@@ -702,8 +702,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
     </div>
   );
 };
-
-
+/* ═══════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════ */
 const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
