@@ -100,6 +100,8 @@ export interface ChartWidgetConfig {
  */
 export interface TableColumn {
   id: string;
+  /** Column source. Older saved widgets may omit this; UI infers counters by key when needed. */
+  source?: 'kpi' | 'counter';
   /** KPI key (matches kpi_catalog.kpi_key). */
   kpiKey: string;
   alias?: string;

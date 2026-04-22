@@ -110,6 +110,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
       const k = kpiCatalog?.find(x => x.kpi_key === key);
       return {
         id: `col-${Date.now()}-${idx}`,
+        source: 'kpi',
         kpiKey: key,
         alias: k?.display_name || key,
         unit: k?.unit || '',
@@ -127,6 +128,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
       const c = counterCatalog.find((x: any) => x.counter_name === name);
       return {
         id: `cnt-${Date.now()}-${idx}`,
+        source: 'counter',
         kpiKey: name,
         alias: c?.display_name || name,
         unit: '',

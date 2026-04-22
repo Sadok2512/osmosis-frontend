@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ArrowUp, ArrowDown, Loader2, TableIcon } from 'lucide-react';
-import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
-import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
-import { useTableQuery, TableRequest, MonitorFilter, useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG, TableColumn } from '../types';
+import { fetchTable, TableRequest, TableResponse, TableRow, MonitorFilter, useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import { toBackendDimension } from '../lib/monitorDimensions';
+import { getApiHeaders, getApiUrl } from '@/lib/apiConfig';
+import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
 
 interface Props {
   height?: number | string;
@@ -87,35 +88,29 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       return raw;
     };
 
-    // Only send real KPI columns to /monitor/query/table.
-    // PM counter columns (id prefix "cnt-") are not supported by this endpoint
-    // and would cause the backend to return 0 rows. They are filtered out and
-    // a toast notifies the user (once per apply).
     const visibleCols = cfg.columns.filter(c => c.visible);
-    const counterColumns = visibleCols.filter(c => c.id.startsWith('cnt-'));
-    const kpiCandidateColumns = visibleCols.filter(c => !c.id.startsWith('cnt-'));
-
-    // Validate against backend KPI catalog when available — drop unknown keys
-    // (the backend silently returns 0 rows otherwise).
     const catalogReady = validKpiKeys.size > 0;
-    const kpiOnlyColumns = catalogReady
-      ? kpiCandidateColumns.filter(c => validKpiKeys.has(c.kpiKey))
-      : kpiCandidateColumns;
-    const unknownColumns = catalogReady
-      ? kpiCandidateColumns.filter(c => !validKpiKeys.has(c.kpiKey))
-      : [];
+    const resolvedColumns = visibleCols.map(col => ({
+      ...col,
+      source: col.source ?? (
+        catalogReady
+          ? (validKpiKeys.has(col.kpiKey) ? 'kpi' : 'counter')
+          : (looksLikeRawCounter(col.kpiKey) ? 'counter' : undefined)
+      ),
+    }));
 
-    // Mirror the chart payload exactly: only date / filters / kpi_keys.
     // No split_by, no top_n, no pagination — backend aggregates by default.
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
-      kpi_keys: kpiOnlyColumns.map(c => c.kpiKey),
+      kpi_keys: resolvedColumns.filter(c => c.source !== 'counter').map(c => c.kpiKey),
+      split_by: cfg.splitBy ? toBackendDimension(cfg.splitBy) : null,
+      top_n: cfg.topN,
+      granularity: toBackendGranularity(cfg.data.granularity || '1d'),
+      columns: resolvedColumns,
       _rev: effectiveAppliedRev,
-      _ignoredCounters: counterColumns.map(c => c.alias || c.kpiKey),
-      _unknownKpis: unknownColumns.map(c => c.kpiKey),
-    } as unknown as TableRequest & { _rev: number; _ignoredCounters: string[]; _unknownKpis: string[] };
+    } as TableRequest & { _rev: number; granularity: string; columns: TableColumn[] };
   }, [
     cfg,
     hasColumns,
@@ -130,35 +125,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     validKpiKeys,
   ]);
 
-  // Notify the user once per Apply when PM counters or unknown KPIs were dropped.
-  const lastWarnedRevRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (!request) return;
-    const ignored = (request as any)._ignoredCounters as string[] | undefined;
-    const unknown = (request as any)._unknownKpis as string[] | undefined;
-    const rev = (request as any)._rev as number;
-    if (lastWarnedRevRef.current !== rev) {
-      if (ignored && ignored.length > 0) {
-        lastWarnedRevRef.current = rev;
-        toast.warning(`${ignored.length} compteur(s) PM ignoré(s)`, {
-          description:
-            `L'endpoint /monitor/query/table accepte uniquement des KPIs du catalogue. ` +
-            `Compteurs ignorés: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? '…' : ''}`,
-        });
-      }
-      if (unknown && unknown.length > 0) {
-        lastWarnedRevRef.current = rev;
-        toast.warning(`${unknown.length} KPI(s) inconnu(s) du catalogue`, {
-          description:
-            `Ces KPIs ne sont pas exposés par /monitor/catalog/kpis et ont été retirés du payload : ` +
-            `${unknown.slice(0, 3).join(', ')}${unknown.length > 3 ? '…' : ''}.`,
-        });
-      }
-    }
-    console.log('[PA Table] ▶ POST /monitor/query/table', request);
+    if (request) console.log('[PA Table] table request', request);
   }, [request]);
 
-  const { data: tableResp, isFetching, error } = useTableQuery(request);
+  const { data: tableResp, isFetching, error } = usePATableQuery(request);
 
   useEffect(() => {
     if (tableResp) console.log('[PA Table] ◀ response', { rows: tableResp.rows?.length ?? 0 });
@@ -169,14 +141,12 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     () => (cfg?.columns ?? []).filter(c => c.visible),
     [cfg],
   );
-  const hasOnlyCounters = hasColumns && (cfg?.columns ?? []).filter(c => c.visible).every(c => c.id.startsWith('cnt-'));
   const rows = tableResp?.rows ?? [];
   const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
   // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'only-counters' | 'not-applied' | 'backend' | 'no-data' | null =
+  const emptyReason: 'no-column' | 'not-applied' | 'backend' | 'no-data' | null =
     !hasColumns ? 'no-column'
-    : hasOnlyCounters ? 'only-counters'
     : (!hasBeenApplied) ? 'not-applied'
     : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
@@ -188,11 +158,6 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   if (emptyReason) {
     const copy = emptyReason === 'no-column'
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
-      : emptyReason === 'only-counters'
-      ? {
-          title: 'Compteurs PM non supportés',
-          body: 'Cette table n\'accepte que des KPIs du catalogue (endpoint /monitor/query/table). Ajoute au moins un KPI via "Add KPI" pour voir des données.',
-        }
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'backend'
@@ -280,6 +245,173 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     </div>
   );
 };
+
+type PATableRequest = TableRequest & {
+  _rev?: number;
+  granularity?: string;
+  columns?: TableColumn[];
+};
+
+function usePATableQuery(req: PATableRequest | null) {
+  const key = req ? JSON.stringify(req) : 'noop';
+  return useQuery({
+    queryKey: ['precision-architect', 'table', key],
+    enabled: !!req && (req.columns?.length ?? req.kpi_keys.length) > 0,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    queryFn: async () => {
+      const { _rev, columns = [], granularity = '1d', ...basePayload } = req!;
+      const visibleColumns = columns.length > 0
+        ? columns
+        : basePayload.kpi_keys.map(kpiKey => ({ id: kpiKey, kpiKey, visible: true }));
+
+      const counterColumns = visibleColumns.filter(isCounterColumn);
+      const kpiColumns = visibleColumns.filter(col => !isCounterColumn(col));
+      const responses: TableResponse[] = [];
+
+      if (kpiColumns.length > 0) {
+        responses.push(await fetchTable({
+          ...basePayload,
+          kpi_keys: kpiColumns.map(col => col.kpiKey),
+        }));
+      }
+
+      if (counterColumns.length > 0) {
+        responses.push(await fetchCounterTable({
+          ...basePayload,
+          counter_names: counterColumns.map(col => col.kpiKey),
+          granularity,
+        }));
+      }
+
+      if (responses.length === 0) {
+        return { rows: [], total: 0, page: 1, page_size: basePayload.top_n ?? 50 } as TableResponse;
+      }
+
+      return mergeTableResponses(responses, basePayload.top_n ?? 50);
+    },
+  });
+}
+
+function isCounterColumn(col: Pick<TableColumn, 'source' | 'kpiKey'>): boolean {
+  if (col.source === 'counter') return true;
+  if (col.source === 'kpi') return false;
+  // Backward compatibility for saved widgets created before source metadata.
+  return looksLikeRawCounter(col.kpiKey);
+}
+
+function looksLikeRawCounter(key: string): boolean {
+  return /^[A-Z]\./.test(key) || /^M\d/i.test(key) || /^pm_/i.test(key);
+}
+
+async function fetchCounterTable(req: TableRequest & { counter_names: string[]; granularity: string }): Promise<TableResponse> {
+  const body: Record<string, any> = {
+    counter_names: req.counter_names,
+    date_from: req.date_from,
+    date_to: req.date_to,
+    granularity: req.granularity,
+  };
+
+  if (req.split_by) {
+    body.split_by_dimension = true;
+    body.split_by_field = req.split_by;
+  }
+  applyCounterFilters(body, req.filters);
+
+  const res = await fetch(getApiUrl('pm/counters/timeseries'), {
+    method: 'POST',
+    headers: getApiHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Counter table failed: ${res.status}${text ? ` ${text}` : ''}`);
+  }
+
+  const json = await res.json();
+  const series = Array.isArray(json.series) ? json.series : Array.isArray(json.data) ? json.data : [];
+  const bySplit = new Map<string, TableRow>();
+
+  for (const point of series) {
+    const counterId = point.counter_id || point.counter_name || String(point.counter || '').split('@')[0] || req.counter_names[0];
+    const splitValue = req.split_by ? (point.dimension_key || point.split_value || point.split_field || '—') : 'Total';
+    const value = Number(point.value ?? point.kpi_value ?? point.val);
+    if (!Number.isFinite(value)) continue;
+    const row = bySplit.get(splitValue) || { split_value: splitValue };
+    row[counterId] = Number(row[counterId] || 0) + value;
+    bySplit.set(splitValue, row);
+  }
+
+  const firstCounter = req.counter_names[0];
+  const rows = Array.from(bySplit.values())
+    .sort((a, b) => Number(b[firstCounter] || 0) - Number(a[firstCounter] || 0))
+    .slice(0, req.top_n ?? 50);
+
+  return {
+    rows,
+    total: rows.length,
+    page: 1,
+    page_size: req.top_n ?? 50,
+    source_tables: { data: 'pm.fact_counters_15min' },
+  };
+}
+
+function applyCounterFilters(body: Record<string, any>, filters: MonitorFilter[]) {
+  const dimFilterValues: string[] = [];
+  const structural = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNO', 'TECHNOLOGY', 'RAT', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP']);
+
+  for (const filter of filters || []) {
+    const values = filter.values || [];
+    if (values.length === 0) continue;
+    const dim = String(filter.dimension || '').toUpperCase();
+    if (dim === 'SITE') body.site_name = values.length === 1 ? values[0] : values;
+    else if (dim === 'CELL') body.cell_name = values.length === 1 ? values[0] : values;
+    else if (dim === 'VENDOR') body.vendor = values[0];
+    else if (dim === 'PLAQUE') body.plaque = values[0];
+    else if (dim === 'DOR' || dim === 'DR') body.dor = values[0];
+    else if (dim === 'BAND') body.band = values[0];
+    else if (dim === 'RAT' || dim === 'TECHNO' || dim === 'TECHNOLOGY') {
+      const allTechs = new Set(['2G', '3G', '4G', '5G']);
+      const normalized = values.map(v => String(v).toUpperCase());
+      const allSelected = normalized.length >= 4 && normalized.every(v => allTechs.has(v));
+      if (!allSelected) body.object_type = normalized.length === 1 ? normalized[0] : normalized;
+    } else if (!structural.has(dim)) {
+      dimFilterValues.push(...values);
+    }
+  }
+
+  if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
+}
+
+function mergeTableResponses(responses: TableResponse[], topN: number): TableResponse {
+  const bySplit = new Map<string, TableRow>();
+  const messages: string[] = [];
+  const sourceTables: Record<string, string> = {};
+
+  for (const response of responses) {
+    if (response.info) messages.push(response.info);
+    if (response.meta?.error) messages.push(response.meta.error);
+    if (response.meta?.info) messages.push(response.meta.info);
+    Object.assign(sourceTables, response.source_tables || {});
+    for (const row of response.rows || []) {
+      const split = row.split_value || 'Total';
+      bySplit.set(split, { ...(bySplit.get(split) || { split_value: split }), ...row, split_value: split });
+    }
+  }
+
+  const rows = Array.from(bySplit.values()).slice(0, topN);
+  return {
+    rows,
+    total: rows.length,
+    page: 1,
+    page_size: topN,
+    source_tables: sourceTables,
+    meta: messages.length > 0 && rows.length === 0 ? { info: messages.join(' · ') } : undefined,
+  };
+}
 
 function formatValue(v: any): string {
   const n = Number(v);
