@@ -466,7 +466,7 @@ function DataTab({
 
 /* ---------------- Inherited-from-toolbar summary card ---------------- */
 
-function InheritedFromToolbarCard({ onOverride }: { onOverride: () => void }) {
+function InheritedFromToolbarCard({ onOverride, isStat }: { onOverride: () => void; isStat?: boolean }) {
   // Read the live global toolbar values so the user can see what they'll get.
   const technos = usePAGlobalToolbar((s) => s.technos);
   const from = usePAGlobalToolbar((s) => s.from);
