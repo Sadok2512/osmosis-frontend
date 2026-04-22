@@ -277,38 +277,35 @@ const metersPerPixel = (lat: number, zoom: number): number => {
 const getZoomAwareRadius = (
   lat: number,
   zoom: number,
-  densityFactor: number = 1, // 0..1 — lower = denser area = smaller sectors
+  densityFactor: number = 1, // 0..1 — only used at zoom < 12
   viewportWidth: number = 1400, // CSS px
 ): number => {
-  // Geographic-space radius in meters — beams represent real antenna coverage.
-  // At low zoom beams are compact (overview), at high zoom they spread to reveal structure.
-  //
-  // Key change: radius is computed in GEOGRAPHIC space (meters), not screen space.
-  // This means zooming in naturally separates beams because the map scale changes
-  // but the meter-radius stays proportional to actual coverage.
+  // Geographic-space radius in meters.
+  // Zoom 12+: UNIFORM radius for all sites (no per-site scaling).
+  // Zoom < 12: adaptive scaling allowed for overview decluttering.
 
-  // Base geographic radius by zoom — progressive increase with zoom
-  // Low zoom: tight compact beams (overview mode)
-  // High zoom: beams spread to realistic coverage footprint
+  // Global radius by zoom — same for every site at a given zoom level
   let baseMeters: number;
-  if (zoom <= 9)  baseMeters = 150;   // compact overview
+  if (zoom <= 9)  baseMeters = 150;
   else if (zoom <= 10) baseMeters = 200;
   else if (zoom <= 11) baseMeters = 280;
   else if (zoom <= 12) baseMeters = 350;
   else if (zoom <= 13) baseMeters = 420;
   else if (zoom <= 14) baseMeters = 500;
   else if (zoom <= 15) baseMeters = 600;
-  else baseMeters = 700;  // very zoomed in — near-realistic coverage
+  else baseMeters = 700;
 
-  // Viewport scaling
+  // Viewport scaling (global, same for all sites)
   const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
   baseMeters *= vpScale;
 
-  // Density scaling: reduce size in crowded areas (densityFactor 0→0.35x, 1→1x)
-  const densityScale = 0.35 + 0.65 * Math.max(0, Math.min(1, densityFactor));
-  baseMeters *= densityScale;
+  // Density scaling: ONLY at low zoom (overview mode).
+  // At zoom 12+, all sites get the same radius — no per-site variation.
+  if (zoom < 12) {
+    const densityScale = 0.35 + 0.65 * Math.max(0, Math.min(1, densityFactor));
+    baseMeters *= densityScale;
+  }
 
-  // Clamp: never too small (invisible) or too large (unrealistic)
   return Math.max(20, Math.min(2000, baseMeters));
 };
 
@@ -7492,11 +7489,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               const scale = Math.pow(2, REF_ZOOM - zoom);
               return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
             };
-            // Cell-count density scale: dense sites get bigger sectors (sqrt scaling, clamped)
-            const cellCountScale = getCellCountScale(renderSiteCells.length);
-            // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
-            const siteDF = getSiteDensityFactor(site.site_id);
-            const siteOpacityScale = getSiteOpacityScale(site.site_id);
+            // At zoom 12+: uniform sizing — no per-site variation
+            const isUniformZoom = viewport.zoom >= 12;
+            const cellCountScale = isUniformZoom ? 1 : getCellCountScale(renderSiteCells.length);
+            const siteDF = isUniformZoom ? 1 : getSiteDensityFactor(site.site_id);
+            const siteOpacityScale = isUniformZoom ? 1 : getSiteOpacityScale(site.site_id);
             const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * 0.7 * cellCountScale;
             // PRO #2/#3: lighter fill + stronger outline for readability — dense zones get extra opacity dampening
             const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale;
@@ -7843,10 +7840,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
-          const cellCountScale = getCellCountScale(renderSiteCells.length);
-          // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
-          const siteDF = getSiteDensityFactor(site.site_id);
-          const siteOpacityScale = getSiteOpacityScale(site.site_id);
+          // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
+          // At zoom < 12: adaptive scaling for overview decluttering
+          const isUniformZoom = viewport.zoom >= 12;
+          const cellCountScale = isUniformZoom ? 1 : getCellCountScale(renderSiteCells.length);
+          const siteDF = isUniformZoom ? 1 : getSiteDensityFactor(site.site_id);
+          const siteOpacityScale = isUniformZoom ? 1 : getSiteOpacityScale(site.site_id);
           const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
