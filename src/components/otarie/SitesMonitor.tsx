@@ -281,22 +281,21 @@ const getZoomAwareRadius = (
   viewportWidth: number = 1400, // CSS px
 ): number => {
   // Geographic-space radius in meters.
-  // Zoom 12+: UNIFORM radius for all sites (no per-site scaling).
-  // Zoom < 12: adaptive scaling allowed for overview decluttering.
+  // Zoom 13 = max VISUAL size. Beyond Z13, the meter radius shrinks
+  // inversely with zoom so the beam covers the same pixel footprint.
+  //
+  // Because beams are geographic polygons, a fixed meter radius covers
+  // 2× more pixels each zoom level. To freeze visual size at Z13:
+  //   finalRadius = baseRadius(13) / 2^(zoom - 13)
 
-  // Global radius by zoom — same for every site at a given zoom level
-  // Zoom 13 = max visual cap. Beyond Z13, radius stays at Z13 size.
-  const effectiveZoom = Math.min(zoom, 13);
+  const CAP_ZOOM = 13;
+  const effectiveZoom = Math.min(zoom, CAP_ZOOM);
   let baseMeters: number;
   if (effectiveZoom <= 9)  baseMeters = 150;
   else if (effectiveZoom <= 10) baseMeters = 200;
   else if (effectiveZoom <= 11) baseMeters = 280;
   else if (effectiveZoom <= 12) baseMeters = 350;
-  else baseMeters = 420; // zoom 13+ capped
-
-  // Viewport scaling (global, same for all sites)
-  const vpScale = Math.max(0.7, Math.min(1.1, viewportWidth / 1400));
-  baseMeters *= vpScale;
+  else baseMeters = 420; // Z13
 
   // Density scaling: ONLY at low zoom (overview mode).
   // At zoom 12+, all sites get the same radius — no per-site variation.
@@ -305,7 +304,12 @@ const getZoomAwareRadius = (
     baseMeters *= densityScale;
   }
 
-  return Math.max(20, Math.min(2000, baseMeters));
+  // Inverse-zoom compensation: shrink meter radius so visual size stays constant beyond Z13.
+  if (zoom > CAP_ZOOM) {
+    baseMeters /= Math.pow(2, zoom - CAP_ZOOM);
+  }
+
+  return Math.max(1, baseMeters);
 };
 
 const inferSiteTechState = (site: SiteSummary): { has2G: boolean; has3G: boolean; has4G: boolean; has5G: boolean } => {
@@ -7481,12 +7485,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (showMiniSectors) {
             // Inverse zoom scaling for tagged sites: much larger at low zoom, still adaptive at high zoom
             const getTaggedRadius = (zoom: number) => {
+              const CAP = 13;
+              const ez = Math.min(zoom, CAP);
               const BASE = 650;
               const MIN_RADIUS = 320;
               const MAX_RADIUS = 4200;
               const REF_ZOOM = 12;
-              const scale = Math.pow(2, REF_ZOOM - zoom);
-              return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+              const scale = Math.pow(2, REF_ZOOM - ez);
+              let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+              // Inverse-zoom compensation beyond Z13
+              if (zoom > CAP) r /= Math.pow(2, zoom - CAP);
+              return r;
             };
             // At zoom 12+: uniform sizing — no per-site variation
             const isUniformZoom = viewport.zoom >= 12;
@@ -7832,12 +7841,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
           // Inverse zoom scaling for tagged sites: much larger than normal, while staying adaptive
           const getTaggedRadiusDetail = (zoom: number) => {
+            const CAP = 13;
+            const ez = Math.min(zoom, CAP);
             const BASE = 650;
             const MIN_RADIUS = 320;
             const MAX_RADIUS = 4200;
             const REF_ZOOM = 12;
-            const scale = Math.pow(2, REF_ZOOM - zoom);
-            return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+            const scale = Math.pow(2, REF_ZOOM - ez);
+            let r = Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+            // Inverse-zoom compensation beyond Z13
+            if (zoom > CAP) r /= Math.pow(2, zoom - CAP);
+            return r;
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
@@ -7860,7 +7874,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const kpiColor = renderSiteCells.length > 0 ? getKpiColor(getCellKpiValue(renderSiteCells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
-            const iconSize = Math.min(32, Math.max(18, (viewport.zoom - 12) * 6 + 18));
+            const iconSize = Math.min(32, Math.max(18, (Math.min(viewport.zoom, 13) - 12) * 6 + 18));
             return (
               <Marker
                 key={site.site_id}
@@ -7900,8 +7914,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!show2G && !show3G && !show4G && !show5G) {
               if (mapTechnoFilter !== 'ALL') return null;
             }
-            const zz = viewport.zoom;
-            const baseR = Math.max(2, Math.round((zz >= 14 ? 14 : zz >= 13 ? 12 : zz >= 12 ? 10 : zz >= 11 ? 9 : zz >= 10 ? 7 : zz >= 9 ? 6 : zz >= 8 ? 5 : zz >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)));
+            const zz = Math.min(viewport.zoom, 13);
+            const baseR = Math.max(2, Math.round((zz >= 13 ? 12 : zz >= 12 ? 10 : zz >= 11 ? 9 : zz >= 10 ? 7 : zz >= 9 ? 6 : zz >= 8 ? 5 : zz >= 7 ? 4 : 3) * (isHovered || isSelectedSite ? 1.4 : 1)));
             return (
               <React.Fragment key={site.site_id}>
                 {show2G && (
