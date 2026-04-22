@@ -5832,6 +5832,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return enabledBands.has(key);
   }, [enabledBands]);
 
+  const siteMatchesKpiLegend = useCallback((site: SiteSummary) => {
+    if (sectorColorMode !== 'kpi' || hiddenKpiLevels.size === 0) return true;
+    const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+    const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
+    const cells = (site.cells || []).filter(c =>
+      isCellVisibleForKpiOverlay(
+        c,
+        kpiTechnoFilter,
+        enabledTechnos,
+        isBandEnabled,
+        dashBand,
+        dashTechno,
+        localTechno,
+        localBande,
+        kpiOverlayVendor,
+        site.vendor,
+      ),
+    );
+
+    if (cells.length === 0) {
+      const val = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+      return !hiddenKpiLevels.has(getKpiLevel(val));
+    }
+
+    return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
+  }, [
+    sectorColorMode,
+    hiddenKpiLevels,
+    dashboardActive,
+    activeDashboardFilters,
+    kpiTechnoFilter,
+    enabledTechnos,
+    isBandEnabled,
+    localTechno,
+    localBande,
+    kpiOverlayVendor,
+    kpiValues,
+    mapKpi,
+    getKpiLevel,
+    getCellKpiValue,
+  ]);
+
   const toggleBand = useCallback((band: string) => {
     setEnabledBands(prev => {
       const next = new Set(prev);
@@ -5961,16 +6003,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // A site is kept if ANY of its cells matches a visible level (avoids hiding
     // a site just because its first cell has no KPI data while another cell does).
     if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
-      const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
-      const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
-      candidates = candidates.filter(s => {
-        const cells = (s.cells || []).filter(c => isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, s.vendor));
-        if (cells.length === 0) {
-          const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
-          return !hiddenKpiLevels.has(getKpiLevel(val));
-        }
-        return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
-      });
+      candidates = candidates.filter(siteMatchesKpiLegend);
     }
     // If still too many, sample evenly to keep the map responsive
     if (candidates.length > MAX_RENDER_SITES) {
@@ -5982,7 +6015,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, getKpiLevel, kpiValues, mapKpi, dashboardActive, activeDashboardFilters, kpiTechnoFilter, enabledTechnos, isBandEnabled, localTechno, localBande]);
+  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
   const taggedSitesInView = useMemo(() => {
     return taggedSites.filter(s => {
