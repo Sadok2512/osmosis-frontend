@@ -391,11 +391,7 @@ const GraphSettingsPanel: React.FC<GraphSettingsPanelProps> = ({
           <div className="space-y-0.5 pt-0.5 border-t border-border/30">
             <p className="text-[8px] font-bold text-muted-foreground/70 uppercase">Légende</p>
             <SmallToggle label="Afficher" checked={graph.showLegend} onChange={v => setGraph({ showLegend: v })} />
-            {graph.showLegend && (
-              <SmallSelect label="Position" value={graph.legendPosition} options={[
-                { value: 'top', label: 'Haut' }, { value: 'bottom', label: 'Bas' },
-              ]} onChange={v => setGraph({ legendPosition: v as any })} />
-            )}
+            {/* Position fixed to bottom — top option removed by design */}
           </div>
         </div>
 

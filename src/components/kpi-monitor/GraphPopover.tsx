@@ -79,9 +79,7 @@ export const GraphCard: React.FC<GraphPopoverProps> = ({ graphConfig: ext, onGra
           <span className="text-[11px] text-muted-foreground">Afficher</span>
           <Switch checked={graph.showLegend} onCheckedChange={v => set({ showLegend: v })} className="h-4 w-7 data-[state=checked]:bg-primary" />
         </div>
-        {graph.showLegend && (
-          <FieldRow label="Position"><SmallSelect value={graph.legendPosition} options={[{ value: 'top', label: 'Haut' }, { value: 'bottom', label: 'Bas' }]} onChange={v => set({ legendPosition: v as any })} /></FieldRow>
-        )}
+        {/* Legend position is fixed to bottom by design */}
       </div>
     </div>
   );
