@@ -1482,6 +1482,21 @@ function StyleTab({
             </button>
           ))}
         </div>
+        {/* Stacked toggle — only meaningful for bar / area. Lines stay overlaid trends. */}
+        {(style.chartType === 'bar' || style.chartType === 'area') && (
+          <div className="mt-3">
+            <ToggleRow
+              label={style.chartType === 'bar' ? 'Stacked bars (cumulative)' : 'Stacked area (cumulative)'}
+              checked={!!style.stacked}
+              onChange={(v) => patchStyle({ stacked: v })}
+            />
+            <p className="mt-1 text-[10px] text-on-surface-variant leading-snug">
+              {style.stacked
+                ? 'Series are stacked to show total contribution. Best when units are comparable.'
+                : 'Series are drawn side-by-side / overlaid. Switch on for cumulative views.'}
+            </p>
+          </div>
+        )}
       </Section>
 
       <Section title="Lines">

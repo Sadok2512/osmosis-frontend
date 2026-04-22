@@ -83,6 +83,8 @@ export interface ChartWidgetConfig {
   metrics: ChartMetric[];
   style: {
     chartType: ChartType;
+    /** When true, bar/area series are stacked (total contribution view). Lines stay unstacked. */
+    stacked?: boolean;
     lineThickness: number;
     smooth: boolean;
     fill: FillStyle;
@@ -343,6 +345,7 @@ export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
   metrics: [],
   style: {
     chartType: 'line',
+    stacked: false,
     lineThickness: 2,
     smooth: true,
     fill: 'gradient',
