@@ -1311,6 +1311,42 @@ function MetricsTab({
                           {m.fillArea ? 'On' : 'Off'}
                         </button>
                       </Field>
+
+                      <Field label="Split by">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full flex items-center justify-between gap-1 py-2 px-2.5 text-[10px] font-bold uppercase tracking-wider rounded-lg border border-outline-variant/30 bg-white text-on-surface hover:border-primary/30 transition-colors"
+                              title="Split this KPI into one series per dimension value"
+                            >
+                              <span className="truncate">{m.splitBy && m.splitBy !== '__none__' ? m.splitBy : 'None'}</span>
+                              <ChevronDown className="w-3 h-3 shrink-0" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-40 p-1" align="end">
+                            {SPLIT_OPTIONS.map(opt => {
+                              const v = opt === '__none__' ? null : opt;
+                              const label = opt === '__none__' ? 'None (aggregate)' : opt;
+                              const active = (m.splitBy ?? null) === v;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { splitBy: v }); }}
+                                  className={cn(
+                                    'w-full text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                                    active ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                                  )}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </PopoverContent>
+                        </Popover>
+                      </Field>
                     </div>
                   </div>
                 </div>
