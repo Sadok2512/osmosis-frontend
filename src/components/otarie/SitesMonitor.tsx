@@ -7556,7 +7556,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
           const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
           const baseCellsToRender = getRenderableCellsForSite(site, mapTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno).filter(cellMatchesViewConditions);
-          const cellsToRender = sectorColorMode === 'kpi'
+          const cellsToRender = (sectorColorMode as string) === 'kpi'
             ? baseCellsToRender.filter(cell => isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor) && isCellVisibleForKpiLegend(cell))
             : baseCellsToRender;
           return (
@@ -7581,7 +7581,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     pathOptions={{
                       color: isHovered ? '#fff' : 'transparent',
                       fillColor: color,
-                      fillOpacity: Math.min(1, 0.9 * (sectorColorMode === 'kpi' ? kpiOverlayIntensity * kpiOverlayTransparency : 1)),
+                      fillOpacity: Math.min(1, 0.9 * ((sectorColorMode as string) === 'kpi' ? kpiOverlayIntensity * kpiOverlayTransparency : 1)),
                       weight: isHovered ? 2 : 0,
                     }}
                     eventHandlers={{
