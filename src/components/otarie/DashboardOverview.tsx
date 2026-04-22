@@ -768,6 +768,18 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     }
   };
 
+  // Click handler for a dashboard row/card.
+  // PA dashboards bypass the in-page preview (which can't render PA widgets)
+  // and open straight in the Precision Architect module.
+  const openDashboard = (id: string) => {
+    const target = dashboards.find((d) => d.id === id);
+    if (target?.dashboardType === 'precision_architect') {
+      openInEditor(id);
+      return;
+    }
+    setSelectedId(id);
+  };
+
   const exportDashboard = (db: EnhancedDashboard) => {
     const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
