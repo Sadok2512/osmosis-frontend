@@ -524,7 +524,7 @@ export default function EditorSidebar({ onClose }: EditorSidebarProps) {
         </CollapsibleSection>
       </div>
 
-      <div className="flex flex-col gap-2 p-4 border-t border-outline-variant/10 bg-white">
+      <div className="shrink-0 flex flex-col gap-2 p-4 border-t border-outline-variant/10 bg-white">
         <div className="flex gap-2">
           <button onClick={resetAll} className="flex-1 py-3 text-[10px] font-black uppercase tracking-widest border-2 border-outline-variant/30 text-on-surface-variant rounded-xl hover:bg-surface-container-low transition-all active:scale-95 flex items-center justify-center gap-2">
             <Reset className="w-3.5 h-3.5" />
