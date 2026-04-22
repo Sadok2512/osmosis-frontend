@@ -105,8 +105,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       ? kpiCandidateColumns.filter(c => !validKpiKeys.has(c.kpiKey))
       : [];
 
-    // Map UI split (e.g., "CELL", "SITE", "__none__") to backend split_by.
-    const splitBy = (cfg.splitBy && cfg.splitBy !== '__none__') ? cfg.splitBy : null;
+    // Split is intentionally disabled in PA tables — always aggregate.
+    const splitBy = null;
 
     return {
       date_from: normalizeDate(eff.from),
