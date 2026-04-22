@@ -7728,8 +7728,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               : renderCells;
 
             // Fallback: if no band-specific items survived filtering, only use techno-level fallback
-            // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells)
-            const hasActiveBandFilter = localBande !== 'ALL' || (activeDashboardFilters?.bande?.length ?? 0) > 0;
+            // when filters are NOT actively excluding bands (otherwise we'd resurrect filtered-out cells).
+            // We must consider ALL band-filter sources: local select, dashboard filter, AND the bottom
+            // toolbar `enabledBands` toggles — otherwise disabling bands in the toolbar would still
+            // leak fallback 4G/5G sectors onto the map.
+            const hasActiveBandFilter =
+              localBande !== 'ALL'
+              || (activeDashboardFilters?.bande?.length ?? 0) > 0
+              || isBandFilterActive;
             if (miniItems.length === 0 && !hasActiveBandFilter && kpiVisibleCells.length > 0) {
               if (has4G && !has5G && enabledTechnos.has('4G')) {
                 const fallbackCell = kpiVisibleCells.find(c => getCellTechGroup(c.techno) === '4G') ?? kpiVisibleCells[0];
