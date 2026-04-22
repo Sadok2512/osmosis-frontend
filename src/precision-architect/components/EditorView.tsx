@@ -104,6 +104,16 @@ export default function EditorView({
   const [dragOverSectionId, setDragOverSectionId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'data' | 'appearance' | 'interactions' | 'alerting'>('data');
   const [settingsSubTab, setSettingsSubTab] = useState<'table' | 'breakdown' | 'logs'>('table');
+
+  // Close the floating right sidebar with Escape, regardless of focus location.
+  useEffect(() => {
+    if (!showSettings) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowSettings(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showSettings]);
   
 
   const activePage = pages.find(p => p.id === activePageId) ?? pages[0];
