@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { usePAReportStore } from '../stores/paReportStore';
 import WidgetRenderer from './WidgetRenderer';
 import SectionBlock from './SectionBlock';
+import ReportHeader from './ReportHeader';
 
 const GridLayout = WidthProvider(ReactGridLayout);
 
