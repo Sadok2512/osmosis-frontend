@@ -531,8 +531,7 @@ const isCellVisibleForKpiOverlay = (
   // Auto-hide sites whose vendor doesn't match the KPI's vendor
   if (kpiVendorFilter && siteVendor && siteVendor.toLowerCase() !== kpiVendorFilter.toLowerCase()) return false;
   const techGroup = getCellTechGroup(cell.techno);
-  if (!techGroup) return false;
-  // Show all technologies that have KPI data — don't hard-filter by kpiTechnoFilter
+  if (!techGroup || techGroup !== kpiTechnoFilter) return false;
   if (!enabledTechnos.has(techGroup)) return false;
   if (localTechno !== 'ALL' && techGroup !== localTechno) return false;
   if (localBande !== 'ALL' && cell.bande !== localBande) return false;
@@ -4985,6 +4984,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // dashboard/view perimeter client-side when deciding which cells/sectors to render.
       // BUT we DO forward the active date range — otherwise selecting a different period
       // in the topbar has no effect on the KPI values displayed on the map.
+      techno: kpiTechnoFilter,
       level: kpiAnalysisLevel,
       ...(kpiVendor ? { vendor: kpiVendor } : {}),
       ...(kpiDateFrom ? { date_from: kpiDateFrom } : {}),
@@ -5017,7 +5017,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
+  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
@@ -6673,20 +6673,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Le niveau Cellule doit rester en rendu point/cellule, sinon la carte retombe
   // sur des marqueurs de site agrégés au lieu d'afficher les cellules.
   const kpiForcesSectors = sectorColorMode === 'kpi'
+    && kpiAnalysisLevel !== 'cell'
     && mapDisplayMode === 'sites'
     && viewport.zoom >= SITES_TO_CELLS_ZOOM;
   const showSectors = !paramMode && ((viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors) || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites') || kpiForcesSectors);
 
-  // Auto-switch KPI analysis level based on zoom:
-  // Low zoom (< 12) → site level (one color per site)
-  // High zoom (≥ 12) → cell level (one color per beam)
-  const autoKpiLevel = viewport.zoom >= 12 ? 'cell' : 'site';
   useEffect(() => {
     if (sectorColorMode !== 'kpi' || paramMode) return;
-    setKpiAnalysisLevel(autoKpiLevel as 'cell' | 'site');
+    if (kpiAnalysisLevel === 'cell') {
+      setMapDisplayMode('points');
+      return;
+    }
     setShowBeamSectors(true);
     setMapDisplayMode('sites');
-  }, [paramMode, sectorColorMode, autoKpiLevel]);
+  }, [paramMode, sectorColorMode, kpiAnalysisLevel]);
 
   useEffect(() => {
     if (paramMode || sectorColorMode !== 'topo') return;
@@ -7612,9 +7612,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
           const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
-          // Concentric rings policy: in 'sites' mode (no detailed sectors), ALWAYS use concentric
-          // tech rings — never mini-sectors. Mini-sectors are reserved for tagged sites only.
-          const showMiniSectors = isTagged && renderSiteCells.length > 0 && !isIndoor;
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
@@ -7836,7 +7834,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
             const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = isTagged && renderSiteCells.length > 0 && !isIndoor;
+            const showMini = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
           });
 
@@ -9729,13 +9727,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                   {/* Analysis Level selector */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider shrink-0">Niveau</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Niveau</span>
                     <div className="flex gap-1 flex-1">
-                      <div className="flex-1 py-1 text-[9px] font-bold rounded-lg bg-primary/15 text-primary ring-1 ring-primary/30 flex items-center justify-center gap-1">
-                        <span className="text-[8px]">{kpiAnalysisLevel === 'cell' ? '📡' : '📍'}</span>
-                        {kpiAnalysisLevel === 'cell' ? 'Cellule' : 'Site'}
-                        <span className="text-[7px] opacity-60 ml-1">auto Z{viewport.zoom >= 12 ? '≥12' : '<12'}</span>
-                      </div>
+                      {([
+                        { key: 'site' as const, label: 'Site', icon: '📍' },
+                        { key: 'cell' as const, label: 'Cellule', icon: '📡' },
+                        { key: 'band' as const, label: 'Bande', icon: '📶' },
+                      ]).map(lvl => (
+                        <button
+                          key={lvl.key}
+                          onClick={() => { setKpiAnalysisLevel(lvl.key); setMapDisplayMode('sites'); setShowBeamSectors(true); }}
+                          className={`flex-1 py-1 text-[9px] font-bold rounded-lg transition-all flex items-center justify-center gap-1 ${
+                            kpiAnalysisLevel === lvl.key
+                              ? 'bg-primary/15 text-primary ring-1 ring-primary/30'
+                              : 'bg-muted/40 text-muted-foreground hover:bg-muted/70'
+                          }`}
+                        >
+                          <span className="text-[8px]">{lvl.icon}</span>
+                          {lvl.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>

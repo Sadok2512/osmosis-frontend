@@ -528,41 +528,17 @@ export default function EditorView({
               const renderWidgetCard = (w: DynWidget) => {
                 const isChart = w.kind === 'chart';
                 const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
-                const isActiveWidget = activeWidget === w.id;
                 return (
                   <div
                     key={w.id}
                     data-pa-widget-id={w.id}
-                    onMouseDown={(e) => {
-                      // Don't steal focus from interactive children (buttons, inputs, popovers)
-                      const target = e.target as HTMLElement;
-                      if (target.closest('button, input, textarea, select, [role="menuitem"], [data-radix-popper-content-wrapper]')) return;
-                      if (!isActiveWidget) {
-                        setActiveWidget(w.id);
-                        setShowSettings(true);
-                      }
-                    }}
                     className={cn(
-                      `${padCls} group relative overflow-hidden cursor-pointer transition-shadow`,
-                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border',
-                      !w.transparentBg && (isActiveWidget
-                        ? 'border-primary ring-2 ring-primary/40 shadow-lg'
-                        : 'border-outline-variant/10 hover:border-primary/30')
+                      `${padCls} group relative overflow-hidden`,
+                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
                     )}
                     style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
                   >
-                    {isActiveWidget && (
-                      <div className="absolute top-2 left-2 z-20 pointer-events-none">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-[9px] font-black uppercase tracking-widest text-on-primary shadow-md">
-                          <span className="w-1.5 h-1.5 rounded-full bg-on-primary animate-pulse" />
-                          Actif
-                        </span>
-                      </div>
-                    )}
-                    <div className={cn(
-                      "absolute top-2 right-2 transition-opacity z-20",
-                      isActiveWidget ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                    )}>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <Popover>
                         <PopoverTrigger asChild>
                           <button
