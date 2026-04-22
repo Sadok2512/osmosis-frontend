@@ -67,8 +67,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
     const cfg = config ?? null;
     const style = cfg?.style ?? DEFAULT_CHART_CONFIG.style;
     const isDark = style.background === 'dark' || isPresentation;
-    const labelColor = isDark ? 'rgba(255,255,255,0.55)' : '#565e74';
-    const splitLine = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const labelColor = isDark ? 'rgba(255,255,255,0.85)' : '#1e293b';
+    const axisLineColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(15,23,42,0.35)';
+    const splitLine = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)';
     const bgColor =
       style.background === 'transparent' ? 'transparent'
       : style.background === 'dark' ? '#0f172a'
@@ -91,21 +92,22 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'value' as const,
           position: 'left',
           show: hasLeft,
-          axisLine: { show: hasRight, lineStyle: { color: leftColor } },
-          axisTick: { show: false },
+          axisLine: { show: true, lineStyle: { color: hasRight ? leftColor : axisLineColor, width: 1 } },
+          axisTick: { show: true, lineStyle: { color: axisLineColor } },
           axisLabel: {
-            fontSize: 9,
+            fontSize: 11,
             color: hasRight ? leftColor : labelColor,
-            fontWeight: 700,
+            fontWeight: 600,
+            margin: 8,
           },
           splitLine: style.grid ? { lineStyle: { color: splitLine, type: 'dashed' as const } } : { show: false },
         },
         ...(hasRight ? [{
           type: 'value' as const,
           position: 'right',
-          axisLine: { show: true, lineStyle: { color: rightColor } },
-          axisTick: { show: false },
-          axisLabel: { fontSize: 9, color: rightColor, fontWeight: 700 },
+          axisLine: { show: true, lineStyle: { color: rightColor, width: 1 } },
+          axisTick: { show: true, lineStyle: { color: rightColor } },
+          axisLabel: { fontSize: 11, color: rightColor, fontWeight: 600, margin: 8 },
           splitLine: { show: false },
         }] : []),
       ];
@@ -168,9 +170,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
       // No config + no metrics → render empty grid (no demo data anywhere).
       yAxis = [{
         type: 'value' as const,
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
+        axisLine: { show: true, lineStyle: { color: axisLineColor, width: 1 } },
+        axisTick: { show: true, lineStyle: { color: axisLineColor } },
+        axisLabel: { fontSize: 11, color: labelColor, fontWeight: 600, margin: 8 },
         splitLine: { lineStyle: { color: splitLine, type: 'dashed' as const } },
       }];
       series = [];
@@ -205,12 +207,12 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return {
       backgroundColor: bgColor,
       grid: {
-        top: legendPos === 'top' && showLegend ? legendBlockSize + 16 : (isPresentation ? 28 : 20),
+        top: legendPos === 'top' && showLegend ? legendBlockSize + 16 : (isPresentation ? 28 : 24),
         // Initial right padding — will be auto-tuned post-render based on the
         // measured right-axis label width (see useLayoutEffect below).
-        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 56 : 16),
-        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 12 : 32,
-        left: 4,
+        right: legendPos === 'right' && showLegend ? 170 : (hasRightAxis ? 60 : 20),
+        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 16 : 40,
+        left: 12,
         containLabel: true,
       },
       legend,
@@ -229,9 +231,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
         type: 'category' as const,
         data: (xAxisLabels && xAxisLabels.length > 0) ? xAxisLabels : effectiveData.map(d => d.time),
         boundaryGap: style.chartType === 'bar',
-        axisLine: { lineStyle: { color: splitLine } },
-        axisTick: { show: false },
-        axisLabel: { fontSize: 9, color: labelColor, fontWeight: 700 },
+        axisLine: { show: true, lineStyle: { color: axisLineColor, width: 1 } },
+        axisTick: { show: true, lineStyle: { color: axisLineColor } },
+        axisLabel: { fontSize: 11, color: labelColor, fontWeight: 600, margin: 10 },
       },
       yAxis,
       series,
