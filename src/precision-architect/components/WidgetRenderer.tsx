@@ -479,15 +479,22 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       return raw;
     };
 
+    // Per-metric split (mirrors the table widget). The first visible metric
+    // with a non-null splitBy drives split_by for the whole request — the
+    // backend supports a single split dimension per call.
+    const visibleMetrics = cfg.metrics.filter(m => m.visible !== false);
+    const rawSplitBy = visibleMetrics.find(m => m.splitBy && m.splitBy !== '__none__')?.splitBy ?? null;
+    const effectiveSplitBy = rawSplitBy ? toBackendDimension(rawSplitBy) : null;
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       granularity,
       filters,
-      selections: cfg.metrics.filter(m => m.visible !== false).map(m => ({
+      selections: visibleMetrics.map(m => ({
         kpi_key: m.kpiKey,
       })),
-      split_by: null,
+      split_by: effectiveSplitBy,
       top_n: 10,
       _rev: effectiveAppliedRev,
     } as TimeseriesRequest & { _rev: number };
