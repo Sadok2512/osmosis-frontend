@@ -973,108 +973,108 @@ function MetricsTab({
               key={m.id}
               data-kpi-card
               className={cn(
-                'group border rounded-xl bg-white transition-all',
+                'group border rounded-xl bg-white transition-all min-w-0 overflow-hidden',
                 expanded
                   ? 'border-primary/50 shadow-md ring-1 ring-primary/20'
                   : 'border-outline-variant/25 hover:border-primary/30 hover:shadow-sm'
               )}
             >
-              {/* Always-visible row: color · name · axis · style · edit · remove */}
-              <div className="flex items-center gap-3 px-3 py-2.5">
-                <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 shrink-0 cursor-grab" />
+              {/* Always-visible row: name + actions on row 1, badges on row 2 (wrap on narrow) */}
+              <div className="px-3 py-2.5 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 shrink-0 cursor-grab" />
 
-                {/* Color indicator */}
-                <span
-                  className="w-3.5 h-3.5 rounded-full ring-2 ring-white shadow-sm shrink-0"
-                  style={{ background: m.color }}
-                  aria-label="Color indicator"
-                />
+                  {/* Color indicator */}
+                  <span
+                    className="w-3.5 h-3.5 rounded-full ring-2 ring-white shadow-sm shrink-0"
+                    style={{ background: m.color }}
+                    aria-label="Color indicator"
+                  />
 
-                {/* KPI name + type tag */}
-                <div className="flex-1 min-w-0 flex items-center gap-2">
-                  <span className="font-bold text-sm text-on-surface truncate">
-                    {m.alias || kpiLabel}
-                  </span>
-                  {isCounter && (
-                    <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 shrink-0">
-                      Counter
+                  {/* KPI name + counter tag (truncates) */}
+                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                    <span className="font-bold text-sm text-on-surface truncate" title={m.alias || kpiLabel}>
+                      {m.alias || kpiLabel}
                     </span>
-                  )}
+                    {isCounter && (
+                      <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 shrink-0">
+                        Counter
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Right-side actions cluster (always reachable) */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => updateMetric(m.id, { visible: !m.visible })}
+                      className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors"
+                      aria-label="Toggle visibility"
+                      title={m.visible ? 'Hide' : 'Show'}
+                    >
+                      {m.visible
+                        ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
+                        : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
+                    </button>
+
+                    <button
+                      onClick={() => setExpandedId(expanded ? null : m.id)}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors',
+                        expanded
+                          ? 'bg-primary text-on-primary'
+                          : 'bg-surface-container-low text-on-surface hover:bg-primary/10 hover:text-primary'
+                      )}
+                      aria-label="Edit metric"
+                    >
+                      {expanded
+                        ? <ChevronDown className="w-3 h-3" />
+                        : <ChevronRight className="w-3 h-3" />}
+                      Edit
+                    </button>
+
+                    <button
+                      onClick={() => removeMetric(m.id)}
+                      className="p-1.5 hover:bg-error/10 rounded-md transition-colors"
+                      aria-label="Remove metric"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-error" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Axis badge */}
-                <span
-                  className={cn(
-                    'inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md shrink-0',
-                    m.axis === 'left'
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-amber-500/10 text-amber-700'
-                  )}
-                  title={`Axis: ${m.axis}`}
-                >
-                  {m.axis}
-                </span>
-
-                {/* Type badge */}
-                <span
-                  className="inline-flex items-center text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
-                  title={`Type: ${m.graphType ?? 'line'}`}
-                >
-                  {m.graphType ?? 'line'}
-                </span>
-
-                {/* Style badge */}
-                <span
-                  className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded-md bg-surface-container-low text-on-surface-variant shrink-0"
-                  title={`Style: ${m.lineStyle}`}
-                >
+                {/* Badge row — wraps cleanly on narrow widths instead of overflowing */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pl-7">
                   <span
                     className={cn(
-                      'w-4 h-0.5 rounded-full',
-                      m.lineStyle === 'dashed' ? 'border-t-2 border-dashed border-on-surface-variant bg-transparent h-0' : 'bg-on-surface-variant'
+                      'inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
+                      m.axis === 'left'
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-amber-500/10 text-amber-700'
                     )}
-                  />
-                  {m.lineStyle}
-                </span>
-
-                {/* Visibility toggle */}
-                <button
-                  onClick={() => updateMetric(m.id, { visible: !m.visible })}
-                  className="p-1.5 hover:bg-surface-container-high rounded-md transition-colors shrink-0"
-                  aria-label="Toggle visibility"
-                  title={m.visible ? 'Hide' : 'Show'}
-                >
-                  {m.visible
-                    ? <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
-                    : <EyeOff className="w-3.5 h-3.5 text-on-surface-variant/40" />}
-                </button>
-
-                {/* Edit button */}
-                <button
-                  onClick={() => setExpandedId(expanded ? null : m.id)}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-colors shrink-0',
-                    expanded
-                      ? 'bg-primary text-on-primary'
-                      : 'bg-surface-container-low text-on-surface hover:bg-primary/10 hover:text-primary'
-                  )}
-                  aria-label="Edit metric"
-                >
-                  {expanded
-                    ? <ChevronDown className="w-3 h-3" />
-                    : <ChevronRight className="w-3 h-3" />}
-                  Edit
-                </button>
-
-                {/* Remove button */}
-                <button
-                  onClick={() => removeMetric(m.id)}
-                  className="p-1.5 hover:bg-error/10 rounded-md transition-colors shrink-0"
-                  aria-label="Remove metric"
-                  title="Remove"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-error" />
-                </button>
+                    title={`Axis: ${m.axis}`}
+                  >
+                    Axis: {m.axis}
+                  </span>
+                  <span
+                    className="inline-flex items-center text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-low text-on-surface-variant"
+                    title={`Type: ${m.graphType ?? 'line'}`}
+                  >
+                    {m.graphType ?? 'line'}
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-surface-container-low text-on-surface-variant"
+                    title={`Style: ${m.lineStyle}`}
+                  >
+                    <span
+                      className={cn(
+                        'w-3 h-0.5 rounded-full',
+                        m.lineStyle === 'dashed' ? 'border-t-2 border-dashed border-on-surface-variant bg-transparent h-0' : 'bg-on-surface-variant'
+                      )}
+                    />
+                    {m.lineStyle}
+                  </span>
+                </div>
               </div>
 
               {expanded && (
