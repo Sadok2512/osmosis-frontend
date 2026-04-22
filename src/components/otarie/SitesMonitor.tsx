@@ -7812,7 +7812,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           const cellCountScale = getCellCountScale(renderSiteCells.length);
-          const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, sectorDensityFactor, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
+          // Smart Auto: per-site density factor & opacity (hexbin sites/km², percentile-ranked)
+          const siteDF = getSiteDensityFactor(site.site_id);
+          const siteOpacityScale = getSiteOpacityScale(site.site_id);
+          const zoomRadius = isTaggedSite ? getTaggedRadiusDetail(viewport.zoom) : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * (0.5 + 0.5 * (beamVisibility / 100)) * cellCountScale;
           const baseOverlap = visibleSites.length > 200 ? 0.18 : visibleSites.length > 80 ? 0.25 : 0.35;
           const beamScale = beamVisibility / 100;
           const overlapFactor = baseOverlap + (1 - baseOverlap) * beamScale;
