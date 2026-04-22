@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { ArrowUp, ArrowDown, Loader2, TableIcon } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { DynWidget, TableWidgetConfig, DEFAULT_TABLE_CONFIG } from '../types';
 import { useTableQuery, TableRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
@@ -81,16 +82,24 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       return raw;
     };
 
+    // Only send real KPI columns to /monitor/query/table.
+    // PM counter columns (id prefix "cnt-") are not supported by this endpoint
+    // and would cause the backend to return 0 rows. They are filtered out and
+    // a toast notifies the user (once per apply).
+    const kpiOnlyColumns = cfg.columns.filter(c => c.visible && !c.id.startsWith('cnt-'));
+    const counterColumns = cfg.columns.filter(c => c.visible && c.id.startsWith('cnt-'));
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
-      kpi_keys: cfg.columns.filter(c => c.visible).map(c => c.kpiKey),
+      kpi_keys: kpiOnlyColumns.map(c => c.kpiKey),
       top_n: cfg.topN ?? 10,
       page: 1,
       page_size: Math.max(cfg.topN ?? 10, 50),
       _rev: effectiveAppliedRev,
-    } as TableRequest & { _rev: number };
+      _ignoredCounters: counterColumns.map(c => c.alias || c.kpiKey),
+    } as TableRequest & { _rev: number; _ignoredCounters: string[] };
   }, [
     cfg,
     hasColumns,
@@ -104,8 +113,24 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     effectiveAppliedRev,
   ]);
 
+  // Notify the user once per Apply when PM counters were dropped from the payload.
+  const lastWarnedRevRef = useRef<number | null>(null);
   useEffect(() => {
-    if (request) console.log('[PA Table] ▶ POST /monitor/query/table', request);
+    if (!request) return;
+    const ignored = (request as any)._ignoredCounters as string[] | undefined;
+    const rev = (request as any)._rev as number;
+    if (ignored && ignored.length > 0 && lastWarnedRevRef.current !== rev) {
+      lastWarnedRevRef.current = rev;
+      toast.warning(
+        `${ignored.length} compteur(s) PM ignoré(s)`,
+        {
+          description:
+            `L'endpoint /monitor/query/table accepte uniquement des KPIs du catalogue. ` +
+            `Compteurs ignorés: ${ignored.slice(0, 3).join(', ')}${ignored.length > 3 ? '…' : ''}`,
+        }
+      );
+    }
+    console.log('[PA Table] ▶ POST /monitor/query/table', request);
   }, [request]);
 
   const { data: tableResp, isFetching, error } = useTableQuery(request);
@@ -119,12 +144,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     () => (cfg?.columns ?? []).filter(c => c.visible),
     [cfg],
   );
+  const hasOnlyCounters = hasColumns && (cfg?.columns ?? []).filter(c => c.visible).every(c => c.id.startsWith('cnt-'));
   const rows = tableResp?.rows ?? [];
   const backendMessage = (tableResp as any)?.meta?.error || tableResp?.info || (tableResp as any)?.meta?.info || null;
 
   // Empty states — match the chart's behavior
-  const emptyReason: 'no-column' | 'not-applied' | 'backend' | 'no-data' | null =
+  const emptyReason: 'no-column' | 'only-counters' | 'not-applied' | 'backend' | 'no-data' | null =
     !hasColumns ? 'no-column'
+    : hasOnlyCounters ? 'only-counters'
     : (!hasBeenApplied) ? 'not-applied'
     : (hasBeenApplied && !isFetching && backendMessage) ? 'backend'
     : (hasBeenApplied && !isFetching && rows.length === 0) ? 'no-data'
@@ -136,6 +163,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   if (emptyReason) {
     const copy = emptyReason === 'no-column'
       ? { title: 'No KPI column', body: 'Open settings and add KPI columns to populate this table.' }
+      : emptyReason === 'only-counters'
+      ? {
+          title: 'Compteurs PM non supportés',
+          body: 'Cette table n\'accepte que des KPIs du catalogue (endpoint /monitor/query/table). Ajoute au moins un KPI via "Add KPI" pour voir des données.',
+        }
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'backend'
