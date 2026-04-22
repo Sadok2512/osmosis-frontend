@@ -1428,15 +1428,17 @@ export async function fetchKpiCellValues(
     console.warn(`[KPI compute] No data: ${json.error}`);
   }
 
-  // Build value map keyed by the appropriate level
+  // Build value map keyed by the appropriate level.
+  // Use separate counters map to avoid polluting valueMap with non-KPI keys.
   const valueMap = new Map<string, number>();
+  const avgCounters = new Map<string, number>();
 
   for (const pt of series) {
     const val = pt.kpi_value;
     if (val == null || !Number.isFinite(val)) continue;
 
     const cellName = pt.cell_name || pt.ne_name || pt.split_field || '';
-    const siteName = pt.site_name || '';
+    const siteName = (pt.site_name || '').trim();
     const bandName = pt.band || pt.source_band || '';
 
     // Always store cell-level values (used for cell overlay + fallback)
@@ -1445,35 +1447,33 @@ export async function fetchKpiCellValues(
     // Site-level aggregation (rolling average across all cells of a site)
     if (siteName) {
       const siteKey = `site:${siteName}`;
-      const countKey = `count:${siteName}`;
       const existing = valueMap.get(siteKey);
       if (existing != null) {
-        const count = (valueMap.get(countKey) || 1) + 1;
-        valueMap.set(countKey, count);
+        const count = (avgCounters.get(siteKey) || 1) + 1;
+        avgCounters.set(siteKey, count);
         valueMap.set(siteKey, (existing * (count - 1) + val) / count);
       } else {
         valueMap.set(siteKey, val);
-        valueMap.set(countKey, 1);
+        avgCounters.set(siteKey, 1);
       }
     }
 
     // Band-level: composite key site:band for band overlay mode
     if (bandName && siteName) {
       const bandKey = `band:${siteName}:${bandName}`;
-      const bandCountKey = `bandcount:${siteName}:${bandName}`;
       const existing = valueMap.get(bandKey);
       if (existing != null) {
-        const count = (valueMap.get(bandCountKey) || 1) + 1;
-        valueMap.set(bandCountKey, count);
+        const count = (avgCounters.get(bandKey) || 1) + 1;
+        avgCounters.set(bandKey, count);
         valueMap.set(bandKey, (existing * (count - 1) + val) / count);
       } else {
         valueMap.set(bandKey, val);
-        valueMap.set(bandCountKey, 1);
+        avgCounters.set(bandKey, 1);
       }
     }
   }
 
-  // Only cache when we got real data — transient errors shouldn't persist
+  // Only cache when we got real KPI values — transient errors shouldn't persist
   if (valueMap.size > 0 && !json.error) {
     kpiValueCache.set(cacheKey, { data: valueMap, ts: Date.now() });
   }
