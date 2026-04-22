@@ -9282,7 +9282,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
 
             {/* ── Param mode: active parameter selector (mirrors KPI dropdown) ── */}
-            {(paramMode || showParamDropdown) && (
+            {(paramMode || showParamDropdown || activeViewType === 'parameter') && (
               <>
                 <div className="relative shrink-0">
                   <button
