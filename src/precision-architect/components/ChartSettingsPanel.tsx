@@ -675,7 +675,8 @@ function TimeFiltersToolbar({
     <div className="rounded-xl border border-outline-variant/20 bg-surface-container-low/40 overflow-visible">
       {/* Scope / date row */}
       <div className="px-4 py-3 flex flex-wrap items-center gap-2.5 border-b border-outline-variant/10">
-        {/* Périmètre — interactive techno toggles */}
+        {/* Périmètre — interactive techno toggles (hidden for STAT widgets) */}
+        {!isStat && (
         <Popover>
           <PopoverTrigger asChild>
             <button
@@ -725,6 +726,7 @@ function TimeFiltersToolbar({
             </div>
           </PopoverContent>
         </Popover>
+        )}
 
         {/* Date range — unified Investigator-style dual calendar */}
         <DateRangePopover
