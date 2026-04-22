@@ -211,11 +211,14 @@ export default function PresentationView({ onViewModeChange }: PresentationViewP
         e.preventDefault();
         prev();
       } else if (e.key === 'Escape') {
-        if (showGrid) setShowGrid(false);
+        if (showSectionNav) setShowSectionNav(false);
+        else if (showGrid) setShowGrid(false);
         else if (document.fullscreenElement) document.exitFullscreen();
         else onViewModeChange('view');
       } else if (e.key === 'g' || e.key === 'G') {
         setShowGrid((v) => !v);
+      } else if (e.key === 's' || e.key === 'S') {
+        setShowSectionNav((v) => !v);
       } else if (e.key === 'f' || e.key === 'F' || e.key === 'F5') {
         e.preventDefault();
         toggleFullscreen();
