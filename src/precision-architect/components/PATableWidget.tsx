@@ -49,7 +49,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     const eff = {
       from: inheritsTime ? gFrom : cfg.data.timeRange.from,
       to: inheritsTime ? gTo : cfg.data.timeRange.to,
-      technos: inheritsScope ? gTechnos : cfg.data.technos,
+      // Périmètre techno: toujours hérité de la barre globale du rapport.
+      technos: gTechnos,
       filters: inheritsScope ? gFilters : cfg.data.filters,
     };
 
