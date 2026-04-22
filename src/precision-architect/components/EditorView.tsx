@@ -528,16 +528,33 @@ export default function EditorView({
               const renderWidgetCard = (w: DynWidget) => {
                 const isChart = w.kind === 'chart';
                 const padCls = isChart ? 'pt-3 pb-2 pl-1.5 pr-2' : 'p-4';
+                const isActiveWidget = activeWidget === w.id;
                 return (
                   <div
                     key={w.id}
                     data-pa-widget-id={w.id}
+                    onMouseDownCapture={(e) => {
+                      // Only activate on direct widget clicks, not when interacting with controls
+                      // inside the widget (popovers, buttons, drag handles still work normally).
+                      const target = e.target as HTMLElement;
+                      if (target.closest('button, a, input, select, textarea, [role="menuitem"], [data-no-activate]')) return;
+                      if (activeWidget !== w.id) setActiveWidget(w.id);
+                    }}
                     className={cn(
-                      `${padCls} group relative overflow-hidden`,
-                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10'
+                      `${padCls} group relative overflow-hidden cursor-pointer transition-all duration-200`,
+                      w.transparentBg ? 'border-0 shadow-none' : 'shadow-sm border border-outline-variant/10',
+                      isActiveWidget && 'ring-2 ring-primary ring-offset-2 ring-offset-surface shadow-lg scale-[1.005]'
                     )}
                     style={{ backgroundColor: w.transparentBg ? 'transparent' : cardBg, borderRadius: radius }}
                   >
+                    {isActiveWidget && (
+                      <div className="absolute top-2 left-2 z-30 pointer-events-none animate-fade-in">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-on-primary text-[9px] font-black uppercase tracking-widest shadow-md">
+                          <span className="w-1.5 h-1.5 rounded-full bg-on-primary animate-pulse" />
+                          Actif
+                        </span>
+                      </div>
+                    )}
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
                       <Popover>
                         <PopoverTrigger asChild>
