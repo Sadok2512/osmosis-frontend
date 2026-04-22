@@ -401,7 +401,7 @@ function DataSourceTab({
 /* ---------------- Sub-section: Time & Filters ---------------- */
 
 function DataTab({
-  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply,
+  data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply, isStat,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -410,6 +410,7 @@ function DataTab({
   dimensionOptions: string[];
   filtersLoading: boolean;
   onApply: () => void;
+  isStat?: boolean;
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
@@ -432,7 +433,7 @@ function DataTab({
     <div className="space-y-4">
       <Section title="Time & Filters">
         {inherits ? (
-          <InheritedFromToolbarCard onOverride={enableOverride} />
+          <InheritedFromToolbarCard onOverride={enableOverride} isStat={isStat} />
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2.5">
@@ -454,6 +455,7 @@ function DataTab({
               dimensionOptions={dimensionOptions}
               filtersLoading={filtersLoading}
               onApply={onApply}
+              isStat={isStat}
             />
           </div>
         )}
