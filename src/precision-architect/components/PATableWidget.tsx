@@ -80,13 +80,22 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       return raw;
     };
 
+    // Backend (FastAPI /monitor/query/table) requires split_by as a non-null
+    // string and rejects null with a 422 (string_type). Default to "CELL"
+    // when the user has not chosen a dimension to split by.
+    const splitBy = cfg.splitBy && cfg.splitBy !== '__none__'
+      ? toBackendDimension(cfg.splitBy)
+      : 'CELL';
+
     return {
       date_from: normalizeDate(eff.from),
       date_to: normalizeDate(eff.to),
       filters,
       kpi_keys: cfg.columns.filter(c => c.visible).map(c => c.kpiKey),
-      split_by: cfg.splitBy ? toBackendDimension(cfg.splitBy) : null,
-      top_n: cfg.topN,
+      split_by: splitBy,
+      top_n: cfg.topN ?? 10,
+      page: 1,
+      page_size: Math.max(cfg.topN ?? 10, 50),
       _rev: effectiveAppliedRev,
     } as TableRequest & { _rev: number };
   }, [
