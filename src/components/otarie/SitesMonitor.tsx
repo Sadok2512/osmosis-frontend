@@ -5957,6 +5957,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande]);
 
   // Density factor for adaptive sector sizing (0 = very dense, 1 = sparse)
+  // Kept as a coarse global fallback for indoor sites and edge cases.
   const sectorDensityFactor = useMemo(() => {
     const count = visibleSites.length;
     if (count > 500) return 0;
@@ -5966,6 +5967,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (count > 30) return 0.7;
     return 1;
   }, [visibleSites.length]);
+
+  // Smart Auto density-adaptive beam rendering:
+  // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
+  // Recomputed when the visible set or zoom changes.
+  const siteDensityMap = useMemo<Map<string, SiteDensityInfo>>(() => {
+    if (!visibleSites || visibleSites.length === 0) return new Map();
+    const points = visibleSites
+      .filter(s => Number.isFinite(s.coordinates?.[0]) && Number.isFinite(s.coordinates?.[1]))
+      .map(s => ({ id: s.site_id, lat: s.coordinates[0], lng: s.coordinates[1] }));
+    return computeSmartAutoDensity(points, viewport.zoom);
+  }, [visibleSites, viewport.zoom]);
+
+  /** Per-site density factor for getZoomAwareRadius — falls back to the global value when missing. */
+  const getSiteDensityFactor = (siteId: string): number => {
+    const info = siteDensityMap.get(siteId);
+    if (!info) return sectorDensityFactor;
+    return beamScaleToDensityFactor(info.beamScale);
+  };
+
+  /** Per-site opacity multiplier (1 in sparse zones, down to 0.55 in dense zones). */
+  const getSiteOpacityScale = (siteId: string): number => {
+    const info = siteDensityMap.get(siteId);
+    return info ? info.opacityScale : 1;
+  };
 
   // Viewport width for responsive sector sizing
   const vpWidth = typeof window !== 'undefined' ? window.innerWidth : 1400;
