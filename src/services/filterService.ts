@@ -82,12 +82,13 @@ export interface MatchingCount {
   cells: number;
   sites: number;
   filter_id?: number;
+  site_names?: string[];
 }
 
-export async function countMatching(topology: any[], parameters?: any[]): Promise<MatchingCount> {
+export async function countMatching(topology: any[], parameters?: any[], includeSites = false): Promise<MatchingCount> {
   return filterApi<MatchingCount>('count', {
     method: 'POST',
-    body: JSON.stringify({ topology, parameters: parameters || [] }),
+    body: JSON.stringify({ topology, parameters: parameters || [], include_sites: includeSites }),
   });
 }
 

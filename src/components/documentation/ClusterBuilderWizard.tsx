@@ -637,6 +637,14 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                       <span className="font-mono text-primary font-bold">{p.value}{p.value2 ? ` — ${p.value2}` : ''}</span>
                     </div>
                   ))}
+                  {paramValidation.status === 'ok' && (
+                    <div className="pt-2 mt-2 border-t border-border/30 text-xs">
+                      <span className="text-muted-foreground">After parameters: </span>
+                      <strong className="text-primary">{paramValidation.cells.toLocaleString('fr-FR')} cells</strong>
+                      <span className="text-muted-foreground/40 mx-1">·</span>
+                      <strong className="text-primary">{paramValidation.sites.toLocaleString('fr-FR')} sites</strong>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -647,7 +655,10 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
               {/* Preview Results */}
               <ClusterPreviewTable
                 topoConditions={topoConditions}
-                totalMatched={matchingCount?.sites}
+                paramConditions={paramConditions.length > 0 && paramValidation.status === 'ok'
+                  ? paramConditions.map(c => ({ parameter: c.parameter, operator: c.operator, value: c.value, value2: c.value2 }))
+                  : undefined}
+                totalMatched={paramValidation.status === 'ok' ? paramValidation.sites : matchingCount?.sites}
               />
             </div>
           )}

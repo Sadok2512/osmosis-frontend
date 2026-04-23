@@ -2,10 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Loader2, Search, Download, ExternalLink, AlertCircle, Inbox, ArrowUpDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { topoApi } from '@/lib/localDb';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { countMatching } from '@/services/filterService';
 import type { TopologyConditionState } from './TopologyConditionCard';
+
+interface ParamCondition {
+  parameter: string;
+  operator: string;
+  value: string;
+  value2?: string;
+}
 
 interface Props {
   topoConditions: TopologyConditionState[];
+  paramConditions?: ParamCondition[];
   totalMatched?: number;
   onViewFull?: () => void;
   maxRows?: number;
@@ -77,6 +86,7 @@ type SortKey = 'site_name' | 'vendor' | 'region' | 'cell_count';
 
 const ClusterPreviewTable: React.FC<Props> = ({
   topoConditions,
+  paramConditions,
   totalMatched,
   onViewFull,
   maxRows = DEFAULT_PREVIEW_LIMIT,
@@ -101,25 +111,54 @@ const ClusterPreviewTable: React.FC<Props> = ({
 
   useEffect(() => {
     if (validConds.length === 0) { setSites([]); return; }
-    const qs = buildQueryString(validConds, maxRows);
     const controller = new AbortController();
     setLoading(true);
     setError(null);
     setExpanded(new Set());
     setCellsCache({});
-    topoApi.filteredSites(qs)
-      .then((rows: any[]) => {
+
+    const fetchPreview = async () => {
+      try {
+        let allowedSites: Set<string> | null = null;
+
+        // If parameters are set, get the filtered site list first
+        if (paramConditions && paramConditions.length > 0) {
+          const topology = validConds.map(c => ({
+            dimension: c.field, operator: c.operator === 'NOT IN' ? 'not_in' : 'in', values: c.values,
+          }));
+          const params = paramConditions.map(c => ({
+            parameter: c.parameter, operator: c.operator, value: c.value,
+            ...(c.value2 ? { value2: c.value2 } : {}),
+          }));
+          const result = await countMatching(topology, params, true);
+          if (result.site_names) {
+            allowedSites = new Set(result.site_names);
+          }
+        }
+
+        // Fetch topology-matched sites
+        const qs = buildQueryString(validConds, allowedSites ? 500 : maxRows);
+        const rows: any[] = await topoApi.filteredSites(qs);
         if (controller.signal.aborted) return;
-        setSites((rows || []).slice(0, maxRows));
-      })
-      .catch((e) => {
+
+        // Filter by parameter-matched sites if applicable
+        let filtered = rows || [];
+        if (allowedSites) {
+          filtered = filtered.filter((s: any) => allowedSites!.has(s.site_name || s.site_id));
+        }
+        setSites(filtered.slice(0, maxRows));
+      } catch (e: any) {
         if (controller.signal.aborted) return;
         setError(e?.message || 'Failed to load preview');
         setSites([]);
-      })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    fetchPreview();
     return () => controller.abort();
-  }, [validConds, maxRows]);
+  }, [validConds, paramConditions, maxRows]);
 
   const enriched = useMemo(() => sites.map(s => ({
     site_id: s.site_id || s.code_nidt || s.site_name || '',
