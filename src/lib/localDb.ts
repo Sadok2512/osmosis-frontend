@@ -123,66 +123,74 @@ async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal):
   throw new Error('HTTP 503 after retries');
 }
 
-// ─── Dashboards — always Cloud (Supabase), never VPS ───
+// ─── Dashboards — stored on VPS PostgreSQL (RAN_OP) ───
 export const dashboardsApi = {
   list: async (): Promise<any[]> => {
-    if (isLocalExpress()) {
-      return fetchJson<any[]>(localUrl('dashboards'));
+    try {
+      const url = parserUrl('/dashboards/');
+      const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      return await resp.json();
+    } catch (e) {
+      console.warn('[Dashboards] VPS list failed, trying Supabase fallback', e);
+      const { data } = await supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false });
+      return data || [];
     }
-    const { data, error } = await supabase
-      .from('dashboards')
-      .select('*')
-      .eq('is_archived', false)
-      .order('updated_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
   },
   upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean; dashboard_type?: string; visibility?: string; owner_username?: string; shared_with?: string[] }) => {
-    if (isLocalExpress()) {
-      return fetchJson(localUrl('dashboards'), { method: 'POST', body: JSON.stringify(dashboard) });
+    try {
+      const url = parserUrl('/dashboards/');
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(dashboard),
+      });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      return await resp.json();
+    } catch (e) {
+      console.warn('[Dashboards] VPS upsert failed, trying Supabase fallback', e);
+      const payload: Record<string, any> = {
+        id: dashboard.id, name: dashboard.name, description: dashboard.description || '',
+        widgets: dashboard.widgets, is_shared: dashboard.is_shared ?? true,
+        updated_at: new Date().toISOString(),
+      };
+      if (dashboard.dashboard_type) payload.dashboard_type = dashboard.dashboard_type;
+      if (dashboard.visibility) payload.visibility = dashboard.visibility;
+      if (dashboard.owner_username) payload.owner_username = dashboard.owner_username;
+      if (dashboard.shared_with) payload.shared_with = dashboard.shared_with;
+      const { data, error } = await supabase.from('dashboards').upsert(payload as any).select().single();
+      if (error) throw error;
+      return data;
     }
-    const payload: Record<string, any> = {
-      id: dashboard.id,
-      name: dashboard.name,
-      description: dashboard.description || '',
-      widgets: dashboard.widgets,
-      is_shared: dashboard.is_shared ?? true,
-      updated_at: new Date().toISOString(),
-    };
-    if (dashboard.dashboard_type) payload.dashboard_type = dashboard.dashboard_type;
-    if (dashboard.visibility) payload.visibility = dashboard.visibility;
-    if (dashboard.owner_username) payload.owner_username = dashboard.owner_username;
-    if (dashboard.shared_with) payload.shared_with = dashboard.shared_with;
-    const { data, error } = await supabase
-      .from('dashboards')
-      .upsert(payload as any)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
   },
   update: async (id: string, updates: Record<string, any>) => {
-    if (isLocalExpress()) {
-      return fetchJson(localUrl(`dashboards/${id}`), { method: 'PUT', body: JSON.stringify(updates) });
+    try {
+      const url = parserUrl(`/dashboards/${id}`);
+      const resp = await fetch(url, {
+        method: 'PUT',
+        headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      return await resp.json();
+    } catch (e) {
+      console.warn('[Dashboards] VPS update failed, trying Supabase fallback', e);
+      const { data, error } = await supabase.from('dashboards').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
     }
-    const { data, error } = await supabase
-      .from('dashboards')
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
   },
   remove: async (id: string) => {
-    if (isLocalExpress()) {
-      return fetchJson(localUrl(`dashboards/${id}`), { method: 'DELETE' });
+    try {
+      const url = parserUrl(`/dashboards/${id}`);
+      const resp = await fetch(url, { method: 'DELETE', headers: getVpsProxyHeaders() });
+      if (!resp.ok) throw new Error(`${resp.status}`);
+      return await resp.json();
+    } catch (e) {
+      console.warn('[Dashboards] VPS delete failed, trying Supabase fallback', e);
+      const { error } = await supabase.from('dashboards').update({ is_archived: true }).eq('id', id);
+      if (error) throw error;
     }
-    const { error } = await supabase
-      .from('dashboards')
-      .update({ is_archived: true })
-      .eq('id', id);
-    if (error) throw error;
     return { ok: true };
   },
 };
