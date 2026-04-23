@@ -395,6 +395,26 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 }
 
 /* ── Subcomponents ── */
+function ColorPickerRow({ value, fallback, onChange }: { value: string; fallback: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value || fallback}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
+      />
+      <input
+        type="text"
+        value={value || ''}
+        placeholder={fallback}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+      />
+    </div>
+  );
+}
+
 function Accordion({
   title, icon, open, onToggle, children,
 }: {
