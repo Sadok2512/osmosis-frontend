@@ -49,6 +49,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const gTo = globalSnap?.to ?? global.to;
   const gTechnos = globalSnap?.technos ?? global.technos;
   const gFilters = globalSnap?.filters ?? global.filters;
+  const gGrain = globalSnap?.grain ?? global.grain;
 
   // Perimeter filter is required. When the widget inherits from the report
   // (no override), we look at the global toolbar filters; otherwise we look at
