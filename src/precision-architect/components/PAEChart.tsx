@@ -355,20 +355,37 @@ const PAEChart: React.FC<PAEChartProps> = ({
       return band ? (head ? `${head} · ${band}` : band) : head;
     };
 
-    // ── COMPACT LEGEND SIZING ──────────────────────────────────────
-    // Compute the *minimum* vertical space the legend needs so the chart
-    // area gets maximum height. Previous logic over-reserved up to 260px;
-    // now we tightly estimate based on actual item count and label length.
-    const avgDisplayLen = legendData.length > 0
-      ? legendData.reduce((s, n) => s + shortenLabel(n).length, 0) / legendData.length
-      : 0;
-    // Estimate items per row based on average label width (~7px per char + icon + gap)
-    const itemsPerRow = avgDisplayLen > 26 ? 1 : avgDisplayLen > 18 ? 2 : avgDisplayLen > 10 ? 3 : 4;
-    const legendRows = Math.max(1, Math.ceil(legendData.length / itemsPerRow));
-    // Each row is ~22px (icon 10px + 8px text + 4px gap). Minimal padding.
+    // ── LEGEND SIZING ──────────────────────────────────────────────
+    // Estimate the vertical space the legend needs. We use a *generous*
+    // per-item width estimate (icon + gap + text) so wrapped rows are
+    // never under-counted, which previously caused the last row(s) of the
+    // legend to be clipped under the x-axis ("missing legend" bug).
+    const ICON_WIDTH = 14;
+    const ICON_TEXT_GAP = 5;
+    const ITEM_GAP = 12;
+    const CHAR_WIDTH = 6.6; // px per char @ 11px font, semibold
+    const PER_ITEM_WIDTH = (label: string) =>
+      ICON_WIDTH + ICON_TEXT_GAP + Math.max(20, label.length * CHAR_WIDTH) + ITEM_GAP;
+
+    // Available horizontal space for the legend (94% of typical card width).
+    // We use a conservative 600px estimate; ECharts will rewrap responsively
+    // at runtime, but the row count we derive here drives the bottom padding.
+    const AVAILABLE_WIDTH = legendPos === 'right' ? 180 : 600;
+    let usedWidth = 0;
+    let legendRows = 1;
+    legendData.forEach((name) => {
+      const w = PER_ITEM_WIDTH(shortenLabel(name));
+      if (usedWidth + w > AVAILABLE_WIDTH && usedWidth > 0) {
+        legendRows += 1;
+        usedWidth = w;
+      } else {
+        usedWidth += w;
+      }
+    });
+    const ROW_HEIGHT = 22;
     const legendBlockSize = legendPos === 'right'
-      ? Math.min(legendData.length * 22 + 8, 400)
-      : showLegend ? Math.max(24, legendRows * 22 + 8) : 0;
+      ? Math.min(legendData.length * ROW_HEIGHT + 12, 400)
+      : showLegend ? legendRows * ROW_HEIGHT + 12 : 0;
 
     const legend = {
       show: showLegend,
