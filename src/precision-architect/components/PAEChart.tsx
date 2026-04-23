@@ -606,20 +606,21 @@ const PAEChart: React.FC<PAEChartProps> = ({
         option={option}
         style={{ height: '100%', width: '100%' }}
         opts={{ renderer: 'canvas' }}
-        notMerge
+        notMerge={false}
+        lazyUpdate
       />
-      {loading && <LoadingOverlay />}
+      {loading && <LoadingOverlay label="Loading data…" />}
     </div>
   );
 };
 
 /** Centered loading overlay with spinner — clearly visible during backend fetch. */
-const LoadingOverlay: React.FC = () => (
+const LoadingOverlay: React.FC<{ label?: string }> = ({ label = 'Loading data…' }) => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
     <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
       <Loader2 className="w-6 h-6 animate-spin text-primary" />
       <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-        Loading data…
+        {label}
       </span>
     </div>
   </div>
