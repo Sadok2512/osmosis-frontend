@@ -224,13 +224,18 @@ const PAEChart: React.FC<PAEChartProps> = ({
       return band ? (head ? `${head} · ${band}` : band) : head;
     };
 
+    // Estimate space needed when legend is at the bottom. Since we now use
+    // `type: 'plain'` (no pagination), we must reserve enough vertical room
+    // to fit ALL items wrapped over multiple rows. Approximate ~3 items per
+    // row, ~26px row height. Capped to keep the chart usable.
     const legendBlockSize = legendPos === 'right'
-      ? Math.min(legendData.length * 22 + 12, 400)
-      : Math.max(30, Math.min(Math.ceil(legendData.length / 4) * 26 + 12, 110));
+      ? Math.min(legendData.length * 24 + 12, 480)
+      : Math.max(34, Math.min(Math.ceil(legendData.length / 3) * 26 + 16, 220));
 
     const legend = {
       show: showLegend,
-      type: 'scroll' as const,
+      // Plain mode → all items rendered, automatic wrapping, no pagination.
+      type: 'plain' as const,
       data: legendData,
       bottom: legendPos === 'bottom' ? 6 : undefined,
       top: legendPos === 'right' ? ('middle' as const) : undefined,
@@ -243,21 +248,16 @@ const PAEChart: React.FC<PAEChartProps> = ({
         fontSize: 12,
         color: labelColor,
         fontWeight: 600 as const,
-        lineHeight: 16,
+        lineHeight: 18,
         padding: [0, 0, 0, 4] as [number, number, number, number],
       },
       icon: 'roundRect' as const,
-      itemWidth: 14,
+      itemWidth: 16,
       itemHeight: 10,
-      itemGap: 16,
+      itemGap: 18,
       padding: [4, 6, 4, 6] as [number, number, number, number],
       formatter: (name: string) => shortenLabel(name),
       tooltip: { show: true, formatter: (params: any) => params.name },
-      pageButtonItemGap: 4,
-      pageButtonGap: 8,
-      pageIconSize: 11,
-      pageIconColor: labelColor,
-      pageTextStyle: { color: labelColor, fontSize: 10, fontWeight: 700 as const },
       selectedMode: true as const,
     };
 
