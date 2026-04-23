@@ -8354,7 +8354,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         // In KPI mode: use sliders directly (bypass density fade) so 100% transp = fully opaque
                         fillOpacity: (sectorColorMode as string) === 'kpi' && !isFocusFaded
                           ? Math.min(1, (isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
-                          : Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale)),
+                          : Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale) * (isHovered ? 1 : Math.max(0, (beamVisibility / 100) * 2.2))),
                         // Density-adaptive: stroke weight reduced/hidden in dense zones
                         weight: isHovered ? 2 : Math.max(0.3, 1.5 * (densityInfo?.strokeScale ?? 1)),
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : Math.min(0.9, 0.9 * (densityInfo?.strokeScale ?? 1))),
@@ -8482,7 +8482,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       fillColor: fillColor,
                       fillOpacity: sectorColorMode === 'kpi' && !isFocusFaded && !isFaded && !isCellDimmed
                         ? Math.min(1, (isFocusCell || isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
-                        : Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale)),
+                        : Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale) * (isFocusCell || isHovered ? 1 : Math.max(0, (beamVisibility / 100) * 2.2))),
                       weight: strokeWeight,
                       opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
