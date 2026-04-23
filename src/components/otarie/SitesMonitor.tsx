@@ -7806,10 +7806,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 pane="paneParam"
                 icon={L.divIcon({ className: '', iconSize: [sz, sz], iconAnchor: [r, r], html: svg })}
               >
-                <Popup>
+                <Popup maxWidth={460} minWidth={340}>
                   <div className="text-xs space-y-1 min-w-[200px]">
                     <div className="font-bold text-sm">{site.site_name}</div>
-                    <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{paramConfirmed}</span></div>
+                    <div className="flex justify-between"><span className="opacity-60">Paramètre actif</span><span className="font-semibold">{paramConfirmed}</span></div>
                     <div className="text-[10px] font-semibold text-orange-500 mt-1">Multi-valeur ({vals.length} valeurs distinctes)</div>
                     {site.cells.map((c, i) => (
                       <div key={i} className="flex items-center gap-1.5">
@@ -7819,6 +7819,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                     ))}
                     {site.vendor && <div className="flex justify-between mt-1"><span className="opacity-60">Vendor</span><span>{site.vendor}</span></div>}
+                    <div className="border-t border-border/40 my-2" />
+                    <SiteAllParamsPopup siteName={site.site_name} activeParam={paramConfirmed} />
                   </div>
                 </Popup>
               </Marker>
@@ -7838,13 +7840,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 weight: 2,
               }}
             >
-              <Popup>
+              <Popup maxWidth={460} minWidth={340}>
                 <div className="text-xs space-y-1 min-w-[180px]">
                   <div className="font-bold text-sm">{site.site_name}</div>
-                  <div className="flex justify-between"><span className="opacity-60">Paramètre</span><span className="font-semibold">{paramConfirmed}</span></div>
+                  <div className="flex justify-between"><span className="opacity-60">Paramètre actif</span><span className="font-semibold">{paramConfirmed}</span></div>
                   <div className="flex justify-between"><span className="opacity-60">Valeur</span><span className="font-semibold" style={{ color: paramValueColor(site.singleValue === '(vide)' ? null : site.singleValue) }}>{site.singleValue ?? '—'}</span></div>
                   <div className="flex justify-between"><span className="opacity-60">Cellules</span><span>{site.cells.length}</span></div>
                   {site.vendor && <div className="flex justify-between"><span className="opacity-60">Vendor</span><span>{site.vendor}</span></div>}
+                  <div className="border-t border-border/40 my-2" />
+                  <SiteAllParamsPopup siteName={site.site_name} activeParam={paramConfirmed} />
                 </div>
               </Popup>
             </CircleMarker>
