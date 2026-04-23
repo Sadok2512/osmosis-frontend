@@ -41,6 +41,8 @@ interface KpiDraft {
   warning: string;
   critical: string;
   is_map_supported: boolean;
+  numerator: string;
+  denominator: string;
 }
 
 const STORAGE_KEY = 'osmosis_kpi_reference2_filters_v1';
@@ -48,6 +50,15 @@ const DEFAULT_COLOR = '#0f766e';
 const VALUE_TYPES: ValueType[] = ['ratio', 'counter', 'gauge'];
 const AGGREGATIONS: AggFunc[] = ['avg', 'sum', 'max', 'min', 'p95', 'p50', 'last', 'count'];
 const TECHNO_OPTIONS: TechnoScope[] = ['4G', '5G', 'both'];
+
+function buildFormula(numerator: string, denominator: string): string {
+  const n = numerator.trim();
+  const d = denominator.trim();
+  if (!n && !d) return '';
+  if (!d || d === '1') return n;
+  if (!n) return `1 / (${d})`;
+  return `(${n}) / (${d})`;
+}
 
 function toDraft(kpi: KpiCatalogEntry): KpiDraft {
   return {
@@ -62,6 +73,8 @@ function toDraft(kpi: KpiCatalogEntry): KpiDraft {
     warning: kpi.thresholds?.warning != null ? String(kpi.thresholds.warning) : '',
     critical: kpi.thresholds?.critical != null ? String(kpi.thresholds.critical) : '',
     is_map_supported: Boolean(kpi.is_map_supported),
+    numerator: kpi.numerator_counter || '',
+    denominator: kpi.denominator_counter || '',
   };
 }
 
@@ -191,6 +204,23 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const explainQuery = useKpiExplain(selectedKpi?.kpi_key ?? null);
   const explain = (explainQuery.data || null) as any;
 
+  // When backend explain returns numerator/denominator, prefill the editor
+  // (only if the user hasn't already started editing them locally).
+  useEffect(() => {
+    if (!explain || !selectedKpi) return;
+    setDraft(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (!prev.numerator && explain.numerator) next.numerator = String(explain.numerator);
+      if (!prev.denominator && explain.denominator) next.denominator = String(explain.denominator);
+      return next;
+    });
+  }, [explain, selectedKpi]);
+
+  // KPI Test state
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string; value?: number; numerator?: number; denominator?: number } | null>(null);
+
   const updateMutation = useMutation({
     mutationFn: async (payload: { kpi: KpiCatalogEntry; draft: KpiDraft }) => {
       const { kpi, draft } = payload;
@@ -206,6 +236,9 @@ const KpiReferenceWorkspace2: React.FC = () => {
         is_map_supported: draft.is_map_supported,
         threshold_warning: draft.warning.trim() === '' ? null : Number(draft.warning),
         threshold_critical: draft.critical.trim() === '' ? null : Number(draft.critical),
+        numerator: draft.numerator.trim() || null,
+        denominator: draft.denominator.trim() || null,
+        formula_sql: buildFormula(draft.numerator, draft.denominator) || null,
       };
 
       await updateKpiInVps(kpi.kpi_key, updateBody);
@@ -287,6 +320,50 @@ const KpiReferenceWorkspace2: React.FC = () => {
     if (!selectedKpi || !draft) return;
     sonnerToast.loading('Enregistrement du KPI…', { id: `kpi-save-${selectedKpi.kpi_key}` });
     updateMutation.mutate({ kpi: selectedKpi, draft });
+  };
+
+  // ----- KPI TEST -----
+  // Lightweight client-side evaluator: only allows digits, counter ids
+  // (alphanum + underscore), operators + - * / parentheses and dots.
+  const runTest = async () => {
+    if (!draft) return;
+    setTestResult(null);
+    setTestRunning(true);
+    try {
+      const num = draft.numerator.trim();
+      const den = draft.denominator.trim();
+      if (!num) throw new Error('Le numerator est vide.');
+      const SAFE_RE = /^[\sA-Za-z0-9_+\-*/().`]*$/;
+      if (!SAFE_RE.test(num) || !SAFE_RE.test(den)) {
+        throw new Error('Caractères non autorisés dans la formule (utilisez +, -, *, /, (), nombres et identifiants).');
+      }
+      // Replace each counter identifier by a deterministic mock value
+      // derived from its name so tests are reproducible.
+      const mockValue = (id: string) => {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        return 50 + (h % 950); // 50..999
+      };
+      const substitute = (expr: string) => expr
+        .replace(/`/g, '')
+        .replace(/[A-Za-z][A-Za-z0-9_]{2,}/g, (tok) => /\d/.test(tok) ? String(mockValue(tok)) : tok);
+      const numExpr = substitute(num);
+      const denExpr = den ? substitute(den) : '1';
+      // eslint-disable-next-line no-new-func
+      const numVal = Number(Function(`"use strict"; return (${numExpr});`)());
+      // eslint-disable-next-line no-new-func
+      const denVal = Number(Function(`"use strict"; return (${denExpr});`)());
+      if (!Number.isFinite(numVal) || !Number.isFinite(denVal)) throw new Error('Le résultat n\'est pas un nombre fini.');
+      if (denVal === 0) throw new Error('Division par zéro (denominator = 0).');
+      const value = numVal / denVal;
+      setTestResult({ ok: true, message: 'Formule valide.', value, numerator: numVal, denominator: denVal });
+      sonnerToast.success('Test réussi', { description: `Résultat = ${value.toFixed(4)}` });
+    } catch (e: any) {
+      setTestResult({ ok: false, message: e?.message || 'Erreur inconnue.' });
+      sonnerToast.error('Test échoué', { description: e?.message || 'Formule invalide.' });
+    } finally {
+      setTestRunning(false);
+    }
   };
 
   return (
@@ -661,86 +738,97 @@ const KpiReferenceWorkspace2: React.FC = () => {
                     </AccordionTrigger>
                     <AccordionContent className="pb-6 pt-2">
                       {(() => {
-                        const numeratorRaw = explain?.numerator || selectedKpi.numerator_counter || '';
-                        const denominatorRaw = explain?.denominator || selectedKpi.denominator_counter || '';
-                        const formulaText = explain?.formula || selectedKpi.formula_sql || '';
+                        const liveFormula = buildFormula(draft.numerator, draft.denominator)
+                          || explain?.formula
+                          || selectedKpi.formula_sql
+                          || 'No formula available';
                         const counters: any[] = Array.isArray(explain?.counters) ? explain.counters : [];
-                        // Extract only real PM counter identifiers (e.g. m55125c00014),
-                        // ignoring numbers, operators (* / + -), parentheses and backticks.
-                        const COUNTER_RE = /[A-Za-z][A-Za-z0-9_]{2,}/g;
-                        const splitList = (raw: string): string[] => {
-                          if (!raw) return [];
-                          const matches = raw.match(COUNTER_RE) || [];
-                          // Keep tokens that look like PM counters (must contain at least one digit).
-                          return Array.from(new Set(matches.filter(t => /\d/.test(t))));
-                        };
-                        const numeratorCounters = splitList(numeratorRaw);
-                        const denominatorCounters = splitList(denominatorRaw);
-                        const headline = formulaText
-                          || (numeratorRaw && denominatorRaw ? `${numeratorRaw} / ${denominatorRaw}` : (numeratorRaw || 'No formula available'));
 
                         return (
-                          <div className="space-y-6">
+                          <div className="space-y-5">
+                            {/* Live calculation formula preview */}
                             <div className="rounded-2xl bg-gradient-to-br from-teal-600 to-teal-700 px-6 py-5 text-white shadow-[0_10px_30px_rgba(13,148,136,0.25)]">
                               <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-50">Calculation formula</p>
-                              <p className="mt-3 break-words font-mono text-base font-medium leading-relaxed text-white">{headline}</p>
+                              <p className="mt-3 break-words font-mono text-base font-medium leading-relaxed text-white">{liveFormula}</p>
                             </div>
 
+                            {/* NUMERATOR / DENOMINATOR EDITORS (dark code blocks) */}
                             <div className="grid gap-5 xl:grid-cols-2">
-                              {/* NUMERATOR */}
-                              <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white">
-                                <div className="flex items-center justify-between bg-emerald-50 px-5 py-3.5">
-                                  <span className="text-sm font-bold uppercase tracking-[0.14em] text-emerald-800">Numerator</span>
-                                  <span className="rounded-full border border-emerald-300 bg-white px-3 py-1 text-xs font-bold text-emerald-700">
-                                    {numeratorCounters.length} Counter{numeratorCounters.length === 1 ? '' : 's'}
-                                  </span>
+                              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]">
+                                <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+                                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">Numerator</span>
+                                  <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300">Expression</span>
                                 </div>
-                                <div className="space-y-3 p-5">
-                                  {numeratorCounters.length > 0 ? numeratorCounters.map((c, i) => (
-                                    <div key={`num-${c}-${i}`} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                                      <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-emerald-100 text-emerald-700">
-                                        <Table2 className="h-4 w-4" />
-                                      </span>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="break-all font-mono text-sm font-bold text-slate-900">{c}</p>
-                                        <p className="mt-1 text-[13px] font-medium text-slate-600">PM counter</p>
-                                      </div>
-                                    </div>
-                                  )) : (
-                                    <p className="px-1 text-sm text-slate-600">No numerator exposed</p>
-                                  )}
-                                </div>
+                                <textarea
+                                  value={draft.numerator}
+                                  onChange={e => setDraft(prev => prev ? { ...prev, numerator: e.target.value } : prev)}
+                                  disabled={!isEditing}
+                                  spellCheck={false}
+                                  placeholder="ex: m55125c09514 + m55125c09515"
+                                  className="block min-h-[160px] max-h-[320px] w-full resize-y overflow-auto bg-slate-950 px-5 py-4 font-mono text-sm leading-6 text-emerald-200 caret-emerald-200 outline-none placeholder:text-slate-600 disabled:opacity-80"
+                                />
                               </div>
 
-                              {/* DENOMINATOR */}
-                              <div className="overflow-hidden rounded-2xl border border-sky-200 bg-white">
-                                <div className="flex items-center justify-between bg-sky-50 px-5 py-3.5">
-                                  <span className="text-sm font-bold uppercase tracking-[0.14em] text-sky-800">Denominator</span>
-                                  <span className="rounded-full border border-sky-300 bg-white px-3 py-1 text-xs font-bold text-sky-700">
-                                    {denominatorCounters.length} Counter{denominatorCounters.length === 1 ? '' : 's'}
-                                  </span>
+                              <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]">
+                                <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
+                                  <span className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">Denominator</span>
+                                  <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">Expression</span>
                                 </div>
-                                <div className="space-y-3 p-5">
-                                  {denominatorCounters.length > 0 ? denominatorCounters.map((c, i) => (
-                                    <div key={`den-${c}-${i}`} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-                                      <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-sky-100 text-sky-700">
-                                        <Table2 className="h-4 w-4" />
-                                      </span>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="break-all font-mono text-sm font-bold text-slate-900">{c}</p>
-                                        <p className="mt-1 text-[13px] font-medium text-slate-600">PM counter</p>
-                                      </div>
-                                    </div>
-                                  )) : (
-                                    <p className="px-1 text-sm text-slate-600">No denominator exposed</p>
-                                  )}
-                                </div>
+                                <textarea
+                                  value={draft.denominator}
+                                  onChange={e => setDraft(prev => prev ? { ...prev, denominator: e.target.value } : prev)}
+                                  disabled={!isEditing}
+                                  spellCheck={false}
+                                  placeholder="ex: 1   ou   m55125c00005"
+                                  className="block min-h-[160px] max-h-[320px] w-full resize-y overflow-auto bg-slate-950 px-5 py-4 font-mono text-sm leading-6 text-sky-200 caret-sky-200 outline-none placeholder:text-slate-600 disabled:opacity-80"
+                                />
                               </div>
+                            </div>
+
+                            {/* KPI TEST */}
+                            <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-bold uppercase tracking-[0.12em] text-slate-700">KPI Test</p>
+                                  <p className="mt-1 text-xs text-slate-500">Évalue la formule avec des valeurs simulées pour vérifier sa validité avant sauvegarde.</p>
+                                </div>
+                                <button
+                                  onClick={runTest}
+                                  disabled={testRunning || !draft.numerator.trim()}
+                                  className="inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-slate-800 disabled:opacity-50"
+                                >
+                                  {testRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                                  {testRunning ? 'Test en cours…' : 'Run Test'}
+                                </button>
+                              </div>
+
+                              {testResult ? (
+                                testResult.ok ? (
+                                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Result</p>
+                                      <p className="mt-2 font-mono text-2xl font-black text-emerald-800">{testResult.value?.toFixed(4)}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Numerator</p>
+                                      <p className="mt-2 font-mono text-lg font-bold text-slate-900">{testResult.numerator?.toFixed(2)}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Denominator</p>
+                                      <p className="mt-2 font-mono text-lg font-bold text-slate-900">{testResult.denominator?.toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                                    ✕ {testResult.message}
+                                  </div>
+                                )
+                              ) : null}
                             </div>
 
                             {counters.length > 0 ? (
                               <div className="rounded-2xl border border-slate-200 bg-white p-5">
-                                <p className="text-sm font-bold uppercase tracking-[0.12em] text-slate-700">Counter usage</p>
+                                <p className="text-sm font-bold uppercase tracking-[0.12em] text-slate-700">Counter usage (référence)</p>
                                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                                   {counters.map((counter: any, index: number) => (
                                     <div key={`${counter?.name || counter}-${index}`} className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900">
