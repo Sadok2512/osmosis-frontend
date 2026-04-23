@@ -47,35 +47,37 @@ const ParameterSearchSelect: React.FC<ParameterSearchSelectProps> = ({
     if (open) setTimeout(() => inputRef.current?.focus(), 0);
   }, [open]);
 
-  // Debounced backend search — fires whenever the query changes and asyncSearch is available
+  // Debounced backend search — when asyncSearch is available we ALWAYS use the backend,
+  // even with empty query (to surface MO-prefixed names like LNCEL.pMax / NRCELL.pMax
+  // immediately, without requiring the user to type).
   useEffect(() => {
     if (!asyncSearch) return;
+    if (!open) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     const q = query.trim();
-    if (q.length === 0) {
-      setRemoteResults(null);
-      setRemoteLoading(false);
-      return;
-    }
     setRemoteLoading(true);
+    const delay = q.length === 0 ? 0 : 250;
     searchTimer.current = setTimeout(async () => {
       try {
-        const r = await asyncSearch(q);
+        // Empty query → ask backend for a broad list (space matches most catalogs;
+        // backend ignores tiny queries gracefully). Use '.' which appears in every MO-prefixed name.
+        const effectiveQ = q.length === 0 ? '.' : q;
+        const r = await asyncSearch(effectiveQ);
         setRemoteResults(Array.isArray(r) ? r : []);
       } catch {
         setRemoteResults([]);
       } finally {
         setRemoteLoading(false);
       }
-    }, 250);
+    }, delay);
     return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
-  }, [query, asyncSearch]);
+  }, [query, asyncSearch, open]);
 
   // Source of truth for displayed list:
-  // - if asyncSearch + query → use remote results (preserves MO. prefix)
+  // - if asyncSearch → ALWAYS use remote results (preserves MO. prefix)
   // - else → filter local options
   const filtered = useMemo(() => {
-    if (asyncSearch && query.trim().length > 0) {
+    if (asyncSearch) {
       return (remoteResults ?? []).slice(0, MAX_VISIBLE);
     }
     const q = query.trim().toLowerCase();
@@ -91,7 +93,7 @@ const ParameterSearchSelect: React.FC<ParameterSearchSelectProps> = ({
   }, [query, options, asyncSearch, remoteResults]);
 
   const totalMatches = useMemo(() => {
-    if (asyncSearch && query.trim().length > 0) return (remoteResults ?? []).length;
+    if (asyncSearch) return (remoteResults ?? []).length;
     const q = query.trim().toLowerCase();
     if (!q) return options.length;
     let n = 0;
@@ -139,8 +141,8 @@ const ParameterSearchSelect: React.FC<ParameterSearchSelectProps> = ({
             <div className="flex items-center justify-between mt-1.5 px-1 text-[10px] text-muted-foreground">
               <span>
                 {totalMatches.toLocaleString('fr-FR')} match{totalMatches !== 1 ? 'es' : ''}
-                {asyncSearch && query.trim().length === 0 && (
-                  <span className="ml-1 italic">— type to search backend</span>
+                {asyncSearch && (
+                  <span className="ml-1 italic">— from backend (MO.parameter)</span>
                 )}
               </span>
               {totalMatches > MAX_VISIBLE && (
