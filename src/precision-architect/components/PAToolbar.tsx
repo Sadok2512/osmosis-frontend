@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Check, Globe } from 'lucide-react';
+import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
+import { useIsFetching } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
@@ -276,11 +277,21 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
         <div className="ml-auto flex flex-col items-end gap-1">
           <button
             onClick={handleApply}
-            title="Apply changes to all widgets in the dashboard"
-            className="h-9 px-5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all flex items-center gap-2"
+            disabled={isAnyFetching > 0}
+            title={isAnyFetching > 0 ? 'Fetching widget data…' : 'Apply changes to all widgets in the dashboard'}
+            className="h-9 px-5 rounded-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-500 disabled:cursor-wait text-white text-xs font-black uppercase tracking-widest shadow-[0_4px_14px_rgba(16,185,129,0.35)] active:scale-95 transition-all flex items-center gap-2"
           >
-            <Globe className="w-3.5 h-3.5" />
-            Apply to Dashboard
+            {isAnyFetching > 0 ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Loading… ({isAnyFetching})
+              </>
+            ) : (
+              <>
+                <Globe className="w-3.5 h-3.5" />
+                Apply to Dashboard
+              </>
+            )}
           </button>
           <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-200">
             <Globe className="w-3 h-3" /> Dashboard scope
