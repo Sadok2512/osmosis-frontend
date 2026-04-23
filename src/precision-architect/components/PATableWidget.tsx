@@ -240,12 +240,15 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
           </span>
           <span className="text-xs font-black text-on-surface">{visibleColumns.length} KPI · {rows.length} rows</span>
         </div>
-        {isFetching && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary">
-            <Loader2 className="w-3 h-3 animate-spin" /> Loading
-          </span>
-        )}
       </div>
+      {isFetching && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
+          <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
+            <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Loading data…</span>
+          </div>
+        </div>
+      )}
       <div className="flex-1 overflow-auto custom-scrollbar">
         {(() => {
           // Build context columns: Timestamp + active filters + split dimension
