@@ -603,11 +603,50 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   }, [tsResp, cfg]);
 
   // Build the config passed to PAEChart with potentially expanded metrics.
+  //
+  // VISUAL-ONLY OVERLAY (apply-only contract — render-only options bypass Apply):
+  //   Chart-type / per-metric graphType / smoothing / fill / line width /
+  //   stacked / legend etc. are PURELY VISUAL. They must update the preview
+  //   instantly without triggering a re-fetch. Since the data layer (request
+  //   payload) only depends on `appliedConfig`, we safely overlay the live
+  //   `w.config` STYLE block + per-metric VISUAL fields on top of the applied
+  //   snapshot used for rendering. Data-related fields (kpiKey, splitBy,
+  //   filters, time range, granularity) keep coming from `appliedConfig`.
+  const liveCfg = w.config as ChartWidgetConfig | undefined;
   const renderCfg = useMemo(() => {
     if (!cfg) return cfg;
-    if (expandedMetrics === cfg.metrics) return cfg;
-    return { ...cfg, metrics: expandedMetrics };
-  }, [cfg, expandedMetrics]);
+    const base = expandedMetrics === cfg.metrics ? cfg : { ...cfg, metrics: expandedMetrics };
+    if (!liveCfg) return base;
+
+    // Merge live STYLE (chartType, stacked, smooth, legend, background, etc.)
+    const mergedStyle = { ...base.style, ...liveCfg.style };
+
+    // Merge live per-metric VISUAL fields keyed by kpiKey (handles split-expanded
+    // ids like "<id>::<splitValue>" by matching on kpiKey).
+    const VISUAL_KEYS: (keyof typeof base.metrics[number])[] = [
+      'graphType', 'color', 'lineWidth', 'lineStyle', 'fillStyle',
+      'showSymbol', 'symbolSize', 'smooth', 'opacity', 'visible', 'alias',
+    ] as any;
+    const liveByKpi = new Map<string, any>();
+    liveCfg.metrics?.forEach(m => {
+      if (m.kpiKey && !liveByKpi.has(m.kpiKey)) liveByKpi.set(m.kpiKey, m);
+    });
+    const mergedMetrics = base.metrics.map(m => {
+      const live = liveByKpi.get((m as any).kpiKey);
+      if (!live) return m;
+      const overlay: any = {};
+      VISUAL_KEYS.forEach(k => {
+        if (live[k] !== undefined) overlay[k] = live[k];
+      });
+      // Preserve split-expanded color (assigned per split_value) — only
+      // adopt live color when the metric is NOT a split-expanded one.
+      const isSplitExpanded = typeof (m as any).id === 'string' && (m as any).id.includes('::');
+      if (isSplitExpanded) delete overlay.color;
+      return { ...m, ...overlay };
+    });
+
+    return { ...base, style: mergedStyle, metrics: mergedMetrics };
+  }, [cfg, expandedMetrics, liveCfg]);
 
   // Distinguish backend error vs empty perimeter
   const backendError = (() => {
