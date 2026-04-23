@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight, Check,
   Filter, Eye, Palette, MapPin, Layers, Sun, Moon,
-  Map as MapIconLucide, Satellite,
+  Map as MapIconLucide, Satellite, Square,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
