@@ -63,6 +63,8 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   // Parameter search state per condition
   const [paramSearches, setParamSearches] = useState<Record<string, { q: string; results: string[]; loading: boolean; open: boolean }>>({});
   const paramSearchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  // Parameter existing values (loaded when a parameter is selected)
+  const [paramExistingValues, setParamExistingValues] = useState<Record<string, { values: { value: string; count: number }[]; loading: boolean }>>({});
 
   const searchParam = (condId: string, q: string) => {
     setParamSearches(prev => ({ ...prev, [condId]: { q, results: prev[condId]?.results || [], loading: true, open: true } }));
@@ -77,6 +79,11 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   const selectParam = (condId: string, param: string) => {
     updateParam(condId, 'parameter', param);
     setParamSearches(prev => ({ ...prev, [condId]: { ...prev[condId], open: false, q: param } }));
+    // Load existing values for this parameter
+    setParamExistingValues(prev => ({ ...prev, [condId]: { values: [], loading: true } }));
+    getParameterValues(param)
+      .then(res => setParamExistingValues(prev => ({ ...prev, [condId]: { values: res.values || [], loading: false } })))
+      .catch(() => setParamExistingValues(prev => ({ ...prev, [condId]: { values: [], loading: false } })));
   };
 
   const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
@@ -339,6 +346,39 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
                       <div className="text-[10px] text-muted-foreground pl-1">
                         <span className="font-mono text-primary">{cond.parameter}</span>
                         {cond.value && <> <span className="font-mono">{cond.operator}</span> <span className="font-mono font-bold">{cond.value}{cond.value2 ? ` — ${cond.value2}` : ''}</span></>}
+                      </div>
+                    )}
+                    {/* Existing values for selected parameter */}
+                    {cond.parameter && paramExistingValues[cond.id] && (
+                      <div className="mt-1 pl-1">
+                        {paramExistingValues[cond.id].loading ? (
+                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Loading values…
+                          </div>
+                        ) : paramExistingValues[cond.id].values.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {paramExistingValues[cond.id].values.slice(0, 10).map(v => (
+                              <button
+                                key={v.value}
+                                type="button"
+                                onClick={() => updateParam(cond.id, 'value', v.value)}
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-mono transition-colors border ${
+                                  cond.value === v.value
+                                    ? 'bg-primary/15 text-primary border-primary/30 font-bold'
+                                    : 'bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/60 hover:text-foreground'
+                                }`}
+                                title={`${v.count.toLocaleString()} cells`}
+                              >
+                                {v.value} <span className="opacity-50">({v.count.toLocaleString()})</span>
+                              </button>
+                            ))}
+                            {paramExistingValues[cond.id].values.length > 10 && (
+                              <span className="text-[9px] text-muted-foreground self-center">+{paramExistingValues[cond.id].values.length - 10} more</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground/60">No values found</span>
+                        )}
                       </div>
                     )}
                   </div>
