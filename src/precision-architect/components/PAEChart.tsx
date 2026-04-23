@@ -65,6 +65,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // Real data only — no synthetic fallback.
   const effectiveData = hasLegacyData ? data! : [];
 
+  // Global jalons (managed from the top-bar Jalons pill) — applied to every chart.
+  const globalJalons = usePAGlobalToolbar((s) => s.jalons);
 
 
   const option = useMemo(() => {
