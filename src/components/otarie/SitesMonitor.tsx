@@ -10747,12 +10747,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // If cells aren't loaded yet for this site, fall back to backend cell_count
-                      // (otherwise the row shows "0 cells" while the map already renders them)
-                      const cellsLoadedForSite = rawCells.length > 0;
-                      const displayedCellCount = cellsLoadedForSite
-                        ? siteCells.length
-                        : (site.cell_count || 0);
+                      // Show the TOTAL physical cells of the site (stable count).
+                      // Don't apply techno/bande view filters here — they are display toggles,
+                      // not a reduction of the site's actual cell inventory. Using the filtered
+                      // count caused the number to fluctuate as cells stream in from the backend.
+                      const displayedCellCount = Math.max(rawCells.length, site.cell_count || 0);
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
