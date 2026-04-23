@@ -187,25 +187,11 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
-    const nextMetrics = config.metrics.map(m => m.id === id ? { ...m, ...patch } : m);
-    // Display-only flags (visibility, axis side) have no backend impact —
-    // propagate them immediately to the appliedConfig snapshot so the chart
-    // re-renders without requiring a full Apply (which would re-issue the query).
-    const DISPLAY_ONLY_KEYS = new Set(['visible', 'axis']);
-    const patchKeys = Object.keys(patch);
-    const isDisplayOnly = patchKeys.length > 0 && patchKeys.every(k => DISPLAY_ONLY_KEYS.has(k));
-    if (isDisplayOnly && widget.appliedConfig) {
-      const appliedCfg = widget.appliedConfig as ChartWidgetConfig;
-      const nextApplied: ChartWidgetConfig = {
-        ...appliedCfg,
-        metrics: appliedCfg.metrics.map(m =>
-          m.id === id ? { ...m, ...patch } : m
-        ),
-      };
-      onChange({ config: { ...config, metrics: nextMetrics }, appliedConfig: nextApplied });
-    } else {
-      setMetrics(nextMetrics);
-    }
+    // STRICT apply-only contract: every editor mutation stays in the DRAFT
+    // (`config`) only. The applied snapshot (`appliedConfig`) is the single
+    // source of truth that drives the rendered chart and any backend fetch,
+    // and it must NEVER be touched outside an explicit Apply click.
+    setMetrics(config.metrics.map(m => m.id === id ? { ...m, ...patch } : m));
   };
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
