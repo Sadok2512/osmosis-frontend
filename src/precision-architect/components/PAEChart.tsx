@@ -262,6 +262,13 @@ const PAEChart: React.FC<PAEChartProps> = ({
     };
 
     const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible !== false && m.axis === 'right');
+    // When at least one series renders as bars, give the chart extra left padding
+    // so the first bar does not collide with (or hide) the Y axis line/labels.
+    const hasBarSeries = (cfg?.metrics ?? []).some((m) => {
+      if (m.visible === false) return false;
+      const t = (m as any).graphType ?? style.chartType;
+      return t === 'bar' || t === 'stackedBar';
+    }) || style.chartType === 'bar';
     return {
       backgroundColor: bgColor,
       grid: {
@@ -270,7 +277,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
         // measured right-axis label width (see useLayoutEffect below).
         right: legendPos === 'right' && showLegend ? 210 : (hasRightAxis ? 64 : 24),
         bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 16 : 48,
-        left: 16,
+        left: hasBarSeries ? 36 : 16,
         containLabel: true,
       },
       legend,
