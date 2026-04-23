@@ -201,7 +201,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
       legendData = [];
     }
 
-    const legendPos = cfg?.style.legend.position ?? 'bottom';
+    // Legend placement: per user preference the legend always renders below
+    // the graph unless explicitly pinned to the right side.
+    const rawLegendPos = cfg?.style.legend.position ?? 'bottom';
+    const legendPos: 'bottom' | 'right' = rawLegendPos === 'right' ? 'right' : 'bottom';
     const showLegend = legendData.length > 1;
     const estimatedLegendRows = legendPos === 'right'
       ? legendData.length
@@ -212,7 +215,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       type: 'plain' as const,
       data: legendData,
       bottom: legendPos === 'bottom' ? 4 : undefined,
-      top: legendPos === 'top' ? 4 : undefined,
+      top: undefined,
       right: legendPos === 'right' ? 8 : 12,
       left: legendPos === 'right' ? undefined : 12,
       width: legendPos === 'right' ? 150 : '92%',
@@ -229,7 +232,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return {
       backgroundColor: bgColor,
       grid: {
-        top: legendPos === 'top' && showLegend ? legendBlockSize + 20 : (isPresentation ? 32 : 28),
+        top: isPresentation ? 32 : 28,
         // Initial right padding — will be auto-tuned post-render based on the
         // measured right-axis label width (see useLayoutEffect below).
         right: legendPos === 'right' && showLegend ? 180 : (hasRightAxis ? 64 : 24),
