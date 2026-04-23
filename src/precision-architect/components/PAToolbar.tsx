@@ -51,6 +51,9 @@ interface Props {
 
 const PAToolbar: React.FC<Props> = ({ onApply }) => {
   const { data: filterCatalog, isLoading: filtersLoading } = useFilterCatalog();
+  // Track any in-flight react-query request (chart/table/map widgets) to show
+  // a global "Loading…" state on the Apply to Dashboard button.
+  const isAnyFetching = useIsFetching();
   // Mirror Investigator: Vendor/Technology are handled by the Périmètre popover
   // and must NOT appear in the chip-row dimension picker.
   const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology', 'Techno']);
