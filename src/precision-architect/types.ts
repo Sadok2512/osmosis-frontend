@@ -148,7 +148,7 @@ export const DEFAULT_TABLE_CONFIG: TableWidgetConfig = {
       from: '2026-04-13T00:00',
       to: '2026-04-15T00:00',
     },
-    granularity: '15min',
+    granularity: '1d',
   },
   columns: [],
   // Aggregate by default — one row per KPI. The user can opt into a row split
@@ -355,7 +355,7 @@ export const DEFAULT_CHART_CONFIG: ChartWidgetConfig = {
       from: '2026-04-13T00:00',
       to: '2026-04-15T00:00',
     },
-    granularity: '15min',
+    granularity: '1d',
   },
   metrics: [],
   style: {

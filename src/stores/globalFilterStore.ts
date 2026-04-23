@@ -29,7 +29,7 @@ const weekAgo = new Date(today.getTime() - 7 * 86400000);
 export const useGlobalFilterStore = create<GlobalFilterState>((set) => ({
   dateFrom: weekAgo.toISOString().slice(0, 10),
   dateTo: today.toISOString().slice(0, 10),
-  granularity: 'auto',
+  granularity: '1d',
   setDateRange: (from, to) => set({ dateFrom: from, dateTo: to }),
   setGranularity: (g) => set({ granularity: g }),
 
