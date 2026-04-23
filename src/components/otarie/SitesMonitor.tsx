@@ -5727,7 +5727,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(true);
         }
         try {
-          const cells = await fetchSiteCells(selectedSiteId, bboxSite?.site_name || selectedSiteSnapshot?.site_name);
+          const activeCluster = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+          const cells = await fetchSiteCells(selectedSiteId, bboxSite?.site_name || selectedSiteSnapshot?.site_name, activeCluster);
           const baseSite = bboxSite || {
             site_id: selectedSiteId,
             site_name: selectedSiteId,
@@ -6328,9 +6329,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   // Try site_id first, then site_name as fallback
-                  let cells = await fetchSiteCells(site.site_id, site.site_name);
+                  const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+                  let cells = await fetchSiteCells(site.site_id, site.site_name, cl);
                   if (cells.length === 0 && site.site_name && site.site_name !== site.site_id) {
-                    cells = await fetchSiteCells(site.site_name, site.site_name);
+                    cells = await fetchSiteCells(site.site_name, site.site_name, cl);
                   }
                   return { site, cells };
                 } catch {

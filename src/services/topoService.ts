@@ -1140,15 +1140,18 @@ function mapSiteDetailPayloadToCells(payload: any): CellProperties[] {
  * Fetch cells for a single site on demand.
  * Uses Supabase RPC get_site_cells, with local caching.
  */
-export async function fetchSiteCells(siteId: string, fallbackSiteName?: string): Promise<CellProperties[]> {
-  const cached = siteCellsCache.get(siteId);
+export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, cluster?: string): Promise<CellProperties[]> {
+  const cacheKey = cluster ? `${siteId}__${cluster}` : siteId;
+  const cached = siteCellsCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < SITE_CELLS_CACHE_TTL) {
     return cached.cells;
   }
 
   // ── 1) Try lightweight VPS /topo/cells?search=SITE_ID ──
   try {
-    const url = getVpsProxyUrl('parser', `/api/v1/topo/cells`, { search: siteId, limit: '500' });
+    const params: Record<string, string> = { search: siteId, limit: '500' };
+    if (cluster) params.cluster = cluster;
+    const url = getVpsProxyUrl('parser', `/api/v1/topo/cells`, params);
     // Retry on 503 (edge function cold-start failures under load)
     let resp: Response | null = null;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -1225,7 +1228,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
         });
 
         if (cells.length > 0) {
-          siteCellsCache.set(siteId, { cells, ts: Date.now() });
+          siteCellsCache.set(cacheKey, { cells, ts: Date.now() });
           console.log(`[TopoService] Site cells (VPS/cells): ${cells.length} cells for ${siteId}`);
           return cells;
         }
@@ -1285,7 +1288,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
             return buildCellProperties(cellName, techno, r.band || r.bande || inferBandFromCellName(cellName, techno), azimut, r.hba || 30, r);
           });
           if (cells.length > 0) {
-            siteCellsCache.set(siteId, { cells, ts: Date.now() });
+            siteCellsCache.set(cacheKey, { cells, ts: Date.now() });
             console.log(`[TopoService] Site cells (VPS/cells by name): ${cells.length} cells for ${fallbackSiteName}`);
             return cells;
           }
@@ -1310,7 +1313,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
       const payload = await resp.json();
       const cells = mapSiteDetailPayloadToCells(payload);
       if (cells.length > 0) {
-        siteCellsCache.set(siteId, { cells, ts: Date.now() });
+        siteCellsCache.set(cacheKey, { cells, ts: Date.now() });
         if (lookup !== siteId) {
           siteCellsCache.set(lookup, { cells, ts: Date.now() });
         }
@@ -1363,7 +1366,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string):
       );
     });
 
-    siteCellsCache.set(siteId, { cells, ts: Date.now() });
+    siteCellsCache.set(cacheKey, { cells, ts: Date.now() });
     console.log(`[TopoService] Site cells (RPC): ${cells.length} cells for ${siteId}`);
     return cells;
   } catch (err) {
