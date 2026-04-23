@@ -18,18 +18,27 @@ interface MapSite {
   dor: string;
 }
 
-const colorFor = (status: MapSite['status']) =>
-  status === 'optimal' ? '#10b981' : status === 'warning' ? '#f59e0b' : '#ef4444';
+const DEFAULT_STATUS_COLORS = {
+  optimal: '#10b981',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+} as const;
+
+const colorFor = (status: MapSite['status'], cfg?: MapWidgetConfig) => {
+  if (status === 'optimal') return cfg?.optimalColor || DEFAULT_STATUS_COLORS.optimal;
+  if (status === 'warning') return cfg?.warningColor || DEFAULT_STATUS_COLORS.warning;
+  return cfg?.criticalColor || DEFAULT_STATUS_COLORS.critical;
+};
 
 /** Map a SiteSummary from the topo service to the lightweight MapSite shape. */
-function siteSummaryToMapSite(s: SiteSummary): MapSite | null {
+function siteSummaryToMapSite(s: SiteSummary, warnTh = 80, critTh = 60): MapSite | null {
   const [lat, lon] = s.coordinates ?? [NaN, NaN];
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const qoe = Number.isFinite(s.qoe_score_avg) ? s.qoe_score_avg : 80;
   let status: MapSite['status'] = 'optimal';
-  if (qoe < 60) status = 'critical';
-  else if (qoe < 80) status = 'warning';
+  if (qoe < critTh) status = 'critical';
+  else if (qoe < warnTh) status = 'warning';
 
   const technoList = (s.technos && s.technos.length > 0 ? s.technos : (s.techno ? [s.techno] : [])).join(',');
   const bandeList = (s.bandes && s.bandes.length > 0 ? s.bandes : (s.bande ? [s.bande] : [])).join(',');
@@ -123,7 +132,7 @@ async function loadMapSites(): Promise<MapSite[]> {
     try {
       const sites = await fetchTopoSites();
       const mapped = sites
-        .map(siteSummaryToMapSite)
+        .map((s) => siteSummaryToMapSite(s))
         .filter((s): s is MapSite => !!s);
       cachedMapSites = mapped;
       cacheListeners.forEach((cb) => { try { cb(mapped); } catch {} });
@@ -302,12 +311,16 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     const map = mapRef.current;
     if (!map) return;
 
-    const key = `${cfg.mapType}-${cfg.theme}` as keyof typeof TILE_PROVIDERS;
-    const provider = TILE_PROVIDERS[key] ?? TILE_PROVIDERS['street-light'];
-
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
     }
+
+    // Transparent theme: don't render any tiles, just markers over the (transparent) background.
+    if (cfg.theme === 'transparent') return;
+
+    const key = `${cfg.mapType}-${cfg.theme}` as keyof typeof TILE_PROVIDERS;
+    const provider = TILE_PROVIDERS[key] ?? TILE_PROVIDERS['street-light'];
 
     const tileOpts: L.TileLayerOptions = {
       attribution: provider.attribution,
@@ -324,8 +337,16 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     if (!layer) return;
     layer.clearLayers();
 
+    const warnTh = cfg.warningThreshold ?? 80;
+    const critTh = cfg.criticalThreshold ?? 60;
+
     filteredSites.forEach((s) => {
-      const color = cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981');
+      // Recompute status against the (possibly updated) thresholds so threshold
+      // edits in the settings panel re-color markers immediately.
+      const intensity = s.intensity;
+      const status: MapSite['status'] =
+        intensity < critTh ? 'critical' : intensity < warnTh ? 'warning' : 'optimal';
+      const color = cfg.kpiOverlay ? colorFor(status, cfg) : (cfg.defaultColor || '#10b981');
       const radius = cfg.displayMode === 'cells' ? 4 : 6;
 
       const marker = L.circleMarker([s.lat, s.lon], {
@@ -384,7 +405,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
       }
     }
-  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors]);
+  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
 
   // ─── Render inter-site lines (sample backbone overlay) ───
   useEffect(() => {
@@ -437,7 +458,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
 
   return (
     <div
-      style={{ width: '100%', height, position: 'relative' }}
+      style={{ width: '100%', height, position: 'relative', background: cfg.theme === 'transparent' ? 'transparent' : undefined }}
       className={`rounded-2xl overflow-hidden border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
     >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
@@ -476,9 +497,18 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
             {cfg.displayMode === 'sites' ? 'Sites' : 'Cells'} · {filteredSites.length}
           </div>
           <div className={`flex items-center gap-3 text-[10px] font-bold ${isDark ? 'text-slate-200' : ''}`}>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />Optimal</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />Warning</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" />Critical</span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.optimalColor || DEFAULT_STATUS_COLORS.optimal }} />
+              Optimal · ≥{cfg.warningThreshold ?? 80}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.warningColor || DEFAULT_STATUS_COLORS.warning }} />
+              Warning · {cfg.criticalThreshold ?? 60}–{cfg.warningThreshold ?? 80}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.criticalColor || DEFAULT_STATUS_COLORS.critical }} />
+              Critical · &lt;{cfg.criticalThreshold ?? 60}
+            </span>
           </div>
         </div>
       )}

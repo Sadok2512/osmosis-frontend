@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight, Check,
   Filter, Eye, Palette, MapPin, Layers, Sun, Moon,
-  Map as MapIconLucide, Satellite,
+  Map as MapIconLucide, Satellite, Square,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -280,6 +280,7 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                     options={[
                       { value: 'light', label: 'Light', icon: <Sun className="w-3 h-3" /> },
                       { value: 'dark', label: 'Dark', icon: <Moon className="w-3 h-3" /> },
+                      { value: 'transparent', label: 'Transparent', icon: <Square className="w-3 h-3" /> },
                     ]}
                   />
                 </Field>
@@ -331,6 +332,59 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                     )}
                   </div>
                 </Field>
+
+                {cfg.kpiOverlay && (
+                  <div className="space-y-3 p-4 rounded-xl border border-outline-variant/20 bg-surface-container-low/40">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70">
+                      KPI Status Thresholds &amp; Colors
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Warning threshold (≤)">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cfg.warningThreshold ?? 80}
+                          onChange={(e) => update({ warningThreshold: Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+                        />
+                      </Field>
+                      <Field label="Critical threshold (≤)">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={cfg.criticalThreshold ?? 60}
+                          onChange={(e) => update({ criticalThreshold: Number(e.target.value) })}
+                          className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label="Optimal color">
+                      <ColorPickerRow
+                        value={cfg.optimalColor || '#10b981'}
+                        fallback="#10b981"
+                        onChange={(v) => update({ optimalColor: v })}
+                      />
+                    </Field>
+                    <Field label="Warning color">
+                      <ColorPickerRow
+                        value={cfg.warningColor || '#f59e0b'}
+                        fallback="#f59e0b"
+                        onChange={(v) => update({ warningColor: v })}
+                      />
+                    </Field>
+                    <Field label="Critical color">
+                      <ColorPickerRow
+                        value={cfg.criticalColor || '#ef4444'}
+                        fallback="#ef4444"
+                        onChange={(v) => update({ criticalColor: v })}
+                      />
+                    </Field>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -341,6 +395,26 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
 }
 
 /* ── Subcomponents ── */
+function ColorPickerRow({ value, fallback, onChange }: { value: string; fallback: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value || fallback}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-9 h-9 rounded-lg border border-outline-variant/30 cursor-pointer bg-transparent"
+      />
+      <input
+        type="text"
+        value={value || ''}
+        placeholder={fallback}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
+      />
+    </div>
+  );
+}
+
 function Accordion({
   title, icon, open, onToggle, children,
 }: {
