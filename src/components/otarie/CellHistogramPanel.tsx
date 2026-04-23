@@ -44,7 +44,9 @@ const CellHistogramPanel: React.FC<Props> = ({ siteName, cellName, vendor, techn
   const [histLoading, setHistLoading] = useState<Set<string>>(new Set());
 
   // Fetch histogram catalog
+  const [catalogLoading, setCatalogLoading] = useState(true);
   useEffect(() => {
+    setCatalogLoading(true);
     const fetchCatalog = async () => {
       try {
         const params = new URLSearchParams();
@@ -62,6 +64,7 @@ const CellHistogramPanel: React.FC<Props> = ({ siteName, cellName, vendor, techn
       } catch (err) {
         console.warn('[Histogram] Catalog error:', err);
       }
+      setCatalogLoading(false);
     };
     fetchCatalog();
   }, [vendor]);
@@ -127,6 +130,18 @@ const CellHistogramPanel: React.FC<Props> = ({ siteName, cellName, vendor, techn
     });
   };
 
+  if (catalogLoading) {
+    // Still loading or fetch failed — show placeholder
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <BarChart3 size={14} className="text-primary" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Distributions RF</span>
+          <Loader2 size={10} className="animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
   if (filteredCatalog.length === 0) return null;
 
   return (
