@@ -289,6 +289,7 @@ export interface BboxFilters {
   bande?: string;
   zone_arcep?: string;
   cluster?: string;
+  plaque?: string;
   q?: string;
 }
 

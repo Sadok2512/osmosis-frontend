@@ -15,6 +15,7 @@ export interface TopoCell {
   hba: number;
   zoneArcep: string;
   essentiel: string;
+  cluster?: string;
 }
 
 const raw: TopoCell[] = [
