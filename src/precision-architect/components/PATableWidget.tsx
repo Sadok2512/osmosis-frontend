@@ -143,6 +143,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     effectiveFilters,
     effectiveAppliedRev,
     validKpiKeys,
+    inheritsTime,
+    gGrain,
   ]);
 
 
