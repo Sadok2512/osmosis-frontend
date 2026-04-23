@@ -408,7 +408,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
             </div>
             <div className="divide-y divide-slate-200 bg-white">
               {catalogQuery.isLoading ? (
-                <div className="px-6 py-12 text-sm text-slate-500">Loading full KPI catalog from backend...</div>
+                <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm text-slate-600">
+                  <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
+                  <span className="font-semibold">Chargement du catalogue KPI complet depuis le backend…</span>
+                </div>
               ) : filteredCatalog.length > 0 ? filteredCatalog.map(item => {
                 const isSelected = selectedKpiKey === item.kpi_key;
                 const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
