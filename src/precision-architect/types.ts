@@ -245,7 +245,7 @@ export const DEFAULT_DIVIDER_CONFIG: DividerWidgetConfig = {
 
 /** ───── Map Widget Configuration ───── */
 export type MapDisplayMode = 'sites' | 'cells';
-export type MapTheme = 'light' | 'dark';
+export type MapTheme = 'light' | 'dark' | 'transparent';
 export type MapType = 'street' | 'satellite';
 
 export interface MapFilterChip {
@@ -276,6 +276,16 @@ export interface MapWidgetConfig {
   heatmap: boolean;
   /** Default site marker color (hex). Empty = use theme accent. */
   defaultColor?: string;
+  /** KPI threshold for warning status (QoE score below this = warning). */
+  warningThreshold?: number;
+  /** KPI threshold for critical status (QoE score below this = critical). */
+  criticalThreshold?: number;
+  /** Color used for "optimal" markers when KPI overlay is on. */
+  optimalColor?: string;
+  /** Color used for "warning" markers when KPI overlay is on. */
+  warningColor?: string;
+  /** Color used for "critical" markers when KPI overlay is on. */
+  criticalColor?: string;
 }
 
 export const DEFAULT_MAP_CONFIG: MapWidgetConfig = {
@@ -290,6 +300,11 @@ export const DEFAULT_MAP_CONFIG: MapWidgetConfig = {
   kpiOverlay: true,
   showLegend: true,
   heatmap: false,
+  warningThreshold: 80,
+  criticalThreshold: 60,
+  optimalColor: '#10b981',
+  warningColor: '#f59e0b',
+  criticalColor: '#ef4444',
 };
 
 export interface DynWidget {
