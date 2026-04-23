@@ -37,6 +37,9 @@ export interface GraphConfig {
   showAlarms: boolean;
   showNeighbors: boolean;
   showCmHistory: boolean;
+  fillStyle?: 'none' | 'gradient' | 'solid';
+  legendPosition?: 'bottom' | 'right' | 'hidden';
+  background?: 'transparent' | 'light' | 'dark';
   yAxis?: YAxisConfig;
   yAxisRight?: YAxisConfig;
   /** Maps kpiId → 0 (left) or 1 (right). Default is 0. */
@@ -71,6 +74,9 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showAlarms: true,
   showNeighbors: true,
   showCmHistory: true,
+  fillStyle: 'gradient',
+  legendPosition: 'bottom',
+  background: 'transparent',
 };
 
 export interface GraphSlot {

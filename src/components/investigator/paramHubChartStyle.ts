@@ -11,22 +11,26 @@
 
 const FONT = 'Inter, system-ui, sans-serif';
 
-/** Primary teal palette (matches Parameter Hub DistributionView). */
+/** Primary palette (PA visual design). */
 export const PH_COLORS = {
+  primary: '#00685f',
+  accent: '#6bd8cb',
   tealLight: '#14B8A6',
   tealDark: '#0E7C66',
   tealHoverLight: '#2DD4BF',
   tealHoverDark: '#14B8A6',
   shadow: 'rgba(14, 124, 102, 0.18)',
   shadowHover: 'rgba(20, 184, 166, 0.35)',
-  axisLine: '#E5E7EB',
-  splitLine: '#F1F5F9',
-  labelStrong: '#1F2937',
+  axisLine: 'rgba(15,23,42,0.35)',
+  splitLine: 'rgba(15,23,42,0.08)',
+  border: 'rgba(15,23,42,0.15)',
+  gridLine: 'rgba(15,23,42,0.08)',
+  labelStrong: '#0f172a',
   labelMuted: '#6B7280',
-  labelSubtle: '#9CA3AF',
-  tooltipBg: '#ffffff',
-  tooltipBorder: 'rgba(15, 23, 42, 0.06)',
-  accent: '#0E7C66',
+  labelSubtle: '#9ca3af',
+  tooltipBg: 'rgba(15,23,42,0.95)',
+  tooltipBorder: 'rgba(255,255,255,0.08)',
+  tooltipText: '#f8fafc',
 } as const;
 
 /** Vertical teal gradient (top → bottom) used by every bar/area in the module. */
@@ -52,31 +56,31 @@ export const phTealAreaGradient = () => ({
   ],
 });
 
-/** Premium light tooltip (white, soft shadow, teal accent header). */
+/** Dark tooltip (PA style — dark bg, light text). */
 export const phTooltip = (overrides: Record<string, any> = {}) => ({
   trigger: 'axis' as const,
   backgroundColor: PH_COLORS.tooltipBg,
   borderColor: PH_COLORS.tooltipBorder,
   borderWidth: 1,
   padding: [10, 14],
-  textStyle: { color: PH_COLORS.labelStrong, fontSize: 12, fontFamily: FONT },
+  textStyle: { color: PH_COLORS.tooltipText, fontSize: 11, fontWeight: 600, fontFamily: FONT },
   extraCssText:
-    'box-shadow: 0 12px 32px -8px rgba(15, 23, 42, 0.18); border-radius: 10px;',
+    'box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.45); border-radius: 10px;',
   axisPointer: {
-    type: 'line' as const,
-    lineStyle: { color: 'rgba(14, 124, 102, 0.25)', width: 1, type: 'dashed' as const },
-    shadowStyle: { color: 'rgba(14, 124, 102, 0.06)' },
+    type: 'cross' as const,
+    crossStyle: { color: 'rgba(59,130,246,0.25)' },
+    lineStyle: { color: 'rgba(59,130,246,0.25)', width: 1 },
   },
   ...overrides,
 });
 
-/** Minimalist X axis (light line, no ticks, refined typography). */
+/** X axis (PA style — visible line & ticks, compact labels). */
 export const phXAxis = (overrides: Record<string, any> = {}) => ({
-  axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
-  axisTick: { show: false },
+  axisLine: { lineStyle: { color: 'rgba(15,23,42,0.35)' } },
+  axisTick: { show: true },
   axisLabel: {
-    fontSize: 11,
-    color: PH_COLORS.labelMuted,
+    fontSize: 9,
+    color: '#9ca3af',
     fontFamily: FONT,
     margin: 12,
   },
@@ -84,16 +88,16 @@ export const phXAxis = (overrides: Record<string, any> = {}) => ({
   ...overrides,
 });
 
-/** Minimalist Y axis (no axis line, soft horizontal split lines). */
+/** Y axis (PA style — visible axis line, dashed split lines). */
 export const phYAxis = (overrides: Record<string, any> = {}) => ({
-  axisLine: { show: false },
-  axisTick: { show: false },
+  axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
+  axisTick: { show: true },
   axisLabel: {
-    color: PH_COLORS.labelSubtle,
-    fontSize: 11,
+    color: '#9ca3af',
+    fontSize: 9,
     fontFamily: FONT,
   },
-  splitLine: { lineStyle: { color: PH_COLORS.splitLine, type: 'solid' as const } },
+  splitLine: { lineStyle: { color: 'rgba(15,23,42,0.08)', type: 'dashed' as const } },
   ...overrides,
 });
 

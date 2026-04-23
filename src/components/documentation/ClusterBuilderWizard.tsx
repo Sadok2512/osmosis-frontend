@@ -117,7 +117,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
         .finally(() => setCountLoading(false));
     }, 600);
     return () => { if (countTimer.current) clearTimeout(countTimer.current); };
-  }, [topoConditions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(topoConditions.map(c => ({ f: c.field, o: c.operator, v: c.values })))]);
 
   // ── Topology mutators ──
   const addCondition = () => {

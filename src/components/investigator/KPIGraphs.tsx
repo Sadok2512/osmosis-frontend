@@ -72,7 +72,7 @@ const SlotSettingsPopover: React.FC<{
         <Settings2 className="w-4 h-4" />
       </button>
     </PopoverTrigger>
-    <PopoverContent className="w-[260px] p-0 z-[200] overflow-hidden" align="end" side="bottom" sideOffset={4}>
+    <PopoverContent className="w-[320px] p-0 z-[200] overflow-hidden max-h-[80vh] overflow-y-auto" align="end" side="bottom" sideOffset={4}>
       <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
         <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Graph Settings</span>
       </div>
@@ -96,11 +96,102 @@ const SlotSettingsPopover: React.FC<{
       </div>
 
       <div className="p-3 space-y-2.5">
+        {/* Chart Type selector */}
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Chart Type</span>
+        <div className="flex gap-1">
+          {([
+            { value: 'line' as ChartType, label: 'Line', Icon: TrendingUp },
+            { value: 'area' as ChartType, label: 'Area', Icon: AreaChart },
+            { value: 'bar' as ChartType, label: 'Bar', Icon: BarChart },
+            { value: 'scatter' as ChartType, label: 'Scatter', Icon: CircleDot },
+          ]).map(ct => (
+            <button
+              key={ct.value}
+              onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { chartType: ct.value }); }}
+              className={cn(
+                'flex-1 flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-md text-[9px] font-medium border transition-colors',
+                cfg.chartType === ct.value
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+              )}
+            >
+              <ct.Icon className="w-3.5 h-3.5" />
+              {ct.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-px bg-border/40" />
+
         {/* Background */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-foreground">Background</span>
-          <span className="text-[9px] font-mono text-muted-foreground px-1.5 py-0.5 rounded bg-muted/50 border border-border/40">White</span>
+          <div className="flex gap-1">
+            {(['transparent', 'light', 'dark'] as const).map(bg => (
+              <button
+                key={bg}
+                onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { background: bg }); }}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[9px] font-medium border transition-colors capitalize',
+                  (cfg.background ?? 'transparent') === bg
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                )}
+              >
+                {bg}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Legend Position */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground">Legend</span>
+          <div className="flex gap-1">
+            {(['bottom', 'right', 'hidden'] as const).map(pos => (
+              <button
+                key={pos}
+                onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { legendPosition: pos }); }}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[9px] font-medium border transition-colors capitalize',
+                  (cfg.legendPosition ?? 'bottom') === pos
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                )}
+              >
+                {pos}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Fill Style — only relevant when area is enabled */}
+        <div className={cn('flex items-center justify-between', !cfg.showArea && cfg.chartType !== 'area' && 'opacity-40')}>
+          <span className="text-[10px] text-foreground">Fill Style</span>
+          <div className="flex gap-1">
+            {(['none', 'gradient', 'solid'] as const).map(fs => (
+              <button
+                key={fs}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!cfg.showArea && cfg.chartType !== 'area') return;
+                  onUpdateSlotConfig(slot.id, { fillStyle: fs });
+                }}
+                disabled={!cfg.showArea && cfg.chartType !== 'area'}
+                className={cn(
+                  'px-2 py-0.5 rounded text-[9px] font-medium border transition-colors capitalize',
+                  (cfg.fillStyle ?? 'gradient') === fs
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+                )}
+              >
+                {fs}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="h-px bg-border/40" />
 
         {/* Table View — disabled when no table data available */}
         <div className={cn('flex items-center justify-between', !hasTableData && 'opacity-50')}>
@@ -207,18 +298,18 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
-// Force teal palette across the entire Investigator (Parameter Hub style)
+// PA diverse palette for Investigator series
 const SERIES_COLORS = [
-  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
-  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
+  '#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#3b82f6', '#10b981', '#ec4899', '#06b6d4', '#84cc16',
 ];
 
-// Extended teal/cyan palette for split dimension values — 20 distinct shades
+// Extended diverse palette for split dimension values — 20 distinct colors
 const SPLIT_COLORS = [
-  '#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2',
-  '#0D9488','#115E59','#5EEAD4','#06B6D4','#0E7490',
-  '#155E75','#22D3EE','#67E8F9','#3B82F6','#0369A1',
-  '#1E40AF','#0284C7','#38BDF8','#0EA5E9','#7DD3FC',
+  '#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#3b82f6', '#10b981', '#ec4899', '#06b6d4', '#84cc16',
+  '#f97316', '#6366f1', '#14b8a6', '#d946ef', '#0ea5e9',
+  '#eab308', '#a855f7', '#f43f5e', '#22c55e', '#0891b2',
 ];
 
 /** Deterministic hash for any string key */
@@ -571,18 +662,18 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
         interval: xInterval,
         lineHeight: 16,
       },
-      axisLine: { lineStyle: { color: PH_COLORS.axisLine } },
-      axisTick: { show: false },
+      axisLine: { lineStyle: { color: 'rgba(15,23,42,0.35)' } },
+      axisTick: { show: true },
       splitLine: { show: false },
     },
     yAxis: {
       type: 'value' as const,
       min: yMin,
       max: yMax,
-      axisLabel: { fontSize: 11, color: PH_COLORS.labelSubtle, fontFamily: 'Inter, system-ui, sans-serif', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 12 },
-      splitLine: { show: true, lineStyle: { color: PH_COLORS.splitLine, type: 'solid' as const } },
-      axisLine: { show: false },
-      axisTick: { show: false },
+      axisLabel: { fontSize: 9, color: '#9ca3af', fontFamily: 'Inter, system-ui, sans-serif', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1), margin: 12 },
+      splitLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.08)', type: 'dashed' as const } },
+      axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
+      axisTick: { show: true },
     },
     series: counters.map((counter, ci) => {
       const color = stableColorForCounter(counter);
@@ -1466,10 +1557,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           },
           splitLine: {
             show: cfg.showGrid,
-            lineStyle: { color: 'rgba(148,163,184,0.35)', type: 'dashed' as const },
+            lineStyle: { color: 'rgba(15,23,42,0.08)', type: 'dashed' as const },
           },
-          axisLine: { show: false },
-          axisTick: { show: false },
+          axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
+          axisTick: { show: true },
         };
 
         const yAxisRightCfg = cfg.yAxisRight;
@@ -1479,14 +1570,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           min: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.min != null ? yAxisRightCfg.min : autoRight.min,
           max: yAxisRightCfg?.mode === 'manual' && yAxisRightCfg.max != null ? yAxisRightCfg.max : autoRight.max,
           axisLabel: {
-            fontSize: 10,
-            color: '#a1a1aa',
+            fontSize: 9,
+            color: '#9ca3af',
             formatter: (v: number) => `${v.toFixed(1)}`,
             margin: 14,
           },
           splitLine: { show: false },
-          axisLine: { show: false },
-          axisTick: { show: false },
+          axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
+          axisTick: { show: true },
         };
 
         const yAxisArr = hasRightAxis ? [yAxisLeft, yAxisRight] : [yAxisLeft];
