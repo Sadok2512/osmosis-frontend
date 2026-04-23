@@ -308,10 +308,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
-    const id = `kpi-edit-${target.kpi_key}`;
-    sonnerToast.loading("Préparation de l'édition…", { id, description: `Chargement de la formule et des sources de ${target.display_name}` });
-    // Safety net: auto-dismiss after 3s if the explain query never settles
-    window.setTimeout(() => sonnerToast.dismiss(id), 3000);
+    sonnerToast.dismiss(`kpi-edit-${target.kpi_key}`);
     scrollToReview();
   };
 
