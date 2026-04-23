@@ -50,12 +50,18 @@ const CellHistogramPanel: React.FC<Props> = ({ siteName, cellName, vendor, techn
         const params = new URLSearchParams();
         if (vendor) params.set('vendor', vendor);
         const url = getApiUrl(`pm/histograms/catalog?${params}`);
+        console.log('[Histogram] Fetching catalog:', url);
         const res = await fetch(url, { headers: getApiHeaders() });
         if (res.ok) {
           const data = await res.json();
+          console.log('[Histogram] Catalog loaded:', data?.length, 'items');
           setCatalog(Array.isArray(data) ? data : []);
+        } else {
+          console.warn('[Histogram] Catalog fetch failed:', res.status, await res.text().catch(() => ''));
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn('[Histogram] Catalog error:', err);
+      }
     };
     fetchCatalog();
   }, [vendor]);
@@ -90,17 +96,25 @@ const CellHistogramPanel: React.FC<Props> = ({ siteName, cellName, vendor, techn
         date_to: dateTo || new Date().toISOString().slice(0, 10),
       };
       if (siteName) body.site_name = siteName;
-      if (cellName) body.cell_name = cellName;
+      // Don't filter by cellName — histogram data is site-level
+      console.log('[Histogram] Fetching data:', { histId, ...body });
       const res = await fetch(url, {
         method: 'POST',
-        headers: getApiHeaders(),
+        headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
       if (res.ok) {
         const data = await res.json();
+        console.log('[Histogram] Data loaded:', histId, data.bins?.length, 'bins');
         setHistData(prev => ({ ...prev, [histId]: data.bins || [] }));
+      } else {
+        console.warn('[Histogram] Data fetch failed:', res.status);
+        setHistData(prev => ({ ...prev, [histId]: [] }));
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[Histogram] Data error:', err);
+      setHistData(prev => ({ ...prev, [histId]: [] }));
+    }
     setHistLoading(prev => { const n = new Set(prev); n.delete(histId); return n; });
   };
 
