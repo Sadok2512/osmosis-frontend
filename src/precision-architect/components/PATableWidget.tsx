@@ -128,7 +128,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       kpi_keys: resolvedColumns.filter(c => c.source !== 'counter').map(c => c.kpiKey),
       split_by: effectiveSplitBy,
       // top_n intentionally omitted — backend returns full result set, no client-imposed cap.
-      granularity: toBackendGranularity(cfg.data.granularity || '1d'),
+      granularity: toBackendGranularity((inheritsTime ? gGrain : cfg.data.granularity) || '1d'),
       columns: resolvedColumns,
       _rev: effectiveAppliedRev,
     } as TableRequest & { _rev: number; granularity: string; columns: TableColumn[]; split_by: string | null };
