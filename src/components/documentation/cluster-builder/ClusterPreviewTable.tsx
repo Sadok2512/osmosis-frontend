@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Loader2, Search, Download, ExternalLink, AlertCircle, Inbox, ArrowUpDown, ChevronRight, ChevronDown } from 'lucide-react';
 import { topoApi } from '@/lib/localDb';
-import { fetchSiteCells } from '@/services/topoService';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import type { TopologyConditionState } from './TopologyConditionCard';
 
 interface Props {
@@ -166,12 +166,32 @@ const ClusterPreviewTable: React.FC<Props> = ({
 
     if (isCurrentlyOpen) return;
 
-    // Lazy fetch cells if not provided inline & not cached
+    // Lazy fetch cells with topology filters applied
     if (!cellsCache[siteId] && (!inlineCells || inlineCells.length === 0)) {
       setCellsLoading(prev => new Set(prev).add(siteId));
       try {
         const site = enriched.find(s => s.site_id === siteId);
-        const cells = await fetchSiteCells(siteId, site?.site_name);
+        const siteName = site?.site_name || siteId;
+        // Build query with topology filters so only matching cells are returned
+        const qs = new URLSearchParams({ search: siteName, limit: '500' });
+        for (const c of validConds) {
+          if (c.values.length === 0) continue;
+          const key = DIM_TO_QS[c.field] || c.field;
+          if (key !== 'cluster' && key !== 'plaque') { // site already scoped by cluster
+            qs.set(key, c.values.join(','));
+          }
+        }
+        const url = getApiUrl(`topo/cells?${qs}`);
+        const res = await fetch(url, { headers: getApiHeaders() });
+        const data = res.ok ? await res.json() : [];
+        const cells: PreviewCell[] = (Array.isArray(data) ? data : []).map((r: any) => ({
+          cell_name: r.cell_name || r.source_cellule || '',
+          techno: r.techno || '',
+          band: r.band || '',
+          pci: r.pci ?? null,
+          eci: r.eci ?? r.sac_ci_eci ?? null,
+          status: r.status || r.etat_fonctionnement || 'active',
+        }));
         setCellsCache(prev => ({ ...prev, [siteId]: cells }));
       } catch {
         setCellsCache(prev => ({ ...prev, [siteId]: [] }));
@@ -192,7 +212,18 @@ const ClusterPreviewTable: React.FC<Props> = ({
       let cells = cellsCache[s.site_id] || s.cells || [];
       if (cells.length === 0 && s.site_id) {
         try {
-          cells = await fetchSiteCells(s.site_id, s.site_name);
+          const qs = new URLSearchParams({ search: s.site_name || s.site_id, limit: '500' });
+          const url = getApiUrl(`topo/cells?${qs}`);
+          const res = await fetch(url, { headers: getApiHeaders() });
+          const data = res.ok ? await res.json() : [];
+          cells = (Array.isArray(data) ? data : []).map((r: any) => ({
+            cell_name: r.cell_name || r.source_cellule || '',
+            techno: r.techno || '',
+            band: r.band || '',
+            pci: r.pci ?? null,
+            eci: r.eci ?? r.sac_ci_eci ?? null,
+            status: r.status || r.etat_fonctionnement || 'active',
+          }));
           nextCache[s.site_id] = cells;
         } catch {
           nextCache[s.site_id] = [];
