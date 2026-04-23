@@ -448,7 +448,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           // Build axis mapping for each series
           const axisByName = new Map<string, string>();
           (cfg?.metrics ?? []).forEach((m: any) => {
-            const resolved = visible?.find(v => (v.alias || v.kpiKey) === (m.alias || m.kpiKey));
+            const resolved = resolvedMetrics.find((v: any) => (v.alias || v.kpiKey) === (m.alias || m.kpiKey));
             axisByName.set(m.alias || m.kpiKey, resolved?.axis === 'right' ? 'R' : 'L');
           });
           const rows = params.map((p: any) => {
