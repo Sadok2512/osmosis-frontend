@@ -9186,16 +9186,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Value legend */}
           {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
             <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[280px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16, minWidth: 240 }}>
-              {/* Prominent param header */}
-              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
-                <div className="flex items-center gap-2 min-w-0">
+              {/* Prominent param header — full param value, never truncated */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Settings2 size={14} className="text-primary shrink-0" />
-                  <div className="flex flex-col min-w-0">
+                  <div className="flex flex-col min-w-0 flex-1">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground leading-none">Paramètre</span>
-                    <span className="text-[12px] font-black text-foreground truncate leading-tight mt-0.5" title={paramConfirmed}>{paramConfirmed}</span>
+                    <span className="text-[13px] font-black text-foreground leading-tight mt-1 break-all" title={paramConfirmed ?? undefined}>{paramConfirmed}</span>
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-muted-foreground shrink-0 px-2 py-0.5 rounded-md bg-muted/60">{paramSiteMarkers.length} sites</span>
+                <span className="text-[10px] font-bold text-muted-foreground shrink-0 px-2 py-0.5 rounded-md bg-muted/60 self-start">{paramSiteMarkers.length} sites</span>
               </div>
               <div className="p-3 overflow-y-auto">
               {paramSiteMarkers.some(s => s.isMultiValue) && (
