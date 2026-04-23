@@ -53,9 +53,11 @@ const DEFAULT_PREVIEW_LIMIT = 60;
 const DIM_TO_QS: Record<string, string> = {
   vendor: 'vendor',
   dor: 'dor',
-  plaque: 'plaque',
+  cluster: 'cluster',
+  plaque: 'cluster',
   band: 'bande',
-  techno: 'techno',
+  rat: 'rat',
+  techno: 'rat',
   region: 'region',
 };
 
