@@ -81,17 +81,49 @@ const PAEChart: React.FC<PAEChartProps> = ({
     let legendData: string[] = [];
 
     if (cfg && cfg.metrics.length > 0) {
-      const visible = cfg.metrics.filter(m => m.visible !== false);
+      const visibleRaw = cfg.metrics.filter(m => m.visible !== false);
+
+      // ── AUTO-AXIS ASSIGNMENT BY UNIT ──────────────────────────────────
+      // Even if every metric is configured on the left axis, when the chart
+      // mixes incompatible units (e.g. "%" + "GB") the small-magnitude series
+      // get crushed by the dominant one. We detect distinct unit families and
+      // automatically push the secondary unit(s) to the right axis — unless
+      // the user has explicitly assigned axes themselves.
+      const normUnit = (u?: string) =>
+        (u ?? '').trim().toLowerCase().replace(/\s+/g, '') || '__nounit__';
+      const userExplicitlySplit = visibleRaw.some(m => m.axis === 'right');
+      const unitGroups = new Map<string, number>();
+      visibleRaw.forEach(m => {
+        const u = normUnit((m as any).unit);
+        unitGroups.set(u, (unitGroups.get(u) ?? 0) + 1);
+      });
+      // Pick the most populated unit as "primary" (left). All others → right.
+      const primaryUnit = [...unitGroups.entries()]
+        .sort((a, b) => b[1] - a[1])[0]?.[0] ?? '__nounit__';
+      const visible = visibleRaw.map(m => {
+        if (userExplicitlySplit) return m; // respect user choice
+        if (unitGroups.size <= 1) return m; // single unit family → no split
+        const u = normUnit((m as any).unit);
+        return u === primaryUnit ? m : { ...m, axis: 'right' as const };
+      });
+
       const hasRight = visible.some(m => m.axis === 'right');
       const hasLeft = visible.some(m => m.axis === 'left' || m.axis == null);
       // Pick a representative color per axis (first metric on that side)
       const leftColor = visible.find(m => m.axis !== 'right')?.color ?? labelColor;
       const rightColor = visible.find(m => m.axis === 'right')?.color ?? labelColor;
+      // Unit label per axis (shown as axis name)
+      const leftUnit = visible.find(m => m.axis !== 'right')?.unit ?? '';
+      const rightUnit = visible.find(m => m.axis === 'right')?.unit ?? '';
       yAxis = [
         {
           type: 'value' as const,
           position: 'left',
           show: hasLeft,
+          name: leftUnit || undefined,
+          nameTextStyle: { color: hasRight ? leftColor : labelColor, fontSize: 10, fontWeight: 600 },
+          nameGap: 8,
+          scale: true,
           axisLine: { show: true, lineStyle: { color: hasRight ? leftColor : axisLineColor, width: 1 } },
           axisTick: { show: true, lineStyle: { color: axisLineColor } },
           axisLabel: {
@@ -105,6 +137,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
         ...(hasRight ? [{
           type: 'value' as const,
           position: 'right',
+          name: rightUnit || undefined,
+          nameTextStyle: { color: rightColor, fontSize: 10, fontWeight: 600 },
+          nameGap: 8,
+          scale: true,
           axisLine: { show: true, lineStyle: { color: rightColor, width: 1 } },
           axisTick: { show: true, lineStyle: { color: rightColor } },
           axisLabel: { fontSize: 11, color: rightColor, fontWeight: 600, margin: 8 },
