@@ -2673,28 +2673,28 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       {/* Create dashboard popup */}
       {showCreateDash && (
         <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
-          <DialogContent className="sm:max-w-[480px] max-h-[85vh] overflow-y-auto p-0 gap-0">
-            <DialogHeader className="px-6 pt-6 pb-3">
-              <DialogTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                <Plus size={16} className="text-primary" />
+          <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto p-0 gap-0">
+            <DialogHeader className="px-12 pt-12 pb-6">
+              <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
+                <Plus size={28} className="text-primary" />
                 Créer un Dashboard
               </DialogTitle>
-              <DialogDescription className="text-[11px] text-muted-foreground">
+              <DialogDescription className="text-sm text-muted-foreground mt-1">
                 Définissez le nom et les filtres de sites pour votre nouveau dashboard.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="px-6 pb-6 space-y-4">
+            <div className="px-12 pb-12 space-y-8">
               {/* Name */}
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Nom du dashboard</label>
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Nom du dashboard</label>
                 <input
                   autoFocus
                   value={newDashName}
                   onChange={e => setNewDashName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && newDashName.trim()) { handleCreateDashboard(); } }}
                   placeholder="Nom du dashboard..."
-                  className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
+                  className="w-full bg-muted border border-border rounded-2xl px-6 py-5 text-base font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary transition-colors"
                 />
               </div>
 
@@ -2708,19 +2708,19 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               )}
 
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-6">
                 <button
                   onClick={() => { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); }}
-                  className="flex-1 py-3 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-muted transition-colors"
+                  className="flex-1 py-5 rounded-2xl border border-border text-base font-bold text-muted-foreground hover:bg-muted transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={() => { handleCreateDashboard(); }}
                   disabled={!newDashName.trim() || creatingDash}
-                  className="flex-1 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 py-5 rounded-2xl bg-primary text-primary-foreground text-base font-bold hover:bg-primary/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-3 shadow-sm"
                 >
-                  {creatingDash ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {creatingDash ? <RefreshCw size={20} className="animate-spin" /> : <Plus size={20} />}
                   {hasAnyCreateFilter ? 'Créer' : 'Créer'}
                 </button>
               </div>
