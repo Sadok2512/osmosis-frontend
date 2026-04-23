@@ -493,11 +493,55 @@ const PAEChart: React.FC<PAEChartProps> = ({
         axisLabel: { fontSize: 11, color: labelColor, fontWeight: 600, margin: 10 },
       },
       yAxis,
-      series,
+      series: (() => {
+        // ── SEUILS Y (horizontal threshold lines) + JALONS (vertical date markers) ──
+        // We attach them as markLine on the first series; ECharts renders them
+        // once at chart level. yAxisIndex routes each threshold to the correct axis.
+        const thresholds = cfg?.thresholds ?? [];
+        const jalons = cfg?.jalons ?? [];
+        if ((thresholds.length === 0 && jalons.length === 0) || series.length === 0) {
+          return series;
+        }
+        const lineTypeFor = (ls: string): 'solid' | 'dashed' | 'dotted' =>
+          ls === 'dashed' ? 'dashed' : ls === 'dotted' ? 'dotted' : 'solid';
+        const hasRight = yAxis.length > 1;
+        const thresholdLines = thresholds.map(t => ({
+          name: t.label,
+          yAxis: t.value,
+          xAxis: undefined as any,
+          yAxisIndex: t.axis === 'right' && hasRight ? 1 : 0,
+          lineStyle: { color: t.color, width: 2, type: lineTypeFor(t.lineStyle) },
+          label: {
+            show: true, position: 'insideEndTop' as const,
+            formatter: t.label, color: t.color, fontWeight: 700, fontSize: 10,
+            backgroundColor: 'rgba(255,255,255,0.85)', padding: [2, 4], borderRadius: 3,
+          },
+        }));
+        const jalonLines = jalons.map(j => ({
+          name: j.label,
+          xAxis: j.date,
+          lineStyle: { color: j.color, width: 1.5, type: 'dashed' as const },
+          label: {
+            show: true, position: 'insideEndTop' as const,
+            formatter: j.label, color: j.color, fontWeight: 700, fontSize: 10,
+            backgroundColor: 'rgba(255,255,255,0.85)', padding: [2, 4], borderRadius: 3,
+          },
+        }));
+        const markLineData = [...thresholdLines, ...jalonLines];
+        return series.map((s, i) => i === 0 ? {
+          ...s,
+          markLine: {
+            silent: false,
+            symbol: ['none', 'none'],
+            animation: false,
+            data: markLineData,
+          },
+        } : s);
+      })(),
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels, config?.style.stacked]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels, config?.style.stacked, config?.thresholds, config?.jalons]);
 
   // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
   // the widget card has its real width (fixes right-axis clipping on first paint
