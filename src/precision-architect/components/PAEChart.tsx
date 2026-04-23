@@ -333,7 +333,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
     // the graph unless explicitly pinned to the right side.
     const rawLegendPos = cfg?.style.legend.position ?? 'bottom';
     const legendPos: 'bottom' | 'right' = rawLegendPos === 'right' ? 'right' : 'bottom';
-    const showLegend = legendData.length > 1;
+    // Show legend as soon as there is at least one series so the user can
+    // always identify what is being plotted (previously hidden when only
+    // one metric → "missing legend" complaint).
+    const showLegend = legendData.length >= 1;
 
     // Friendly-name shortener: collapses long technical names (e.g.
     // "ERABs_all_setup_add_SR - LTE1800") into a compact, readable label.

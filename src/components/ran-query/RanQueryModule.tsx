@@ -83,6 +83,7 @@ interface ReportResultRow {
   site_name?: string;
   cell_name?: string;
   cluster?: string;
+  plaque?: string;
   dor?: string;
   band?: string;
 }

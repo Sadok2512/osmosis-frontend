@@ -242,7 +242,7 @@ export interface SiteSummary {
   site_name: string;
   vendor: string;
   dor: string;
-  plaque: string;
+  plaque?: string;
   department: string;
   cell_count: number;
   qoe_score_avg: number;
