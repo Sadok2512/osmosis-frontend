@@ -204,6 +204,23 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const explainQuery = useKpiExplain(selectedKpi?.kpi_key ?? null);
   const explain = (explainQuery.data || null) as any;
 
+  // When backend explain returns numerator/denominator, prefill the editor
+  // (only if the user hasn't already started editing them locally).
+  useEffect(() => {
+    if (!explain || !selectedKpi) return;
+    setDraft(prev => {
+      if (!prev) return prev;
+      const next = { ...prev };
+      if (!prev.numerator && explain.numerator) next.numerator = String(explain.numerator);
+      if (!prev.denominator && explain.denominator) next.denominator = String(explain.denominator);
+      return next;
+    });
+  }, [explain, selectedKpi]);
+
+  // KPI Test state
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string; value?: number; numerator?: number; denominator?: number } | null>(null);
+
   const updateMutation = useMutation({
     mutationFn: async (payload: { kpi: KpiCatalogEntry; draft: KpiDraft }) => {
       const { kpi, draft } = payload;
@@ -219,6 +236,9 @@ const KpiReferenceWorkspace2: React.FC = () => {
         is_map_supported: draft.is_map_supported,
         threshold_warning: draft.warning.trim() === '' ? null : Number(draft.warning),
         threshold_critical: draft.critical.trim() === '' ? null : Number(draft.critical),
+        numerator: draft.numerator.trim() || null,
+        denominator: draft.denominator.trim() || null,
+        formula_sql: buildFormula(draft.numerator, draft.denominator) || null,
       };
 
       await updateKpiInVps(kpi.kpi_key, updateBody);
