@@ -319,8 +319,8 @@ const FilterRepositoryView: React.FC = () => {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[2.2fr_0.9fr_0.75fr_1fr_1.15fr_0.95fr_0.85fr_88px] px-5 py-3 border-b border-border/50 bg-muted/35">
-              {['Filter', 'Scope', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
+            <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-border/50 bg-muted/35">
+              {['Filter', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
                 <span key={h} className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground/70">{h}</span>
               ))}
             </div>
@@ -337,7 +337,7 @@ const FilterRepositoryView: React.FC = () => {
                   <div
                     key={filter.id}
                     onClick={() => setSelectedFilter(filter)}
-                    className="grid grid-cols-[2.2fr_0.9fr_0.75fr_1fr_1.15fr_0.95fr_0.85fr_88px] px-5 py-4 items-center cursor-pointer group hover:bg-emerald-500/[0.05] transition-colors"
+                    className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-4 items-center cursor-pointer group hover:bg-emerald-500/[0.05] transition-colors"
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
@@ -355,14 +355,19 @@ const FilterRepositoryView: React.FC = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                      {filter.matching_objects != null ? (
-                        <span className="text-xs font-black text-foreground tabular-nums">
-                          {filter.matching_objects.toLocaleString('fr-FR')} <span className="font-normal text-muted-foreground">cells</span>
-                        </span>
+                    <div className="text-xs tabular-nums">
+                      {(filter as any).site_count != null ? (
+                        <span className="font-bold text-foreground">{((filter as any).site_count).toLocaleString('fr-FR')}</span>
                       ) : (
-                        <span className="text-[10px] text-muted-foreground/50 italic">Not counted</span>
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
+                    </div>
+
+                    <div className="text-xs tabular-nums">
+                      {filter.matching_objects != null ? (
+                        <span className="font-bold text-foreground">{filter.matching_objects.toLocaleString('fr-FR')}</span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
                       )}
                     </div>
 
