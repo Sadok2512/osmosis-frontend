@@ -176,7 +176,58 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        <DateRangePopover
+        {/* Vendor multi-select — pill picker, mirrors Techno UX */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors"
+            >
+              <Filter className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Vendor</span>
+              <div className="flex items-center gap-1 ml-1">
+                {VENDORS.filter(v => vendors.includes(v.id)).map(v => (
+                  <span key={v.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', v.bg, v.text)}>
+                    {v.label}
+                  </span>
+                ))}
+                {vendors.length === 0 && (
+                  <span className="text-[10px] italic text-on-surface-variant">tous</span>
+                )}
+              </div>
+              <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">{vendors.length}</span>
+              <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2" align="start">
+            <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant px-2 py-1.5">Sélectionner vendors</p>
+            <div className="space-y-0.5">
+              {VENDORS.map(v => {
+                const active = vendors.includes(v.id);
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => toggleVendor(v.id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-bold transition-colors',
+                      active ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                    )}
+                  >
+                    <span className={cn('w-4 h-4 rounded border-2 flex items-center justify-center shrink-0', active ? 'border-primary bg-primary' : 'border-outline-variant/40 bg-white')}>
+                      {active && <Check className="w-3 h-3 text-on-primary" />}
+                    </span>
+                    <span className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', v.bg, v.text)}>
+                      {v.label}
+                    </span>
+                    <span className="text-xs font-bold">{v.id}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+
           from={from}
           to={to}
           onChange={(f, t) => setRange(f, t, 'custom')}
