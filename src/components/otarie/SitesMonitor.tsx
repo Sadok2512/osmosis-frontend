@@ -6637,9 +6637,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const results = await Promise.all(
         stillNeed.map(async s => {
           try {
-            let cells = await fetchSiteCells(s.site_id, s.site_name);
+            const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+            let cells = await fetchSiteCells(s.site_id, s.site_name, cl);
             if (cells.length === 0 && s.site_name && s.site_name !== s.site_id) {
-              cells = await fetchSiteCells(s.site_name, s.site_name);
+              cells = await fetchSiteCells(s.site_name, s.site_name, cl);
             }
             return { siteId: s.site_id, cells };
           } catch { return { siteId: s.site_id, cells: [] as any[] }; }
@@ -7012,7 +7013,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (site.site_id) {
       setLoadingCellsForSite(site.site_id);
       try {
-        const cells = await fetchSiteCells(site.site_id, site.site_name);
+        const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+        const cells = await fetchSiteCells(site.site_id, site.site_name, cl);
         if (cells.length > 0) {
           siteWithCells = {
             ...site,
