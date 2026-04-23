@@ -5727,7 +5727,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           setDetailLoading(true);
         }
         try {
-          const activeCluster = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+          const activeCluster = (activeDashboardFilters as any)?.cluster?.length ? (activeDashboardFilters as any).cluster.join(',') : undefined;
           const cells = await fetchSiteCells(selectedSiteId, bboxSite?.site_name || selectedSiteSnapshot?.site_name, activeCluster);
           const baseSite = bboxSite || {
             site_id: selectedSiteId,
@@ -6329,7 +6329,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               batch.map(async (site) => {
                 try {
                   // Try site_id first, then site_name as fallback
-                  const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+                  const cl = (activeDashboardFilters as any)?.cluster?.length ? (activeDashboardFilters as any).cluster.join(',') : undefined;
                   let cells = await fetchSiteCells(site.site_id, site.site_name, cl);
                   if (cells.length === 0 && site.site_name && site.site_name !== site.site_id) {
                     cells = await fetchSiteCells(site.site_name, site.site_name, cl);
@@ -6637,7 +6637,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const results = await Promise.all(
         stillNeed.map(async s => {
           try {
-            const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+            const cl = (activeDashboardFilters as any)?.cluster?.length ? (activeDashboardFilters as any).cluster.join(',') : undefined;
             let cells = await fetchSiteCells(s.site_id, s.site_name, cl);
             if (cells.length === 0 && s.site_name && s.site_name !== s.site_id) {
               cells = await fetchSiteCells(s.site_name, s.site_name, cl);
@@ -7013,7 +7013,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (site.site_id) {
       setLoadingCellsForSite(site.site_id);
       try {
-        const cl = (effectiveFilters as any)?.cluster?.length ? (effectiveFilters as any).cluster.join(',') : undefined;
+        const cl = (activeDashboardFilters as any)?.cluster?.length ? (activeDashboardFilters as any).cluster.join(',') : undefined;
         const cells = await fetchSiteCells(site.site_id, site.site_name, cl);
         if (cells.length > 0) {
           siteWithCells = {
