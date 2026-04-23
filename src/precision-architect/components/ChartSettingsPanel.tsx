@@ -54,6 +54,16 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const [tab, setTab] = useState<Tab>('data');
   const config: ChartWidgetConfig = widget.config ?? DEFAULT_CHART_CONFIG;
 
+  // Dirty detection: the editor draft (`config`) is "dirty" when it differs
+  // from the last applied snapshot (`appliedConfig`). Until the user clicks
+  // Apply, NOTHING in the rendered chart or the backend changes.
+  const appliedSnapshot = (widget.appliedConfig as ChartWidgetConfig | undefined) ?? null;
+  const isDirty = useMemo(() => {
+    if (!appliedSnapshot) return (config.metrics?.length ?? 0) > 0;
+    try { return JSON.stringify(config) !== JSON.stringify(appliedSnapshot); }
+    catch { return true; }
+  }, [config, appliedSnapshot]);
+
   const commitAppliedConfig = (closeAfter = false) => {
     onChange({
       config,
@@ -61,6 +71,12 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       appliedRev: (widget.appliedRev ?? 0) + 1,
     });
     if (closeAfter) onClose();
+  };
+
+  // "Revert" rolls the draft back to the last applied snapshot — purely local,
+  // no backend call.
+  const revertDraft = () => {
+    if (appliedSnapshot) onChange({ config: structuredClone(appliedSnapshot) });
   };
 
   // ── Live backend catalogs (KPIs + filter dimensions) ───────────────
@@ -187,25 +203,11 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
-    const nextMetrics = config.metrics.map(m => m.id === id ? { ...m, ...patch } : m);
-    // Display-only flags (visibility, axis side) have no backend impact —
-    // propagate them immediately to the appliedConfig snapshot so the chart
-    // re-renders without requiring a full Apply (which would re-issue the query).
-    const DISPLAY_ONLY_KEYS = new Set(['visible', 'axis']);
-    const patchKeys = Object.keys(patch);
-    const isDisplayOnly = patchKeys.length > 0 && patchKeys.every(k => DISPLAY_ONLY_KEYS.has(k));
-    if (isDisplayOnly && widget.appliedConfig) {
-      const appliedCfg = widget.appliedConfig as ChartWidgetConfig;
-      const nextApplied: ChartWidgetConfig = {
-        ...appliedCfg,
-        metrics: appliedCfg.metrics.map(m =>
-          m.id === id ? { ...m, ...patch } : m
-        ),
-      };
-      onChange({ config: { ...config, metrics: nextMetrics }, appliedConfig: nextApplied });
-    } else {
-      setMetrics(nextMetrics);
-    }
+    // STRICT apply-only contract: every editor mutation stays in the DRAFT
+    // (`config`) only. The applied snapshot (`appliedConfig`) is the single
+    // source of truth that drives the rendered chart and any backend fetch,
+    // and it must NEVER be touched outside an explicit Apply click.
+    setMetrics(config.metrics.map(m => m.id === id ? { ...m, ...patch } : m));
   };
   const removeMetric = (id: string) => setMetrics(config.metrics.filter(m => m.id !== id));
 
@@ -226,25 +228,44 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
         <div className="flex gap-2 items-center">
+          {isDirty ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-500/30">
+              ● Unsaved changes
+            </span>
+          ) : (
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+              ✓ Synced
+            </span>
+          )}
           <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
             Widget scope
           </span>
           <button
+            onClick={revertDraft}
+            disabled={!isDirty || !appliedSnapshot}
+            className="px-3 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Discard draft changes and revert to the last applied state"
+          >
+            Revert
+          </button>
+          <button
             onClick={resetSettings}
-            className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
           >
             Reset
           </button>
           <button
             onClick={() => commitAppliedConfig(false)}
-            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+            disabled={!isDirty}
+            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
             title="Apply changes only to this selected widget (does not refresh the dashboard)"
           >
             Apply to Widget
           </button>
           <button
             onClick={() => commitAppliedConfig(true)}
-            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
+            disabled={!isDirty}
+            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary"
             title="Save and apply changes to this widget"
           >
             Save
