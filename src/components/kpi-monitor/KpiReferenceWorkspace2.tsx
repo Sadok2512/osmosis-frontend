@@ -294,7 +294,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
     // Always open in editable mode so the user can immediately modify the KPI.
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
-    sonnerToast.loading('Chargement du KPI…', { id: `kpi-open-${kpi.kpi_key}`, description: kpi.display_name });
+    const id = `kpi-open-${kpi.kpi_key}`;
+    sonnerToast.loading('Chargement du KPI…', { id, description: kpi.display_name });
+    // Safety net: auto-dismiss after 3s if the explain query never settles
+    window.setTimeout(() => sonnerToast.dismiss(id), 3000);
     scrollToReview();
   };
 
@@ -305,17 +308,20 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
-    sonnerToast.loading("Préparation de l'édition…", { id: `kpi-edit-${target.kpi_key}`, description: `Chargement de la formule et des sources de ${target.display_name}` });
+    const id = `kpi-edit-${target.kpi_key}`;
+    sonnerToast.loading("Préparation de l'édition…", { id, description: `Chargement de la formule et des sources de ${target.display_name}` });
+    // Safety net: auto-dismiss after 3s if the explain query never settles
+    window.setTimeout(() => sonnerToast.dismiss(id), 3000);
     scrollToReview();
   };
 
-  // Dismiss loading toasts once the explain query settles for the selected KPI
+  // Dismiss loading toasts as soon as explain query settles (success OR error)
   useEffect(() => {
     if (!selectedKpi) return;
     if (explainQuery.isLoading || explainQuery.isFetching) return;
     sonnerToast.dismiss(`kpi-open-${selectedKpi.kpi_key}`);
     sonnerToast.dismiss(`kpi-edit-${selectedKpi.kpi_key}`);
-  }, [selectedKpi, explainQuery.isLoading, explainQuery.isFetching]);
+  }, [selectedKpi, explainQuery.isLoading, explainQuery.isFetching, explainQuery.isError, explainQuery.isSuccess]);
 
   const saveDraft = () => {
     if (!selectedKpi || !draft) return;
