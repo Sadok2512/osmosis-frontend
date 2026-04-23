@@ -340,6 +340,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
     // always identify what is being plotted (previously hidden when only
     // one metric → "missing legend" complaint).
     const showLegend = legendData.length >= 1;
+    if (legendData.length > 0) console.log('[PAEChart Legend]', { count: legendData.length, items: legendData, showLegend });
 
     // Friendly-name shortener: collapses long technical names (e.g.
     // "ERABs_all_setup_add_SR - LTE1800") into a compact, readable label.
