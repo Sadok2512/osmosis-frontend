@@ -4651,11 +4651,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const bbox = viewport.bounds
         ? `${viewport.bounds.getWest()},${viewport.bounds.getSouth()},${viewport.bounds.getEast()},${viewport.bounds.getNorth()}`
         : '-180,-90,180,90';
-      // Parameter overlay fetches ALL matching data in viewport (no dashboard filters)
+      // Apply active dashboard/view filters to parameter overlay
       const filterParams = new URLSearchParams();
       filterParams.set('param', targetParam);
       filterParams.set('bbox', bbox);
       filterParams.set('limit', '10000');
+      // Merge dashboard + view filters
+      const df = activeDashboardFilters || {};
+      if ((df as any).cluster?.length) filterParams.set('cluster', (df as any).cluster.join(','));
+      if (df.vendor?.length) filterParams.set('vendor', df.vendor.join(','));
+      if (df.dor?.length) filterParams.set('dor', df.dor.join(','));
+      if (df.techno?.length) filterParams.set('techno', df.techno.join(','));
       const paramMapUrl = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${filterParams.toString()}`);
       console.log('[SitesMonitor] param-map request:', { param: targetParam, bbox, filters: filterParams.toString(), url: paramMapUrl });
       const resp = await fetch(paramMapUrl, {
