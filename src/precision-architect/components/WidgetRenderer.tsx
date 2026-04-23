@@ -326,17 +326,17 @@ function ImageWidgetBody({ widget: w, editable, onChange }: Props) {
 /* ---------- Map widget (responds to local + global Apply) ---------- */
 function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
   const global = usePAGlobalToolbar();
-  // Mirror chart logic: prefer applied snapshot once the user clicked Apply (locally OR globally).
-  // Live config is used as a fallback so newly-added map widgets render immediately while editing.
-  const mapCfg = (w.appliedRev ?? 0) > 0
+  // STRICT Apply contract — map only fetches sites once the user clicked Apply
+  // (per-widget OR global). Before that, show a placeholder instead of auto-loading.
+  const widgetRev = w.appliedRev ?? 0;
+  const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
+  const mapCfg = hasBeenApplied
     ? (w.appliedMapConfig ?? w.mapConfig)
-    : global.appliedRev > 0
-      ? (w.mapConfig ?? w.appliedMapConfig)
-      : (w.mapConfig ?? w.appliedMapConfig);
+    : undefined;
   const mode = mapCfg?.displayMode ?? 'sites';
   // Force remount when either local or global Apply is bumped, so PAMapWidget
   // picks up the freshest config (theme, mapType, filters, layers).
-  const renderKey = `${w.id}-${w.appliedRev ?? 0}-${global.appliedRev}`;
+  const renderKey = `${w.id}-${widgetRev}-${global.appliedRev}`;
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-2 widget-drag-handle cursor-move">
@@ -346,7 +346,16 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
         </span>
       </div>
       <div className="flex-1 min-h-0">
-        <PAMapWidget key={renderKey} height="100%" config={mapCfg} />
+        {hasBeenApplied && mapCfg ? (
+          <PAMapWidget key={renderKey} height="100%" config={mapCfg} />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-muted/20 rounded-lg border border-dashed border-outline-variant/40">
+            <div className="text-center px-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Map not loaded</p>
+              <p className="text-[11px] text-on-surface-variant/70">Click <span className="font-semibold">Apply to Widget</span> or <span className="font-semibold">Apply to Dashboard</span> to load sites.</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
