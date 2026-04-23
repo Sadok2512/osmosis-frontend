@@ -79,6 +79,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
     let series: any[] = [];
     let yAxis: any[] = [];
     let legendData: string[] = [];
+    // Resolved metrics (post auto-axis split) — exposed to outer scope so the
+    // tooltip formatter (built below) can know which axis each series sits on.
+    let resolvedMetrics: any[] = [];
 
     if (cfg && cfg.metrics.length > 0) {
       const visibleRaw = cfg.metrics.filter(m => m.visible !== false);
@@ -151,6 +154,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
         }
         return m;
       });
+      resolvedMetrics = visible;
 
       const hasRight = visible.some(m => m.axis === 'right');
       const hasLeft = visible.some(m => m.axis === 'left' || m.axis == null);
@@ -444,7 +448,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
           // Build axis mapping for each series
           const axisByName = new Map<string, string>();
           (cfg?.metrics ?? []).forEach((m: any) => {
-            const resolved = visible?.find(v => (v.alias || v.kpiKey) === (m.alias || m.kpiKey));
+            const resolved = resolvedMetrics.find((v: any) => (v.alias || v.kpiKey) === (m.alias || m.kpiKey));
             axisByName.set(m.alias || m.kpiKey, resolved?.axis === 'right' ? 'R' : 'L');
           });
           const rows = params.map((p: any) => {
@@ -602,20 +606,21 @@ const PAEChart: React.FC<PAEChartProps> = ({
         option={option}
         style={{ height: '100%', width: '100%' }}
         opts={{ renderer: 'canvas' }}
-        notMerge
+        notMerge={false}
+        lazyUpdate
       />
-      {loading && <LoadingOverlay />}
+      {loading && <LoadingOverlay label="Loading data…" />}
     </div>
   );
 };
 
 /** Centered loading overlay with spinner — clearly visible during backend fetch. */
-const LoadingOverlay: React.FC = () => (
+const LoadingOverlay: React.FC<{ label?: string }> = ({ label = 'Loading data…' }) => (
   <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
     <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
       <Loader2 className="w-6 h-6 animate-spin text-primary" />
       <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-        Loading data…
+        {label}
       </span>
     </div>
   </div>
