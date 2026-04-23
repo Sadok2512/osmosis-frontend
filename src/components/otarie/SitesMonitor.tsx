@@ -5214,10 +5214,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     })();
   }, []);
   const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
+    // RF / Availability
     { id: 'EUTRAN_Cell_Availability_Wo_BLU', label: 'Cell Availability', unit: '%', category: 'RF', techno: '4G', vendor: 'Nokia' },
     { id: 'CELL_UNPLAN_UNAVAIL_Time', label: 'Cell Unplanned Unavailability', unit: 's', category: 'RF', techno: '4G', vendor: 'Nokia' },
     { id: 'CSSR_END_USER_w_CN%', label: 'CSSR End User', unit: '%', category: 'RF', techno: '4G', vendor: 'Ericsson' },
     { id: 'Test_Cell_Availability', label: 'Cell Availability', unit: '%', category: 'RF', techno: '5G', vendor: 'Nokia' },
+    // PRB Utilization
+    { id: 'PRB_DL_UTIL', label: 'PRB DL Utilisation', unit: '%', category: 'PRB', techno: '4G', vendor: 'Multi-Vendor' },
+    { id: 'PRB_UL_UTIL', label: 'PRB UL Utilisation', unit: '%', category: 'PRB', techno: '4G', vendor: 'Multi-Vendor' },
+    { id: 'NR_PRB_DL_UTIL', label: 'NR PRB DL Utilisation', unit: '%', category: 'PRB', techno: '5G', vendor: 'Multi-Vendor' },
+    { id: 'NR_PRB_UL_UTIL', label: 'NR PRB UL Utilisation', unit: '%', category: 'PRB', techno: '5G', vendor: 'Multi-Vendor' },
+    // RACH
+    { id: 'RACH_SETUP_SR', label: 'RACH Setup Success Rate', unit: '%', category: 'RACH', techno: '4G', vendor: 'Multi-Vendor' },
   ];
 
   const getDefaultMapKpi = useCallback((kpis: typeof MAP_KPIS, techno = kpiTechnoFilter) => {
