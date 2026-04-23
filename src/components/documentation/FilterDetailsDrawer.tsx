@@ -83,19 +83,19 @@ const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClo
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
         {/* Overview */}
         <Section title="Overview" icon={<Shield className="w-4 h-4" />}>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Conditions</span>
               <p className="mt-0.5 text-2xl font-black text-foreground">{filter.condition_count}</p>
             </div>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Matching Objects</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sites</span>
+              <p className="mt-0.5 text-2xl font-black text-primary">{(filter as any).site_count?.toLocaleString() ?? '—'}</p>
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Cells</span>
               <p className="mt-0.5 text-2xl font-black text-primary">{filter.matching_objects?.toLocaleString() ?? '—'}</p>
             </div>
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Logic</span>
-            <p className="mt-0.5 text-sm font-bold text-foreground">{filter.logic}</p>
           </div>
         </Section>
 
@@ -149,6 +149,9 @@ const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClo
           <Section title="Filtered Elements" icon={<Database className="w-4 h-4" />}>
             <ClusterPreviewTable
               topoConditions={previewConditions}
+              paramConditions={filter.parameters?.length > 0
+                ? filter.parameters.map(p => ({ parameter: p.parameter, operator: p.operator, value: p.value, value2: (p as any).value2 }))
+                : undefined}
               maxRows={60}
               title="Filtered elements preview"
             />
