@@ -456,12 +456,12 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                   </div>
 
                   {paramValidation.status === 'ok' && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs">
-                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30 text-xs">
+                      <Check className="w-3.5 h-3.5 text-primary" />
                       <span className="text-muted-foreground">After parameter filtering:</span>
-                      <strong className="text-emerald-700">{paramValidation.cells.toLocaleString('fr-FR')} cells</strong>
+                      <strong className="text-primary">{paramValidation.cells.toLocaleString('fr-FR')} cells</strong>
                       <span className="text-muted-foreground/40">·</span>
-                      <strong className="text-emerald-700">{paramValidation.sites.toLocaleString('fr-FR')} sites</strong>
+                      <strong className="text-primary">{paramValidation.sites.toLocaleString('fr-FR')} sites</strong>
                       {matchingCount && (
                         <span className="ml-auto text-muted-foreground italic">
                           (from {matchingCount.cells.toLocaleString('fr-FR')} cells in scope)
@@ -471,8 +471,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                   )}
 
                   {paramValidation.status === 'invalid' && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700">
-                      <AlertCircle className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border border-border text-xs text-foreground">
+                      <AlertCircle className="w-3.5 h-3.5 text-muted-foreground" />
                       {paramValidation.message}
                     </div>
                   )}
