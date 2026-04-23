@@ -705,6 +705,20 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   // Defensively split CSV-mangled bands/technos arrays from VPS
   const bandes = parseBackendList((dto as any).bandes ?? (dto as any).bands ?? (dto as any).band);
   const technos = parseBackendList((dto as any).technos ?? (dto as any).techs ?? (dto as any).techno);
+
+  // Backend rarely provides per-tech cell counts on the bbox endpoint — derive them from
+  // the `bandes` array so synthetic-cell generation can produce one mini-sector per band.
+  // Each band is assumed to cover the standard 3 sectors when no explicit count is provided.
+  const SECTORS_PER_BAND = 3;
+  const bands5G = bandes.filter(b => /^(NR|N\d|5G)/i.test(b)).length;
+  const bands4G = bandes.filter(b => /^(LTE|L\d|4G)/i.test(b)).length;
+  const bands3G = bandes.filter(b => /^(UMTS|U\d|WCDMA|3G)/i.test(b)).length;
+  const bands2G = bandes.filter(b => /^(GSM|G\d|2G)/i.test(b)).length;
+  const derivedLte = bands4G * SECTORS_PER_BAND;
+  const derivedNr  = bands5G * SECTORS_PER_BAND;
+  const derived2g  = bands2G * SECTORS_PER_BAND;
+  const derived3g  = bands3G * SECTORS_PER_BAND;
+
   return {
     site_id: siteId,
     site_name: dto.nom_site,
@@ -729,10 +743,10 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     bandes,
     technos,
     bcluster: getBclusterValue(dto),
-    lte_cells: dto.lte_cells || 0,
-    nr_cells: dto.nr_cells || 0,
-    cells_2g: (dto as any).cells_2g || 0,
-    cells_3g: (dto as any).cells_3g || 0,
+    lte_cells: dto.lte_cells || derivedLte,
+    nr_cells: dto.nr_cells || derivedNr,
+    cells_2g: (dto as any).cells_2g || derived2g,
+    cells_3g: (dto as any).cells_3g || derived3g,
   };
 }
 
