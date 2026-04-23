@@ -271,11 +271,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        <div className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface">
-          <Flag className="w-3.5 h-3.5 text-rose-500" />
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
-          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
-        </div>
+        <JalonsPill />
 
         <div className="ml-auto flex flex-col items-end gap-1">
           <button
@@ -324,6 +320,140 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
         />
       </div>
     </div>
+  );
+};
+
+/* ───────────────────────── JALONS PILL ─────────────────────────
+ * Aggregates all jalons (date markers) and seuils (Y thresholds) defined
+ * across every chart widget in the active dashboard, and exposes them in
+ * a popover. Clicking a jalon scrolls/highlights its source widget.
+ */
+const JalonsPill: React.FC = () => {
+  const pages = usePAReportStore((s) => s.pages);
+  const setActivePageId = usePAReportStore((s) => s.setActivePageId);
+
+  const items = useMemo(() => {
+    const acc: Array<{
+      kind: 'jalon' | 'seuil';
+      id: string;
+      label: string;
+      meta: string;
+      color: string;
+      pageId: string;
+      pageName: string;
+      widgetId: string;
+      widgetTitle: string;
+    }> = [];
+    pages.forEach((page) => {
+      page.widgets.forEach((w: any) => {
+        if (w.kind !== 'chart' || !w.config) return;
+        const widgetTitle = w.config?.title || w.title || 'Chart';
+        (w.config.jalons ?? []).forEach((j: any) => {
+          acc.push({
+            kind: 'jalon', id: j.id, label: j.label, meta: j.date,
+            color: j.color, pageId: page.id, pageName: page.name,
+            widgetId: w.id, widgetTitle,
+          });
+        });
+        (w.config.thresholds ?? []).forEach((t: any) => {
+          acc.push({
+            kind: 'seuil', id: t.id, label: t.label,
+            meta: `${t.value} · ${t.axis === 'right' ? 'Axe D' : 'Axe G'}`,
+            color: t.color, pageId: page.id, pageName: page.name,
+            widgetId: w.id, widgetTitle,
+          });
+        });
+      });
+    });
+    return acc;
+  }, [pages]);
+
+  const total = items.length;
+
+  const handleJump = (pageId: string, widgetId: string) => {
+    setActivePageId(pageId);
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-widget-id="${widgetId}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-rose-400');
+        setTimeout(() => el.classList.remove('ring-2', 'ring-rose-400'), 1600);
+      }
+    });
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex items-center gap-2 h-9 px-3 rounded-full bg-white border text-xs font-bold text-on-surface shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors',
+            total > 0
+              ? 'border-rose-300 hover:bg-rose-50 hover:border-rose-400'
+              : 'border-outline-variant/30 hover:bg-surface-container-low'
+          )}
+        >
+          <Flag className={cn('w-3.5 h-3.5', total > 0 ? 'text-rose-500' : 'text-on-surface-variant')} />
+          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
+          <span className={cn(
+            'ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md text-[10px] font-black',
+            total > 0 ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-500'
+          )}>
+            {total}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0 max-h-[420px] overflow-hidden flex flex-col">
+        <div className="px-3 py-2.5 border-b border-outline-variant/20 bg-surface-container-low">
+          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
+            Jalons & Seuils du dashboard
+          </p>
+          <p className="text-[10px] text-on-surface-variant/70 mt-0.5">
+            {total === 0
+              ? 'Ajoutez-les depuis l\'onglet "Jalons & Seuils" de chaque chart.'
+              : `${items.filter(i => i.kind === 'jalon').length} jalon(s) · ${items.filter(i => i.kind === 'seuil').length} seuil(s)`}
+          </p>
+        </div>
+        <div className="flex-1 overflow-y-auto py-1">
+          {total === 0 ? (
+            <div className="px-3 py-6 text-center">
+              <Flag className="w-6 h-6 mx-auto text-on-surface-variant/40 mb-1.5" />
+              <p className="text-[11px] text-on-surface-variant">Aucun jalon ou seuil défini</p>
+            </div>
+          ) : (
+            items.map((it) => (
+              <button
+                key={`${it.kind}-${it.id}`}
+                type="button"
+                onClick={() => handleJump(it.pageId, it.widgetId)}
+                className="w-full text-left px-3 py-2 flex items-start gap-2.5 hover:bg-surface-container-low transition-colors border-b border-outline-variant/10 last:border-b-0"
+              >
+                <span
+                  className="mt-0.5 inline-block w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ background: it.color }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-on-surface truncate">{it.label}</span>
+                    <span className={cn(
+                      'text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
+                      it.kind === 'jalon' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
+                    )}>
+                      {it.kind}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-on-surface-variant mt-0.5 truncate">{it.meta}</div>
+                  <div className="text-[10px] text-on-surface-variant/70 mt-0.5 truncate">
+                    {it.widgetTitle} <span className="opacity-50">· {it.pageName}</span>
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 };
 
