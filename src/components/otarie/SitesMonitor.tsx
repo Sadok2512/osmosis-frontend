@@ -11118,7 +11118,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className="text-primary animate-pulse">cells…</span>
                                     </>
                                   ) : (
-                                    <>{site.cell_count} cells</>
+                                    <>{displayedCellCount} cells</>
                                   )}
                                 </span>
                               </div>
@@ -11168,8 +11168,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // Prefer real loaded cells; fall back to summary count while loading.
-                      const displayedCellCount = rawCells2.length > 0 ? rawCells2.length : Number(site.cell_count || 0);
+                      // Same rule in Tagged: visible filtered cells are the source of truth.
+                      const displayedCellCount = siteCells.length > 0
+                        ? siteCells.length
+                        : Number(site.cell_count || 0);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
