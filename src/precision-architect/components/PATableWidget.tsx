@@ -184,7 +184,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       : emptyReason === 'not-applied'
       ? { title: 'Configuration not applied', body: 'Click Appliquer (top toolbar or panel) to fetch table rows.' }
       : emptyReason === 'missing-filter'
-      ? { title: 'Période requise', body: 'Définissez une période (date de début et fin) avant de lancer la requête. Configurez-la dans la barre globale ou dans les paramètres du widget.' }
+      ? { title: 'Filtre de périmètre requis', body: `Ajoutez au moins un filtre (Plaque, Site, Vendor, DOR ou Bande)${!hasDateRange ? ' et une période' : ''} ${inheritsScope ? 'dans la barre globale du rapport, ou activez Override pour le définir au niveau du widget.' : 'dans les paramètres du widget (Override actif).'}` }
       : { title: 'Backend returned no usable table data', body: backendMessage };
     return (
       <div
