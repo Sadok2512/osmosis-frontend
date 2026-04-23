@@ -4438,7 +4438,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
-  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged'>('dashboard');
+  const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged' | 'kpi'>('dashboard');
 
   // ── Tagged / pinned sites (scoped per dashboard) ──
   const [taggedSites, setTaggedSites] = useState<SiteSummary[]>([]);
