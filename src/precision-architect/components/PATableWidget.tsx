@@ -50,15 +50,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const gTechnos = globalSnap?.technos ?? global.technos;
   const gFilters = globalSnap?.filters ?? global.filters;
 
-  // Check if required perimeter filter is present (global or widget-level)
+  // Only a date range is required (consistent with chart widget behavior).
+  // Perimeter filters (Plaque/Site/Vendor/DOR/Bande) are optional — the table
+  // can aggregate over the full network when none are set.
   const effectiveFilters = inheritsScope ? gFilters : (cfg?.data.filters ?? []);
-  const PERIMETER_DIMS = new Set(['PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND', 'BCLUSTER',
-    'Plaque', 'Site', 'Constructeur', 'DOR', 'Bande', 'BCluster']);
-  const hasPerimeterFilter = effectiveFilters.some(f => PERIMETER_DIMS.has(f.dimension) || PERIMETER_DIMS.has(toBackendDimension(f.dimension)));
   const effectiveFrom = inheritsTime ? gFrom : (cfg?.data.timeRange.from ?? '');
   const effectiveTo = inheritsTime ? gTo : (cfg?.data.timeRange.to ?? '');
   const hasDateRange = !!effectiveFrom && !!effectiveTo;
-  const missingRequirements = !hasPerimeterFilter || !hasDateRange;
+  const missingRequirements = !hasDateRange;
 
   const request: TableRequest | null = useMemo(() => {
     if (!cfg || !hasColumns || !hasBeenApplied || missingRequirements) return null;
