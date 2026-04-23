@@ -349,31 +349,27 @@ const PAEChart: React.FC<PAEChartProps> = ({
       return band ? (head ? `${head} · ${band}` : band) : head;
     };
 
-    // Estimate space needed when legend is at the bottom. Since we now use
-    // `type: 'plain'` (no pagination), we must reserve enough vertical room
-    // to fit ALL items wrapped over multiple rows.
-    //
-    // Rows per item depends on the *displayed* (shortened) label width:
-    //   • short labels (<14 chars) → ~3 per row
-    //   • medium (14-22 chars) → ~2 per row
-    //   • long (>22 chars) → 1 per row
-    // This prevents the legend from overlapping the X-axis when series names
-    // are long (e.g. "DL VOLUME IP GBytes · LTE2100").
+    // ── COMPACT LEGEND SIZING ──────────────────────────────────────
+    // Compute the *minimum* vertical space the legend needs so the chart
+    // area gets maximum height. Previous logic over-reserved up to 260px;
+    // now we tightly estimate based on actual item count and label length.
     const avgDisplayLen = legendData.length > 0
       ? legendData.reduce((s, n) => s + shortenLabel(n).length, 0) / legendData.length
       : 0;
-    const itemsPerRow = avgDisplayLen > 22 ? 1 : avgDisplayLen > 14 ? 2 : 3;
+    // Estimate items per row based on average label width (~7px per char + icon + gap)
+    const itemsPerRow = avgDisplayLen > 26 ? 1 : avgDisplayLen > 18 ? 2 : avgDisplayLen > 10 ? 3 : 4;
     const legendRows = Math.max(1, Math.ceil(legendData.length / itemsPerRow));
+    // Each row is ~22px (icon 10px + 8px text + 4px gap). Minimal padding.
     const legendBlockSize = legendPos === 'right'
-      ? Math.min(legendData.length * 24 + 12, 480)
-      : Math.max(34, Math.min(legendRows * 26 + 16, 260));
+      ? Math.min(legendData.length * 22 + 8, 400)
+      : showLegend ? Math.max(24, legendRows * 22 + 8) : 0;
 
     const legend = {
       show: showLegend,
       // Plain mode → all items rendered, automatic wrapping, no pagination.
       type: 'plain' as const,
       data: legendData,
-      bottom: legendPos === 'bottom' ? 6 : undefined,
+      bottom: legendPos === 'bottom' ? 4 : undefined,
       top: legendPos === 'right' ? ('middle' as const) : undefined,
       right: legendPos === 'right' ? 8 : 12,
       left: legendPos === 'right' ? undefined : 12,
@@ -381,17 +377,17 @@ const PAEChart: React.FC<PAEChartProps> = ({
       orient: legendPos === 'right' ? ('vertical' as const) : ('horizontal' as const),
       align: 'left' as const,
       textStyle: {
-        fontSize: 12,
+        fontSize: 11,
         color: labelColor,
         fontWeight: 600 as const,
-        lineHeight: 18,
-        padding: [0, 0, 0, 4] as [number, number, number, number],
+        lineHeight: 16,
+        padding: [0, 0, 0, 3] as [number, number, number, number],
       },
       icon: 'roundRect' as const,
-      itemWidth: 16,
-      itemHeight: 10,
-      itemGap: 18,
-      padding: [4, 6, 4, 6] as [number, number, number, number],
+      itemWidth: 14,
+      itemHeight: 8,
+      itemGap: 12,
+      padding: [2, 4, 2, 4] as [number, number, number, number],
       formatter: (name: string) => shortenLabel(name),
       tooltip: { show: true, formatter: (params: any) => params.name },
       selectedMode: true as const,
@@ -408,12 +404,13 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return {
       backgroundColor: bgColor,
       grid: {
-        top: isPresentation ? 32 : 28,
-        // Initial right padding — will be auto-tuned post-render based on the
-        // measured right-axis label width (see useLayoutEffect below).
-        right: legendPos === 'right' && showLegend ? 210 : (hasRightAxis ? 64 : 24),
-        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 16 : 48,
-        left: hasBarSeries ? 36 : 16,
+        top: isPresentation ? 24 : 16,
+        right: legendPos === 'right' && showLegend ? 210 : (hasRightAxis ? 56 : 20),
+        // Bottom: just enough for x-axis labels + legend. No extra 16px buffer.
+        bottom: legendPos === 'bottom' && showLegend
+          ? legendBlockSize + 32  // 32 = x-axis labels height
+          : 32,                   // just x-axis labels
+        left: hasBarSeries ? 32 : 12,
         containLabel: true,
       },
       legend,
