@@ -66,6 +66,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       preset: '3j',
       grain: '1d',
       filters: [],
+      jalons: [],
       appliedRev: 0,
       applied: null,
 
@@ -75,6 +76,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       setPreset: (preset) => set({ preset }),
       setGrain: (grain) => set({ grain }),
       setFilters: (filters) => set({ filters }),
+      setJalons: (jalons) => set({ jalons }),
       apply: () =>
         set((s) => ({
           appliedRev: s.appliedRev + 1,
@@ -101,6 +103,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
         preset: s.preset,
         grain: s.grain,
         filters: s.filters,
+        jalons: s.jalons,
         applied: s.applied,
         appliedRev: s.appliedRev,
       }),
