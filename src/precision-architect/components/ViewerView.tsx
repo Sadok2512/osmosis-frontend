@@ -92,13 +92,13 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
 
       {pages.length > 1 && (
         <div className="border-b border-outline-variant/10 bg-white/60 px-4 sm:px-6 lg:px-10">
-          <div className="w-full flex items-center gap-1 overflow-x-auto">
+          <div className="w-full flex items-center gap-2 overflow-x-auto">
             {pages.map(page => (
               <button
                 key={page.id}
                 onClick={() => setActivePageId(page.id)}
                 className={cn(
-                  "px-4 py-3 text-xs font-bold uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                  "px-6 py-4 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
                   page.id === activePageId
                     ? "border-primary text-primary"
                     : "border-transparent text-on-surface-variant hover:text-on-surface"
