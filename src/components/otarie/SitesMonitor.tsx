@@ -453,6 +453,81 @@ const getSiteDisplayTechs = (site: SiteSummary): string[] => {
   return [...new Set(fallback.filter(Boolean))];
 };
 
+const buildSyntheticRenderCells = (site: SiteSummary): CellProperties[] => {
+  if (site.cells.length > 0) return site.cells;
+
+  const azimuths = [0, 120, 240];
+  const techState = inferSiteTechState(site);
+  const normalizedBands = [...new Set(
+    getSiteDisplayBands(site)
+      .map((band) => {
+        const raw = String(band || '').trim();
+        if (!raw) return null;
+        const inferredTech = /^(NR|N\d|5G)/i.test(raw)
+          ? '5G'
+          : /^(UMTS|WCDMA|3G)/i.test(raw)
+            ? '3G'
+            : /^(GSM|2G)/i.test(raw)
+              ? '2G'
+              : '4G';
+        return normalizeBandKey(raw, inferredTech) || raw.toUpperCase().replace(/\s+/g, '');
+      })
+      .filter(Boolean)
+  )] as string[];
+
+  const bands4G = normalizedBands.filter((b) => /^L\d/.test(b));
+  const bands5G = normalizedBands.filter((b) => /^NR/.test(b));
+  const bands3G = normalizedBands.filter((b) => /^UMTS/.test(b));
+  const bands2G = normalizedBands.filter((b) => /^GSM/.test(b));
+
+  const synthetic: CellProperties[] = [];
+  const pushCells = (
+    tech: '2G' | '3G' | '4G' | '5G',
+    isPresent: boolean,
+    actualBands: string[],
+    fallbackBands: string[],
+  ) => {
+    if (!isPresent) return;
+    const bandsToUse = actualBands.length > 0 ? actualBands : fallbackBands;
+    for (let sectorIndex = 0; sectorIndex < azimuths.length; sectorIndex++) {
+      for (const band of bandsToUse) {
+        synthetic.push({
+          cell_id: `${site.site_id}_${tech}_S${sectorIndex + 1}_${band}`,
+          techno: tech,
+          bande: band,
+          azimut: azimuths[sectorIndex],
+          hba: 30,
+          tilt: null,
+          qoe_score_avg: site.qoe_score_avg ?? 0,
+          p95_rtt_ms: 0,
+          traffic_up_bytes: 0,
+          traffic_dn_bytes: 0,
+          dms_dl_3: 0,
+          dms_dl_8: 0,
+          dms_dl_30: 0,
+          dms_ul_3: 0,
+          p50_thr_dn_mbps: 0,
+          p50_thr_up_mbps: 0,
+          sessions: 0,
+          window_full_ratio: 0,
+          retransmission_rate: 0,
+          tcp_loss_rate: 0,
+          out_of_order_ratio: 0,
+          p25_rtt_ms: 0,
+          p75_rtt_ms: 0,
+        });
+      }
+    }
+  };
+
+  pushCells('2G', techState.has2G || Number((site as any).cells_2g || 0) > 0, bands2G, ['GSM900']);
+  pushCells('3G', techState.has3G || Number((site as any).cells_3g || 0) > 0, bands3G, ['UMTS2100']);
+  pushCells('4G', techState.has4G || Number(site.lte_cells || 0) > 0, bands4G, ['L800', 'L1800', 'L2100']);
+  pushCells('5G', techState.has5G || Number(site.nr_cells || 0) > 0, bands5G, ['NR3500', 'NR700']);
+
+  return synthetic;
+};
+
 /**
  * Cell count consistent with current filters:
  * use loaded `cells.length` when available, else fall back to backend count.
@@ -7652,8 +7727,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-          const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
-          const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
+          const renderSiteCells = shouldUseSiteDetailCells
+            ? siteDetail.cells
+            : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+          const renderSiteForCells = { ...site, cells: renderSiteCells };
           const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
@@ -7870,7 +7947,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (isIndoor) return false;
             const isSelectedSite = selectedSiteId === site.site_id;
             const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-            const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
+            const renderSiteCells = shouldUseSiteDetailCells
+              ? siteDetail.cells
+              : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
             const isTagged = isSiteTagged(site.site_id);
             const showMini = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
@@ -8059,8 +8138,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // LOD filtering: only at zoom < 12 (overview declutter). At zoom 12+ all sites render.
           if (viewport.zoom < 12 && densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-          const renderSiteCells = shouldUseSiteDetailCells ? siteDetail.cells : site.cells;
-          const renderSiteForCells = shouldUseSiteDetailCells ? { ...site, cells: siteDetail.cells } : site;
+          const renderSiteCells = shouldUseSiteDetailCells
+            ? siteDetail.cells
+            : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+          const renderSiteForCells = { ...site, cells: renderSiteCells };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
           // At zoom < 12: adaptive scaling for overview decluttering
