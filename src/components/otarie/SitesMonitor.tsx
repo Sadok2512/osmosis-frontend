@@ -10918,21 +10918,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const siteName = site.site_name || site.site_id || '';
                   if (kpiAnalysisLevel === 'site') {
                     const v = getSiteKpiValue(site);
-                    if (v == null || isNaN(v)) continue;
-                    entries.push({ key: `s:${siteName}`, siteName, value: v, level: getKpiLevel(v) });
+                    const hasValue = v != null && !isNaN(v);
+                    entries.push({
+                      key: `s:${siteName}`,
+                      siteName,
+                      value: hasValue ? v : NaN,
+                      level: hasValue ? getKpiLevel(v) : 'gray',
+                    });
                   } else {
                     const cells = (site as any).cells || [];
                     for (const c of cells) {
                       const cellName = c.cell_id || c.cell_name || '';
                       const v = getCellKpiValue(c);
-                      if (v == null || isNaN(v)) continue;
+                      const hasValue = v != null && !isNaN(v);
                       entries.push({
                         key: `c:${siteName}:${cellName}`,
                         siteName,
                         cellName,
                         band: c.bande || c.band,
-                        value: v,
-                        level: getKpiLevel(v),
+                        value: hasValue ? v : NaN,
+                        level: hasValue ? getKpiLevel(v) : 'gray',
                       });
                     }
                   }
