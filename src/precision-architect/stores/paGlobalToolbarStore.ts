@@ -22,6 +22,8 @@ export interface PAGlobalToolbarState {
   preset: PeriodPreset;
   grain: GrainOption;
   filters: ChartFilterChip[];
+  /** Global jalons applied to every chart in the dashboard. */
+  jalons: ChartJalon[];
   /** Bumped each time the user clicks "Appliquer" on the top toolbar. */
   appliedRev: number;
   /** Snapshot of toolbar values frozen at the last Apply click.
@@ -46,6 +48,7 @@ interface PAGlobalToolbarStore extends PAGlobalToolbarState {
   setPreset: (p: PeriodPreset) => void;
   setGrain: (g: GrainOption) => void;
   setFilters: (f: ChartFilterChip[]) => void;
+  setJalons: (j: ChartJalon[]) => void;
   apply: () => void;
 }
 
