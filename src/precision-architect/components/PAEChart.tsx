@@ -154,6 +154,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
         }
         return m;
       });
+      resolvedMetrics = visible;
 
       const hasRight = visible.some(m => m.axis === 'right');
       const hasLeft = visible.some(m => m.axis === 'left' || m.axis == null);
