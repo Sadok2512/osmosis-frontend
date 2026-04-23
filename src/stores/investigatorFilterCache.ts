@@ -189,6 +189,14 @@ export function ensureFilterLoaded(key: string) {
   inFlight.set(cacheKey, loader);
 }
 
+/** Force reload a specific filter dimension (e.g., after creating a new cluster). */
+export function reloadFilter(key: string) {
+  const cacheKey = isPmDimension(key) ? key : dimToKey(key);
+  cache.delete(cacheKey);
+  inFlight.delete(cacheKey);
+  ensureFilterLoaded(cacheKey);
+}
+
 /** Preload all filter dimensions. Safe to call multiple times — only runs once. */
 export function preloadAllFilters() {
   if (preloaded) return;

@@ -10,6 +10,7 @@ import type { NetworkFilter, FilterVisibility } from './filterTypes';
 import FilterDetailsDrawer from './FilterDetailsDrawer';
 import ClusterBuilderWizard from './ClusterBuilderWizard';
 import { fetchFilters, createFilter, updateFilter, deleteFilter, duplicateFilter, countFilterMatching } from '@/services/filterService';
+import { reloadFilter } from '@/stores/investigatorFilterCache';
 
 const TECH_BADGE: Record<string, { label: string; bg: string; text: string }> = {
   '2G': { label: '2G', bg: 'bg-amber-100', text: 'text-amber-700' },
@@ -160,6 +161,7 @@ const FilterRepositoryView: React.FC = () => {
       if (data.topology?.length > 0) {
         countFilterMatching(created.id).catch(() => {});
       }
+      reloadFilter('CLUSTER');
       loadFilters();
     } catch {
       toast.error('Erreur lors de la creation du cluster');
@@ -181,6 +183,7 @@ const FilterRepositoryView: React.FC = () => {
       setEditFilter(null);
       setSelectedFilter(null);
       toast.success(`Cluster "${data.name}" mis a jour`);
+      reloadFilter('CLUSTER');
       loadFilters();
     } catch {
       toast.error('Erreur lors de la mise a jour');
