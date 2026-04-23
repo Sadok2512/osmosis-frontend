@@ -7,6 +7,7 @@ import { countMatching, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
 import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
+import ParameterSearchSelect from './cluster-builder/ParameterSearchSelect';
 
 interface ClusterBuilderWizardProps {
   onSubmit: (data: any) => void;
@@ -334,13 +335,11 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
 
               {paramConditions.map(cond => (
                 <div key={cond.id} className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/10 p-3">
-                  <select
+                  <ParameterSearchSelect
                     value={cond.parameter}
-                    onChange={e => updateParam(cond.id, 'parameter', e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  >
-                    {paramOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
+                    options={paramOptions}
+                    onChange={(v) => updateParam(cond.id, 'parameter', v)}
+                  />
                   <select
                     value={cond.operator}
                     onChange={e => updateParam(cond.id, 'operator', e.target.value)}
