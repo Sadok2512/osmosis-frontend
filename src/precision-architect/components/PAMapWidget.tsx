@@ -458,7 +458,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
 
   return (
     <div
-      style={{ width: '100%', height, position: 'relative' }}
+      style={{ width: '100%', height, position: 'relative', background: cfg.theme === 'transparent' ? 'transparent' : undefined }}
       className={`rounded-2xl overflow-hidden border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
     >
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
