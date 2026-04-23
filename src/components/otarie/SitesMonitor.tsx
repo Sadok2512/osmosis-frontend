@@ -5248,13 +5248,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const ALL_KPI_LEVELS: ('green' | 'orange' | 'red' | 'gray')[] = ['green', 'orange', 'red', 'gray'];
   const toggleKpiLevel = useCallback((level: 'green' | 'orange' | 'red' | 'gray') => {
+    // Simple per-level toggle: click once to hide that level, click again to show it.
     setHiddenKpiLevels(prev => {
-      const othersHidden = ALL_KPI_LEVELS.filter(l => l !== level);
-      const isIsolated = othersHidden.every(l => prev.has(l)) && !prev.has(level);
-      // If already isolated on this level → show all (clear filter)
-      if (isIsolated) return new Set<'green' | 'orange' | 'red' | 'gray'>();
-      // Otherwise → isolate: hide all others, show only clicked level
-      const next = new Set<'green' | 'orange' | 'red' | 'gray'>(othersHidden);
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
       return next;
     });
   }, []);
