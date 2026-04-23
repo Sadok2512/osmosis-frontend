@@ -54,6 +54,16 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   const [tab, setTab] = useState<Tab>('data');
   const config: ChartWidgetConfig = widget.config ?? DEFAULT_CHART_CONFIG;
 
+  // Dirty detection: the editor draft (`config`) is "dirty" when it differs
+  // from the last applied snapshot (`appliedConfig`). Until the user clicks
+  // Apply, NOTHING in the rendered chart or the backend changes.
+  const appliedSnapshot = (widget.appliedConfig as ChartWidgetConfig | undefined) ?? null;
+  const isDirty = useMemo(() => {
+    if (!appliedSnapshot) return (config.metrics?.length ?? 0) > 0;
+    try { return JSON.stringify(config) !== JSON.stringify(appliedSnapshot); }
+    catch { return true; }
+  }, [config, appliedSnapshot]);
+
   const commitAppliedConfig = (closeAfter = false) => {
     onChange({
       config,
@@ -61,6 +71,12 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       appliedRev: (widget.appliedRev ?? 0) + 1,
     });
     if (closeAfter) onClose();
+  };
+
+  // "Revert" rolls the draft back to the last applied snapshot — purely local,
+  // no backend call.
+  const revertDraft = () => {
+    if (appliedSnapshot) onChange({ config: structuredClone(appliedSnapshot) });
   };
 
   // ── Live backend catalogs (KPIs + filter dimensions) ───────────────
