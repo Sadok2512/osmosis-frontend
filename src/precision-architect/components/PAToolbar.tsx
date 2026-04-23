@@ -228,6 +228,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
+        <DateRangePopover
           from={from}
           to={to}
           onChange={(f, t) => setRange(f, t, 'custom')}
