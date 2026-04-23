@@ -3781,6 +3781,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
+  const [showParamLegend, setShowParamLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
   // Global KPI overlay color intensity multiplier (applied to all colored cells/beams/points)
   const [kpiOverlayIntensity, setKpiOverlayIntensity] = useState<number>(() => {
@@ -9216,7 +9217,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {paramMode && (
         <>
           {/* Value legend */}
-          {paramUniqueValues.length > 0 && (
+          {paramUniqueValues.length > 0 && showParamLegend && (
             <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 96, bottom: 24, minWidth: 240 }}>
               {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
@@ -9316,6 +9317,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <span className="text-sm font-medium text-muted-foreground">Sites</span>
                 <span className="text-base font-bold text-foreground">{paramSiteMarkers.length}</span>
               </div>
+              <span className="w-px h-6 bg-border/60" />
+              <button
+                onClick={() => setShowParamLegend(v => !v)}
+                title={showParamLegend ? 'Cacher la légende paramètre' : 'Afficher la légende paramètre'}
+                aria-pressed={showParamLegend}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
+                  showParamLegend
+                    ? 'bg-primary/15 text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <Palette size={14} />
+                Legend {showParamLegend ? 'ON' : 'OFF'}
+              </button>
             </>
           ) : (
             <>
@@ -9557,18 +9572,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </button>
                 </div>
 
-                {/* Threshold quick-view */}
+                {/* Legend ON/OFF toggle */}
                 <button
-                  onClick={() => setShowKpiThresholdEditor(v => !v)}
+                  onClick={() => setShowKpiLegend(v => !v)}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all border shrink-0 ${
-                    showKpiThresholdEditor
+                    showKpiLegend
                       ? 'bg-primary/10 text-primary border-primary/20'
                       : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/50'
                   }`}
-                  title="Modifier les seuils"
+                  title={showKpiLegend ? 'Cacher la légende KPI' : 'Afficher la légende KPI'}
+                  aria-pressed={showKpiLegend}
                 >
                   <Palette size={11} />
-                  Seuils
+                  Legend {showKpiLegend ? 'ON' : 'OFF'}
                 </button>
 
                 {/* Invert toggle */}
