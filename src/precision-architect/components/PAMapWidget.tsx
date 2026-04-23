@@ -337,8 +337,16 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     if (!layer) return;
     layer.clearLayers();
 
+    const warnTh = cfg.warningThreshold ?? 80;
+    const critTh = cfg.criticalThreshold ?? 60;
+
     filteredSites.forEach((s) => {
-      const color = cfg.kpiOverlay ? colorFor(s.status) : (cfg.defaultColor || '#10b981');
+      // Recompute status against the (possibly updated) thresholds so threshold
+      // edits in the settings panel re-color markers immediately.
+      const intensity = s.intensity;
+      const status: MapSite['status'] =
+        intensity < critTh ? 'critical' : intensity < warnTh ? 'warning' : 'optimal';
+      const color = cfg.kpiOverlay ? colorFor(status, cfg) : (cfg.defaultColor || '#10b981');
       const radius = cfg.displayMode === 'cells' ? 4 : 6;
 
       const marker = L.circleMarker([s.lat, s.lon], {
