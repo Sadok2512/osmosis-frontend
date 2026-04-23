@@ -362,16 +362,19 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
  *      (project rule: apply-only-backend-execution).
  */
 function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
-  // Apply contract: use appliedConfig if widget was individually applied,
-  // OR use live config when global "Apply to Dashboard" was clicked (so ALL
-  // widgets with KPIs configured respond to the global button).
+  // STRICT Apply contract (project rule: apply-only-backend-execution):
+  //   – Live `w.config` is for the editor only and MUST NOT drive any fetch.
+  //   – Backend requests use exclusively the FROZEN `w.appliedConfig` snapshot,
+  //     written by either:
+  //       • per-widget "Apply to Widget" (ChartSettingsPanel)         → bumps w.appliedRev
+  //       • global "Apply to Dashboard" (PAToolbar)                   → snapshots config→appliedConfig + bumps w.appliedRev
+  //   – As long as no Apply has ever run, `w.appliedConfig` is undefined and
+  //     no request fires (nothing to render).
   const globalStore = usePAGlobalToolbar();
   const widgetAppliedRev = w.appliedRev ?? 0;
-  const rawCfg: ChartWidgetConfig | undefined = widgetAppliedRev > 0
-    ? (w.appliedConfig ?? w.config)
-    : globalStore.appliedRev > 0
-      ? (w.config as ChartWidgetConfig | undefined)
-      : undefined;
+  const rawCfg: ChartWidgetConfig | undefined = (widgetAppliedRev > 0 || globalStore.appliedRev > 0)
+    ? (w.appliedConfig as ChartWidgetConfig | undefined)
+    : undefined;
   // Ensure cfg has required structure (metrics + data with defaults)
   const cfg: ChartWidgetConfig | undefined = rawCfg && rawCfg.metrics?.length
     ? {
