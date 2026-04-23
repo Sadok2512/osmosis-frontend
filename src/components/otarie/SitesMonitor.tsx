@@ -10792,7 +10792,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              {kpiValues.size > 0 && (() => {
+                              {sectorColorMode !== 'topo' && (() => {
                                 const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
                                 if (isNaN(siteKpiVal)) return null;
                                 return (
@@ -11148,7 +11148,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               })()}
                             </div>
                             <div className="text-right shrink-0">
-                              {kpiValues.size > 0 && (() => {
+                              {sectorColorMode !== 'topo' && (() => {
                                 const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
                                 if (isNaN(siteKpiVal)) return null;
                                 return (
