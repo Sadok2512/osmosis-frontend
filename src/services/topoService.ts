@@ -1400,40 +1400,38 @@ export async function fetchKpiCellValues(
   const cached = kpiValueCache.get(cacheKey);
   if (cached && (Date.now() - cached.ts) < KPI_CACHE_TTL) return cached.data;
 
-  // Build compute request body
-  const computeBody: Record<string, any> = {
-    kpi_code: kpiId,
-    date_from: filters?.date_from || '',
-    date_to: filters?.date_to || '',
-    // Use full-period granularity for map overlay: one value per cell (not per day)
-    granularity: 'total',
-  };
-  // Backend expects scalar strings (not arrays) for these filters — sending arrays triggers 422
-  if (filters?.vendor) computeBody.vendor = filters.vendor;
-  if (filters?.plaque) computeBody.plaque = filters.plaque;
-  if (filters?.dor) computeBody.dor = filters.dor;
-  if (filters?.bcluster) computeBody.bcluster = filters.bcluster;
-  if (filters?.band) computeBody.band = filters.band;
-  if (filters?.techno) computeBody.technology = filters.techno;
+  // Build request for KPI Engine /monitor/query/timeseries (unified path)
+  const splitByMap: Record<string, string> = { cell: 'CELL', site: 'SITE', band: 'BAND' };
+  const monitorFilters: { dimension: string; op: string; values: string[] }[] = [];
+  if (filters?.vendor) monitorFilters.push({ dimension: 'VENDOR', op: 'IN', values: [filters.vendor] });
+  if (filters?.plaque) monitorFilters.push({ dimension: 'PLAQUE', op: 'IN', values: [filters.plaque] });
+  if (filters?.dor) monitorFilters.push({ dimension: 'DOR', op: 'IN', values: [filters.dor] });
+  if (filters?.band) monitorFilters.push({ dimension: 'BAND', op: 'IN', values: [filters.band] });
+  if (filters?.techno) monitorFilters.push({ dimension: 'TECHNO', op: 'IN', values: [filters.techno] });
   if (filters?.site_name) {
-    // site_name accepts a single value at the API level — pick the first if multiple
-    const firstSite = filters.site_name.split(',')[0]?.trim();
-    if (firstSite) computeBody.site_name = firstSite;
+    const sites = filters.site_name.split(',').map(s => s.trim()).filter(Boolean);
+    if (sites.length > 0) monitorFilters.push({ dimension: 'SITE', op: 'IN', values: sites });
   }
 
-  // Level-aware split: site mode aggregates by site_name, band by band
-  if (level === 'site') computeBody.split_by_field = 'site_name';
-  else if (level === 'band') computeBody.split_by_field = 'band';
+  const requestBody = {
+    date_from: filters?.date_from || '',
+    date_to: filters?.date_to || '',
+    granularity: 'total',
+    filters: monitorFilters,
+    selections: [{ kpi_key: kpiId }],
+    split_by: splitByMap[level] || 'CELL',
+    top_n: 5000,
+  };
 
-  console.log('[KPI compute] request', { kpiId, level, body: computeBody });
+  console.log('[KPI overlay] request via KPI Engine', { kpiId, level, body: requestBody });
 
-  const computeUrl = getVpsProxyUrl('parser', '/api/v1/pm/kpi/compute');
+  const computeUrl = getVpsProxyUrl('kpi', '/monitor/query/timeseries');
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120_000); // 120s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 120_000);
   const resp = await fetch(computeUrl, {
     method: 'POST',
     headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify(computeBody),
+    body: JSON.stringify(requestBody),
     signal: controller.signal,
   });
   clearTimeout(timeoutId);
@@ -1441,53 +1439,47 @@ export async function fetchKpiCellValues(
   const json = await resp.json();
 
   const series: any[] = json.series || [];
-  console.log('[KPI compute] response', { kpiId, level, seriesLength: series.length, source: json.source_table, error: json.error || 'none' });
+  console.log('[KPI overlay] response', { kpiId, level, points: series.length, source: json.source });
 
-  if (series.length === 0 && json.error) {
-    console.warn(`[KPI compute] No data: ${json.error}`);
-  }
-
-  // Build value map keyed by the appropriate level.
-  // Use separate counters map to avoid polluting valueMap with non-KPI keys.
+  // Build value map from timeseries response
+  // split_by=CELL → split_value = cell_name
+  // split_by=SITE → split_value = site_name
+  // split_by=BAND → split_value = band_name (need site_name too for band key)
   const valueMap = new Map<string, number>();
   const avgCounters = new Map<string, number>();
 
   for (const pt of series) {
-    const val = pt.kpi_value;
+    const val = pt.value;
     if (val == null || !Number.isFinite(val)) continue;
 
-    const cellName = pt.cell_name || pt.ne_name || pt.split_field || '';
-    const siteName = (pt.site_name || '').trim();
-    const bandName = pt.band || pt.source_band || '';
+    const splitVal = (pt.split_value || '').trim();
+    if (!splitVal) continue;
 
-    // Always store cell-level values (used for cell overlay + fallback)
-    if (cellName) valueMap.set(cellName, val);
-
-    // Site-level aggregation (rolling average across all cells of a site)
-    if (siteName) {
-      const siteKey = `site:${siteName}`;
-      const existing = valueMap.get(siteKey);
-      if (existing != null) {
-        const count = (avgCounters.get(siteKey) || 1) + 1;
-        avgCounters.set(siteKey, count);
-        valueMap.set(siteKey, (existing * (count - 1) + val) / count);
-      } else {
-        valueMap.set(siteKey, val);
-        avgCounters.set(siteKey, 1);
+    if (level === 'cell') {
+      // split_value = cell_name
+      valueMap.set(splitVal, val);
+      // Also store site-level average as fallback
+      const siteName = pt.site_name || splitVal.replace(/_ENB\d+.*$/, '');
+      if (siteName) {
+        const siteKey = `site:${siteName}`;
+        const existing = valueMap.get(siteKey);
+        if (existing != null) {
+          const count = (avgCounters.get(siteKey) || 1) + 1;
+          avgCounters.set(siteKey, count);
+          valueMap.set(siteKey, (existing * (count - 1) + val) / count);
+        } else {
+          valueMap.set(siteKey, val);
+          avgCounters.set(siteKey, 1);
+        }
       }
-    }
-
-    // Band-level: composite key site:band for band overlay mode
-    if (bandName && siteName) {
-      const bandKey = `band:${siteName}:${bandName}`;
-      const existing = valueMap.get(bandKey);
-      if (existing != null) {
-        const count = (avgCounters.get(bandKey) || 1) + 1;
-        avgCounters.set(bandKey, count);
-        valueMap.set(bandKey, (existing * (count - 1) + val) / count);
-      } else {
-        valueMap.set(bandKey, val);
-        avgCounters.set(bandKey, 1);
+    } else if (level === 'site') {
+      // split_value = site_name
+      valueMap.set(`site:${splitVal}`, val);
+    } else if (level === 'band') {
+      // split_value = band_name — need site context
+      const siteName = pt.site_name || '';
+      if (siteName) {
+        valueMap.set(`band:${siteName}:${splitVal}`, val);
       }
     }
   }
