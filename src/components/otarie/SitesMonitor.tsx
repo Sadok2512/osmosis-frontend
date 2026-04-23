@@ -2600,6 +2600,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       viewType: vs.viewType || null,
       kpiOverlayConfig: vs.kpiOverlayConfig || null,
       topoSearchConfig: vs.topoSearchConfig || null,
+      paramFilters: vs.paramFilters || null,
     };
   };
 
