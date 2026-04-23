@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Loader2 } from 'lucide-react';
-import { ChartWidgetConfig, DEFAULT_CHART_CONFIG, ChartType } from '../types';
+import { ChartWidgetConfig, DEFAULT_CHART_CONFIG, ChartType, ChartJalon } from '../types';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
 interface PAEChartProps {
   variant?: 'editor' | 'presentation';
