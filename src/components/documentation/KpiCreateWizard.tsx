@@ -45,6 +45,63 @@ const SelectField: React.FC<{
   </div>
 );
 
+/**
+ * Dark-themed formula editor — same visual language as the read-only
+ * "Calculation Formula" preview block. Renders a free-form expression
+ * (e.g. `m55125c09514 + m55125c09515` or simply `1`).
+ */
+const FormulaEditor: React.FC<{
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+}> = ({ label, value, onChange, placeholder, hint }) => {
+  // Highlight tokens that look like counter names (alphanumeric identifiers)
+  const tokens = value.split(/(\W+)/);
+  return (
+    <div>
+      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+        <span>{label}</span>
+        <span className="text-[9px] normal-case tracking-normal text-muted-foreground/70">free expression</span>
+      </label>
+      <div className="mt-1 rounded-xl bg-slate-900 border border-slate-700/60 shadow-inner overflow-hidden">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-700/60 bg-slate-900/80">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-400/70"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70"></span>
+          <span className="ml-2 text-[10px] font-mono text-slate-400">formula.expr</span>
+        </div>
+        <div className="relative">
+          <pre aria-hidden className="absolute inset-0 px-4 py-3 m-0 font-mono text-[13px] leading-6 text-slate-200 whitespace-pre-wrap break-words pointer-events-none overflow-auto">
+            {tokens.length === 0 || value.trim() === '' ? (
+              <span className="text-slate-500">{placeholder}</span>
+            ) : (
+              tokens.map((tok, i) => {
+                if (/^\s+$/.test(tok)) return tok;
+                if (/^[+\-*/()]+$/.test(tok)) return <span key={i} className="text-amber-300">{tok}</span>;
+                if (/^\d+(\.\d+)?$/.test(tok)) return <span key={i} className="text-sky-300">{tok}</span>;
+                if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(tok)) return <span key={i} className="text-emerald-300">{tok}</span>;
+                return tok;
+              })
+            )}
+            {/* trailing newline so caret line aligns */}
+            {'\n'}
+          </pre>
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            spellCheck={false}
+            className="relative w-full min-h-[112px] px-4 py-3 bg-transparent font-mono text-[13px] leading-6 text-transparent caret-emerald-300 placeholder:text-slate-500/0 focus:outline-none resize-y"
+          />
+        </div>
+      </div>
+      {hint && <p className="mt-1.5 text-[10px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+};
+
 const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create' }) => {
   const isEdit = mode === 'edit';
   const [step, setStep] = useState(0);
