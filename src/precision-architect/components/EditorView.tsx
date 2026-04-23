@@ -127,7 +127,9 @@ export default function EditorView({
   const radius = theme?.borderRadius ?? 16;
   const spacing = theme?.spacing ?? 16;
   const padding = theme?.pagePadding ?? 32;
-  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  // Wider canvas: default constrained width is now ~1760px instead of 1280px (max-w-7xl)
+  // so dashboards reclaim the side space that was previously wasted on large screens.
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-[1760px]';
   const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
   const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
