@@ -4604,6 +4604,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [paramPoints, setParamPoints] = useState<{ id: number; cell_name: string | null; site_name: string | null; latitude: number; longitude: number; parameter: string; value: string | null; bande: string | null; vendor: string | null; dn: string | null }[]>([]);
   const [paramLoading, setParamLoading] = useState(false);
   const [paramSearch, setParamSearch] = useState('');
+  const [paramHeatmapEnabled, setParamHeatmapEnabled] = useState(false); // density heatmap overlay in Parameter mode
 
   // Load available parameters from VPS backend, fallback to Supabase parameter_dump
   const [showParamDropdown, setShowParamDropdown] = useState(false);
@@ -4807,6 +4808,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       distinctValues: [...s.values].sort(),
     }));
   }, [paramPoints]);
+
+  // Density heatmap points for Parameter overlay — one weighted point per cell coordinate.
+  // Weight = number of cells at that exact lat/lon (so dense sites = hotter).
+  const paramHeatPoints = useMemo<[number, number, number][]>(() => {
+    if (!paramMode || paramPoints.length === 0) return [];
+    const bucket = new Map<string, { lat: number; lon: number; count: number }>();
+    for (const p of paramPoints) {
+      if (!Number.isFinite(p.latitude) || !Number.isFinite(p.longitude)) continue;
+      // Round to 5 decimals (~1m) to merge co-located cells of the same site
+      const key = `${p.latitude.toFixed(5)},${p.longitude.toFixed(5)}`;
+      const existing = bucket.get(key);
+      if (existing) existing.count += 1;
+      else bucket.set(key, { lat: p.latitude, lon: p.longitude, count: 1 });
+    }
+    if (bucket.size === 0) return [];
+    const maxCount = Math.max(...Array.from(bucket.values()).map(b => b.count));
+    return Array.from(bucket.values()).map(b => [b.lat, b.lon, Math.max(0.15, b.count / maxCount)] as [number, number, number]);
+  }, [paramMode, paramPoints]);
   // Fetch dashboards list, archive legacy auto-dashboards, auto-activate saved dashboard
   useEffect(() => {
     const fetchDashboards = async () => {
