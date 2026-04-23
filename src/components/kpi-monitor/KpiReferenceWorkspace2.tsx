@@ -291,8 +291,9 @@ const KpiReferenceWorkspace2: React.FC = () => {
   const openView = (kpi: KpiCatalogEntry) => {
     setSelectedKpiKey(kpi.kpi_key);
     setDraft(toDraft(kpi));
-    setIsEditing(false);
-    setOpenSections(['overview']);
+    // Always open in editable mode so the user can immediately modify the KPI.
+    setIsEditing(true);
+    setOpenSections(['overview', 'formula', 'thresholds', 'source']);
     sonnerToast.loading('Chargement du KPI…', { id: `kpi-open-${kpi.kpi_key}`, description: kpi.display_name });
     scrollToReview();
   };
