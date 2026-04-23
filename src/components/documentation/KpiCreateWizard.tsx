@@ -359,8 +359,16 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
                     </button>
                   </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground font-mono">
-                  NUM: {numCounters || '(empty)'} | DEN: {denCounters || '1'} | Type: {formulaType}
+                <div className="space-y-2 mt-2">
+                  <div className="rounded-lg bg-slate-900 border border-slate-700/60 px-3 py-2 font-mono text-[11px] leading-5 text-slate-200">
+                    <span className="text-amber-300 mr-2">NUM</span>
+                    <span className="text-emerald-300 break-words">{numCounters || '(empty)'}</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-900 border border-slate-700/60 px-3 py-2 font-mono text-[11px] leading-5 text-slate-200">
+                    <span className="text-amber-300 mr-2">DEN</span>
+                    <span className="text-emerald-300 break-words">{denCounters || '1'}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Formula type: <span className="font-mono font-bold text-foreground">{formulaType}</span></div>
                 </div>
               </div>
               {testError && (
