@@ -137,12 +137,62 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   };
 
   // ── Param mutators ──
-  const addParamCondition = () =>
+  const addParamCondition = () => {
+    setParamValidation({ status: 'idle' });
     setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: paramOptions[0] || 'KPI', operator: '>', value: '' }]);
-  const updateParam = (id: string, field: keyof ParameterCondition, value: string) =>
+  };
+  const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
+    setParamValidation({ status: 'idle' });
     setParamConditions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-  const removeParam = (id: string) =>
+  };
+  const removeParam = (id: string) => {
+    setParamValidation({ status: 'idle' });
     setParamConditions(prev => prev.filter(p => p.id !== id));
+  };
+
+  // ── Step 3 — explicit Validate & Calculate (no auto-fire, per Apply-only rule) ──
+  type ParamValidation =
+    | { status: 'idle' }
+    | { status: 'loading' }
+    | { status: 'ok'; cells: number; sites: number }
+    | { status: 'error'; message: string }
+    | { status: 'invalid'; message: string };
+  const [paramValidation, setParamValidation] = useState<ParamValidation>({ status: 'idle' });
+
+  const validateParamConditions = (): { ok: true; payload: any[] } | { ok: false; message: string } => {
+    for (const c of paramConditions) {
+      if (!c.parameter) return { ok: false, message: 'Each condition requires a parameter.' };
+      if (!c.operator) return { ok: false, message: 'Each condition requires an operator.' };
+      if (c.value === '' || c.value == null) return { ok: false, message: `Missing value for "${c.parameter}".` };
+      if (c.operator === 'BETWEEN' && (!c.value2 || c.value2 === '')) {
+        return { ok: false, message: `BETWEEN requires a max value for "${c.parameter}".` };
+      }
+    }
+    return {
+      ok: true,
+      payload: paramConditions.map(c => ({
+        parameter: c.parameter,
+        operator: c.operator,
+        value: c.value,
+        ...(c.operator === 'BETWEEN' ? { value2: c.value2 } : {}),
+      })),
+    };
+  };
+
+  const runParamValidation = async () => {
+    const v = validateParamConditions();
+    if (!v.ok) { setParamValidation({ status: 'invalid', message: v.message }); return; }
+    const topology = topoConditions
+      .filter(c => c.values.length > 0)
+      .map(c => ({ dimension: c.field, operator: c.operator === 'NOT IN' ? 'not_in' : 'in', values: c.values }));
+    setParamValidation({ status: 'loading' });
+    try {
+      const r = await countMatching(topology, v.payload);
+      setParamValidation({ status: 'ok', cells: r.cells, sites: r.sites });
+    } catch (e: any) {
+      setParamValidation({ status: 'error', message: e?.message || 'Calculation failed' });
+    }
+  };
 
   const topoCount = topoConditions.filter(c => c.values.length > 0).length;
   const totalConditions = topoCount + paramConditions.length;
@@ -151,6 +201,11 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   const canProceed = (s: number): boolean => {
     if (s === 0) return name.trim().length > 0;
     if (s === 1) return topoCount > 0 && (countError || matchingCount == null || matchingCount.cells > 0);
+    if (s === 2) {
+      // Parameters step is optional, but if any condition exists, require successful Validate
+      if (paramConditions.length === 0) return true;
+      return paramValidation.status === 'ok' && paramValidation.cells > 0;
+    }
     return true;
   };
 
