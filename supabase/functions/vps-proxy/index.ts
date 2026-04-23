@@ -133,32 +133,48 @@ Deno.serve(async (req) => {
     const isAgentPost = req.method === 'POST' && service === 'agent';
     const fetchTimeout = isAgentPost ? 290_000 : 60_000; // 290s for agent, 60s for others
 
-    let upstreamRes: Response;
-    try {
-      upstreamRes = await fetch(targetUrl.toString(), {
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const tryFetch = async (u: string): Promise<Response> => {
+      return await fetch(u, {
         method: req.method,
         headers: upstreamHeaders,
         body: body ? body : undefined,
         signal: AbortSignal.timeout(fetchTimeout),
       });
-    } catch (fetchErr) {
-      // Try fallback URL if available
-      if (urls.length > 1) {
-        const fallbackUrl = buildUrl(urls[1]);
-        console.warn(`[vps-proxy] Primary failed, trying fallback: ${fallbackUrl.toString()}`);
-        try {
-          upstreamRes = await fetch(fallbackUrl.toString(), {
-            method: req.method,
-            headers: upstreamHeaders,
-            body: body ? body : undefined,
-            signal: AbortSignal.timeout(fetchTimeout),
-          });
-        } catch (fallbackErr) {
-          const msg = fallbackErr instanceof Error ? fallbackErr.message : 'All endpoints failed';
-          console.error(`[vps-proxy] All upstreams failed:`, msg);
-          // Fall through to error handling below
+    };
+
+    // Retry transient failures (network errors, 502/503/504) with exponential backoff
+    const MAX_ATTEMPTS = isAgentPost ? 1 : 3;
+    let upstreamRes: Response | undefined;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      const baseUrl = urls[Math.min(attempt, urls.length - 1)];
+      const u = buildUrl(baseUrl).toString();
+      try {
+        const res = await tryFetch(u);
+        if (res.status === 502 || res.status === 503 || res.status === 504) {
+          console.warn(`[vps-proxy] Upstream ${res.status} on attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u})`);
+          await res.body?.cancel().catch(() => {});
+          if (attempt < MAX_ATTEMPTS - 1) {
+            await sleep(400 * Math.pow(2, attempt)); // 400ms, 800ms, 1600ms
+            continue;
+          }
+          upstreamRes = res; // surface the last transient response
+          break;
+        }
+        upstreamRes = res;
+        break;
+      } catch (fetchErr) {
+        lastErr = fetchErr;
+        const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+        console.warn(`[vps-proxy] Fetch failed attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u}): ${msg}`);
+        if (attempt < MAX_ATTEMPTS - 1) {
+          await sleep(400 * Math.pow(2, attempt));
         }
       }
+    }
+    if (!upstreamRes && lastErr) {
+      console.error(`[vps-proxy] All upstreams failed:`, lastErr instanceof Error ? lastErr.message : lastErr);
     }
     // @ts-ignore - upstreamRes may be unassigned if all fetches failed
     if (!upstreamRes) {
