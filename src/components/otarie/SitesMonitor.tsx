@@ -6311,41 +6311,58 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           for (const site of unresolvedAfterFallback) {
             const lte = site.lte_cells || 0;
             const nr = site.nr_cells || 0;
-            if (lte === 0 && nr === 0) continue;
+            const c2g = (site as any).cells_2g || 0;
+            const c3g = (site as any).cells_3g || 0;
+            if (lte === 0 && nr === 0 && c2g === 0 && c3g === 0) continue;
             const syntheticCells: any[] = [];
             const azimuths = [0, 120, 240];
 
-            if (lte > 0) {
-              const bandsPerSector = Math.max(1, Math.round(lte / 3));
-              const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
-              for (let s = 0; s < 3; s++) {
-                for (let b = 0; b < bandsPerSector && b < defaultBands4G.length; b++) {
-                  syntheticCells.push({
-                    cell_id: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    cell_name: `${site.site_id}_LTE_S${s + 1}_${defaultBands4G[b]}`,
-                    techno: '4G',
-                    bande: defaultBands4G[b],
-                    vendor: site.vendor || 'Unknown',
-                    azimut: azimuths[s],
-                    tilt: null,
-                    pci: null, eci: null, nci: null, cid: null, tac: null,
-                    etat_cellule: null, essentiel: null,
-                    _synthetic: true,
-                  });
-                }
-              }
-            }
+            // Pull the REAL band list returned by the bbox endpoint and normalize it.
+            // VPS may return joined CSV strings (e.g. "LTE800, LTE1800, LTE2100, LTE2600")
+            // — splitMaybeCsv already flattens those into individual entries.
+            const rawBands = splitMaybeCsv((site as any).bandes ?? (site as any).bands);
+            const normalizeBand = (b: string): string => {
+              const v = String(b || '').trim().toUpperCase().replace(/\s+/g, '');
+              // 5G / NR
+              if (v.startsWith('NR') || v.startsWith('N')) return v.replace(/^NR_?/, 'NR').replace(/^N(?=\d)/, 'NR');
+              // 4G / LTE
+              if (v.startsWith('LTE')) return 'L' + v.slice(3);
+              if (v.startsWith('L')) return v;
+              // 3G / UMTS
+              if (v.startsWith('UMTS')) return 'UMTS' + v.slice(4);
+              // 2G / GSM
+              if (v.startsWith('GSM')) return 'GSM' + v.slice(3);
+              return v;
+            };
+            const allBands = rawBands.map(normalizeBand).filter(Boolean);
+            const bands4G = allBands.filter(b => /^L\d/.test(b));
+            const bands5G = allBands.filter(b => /^NR/.test(b));
+            const bands3G = allBands.filter(b => /^UMTS/.test(b));
+            const bands2G = allBands.filter(b => /^GSM/.test(b));
 
-            if (nr > 0) {
-              const bandsPerSector5G = Math.max(1, Math.round(nr / 3));
-              const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
+            const defaultBands4G = ['L800', 'L1800', 'L2100', 'L2600', 'L700'];
+            const defaultBands5G = ['NR3500', 'NR700', 'NR2100'];
+            const defaultBands3G = ['UMTS900', 'UMTS2100'];
+            const defaultBands2G = ['GSM900', 'GSM1800'];
+
+            const buildSyntheticForTech = (
+              tech: '2G' | '3G' | '4G' | '5G',
+              cellCount: number,
+              actualBands: string[],
+              defaults: string[],
+            ) => {
+              if (cellCount === 0) return;
+              // Prefer real bandes from VPS; fall back to defaults sized by cellCount/3 sectors.
+              const bandsToUse = actualBands.length > 0
+                ? actualBands
+                : defaults.slice(0, Math.max(1, Math.min(defaults.length, Math.round(cellCount / 3))));
               for (let s = 0; s < 3; s++) {
-                for (let b = 0; b < bandsPerSector5G && b < defaultBands5G.length; b++) {
+                for (const band of bandsToUse) {
                   syntheticCells.push({
-                    cell_id: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    cell_name: `${site.site_id}_NR_S${s + 1}_${defaultBands5G[b]}`,
-                    techno: '5G',
-                    bande: defaultBands5G[b],
+                    cell_id: `${site.site_id}_${tech}_S${s + 1}_${band}`,
+                    cell_name: `${site.site_id}_${tech}_S${s + 1}_${band}`,
+                    techno: tech,
+                    bande: band,
                     vendor: site.vendor || 'Unknown',
                     azimut: azimuths[s],
                     tilt: null,
@@ -6355,7 +6372,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   });
                 }
               }
-            }
+            };
+
+            buildSyntheticForTech('2G', c2g, bands2G, defaultBands2G);
+            buildSyntheticForTech('3G', c3g, bands3G, defaultBands3G);
+            buildSyntheticForTech('4G', lte, bands4G, defaultBands4G);
+            buildSyntheticForTech('5G', nr,  bands5G, defaultBands5G);
 
             if (syntheticCells.length > 0) {
               registerCells(site.site_id, syntheticCells);
