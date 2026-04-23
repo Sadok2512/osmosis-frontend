@@ -4877,6 +4877,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       else if (settings.localSite) setLocalBande(settings.localSite);
       if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
       if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
+      if ((settings as any).showBeamSectors !== undefined) {
+        setShowBeamSectors(Boolean((settings as any).showBeamSectors));
+      } else if (settings.mapDisplayMode === 'sites' && settings.sectorColorMode !== 'topo') {
+        setShowBeamSectors(true);
+      }
       if (settings.bandColors) {
         setBandColors(settings.bandColors);
         localStorage.setItem('osmosis_band_colors', JSON.stringify(settings.bandColors));
@@ -10812,11 +10817,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // Always show the count of cells actually visible under current filters.
-                      // Only fall back to backend summary while cells are still not resolved.
+                      // Show real filtered cells when resolved; otherwise avoid stale backend totals
+                      // if this site should have already loaded cell-level data for the current view.
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
-                        : Number(site.cell_count || 0);
+                        : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
@@ -11159,10 +11164,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // Same rule in Tagged: visible filtered cells are the source of truth.
+                      // Same rule in Tagged: avoid stale backend totals once cell loading was attempted.
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
-                        : Number(site.cell_count || 0);
+                        : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);

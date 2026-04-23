@@ -23,6 +23,7 @@ export interface MapViewSettings {
   localBande?: string;
   localZoneArcep?: string;
   localTechno?: string;
+  showBeamSectors?: boolean;
   beamVisibility?: number;
 }
 
