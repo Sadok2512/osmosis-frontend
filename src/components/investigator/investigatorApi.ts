@@ -1,6 +1,6 @@
 // ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
 
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, AGENT_API_KEY } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, fetchVpsWithRetry, AGENT_API_KEY } from '@/lib/apiConfig';
 import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
 
@@ -1176,7 +1176,7 @@ export async function fetchKpiDimensions(
 export async function fetchFilterValues(dimension: string): Promise<string[]> {
   const url = getApiUrl(`monitor/filters/values?dimension=${encodeURIComponent(dimension)}`);
   try {
-    const res = await fetchWithTimeout(url, { headers: getApiHeaders() });
+    const res = await fetchVpsWithRetry(url, { headers: getApiHeaders() });
     if (!res.ok) return [];
     const data = await res.json();
     return data.values || [];
