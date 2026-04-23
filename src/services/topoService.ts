@@ -1004,7 +1004,7 @@ export async function fetchDashboardSites(
     if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
     if (siteFilters?.cluster?.length) params.p_cluster = siteFilters.cluster;
     if (siteFilters?.zone_arcep?.length) params.p_zone_arcep = siteFilters.zone_arcep;
-    if (siteFilters?.constructeur?.length) params.p_constructeur = siteFilters.constructeur;
+    if (siteFilters?.vendor?.length) params.p_constructeur = siteFilters.vendor;
     if (siteFilters?.techno?.length) params.p_techno = siteFilters.techno;
     if (siteFilters?.bande?.length) params.p_bande = siteFilters.bande;
     if (search) params.p_search = search;
