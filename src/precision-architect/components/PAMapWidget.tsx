@@ -311,12 +311,16 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     const map = mapRef.current;
     if (!map) return;
 
-    const key = `${cfg.mapType}-${cfg.theme}` as keyof typeof TILE_PROVIDERS;
-    const provider = TILE_PROVIDERS[key] ?? TILE_PROVIDERS['street-light'];
-
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
+      tileLayerRef.current = null;
     }
+
+    // Transparent theme: don't render any tiles, just markers over the (transparent) background.
+    if (cfg.theme === 'transparent') return;
+
+    const key = `${cfg.mapType}-${cfg.theme}` as keyof typeof TILE_PROVIDERS;
+    const provider = TILE_PROVIDERS[key] ?? TILE_PROVIDERS['street-light'];
 
     const tileOpts: L.TileLayerOptions = {
       attribution: provider.attribution,
