@@ -6502,10 +6502,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         });
         setCellsLoadingCount(cellLoadingRef.current.size);
 
-        // Merge cells into sites — keep original cell_count (don't overwrite with 4G/5G-only count)
+        // Merge resolved cells into sites and sync the displayed inventory count
+        // with the actual loaded cells for that site.
         setSites(prev => prev.map(s => {
           const cells = resolveSiteCells(s);
-          return cells && cells.length > 0 ? { ...s, cells } : s;
+          return cells && cells.length > 0 ? { ...s, cells, cell_count: cells.length } : s;
         }));
         setTaggedSites(prev => {
           let changed = false;
@@ -6514,7 +6515,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!cells || cells.length === 0) return s;
             if (s.cells.length === cells.length && s.cells.every((cell, index) => cell.cell_id === cells[index]?.cell_id)) return s;
             changed = true;
-            return { ...s, cells };
+            return { ...s, cells, cell_count: cells.length };
           });
           if (!changed) return prev;
           persistTaggedSitesScoped(next, activeDashboardIdRef.current);
@@ -6576,7 +6577,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setCellsCacheLoading(isCellsCacheLoading());
       setSites(prev => {
         let changed = false;
-        const next = prev.map(s => {
+          const next = prev.map(s => {
           if (s.cells.length > 0) return s;
           // Direct lookup from the in-memory cache
           const siteName = s.site_name || s.site_id;
@@ -6585,14 +6586,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           changed = true;
           const cells = mapCachedCellsToProperties(cachedCells);
           cellLoadAttemptedRef.current.add(s.site_id);
-          return { ...s, cells };
+            return { ...s, cells, cell_count: cells.length };
         });
         if (!changed) return prev;
         return next;
       });
       setTaggedSites(prev => {
         let changed = false;
-        const next = prev.map(s => {
+          const next = prev.map(s => {
           if (s.cells.length > 0) return s;
           const siteName = s.site_name || s.site_id;
           const cachedCells = getCellsFromCacheForSite(siteName);
@@ -6600,7 +6601,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           changed = true;
           const cells = mapCachedCellsToProperties(cachedCells);
           cellLoadAttemptedRef.current.add(s.site_id);
-          return { ...s, cells };
+            return { ...s, cells, cell_count: cells.length };
         });
         if (!changed) return prev;
         persistTaggedSitesScoped(next, activeDashboardIdRef.current);
