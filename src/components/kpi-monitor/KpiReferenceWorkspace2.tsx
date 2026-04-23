@@ -41,6 +41,8 @@ interface KpiDraft {
   warning: string;
   critical: string;
   is_map_supported: boolean;
+  numerator: string;
+  denominator: string;
 }
 
 const STORAGE_KEY = 'osmosis_kpi_reference2_filters_v1';
@@ -48,6 +50,15 @@ const DEFAULT_COLOR = '#0f766e';
 const VALUE_TYPES: ValueType[] = ['ratio', 'counter', 'gauge'];
 const AGGREGATIONS: AggFunc[] = ['avg', 'sum', 'max', 'min', 'p95', 'p50', 'last', 'count'];
 const TECHNO_OPTIONS: TechnoScope[] = ['4G', '5G', 'both'];
+
+function buildFormula(numerator: string, denominator: string): string {
+  const n = numerator.trim();
+  const d = denominator.trim();
+  if (!n && !d) return '';
+  if (!d || d === '1') return n;
+  if (!n) return `1 / (${d})`;
+  return `(${n}) / (${d})`;
+}
 
 function toDraft(kpi: KpiCatalogEntry): KpiDraft {
   return {
@@ -62,6 +73,8 @@ function toDraft(kpi: KpiCatalogEntry): KpiDraft {
     warning: kpi.thresholds?.warning != null ? String(kpi.thresholds.warning) : '',
     critical: kpi.thresholds?.critical != null ? String(kpi.thresholds.critical) : '',
     is_map_supported: Boolean(kpi.is_map_supported),
+    numerator: kpi.numerator_counter || '',
+    denominator: kpi.denominator_counter || '',
   };
 }
 
