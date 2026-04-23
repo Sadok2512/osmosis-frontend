@@ -83,28 +83,73 @@ const PAEChart: React.FC<PAEChartProps> = ({
     if (cfg && cfg.metrics.length > 0) {
       const visibleRaw = cfg.metrics.filter(m => m.visible !== false);
 
-      // ── AUTO-AXIS ASSIGNMENT BY UNIT ──────────────────────────────────
-      // Even if every metric is configured on the left axis, when the chart
-      // mixes incompatible units (e.g. "%" + "GB") the small-magnitude series
-      // get crushed by the dominant one. We detect distinct unit families and
-      // automatically push the secondary unit(s) to the right axis — unless
-      // the user has explicitly assigned axes themselves.
-      const normUnit = (u?: string) =>
-        (u ?? '').trim().toLowerCase().replace(/\s+/g, '') || '__nounit__';
+      // ── AUTO-AXIS ASSIGNMENT BY UNIT + SCALE ─────────────────────────
+      // When the chart mixes incompatible units or vastly different scales,
+      // small-magnitude series get crushed. We detect this and auto-push
+      // secondary units to the right axis — unless the user has explicitly
+      // assigned axes. Also handles scale mismatch within the same unit
+      // (e.g. two "%" KPIs where one is ~99% and another is ~0.01%).
+
+      // Normalize unit to a family group so MB/GB/KB share an axis
+      const UNIT_FAMILIES: Record<string, string> = {
+        'mb': 'bytes', 'gb': 'bytes', 'kb': 'bytes', 'kbit': 'bytes', 'byte': 'bytes', 'bytes': 'bytes',
+        'mbps': 'throughput', 'kbps': 'throughput', 'gbps': 'throughput', 'bps': 'throughput',
+        'ms': 'time', 's': 'time', 'us': 'time', 'min': 'time',
+        'dbm': 'power', 'mw': 'power', 'db': 'power',
+        '%': 'percent',
+        'erl': 'erlang',
+        'count': 'count',
+      };
+      const normUnit = (u?: string): string => {
+        const raw = (u ?? '').trim().toLowerCase().replace(/\s+/g, '');
+        return UNIT_FAMILIES[raw] ?? (raw || '__nounit__');
+      };
+      const rawUnit = (u?: string): string => (u ?? '').trim() || '';
+
       const userExplicitlySplit = visibleRaw.some(m => m.axis === 'right');
       const unitGroups = new Map<string, number>();
       visibleRaw.forEach(m => {
         const u = normUnit((m as any).unit);
         unitGroups.set(u, (unitGroups.get(u) ?? 0) + 1);
       });
-      // Pick the most populated unit as "primary" (left). All others → right.
+      // Pick the most populated unit family as "primary" (left). Others → right.
       const primaryUnit = [...unitGroups.entries()]
         .sort((a, b) => b[1] - a[1])[0]?.[0] ?? '__nounit__';
+
+      // Detect scale mismatch: compute max value per metric from backend data
+      const metricMaxValues = new Map<string, number>();
+      visibleRaw.forEach(m => {
+        const points = seriesByMetric?.[m.id] ?? [];
+        const maxVal = points.reduce((mx, p) => Math.max(mx, Math.abs(p.value ?? 0)), 0);
+        metricMaxValues.set(m.id, maxVal);
+      });
+
       const visible = visibleRaw.map(m => {
         if (userExplicitlySplit) return m; // respect user choice
-        if (unitGroups.size <= 1) return m; // single unit family → no split
+
         const u = normUnit((m as any).unit);
-        return u === primaryUnit ? m : { ...m, axis: 'right' as const };
+        // Different unit family → push to right
+        if (unitGroups.size > 1 && u !== primaryUnit) {
+          return { ...m, axis: 'right' as const };
+        }
+
+        // Same unit family but scale mismatch (>100x difference)
+        // → push smaller series to right axis for better visibility
+        if (unitGroups.size <= 1 && visibleRaw.length > 1) {
+          const sameUnitMetrics = visibleRaw.filter(v => normUnit((v as any).unit) === u);
+          if (sameUnitMetrics.length > 1) {
+            const maxVals = sameUnitMetrics.map(v => metricMaxValues.get(v.id) ?? 0).filter(v => v > 0);
+            if (maxVals.length >= 2) {
+              const globalMax = Math.max(...maxVals);
+              const myMax = metricMaxValues.get(m.id) ?? 0;
+              // If this metric's max is < 1% of the dominant metric, push to right axis
+              if (globalMax > 0 && myMax > 0 && myMax < globalMax / 100) {
+                return { ...m, axis: 'right' as const };
+              }
+            }
+          }
+        }
+        return m;
       });
 
       const hasRight = visible.some(m => m.axis === 'right');
@@ -245,10 +290,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
           // room between dates. barMinHeight ensures right-axis bars with
           // tiny values stay visible against dominant left-axis bars.
           ...(isBar ? {
-            barGap: '0%',
-            barCategoryGap: '40%',
-            barMaxWidth: 22,
-            barMinHeight: 3,
+            barGap: '10%',
+            barCategoryGap: '35%',
+            barMaxWidth: 28,
+            barMinHeight: 4,
           } : {}),
           // Z-order: right-axis series render on top so tiny bars aren't hidden.
           z: m.axis === 'right' ? 3 : 2,
@@ -396,12 +441,20 @@ const PAEChart: React.FC<PAEChartProps> = ({
             return abs >= 100 ? v.toFixed(0) : v.toFixed(2);
           };
           const header = `<div style="font-weight:700;margin-bottom:4px">${params[0]?.axisValueLabel ?? params[0]?.name ?? ''}</div>`;
+          // Build axis mapping for each series
+          const axisByName = new Map<string, string>();
+          (cfg?.metrics ?? []).forEach((m: any) => {
+            const resolved = visible?.find(v => (v.alias || v.kpiKey) === (m.alias || m.kpiKey));
+            axisByName.set(m.alias || m.kpiKey, resolved?.axis === 'right' ? 'R' : 'L');
+          });
           const rows = params.map((p: any) => {
             const u = unitByName.get(p.seriesName) ?? '';
+            const axis = axisByName.get(p.seriesName) ?? '';
+            const axisTag = axis ? `<span style="opacity:0.4;font-size:9px;margin-left:2px">[${axis}]</span>` : '';
             return `<div style="display:flex;align-items:center;gap:6px;line-height:18px">
               <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${p.color}"></span>
               <span style="flex:1">${p.seriesName}</span>
-              <span style="font-weight:700">${fmt(p.value)}${u ? ' ' + u : ''}</span>
+              <span style="font-weight:700">${fmt(p.value)}${u ? ' ' + u : ''}${axisTag}</span>
             </div>`;
           }).join('');
           return header + rows;
@@ -410,7 +463,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       xAxis: {
         type: 'category' as const,
         data: (xAxisLabels && xAxisLabels.length > 0) ? xAxisLabels : effectiveData.map(d => d.time),
-        boundaryGap: style.chartType === 'bar',
+        boundaryGap: style.chartType === 'bar' || series.some(s => s.type === 'bar'),
         axisLine: { show: true, lineStyle: { color: axisLineColor, width: 1 } },
         axisTick: { show: true, lineStyle: { color: axisLineColor } },
         axisLabel: { fontSize: 11, color: labelColor, fontWeight: 600, margin: 10 },
