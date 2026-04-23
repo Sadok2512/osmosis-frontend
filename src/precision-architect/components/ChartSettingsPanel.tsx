@@ -1038,6 +1038,31 @@ function MetricsTab({
 
                   {/* Right-side actions cluster (always reachable) */}
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Inline Axis side toggle (Left / Right) — pure display, no backend impact */}
+                    <div className="flex items-center rounded-md border border-outline-variant/40 bg-white overflow-hidden">
+                      {(['left', 'right'] as const).map((side) => {
+                        const active = (m.axis ?? 'left') === side;
+                        return (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { axis: side }); }}
+                            className={cn(
+                              'px-1.5 py-1 text-[9px] font-black uppercase tracking-wider transition-colors',
+                              active
+                                ? 'bg-primary text-on-primary'
+                                : 'text-on-surface-variant hover:bg-surface-container-low'
+                            )}
+                            title={`Plot on ${side} Y axis`}
+                            aria-label={`Use ${side} axis`}
+                            aria-pressed={active}
+                          >
+                            {side === 'left' ? 'L' : 'R'}
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     {/* Inline Split By — always visible so users can split without expanding the card */}
                     <Popover>
                       <PopoverTrigger asChild>
