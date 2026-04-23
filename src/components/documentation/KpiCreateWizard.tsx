@@ -45,6 +45,63 @@ const SelectField: React.FC<{
   </div>
 );
 
+/**
+ * Dark-themed formula editor — same visual language as the read-only
+ * "Calculation Formula" preview block. Renders a free-form expression
+ * (e.g. `m55125c09514 + m55125c09515` or simply `1`).
+ */
+const FormulaEditor: React.FC<{
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  hint?: string;
+}> = ({ label, value, onChange, placeholder, hint }) => {
+  // Highlight tokens that look like counter names (alphanumeric identifiers)
+  const tokens = value.split(/(\W+)/);
+  return (
+    <div>
+      <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+        <span>{label}</span>
+        <span className="text-[9px] normal-case tracking-normal text-muted-foreground/70">free expression</span>
+      </label>
+      <div className="mt-1 rounded-xl bg-slate-900 border border-slate-700/60 shadow-inner overflow-hidden">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-slate-700/60 bg-slate-900/80">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-400/70"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400/70"></span>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/70"></span>
+          <span className="ml-2 text-[10px] font-mono text-slate-400">formula.expr</span>
+        </div>
+        <div className="relative">
+          <pre aria-hidden className="absolute inset-0 px-4 py-3 m-0 font-mono text-[13px] leading-6 text-slate-200 whitespace-pre-wrap break-words pointer-events-none overflow-auto">
+            {tokens.length === 0 || value.trim() === '' ? (
+              <span className="text-slate-500">{placeholder}</span>
+            ) : (
+              tokens.map((tok, i) => {
+                if (/^\s+$/.test(tok)) return tok;
+                if (/^[+\-*/()]+$/.test(tok)) return <span key={i} className="text-amber-300">{tok}</span>;
+                if (/^\d+(\.\d+)?$/.test(tok)) return <span key={i} className="text-sky-300">{tok}</span>;
+                if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(tok)) return <span key={i} className="text-emerald-300">{tok}</span>;
+                return tok;
+              })
+            )}
+            {/* trailing newline so caret line aligns */}
+            {'\n'}
+          </pre>
+          <textarea
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={placeholder}
+            spellCheck={false}
+            className="relative w-full min-h-[112px] px-4 py-3 bg-transparent font-mono text-[13px] leading-6 text-transparent caret-emerald-300 placeholder:text-slate-500/0 focus:outline-none resize-y"
+          />
+        </div>
+      </div>
+      {hint && <p className="mt-1.5 text-[10px] text-muted-foreground">{hint}</p>}
+    </div>
+  );
+};
+
 const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, initialData, mode = 'create' }) => {
   const isEdit = mode === 'edit';
   const [step, setStep] = useState(0);
@@ -98,11 +155,19 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
     setTestError('');
     setTestResults([]);
     try {
-      // Build a temporary formula and test via /pm/kpi/compute with inline formula
-      const numExpr = numCounters.split(',').map(c => '`' + c.trim() + '`').join('+');
-      const denExpr = denCounters.trim()
-        ? denCounters.split(',').map(c => '`' + c.trim() + '`').join('+')
-        : '1';
+      // The user now writes the expression directly in the formula editor.
+      // Accept either a free expression (e.g. `m551 + m552`) or a legacy
+      // comma-separated counter list — auto-detect by looking for operators.
+      const isExpr = /[+\-*/()]/.test(numCounters);
+      const numExpr = isExpr
+        ? numCounters.trim()
+        : numCounters.split(',').map(c => '`' + c.trim() + '`').filter(Boolean).join('+');
+      const denTrim = denCounters.trim();
+      const denExpr = !denTrim
+        ? '1'
+        : /[+\-*/()]/.test(denTrim)
+          ? denTrim
+          : denTrim.split(',').map(c => '`' + c.trim() + '`').filter(Boolean).join('+');
       const res = await fetch(getApiUrl('pm/kpi/compute'), {
         method: 'POST',
         headers: getApiHeaders(),
@@ -233,7 +298,13 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
             <>
               <InputField label="Numerator Name" value={numName} onChange={setNumName} placeholder="e.g. RRC Setup Successes" />
               <InputField label="Description" value={numDesc} onChange={setNumDesc} placeholder="What the numerator represents" textarea />
-              <InputField label="Counters (comma-separated)" value={numCounters} onChange={setNumCounters} placeholder="pmRrcConnEstabSucc, pmRrcConnEstabSuccMos" mono />
+              <FormulaEditor
+                label="Numerator Expression"
+                value={numCounters}
+                onChange={setNumCounters}
+                placeholder="m55125c09514 + m55125c09515"
+                hint="Write the expression freely. Counter names supported. Example: m55125c09514 + m55125c09515"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <SelectField label="Source" value={numSource} onChange={setNumSource} options={['OSS PM', 'OSS CM', 'NMS', 'Probes', 'External']} />
                 <SelectField label="Granularity" value={numGran} onChange={setNumGran} options={['15min', '1hour', 'daily', 'weekly']} />
@@ -245,7 +316,13 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
             <>
               <InputField label="Denominator Name" value={denName} onChange={setDenName} placeholder="e.g. RRC Setup Attempts" />
               <InputField label="Description" value={denDesc} onChange={setDenDesc} placeholder="What the denominator represents" textarea />
-              <InputField label="Counters (comma-separated)" value={denCounters} onChange={setDenCounters} placeholder="pmRrcConnEstabAtt" mono />
+              <FormulaEditor
+                label="Denominator Expression"
+                value={denCounters}
+                onChange={setDenCounters}
+                placeholder="m55125c09520  (or simply: 1)"
+                hint="Use '1' for raw sum/counter formulas. Example: m55125c09520 + m55125c09521"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <SelectField label="Source" value={denSource} onChange={setDenSource} options={['OSS PM', 'OSS CM', 'NMS', 'Probes', 'External']} />
                 <SelectField label="Granularity" value={denGran} onChange={setDenGran} options={['15min', '1hour', 'daily', 'weekly']} />
@@ -282,8 +359,16 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
                     </button>
                   </div>
                 </div>
-                <div className="text-[10px] text-muted-foreground font-mono">
-                  NUM: {numCounters || '(empty)'} | DEN: {denCounters || '1'} | Type: {formulaType}
+                <div className="space-y-2 mt-2">
+                  <div className="rounded-lg bg-slate-900 border border-slate-700/60 px-3 py-2 font-mono text-[11px] leading-5 text-slate-200">
+                    <span className="text-amber-300 mr-2">NUM</span>
+                    <span className="text-emerald-300 break-words">{numCounters || '(empty)'}</span>
+                  </div>
+                  <div className="rounded-lg bg-slate-900 border border-slate-700/60 px-3 py-2 font-mono text-[11px] leading-5 text-slate-200">
+                    <span className="text-amber-300 mr-2">DEN</span>
+                    <span className="text-emerald-300 break-words">{denCounters || '1'}</span>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">Formula type: <span className="font-mono font-bold text-foreground">{formulaType}</span></div>
                 </div>
               </div>
               {testError && (
@@ -294,9 +379,37 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
               )}
               {testResults.length > 0 && (
                 <div>
+                  {(() => {
+                    const vals = testResults
+                      .map((r: any) => Number(r.kpi_value))
+                      .filter((v: number) => Number.isFinite(v));
+                    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                    const min = vals.length ? Math.min(...vals) : 0;
+                    const max = vals.length ? Math.max(...vals) : 0;
+                    return (
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-700">Points</p>
+                          <p className="text-base font-black font-mono text-emerald-700">{testResults.length}</p>
+                        </div>
+                        <div className="rounded-lg bg-primary/10 border border-primary/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-primary">Average</p>
+                          <p className="text-base font-black font-mono text-primary">{avg.toFixed(3)}{unit}</p>
+                        </div>
+                        <div className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-sky-700">Min</p>
+                          <p className="text-base font-black font-mono text-sky-700">{min.toFixed(3)}</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700">Max</p>
+                          <p className="text-base font-black font-mono text-amber-700">{max.toFixed(3)}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-foreground">{testResults.length} data points returned</span>
-                    <span className="text-[10px] text-emerald-600 font-bold">Formula works</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">✓ Formula works</span>
                   </div>
                   <div className="rounded-xl border border-border overflow-hidden max-h-48 overflow-y-auto">
                     <table className="w-full text-[11px]">
