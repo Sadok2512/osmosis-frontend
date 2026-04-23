@@ -4143,14 +4143,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           } else if (t.techno === '4G' || t.techno === 'LTE') {
             result.sites4G = t.sites || 0;
             result.cells4G = t.cells || 0;
+          } else if (t.techno === '3G' || t.techno === 'UMTS' || t.techno === 'WCDMA') {
+            result.sites3G = t.sites || 0;
+            result.cells3G = t.cells || 0;
+          } else if (t.techno === '2G' || t.techno === 'GSM') {
+            result.sites2G = t.sites || 0;
+            result.cells2G = t.cells || 0;
           }
         }
 
         for (const b of (stats.by_band || [])) {
           const rawBand = b.band || 'Unknown';
           const is5GBand = /^NR|^5G/i.test(rawBand);
-          const normalizedBand = normalizeBandKey(rawBand, is5GBand ? '5G' : '4G') || rawBand;
+          const is3GBand = /^UMTS|^WCDMA|^3G/i.test(rawBand);
+          const is2GBand = /^GSM|^2G/i.test(rawBand);
+          const techGroup = is5GBand ? '5G' : is3GBand ? '3G' : is2GBand ? '2G' : '4G';
+          const normalizedBand = normalizeBandKey(rawBand, techGroup) || rawBand;
           if (is5GBand) result.bandMap5G[normalizedBand] = (result.bandMap5G[normalizedBand] || 0) + (b.cells || 0);
+          else if (is3GBand) (result as any).bandMap3G = (result as any).bandMap3G || {}, (result as any).bandMap3G[normalizedBand] = ((result as any).bandMap3G[normalizedBand] || 0) + (b.cells || 0);
+          else if (is2GBand) (result as any).bandMap2G = (result as any).bandMap2G || {}, (result as any).bandMap2G[normalizedBand] = ((result as any).bandMap2G[normalizedBand] || 0) + (b.cells || 0);
           else result.bandMap4G[normalizedBand] = (result.bandMap4G[normalizedBand] || 0) + (b.cells || 0);
         }
 
