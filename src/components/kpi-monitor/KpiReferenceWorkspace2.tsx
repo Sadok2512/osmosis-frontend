@@ -484,6 +484,18 @@ const KpiReferenceWorkspace2: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                {(explainQuery.isLoading || explainQuery.isFetching) && (
+                  <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm font-semibold text-teal-800">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Chargement des détails du KPI (formule, compteurs, source)…</span>
+                  </div>
+                )}
+                {updateMutation.isPending && (
+                  <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-800">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Enregistrement des modifications en cours…</span>
+                  </div>
+                )}
                 <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(135deg,rgba(240,253,250,0.95),rgba(255,255,255,0.96))] p-5 shadow-sm">
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0">
