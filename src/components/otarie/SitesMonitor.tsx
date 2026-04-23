@@ -9210,7 +9210,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && (
-            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16, minWidth: 240 }}>
+            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 96, bottom: 24, minWidth: 240 }}>
               {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
