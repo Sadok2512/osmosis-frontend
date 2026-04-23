@@ -11118,7 +11118,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       <span className="text-primary animate-pulse">cells…</span>
                                     </>
                                   ) : (
-                                    <>{displayedCellCount} cells</>
+                                    <>{getSiteDisplayCellCount(site)} cells</>
                                   )}
                                 </span>
                               </div>
