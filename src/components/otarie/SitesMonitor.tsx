@@ -10959,7 +10959,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <span className="text-[10px] font-black uppercase tracking-wider text-foreground truncate">{selectedKpiLabel}</span>
                         <span className="text-[9px] font-bold text-muted-foreground shrink-0">({filtered.length}/{entries.length})</span>
                       </div>
-                      <button onClick={() => setShowKpiOverlayPanel(false)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+                      <button onClick={() => setInventoryTab('dashboard')} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors" title="Fermer">
                         <X size={11} />
                       </button>
                     </div>
