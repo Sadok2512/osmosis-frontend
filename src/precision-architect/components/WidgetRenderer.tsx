@@ -568,38 +568,63 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     const out: Record<string, { time: string; value: number }[]> = {};
     const expanded: typeof cfg.metrics = [];
 
-    cfg.metrics.forEach(m => {
-      const points = tsResp.series.filter(p => p.kpi_key === m.kpiKey);
-      const splitActive = !!m.splitBy && m.splitBy !== '__none__';
+    // If ANY metric has splitBy configured, the backend returns split_value
+    // on every point (single split dim per request). To keep the legend
+    // coherent, we expand every metric whenever the response actually
+    // carries split_value — not just the metric that owns the splitBy.
+    const responseHasSplit = tsResp.series.some(
+      (p) => typeof (p as any).split_value === 'string' && (p as any).split_value.length > 0,
+    );
+    const anyMetricSplit = cfg.metrics.some(
+      (m) => !!m.splitBy && m.splitBy !== '__none__',
+    );
+    const expandAll = responseHasSplit || anyMetricSplit;
+
+    cfg.metrics.forEach((m, metricIdx) => {
+      const points = tsResp.series.filter((p) => p.kpi_key === m.kpiKey);
+      const splitActive = expandAll;
 
       if (!splitActive) {
-        const byTs = new Map(points.map(p => [p.ts, p.value]));
-        out[m.id] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+        const byTs = new Map(points.map((p) => [p.ts, p.value]));
+        out[m.id] = labels.map((t) => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
         expanded.push(m);
         return;
       }
 
-      // Group points by split_value
+      // Group points by split_value (fall back to '—' when missing so the
+      // metric still appears in the legend even if backend omitted the value).
       const bySplit = new Map<string, typeof points>();
-      points.forEach(p => {
-        const sv = p.split_value || '∅';
+      points.forEach((p) => {
+        const sv = (p as any).split_value || '—';
         if (!bySplit.has(sv)) bySplit.set(sv, []);
         bySplit.get(sv)!.push(p);
       });
+
+      // No data at all for this metric → still surface a placeholder series
+      // so the user sees the KPI in the legend.
+      if (bySplit.size === 0) {
+        out[m.id] = labels.map((t) => ({ time: shortLabel(t), value: 0 }));
+        expanded.push(m);
+        return;
+      }
 
       // Stable order: alphabetical
       const splitValues = Array.from(bySplit.keys()).sort();
 
       splitValues.forEach((sv, idx) => {
+        // Use deterministic offset per metric so different KPIs don't all
+        // start at the same palette slot.
+        const colorIdx = (metricIdx * 4 + idx) % SPLIT_PALETTE.length;
         const seriesId = `${m.id}::${sv}`;
         const seriesPts = bySplit.get(sv)!;
-        const byTs = new Map(seriesPts.map(p => [p.ts, p.value]));
-        out[seriesId] = labels.map(t => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
+        const byTs = new Map(seriesPts.map((p) => [p.ts, p.value]));
+        out[seriesId] = labels.map((t) => ({ time: shortLabel(t), value: byTs.get(t) ?? 0 }));
         expanded.push({
           ...m,
           id: seriesId,
-          alias: `${m.alias || m.kpiKey} · ${sv}`,
-          color: SPLIT_PALETTE[idx % SPLIT_PALETTE.length],
+          // Legend label includes the split value so each series is identifiable.
+          alias: sv === '—' ? (m.alias || m.kpiKey) : `${m.alias || m.kpiKey} · ${sv}`,
+          color: SPLIT_PALETTE[colorIdx],
         });
       });
     });
