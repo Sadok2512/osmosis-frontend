@@ -228,25 +228,44 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           <h4 className="font-headline font-bold text-on-surface text-sm">{widgetLabel}</h4>
         </div>
         <div className="flex gap-2 items-center">
+          {isDirty ? (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 text-[9px] font-black uppercase tracking-widest border border-amber-500/30">
+              ● Unsaved changes
+            </span>
+          ) : (
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-500/20">
+              ✓ Synced
+            </span>
+          )}
           <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-black uppercase tracking-widest border border-primary/20">
             Widget scope
           </span>
           <button
+            onClick={revertDraft}
+            disabled={!isDirty || !appliedSnapshot}
+            className="px-3 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Discard draft changes and revert to the last applied state"
+          >
+            Revert
+          </button>
+          <button
             onClick={resetSettings}
-            className="px-4 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-white border border-outline-variant/30 text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:bg-surface-container-high transition-colors"
           >
             Reset
           </button>
           <button
             onClick={() => commitAppliedConfig(false)}
-            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
+            disabled={!isDirty}
+            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
             title="Apply changes only to this selected widget (does not refresh the dashboard)"
           >
             Apply to Widget
           </button>
           <button
             onClick={() => commitAppliedConfig(true)}
-            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm"
+            disabled={!isDirty}
+            className="px-4 py-1.5 rounded-lg bg-primary text-on-primary text-[10px] font-black uppercase tracking-widest hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-primary"
             title="Save and apply changes to this widget"
           >
             Save
