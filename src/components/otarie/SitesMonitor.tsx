@@ -7707,7 +7707,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const siteOpacityScale = isUniformZoom ? 1 : getSiteOpacityScale(site.site_id);
             const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * 0.7 * cellCountScale;
             // PRO #2/#3: lighter fill + stronger outline for readability — dense zones get extra opacity dampening
-            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale;
+            // Beam visibility slider acts as a global opacity multiplier (0..1.6 range so 100% = fully opaque)
+            const beamOpacityMul = Math.max(0, (beamVisibility / 100) * 1.6);
+            const miniOpacity = Math.min(1, (0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale * beamOpacityMul);
             const azimuths = getValidSectorAzimuths(renderSiteForCells);
             if (azimuths.length === 0) return null;
             // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
