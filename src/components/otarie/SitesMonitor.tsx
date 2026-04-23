@@ -9639,6 +9639,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   Legend {showKpiLegend ? 'ON' : 'OFF'}
                 </button>
 
+                {/* KPI List Panel toggle */}
+                <button
+                  onClick={() => setShowKpiOverlayPanel(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all border shrink-0 ${
+                    showKpiOverlayPanel
+                      ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30'
+                      : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/50'
+                  }`}
+                  title={showKpiOverlayPanel ? 'Cacher la liste KPI' : 'Afficher la liste KPI (sites/cellules)'}
+                  aria-pressed={showKpiOverlayPanel}
+                >
+                  <List size={11} />
+                  KPI List
+                </button>
+
                 {/* Invert toggle */}
                 <button
                   onClick={toggleInvert}
