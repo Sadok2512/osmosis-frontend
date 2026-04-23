@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2, Plus, X, Edit2 } from 'lucide-react';
 import { useIsFetching } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { usePAReportStore } from '../stores/paReportStore';
-import type { TechnoId, PeriodPreset, GrainOption, DynWidget } from '../types';
+import type { TechnoId, PeriodPreset, GrainOption, DynWidget, ChartJalon } from '../types';
 
 const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
