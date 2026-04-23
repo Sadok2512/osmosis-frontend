@@ -322,6 +322,50 @@ const KpiReferenceWorkspace2: React.FC = () => {
     updateMutation.mutate({ kpi: selectedKpi, draft });
   };
 
+  // ----- KPI TEST -----
+  // Lightweight client-side evaluator: only allows digits, counter ids
+  // (alphanum + underscore), operators + - * / parentheses and dots.
+  const runTest = async () => {
+    if (!draft) return;
+    setTestResult(null);
+    setTestRunning(true);
+    try {
+      const num = draft.numerator.trim();
+      const den = draft.denominator.trim();
+      if (!num) throw new Error('Le numerator est vide.');
+      const SAFE_RE = /^[\sA-Za-z0-9_+\-*/().`]*$/;
+      if (!SAFE_RE.test(num) || !SAFE_RE.test(den)) {
+        throw new Error('Caractères non autorisés dans la formule (utilisez +, -, *, /, (), nombres et identifiants).');
+      }
+      // Replace each counter identifier by a deterministic mock value
+      // derived from its name so tests are reproducible.
+      const mockValue = (id: string) => {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        return 50 + (h % 950); // 50..999
+      };
+      const substitute = (expr: string) => expr
+        .replace(/`/g, '')
+        .replace(/[A-Za-z][A-Za-z0-9_]{2,}/g, (tok) => /\d/.test(tok) ? String(mockValue(tok)) : tok);
+      const numExpr = substitute(num);
+      const denExpr = den ? substitute(den) : '1';
+      // eslint-disable-next-line no-new-func
+      const numVal = Number(Function(`"use strict"; return (${numExpr});`)());
+      // eslint-disable-next-line no-new-func
+      const denVal = Number(Function(`"use strict"; return (${denExpr});`)());
+      if (!Number.isFinite(numVal) || !Number.isFinite(denVal)) throw new Error('Le résultat n\'est pas un nombre fini.');
+      if (denVal === 0) throw new Error('Division par zéro (denominator = 0).');
+      const value = numVal / denVal;
+      setTestResult({ ok: true, message: 'Formule valide.', value, numerator: numVal, denominator: denVal });
+      sonnerToast.success('Test réussi', { description: `Résultat = ${value.toFixed(4)}` });
+    } catch (e: any) {
+      setTestResult({ ok: false, message: e?.message || 'Erreur inconnue.' });
+      sonnerToast.error('Test échoué', { description: e?.message || 'Formule invalide.' });
+    } finally {
+      setTestRunning(false);
+    }
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(13,148,136,0.12),transparent_30%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.10),transparent_26%),linear-gradient(180deg,#f8fafc_0%,#eef6f6_100%)]">
       <div className="border-b border-slate-200/70 bg-white/85 px-6 py-6 backdrop-blur-sm">
