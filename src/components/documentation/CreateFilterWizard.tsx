@@ -13,7 +13,7 @@ interface CreateFilterWizardProps {
   editMode?: boolean;
 }
 
-const STEPS = ['General Info', 'Topology', 'Parameters', 'Logic', 'Review'];
+const STEPS = ['General Info', 'Topology', 'Parameters', 'Review'];
 
 const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClose, initialData, editMode }) => {
   const [step, setStep] = useState(0);
@@ -42,8 +42,8 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
     initialData?.parameters || []
   );
 
-  // Step 4 — Logic
-  const [logic, setLogic] = useState<'AND' | 'OR'>(initialData?.logic || 'AND');
+  // Logic is always AND (simplified flow)
+  const logic = 'AND' as const;
 
   const setTopoValues = (dim: string, values: string[]) => {
     setTopoConditions(prev => ({ ...prev, [dim]: values }));
@@ -403,74 +403,8 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
             </div>
           )}
 
-          {/* Step 4: Logic */}
+          {/* Step 4: Review */}
           {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Condition Logic</label>
-                <p className="text-xs text-muted-foreground mt-1 mb-3">Choose how conditions are combined</p>
-                <div className="flex gap-3">
-                  {(['AND', 'OR'] as const).map(l => (
-                    <button key={l} onClick={() => setLogic(l)}
-                      className={`flex-1 py-4 rounded-xl text-sm font-bold transition-all border-2 ${
-                        logic === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:border-primary/30'
-                      }`}>
-                      <span className="text-lg">{l}</span>
-                      <p className="text-[10px] mt-1 font-normal opacity-70">
-                        {l === 'AND' ? 'All conditions must match' : 'Any condition can match'}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Preview */}
-              {totalConditions > 0 && (
-                <div className="rounded-xl bg-muted/30 border border-border/50 p-4">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Condition Preview</label>
-                  <div className="space-y-1.5">
-                    {Object.entries(topoConditions).filter(([, v]) => v.length > 0).map(([dim, vals], i) => (
-                      <div key={dim} className="flex items-center gap-2 text-xs">
-                        {i > 0 && <span className="text-[10px] font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">{logic}</span>}
-                        <span className="font-semibold text-foreground capitalize">{dim}</span>
-                        <span className="text-muted-foreground">IN</span>
-                        <span className="font-mono text-primary">[{vals.slice(0, 3).join(', ')}{vals.length > 3 ? ` +${vals.length - 3}` : ''}]</span>
-                      </div>
-                    ))}
-                    {paramConditions.map((p, i) => (
-                      <div key={p.id} className="flex items-center gap-2 text-xs">
-                        {(i > 0 || topoCount > 0) && <span className="text-[10px] font-bold text-primary px-1.5 py-0.5 rounded bg-primary/10">{logic}</span>}
-                        <span className="font-semibold text-foreground">{p.parameter}</span>
-                        <span className="text-muted-foreground">{p.operator}</span>
-                        <span className="font-mono text-primary">{p.value}{p.value2 ? ` — ${p.value2}` : ''}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Matching count in preview */}
-                  {topoCount > 0 && (
-                    <div className="mt-3 pt-3 border-t border-border/30 flex items-center gap-2">
-                      <Radio className="w-3.5 h-3.5 text-primary" />
-                      {countLoading ? (
-                        <span className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                          <Loader2 className="w-3 h-3 animate-spin" /> Counting…
-                        </span>
-                      ) : matchingCount ? (
-                        <span className="text-[11px] text-foreground">
-                          Matching: <span className="font-bold text-primary">{matchingCount.cells.toLocaleString('fr-FR')}</span> cells
-                          <span className="mx-1 text-muted-foreground">·</span>
-                          <span className="font-bold text-primary">{matchingCount.sites.toLocaleString('fr-FR')}</span> sites
-                        </span>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 5: Review */}
-          {step === 4 && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
@@ -525,10 +459,6 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
 
               <div className="rounded-xl bg-muted/20 border border-border/50 p-4">
                 <div className="flex justify-between">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase">Logic</span>
-                  <span className="text-xs font-bold text-primary">{logic}</span>
-                </div>
-                <div className="flex justify-between mt-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase">Total Conditions</span>
                   <span className="text-xs font-bold text-foreground">{totalConditions}</span>
                 </div>
