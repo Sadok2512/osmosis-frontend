@@ -10787,10 +10787,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // In Top / parameter-based views, the authoritative count is the one
-                      // returned by the view summary (`site.cell_count`). Loaded cells may contain
-                      // extra physical sectors/cells and must not change the displayed count.
-                      const displayedCellCount = Number(site.cell_count || 0) > 0 ? Number(site.cell_count) : rawCells.length;
+                      // Display the actual loaded cells count when available (ground truth from
+                      // the cells API). Fall back to the view summary's `cell_count` only while
+                      // cells are still loading. The backend summary can over-report (e.g. 15)
+                      // while the real physical inventory is smaller (e.g. 12).
+                      const displayedCellCount = rawCells.length > 0 ? rawCells.length : Number(site.cell_count || 0);
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
@@ -11133,8 +11134,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // Keep the count coming from the active view summary when available.
-                      const displayedCellCount = Number(site.cell_count || 0) > 0 ? Number(site.cell_count) : rawCells2.length;
+                      // Prefer real loaded cells; fall back to summary count while loading.
+                      const displayedCellCount = rawCells2.length > 0 ? rawCells2.length : Number(site.cell_count || 0);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
