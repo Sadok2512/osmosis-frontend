@@ -7,6 +7,7 @@ import {
   Eye,
   FilePenLine,
   Layers3,
+  Loader2,
   Plus,
   Radar,
   RotateCcw,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import KpiCreateWizard from '@/components/documentation/KpiCreateWizard';
 import { createKpiInVps, fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
@@ -209,14 +211,16 @@ const KpiReferenceWorkspace2: React.FC = () => {
       await updateKpiInVps(kpi.kpi_key, updateBody);
       return true;
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, payload) => {
       await queryClient.invalidateQueries({ queryKey: ['kpi-reference2-catalog'] });
       await queryClient.invalidateQueries({ queryKey: ['kpi-reference-catalog'] });
-      toast({ title: 'KPI updated', description: 'The KPI reference has been refreshed.' });
+      sonnerToast.dismiss(`kpi-save-${payload.kpi.kpi_key}`);
+      sonnerToast.success('KPI mis à jour', { description: 'Le référentiel a été rafraîchi.' });
       setIsEditing(false);
     },
-    onError: (error: any) => {
-      toast({ title: 'Save failed', description: error?.message || 'Unable to update KPI metadata.', variant: 'destructive' });
+    onError: (error: any, payload) => {
+      sonnerToast.dismiss(`kpi-save-${payload.kpi.kpi_key}`);
+      sonnerToast.error('Échec de la sauvegarde', { description: error?.message || 'Impossible de mettre à jour le KPI.' });
     },
   });
 
@@ -256,6 +260,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(kpi));
     setIsEditing(false);
     setOpenSections(['overview']);
+    sonnerToast.loading('Chargement du KPI…', { id: `kpi-open-${kpi.kpi_key}`, description: kpi.display_name });
     scrollToReview();
   };
 
@@ -266,11 +271,21 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
+    sonnerToast.loading("Préparation de l'édition…", { id: `kpi-edit-${target.kpi_key}`, description: `Chargement de la formule et des sources de ${target.display_name}` });
     scrollToReview();
   };
 
+  // Dismiss loading toasts once the explain query settles for the selected KPI
+  useEffect(() => {
+    if (!selectedKpi) return;
+    if (explainQuery.isLoading || explainQuery.isFetching) return;
+    sonnerToast.dismiss(`kpi-open-${selectedKpi.kpi_key}`);
+    sonnerToast.dismiss(`kpi-edit-${selectedKpi.kpi_key}`);
+  }, [selectedKpi, explainQuery.isLoading, explainQuery.isFetching]);
+
   const saveDraft = () => {
     if (!selectedKpi || !draft) return;
+    sonnerToast.loading('Enregistrement du KPI…', { id: `kpi-save-${selectedKpi.kpi_key}` });
     updateMutation.mutate({ kpi: selectedKpi, draft });
   };
 
@@ -393,7 +408,10 @@ const KpiReferenceWorkspace2: React.FC = () => {
             </div>
             <div className="divide-y divide-slate-200 bg-white">
               {catalogQuery.isLoading ? (
-                <div className="px-6 py-12 text-sm text-slate-500">Loading full KPI catalog from backend...</div>
+                <div className="flex items-center justify-center gap-3 px-6 py-16 text-sm text-slate-600">
+                  <Loader2 className="h-5 w-5 animate-spin text-teal-600" />
+                  <span className="font-semibold">Chargement du catalogue KPI complet depuis le backend…</span>
+                </div>
               ) : filteredCatalog.length > 0 ? filteredCatalog.map(item => {
                 const isSelected = selectedKpiKey === item.kpi_key;
                 const hasThresholds = item.thresholds?.warning != null || item.thresholds?.critical != null;
@@ -466,6 +484,18 @@ const KpiReferenceWorkspace2: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-6">
+                {(explainQuery.isLoading || explainQuery.isFetching) && (
+                  <div className="flex items-center gap-3 rounded-2xl border border-teal-200 bg-teal-50/80 px-4 py-3 text-sm font-semibold text-teal-800">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Chargement des détails du KPI (formule, compteurs, source)…</span>
+                  </div>
+                )}
+                {updateMutation.isPending && (
+                  <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm font-semibold text-amber-800">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Enregistrement des modifications en cours…</span>
+                  </div>
+                )}
                 <div className="rounded-[28px] border border-slate-200 bg-[linear-gradient(135deg,rgba(240,253,250,0.95),rgba(255,255,255,0.96))] p-5 shadow-sm">
                   <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0">
