@@ -10271,6 +10271,197 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         );
       })()}
 
+      {/* ── KPI Overlay List Panel (floating, left-bottom) — sites/cells with values + threshold filter ── */}
+      {sectorColorMode === 'kpi' && !paramMode && showKpiOverlayPanel && mapKpi && (() => {
+        // Build flat list of entries from mapFilteredSites at chosen analysis level
+        type Entry = { key: string; siteName: string; cellName?: string; band?: string; value: number; level: 'green' | 'orange' | 'red' | 'gray' };
+        const entries: Entry[] = [];
+        for (const site of mapFilteredSites) {
+          const siteName = site.site_name || site.site_id || '';
+          if (kpiAnalysisLevel === 'site') {
+            const v = getSiteKpiValue(site);
+            if (v == null || isNaN(v)) continue;
+            entries.push({ key: `s:${siteName}`, siteName, value: v, level: getKpiLevel(v) });
+          } else {
+            const cells = (site as any).cells || [];
+            for (const c of cells) {
+              const cellName = c.cell_id || c.cell_name || '';
+              const v = getCellKpiValue(c);
+              if (v == null || isNaN(v)) continue;
+              entries.push({
+                key: `c:${siteName}:${cellName}`,
+                siteName,
+                cellName,
+                band: c.bande || c.band,
+                value: v,
+                level: getKpiLevel(v),
+              });
+            }
+          }
+        }
+        const search = kpiOverlayPanelSearch.trim().toLowerCase();
+        const filtered = entries.filter(e => {
+          if (!kpiOverlayPanelLevels.has(e.level)) return false;
+          if (search && !`${e.siteName} ${e.cellName || ''}`.toLowerCase().includes(search)) return false;
+          return true;
+        });
+        if (kpiOverlayPanelSort !== 'none') {
+          filtered.sort((a, b) => kpiOverlayPanelSort === 'asc' ? a.value - b.value : b.value - a.value);
+        }
+        const t = kpiThresholds[mapKpi] || { green: 80, orange: 60 };
+        const cGreen = t.colorGreen || '#27AE60';
+        const cOrange = t.colorOrange || '#f59e0b';
+        const cRed = t.colorRed || '#8E44AD';
+        const fmt = (n: number) => Number.isFinite(n) ? (Math.abs(n) >= 100 ? n.toFixed(1) : n.toFixed(2)) : '–';
+        const levelMeta: { id: 'green' | 'orange' | 'red' | 'gray'; label: string; range: string; color: string }[] = t.invert ? [
+          { id: 'green', label: 'Bon', range: `≤ ${t.green}${selectedKpiUnit}`, color: cGreen },
+          { id: 'orange', label: 'Moyen', range: `${t.green}–${t.orange}${selectedKpiUnit}`, color: cOrange },
+          { id: 'red', label: 'Critique', range: `> ${t.orange}${selectedKpiUnit}`, color: cRed },
+          { id: 'gray', label: 'No data', range: '—', color: '#6b7280' },
+        ] : [
+          { id: 'green', label: 'Bon', range: `≥ ${t.green}${selectedKpiUnit}`, color: cGreen },
+          { id: 'orange', label: 'Moyen', range: `${t.orange}–${t.green}${selectedKpiUnit}`, color: cOrange },
+          { id: 'red', label: 'Critique', range: `< ${t.orange}${selectedKpiUnit}`, color: cRed },
+          { id: 'gray', label: 'No data', range: '—', color: '#6b7280' },
+        ];
+        const counts: Record<string, number> = { green: 0, orange: 0, red: 0, gray: 0 };
+        for (const e of entries) counts[e.level]++;
+        const toggleLevel = (lvl: 'green' | 'orange' | 'red' | 'gray') => {
+          setKpiOverlayPanelLevels(prev => {
+            const next = new Set(prev);
+            if (next.has(lvl)) next.delete(lvl); else next.add(lvl);
+            return next;
+          });
+        };
+        return (
+          <div
+            className="absolute z-[1001] pointer-events-auto animate-fade-in"
+            style={{
+              top: 80,
+              right: showRightPanel && !detailFullscreen ? 466 : 16,
+              width: 340,
+              maxHeight: 'calc(100vh - 180px)',
+              transition: 'right 0.3s ease',
+            }}
+          >
+            <div
+              className="rounded-2xl overflow-hidden border border-border/60 shadow-2xl flex flex-col"
+              style={{
+                background: 'hsl(var(--card) / 0.95)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                maxHeight: 'calc(100vh - 180px)',
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <List size={12} className="text-emerald-600 shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-foreground truncate">{selectedKpiLabel}</span>
+                  <span className="text-[9px] font-bold text-muted-foreground shrink-0">({filtered.length}/{entries.length})</span>
+                </div>
+                <button onClick={() => setShowKpiOverlayPanel(false)} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors">
+                  <X size={11} />
+                </button>
+              </div>
+
+              {/* Threshold range filters */}
+              <div className="px-3 py-2 border-b border-border/30 shrink-0">
+                <div className="text-[8px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Filtrer par seuil</div>
+                <div className="grid grid-cols-2 gap-1">
+                  {levelMeta.map(lm => {
+                    const active = kpiOverlayPanelLevels.has(lm.id);
+                    return (
+                      <button
+                        key={lm.id}
+                        onClick={() => toggleLevel(lm.id)}
+                        className={`flex items-center gap-1.5 px-2 py-1 rounded-md border text-left transition-all ${active ? 'bg-muted/40 border-border/50' : 'opacity-40 border-border/20 hover:opacity-70'}`}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: lm.color }} />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[9px] font-bold text-foreground leading-tight">{lm.label}</span>
+                          <span className="text-[8px] text-muted-foreground leading-tight truncate">{lm.range}</span>
+                        </div>
+                        <span className="text-[9px] font-black text-foreground tabular-nums">{counts[lm.id]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Search + sort */}
+              <div className="px-3 py-2 border-b border-border/30 shrink-0 flex items-center gap-1.5">
+                <div className="relative flex-1">
+                  <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={kpiOverlayPanelSearch}
+                    onChange={(e) => setKpiOverlayPanelSearch(e.target.value)}
+                    placeholder="Rechercher site/cellule…"
+                    className="w-full h-7 pl-6 pr-2 rounded-md text-[10px] bg-muted/40 border border-border/40 text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
+                  />
+                </div>
+                <button
+                  onClick={() => setKpiOverlayPanelSort(s => s === 'desc' ? 'asc' : s === 'asc' ? 'none' : 'desc')}
+                  className="h-7 px-2 rounded-md bg-muted/40 border border-border/40 text-[9px] font-bold text-foreground hover:bg-muted/60 flex items-center gap-1"
+                  title="Trier par valeur"
+                >
+                  <ChevronsUpDown size={10} />
+                  {kpiOverlayPanelSort === 'desc' ? '↓' : kpiOverlayPanelSort === 'asc' ? '↑' : '–'}
+                </button>
+              </div>
+
+              {/* List */}
+              <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+                {filtered.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-[10px] text-muted-foreground">Aucune entrée</div>
+                ) : (
+                  <div className="divide-y divide-border/20">
+                    {filtered.slice(0, 500).map(e => {
+                      const lm = levelMeta.find(l => l.id === e.level);
+                      return (
+                        <button
+                          key={e.key}
+                          onClick={() => {
+                            // Center map on site if we have it
+                            const targetSite = mapFilteredSites.find(s => (s.site_name || s.site_id) === e.siteName);
+                            if (targetSite && (targetSite as any).latitude && (targetSite as any).longitude) {
+                              const m = (window as any).__siteMonitorMap as L.Map | undefined;
+                              if (m) m.flyTo([(targetSite as any).latitude, (targetSite as any).longitude], Math.max(m.getZoom(), 14), { duration: 0.6 });
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-muted/30 transition-colors text-left"
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: lm?.color || '#6b7280' }} />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-[10px] font-bold text-foreground truncate">
+                              {e.cellName || e.siteName}
+                            </div>
+                            {e.cellName && (
+                              <div className="text-[8px] text-muted-foreground truncate">
+                                {e.siteName}{e.band ? ` • ${e.band}` : ''}
+                              </div>
+                            )}
+                          </div>
+                          <span className="text-[10px] font-black tabular-nums shrink-0" style={{ color: lm?.color || 'hsl(var(--foreground))' }}>
+                            {fmt(e.value)}{selectedKpiUnit}
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {filtered.length > 500 && (
+                      <div className="px-3 py-2 text-center text-[9px] text-muted-foreground">
+                        +{filtered.length - 500} entrées masquées
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* KPI dropdown — rendered outside overflow container */}
       {showKpiDropdown && (() => {
         const btn = (window as any).__kpiDropdownBtnRef as HTMLElement | null;
