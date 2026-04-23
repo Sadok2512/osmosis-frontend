@@ -9473,63 +9473,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             className="flex-1 overflow-x-auto overflow-y-hidden flex items-center gap-3 px-4 scrollbar-hide"
             style={{ whiteSpace: 'nowrap', flexWrap: 'nowrap', scrollbarWidth: 'none', justifyContent: 'safe center' }}
           >
-            {/* ── Unified mode selector: QoE / Topo / Parameters ── */}
-            <div className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0">
-              <button
-                onClick={() => {
-                  if (!activeViewId) return;
-                  // Activer KPI désactive le mode Paramètre
-                  if (paramMode || paramConfirmed) handleParamReset();
-                  setSectorColorMode('kpi');
-                  setMapDisplayMode('sites');
-                }}
-                title={!activeViewId ? 'Activez une Vue pour utiliser le mode KPI' : 'Mode KPI'}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl ${
-                  !activeViewId
-                    ? 'text-muted-foreground/40 cursor-not-allowed'
-                    : sectorColorMode === 'kpi' && !paramMode && activeViewType !== 'parameter'
+            {/* ── Mode indicator (read-only): KPI / Topo / Param ──
+                Auto-driven by the active Dashboard + Vue. Click is disabled
+                — switch modes by activating the corresponding Vue. */}
+            <div
+              className="flex items-center bg-muted/80 rounded-xl overflow-hidden border border-border/50 shrink-0"
+              role="group"
+              aria-label="Mode actif (lecture seule, piloté par la Vue active)"
+              title="Le mode est déterminé automatiquement par la Vue active du Dashboard"
+            >
+              <div
+                aria-disabled="true"
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-l-xl select-none cursor-default ${
+                  sectorColorMode === 'kpi' && !paramMode && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md shadow-emerald-500/20'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground/60'
                 }`}
               >
                 <BarChart2 size={11} />
                 KPI
-              </button>
-              <button
-                onClick={() => {
-                  if (paramMode || paramConfirmed) handleParamReset();
-                  setSectorColorMode('topo');
-                  setShowBeamSectors(false);
-                  setMapDisplayMode('sites');
-                  setTopoResetCounter(c => c + 1);
-                  setShowRightPanel(true);
-                  setFocusMode('global');
-                  setSelectedSiteId(null);
-                  setSelectedSiteSnapshot(null);
-                }}
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
+              </div>
+              <div
+                aria-disabled="true"
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 select-none cursor-default ${
                   sectorColorMode === 'topo' && !paramMode && activeViewType !== 'parameter'
                     ? 'bg-gradient-to-r from-violet-500 to-purple-500 text-white shadow-md shadow-violet-500/20'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-muted-foreground/60'
                 }`}
               >
                 <Radio size={11} />
                 Topo
-              </button>
-              <button
-                type="button"
-                disabled
+              </div>
+              <div
                 aria-disabled="true"
-                title="Le mode Paramètre s'active uniquement via une Vue de type Paramètre"
-                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl cursor-not-allowed ${
+                className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 rounded-r-xl select-none cursor-default ${
                   paramMode || activeViewType === 'parameter'
                     ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/20'
-                    : 'text-muted-foreground/40'
+                    : 'text-muted-foreground/60'
                 }`}
               >
                 <MapPin size={11} />
                 Param
-              </button>
+              </div>
             </div>
 
             {/* ── Param mode: active parameter selector (mirrors KPI dropdown) ── */}
