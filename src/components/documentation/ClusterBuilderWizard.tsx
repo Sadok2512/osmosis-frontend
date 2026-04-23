@@ -3,7 +3,7 @@ import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2
 import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { ParameterCondition, FilterVisibility } from './filterTypes';
 import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
-import { countMatching, searchParameters, type MatchingCount } from '@/services/filterService';
+import { countMatching, searchParameters, getParameterValues, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
 import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
@@ -29,7 +29,8 @@ const FIELD_OPTIONS = TOPOLOGY_DIMENSIONS.map(d => ({ key: d.key, label: d.label
 const WIZARD_TO_DIM: Record<string, string> = {
   vendor: 'constructeur',
   dor: 'dor',
-  plaque: 'plaque',
+  cluster: 'cluster',
+  plaque: 'cluster',
   band: 'bande',
 };
 
@@ -157,6 +158,34 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     | { status: 'error'; message: string }
     | { status: 'invalid'; message: string };
   const [paramValidation, setParamValidation] = useState<ParamValidation>({ status: 'idle' });
+
+  // ── Available values per parameter (fetched on parameter selection) ──
+  const [paramValueCache, setParamValueCache] = useState<Record<string, { value: string; count: number }[]>>({});
+  const [paramValueLoading, setParamValueLoading] = useState<Record<string, boolean>>({});
+  const paramValueCacheRef = useRef(paramValueCache);
+  paramValueCacheRef.current = paramValueCache;
+  const fetchParamValues = useCallback(async (parameter: string) => {
+    if (!parameter || paramValueCacheRef.current[parameter]) return;
+    setParamValueLoading(prev => ({ ...prev, [parameter]: true }));
+    try {
+      const result = await getParameterValues(parameter);
+      setParamValueCache(prev => ({ ...prev, [parameter]: result.values || [] }));
+    } catch {
+      setParamValueCache(prev => ({ ...prev, [parameter]: [] }));
+    }
+    setParamValueLoading(prev => ({ ...prev, [parameter]: false }));
+  }, []);
+
+  // Auto-fetch values when parameters step is reached or conditions change
+  useEffect(() => {
+    if (step === 2) {
+      paramConditions.forEach(c => {
+        if (c.parameter && !paramValueCacheRef.current[c.parameter]) {
+          fetchParamValues(c.parameter);
+        }
+      });
+    }
+  }, [step, paramConditions.length, fetchParamValues]);
 
   type ValidateResult = { ok: true; payload: any[] } | { ok: false; message: string };
   const validateParamConditions = (): ValidateResult => {
@@ -392,16 +421,18 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
               )}
 
               {paramConditions.map(cond => (
-                <div key={cond.id} className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/10 p-3">
+                <div key={cond.id} className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
+                <div className="flex items-center gap-2">
                   <ParameterSearchSelect
                     value={cond.parameter}
                     options={paramOptions}
-                    onChange={(v) => updateParam(cond.id, 'parameter', v)}
+                    onChange={(v) => {
+                      updateParam(cond.id, 'parameter', v);
+                      if (v) fetchParamValues(v);
+                    }}
                     asyncSearch={async (q) => {
                       try {
                         const r = await searchParameters(q, 50);
-                        // Backend returns full MO-prefixed names (e.g. LNCEL.pMax, NRCELL.pMax).
-                        // Display & store as-is — DO NOT strip prefix.
                         return r.parameters || [];
                       } catch {
                         return [];
@@ -415,23 +446,76 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                   >
                     {OPERATOR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
                   </select>
-                  <input
-                    value={cond.value}
-                    onChange={e => updateParam(cond.id, 'value', e.target.value)}
-                    placeholder="Value"
-                    className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  {cond.operator === 'BETWEEN' && (
+                  {/* Value input with available values dropdown */}
+                  <div className="relative flex-1 min-w-[120px]">
                     <input
-                      value={cond.value2 || ''}
-                      onChange={e => updateParam(cond.id, 'value2' as any, e.target.value)}
-                      placeholder="Max"
-                      className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      value={cond.value}
+                      onChange={e => updateParam(cond.id, 'value', e.target.value)}
+                      onFocus={() => { if (cond.parameter) fetchParamValues(cond.parameter); }}
+                      placeholder="Value"
+                      list={`param-values-${cond.id}`}
+                      className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
+                    {cond.parameter && paramValueCache[cond.parameter] && (
+                      <datalist id={`param-values-${cond.id}`}>
+                        {paramValueCache[cond.parameter].map(v => (
+                          <option key={v.value} value={v.value}>{v.value} ({v.count})</option>
+                        ))}
+                      </datalist>
+                    )}
+                    {paramValueLoading[cond.parameter] && (
+                      <Loader2 className="absolute right-2 top-2.5 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {cond.operator === 'BETWEEN' && (
+                    <div className="relative min-w-[100px]">
+                      <input
+                        value={cond.value2 || ''}
+                        onChange={e => updateParam(cond.id, 'value2' as any, e.target.value)}
+                        placeholder="Max"
+                        list={`param-values2-${cond.id}`}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                      {cond.parameter && paramValueCache[cond.parameter] && (
+                        <datalist id={`param-values2-${cond.id}`}>
+                          {paramValueCache[cond.parameter].map(v => (
+                            <option key={v.value} value={v.value}>{v.value}</option>
+                          ))}
+                        </datalist>
+                      )}
+                    </div>
                   )}
                   <button onClick={() => removeParam(cond.id)} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+                {/* Available values for selected parameter */}
+                {cond.parameter && paramValueCache[cond.parameter] && paramValueCache[cond.parameter].length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1 border-t border-border/30">
+                    <span className="text-[9px] font-bold uppercase text-muted-foreground mr-1 self-center">Values:</span>
+                    {paramValueCache[cond.parameter].slice(0, 15).map(v => (
+                      <button
+                        key={v.value}
+                        onClick={() => updateParam(cond.id, 'value', v.value)}
+                        className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors ${
+                          cond.value === v.value
+                            ? 'bg-primary/20 text-primary font-semibold'
+                            : 'bg-muted hover:bg-primary/10 hover:text-primary text-muted-foreground'
+                        }`}
+                      >
+                        {v.value} <span className="opacity-50">({v.count})</span>
+                      </button>
+                    ))}
+                    {paramValueCache[cond.parameter].length > 15 && (
+                      <span className="text-[9px] text-muted-foreground self-center">+{paramValueCache[cond.parameter].length - 15} more</span>
+                    )}
+                  </div>
+                )}
+                {cond.parameter && paramValueLoading[cond.parameter] && (
+                  <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Loading values...
+                  </div>
+                )}
                 </div>
               ))}
               <button
