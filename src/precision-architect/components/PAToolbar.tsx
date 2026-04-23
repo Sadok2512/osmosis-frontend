@@ -271,11 +271,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           </PopoverContent>
         </Popover>
 
-        <div className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface">
-          <Flag className="w-3.5 h-3.5 text-rose-500" />
-          <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Jalons</span>
-          <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
-        </div>
+        <JalonsPill />
 
         <div className="ml-auto flex flex-col items-end gap-1">
           <button
