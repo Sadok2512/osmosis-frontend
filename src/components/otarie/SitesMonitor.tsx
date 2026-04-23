@@ -9842,12 +9842,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 )}
             </div>
 
-            {/* Gradient bar visualization */}
+            {/* Gradient bar visualization — click each segment to toggle that level */}
             <div className="px-3 py-1.5">
               <div className="h-2 rounded-full overflow-hidden flex" style={{ opacity: Math.min(1, kpiOverlayIntensity * kpiOverlayTransparency) }}>
-                <div className="flex-1" style={{ background: currentThreshold.colorRed || '#8E44AD' }} />
-                <div className="flex-1" style={{ background: currentThreshold.colorOrange || '#f59e0b' }} />
-                <div className="flex-1" style={{ background: currentThreshold.colorGreen || '#27AE60' }} />
+                {(currentThreshold.invert
+                  ? [
+                      { level: 'green' as const, color: currentThreshold.colorGreen || '#27AE60' },
+                      { level: 'orange' as const, color: currentThreshold.colorOrange || '#f59e0b' },
+                      { level: 'red' as const, color: currentThreshold.colorRed || '#8E44AD' },
+                    ]
+                  : [
+                      { level: 'red' as const, color: currentThreshold.colorRed || '#8E44AD' },
+                      { level: 'orange' as const, color: currentThreshold.colorOrange || '#f59e0b' },
+                      { level: 'green' as const, color: currentThreshold.colorGreen || '#27AE60' },
+                    ]
+                ).map(({ level, color }) => {
+                  const hidden = hiddenKpiLevels.has(level);
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => toggleKpiLevel(level)}
+                      title={hidden ? `Afficher ${level}` : `Masquer ${level}`}
+                      className={`flex-1 h-full transition-all cursor-pointer hover:brightness-110 ${hidden ? 'opacity-25 grayscale' : ''}`}
+                      style={{ background: color }}
+                    />
+                  );
+                })}
               </div>
             </div>
 
