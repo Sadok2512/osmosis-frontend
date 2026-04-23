@@ -13652,6 +13652,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <SiteKpiChart siteDetail={{ ...siteDetail, qoe_score_avg: cell.qoe_score_avg, dms_dl_3: cell.dms_dl_3, dms_dl_8: cell.dms_dl_8, dms_dl_30: cell.dms_dl_30, dms_ul_3: cell.dms_ul_3, site_id: cell.cell_id }} />
                     </div>
 
+                    {/* Histogram distributions — PRB, RACH, Interference */}
+                    <div className="px-5 py-4 border-t border-border/30">
+                      <CellHistogramPanel
+                        siteName={siteDetail.site_name}
+                        cellName={cell.cell_id}
+                        vendor={siteDetail.vendor}
+                        techno={cell.techno}
+                        dateFrom={kpiDateFrom}
+                        dateTo={kpiDateTo}
+                      />
+                    </div>
+
                   </>
                 )}
 
