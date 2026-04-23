@@ -188,16 +188,18 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
     const nextMetrics = config.metrics.map(m => m.id === id ? { ...m, ...patch } : m);
-    // Visibility is a pure display toggle (no backend impact) — propagate it
-    // immediately to the appliedConfig snapshot so the chart re-renders without
-    // requiring a full Apply (which would re-issue the backend query).
-    const isVisibilityOnly = Object.keys(patch).length === 1 && 'visible' in patch;
-    if (isVisibilityOnly && widget.appliedConfig) {
+    // Display-only flags (visibility, axis side) have no backend impact —
+    // propagate them immediately to the appliedConfig snapshot so the chart
+    // re-renders without requiring a full Apply (which would re-issue the query).
+    const DISPLAY_ONLY_KEYS = new Set(['visible', 'axis']);
+    const patchKeys = Object.keys(patch);
+    const isDisplayOnly = patchKeys.length > 0 && patchKeys.every(k => DISPLAY_ONLY_KEYS.has(k));
+    if (isDisplayOnly && widget.appliedConfig) {
       const appliedCfg = widget.appliedConfig as ChartWidgetConfig;
       const nextApplied: ChartWidgetConfig = {
         ...appliedCfg,
         metrics: appliedCfg.metrics.map(m =>
-          m.id === id ? { ...m, visible: patch.visible } : m
+          m.id === id ? { ...m, ...patch } : m
         ),
       };
       onChange({ config: { ...config, metrics: nextMetrics }, appliedConfig: nextApplied });
