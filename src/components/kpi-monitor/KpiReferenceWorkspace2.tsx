@@ -665,9 +665,15 @@ const KpiReferenceWorkspace2: React.FC = () => {
                         const denominatorRaw = explain?.denominator || selectedKpi.denominator_counter || '';
                         const formulaText = explain?.formula || selectedKpi.formula_sql || '';
                         const counters: any[] = Array.isArray(explain?.counters) ? explain.counters : [];
-                        const splitList = (raw: string) => raw
-                          ? raw.split(/[\s,;+]+/).map(t => t.trim()).filter(Boolean)
-                          : [];
+                        // Extract only real PM counter identifiers (e.g. m55125c00014),
+                        // ignoring numbers, operators (* / + -), parentheses and backticks.
+                        const COUNTER_RE = /[A-Za-z][A-Za-z0-9_]{2,}/g;
+                        const splitList = (raw: string): string[] => {
+                          if (!raw) return [];
+                          const matches = raw.match(COUNTER_RE) || [];
+                          // Keep tokens that look like PM counters (must contain at least one digit).
+                          return Array.from(new Set(matches.filter(t => /\d/.test(t))));
+                        };
                         const numeratorCounters = splitList(numeratorRaw);
                         const denominatorCounters = splitList(denominatorRaw);
                         const headline = formulaText
