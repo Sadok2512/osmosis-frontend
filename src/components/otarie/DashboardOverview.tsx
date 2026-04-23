@@ -1037,12 +1037,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                 ? "Créez votre premier dashboard pour commencer à visualiser vos données."
                 : 'Aucun dashboard ne correspond à vos filtres.'}
             </p>
-            {dashboards.length === 0 ? (
-              <button onClick={() => openInEditor('')}
-                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm flex items-center gap-2">
-                <Plus className="w-4 h-4" /> Créer un dashboard
-              </button>
-            ) : (
+            {dashboards.length === 0 ? null : (
               <button onClick={resetFilters}
                 className="px-5 py-2.5 rounded-xl bg-muted text-foreground text-sm font-medium hover:bg-muted/80 transition-colors flex items-center gap-2">
                 <RotateCcw className="w-4 h-4" /> Réinitialiser les filtres
