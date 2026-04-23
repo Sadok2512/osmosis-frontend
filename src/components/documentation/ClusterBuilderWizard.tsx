@@ -7,6 +7,7 @@ import { countMatching, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
 import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
+import ParameterSearchSelect from './cluster-builder/ParameterSearchSelect';
 
 interface ClusterBuilderWizardProps {
   onSubmit: (data: any) => void;
