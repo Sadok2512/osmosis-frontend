@@ -201,7 +201,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
       legendData = [];
     }
 
-    const legendPos = cfg?.style.legend.position ?? 'bottom';
+    // Legend placement: per user preference the legend always renders below
+    // the graph unless explicitly pinned to the right side.
+    const rawLegendPos = cfg?.style.legend.position ?? 'bottom';
+    const legendPos: 'bottom' | 'right' = rawLegendPos === 'right' ? 'right' : 'bottom';
     const showLegend = legendData.length > 1;
     const estimatedLegendRows = legendPos === 'right'
       ? legendData.length
