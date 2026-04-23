@@ -3781,6 +3781,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [overlayVersion, setOverlayVersion] = useState(0);
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
+  const [showParamLegend, setShowParamLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
   // Global KPI overlay color intensity multiplier (applied to all colored cells/beams/points)
   const [kpiOverlayIntensity, setKpiOverlayIntensity] = useState<number>(() => {
