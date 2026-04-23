@@ -66,12 +66,15 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
   // Global report-level state — single source of truth for all widgets that inherit.
   const {
-    technos, from, to, preset, grain, filters,
-    setTechnos, setRange, setPreset, setGrain, setFilters, apply,
+    technos, vendors, from, to, preset, grain, filters,
+    setTechnos, setVendors, setRange, setPreset, setGrain, setFilters, apply,
   } = usePAGlobalToolbar();
 
   const toggleTechno = (id: TechnoId) =>
     setTechnos(technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id]);
+
+  const toggleVendor = (id: string) =>
+    setVendors(vendors.includes(id) ? vendors.filter(v => v !== id) : [...vendors, id]);
 
   const applyPreset = (p: PeriodPreset) => {
     const cfg = PERIODS.find(x => x.id === p);
