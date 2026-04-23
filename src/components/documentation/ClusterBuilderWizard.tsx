@@ -431,6 +431,66 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
               >
                 <Plus className="w-4 h-4" /> Add Parameter Condition
               </button>
+
+              {/* ── Validate & Calculate ── */}
+              {paramConditions.length > 0 && (
+                <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs">
+                      <p className="font-bold text-foreground">Validate parameter conditions</p>
+                      <p className="text-muted-foreground mt-0.5">
+                        Click to recalculate matching cells & sites with these parameter filters applied.
+                      </p>
+                    </div>
+                    <button
+                      onClick={runParamValidation}
+                      disabled={paramValidation.status === 'loading'}
+                      className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                    >
+                      {paramValidation.status === 'loading' ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Calculating…</>
+                      ) : (
+                        <><Check className="w-3.5 h-3.5" /> Validate & Calculate</>
+                      )}
+                    </button>
+                  </div>
+
+                  {paramValidation.status === 'ok' && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs">
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="text-muted-foreground">After parameter filtering:</span>
+                      <strong className="text-emerald-700">{paramValidation.cells.toLocaleString('fr-FR')} cells</strong>
+                      <span className="text-muted-foreground/40">·</span>
+                      <strong className="text-emerald-700">{paramValidation.sites.toLocaleString('fr-FR')} sites</strong>
+                      {matchingCount && (
+                        <span className="ml-auto text-muted-foreground italic">
+                          (from {matchingCount.cells.toLocaleString('fr-FR')} cells in scope)
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {paramValidation.status === 'invalid' && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs text-amber-700">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {paramValidation.message}
+                    </div>
+                  )}
+
+                  {paramValidation.status === 'error' && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-destructive/10 border border-destructive/30 text-xs text-destructive">
+                      <AlertCircle className="w-3.5 h-3.5" />
+                      {paramValidation.message}
+                    </div>
+                  )}
+
+                  {paramValidation.status === 'idle' && (
+                    <p className="text-[11px] text-muted-foreground italic">
+                      You must validate before proceeding to the next step.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
