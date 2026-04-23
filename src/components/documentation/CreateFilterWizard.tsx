@@ -90,6 +90,18 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
     setParamConditions(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
+  // Auto-load values when a parameter is set (handles manual input + pre-filled conditions)
+  useEffect(() => {
+    for (const cond of paramConditions) {
+      if (cond.parameter && cond.parameter.includes('.') && !paramExistingValues[cond.id]) {
+        setParamExistingValues(prev => ({ ...prev, [cond.id]: { values: [], loading: true } }));
+        getParameterValues(cond.parameter)
+          .then(res => setParamExistingValues(prev => ({ ...prev, [cond.id]: { values: res.values || [], loading: false } })))
+          .catch(() => setParamExistingValues(prev => ({ ...prev, [cond.id]: { values: [], loading: false } })));
+      }
+    }
+  }, [paramConditions]);
+
   const removeParam = (id: string) => {
     setParamConditions(prev => prev.filter(p => p.id !== id));
   };
