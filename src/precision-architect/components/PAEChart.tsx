@@ -232,7 +232,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
     return {
       backgroundColor: bgColor,
       grid: {
-        top: legendPos === 'top' && showLegend ? legendBlockSize + 20 : (isPresentation ? 32 : 28),
+        top: isPresentation ? 32 : 28,
         // Initial right padding — will be auto-tuned post-render based on the
         // measured right-axis label width (see useLayoutEffect below).
         right: legendPos === 'right' && showLegend ? 180 : (hasRightAxis ? 64 : 24),
