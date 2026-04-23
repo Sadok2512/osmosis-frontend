@@ -159,7 +159,31 @@ const ClusterPreviewTable: React.FC<Props> = ({
         if (allowedSites) {
           filtered = filtered.filter((s: any) => allowedSites!.has(s.site_name || s.site_id));
         }
-        setSites(filtered.slice(0, maxRows));
+        const finalSites = filtered.slice(0, maxRows);
+        setSites(finalSites);
+
+        // Pre-fetch filtered cells for each site to get accurate cell counts
+        const inferredRat = inferRatFromParams(paramConditions);
+        if (inferredRat && finalSites.length > 0) {
+          const newCache: Record<string, PreviewCell[]> = {};
+          await Promise.all(finalSites.map(async (s: any) => {
+            const siteName = s.site_name || s.site_id;
+            const cellQs = new URLSearchParams({ search: siteName, limit: '500', rat: inferredRat });
+            try {
+              const res = await fetch(getApiUrl(`topo/cells?${cellQs}`), { headers: getApiHeaders() });
+              const data = res.ok ? await res.json() : [];
+              newCache[s.site_name || s.site_id || s.code_nidt] = (Array.isArray(data) ? data : []).map((r: any) => ({
+                cell_name: r.cell_name || r.source_cellule || '',
+                techno: r.techno || '',
+                band: r.band || '',
+                pci: r.pci ?? null,
+                eci: r.eci ?? r.sac_ci_eci ?? null,
+                status: r.status || r.etat_fonctionnement || 'active',
+              }));
+            } catch { /* ignore */ }
+          }));
+          if (!controller.signal.aborted) setCellsCache(newCache);
+        }
       } catch (e: any) {
         if (controller.signal.aborted) return;
         setError(e?.message || 'Failed to load preview');
@@ -421,7 +445,9 @@ const ClusterPreviewTable: React.FC<Props> = ({
                         <td className="py-2 px-3 font-medium text-foreground">{s.site_name}</td>
                         <td className="py-2 px-3 text-muted-foreground">{s.vendor}</td>
                         <td className="py-2 px-3 text-muted-foreground">{s.region}</td>
-                        <td className="py-2 px-3 text-right font-mono text-foreground">{s.cell_count}</td>
+                        <td className="py-2 px-3 text-right font-mono text-foreground">
+                          {cellsCache[s.site_id] ? cellsCache[s.site_id].length : s.cell_count}
+                        </td>
                         <td className="py-2 px-3">
                           <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-semibold capitalize ${
                             s.status === 'active' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
