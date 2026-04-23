@@ -7687,6 +7687,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {paramMode && !paramLoading && paramSiteMarkers.length > 0 && (
           <FitHighlightBounds coords={paramSiteMarkers.map(p => [p.latitude, p.longitude] as [number, number])} />
         )}
+        {/* Parameter density heatmap overlay */}
+        {paramMode && !paramLoading && paramHeatmapEnabled && paramHeatPoints.length > 0 && (
+          <HeatmapLayer points={paramHeatPoints} radius={32} blur={24} minOpacity={0.35} />
+        )}
         {paramMode && !paramLoading && paramSiteMarkers.map(site => {
           // Multi-value sites: pie-like split marker via SVG DivIcon
           if (site.isMultiValue) {
