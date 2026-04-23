@@ -149,7 +149,11 @@ export const dashboardsApi = {
     if (dashboard.visibility) payload.visibility = dashboard.visibility;
     if (dashboard.owner_username) payload.owner_username = dashboard.owner_username;
     if (dashboard.shared_with) payload.shared_with = dashboard.shared_with;
-    const { data, error } = await supabase.from('dashboards').upsert(payload as any).select().single();
+    const { data, error } = await supabase
+      .from('dashboards')
+      .upsert(payload as any, { onConflict: 'id' })
+      .select()
+      .single();
     if (error) throw error;
 
     // Fire-and-forget VPS mirror — silent on failure (server returns 500 on big payloads).

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 import type { PAPage, ViewMode } from '../types';
 import { dashboardsApi } from '@/lib/localDb';
 
@@ -30,8 +31,9 @@ async function syncDashboardToCloud(d: PADashboard) {
       visibility: d.visibility ?? 'private',
       owner_username: session?.username,
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error('[paReportStore] Failed to sync dashboard to cloud:', e);
+    toast.error(`Save failed: ${e?.message || 'Cloud sync error'}`);
   }
 }
 
