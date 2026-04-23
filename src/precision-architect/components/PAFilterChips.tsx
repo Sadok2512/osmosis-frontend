@@ -27,21 +27,24 @@ interface Props {
 }
 
 const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
-  const [tick, setTick] = useState(0);
+  const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
+  const [result, setResult] = useState<{ values: string[]; labels: Record<string, string> }>(() => {
+    const e = getFilterValues(key);
+    return { values: e.values, labels: e.labels || {} };
+  });
+
   useEffect(() => {
-    let alive = true;
-    try { ensureFilterLoaded(dimension); } catch {}
-    const unsub = subscribeCacheUpdates(() => alive && setTick(t => t + 1));
-    // Trigger one re-render after mount in case cache already has it
-    setTick(t => t + 1);
-    return () => { alive = false; unsub(); };
-  }, [dimension]);
-  const key = dimToKey(dimension);
-  const cached = getFilterValues(key);
-  return {
-    values: cached?.values ?? [],
-    labels: (cached?.labels as any) ?? {},
-  };
+    ensureFilterLoaded(key);
+    const unsub = subscribeCacheUpdates(() => {
+      const entry = getFilterValues(key);
+      if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+    });
+    const entry = getFilterValues(key);
+    if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
+    return unsub;
+  }, [key]);
+
+  return result;
 };
 
 /* ── Add Filter Dropdown — pick one or more dimensions ── */
