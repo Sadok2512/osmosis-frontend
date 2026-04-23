@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Loader2 } from 'lucide-react';
-import { ChartWidgetConfig, DEFAULT_CHART_CONFIG } from '../types';
+import { ChartWidgetConfig, DEFAULT_CHART_CONFIG, ChartType } from '../types';
 
 interface PAEChartProps {
   variant?: 'editor' | 'presentation';
@@ -112,12 +112,34 @@ const PAEChart: React.FC<PAEChartProps> = ({
         }] : []),
       ];
 
-      // Stacking applies when the *global* chart type is bar/area + opt-in,
-      // OR when a per-metric type explicitly requests stacking.
-      const globalStackOptIn = !!style.stacked && (style.chartType === 'bar' || style.chartType === 'area');
+      // ── PER-SERIES CHART TYPE & STACKING ──────────────────────────────
+      // Each metric carries its own graphType. The global style.chartType is
+      // only used as a *default* for metrics that don't override it — it never
+      // forces stacking on the whole chart.
+      //
+      // Rules (per product spec):
+      //   • Never force stacked=true globally.
+      //   • Stack ONLY series whose per-metric graphType is stackedBar/stackedArea.
+      //   • Stack groups share: same axis + same unit + same seriesType.
+      //   • If a stack group ends up with a single series → render as a normal
+      //     (non-stacked) bar/area to avoid the "lone stack" visual glitch.
+      //   • Pure lines never stack.
+      const resolveType = (m: any): ChartType => (m.graphType ?? style.chartType) as ChartType;
+
+      // Pre-compute stack group sizes so single-member groups can fall back.
+      const stackGroupCount = new Map<string, number>();
+      visible.forEach((m) => {
+        const t = resolveType(m);
+        if (t !== 'stackedBar' && t !== 'stackedArea') return;
+        const kind = t === 'stackedBar' ? 'bar' : 'area';
+        const axis = m.axis === 'right' ? 'r' : 'l';
+        const unit = (m.unit ?? '').trim().toLowerCase() || '__nounit__';
+        const key = `${kind}|${axis}|${unit}`;
+        stackGroupCount.set(key, (stackGroupCount.get(key) ?? 0) + 1);
+      });
 
       series = visible.map((m, idx) => {
-        const metricType = m.graphType ?? style.chartType;
+        const metricType = resolveType(m);
         const isBar = metricType === 'bar' || metricType === 'stackedBar';
         const isStep = metricType === 'stepLine';
         const isStackedAreaMetric = metricType === 'stackedArea';
@@ -126,16 +148,22 @@ const PAEChart: React.FC<PAEChartProps> = ({
         const wantsArea = seriesType === 'line' && (
           (m as any).fillArea === true ||
           metricType === 'area' ||
-          isStackedAreaMetric ||
-          (metricType === 'line' && style.fill !== 'none' && style.chartType === 'area')
+          isStackedAreaMetric
         );
-        // Stack id: same axis + same seriesType (bar↔bar, area↔area). Pure
-        // lines never stack — they remain trend overlays.
-        const metricStackOptIn = isStackedBarMetric || isStackedAreaMetric;
-        const canStack = (globalStackOptIn || metricStackOptIn) && (seriesType === 'bar' || wantsArea);
-        const stackId = canStack
-          ? `pa-stack-${m.axis === 'right' ? 'r' : 'l'}-${seriesType === 'bar' ? 'bar' : 'area'}`
-          : undefined;
+
+        // Per-series stack id — only set when this metric explicitly opts in
+        // AND there is at least one other compatible series in the same group.
+        let stackId: string | undefined;
+        if (isStackedBarMetric || isStackedAreaMetric) {
+          const kind = isStackedBarMetric ? 'bar' : 'area';
+          const axis = m.axis === 'right' ? 'r' : 'l';
+          const unit = (m.unit ?? '').trim().toLowerCase() || '__nounit__';
+          const key = `${kind}|${axis}|${unit}`;
+          if ((stackGroupCount.get(key) ?? 0) > 1) {
+            stackId = `pa-stack-${key}`;
+          }
+          // else → fallback to non-stacked (single-series stack is meaningless)
+        }
         const opacityRatio = Math.max(0, Math.min(100, style.opacity)) / 100;
         const areaStyle = wantsArea
           ? style.fill === 'gradient'
