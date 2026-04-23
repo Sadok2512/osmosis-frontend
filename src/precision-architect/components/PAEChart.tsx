@@ -206,26 +206,59 @@ const PAEChart: React.FC<PAEChartProps> = ({
     const rawLegendPos = cfg?.style.legend.position ?? 'bottom';
     const legendPos: 'bottom' | 'right' = rawLegendPos === 'right' ? 'right' : 'bottom';
     const showLegend = legendData.length > 1;
-    const estimatedLegendRows = legendPos === 'right'
-      ? legendData.length
-      : Math.max(1, Math.ceil(legendData.length / 3));
-    const legendBlockSize = estimatedLegendRows * 18 + 10;
+
+    // Friendly-name shortener: collapses long technical names (e.g.
+    // "ERABs_all_setup_add_SR - LTE1800") into a compact, readable label.
+    // Keep the original full name as the legend `name` (so series binding
+    // works) but display a shortened version through `formatter`. The full
+    // name is shown on hover via the legend tooltip.
+    const shortenLabel = (raw: string): string => {
+      if (!raw) return '';
+      const s = raw.trim();
+      const bandMatch = s.match(/(LTE\d{3,4}|NR\d{3,4}|UMTS\d{3,4}|GSM\d{3,4}|2G|3G|4G|5G)\s*$/i);
+      const band = bandMatch ? bandMatch[0].toUpperCase() : '';
+      let head = band ? s.slice(0, s.length - bandMatch![0].length) : s;
+      head = head.replace(/[\s\-_]+$/g, '').replace(/[_]+/g, ' ').trim();
+      const MAX_HEAD = 24;
+      if (head.length > MAX_HEAD) head = head.slice(0, MAX_HEAD - 1) + '…';
+      return band ? (head ? `${head} · ${band}` : band) : head;
+    };
+
+    const legendBlockSize = legendPos === 'right'
+      ? Math.min(legendData.length * 22 + 12, 400)
+      : Math.max(30, Math.min(Math.ceil(legendData.length / 4) * 26 + 12, 110));
+
     const legend = {
       show: showLegend,
-      type: 'plain' as const,
+      type: 'scroll' as const,
       data: legendData,
-      bottom: legendPos === 'bottom' ? 4 : undefined,
-      top: undefined,
+      bottom: legendPos === 'bottom' ? 6 : undefined,
+      top: legendPos === 'right' ? ('middle' as const) : undefined,
       right: legendPos === 'right' ? 8 : 12,
       left: legendPos === 'right' ? undefined : 12,
-      width: legendPos === 'right' ? 150 : '92%',
-      orient: legendPos === 'right' ? 'vertical' as const : 'horizontal' as const,
-      textStyle: { fontSize: 10, color: labelColor, fontWeight: 700 as const },
+      width: legendPos === 'right' ? 180 : '94%',
+      orient: legendPos === 'right' ? ('vertical' as const) : ('horizontal' as const),
+      align: 'left' as const,
+      textStyle: {
+        fontSize: 12,
+        color: labelColor,
+        fontWeight: 600 as const,
+        lineHeight: 16,
+        padding: [0, 0, 0, 4] as [number, number, number, number],
+      },
       icon: 'roundRect' as const,
-      itemWidth: 10,
-      itemHeight: 6,
-      itemGap: 10,
-      padding: [2, 4, 2, 4] as [number, number, number, number],
+      itemWidth: 14,
+      itemHeight: 10,
+      itemGap: 16,
+      padding: [4, 6, 4, 6] as [number, number, number, number],
+      formatter: (name: string) => shortenLabel(name),
+      tooltip: { show: true, formatter: (params: any) => params.name },
+      pageButtonItemGap: 4,
+      pageButtonGap: 8,
+      pageIconSize: 11,
+      pageIconColor: labelColor,
+      pageTextStyle: { color: labelColor, fontSize: 10, fontWeight: 700 as const },
+      selectedMode: true as const,
     };
 
     const hasRightAxis = (cfg?.metrics ?? []).some(m => m.visible !== false && m.axis === 'right');
@@ -235,8 +268,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
         top: isPresentation ? 32 : 28,
         // Initial right padding — will be auto-tuned post-render based on the
         // measured right-axis label width (see useLayoutEffect below).
-        right: legendPos === 'right' && showLegend ? 180 : (hasRightAxis ? 64 : 24),
-        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 20 : 48,
+        right: legendPos === 'right' && showLegend ? 210 : (hasRightAxis ? 64 : 24),
+        bottom: legendPos === 'bottom' && showLegend ? legendBlockSize + 16 : 48,
         left: 16,
         containLabel: true,
       },
