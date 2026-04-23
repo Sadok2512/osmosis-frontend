@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import type {
   TechnoId,
   PeriodPreset,
@@ -51,27 +52,44 @@ const today = new Date();
 const threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
 const fmt = (d: Date) => d.toISOString().slice(0, 16);
 
-export const usePAGlobalToolbar = create<PAGlobalToolbarStore>((set) => ({
-  technos: ['2g', '3g', '4g', '5g'],
-  vendors: [],
-  from: fmt(threeDaysAgo),
-  to: fmt(today),
-  preset: '3j',
-  grain: '15min',
-  filters: [],
-  appliedRev: 0,
-  applied: null,
+export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
+  persist(
+    (set) => ({
+      technos: ['2g', '3g', '4g', '5g'],
+      vendors: [],
+      from: fmt(threeDaysAgo),
+      to: fmt(today),
+      preset: '3j',
+      grain: '15min',
+      filters: [],
+      appliedRev: 0,
+      applied: null,
 
-  setTechnos: (technos) => set({ technos }),
-  setVendors: (vendors) => set({ vendors }),
-  setRange: (from, to, preset = 'custom') => set({ from, to, preset }),
-  setPreset: (preset) => set({ preset }),
-  setGrain: (grain) => set({ grain }),
-  setFilters: (filters) => set({ filters }),
-  apply: () =>
-    set((s) => ({
-      appliedRev: s.appliedRev + 1,
-      applied: {
+      setTechnos: (technos) => set({ technos }),
+      setVendors: (vendors) => set({ vendors }),
+      setRange: (from, to, preset = 'custom') => set({ from, to, preset }),
+      setPreset: (preset) => set({ preset }),
+      setGrain: (grain) => set({ grain }),
+      setFilters: (filters) => set({ filters }),
+      apply: () =>
+        set((s) => ({
+          appliedRev: s.appliedRev + 1,
+          applied: {
+            technos: s.technos,
+            vendors: s.vendors,
+            from: s.from,
+            to: s.to,
+            preset: s.preset,
+            grain: s.grain,
+            filters: s.filters,
+          },
+        })),
+    }),
+    {
+      name: 'pa-global-toolbar',
+      storage: createJSONStorage(() => localStorage),
+      // Persist user selections so filters/period/grain survive reloads
+      partialize: (s) => ({
         technos: s.technos,
         vendors: s.vendors,
         from: s.from,
@@ -79,9 +97,12 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>((set) => ({
         preset: s.preset,
         grain: s.grain,
         filters: s.filters,
-      },
-    })),
-}));
+        applied: s.applied,
+        appliedRev: s.appliedRev,
+      }),
+    }
+  )
+);
 
 /** Selector helper: returns the toolbar values that get merged into a widget config when inheriting. */
 export function selectToolbarSnapshot(s: PAGlobalToolbarState) {
