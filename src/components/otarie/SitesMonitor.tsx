@@ -6958,9 +6958,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       localBande: localBande,
       localZoneArcep,
       localTechno,
+      showBeamSectors,
       beamVisibility,
     };
-  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, beamVisibility]);
+  }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, showBeamSectors, beamVisibility]);
 
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
@@ -6980,6 +6981,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLocalBande((settings as any).localBande || settings.localSite);
     if ((settings as any).localZoneArcep) setLocalZoneArcep((settings as any).localZoneArcep);
     if ((settings as any).localTechno) setLocalTechno((settings as any).localTechno);
+    if ((settings as any).showBeamSectors !== undefined) {
+      setShowBeamSectors(Boolean((settings as any).showBeamSectors));
+    } else if (settings.mapDisplayMode === 'sites' && settings.sectorColorMode !== 'topo') {
+      setShowBeamSectors(true);
+    }
     // Fly to saved center/zoom
     if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
     if ((settings as any).beamVisibility != null) {
