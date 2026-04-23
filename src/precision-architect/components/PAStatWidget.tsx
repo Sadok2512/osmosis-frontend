@@ -26,14 +26,22 @@ export default function PAStatWidget({ widget }: Props) {
   const widgetRev = widget.appliedRev ?? 0;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
 
+  // Read the FROZEN snapshot taken at the last global Apply click.
+  // Editing the toolbar (date, period, filters) updates the live store
+  // but NOT this snapshot, so the widget will not refetch until the user
+  // explicitly clicks "Apply to Dashboard" or "Apply to Widget".
+  const snap = global.applied;
+  const gTechnos = snap?.technos ?? global.technos;
+  const gFilters = snap?.filters ?? global.filters;
+  // Stable signature of the frozen snapshot — recomputed only at Apply time.
+  const appliedSig = snap
+    ? `${snap.from}|${snap.to}|${snap.grain}|${snap.technos.join(',')}|${snap.filters.map(f => `${f.dimension}=${f.value}`).join(';')}`
+    : '';
+
   // Fetch KPI value from backend — aggregate over full period
   useEffect(() => {
     if (!hasKpi || !hasBeenApplied) return;
     let cancelled = false;
-
-    const snap = global.applied;
-    const gTechnos = snap?.technos ?? global.technos;
-    const gFilters = snap?.filters ?? global.filters;
 
     // Build filters
     const byDim = new Map<string, string[]>();
@@ -80,8 +88,11 @@ export default function PAStatWidget({ widget }: Props) {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev,
-      global.from, global.to, global.technos, global.filters, global.applied]);
+    // IMPORTANT: deps must NOT include live global.from/to/technos/filters,
+    // otherwise editing the toolbar would trigger a refetch before Apply.
+    // appliedSig changes only when the user clicks Apply (snapshot bumped).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev, appliedSig]);
 
   // Display value: backend-computed only (no manual mock fallback)
   const displayValue = hasKpi && computedValue != null
