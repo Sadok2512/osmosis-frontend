@@ -3,7 +3,7 @@ import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2
 import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { ParameterCondition, FilterVisibility } from './filterTypes';
 import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
-import { countMatching, type MatchingCount } from '@/services/filterService';
+import { countMatching, searchParameters, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
 import ClusterPreviewTable from './cluster-builder/ClusterPreviewTable';
@@ -398,6 +398,16 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                     value={cond.parameter}
                     options={paramOptions}
                     onChange={(v) => updateParam(cond.id, 'parameter', v)}
+                    asyncSearch={async (q) => {
+                      try {
+                        const r = await searchParameters(q, 50);
+                        // Backend returns full MO-prefixed names (e.g. LNCEL.pMax, NRCELL.pMax).
+                        // Display & store as-is — DO NOT strip prefix.
+                        return r.parameters || [];
+                      } catch {
+                        return [];
+                      }
+                    }}
                   />
                   <select
                     value={cond.operator}
