@@ -79,6 +79,9 @@ const PAEChart: React.FC<PAEChartProps> = ({
     let series: any[] = [];
     let yAxis: any[] = [];
     let legendData: string[] = [];
+    // Resolved metrics (post auto-axis split) — exposed to outer scope so the
+    // tooltip formatter (built below) can know which axis each series sits on.
+    let resolvedMetrics: any[] = [];
 
     if (cfg && cfg.metrics.length > 0) {
       const visibleRaw = cfg.metrics.filter(m => m.visible !== false);
