@@ -58,6 +58,19 @@ interface PreviewSite {
 
 const DEFAULT_PREVIEW_LIMIT = 60;
 
+// Infer RAT/technology from CM parameter MO prefix
+function inferRatFromParams(params?: ParamCondition[]): string | null {
+  if (!params || params.length === 0) return null;
+  for (const p of params) {
+    const mo = (p.parameter || '').split('.')[0].toUpperCase();
+    if (['LNCEL', 'LNBTS', 'LNCEL_FDD', 'LNCEL_TDD', 'LNHOIF', 'LNADJ'].includes(mo)) return '4G';
+    if (['NRCELL', 'NRBTS', 'GNBDU', 'GNBCUCP', 'GNBCUUP', 'NRCELLDU'].includes(mo)) return '5G';
+    if (['WCEL', 'WBTS', 'RNC', 'HSDPA', 'HSUPA'].includes(mo)) return '3G';
+    if (['BTS', 'BCF', 'TRX', 'BSC'].includes(mo)) return '2G';
+  }
+  return null;
+}
+
 // Map wizard dimension keys → backend query param keys
 const DIM_TO_QS: Record<string, string> = {
   vendor: 'vendor',
@@ -220,6 +233,9 @@ const ClusterPreviewTable: React.FC<Props> = ({
             qs.set(key, c.values.join(','));
           }
         }
+        // Infer technology from parameter MO prefix (e.g., LNCEL → 4G)
+        const inferredRat = inferRatFromParams(paramConditions);
+        if (inferredRat) qs.set('rat', inferredRat);
         const url = getApiUrl(`topo/cells?${qs}`);
         const res = await fetch(url, { headers: getApiHeaders() });
         const data = res.ok ? await res.json() : [];
