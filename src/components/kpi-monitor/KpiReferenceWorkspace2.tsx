@@ -7,6 +7,7 @@ import {
   Eye,
   FilePenLine,
   Layers3,
+  Loader2,
   Plus,
   Radar,
   RotateCcw,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import KpiCreateWizard from '@/components/documentation/KpiCreateWizard';
 import { createKpiInVps, fetchKpiCatalogFromVps, updateKpiInVps } from './kpiCatalogVps';
 import type { AggFunc, KpiCatalogEntry, TechnoScope, ValueType } from './types';
