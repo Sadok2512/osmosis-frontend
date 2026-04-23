@@ -256,8 +256,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           </button>
           <button
             onClick={() => commitAppliedConfig(false)}
-            disabled={!isDirty}
-            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+            className="px-4 py-1.5 rounded-lg bg-white border border-primary/40 text-[10px] font-black uppercase tracking-widest text-primary hover:bg-primary/5 transition-colors"
             title="Apply changes only to this selected widget (does not refresh the dashboard)"
           >
             Apply to Widget
