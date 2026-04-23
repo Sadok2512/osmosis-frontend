@@ -341,7 +341,11 @@ const FilterRepositoryView: React.FC = () => {
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-700 text-white">
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white ${
+                          filter.status === 'active' ? 'bg-emerald-700'
+                          : filter.status === 'draft' ? 'bg-amber-500'
+                          : 'bg-muted-foreground/60'
+                        }`}>
                           <ShieldCheck className="w-4 h-4" />
                         </div>
                         <span className="text-[13px] font-bold text-foreground truncate">{filter.name}</span>
