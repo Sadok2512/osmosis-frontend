@@ -929,7 +929,7 @@ export async function fetchDashboardSites(
   // Build BboxFilters from dashboard filters for VPS query
   const bboxFilters: BboxFilters = {};
   if (siteFilters?.dor?.length) bboxFilters.dor = siteFilters.dor.join(',');
-  if (siteFilters?.constructeur?.length) bboxFilters.vendor = siteFilters.constructeur.join(',');
+  if (siteFilters?.vendor?.length) bboxFilters.vendor = siteFilters.vendor.join(',');
   if (siteFilters?.cluster?.length) bboxFilters.cluster = siteFilters.cluster.join(',');
   if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep.join(',');
   if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno.join(',');
