@@ -60,7 +60,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       from: fmt(threeDaysAgo),
       to: fmt(today),
       preset: '3j',
-      grain: '15min',
+      grain: '1d',
       filters: [],
       appliedRev: 0,
       applied: null,

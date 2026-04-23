@@ -76,7 +76,7 @@ export function createEmptyKpiWidget(index?: number): KpiWidgetItem {
       dateFrom,
       dateTo,
       periodPreset: '7d',
-      granularity: 'auto',
+      granularity: '1d',
       kpis: [],
       filters: [],
       splitBy: null,
