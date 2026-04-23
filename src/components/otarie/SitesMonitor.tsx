@@ -4700,15 +4700,39 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setParamSearch('');
   }, []);
 
+  // Compute numeric stats for parameter values (for gradient coloring)
+  const paramNumericStats = useMemo(() => {
+    let min = Infinity, max = -Infinity, numCount = 0;
+    for (const p of paramPoints) {
+      const n = Number(p.value);
+      if (Number.isFinite(n)) { if (n < min) min = n; if (n > max) max = n; numCount++; }
+    }
+    // Use gradient if >50% of values are numeric
+    return numCount > paramPoints.length * 0.5 && min < max ? { min, max } : null;
+  }, [paramPoints]);
+
   const paramValueColor = useCallback((val: string | null): string => {
     if (!val) return 'hsl(0, 0%, 60%)';
+    // Numeric gradient: red (low) → yellow (mid) → green (high)
+    if (paramNumericStats) {
+      const n = Number(val);
+      if (Number.isFinite(n)) {
+        const t = Math.max(0, Math.min(1, (n - paramNumericStats.min) / (paramNumericStats.max - paramNumericStats.min)));
+        return `hsl(${t * 140}, 78%, 48%)`;
+      }
+    }
+    // Categorical: hash-based
     let hash = 0;
     for (let i = 0; i < val.length; i++) hash = val.charCodeAt(i) + ((hash << 5) - hash);
     return `hsl(${Math.abs(hash) % 360}, 70%, 50%)`;
-  }, []);
+  }, [paramNumericStats]);
 
   const paramUniqueValues = useMemo(() => {
-    return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort();
+    return [...new Set(paramPoints.map(p => p.value || '(vide)'))].sort((a, b) => {
+      const na = Number(a), nb = Number(b);
+      if (Number.isFinite(na) && Number.isFinite(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
   }, [paramPoints]);
 
   // Group param points by site → one marker per site with multi-value detection
@@ -9185,9 +9209,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {paramMode && (
         <>
           {/* Value legend */}
-          {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
-            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[280px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16, minWidth: 240 }}>
-              {/* Prominent param header — full param value, never truncated */}
+          {paramUniqueValues.length > 0 && (
+            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16, minWidth: 240 }}>
+              {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Settings2 size={14} className="text-primary shrink-0" />
@@ -9199,24 +9223,40 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <span className="text-[10px] font-bold text-muted-foreground shrink-0 px-2 py-0.5 rounded-md bg-muted/60 self-start">{paramSiteMarkers.length} sites</span>
               </div>
               <div className="p-3 overflow-y-auto">
+              {/* Numeric gradient bar */}
+              {paramNumericStats && (
+                <div className="mb-2 space-y-1">
+                  <div className="h-3 rounded-full" style={{ background: 'linear-gradient(to right, hsl(0,78%,48%), hsl(70,90%,55%), hsl(140,78%,45%))' }} />
+                  <div className="flex justify-between text-[9px] font-bold text-muted-foreground">
+                    <span>{paramNumericStats.min}</span>
+                    <span>{paramNumericStats.max}</span>
+                  </div>
+                </div>
+              )}
               {paramSiteMarkers.some(s => s.isMultiValue) && (
                 <div className="flex items-center gap-2 text-[10px] mb-1 text-orange-500 font-semibold">
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #ef4444)' }} />
                   <span>Multi-valeur ({paramSiteMarkers.filter(s => s.isMultiValue).length} sites)</span>
                 </div>
               )}
-              <div className="space-y-0.5">
-                {paramUniqueValues.map(v => {
-                  const count = paramSiteMarkers.filter(s => s.distinctValues.includes(v)).length;
-                  return (
-                    <div key={v} className="flex items-center gap-2 text-[10px]">
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
-                      <span className="truncate max-w-[110px]">{v}</span>
-                      <span className="ml-auto text-muted-foreground">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
+              {/* Value list (categorical or numeric) */}
+              {paramUniqueValues.length <= 30 && (
+                <div className="space-y-0.5">
+                  {paramUniqueValues.map(v => {
+                    const count = paramSiteMarkers.filter(s => s.distinctValues.includes(v)).length;
+                    return (
+                      <div key={v} className="flex items-center gap-2 text-[10px]">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: paramValueColor(v === '(vide)' ? null : v) }} />
+                        <span className="truncate max-w-[110px]">{v}</span>
+                        <span className="ml-auto text-muted-foreground">{count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {paramUniqueValues.length > 30 && (
+                <div className="text-[10px] text-muted-foreground italic">{paramUniqueValues.length} valeurs distinctes</div>
+              )}
               </div>
             </div>
           )}
