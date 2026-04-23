@@ -6,7 +6,7 @@ import {
   Layers, Gauge, Info, FlaskConical, AlertTriangle, X,
   Eye, ChevronLeft, ChevronRight, SlidersHorizontal
 } from 'lucide-react';
-import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+// API routing imports moved to API helpers block below
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { KpiCatalogEntry, KpiStatus, UserRole, CounterEntry } from './kpiCatalogTypes';
@@ -15,13 +15,16 @@ import KpiCreateWizard from './KpiCreateWizard';
 import CounterModal from './CounterModal';
 
 /* ── API helpers ── */
-const API_BASE = '/api/v1/monitor/catalog';
+// Route to KPI Engine (:8001) via getApiUrl, NOT Parser proxy (:8000)
+// Parser proxy returns "Not authenticated" for /monitor/* endpoints
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 
 function catalogUrl(path: string, params?: Record<string, string>): string {
-  return getVpsProxyUrl('parser', `${API_BASE}${path}`, params);
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return getApiUrl(`monitor/catalog${path}${qs}`);
 }
 function catalogHeaders(): Record<string, string> {
-  return getVpsProxyHeaders();
+  return getApiHeaders();
 }
 async function catalogGet<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = catalogUrl(path, params);

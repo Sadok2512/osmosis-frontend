@@ -7,9 +7,9 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
-import KpiCatalogView from '@/components/documentation/KpiCatalogView';
-import FilterRepositoryView from '@/components/documentation/FilterRepositoryView';
-import QosNetworkView from '@/components/documentation/QosNetworkView';
+const KpiCatalogView = lazy(() => import('@/components/documentation/KpiCatalogView'));
+const FilterRepositoryView = lazy(() => import('@/components/documentation/FilterRepositoryView'));
+const QosNetworkView = lazy(() => import('@/components/documentation/QosNetworkView'));
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
 const NetworkTopologyPage = lazy(() => import('@/components/otarie/NetworkTopologyPage'));
 const KpiReferenceWorkspace2 = lazy(() => import('@/components/kpi-monitor/KpiReferenceWorkspace2'));
