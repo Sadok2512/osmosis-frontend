@@ -200,9 +200,6 @@ const DocumentationPage: React.FC = () => {
                   </select>
                 </div>
               )}
-              <button onClick={() => loadCatalog(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <Database className="w-4 h-4" /> Refresh
-              </button>
             </div>
           </div>
 
