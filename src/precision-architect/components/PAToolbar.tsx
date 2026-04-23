@@ -16,6 +16,14 @@ const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '5g', label: '5G', bg: 'bg-emerald-500', text: 'text-white' },
 ];
 
+const VENDORS: { id: string; label: string; bg: string; text: string }[] = [
+  { id: 'Ericsson', label: 'ERI', bg: 'bg-[#60a5fa]', text: 'text-white' },
+  { id: 'Nokia',    label: 'NOK', bg: 'bg-[#1e40af]', text: 'text-white' },
+  { id: 'Huawei',   label: 'HUA', bg: 'bg-[#dc2626]', text: 'text-white' },
+  { id: 'Samsung',  label: 'SAM', bg: 'bg-[#7c3aed]', text: 'text-white' },
+  { id: 'Alcatel',  label: 'ALU', bg: 'bg-[#f97316]', text: 'text-white' },
+];
+
 const PERIODS: { id: PeriodPreset; label: string; days?: number }[] = [
   { id: '1j', label: '1 jour', days: 1 },
   { id: '3j', label: '3 jours', days: 3 },
