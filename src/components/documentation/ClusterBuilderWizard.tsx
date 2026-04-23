@@ -139,7 +139,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // ── Param mutators ──
   const addParamCondition = () => {
     setParamValidation({ status: 'idle' });
-    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: paramOptions[0] || 'KPI', operator: '>', value: '' }]);
+    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: '', operator: '>', value: '' }]);
   };
   const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
     setParamValidation({ status: 'idle' });
