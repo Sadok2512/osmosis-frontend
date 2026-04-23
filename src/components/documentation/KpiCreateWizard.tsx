@@ -233,7 +233,13 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
             <>
               <InputField label="Numerator Name" value={numName} onChange={setNumName} placeholder="e.g. RRC Setup Successes" />
               <InputField label="Description" value={numDesc} onChange={setNumDesc} placeholder="What the numerator represents" textarea />
-              <InputField label="Counters (comma-separated)" value={numCounters} onChange={setNumCounters} placeholder="pmRrcConnEstabSucc, pmRrcConnEstabSuccMos" mono />
+              <FormulaEditor
+                label="Numerator Expression"
+                value={numCounters}
+                onChange={setNumCounters}
+                placeholder="m55125c09514 + m55125c09515"
+                hint="Write the expression freely. Counter names supported. Example: m55125c09514 + m55125c09515"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <SelectField label="Source" value={numSource} onChange={setNumSource} options={['OSS PM', 'OSS CM', 'NMS', 'Probes', 'External']} />
                 <SelectField label="Granularity" value={numGran} onChange={setNumGran} options={['15min', '1hour', 'daily', 'weekly']} />
@@ -245,7 +251,13 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
             <>
               <InputField label="Denominator Name" value={denName} onChange={setDenName} placeholder="e.g. RRC Setup Attempts" />
               <InputField label="Description" value={denDesc} onChange={setDenDesc} placeholder="What the denominator represents" textarea />
-              <InputField label="Counters (comma-separated)" value={denCounters} onChange={setDenCounters} placeholder="pmRrcConnEstabAtt" mono />
+              <FormulaEditor
+                label="Denominator Expression"
+                value={denCounters}
+                onChange={setDenCounters}
+                placeholder="m55125c09520  (or simply: 1)"
+                hint="Use '1' for raw sum/counter formulas. Example: m55125c09520 + m55125c09521"
+              />
               <div className="grid grid-cols-2 gap-4">
                 <SelectField label="Source" value={denSource} onChange={setDenSource} options={['OSS PM', 'OSS CM', 'NMS', 'Probes', 'External']} />
                 <SelectField label="Granularity" value={denGran} onChange={setDenGran} options={['15min', '1hour', 'daily', 'weekly']} />
