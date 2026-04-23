@@ -12,22 +12,25 @@
 const VPS_HOST = import.meta.env.VITE_VPS_HOST || 'localhost';
 if (VPS_HOST === 'localhost') console.warn('[apiConfig] VITE_VPS_HOST not set — VPS mode will use localhost');
 
-// Cloudflare Tunnel endpoints (HTTPS, works from anywhere)
+// Detect hosting context: app.qoebit.net serves frontend + API from same origin via nginx
+const isOnAppDomain = typeof window !== 'undefined' && (
+  window.location.hostname === 'app.qoebit.net' ||
+  window.location.hostname === 'app.osmosis.net' ||
+  window.location.hostname === VPS_HOST ||
+  window.location.hostname === '151.242.147.49'
+);
+
+// Cloudflare Tunnel endpoints (legacy — separate domains per service)
 const CF_PARSER = 'https://api.qoebit.net';
 const CF_KPI = 'https://kpi.qoebit.net';
 
-// Detect if we're on the Cloudflare tunnel domain
-const isOnTunnel = typeof window !== 'undefined' && (
-  window.location.hostname === 'app.qoebit.net' ||
-  window.location.hostname.endsWith('.qoebit.net') ||
-  window.location.hostname === 'app.osmosis.net' ||
-  window.location.hostname.endsWith('.osmosis.net')
-);
-
+// On app.qoebit.net: use same-origin relative paths (nginx proxies /api/ and /kpi-api/)
+// On VPS IP: same-origin
+// Elsewhere: use Cloudflare tunnels
 export const VPS_ENDPOINTS = {
-  parser:  isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:8000`,
-  kpi:     isOnTunnel ? CF_KPI : `http://${VPS_HOST}:8001`,
-  agent:   isOnTunnel ? CF_PARSER : `http://${VPS_HOST}:1000`,
+  parser:  isOnAppDomain ? '' : CF_PARSER,           // same-origin: /api/v1/... works directly
+  kpi:     isOnAppDomain ? '/kpi-api' : CF_KPI,      // same-origin: /kpi-api/... proxied by nginx
+  agent:   isOnAppDomain ? '/agent-api' : CF_PARSER,  // same-origin: /agent-api/...
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
