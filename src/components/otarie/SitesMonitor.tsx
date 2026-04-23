@@ -11698,6 +11698,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                     // Handle new view type configs (KPI Overlay / Topology Search)
                     if (settings.viewType === 'kpi_overlay' && settings.kpiOverlayConfig) {
+                      // Switching to a KPI Overlay view must turn OFF parameter mode
+                      // so the top bar selector flips from PARAM → KPI.
+                      if (paramMode || paramConfirmed) {
+                        setParamMode(false);
+                        setParamConfirmed(null);
+                        setParamSelected(null);
+                        setParamPoints([]);
+                        setParamPanelOpen(false);
+                      }
                       const cfg = settings.kpiOverlayConfig;
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
