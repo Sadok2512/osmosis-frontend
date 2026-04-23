@@ -273,10 +273,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">2</span>
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-200">
-            <Globe className="w-3 h-3" /> Dashboard scope
-          </span>
+        <div className="ml-auto flex flex-col items-end gap-1">
           <button
             onClick={handleApply}
             title="Apply changes to all widgets in the dashboard"
@@ -285,6 +282,9 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
             <Globe className="w-3.5 h-3.5" />
             Apply to Dashboard
           </button>
+          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-200">
+            <Globe className="w-3 h-3" /> Dashboard scope
+          </span>
         </div>
       </div>
 
