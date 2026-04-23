@@ -9,21 +9,22 @@
 // `toBackendDimension()` instead of doing `.toUpperCase()` blindly.
 
 const UI_TO_BACKEND: Record<string, string> = {
-  // Techno family
-  Techno: 'RAT',
-  techno: 'RAT',
-  TECHNO: 'RAT',
+  // Techno / RAT family
   Technology: 'RAT',
   TECHNOLOGY: 'RAT',
   RAT: 'RAT',
+  rat: 'RAT',
+  Techno: 'RAT',       // backward compat
+  techno: 'RAT',       // backward compat
+  TECHNO: 'RAT',       // backward compat
 
   // Vendor family
-  Constructeur: 'Vendor',
-  constructeur: 'Vendor',
-  CONSTRUCTEUR: 'Vendor',
-  Vendor: 'Vendor',
-  vendor: 'Vendor',
-  VENDOR: 'Vendor',
+  Vendor: 'VENDOR',
+  vendor: 'VENDOR',
+  VENDOR: 'VENDOR',
+  Constructeur: 'VENDOR',   // backward compat
+  constructeur: 'VENDOR',   // backward compat
+  CONSTRUCTEUR: 'VENDOR',   // backward compat
 
   // DOR / Region
   Région: 'DOR',

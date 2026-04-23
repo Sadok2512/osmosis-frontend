@@ -19,13 +19,13 @@ const FILTER_LABELS: Record<string, string> = {
   dor: 'DOR',
   dr: 'DR',
   cluster: 'Cluster',
-  constructeur: 'Constructeur',
-  techno: 'Technologie',
+  vendor: 'Vendor',
+  rat: 'Technology',
   bande: 'Bande',
   zone_arcep: 'Zone ARCEP',
 };
 
-const FILTER_KEYS = ['dor', 'dr', 'cluster', 'constructeur', 'techno', 'bande', 'zone_arcep'];
+const FILTER_KEYS = ['dor', 'dr', 'cluster', 'vendor', 'rat', 'bande', 'zone_arcep'];
 
 /** Build static fallback filter definitions from filterDimensions config */
 function buildStaticFilterDefs(): FilterDefinition[] {
@@ -36,9 +36,9 @@ function buildStaticFilterDefs(): FilterDefinition[] {
       defs.push({ id: key, label: FILTER_LABELS[key] || key, values: values.sort() });
     }
   }
-  // Ensure at least techno exists
-  if (!defs.find(d => d.id === 'techno')) {
-    defs.push({ id: 'techno', label: 'Technologie', values: ['4G', '5G'] });
+  // Ensure at least rat exists
+  if (!defs.find(d => d.id === 'rat')) {
+    defs.push({ id: 'rat', label: 'Technology', values: ['4G', '5G'] });
   }
   return defs;
 }
@@ -94,10 +94,10 @@ export function useSitesFilters() {
           if (s.dor) sets.dor.add(s.dor);
           if (s.dr) sets.dr.add(s.dr);
           if (s.cluster || s.plaque || s.bcluster) sets.cluster.add(s.cluster || s.plaque || s.bcluster);
-          if (s.constructeur) sets.constructeur.add(s.constructeur);
+          if (s.constructeur) sets.vendor.add(s.constructeur);
           if (s.zone_arcep) sets.zone_arcep.add(s.zone_arcep);
-          if (Array.isArray(s.technos)) s.technos.forEach((t: string) => sets.techno.add(t));
-          else if (s.techno) sets.techno.add(s.techno);
+          if (Array.isArray(s.technos)) s.technos.forEach((t: string) => sets.rat.add(t));
+          else if (s.techno) sets.rat.add(s.techno);
           if (Array.isArray(s.bandes)) s.bandes.forEach((b: string) => sets.bande.add(b));
           else if (s.bande) sets.bande.add(s.bande);
         }
@@ -121,7 +121,7 @@ export function useSitesFilters() {
 
   const CELL_LEVEL_FILTER_IDS = useMemo(() => new Set([
     'pci', 'eci', 'nci', 'bande', 'earfcn', 'nrarfcn', 'cid', 'tac',
-    'nom_cellule', 'techno', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel',
+    'nom_cellule', 'rat', 'azimut', 'tilt', 'hba', 'etat_cellule', 'essentiel',
   ]), []);
 
   const hasCellLevelFilters = useMemo(

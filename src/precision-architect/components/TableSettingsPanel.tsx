@@ -33,7 +33,7 @@ const FALLBACK_KPI_OPTIONS = [
   { key: 'debit_ul', label: 'Débit UL', unit: 'Mbps' },
   { key: 'rtt_data_avg', label: 'RTT Data Avg', unit: 'ms' },
 ];
-const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell'];
+const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell'];
 const SPLIT_OPTIONS = ['CELL', 'SITE', 'PLAQUE', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', 'BCLUSTER', '__none__'];
 const TOP_N_OPTIONS = [10, 25, 50, 100, 250, 500];
 const COLOR_PALETTE = ['#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#10b981', '#ec4899'];

@@ -44,7 +44,7 @@ const GRAINS: { id: GrainOption; label: string }[] = [
   { id: '1d', label: '1 j' },
 ];
 
-const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
+const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
 
 interface Props {
   /** Optional callback fired AFTER the global Apply has been recorded. */
@@ -58,7 +58,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
   const isAnyFetching = useIsFetching();
   // Mirror Investigator: Vendor/Technology are handled by the Périmètre popover
   // and must NOT appear in the chip-row dimension picker.
-  const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology', 'Techno']);
+  const SCOPE_DIMENSIONS = new Set(['Vendor', 'Technology']);
   const dimensionOptions = useMemo(() => {
     const base = (!filterCatalog || filterCatalog.length === 0)
       ? FALLBACK_DIMENSIONS

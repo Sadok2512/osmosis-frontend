@@ -27,7 +27,7 @@ const FIELD_OPTIONS = TOPOLOGY_DIMENSIONS.map(d => ({ key: d.key, label: d.label
 
 // Map wizard dimension keys to filterDimensions keys
 const WIZARD_TO_DIM: Record<string, string> = {
-  vendor: 'constructeur',
+  vendor: 'vendor',
   dor: 'dor',
   cluster: 'cluster',
   plaque: 'cluster',

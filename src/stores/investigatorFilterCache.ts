@@ -7,7 +7,7 @@ import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, fetchVpsW
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
-const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'CLUSTER', 'ARCEP'];
+const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'RAT', 'BAND', 'DOR', 'CLUSTER', 'ARCEP'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
 /** Dimensions that can be enriched from VPS topo distinct values (only lightweight endpoints) */
@@ -36,7 +36,7 @@ export function getFilterValues(key: string): CacheEntry {
 
 const STATIC_FALLBACKS: Record<string, string[]> = {
   VENDOR: ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'],
-  TECHNO: ['2G', '3G', '4G', '5G'],
+  RAT: ['2G', '3G', '4G', '5G'],
   BAND: ['700', '800', '1800', '2100', '2600', '3500'],
   DOR: ['UPR Sud-Ouest', 'UPR Ile-De-France', 'UPR Nord-Est', 'UPR Ouest', 'UPR Sud-Est', 'UPR Maghreb'],
   CLUSTER: ['BORDEAUX', 'TOULOUSE', 'PERPIGNAN', 'BAYONNE', 'ANGOULEME', 'TARBES', 'LILLE', 'REIMS', 'STRASBOURG', 'BREST', 'NANTES', 'RENNES', 'CAEN', 'LYON_CENTRE', 'GRENOBLE', 'NICE_CANNES', 'TUNIS', 'FEMTO'],
@@ -200,9 +200,12 @@ export function preloadAllFilters() {
 /** Map UI dimension label → cache key */
 export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
-    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO',
+    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'RAT',
     Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'CLUSTER', Cluster: 'CLUSTER', 'Zone ARCEP': 'ARCEP',
     BCluster: 'CLUSTER', bcluster: 'CLUSTER', BCLUSTER: 'CLUSTER',
+    // backward compat
+    constructeur: 'VENDOR', Constructeur: 'VENDOR',
+    techno: 'RAT', Techno: 'RAT', TECHNO: 'RAT',
   };
   return map[dimension] || dimension;
 }

@@ -41,7 +41,7 @@ const FALLBACK_KPI_OPTIONS = [
 ];
 
 // Fallback dimensions (used only if backend filter catalog is unreachable)
-const FALLBACK_TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Techno', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
+const FALLBACK_TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
 
 
 

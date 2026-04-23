@@ -51,7 +51,7 @@ const DEFAULT_PREVIEW_LIMIT = 60;
 
 // Map wizard dimension keys → backend query param keys
 const DIM_TO_QS: Record<string, string> = {
-  vendor: 'constructeur',
+  vendor: 'vendor',
   dor: 'dor',
   plaque: 'plaque',
   band: 'bande',

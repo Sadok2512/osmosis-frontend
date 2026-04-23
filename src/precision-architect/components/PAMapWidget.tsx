@@ -178,7 +178,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
             if (f.values.length === 0) continue;
             const dim = f.dimension.toLowerCase();
             const paramMap: Record<string, string> = {
-              plaque: 'plaque', dor: 'dor', vendor: 'constructeur',
+              plaque: 'plaque', dor: 'dor', vendor: 'vendor',
               techno: 'techno', bande: 'bande', bcluster: 'bcluster',
             };
             const param = paramMap[dim] || dim;

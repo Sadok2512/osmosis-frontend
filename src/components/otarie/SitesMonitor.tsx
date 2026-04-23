@@ -1228,7 +1228,7 @@ const SETTINGS_FILTER_ATTRIBUTES = [
   { label: 'Nom Cellule', key: 'nom_cellule', icon: '📶', freeText: true },
   { label: 'PCI', key: 'pci', icon: '🔢', freeText: true },
   { label: 'Code NIDT', key: 'code_nidt', icon: '🆔', freeText: true },
-  { label: 'Constructeur', key: 'constructeur', icon: '🏭' },
+  { label: 'Vendor', key: 'vendor', icon: '🏭' },
   { label: 'Bande', key: 'bande', icon: '📡' },
   { label: 'Plaque', key: 'plaque', icon: '🗺️', freeText: true },
   { label: 'Région (UR)', key: 'region', icon: '📍', freeText: true },
@@ -1238,7 +1238,7 @@ const SETTINGS_FILTER_ATTRIBUTES = [
   { label: 'Essentiel', key: 'essentiel', icon: '⭐' },
 ];
 const SETTINGS_ATTR_VALUES: Record<string, string[]> = {
-  constructeur: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung'],
+  vendor: ['Nokia', 'Nokia_NR', 'Ericsson', 'Huawei', 'Samsung'],
   bande: ['700', '800', '1800', '2100', '2600', 'NR700', 'NR2100', 'NR3500'],
   zone_arcep: ['ZTD', 'ZMD', 'ZPD'],
   etat_cellule: ['Active', 'Inactive', 'Maintenance'],
@@ -1572,7 +1572,7 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                 { key: 'pci', label: 'PCI', icon: '🔢' },
                 { key: 'azimut', label: 'Azimut', icon: '🧭' },
                 { key: 'bande', label: 'Band', icon: '📡' },
-                { key: 'techno', label: 'Techno', icon: '⚡' },
+                { key: 'rat', label: 'Technology', icon: '⚡' },
               ].map(opt => {
                 const isActive = mapLabelFields.has(opt.key);
                 return (
@@ -2073,7 +2073,7 @@ const CreateFilterDropdown: React.FC<{
 
 export interface DashboardSiteFilters {
   dor?: string[];
-  constructeur?: string[];
+  vendor?: string[];
   plaque?: string[];
   techno?: string[];
   bande?: string[];
@@ -2332,7 +2332,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const filterDimensions = useMemo(() => {
     if (backendFilterDefs && backendFilterDefs.length > 0) return backendFilterDefs;
     // Fallback: build from static config
-    const FALLBACK_KEYS = ['dor', 'constructeur', 'plaque', 'techno', 'bande', 'zone_arcep'];
+    const FALLBACK_KEYS = ['dor', 'vendor', 'plaque', 'rat', 'bande', 'zone_arcep'];
     return FILTER_DIMENSIONS
       .filter(dim => FALLBACK_KEYS.includes(dim.key))
       .map(dim => {
@@ -5300,7 +5300,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (backendQueryStr) {
       const bp = new URLSearchParams(backendQueryStr);
       if (bp.get('dor')) base.dor = bp.get('dor')!;
-      if (bp.get('constructeur')) base.vendor = bp.get('constructeur')!;
+      if (bp.get('vendor') || bp.get('constructeur')) base.vendor = (bp.get('vendor') || bp.get('constructeur'))!;
       if (bp.get('plaque')) base.plaque = bp.get('plaque')!;
       if (bp.get('zone_arcep')) base.zone_arcep = bp.get('zone_arcep')!;
       if (bp.get('techno')) base.techno = bp.get('techno')!;
@@ -5312,7 +5312,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const df = activeDashboardFilters;
       if ((df as any).cluster?.length && !base.cluster) base.cluster = (df as any).cluster.join(',');
       if (df.bande?.length && !base.bande) base.bande = df.bande.join(',');
-      if (df.constructeur?.length && !base.vendor) base.vendor = df.constructeur.join(',');
+      if (df.vendor?.length && !base.vendor) base.vendor = df.vendor.join(',');
       if (df.techno?.length && !base.techno) base.techno = df.techno.join(',');
       if (df.dor?.length && !base.dor) base.dor = df.dor.join(',');
       if (df.plaque?.length && !base.plaque) base.plaque = df.plaque.join(',');
@@ -5611,7 +5611,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (effectiveFilters) {
               if ((effectiveFilters as any).cluster?.length) cellFilters.cluster = (effectiveFilters as any).cluster.join(',');
               if (effectiveFilters.bande?.length) cellFilters.bande = effectiveFilters.bande.join(',');
-              if (effectiveFilters.constructeur?.length) cellFilters.vendor = effectiveFilters.constructeur.join(',');
+              if (effectiveFilters.vendor?.length) cellFilters.vendor = effectiveFilters.vendor.join(',');
               if (effectiveFilters.techno?.length) cellFilters.techno = effectiveFilters.techno.join(',');
               if (effectiveFilters.dor?.length) cellFilters.dor = effectiveFilters.dor.join(',');
               if (effectiveFilters.plaque?.length) cellFilters.plaque = effectiveFilters.plaque.join(',');
@@ -6238,7 +6238,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const df: any = activeDashboardFilters;
       if (df.cluster?.length && !cellFilters.cluster) cellFilters.cluster = df.cluster.join(',');
       if (df.bande?.length && !cellFilters.bande) cellFilters.bande = df.bande.join(',');
-      if (df.constructeur?.length && !cellFilters.vendor) cellFilters.vendor = df.constructeur.join(',');
+      if (df.vendor?.length && !cellFilters.vendor) cellFilters.vendor = df.vendor.join(',');
       if (df.techno?.length && !cellFilters.techno) cellFilters.techno = df.techno.join(',');
       if (df.dor?.length && !cellFilters.dor) cellFilters.dor = df.dor.join(',');
       if (df.plaque?.length && !cellFilters.plaque) cellFilters.plaque = df.plaque.join(',');
@@ -11650,7 +11650,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             // Also apply dashboard filters if present
                             const df = settings.siteFilters || {};
                             if (df.dor?.length) qs.set('dor', df.dor[0]);
-                            if (df.constructeur?.length) qs.set('vendor', df.constructeur[0]);
+                            if (df.vendor?.length) qs.set('vendor', df.vendor[0]);
                             if ((df as any).cluster?.length) qs.set('cluster', (df as any).cluster[0]);
                             const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
                             const url = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${qs}`);
@@ -11740,7 +11740,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (newFilters) {
                       setActiveDashboardFilters(newFilters);
                       if (newFilters.dor?.length) setLocalDor(newFilters.dor[0]);
-                      if (newFilters.constructeur?.length) setLocalVendor(newFilters.constructeur[0]);
+                      if (newFilters.vendor?.length) setLocalVendor(newFilters.vendor[0]);
                       if (newFilters.plaque?.length) setLocalPlaque(newFilters.plaque[0]);
                       if (newFilters.techno?.length) setLocalTechno(newFilters.techno[0] as any);
                       if (newFilters.bande?.length) setLocalBande(newFilters.bande[0]);
@@ -11766,7 +11766,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             const t = f.tech === '4G' ? '4G' : f.tech === '5G' ? '5G' : 'ALL';
                             setLocalTechno(t as any);
                           }
-                          if (f.attribute === 'constructeur' && f.value) setLocalVendor(f.value);
+                          if ((f.attribute === 'vendor' || f.attribute === 'constructeur') && f.value) setLocalVendor(f.value);
                           if (f.attribute === 'bande' && f.value) setLocalBande(f.value);
                           if (f.attribute === 'zone_arcep' && f.value) setLocalZoneArcep(f.value);
                         }
@@ -11832,7 +11832,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // Apply multi-filters from dashboard
                       if (siteFilters.dor?.length === 1) setLocalDor(siteFilters.dor[0]);
                       else if (siteFilters.dor?.length) setLocalDor(siteFilters.dor[0]);
-                      if (siteFilters.constructeur?.length === 1) setLocalVendor(siteFilters.constructeur[0]);
+                      if (siteFilters.vendor?.length === 1) setLocalVendor(siteFilters.vendor[0]);
                       if (siteFilters.plaque?.length === 1) setLocalPlaque(siteFilters.plaque[0]);
                       if (siteFilters.techno?.length === 1) setLocalTechno(siteFilters.techno[0] as any);
                       if (siteFilters.bande?.length === 1) setLocalBande(siteFilters.bande[0]);
@@ -12264,7 +12264,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 {/* Vendor Distribution */}
                 <div className="px-5 py-4">
-                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
+                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Vendors</h4>
                   {(() => {
                     const entries = Object.entries(vendorMap)
                       .map(([v, c]) => ({
@@ -12514,7 +12514,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {/* Vendor Distribution */}
                     {Object.keys(displayStats.vendorMap).length > 0 && (
                       <div className="px-5 py-4">
-                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Constructeurs</h4>
+                        <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Distribution Vendors</h4>
                         {(() => {
                           const entries = Object.entries(displayStats.vendorMap)
                             .map(([v, c]) => ({ vendor: v, total: (c['2G'] || 0) + (c['3G'] || 0) + c['4G'] + c['5G'], c2g: c['2G'] || 0, c3g: c['3G'] || 0, c4g: c['4G'], c5g: c['5G'] }))
@@ -13142,7 +13142,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         { label: 'NCI', value: (cell as any).nci ?? '—' },
                         { label: 'CID', value: (cell as any).cid ?? '—' },
                         { label: 'État Cellule', value: (cell as any).etat_cellule ?? '—' },
-                        { label: 'Constructeur', value: (cell as any).constructeur ?? siteDetail.vendor ?? '—', highlight: true },
+                        { label: 'Vendor', value: (cell as any).constructeur ?? siteDetail.vendor ?? '—', highlight: true },
                         { label: 'Plaque', value: (cell as any).plaque ?? '—' },
                         { label: 'Zone ARCEP', value: (cell as any).zone_arcep ?? '—' },
                         { label: 'Essentiel', value: (cell as any).essentiel ?? '—' },

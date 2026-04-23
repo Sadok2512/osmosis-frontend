@@ -69,14 +69,13 @@ export function loadFilterCache(): Promise<void> {
 export const FILTER_DIMENSIONS: DimensionDef[] = [
   { key: 'dor', label: 'DOR', type: 'enum', multi: true, depends_on: [] },
   { key: 'dr', label: 'DR', type: 'enum', multi: true, depends_on: ['dor'] },
-  { key: 'constructeur', label: 'Constructeur', type: 'enum', multi: true, depends_on: ['dor'] },
-  { key: 'cluster', label: 'Cluster', type: 'enum', multi: true, depends_on: ['dor', 'constructeur'] },
+  { key: 'vendor', label: 'Vendor', type: 'enum', multi: true, depends_on: ['dor'] },
+  { key: 'cluster', label: 'Cluster', type: 'enum', multi: true, depends_on: ['dor', 'vendor'] },
   { key: 'site', label: 'Site', type: 'enum', multi: true, depends_on: ['plaque'], value_source: 'backend' },
   { key: 'cell', label: 'Cellule', type: 'enum', multi: true, depends_on: ['site'], value_source: 'backend' },
   { key: 'zone_arcep', label: 'Zone ARCEP', type: 'enum', multi: true, depends_on: [] },
-  { key: 'techno', label: 'Techno', type: 'enum', multi: true, depends_on: [] },
-  { key: 'bande', label: 'Bande', type: 'enum', multi: true, depends_on: ['techno'] },
-  { key: 'vendor', label: 'Vendor', type: 'enum', multi: true, depends_on: [] },
+  { key: 'rat', label: 'Technology', type: 'enum', multi: true, depends_on: [] },
+  { key: 'bande', label: 'Bande', type: 'enum', multi: true, depends_on: ['rat'] },
 ];
 
 // ── Reference data ──
@@ -170,7 +169,7 @@ const _contextPending = new Map<string, Promise<void>>();
 
 function buildContextKey(activeFilters: ActiveFilter[]): string {
   const relevant = activeFilters
-    .filter(f => f.values.length > 0 && ['dor', 'constructeur', 'techno', 'bande'].includes(f.dimension))
+    .filter(f => f.values.length > 0 && ['dor', 'vendor', 'rat', 'bande'].includes(f.dimension))
     .sort((a, b) => a.dimension.localeCompare(b.dimension));
   if (relevant.length === 0) return '';
   return relevant.map(f => `${f.dimension}=${f.values.join(',')}`).join('&');
@@ -230,7 +229,7 @@ export function resolveAvailableValues(
     case 'dr':
       return backendVals ?? REF_DOR_TREE.dors.map(d => d.replace('UPR ', 'DR ')).sort();
 
-    case 'constructeur':
+    case 'vendor':
       return backendVals ?? Array.from(
         new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor => Object.keys(byDor)))
       ).sort();
@@ -245,14 +244,11 @@ export function resolveAvailableValues(
     case 'zone_arcep':
       return backendVals ?? [];
 
-    case 'techno':
+    case 'rat':
       return backendVals ?? Object.keys(REF_TECHNO_BANDE);
 
     case 'bande':
       return backendVals ?? Object.values(REF_TECHNO_BANDE).flat().sort();
-
-    case 'vendor':
-      return backendVals ?? [];
 
     default:
       return backendVals ?? dim.values ?? [];
