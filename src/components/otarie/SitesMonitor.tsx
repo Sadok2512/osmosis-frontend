@@ -9216,6 +9216,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
               </div>
+              </div>
             </div>
           )}
           {/* Param loading indicator */}
