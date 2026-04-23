@@ -333,58 +333,6 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                   </div>
                 </Field>
 
-                {cfg.kpiOverlay && (
-                  <div className="space-y-3 p-4 rounded-xl border border-outline-variant/20 bg-surface-container-low/40">
-                    <div className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant/70">
-                      KPI Status Thresholds &amp; Colors
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <Field label="Warning threshold (≤)">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={cfg.warningThreshold ?? 80}
-                          onChange={(e) => update({ warningThreshold: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
-                        />
-                      </Field>
-                      <Field label="Critical threshold (≤)">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={cfg.criticalThreshold ?? 60}
-                          onChange={(e) => update({ criticalThreshold: Number(e.target.value) })}
-                          className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-xs font-mono focus:outline-none focus:border-primary"
-                        />
-                      </Field>
-                    </div>
-
-                    <Field label="Optimal color">
-                      <ColorPickerRow
-                        value={cfg.optimalColor || '#10b981'}
-                        fallback="#10b981"
-                        onChange={(v) => update({ optimalColor: v })}
-                      />
-                    </Field>
-                    <Field label="Warning color">
-                      <ColorPickerRow
-                        value={cfg.warningColor || '#f59e0b'}
-                        fallback="#f59e0b"
-                        onChange={(v) => update({ warningColor: v })}
-                      />
-                    </Field>
-                    <Field label="Critical color">
-                      <ColorPickerRow
-                        value={cfg.criticalColor || '#ef4444'}
-                        fallback="#ef4444"
-                        onChange={(v) => update({ criticalColor: v })}
-                      />
-                    </Field>
-                  </div>
-                )}
               </>
             )}
           </div>
