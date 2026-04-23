@@ -4869,7 +4869,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // Only an explicit user click on the Topo button should leave KPI mode.
       if (settings.sectorColorMode && sectorColorMode !== 'kpi') setSectorColorMode(settings.sectorColorMode);
       if (settings.mapDisplayMode) {
-        setMapDisplayMode(settings.viewType === 'parameter' ? settings.mapDisplayMode : 'sites');
+        setMapDisplayMode((settings as any).viewType === 'parameter' ? settings.mapDisplayMode : 'sites');
       }
       if (settings.showBandPanel !== undefined) setShowBandPanel(settings.showBandPanel);
       if (settings.showLegend !== undefined) setShowLegend(settings.showLegend);
@@ -6983,7 +6983,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setEnabledBands(new Set(settings.enabledBands));
     // Guard: do not overwrite KPI overlay when loading a saved view in 'topo' mode.
     if (sectorColorMode !== 'kpi') setSectorColorMode(settings.sectorColorMode);
-    setMapDisplayMode(settings.viewType === 'parameter' ? settings.mapDisplayMode : 'sites');
+    setMapDisplayMode((settings as any).viewType === 'parameter' ? settings.mapDisplayMode : 'sites');
     setShowBandPanel(settings.showBandPanel);
     setShowLegend(settings.showLegend);
     setShowRightPanel(settings.showRightPanel);
