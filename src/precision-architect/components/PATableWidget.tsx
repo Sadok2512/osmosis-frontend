@@ -58,10 +58,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   // Perimeter filter is required. When the widget inherits from the report
   // (no override), we look at the global toolbar filters; otherwise we look at
   // the widget's own filters. Either source must contain at least one
-  // perimeter dimension (Plaque / Site / Vendor / DOR / Bande / BCluster).
+  // perimeter dimension (Cluster / Site / Vendor / DOR / Bande).
   const effectiveFilters = inheritsScope ? gFilters : (cfg?.data.filters ?? []);
-  const PERIMETER_DIMS = new Set(['PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND', 'BCLUSTER',
-    'Plaque', 'Site', 'Constructeur', 'DOR', 'Bande', 'BCluster']);
+  const PERIMETER_DIMS = new Set(['CLUSTER', 'PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND',
+    'Cluster', 'Plaque', 'Site', 'Vendor', 'DOR', 'Bande']);
   const hasPerimeterFilter = effectiveFilters.some(
     f => PERIMETER_DIMS.has(f.dimension) || PERIMETER_DIMS.has(toBackendDimension(f.dimension))
   );

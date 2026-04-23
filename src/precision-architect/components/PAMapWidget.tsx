@@ -15,6 +15,7 @@ interface MapSite {
   techno: string;
   bande: string;
   plaque: string;
+  cluster: string;
   dor: string;
 }
 
@@ -53,6 +54,7 @@ function siteSummaryToMapSite(s: SiteSummary, warnTh = 80, critTh = 60): MapSite
     techno: technoList || '',
     bande: bandeList || '',
     plaque: s.plaque || '',
+    cluster: s.cluster || s.plaque || '',
     dor: s.dor || '',
   };
 }
@@ -112,7 +114,7 @@ export function getMapSitesDistinct(dim: string): string[] {
     if (key === 'VENDOR') raw = s.vendor;
     else if (key === 'TECHNO') raw = s.techno;
     else if (key === 'BANDE') raw = s.bande;
-    else if (key === 'PLAQUE') raw = s.plaque;
+    else if (key === 'CLUSTER' || key === 'PLAQUE') raw = s.cluster || s.plaque;
     else if (key === 'DOR') raw = s.dor;
     else if (key === 'SITE' || key === 'CELL') raw = s.name;
     if (!raw) continue;
@@ -178,8 +180,8 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
             if (f.values.length === 0) continue;
             const dim = f.dimension.toLowerCase();
             const paramMap: Record<string, string> = {
-              plaque: 'plaque', dor: 'dor', vendor: 'vendor',
-              techno: 'techno', bande: 'bande', bcluster: 'bcluster',
+              cluster: 'cluster', plaque: 'cluster', dor: 'dor', vendor: 'vendor',
+              rat: 'rat', techno: 'rat', bande: 'bande',
             };
             const param = paramMap[dim] || dim;
             qs.set(param, f.values.join(','));
@@ -243,7 +245,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         if (dim === 'VENDOR') v = s.vendor;
         else if (dim === 'TECHNO') v = s.techno;
         else if (dim === 'BANDE') v = s.bande;
-        else if (dim === 'PLAQUE') v = s.plaque;
+        else if (dim === 'CLUSTER' || dim === 'PLAQUE') v = s.cluster || s.plaque;
         else if (dim === 'DOR') v = s.dor;
         else if (dim === 'SITE') v = s.name;
         else if (dim === 'CELL') v = s.name;
@@ -267,7 +269,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         if (f.values.length === 0) continue;
         const dim = f.dimension.toUpperCase();
         const sampleVals = sample.map(s => {
-          if (dim === 'PLAQUE') return s.plaque;
+          if (dim === 'CLUSTER' || dim === 'PLAQUE') return s.cluster || s.plaque;
           if (dim === 'DOR') return s.dor;
           if (dim === 'VENDOR') return s.vendor;
           return '?';

@@ -41,14 +41,14 @@ const FALLBACK_KPI_OPTIONS = [
 ];
 
 // Fallback dimensions (used only if backend filter catalog is unreachable)
-const FALLBACK_TF_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
+const FALLBACK_TF_DIMENSIONS = ['Cluster', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'Zone ARCEP'];
 
 
 
 const COLOR_PALETTE = ['#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6', '#3b82f6', '#10b981', '#ec4899'];
 
 // Mirrors the table widget — same backend dimensions accepted by /monitor/query/timeseries.
-const SPLIT_OPTIONS = ['CELL', 'SITE', 'PLAQUE', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', 'BCLUSTER', '__none__'];
+const SPLIT_OPTIONS = ['CELL', 'SITE', 'CLUSTER', 'DOR', 'DR', 'VENDOR', 'BANDE', 'TECHNOLOGY', '__none__'];
 
 export default function ChartSettingsPanel({ widget, onChange, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('data');

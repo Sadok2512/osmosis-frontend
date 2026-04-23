@@ -44,7 +44,7 @@ const GRAINS: { id: GrainOption; label: string }[] = [
   { id: '1d', label: '1 j' },
 ];
 
-const FALLBACK_DIMENSIONS = ['Plaque', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'BCluster', 'Zone ARCEP'];
+const FALLBACK_DIMENSIONS = ['Cluster', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'Zone ARCEP'];
 
 interface Props {
   /** Optional callback fired AFTER the global Apply has been recorded. */

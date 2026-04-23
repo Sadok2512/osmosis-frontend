@@ -571,6 +571,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     cfg.metrics.forEach(m => {
       const points = tsResp.series.filter(p => p.kpi_key === m.kpiKey);
       const splitActive = !!m.splitBy && m.splitBy !== '__none__';
+      console.log('[PA Chart Split]', { kpi: m.kpiKey, splitBy: m.splitBy, splitActive, points: points.length, splits: [...new Set(points.map(p => p.split_value).filter(Boolean))] });
 
       if (!splitActive) {
         const byTs = new Map(points.map(p => [p.ts, p.value]));
