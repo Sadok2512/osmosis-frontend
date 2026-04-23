@@ -88,12 +88,17 @@ export function selectToolbarSnapshot(s: PAGlobalToolbarState) {
   const snap = s.applied;
   const baseFilters = snap?.filters ?? s.filters;
   const vendors = snap?.vendors ?? s.vendors;
-  // Inject a synthetic Vendor chip so downstream widget logic that consumes
-  // `filters` automatically applies the toolbar vendor selection.
-  const filters = vendors.length > 0
+  // Inject one synthetic Vendor chip per selected vendor so downstream
+  // widget logic that consumes `filters` automatically applies the
+  // toolbar vendor selection.
+  const filters: ChartFilterChip[] = vendors.length > 0
     ? [
         ...baseFilters.filter((f) => (f.dimension || '').toLowerCase() !== 'vendor'),
-        { dimension: 'Vendor', values: vendors } as ChartFilterChip,
+        ...vendors.map((v) => ({
+          id: `pa-toolbar-vendor-${v}`,
+          dimension: 'Vendor',
+          value: v,
+        })),
       ]
     : baseFilters;
   return {
