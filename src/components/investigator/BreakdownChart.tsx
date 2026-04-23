@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { fetchExplain } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { formatAxisLabel } from './timeUtils';
@@ -119,7 +120,10 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
     if (tsData.length === 0) return { option: null, hasData: false };
 
     const counters = [...new Set(tsData.map(d => d.counter))];
-    const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+    const dataTs = [...new Set(tsData.map(d => d.ts))].sort();
+    const timestamps = dateFrom && dateTo
+      ? mergeTimeSlots(generateTimeSlots(dateFrom, dateTo, granularity), dataTs)
+      : dataTs;
 
     const series = counters.map((counter, i) => {
       const color = SERIES_COLORS[i % SERIES_COLORS.length];

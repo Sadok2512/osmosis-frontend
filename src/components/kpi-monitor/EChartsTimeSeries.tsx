@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import type { WidgetGraphConfig, WidgetAxisConfig, WidgetThreshold } from './GraphSettingsPanel';
 import { getAxisSideConfig } from './normalizeConfig';
 import { DEFAULT_GRID, DEFAULT_CALENDAR } from './GraphSettingsPanel';
@@ -48,6 +49,8 @@ interface Props {
   bottomPanel?: React.ReactNode;
   onAxisConfigChange?: (c: WidgetAxisConfig) => void;
   onGraphConfigChange?: (c: WidgetGraphConfig) => void;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 const EChartsTimeSeries: React.FC<Props> = ({
@@ -56,7 +59,7 @@ const EChartsTimeSeries: React.FC<Props> = ({
   onExportCSV, onRefresh, onExpand, onDuplicate, onDelete,
   graphConfig: gc, axisConfig: ac, thresholds: thresholdList, thresholdsEnabled,
   editMode, onToggleEditMode, onInfo, configPanel, bottomPanel,
-  onAxisConfigChange, onGraphConfigChange,
+  onAxisConfigChange, onGraphConfigChange, dateFrom, dateTo,
 }) => {
   const { selectedKpis, milestones: storeMilestones, showMilestones: storeShowMilestones } = useKpiMonitorStore();
   const catMap = externalMap || KPI_CATALOG_MAP;
@@ -69,9 +72,13 @@ const EChartsTimeSeries: React.FC<Props> = ({
       if (!seriesMap.has(name)) seriesMap.set(name, { kpiKey: pt.kpi_key, name, points: new Map() });
       seriesMap.get(name)!.points.set(pt.ts, pt.value);
     }
-    const allTs = [...new Set(data.map(d => d.ts))].sort();
+    const dataTs = [...new Set(data.map(d => d.ts))].sort();
+    // When dateFrom/dateTo are provided, generate the full time axis so gaps are visible
+    const allTs = dateFrom && dateTo && granularity
+      ? mergeTimeSlots(generateTimeSlots(dateFrom, dateTo, granularity), dataTs)
+      : dataTs;
     return { seriesArr: [...seriesMap.values()], allTs };
-  }, [data]);
+  }, [data, dateFrom, dateTo, granularity]);
 
   // Determine first KPI info for card header
   const firstKpiKey = seriesArr[0]?.kpiKey;

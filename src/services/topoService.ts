@@ -109,7 +109,7 @@ function seededRand(seed: string, min: number, max: number): number {
 
 const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
 
-const BCLUSTER_FIELDS = ['bcluster', 'b_cluster', 'cluster', 'cluster_name', 'b_cluster_name'];
+const CLUSTER_FIELDS = ['cluster', 'bcluster', 'b_cluster', 'cluster_name', 'b_cluster_name'];
 
 function getFirstStringField(source: any, fields: string[]): string | null {
   if (!source) return null;
@@ -120,8 +120,8 @@ function getFirstStringField(source: any, fields: string[]): string | null {
   return null;
 }
 
-function getBclusterValue(source: any): string | null {
-  return getFirstStringField(source, BCLUSTER_FIELDS);
+function getClusterValue(source: any): string | null {
+  return getFirstStringField(source, CLUSTER_FIELDS);
 }
 
 const DOR_MAP: Record<string, string> = {
@@ -160,7 +160,7 @@ interface TopoRow {
   bande: string | null;
   constructeur: string | null;
   azimut: number | null;
-  plaque: string | null;
+  cluster: string | null;
   hba: number | null;
   tac: number | null;
   tilt?: number | null;
@@ -177,9 +177,9 @@ interface TopoRow {
   lac?: number | null;
   hebergeur_leader?: string | null;
   relative_id?: number | string | null;
+  plaque?: string | null;
   bcluster?: string | null;
   b_cluster?: string | null;
-  cluster?: string | null;
   cluster_name?: string | null;
   b_cluster_name?: string | null;
 }
@@ -293,13 +293,13 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.date_mes) ext.date_mes = extra.date_mes;
     if (extra.date_fn8) ext.date_fn8 = extra.date_fn8;
     if (extra.constructeur) ext.constructeur = extra.constructeur;
-    if (extra.plaque) ext.plaque = extra.plaque;
+    if (extra.plaque) ext.cluster = extra.plaque;
     if (extra.latitude != null) ext.latitude = extra.latitude;
     if (extra.longitude != null) ext.longitude = extra.longitude;
     if (extra.hebergeur_leader) ext.hebergeur_leader = extra.hebergeur_leader;
     if (extra.relative_id != null) ext.relative_id = extra.relative_id;
-    const bcluster = getBclusterValue(extra);
-    if (bcluster) ext.bcluster = bcluster;
+    const cluster = getClusterValue(extra);
+    if (cluster) ext.cluster = cluster;
     // Spatial KPIs from ref_cell_daily
     if ((extra as any).intersite_distance_m != null) ext.intersite_distance_m = (extra as any).intersite_distance_m;
     if ((extra as any).overshoot_factor != null) ext.overshoot_factor = (extra as any).overshoot_factor;
@@ -396,9 +396,8 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       site_name: first.nom_site || first.site_name || first.code_nidt || siteId,
       vendor,
       dor: normalizeDorValue(first.dor, first.region),
-      plaque: first.plaque || '',
-      bcluster: getBclusterValue(first),
-      department: (first.plaque || '').replace('DEPT_', ''),
+      cluster: first.plaque || first.cluster || '',
+      department: (first.plaque || first.cluster || '').replace('DEPT_', ''),
       cell_count: cells.length,
       qoe_score_avg: cells.length > 0 ? avg(cells.map(c => c.qoe_score_avg)) : 0,
       p50_thr_dn_mbps: cells.length > 0 ? avg(cells.map(c => c.p50_thr_dn_mbps)) : 0,
@@ -427,7 +426,7 @@ function buildSitesFromLocalTopo(): SiteSummary[] {
     bande: r.bande,
     constructeur: r.vendor,
     azimut: r.azimut,
-    plaque: r.plaque,
+    cluster: r.plaque || r.cluster,
     hba: r.hba,
     tac: null,
   }));

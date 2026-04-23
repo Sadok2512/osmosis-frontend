@@ -70,7 +70,7 @@ export const FILTER_DIMENSIONS: DimensionDef[] = [
   { key: 'dor', label: 'DOR', type: 'enum', multi: true, depends_on: [] },
   { key: 'dr', label: 'DR', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'constructeur', label: 'Constructeur', type: 'enum', multi: true, depends_on: ['dor'] },
-  { key: 'plaque', label: 'Plaque', type: 'enum', multi: true, depends_on: ['dor', 'constructeur'] },
+  { key: 'cluster', label: 'Cluster', type: 'enum', multi: true, depends_on: ['dor', 'constructeur'] },
   { key: 'site', label: 'Site', type: 'enum', multi: true, depends_on: ['plaque'], value_source: 'backend' },
   { key: 'cell', label: 'Cellule', type: 'enum', multi: true, depends_on: ['site'], value_source: 'backend' },
   { key: 'zone_arcep', label: 'Zone ARCEP', type: 'enum', multi: true, depends_on: [] },
@@ -235,7 +235,7 @@ export function resolveAvailableValues(
         new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor => Object.keys(byDor)))
       ).sort();
 
-    case 'plaque':
+    case 'cluster':
       return backendVals ?? Array.from(
         new Set(Object.values(REF_DOR_TREE.tree).flatMap(byDor =>
           Object.values(byDor).flat()

@@ -7,7 +7,7 @@ import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, fetchVpsW
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
-const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'PLAQUE', 'ARCEP', 'BCLUSTER'];
+const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'TECHNO', 'BAND', 'DOR', 'CLUSTER', 'ARCEP'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
 /** Dimensions that can be enriched from VPS topo distinct values (only lightweight endpoints) */
@@ -149,14 +149,14 @@ async function fetchPm(dim: string) {
   notify();
 }
 
-async function fetchBCluster() {
+async function fetchCluster() {
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
-  cache.set('BCLUSTER', entry);
+  cache.set('CLUSTER', entry);
   try {
     const res = await fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() });
     if (res.ok) {
       const d = await res.json();
-      const bc = (d.filters || []).find((f: any) => f.id === 'bcluster');
+      const bc = (d.filters || []).find((f: any) => f.id === 'cluster');
       if (bc?.values?.length) entry.values = bc.values;
     }
   } catch {}
@@ -171,7 +171,7 @@ async function fetchBCluster() {
   }
   entry.loading = false;
   entry.loaded = true;
-  cache.set('BCLUSTER', { ...entry });
+  cache.set('CLUSTER', { ...entry });
   notify();
 }
 
@@ -181,7 +181,7 @@ export function ensureFilterLoaded(key: string) {
   if (entry?.loaded || entry?.loading) return;
   if (inFlight.has(cacheKey)) return;
 
-  const loader = (cacheKey === 'BCLUSTER' ? fetchBCluster() : isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
+  const loader = (cacheKey === 'CLUSTER' ? fetchCluster() : isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
     .finally(() => {
       inFlight.delete(cacheKey);
     });
@@ -194,15 +194,15 @@ export function preloadAllFilters() {
   if (preloaded) return;
   preloaded = true;
   // Warm only the common top-level dimensions to avoid overloading the VPS proxy at startup.
-  ['SITE', 'DOR', 'PLAQUE', 'BAND', 'BCLUSTER'].forEach(ensureFilterLoaded);
+  ['SITE', 'DOR', 'CLUSTER', 'BAND'].forEach(ensureFilterLoaded);
 }
 
 /** Map UI dimension label → cache key */
 export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
     Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO',
-    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', 'Zone ARCEP': 'ARCEP',
-    BCluster: 'BCLUSTER', Cluster: 'BCLUSTER', bcluster: 'BCLUSTER', BCLUSTER: 'BCLUSTER',
+    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'CLUSTER', Cluster: 'CLUSTER', 'Zone ARCEP': 'ARCEP',
+    BCluster: 'CLUSTER', bcluster: 'CLUSTER', BCLUSTER: 'CLUSTER',
   };
   return map[dimension] || dimension;
 }

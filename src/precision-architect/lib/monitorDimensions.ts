@@ -41,8 +41,10 @@ const UI_TO_BACKEND: Record<string, string> = {
   CELL: 'CELL',
   Site: 'SITE',
   SITE: 'SITE',
-  Plaque: 'PLAQUE',
-  PLAQUE: 'PLAQUE',
+  Plaque: 'CLUSTER',
+  PLAQUE: 'CLUSTER',
+  Cluster: 'CLUSTER',
+  CLUSTER: 'CLUSTER',
   Bande: 'BAND',
   BANDE: 'BAND',
   Band: 'BAND',
@@ -50,9 +52,8 @@ const UI_TO_BACKEND: Record<string, string> = {
   ARCEP: 'ZONE_ARCEP',
   'Zone ARCEP': 'ZONE_ARCEP',
   ZONE_ARCEP: 'ZONE_ARCEP',
-  Cluster: 'BCluster',
-  BCluster: 'BCluster',
-  BCLUSTER: 'BCluster',
+  BCluster: 'CLUSTER',
+  BCLUSTER: 'CLUSTER',
 };
 
 function normalizeDimensionAlias(value: string): string {

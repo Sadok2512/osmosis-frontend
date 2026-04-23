@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import ReactECharts from 'echarts-for-react';
 import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jalon, SplitOption, WidgetType, normalizeGranularity, InvestigationState } from './types';
 import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs, smartXInterval } from './timeUtils';
+import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import CounterSelectorModal from './CounterSelectorModal';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
@@ -418,7 +419,12 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
   if (tsData.length === 0) return <div className="flex items-center justify-center text-muted-foreground text-[10px]" style={{ height }}>No data available</div>;
 
   const counters = [...new Set(tsData.map(d => d.counter))];
-  const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+  const dataTs = [...new Set(tsData.map(d => d.ts))].sort();
+  const dateFrom = state.startDate?.split('T')[0];
+  const dateTo = state.endDate?.split('T')[0];
+  const timestamps = dateFrom && dateTo
+    ? mergeTimeSlots(generateTimeSlots(dateFrom, dateTo, normalizeGranularity(state.granularity)), dataTs)
+    : dataTs;
   const displayLabel = (c: string) => {
     const id = Object.entries(nameMap).find(([, name]) => name === c)?.[0];
     return id ? `${c} (${id})` : c;

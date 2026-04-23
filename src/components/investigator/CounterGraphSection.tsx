@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -156,7 +157,10 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
 
   // Build chart
   const counters = [...new Set(tsData.map(d => d.counter))];
-  const timestamps = [...new Set(tsData.map(d => d.ts))].sort();
+  const dataTs = [...new Set(tsData.map(d => d.ts))].sort();
+  const timestamps = dateFrom && dateTo
+    ? mergeTimeSlots(generateTimeSlots(dateFrom, dateTo, globalGran), dataTs)
+    : dataTs;
 
   const chartOption = tsData.length > 0 ? {
     ...phAnimation,

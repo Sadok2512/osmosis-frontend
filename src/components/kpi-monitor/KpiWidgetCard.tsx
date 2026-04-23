@@ -2,6 +2,7 @@
 import React, { useMemo, useState, useCallback, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { cn } from '@/lib/utils';
+import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import {
   BarChart3, Settings, Copy, Trash2, MoreHorizontal, RefreshCw,
   ChevronDown, ChevronUp, Plus, X, Pencil, Calendar, Filter,
@@ -144,7 +145,10 @@ const KpiWidgetCard: React.FC<Props> = ({
       if (!seriesMap.has(name)) seriesMap.set(name, { kpiKey: pt.kpi_key, name, points: new Map() });
       seriesMap.get(name)!.points.set(pt.ts, pt.value);
     }
-    const allTs = [...new Set(tsData.map(d => d.ts))].sort();
+    const dataTs = [...new Set(tsData.map(d => d.ts))].sort();
+    const allTs = config.dateFrom && config.dateTo
+      ? mergeTimeSlots(generateTimeSlots(config.dateFrom, config.dateTo, config.granularity), dataTs)
+      : dataTs;
     const seriesArr = [...seriesMap.values()];
 
     // Weekend shading

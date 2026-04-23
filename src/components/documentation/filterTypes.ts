@@ -60,7 +60,7 @@ export const FILTER_VISIBILITY_CONFIG: Record<FilterVisibility, { label: string;
 export const TOPOLOGY_DIMENSIONS = [
   { key: 'vendor', label: 'Vendor', options: ['Nokia', 'Ericsson', 'Huawei', 'Samsung', 'RanSharing'], multiSelect: true, bulkSupport: false },
   { key: 'dor', label: 'DOR', options: ['ILE_DE_FRANCE', 'NORD_EST', 'OUEST', 'SUD_EST', 'SUD_OUEST'], multiSelect: true, bulkSupport: false },
-  { key: 'plaque', label: 'Plaque', options: ['Plaque_A', 'Plaque_B', 'Plaque_C', 'Plaque_D', 'Plaque_E', 'Plaque_F'], multiSelect: true, bulkSupport: false },
+  { key: 'cluster', label: 'Cluster', options: ['Plaque_A', 'Plaque_B', 'Plaque_C', 'Plaque_D', 'Plaque_E', 'Plaque_F'], multiSelect: true, bulkSupport: false },
   { key: 'band', label: 'Band', options: ['NR_3500', 'NR_700', 'LTE2600', 'LTE2100', 'LTE1800', 'LTE800', 'LTE700'], multiSelect: true, bulkSupport: false },
   { key: 'sites', label: 'Sites', options: [], multiSelect: true, bulkSupport: true },
   { key: 'cells', label: 'Cells', options: [], multiSelect: true, bulkSupport: true },
@@ -166,10 +166,10 @@ export const MOCK_FILTERS: NetworkFilter[] = [
     logic: 'AND', condition_count: 2, matching_objects: 42,
   },
   {
-    id: 'f4', name: 'LTE Plaque A Accessibility Degradation', description: 'Monitoring accessibility issues in Plaque A LTE network',
+    id: 'f4', name: 'LTE Cluster A Accessibility Degradation', description: 'Monitoring accessibility issues in Cluster A LTE network',
     status: 'active', permission: 'editable', visibility: 'public', created_by: 'noc_lead', created_at: '2025-01-10', updated_at: '2025-03-15', updated_by: 'noc_lead',
     topology: [
-      { dimension: 'plaque', operator: 'in', values: ['Plaque_A'] },
+      { dimension: 'cluster', operator: 'in', values: ['Plaque_A'] },
       { dimension: 'band', operator: 'in', values: ['LTE800', 'LTE1800', 'LTE2600'] },
     ],
     parameters: [
