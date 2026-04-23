@@ -6835,12 +6835,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  // In KPI mode: ALWAYS force sector rendering (regardless of showBeamSectors state).
-  // In Topo mode: sectors only if user enabled beams AND zoom >= threshold.
-  const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode;
+  // At cell zoom, sites mode should always render sector beams automatically.
+  // The manual Beams toggle only matters below the full sector zoom threshold.
+  const topoForcesSectorsAtCellZoom = !paramMode && mapDisplayMode === 'sites' && viewport.zoom >= SITES_TO_CELLS_ZOOM;
   const showSectors = !paramMode && (
     kpiForcesSectors
-    || (viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
+    || topoForcesSectorsAtCellZoom
+    || (viewport.zoom >= 8 && mapDisplayMode === 'sites' && showBeamSectors)
     || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites')
   );
 
