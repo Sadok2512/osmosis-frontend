@@ -4713,6 +4713,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setParamConfirmed(null);
     setParamSelected(null);
     setParamPoints([]);
+    setShowBeamSectors(true);
     setParamPanelOpen(false);
     setShowParamDropdown(false);
     setParamSearch('');
