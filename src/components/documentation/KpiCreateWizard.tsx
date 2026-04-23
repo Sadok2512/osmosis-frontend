@@ -155,11 +155,19 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
     setTestError('');
     setTestResults([]);
     try {
-      // Build a temporary formula and test via /pm/kpi/compute with inline formula
-      const numExpr = numCounters.split(',').map(c => '`' + c.trim() + '`').join('+');
-      const denExpr = denCounters.trim()
-        ? denCounters.split(',').map(c => '`' + c.trim() + '`').join('+')
-        : '1';
+      // The user now writes the expression directly in the formula editor.
+      // Accept either a free expression (e.g. `m551 + m552`) or a legacy
+      // comma-separated counter list — auto-detect by looking for operators.
+      const isExpr = /[+\-*/()]/.test(numCounters);
+      const numExpr = isExpr
+        ? numCounters.trim()
+        : numCounters.split(',').map(c => '`' + c.trim() + '`').filter(Boolean).join('+');
+      const denTrim = denCounters.trim();
+      const denExpr = !denTrim
+        ? '1'
+        : /[+\-*/()]/.test(denTrim)
+          ? denTrim
+          : denTrim.split(',').map(c => '`' + c.trim() + '`').filter(Boolean).join('+');
       const res = await fetch(getApiUrl('pm/kpi/compute'), {
         method: 'POST',
         headers: getApiHeaders(),
