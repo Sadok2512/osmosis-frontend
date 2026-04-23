@@ -505,13 +505,33 @@ function DataTab({
 /* ---------------- Inherited-from-toolbar summary card ---------------- */
 
 function InheritedFromToolbarCard({ onOverride, isStat }: { onOverride: () => void; isStat?: boolean }) {
-  // Read the live global toolbar values so the user can see what they'll get.
-  const technos = usePAGlobalToolbar((s) => s.technos);
-  const from = usePAGlobalToolbar((s) => s.from);
-  const to = usePAGlobalToolbar((s) => s.to);
-  const preset = usePAGlobalToolbar((s) => s.preset);
-  const grain = usePAGlobalToolbar((s) => s.grain);
-  const filters = usePAGlobalToolbar((s) => s.filters);
+  // Read the APPLIED snapshot — widgets inherit from the snapshot frozen at
+  // the last "Apply" click on the global toolbar, never from the draft.
+  // Falls back to live values when the user has never clicked Apply yet.
+  const liveTechnos = usePAGlobalToolbar((s) => s.technos);
+  const liveFrom = usePAGlobalToolbar((s) => s.from);
+  const liveTo = usePAGlobalToolbar((s) => s.to);
+  const livePreset = usePAGlobalToolbar((s) => s.preset);
+  const liveGrain = usePAGlobalToolbar((s) => s.grain);
+  const liveFilters = usePAGlobalToolbar((s) => s.filters);
+  const liveVendors = usePAGlobalToolbar((s) => s.vendors);
+  const applied = usePAGlobalToolbar((s) => s.applied);
+
+  const technos = applied?.technos ?? liveTechnos;
+  const from = applied?.from ?? liveFrom;
+  const to = applied?.to ?? liveTo;
+  const preset = applied?.preset ?? livePreset;
+  const grain = applied?.grain ?? liveGrain;
+  const vendors = applied?.vendors ?? liveVendors;
+  const baseFilters = applied?.filters ?? liveFilters;
+  // Reflect synthetic vendor chips so the user sees exactly what the widget
+  // will receive (matches selectToolbarSnapshot behavior).
+  const filters: ChartFilterChip[] = vendors.length > 0
+    ? [
+        ...baseFilters.filter((f) => (f.dimension || '').toLowerCase() !== 'vendor'),
+        ...vendors.map((v) => ({ id: `pa-toolbar-vendor-${v}`, dimension: 'Vendor', value: v })),
+      ]
+    : baseFilters;
 
   const fmt = (iso: string) => {
     if (!iso) return '—';
