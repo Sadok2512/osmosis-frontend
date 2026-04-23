@@ -143,6 +143,11 @@ const KpiReferenceWorkspace2: React.FC = () => {
     queryKey: ['kpi-reference2-catalog'],
     queryFn: fetchKpiCatalogFromVps,
     staleTime: 60_000,
+    gcTime: 30 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    placeholderData: (previous) => previous,
+    retry: 2,
   });
 
   const catalog = catalogQuery.data || [];
