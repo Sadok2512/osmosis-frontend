@@ -18,18 +18,27 @@ interface MapSite {
   dor: string;
 }
 
-const colorFor = (status: MapSite['status']) =>
-  status === 'optimal' ? '#10b981' : status === 'warning' ? '#f59e0b' : '#ef4444';
+const DEFAULT_STATUS_COLORS = {
+  optimal: '#10b981',
+  warning: '#f59e0b',
+  critical: '#ef4444',
+} as const;
+
+const colorFor = (status: MapSite['status'], cfg?: MapWidgetConfig) => {
+  if (status === 'optimal') return cfg?.optimalColor || DEFAULT_STATUS_COLORS.optimal;
+  if (status === 'warning') return cfg?.warningColor || DEFAULT_STATUS_COLORS.warning;
+  return cfg?.criticalColor || DEFAULT_STATUS_COLORS.critical;
+};
 
 /** Map a SiteSummary from the topo service to the lightweight MapSite shape. */
-function siteSummaryToMapSite(s: SiteSummary): MapSite | null {
+function siteSummaryToMapSite(s: SiteSummary, warnTh = 80, critTh = 60): MapSite | null {
   const [lat, lon] = s.coordinates ?? [NaN, NaN];
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
 
   const qoe = Number.isFinite(s.qoe_score_avg) ? s.qoe_score_avg : 80;
   let status: MapSite['status'] = 'optimal';
-  if (qoe < 60) status = 'critical';
-  else if (qoe < 80) status = 'warning';
+  if (qoe < critTh) status = 'critical';
+  else if (qoe < warnTh) status = 'warning';
 
   const technoList = (s.technos && s.technos.length > 0 ? s.technos : (s.techno ? [s.techno] : [])).join(',');
   const bandeList = (s.bandes && s.bandes.length > 0 ? s.bandes : (s.bande ? [s.bande] : [])).join(',');
