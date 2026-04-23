@@ -178,6 +178,9 @@ export const usePAReportStore = create<PAReportState>()(
       saveActiveDashboard: () =>
         set((s) => {
           const existing = s.dashboards.find((d) => d.id === s.activeDashboardId);
+          // The "Save" snapshot must keep `name` (switcher label) and
+          // `projectName` (header title) identical, otherwise the switcher
+          // and the rendered report can drift apart.
           const snapshot: PADashboard = {
             id: s.activeDashboardId,
             name: s.projectName,
