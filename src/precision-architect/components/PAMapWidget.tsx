@@ -132,7 +132,7 @@ async function loadMapSites(): Promise<MapSite[]> {
     try {
       const sites = await fetchTopoSites();
       const mapped = sites
-        .map(siteSummaryToMapSite)
+        .map((s) => siteSummaryToMapSite(s))
         .filter((s): s is MapSite => !!s);
       cachedMapSites = mapped;
       cacheListeners.forEach((cb) => { try { cb(mapped); } catch {} });
