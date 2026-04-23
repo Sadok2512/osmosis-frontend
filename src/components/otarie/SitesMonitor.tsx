@@ -9316,6 +9316,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <span className="text-sm font-medium text-muted-foreground">Sites</span>
                 <span className="text-base font-bold text-foreground">{paramSiteMarkers.length}</span>
               </div>
+              <span className="w-px h-6 bg-border/60" />
+              <button
+                onClick={() => setShowParamLegend(v => !v)}
+                title={showParamLegend ? 'Cacher la légende paramètre' : 'Afficher la légende paramètre'}
+                aria-pressed={showParamLegend}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 ${
+                  showParamLegend
+                    ? 'bg-primary/15 text-primary shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <Palette size={14} />
+                Legend {showParamLegend ? 'ON' : 'OFF'}
+              </button>
             </>
           ) : (
             <>
