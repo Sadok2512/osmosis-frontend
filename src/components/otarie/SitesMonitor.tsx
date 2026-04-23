@@ -10889,7 +10889,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* ── Inline KPI Overlay List Panel — shown as content of the "KPI List" tab ── */}
+              {/* KPI List panel moved below the tabs row to render as proper tab content */}
+
+              {/* ── Tabs: Sites / Dashboard ── */}
+              <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
+                {([
+                  { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
+                  { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
+                  ...(sectorColorMode === 'kpi' && !paramMode && mapKpi ? [{ id: 'kpi' as const, label: 'KPI List', icon: <List size={12} /> }] : []),
+                ]).map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setInventoryTab(tab.id)}
+                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                      inventoryTab === tab.id
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {tab.icon}
+                    <span className="truncate">{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {true && (
+              <>
+
+              {/* ── KPI List tab content (sites/cells with values + threshold filter) ── */}
               {inventoryTab === 'kpi' && sectorColorMode === 'kpi' && !paramMode && mapKpi && (() => {
                 type Entry = { key: string; siteName: string; cellName?: string; band?: string; value: number; level: 'green' | 'orange' | 'red' | 'gray' };
                 const entries: Entry[] = [];
@@ -10951,21 +10979,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   });
                 };
                 return (
-                  <div className="mx-3 mb-3 shrink-0 rounded-xl overflow-hidden border border-border/60 bg-muted/30 flex flex-col animate-fade-in" style={{ maxHeight: '50vh' }}>
+                  <div className="flex-1 flex flex-col overflow-hidden min-h-0 animate-fade-in">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-3 py-2 border-b border-border/40 shrink-0 bg-card/60">
+                    <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 shrink-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <List size={12} className="text-primary shrink-0" />
                         <span className="text-[10px] font-black uppercase tracking-wider text-foreground truncate">{selectedKpiLabel}</span>
                         <span className="text-[9px] font-bold text-muted-foreground shrink-0">({filtered.length}/{entries.length})</span>
                       </div>
-                      <button onClick={() => setInventoryTab('dashboard')} className="p-1 rounded-md hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors" title="Fermer">
-                        <X size={11} />
-                      </button>
                     </div>
 
                     {/* Threshold range filters */}
-                    <div className="px-3 py-2 border-b border-border/30 shrink-0">
+                    <div className="px-4 py-2 border-b border-border/30 shrink-0">
                       <div className="text-[8px] font-black uppercase tracking-wider text-muted-foreground mb-1.5">Filtrer par seuil</div>
                       <div className="grid grid-cols-2 gap-1">
                         {levelMeta.map(lm => {
@@ -10989,7 +11014,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
 
                     {/* Search + sort */}
-                    <div className="px-3 py-2 border-b border-border/30 shrink-0 flex items-center gap-1.5">
+                    <div className="px-4 py-2 border-b border-border/30 shrink-0 flex items-center gap-1.5">
                       <div className="relative flex-1">
                         <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
@@ -11058,32 +11083,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                 );
               })()}
-
-              {/* ── Tabs: Sites / Dashboard ── */}
-              <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
-                {([
-                  { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
-                  { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
-                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
-                  ...(sectorColorMode === 'kpi' && !paramMode && mapKpi ? [{ id: 'kpi' as const, label: 'KPI List', icon: <List size={12} /> }] : []),
-                ]).map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setInventoryTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
-                      inventoryTab === tab.id
-                        ? 'bg-primary text-primary-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                    }`}
-                  >
-                    {tab.icon}
-                    <span className="truncate">{tab.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {true && (
-              <>
 
               {/* ── Filters row (sites tab only) ── */}
               {inventoryTab === 'sites' && panelMinimized && (
