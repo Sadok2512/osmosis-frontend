@@ -300,29 +300,14 @@ const KpiReferenceWorkspace2: React.FC = () => {
               A cleaner telecom reference workspace for browsing KPI definitions, opening a KPI in context, and editing metadata in the same lower review area.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div>
             <button
               onClick={() => setShowCreate(true)}
-              className="rounded-[24px] border border-teal-700 bg-teal-700 px-4 py-4 text-left text-white shadow-[0_16px_40px_rgba(15,118,110,0.22)] transition-all hover:-translate-y-0.5 hover:bg-teal-800"
+              className="inline-flex items-center gap-2 rounded-2xl border border-teal-700 bg-teal-700 px-5 py-3 text-white shadow-[0_16px_40px_rgba(15,118,110,0.22)] transition-all hover:-translate-y-0.5 hover:bg-teal-800"
             >
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15">
-                <Plus className="h-4 w-4" />
-              </span>
-              <p className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-teal-50">Action</p>
-              <p className="mt-1 text-sm font-black">Create KPI</p>
+              <Plus className="h-4 w-4" />
+              <span className="text-sm font-black uppercase tracking-[0.14em]">Create KPI</span>
             </button>
-            <div className="rounded-[24px] border border-teal-200 bg-teal-50/90 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-teal-700">Flow</p>
-              <p className="mt-2 text-sm font-bold text-slate-900">Search → Open → Review → Save</p>
-            </div>
-            <div className="rounded-[24px] border border-slate-200 bg-white/95 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Focus</p>
-              <p className="mt-2 text-sm font-bold text-slate-900">Lower-page detail workspace</p>
-            </div>
-            <div className="rounded-[24px] border border-slate-200 bg-white/95 px-4 py-4">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Context</p>
-              <p className="mt-2 text-sm font-bold text-slate-900">No list/context loss while editing</p>
-            </div>
           </div>
         </div>
       </div>
