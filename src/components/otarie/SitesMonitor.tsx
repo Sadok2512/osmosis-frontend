@@ -10889,8 +10889,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 </div>
               </div>
 
-              {/* ── Inline KPI Overlay List Panel (sites/cells with values + threshold filter) ── */}
-              {sectorColorMode === 'kpi' && !paramMode && showKpiOverlayPanel && mapKpi && (() => {
+              {/* ── Inline KPI Overlay List Panel — shown as content of the "KPI List" tab ── */}
+              {inventoryTab === 'kpi' && sectorColorMode === 'kpi' && !paramMode && mapKpi && (() => {
                 type Entry = { key: string; siteName: string; cellName?: string; band?: string; value: number; level: 'green' | 'orange' | 'red' | 'gray' };
                 const entries: Entry[] = [];
                 for (const site of mapFilteredSites) {
