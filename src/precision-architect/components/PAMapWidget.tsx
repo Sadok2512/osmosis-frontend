@@ -456,12 +456,17 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     return () => window.clearTimeout(id);
   }, [height]);
 
+  const isTransparent = cfg.theme === 'transparent';
   return (
     <div
-      style={{ width: '100%', height, position: 'relative', background: cfg.theme === 'transparent' ? 'transparent' : undefined }}
-      className={`rounded-2xl overflow-hidden border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}
+      style={{ width: '100%', height, position: 'relative', background: isTransparent ? 'transparent' : undefined }}
+      className={`overflow-hidden ${isTransparent ? '' : `rounded-2xl border ${isDark ? 'border-slate-700/50' : 'border-outline-variant/20'}`}`}
     >
-      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+      <div
+        ref={containerRef}
+        className={isTransparent ? 'pa-map-transparent' : ''}
+        style={{ width: '100%', height: '100%', background: isTransparent ? 'transparent' : undefined }}
+      />
 
       {/* Debug: filter status */}
       {cfg.filters.length > 0 && (
