@@ -1187,7 +1187,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, 
         });
 
         // Detect if any row has a real (non-zero, non-null) azimut
-        const hasRealAzimut = uniqueRows.some((r: any) => r.azimut != null && r.azimut !== 0);
+        const hasRealAzimut = uniqueRows.some((r: any) => (r.azimut ?? r.azimuth) != null && (r.azimut ?? r.azimuth) !== 0);
 
         // Compute synthetic azimuts based on sector index (fallback)
         const sectorIndices = new Set<number>();
@@ -1207,8 +1207,9 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, 
           const lastChar = cellName.slice(-1);
           const sectorIdx = /^[1-9]$/.test(lastChar) ? parseInt(lastChar) : 1;
           // Use real azimut only if the site has real azimut data; otherwise use synthetic
-          const azimut = (hasRealAzimut && r.azimut != null && r.azimut !== 0)
-            ? r.azimut
+          const rawAz = r.azimut ?? r.azimuth;
+          const azimut = (hasRealAzimut && rawAz != null && rawAz !== 0)
+            ? rawAz
             : sectorAzimutMap.get(sectorIdx) ?? 0;
           const technoRaw = r.techno || r.rat || '4G';
           const techUpper = technoRaw.toUpperCase();
