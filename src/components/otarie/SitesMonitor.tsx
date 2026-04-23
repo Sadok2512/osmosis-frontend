@@ -7707,7 +7707,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const siteOpacityScale = isUniformZoom ? 1 : getSiteOpacityScale(site.site_id);
             const miniRadius = isTagged ? getTaggedRadius(viewport.zoom) * 0.9 : getZoomAwareRadius(site.coordinates[0], viewport.zoom, siteDF, vpWidth) * 0.7 * cellCountScale;
             // PRO #2/#3: lighter fill + stronger outline for readability — dense zones get extra opacity dampening
-            const miniOpacity = Math.min(0.5, 0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale;
+            // Beam visibility slider acts as a global opacity multiplier (0..1.6 range so 100% = fully opaque)
+            const beamOpacityMul = Math.max(0, (beamVisibility / 100) * 1.6);
+            const miniOpacity = Math.min(1, (0.2 + (viewport.zoom - 9) * 0.08) * siteOpacityScale * beamOpacityMul);
             const azimuths = getValidSectorAzimuths(renderSiteForCells);
             if (azimuths.length === 0) return null;
             // ── Single source of truth: when site is selected, use freshly-loaded siteDetail.cells
@@ -8352,7 +8354,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         // In KPI mode: use sliders directly (bypass density fade) so 100% transp = fully opaque
                         fillOpacity: (sectorColorMode as string) === 'kpi' && !isFocusFaded
                           ? Math.min(1, (isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
-                          : Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale)),
+                          : Math.min(1, (isHovered ? 0.55 : (isFocusFaded ? 0.08 : (tech === '5G' ? 0.45 : Math.min(0.4, overlapFactor)))) * (isHovered || isFocusFaded ? 1 : siteOpacityScale) * (isHovered ? 1 : Math.max(0, (beamVisibility / 100) * 2.2))),
                         // Density-adaptive: stroke weight reduced/hidden in dense zones
                         weight: isHovered ? 2 : Math.max(0.3, 1.5 * (densityInfo?.strokeScale ?? 1)),
                         opacity: isHovered ? 1 : (isFocusFaded ? 0.25 : Math.min(0.9, 0.9 * (densityInfo?.strokeScale ?? 1))),
@@ -8480,7 +8482,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       fillColor: fillColor,
                       fillOpacity: sectorColorMode === 'kpi' && !isFocusFaded && !isFaded && !isCellDimmed
                         ? Math.min(1, (isFocusCell || isHovered ? 1 : kpiOverlayIntensity) * kpiOverlayTransparency)
-                        : Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale)),
+                        : Math.min(1, (isFocusCell ? 0.55 : (isHovered ? 0.5 : baseOpacity)) * (isFocusCell || isHovered ? 1 : siteOpacityScale) * (isFocusCell || isHovered ? 1 : Math.max(0, (beamVisibility / 100) * 2.2))),
                       weight: strokeWeight,
                       opacity: isFocusCell ? 1 : (isHovered ? 1 : (isFocusFaded ? 0.25 : (isFaded ? 0.3 : 0.9))),
                     }}
