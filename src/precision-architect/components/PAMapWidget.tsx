@@ -464,6 +464,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     >
       <div
         ref={containerRef}
+        className={isTransparent ? 'pa-map-transparent' : ''}
         style={{ width: '100%', height: '100%', background: isTransparent ? 'transparent' : undefined }}
       />
 
