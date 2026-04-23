@@ -10469,10 +10469,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             className="absolute z-[1001] pointer-events-auto animate-fade-in"
             style={{
               top: 80,
-              right: showRightPanel && !detailFullscreen ? 466 : 16,
+              left: 16,
               width: 340,
               maxHeight: 'calc(100vh - 180px)',
-              transition: 'right 0.3s ease',
             }}
           >
             <div
