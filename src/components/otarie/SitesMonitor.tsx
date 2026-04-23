@@ -11048,9 +11048,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 key={e.key}
                                 onClick={() => {
                                   const targetSite = mapFilteredSites.find(s => (s.site_name || s.site_id) === e.siteName);
-                                  if (targetSite && (targetSite as any).latitude && (targetSite as any).longitude) {
-                                    const m = (window as any).__siteMonitorMap as L.Map | undefined;
-                                    if (m) m.flyTo([(targetSite as any).latitude, (targetSite as any).longitude], Math.max(m.getZoom(), 14), { duration: 0.6 });
+                                  if (targetSite) {
+                                    const lat = (targetSite as any).latitude ?? targetSite.coordinates?.[0];
+                                    const lng = (targetSite as any).longitude ?? targetSite.coordinates?.[1];
+                                    if (lat != null && lng != null) {
+                                      const m = (window as any).__siteMonitorMap as L.Map | undefined;
+                                      if (m) m.flyTo([lat, lng], Math.max(m.getZoom(), 15), { duration: 0.8 });
+                                    }
+                                    // Select the site → opens detail panel & highlights on map
+                                    setSelectedSiteId(targetSite.site_id);
+                                    setSelectedSiteSnapshot(targetSite);
+                                    // If clicked entry is a specific cell, focus it
+                                    if (e.cellName) {
+                                      setFocusCellId(e.cellName);
+                                      setFocusMode('cell');
+                                    } else {
+                                      setFocusMode('site');
+                                    }
                                   }
                                 }}
                                 className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-card/60 transition-colors text-left"
