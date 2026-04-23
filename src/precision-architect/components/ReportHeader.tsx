@@ -45,7 +45,9 @@ export default function ReportHeader({
   const headerAlignClass =
     theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
 
-  const titleText = theme?.pageTitle || pageName || projectName || 'Report';
+  // Always prefer the live project/dashboard name over the (potentially stale) theme.pageTitle,
+  // so renaming the dashboard in Edit mode is reflected in View/Present immediately.
+  const titleText = projectName || pageName || theme?.pageTitle || 'Report';
   const subtitleText = theme?.pageSubtitle;
 
   const titleClass =
