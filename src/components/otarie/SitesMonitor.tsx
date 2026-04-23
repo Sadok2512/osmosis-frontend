@@ -3783,6 +3783,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showParamLegend, setShowParamLegend] = useState(true);
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
+  // KPI value filter: e.g., ">98", "<50", "=100", ">=95"
+  const [kpiValueFilter, setKpiValueFilter] = useState<string>('');
+  const kpiValueFilterFn = useMemo(() => {
+    const raw = kpiValueFilter.trim();
+    if (!raw) return null;
+    const match = raw.match(/^([><!]=?|=)\s*(-?\d+\.?\d*)$/);
+    if (!match) return null;
+    const op = match[1];
+    const val = parseFloat(match[2]);
+    if (!Number.isFinite(val)) return null;
+    return (v: number): boolean => {
+      if (!Number.isFinite(v)) return false;
+      switch (op) {
+        case '>': return v > val;
+        case '>=': return v >= val;
+        case '<': return v < val;
+        case '<=': return v <= val;
+        case '=': return Math.abs(v - val) < 0.01;
+        case '!=': return Math.abs(v - val) >= 0.01;
+        default: return true;
+      }
+    };
+  }, [kpiValueFilter]);
   // Global KPI overlay color intensity multiplier (applied to all colored cells/beams/points)
   const [kpiOverlayIntensity, setKpiOverlayIntensity] = useState<number>(() => {
     const saved = parseFloat(localStorage.getItem('osmosis_kpi_overlay_intensity') || '');
@@ -5258,9 +5281,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const isCellVisibleForKpiLegend = useCallback((cell: CellProperties) => {
-    if (sectorColorMode !== 'kpi' || hiddenKpiLevels.size === 0) return true;
-    return !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(cell)));
-  }, [sectorColorMode, hiddenKpiLevels, getKpiLevel, getCellKpiValue]);
+    if (sectorColorMode !== 'kpi') return true;
+    // Color level filter (green/orange/red toggle)
+    if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(cell)))) return false;
+    // Value filter (e.g., ">98")
+    if (kpiValueFilterFn) {
+      const val = getCellKpiValue(cell);
+      if (!kpiValueFilterFn(val)) return false;
+    }
+    return true;
+  }, [sectorColorMode, hiddenKpiLevels, getKpiLevel, getCellKpiValue, kpiValueFilterFn]);
 
   const selectedKpiLabel = MAP_KPIS.find(k => k.id === mapKpi)?.label || 'RRC Success Rate';
   const selectedKpiUnit = MAP_KPIS.find(k => k.id === mapKpi)?.unit || '%';
@@ -5982,7 +6012,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [enabledBands]);
 
   const siteMatchesKpiLegend = useCallback((site: SiteSummary) => {
-    if (sectorColorMode !== 'kpi' || hiddenKpiLevels.size === 0) return true;
+    if (sectorColorMode !== 'kpi' || (hiddenKpiLevels.size === 0 && !kpiValueFilterFn)) return true;
     const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
     const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
     const cells = (site.cells || []).filter(c =>
@@ -6002,10 +6032,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (cells.length === 0) {
       const val = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
-      return !hiddenKpiLevels.has(getKpiLevel(val));
+      if (hiddenKpiLevels.has(getKpiLevel(val))) return false;
+      if (kpiValueFilterFn && !kpiValueFilterFn(val)) return false;
+      return true;
     }
 
-    return cells.some(c => !hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c))));
+    return cells.some(c => {
+      if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c)))) return false;
+      if (kpiValueFilterFn && !kpiValueFilterFn(getCellKpiValue(c))) return false;
+      return true;
+    });
   }, [
     sectorColorMode,
     hiddenKpiLevels,
@@ -6021,6 +6057,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     mapKpi,
     getKpiLevel,
     getCellKpiValue,
+    kpiValueFilterFn,
   ]);
 
   const toggleBand = useCallback((band: string) => {
@@ -9957,6 +9994,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   );
                 })}
               </div>
+            </div>
+
+            {/* KPI value filter */}
+            <div className="px-3 py-1.5 border-b border-border/20">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider w-12 shrink-0">Filtre</span>
+                <input
+                  value={kpiValueFilter}
+                  onChange={e => setKpiValueFilter(e.target.value)}
+                  placeholder=">98, <50, >=95..."
+                  className={`flex-1 px-2 py-1 text-[10px] font-mono rounded-lg border bg-background outline-none transition-colors ${
+                    kpiValueFilter && !kpiValueFilterFn
+                      ? 'border-destructive/50 text-destructive'
+                      : kpiValueFilterFn
+                        ? 'border-primary/50 text-primary font-bold'
+                        : 'border-border/40 text-foreground'
+                  }`}
+                />
+                {kpiValueFilter && (
+                  <button onClick={() => setKpiValueFilter('')} className="p-0.5 rounded hover:bg-muted text-muted-foreground">
+                    <X size={10} />
+                  </button>
+                )}
+              </div>
+              {kpiValueFilterFn && (
+                <div className="text-[9px] text-primary font-semibold mt-1 ml-14">
+                  Filtre actif — seules les cellules {kpiValueFilter} affichées
+                </div>
+              )}
             </div>
 
             {/* Global color intensity slider — applies uniformly to all KPI levels */}
