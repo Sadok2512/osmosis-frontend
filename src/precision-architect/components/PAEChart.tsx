@@ -17,6 +17,8 @@ interface PAEChartProps {
   xAxisLabels?: string[];
   /** Loading flag — shown as overlay on top of any synthetic preview. */
   loading?: boolean;
+  /** When true, the widget already has cached data being displayed → show a discrete "Updating…" badge instead of the full "Loading data…" overlay. */
+  hasExistingData?: boolean;
   /** Legacy props (kept for compatibility). */
   primaryColor?: string;
   secondaryColor?: string;
@@ -33,6 +35,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
   seriesByMetric,
   xAxisLabels,
   loading = false,
+  hasExistingData = false,
   primaryColor = '#00685f',
   secondaryColor = '#6bd8cb',
   showSecondary = true,
@@ -590,7 +593,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
         <p className="text-[11px] text-on-surface-variant max-w-[280px]">
           {copy.body}
         </p>
-        {loading && <LoadingOverlay />}
+        {loading && <LoadingOverlay variant={hasExistingData ? 'updating' : 'loading'} />}
       </div>
     );
   }
@@ -606,22 +609,36 @@ const PAEChart: React.FC<PAEChartProps> = ({
         notMerge={false}
         lazyUpdate
       />
-      {loading && <LoadingOverlay label="Loading data…" />}
+      {loading && <LoadingOverlay variant={hasExistingData ? 'updating' : 'loading'} />}
     </div>
   );
 };
 
-/** Centered loading overlay with spinner — clearly visible during backend fetch. */
-const LoadingOverlay: React.FC<{ label?: string }> = ({ label = 'Loading data…' }) => (
-  <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
-    <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
-      <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-        {label}
-      </span>
+/**
+ * Loading indicator with two visual modes:
+ *  - 'loading'  → full overlay + "Loading data…" (initial fetch, no data yet)
+ *  - 'updating' → small top-right pill + "Updating…" (background refetch on cached data)
+ */
+const LoadingOverlay: React.FC<{ variant?: 'loading' | 'updating' }> = ({ variant = 'loading' }) => {
+  if (variant === 'updating') {
+    return (
+      <div className="absolute top-2 right-2 z-10 pointer-events-none">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card/95 border border-primary/30 shadow-sm backdrop-blur-sm">
+          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-primary">Updating…</span>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm z-10 pointer-events-none">
+      <div className="flex flex-col items-center gap-2 px-4 py-3 rounded-xl bg-card border border-primary/30 shadow-lg">
+        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-primary">Loading data…</span>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /** Append an alpha byte (0–255) to a #rrggbb color. */
 function hexAlpha(hex: string, alpha: number): string {

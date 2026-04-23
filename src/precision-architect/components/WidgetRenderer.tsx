@@ -667,6 +667,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
         seriesByMetric={seriesByMetric}
         xAxisLabels={xAxisLabels.length > 0 ? xAxisLabels : undefined}
         loading={isFetching}
+        hasExistingData={!!tsResp}
       />
       {backendError && !isFetching && (
         <div className="absolute inset-0 flex items-center justify-center p-4 pointer-events-none">
