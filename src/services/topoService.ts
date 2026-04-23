@@ -570,7 +570,7 @@ function filterDashboardSitesLocally(
 ): SiteSummary[] {
   return sites.filter((site) => {
     if (!hasMatchingFilterValue([site.dor], siteFilters?.dor)) return false;
-    if (!hasMatchingFilterValue([site.vendor], siteFilters?.constructeur)) return false;
+    if (!hasMatchingFilterValue([site.vendor], siteFilters?.vendor)) return false;
     if (!hasMatchingFilterValue([site.cluster], siteFilters?.cluster)) return false;
     if (!hasMatchingFilterValue([(site as any).zone_arcep], siteFilters?.zone_arcep)) return false;
     if (!siteMatchesTechFilter(site, siteFilters?.techno)) return false;
