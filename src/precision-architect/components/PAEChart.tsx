@@ -204,13 +204,15 @@ const PAEChart: React.FC<PAEChartProps> = ({
           connectNulls: seriesType === 'line',
           yAxisIndex: m.axis === 'right' && hasRight ? 1 : 0,
           data: seriesData,
-          // Bars: tighten per-category gap so multiple series share the slot
-          // cleanly, and force a 2px minimum height so right-axis bars with
-          // very small values remain visible next to dominant left-axis bars.
+          // Bars: keep series adjacent (barGap 0) so they read as a single
+          // grouped cluster per X-tick. Wide category gap leaves breathing
+          // room between dates. barMinHeight ensures right-axis bars with
+          // tiny values stay visible against dominant left-axis bars.
           ...(isBar ? {
-            barGap: '10%',
-            barCategoryGap: '30%',
-            barMinHeight: 2,
+            barGap: '0%',
+            barCategoryGap: '40%',
+            barMaxWidth: 22,
+            barMinHeight: 3,
           } : {}),
           // Z-order: right-axis series render on top so tiny bars aren't hidden.
           z: m.axis === 'right' ? 3 : 2,
