@@ -203,6 +203,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
                 vendor: s.constructeur || s.vendor || 'Unknown',
                 techno: Array.isArray(s.technos) ? s.technos.join(',') : (s.techno || ''),
                 bande: Array.isArray(s.bandes) ? s.bandes.join(',') : (s.bande || ''),
+                cluster: s.cluster || s.plaque || '',
                 plaque: s.plaque || '',
                 dor: s.dor || s.region || '',
               };

@@ -18,6 +18,15 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { fetchFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { PH_COLORS, phTooltip, phXAxis, phYAxis, phBarItemStyle, phBarEmphasis, phAnimation } from './paramHubChartStyle';
+import {
+  PA_PALETTE,
+  paLegend,
+  paEstimateLegendRows,
+  paTooltip,
+  paXAxis,
+  paYAxis,
+  paShortenLabel,
+} from './paChartStyle';
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },

@@ -7,7 +7,17 @@ import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { normalizeGranularity } from './types';
-import { PH_COLORS, phTooltip, phXAxis, phYAxis, phAnimation } from './paramHubChartStyle';
+import {
+  PA_PALETTE,
+  paLegend,
+  paEstimateLegendRows,
+  paTooltip,
+  paXAxis,
+  paYAxis,
+  paGrid,
+  paLineSeries,
+  paShortenLabel,
+} from './paChartStyle';
 
 interface CounterDef {
   counter_name: string;
@@ -30,10 +40,9 @@ interface CounterPoint {
   value: number;
 }
 
-// Teal palette (forced) — Parameter Hub style across all Investigator charts
-const COLORS = ['#0E7C66','#14B8A6','#2DD4BF','#0F766E','#0891B2','#0D9488',
-                '#115E59','#5EEAD4','#06B6D4','#0E7490','#155E75','#3B82F6',
-                '#0369A1','#67E8F9','#22D3EE','#1E40AF'];
+// PA palette — diverse colors so each counter is immediately distinguishable
+const COLORS = PA_PALETTE;
+
 
 async function fetchCounterCatalog(): Promise<CounterDef[]> {
   try {
@@ -162,64 +171,56 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     ? mergeTimeSlots(generateTimeSlots(dateFrom, dateTo, globalGran), dataTs)
     : dataTs;
 
-  const chartOption = tsData.length > 0 ? {
-    ...phAnimation,
-    tooltip: phTooltip({
-      formatter: (params: any[]) => {
-        let html = `<div style="font-size:11px;font-weight:600;color:${PH_COLORS.tealDark};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em">${params[0]?.axisValue}</div>`;
-        params.forEach((p: any) => {
-          const v = typeof p.value === 'number' ? (p.value >= 1e6 ? (p.value/1e6).toFixed(2)+'M' : p.value >= 1e3 ? (p.value/1e3).toFixed(1)+'K' : p.value.toFixed(0)) : '—';
-          html += `<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:10px;height:3px;border-radius:2px;background:${p.color}"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px">${p.seriesName}</span><span style="font-weight:600;font-family:monospace;color:${PH_COLORS.labelStrong}">${v}</span></div>`;
+  const chartOption = useMemo(() => {
+    if (tsData.length === 0) return null;
+    const legendLabels = counters.map((c) => displayName(c));
+    const legendRows = paEstimateLegendRows(legendLabels);
+    const unitByName = new Map<string, string>();
+    legendLabels.forEach((n) => unitByName.set(n, ''));
+    return {
+      animationDuration: 900,
+      animationEasing: 'cubicOut' as const,
+      backgroundColor: 'transparent',
+      grid: paGrid({
+        legendRows,
+        legendPos: 'bottom',
+        hasRightAxis: false,
+        hasBarSeries: false,
+        showLegend: legendLabels.length > 0,
+      }),
+      legend: paLegend({ show: legendLabels.length > 0, data: legendLabels, position: 'bottom' }),
+      tooltip: paTooltip({ unitByName }),
+      xAxis: paXAxis({
+        data: timestamps.map((t) => t.slice(0, 10)),
+        boundaryGap: false,
+      }),
+      yAxis: [
+        paYAxis({
+          position: 'left',
+          isDualAxis: false,
+          showGrid: true,
+        }),
+      ],
+      series: counters.map((counter, i) => {
+        const color = COLORS[i % COLORS.length];
+        const data = timestamps.map((ts) => {
+          const point = tsData.find(
+            (d) => d.ts === ts && (d.counter === counter || (d as any).counter_id === counter)
+          );
+          return point ? point.value : null;
         });
-        return html;
-      },
-    }),
-    legend: {
-      bottom: 0,
-      icon: 'roundRect',
-      itemWidth: 14, itemHeight: 4, itemGap: 14,
-      textStyle: { color: PH_COLORS.labelMuted, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif' },
-      data: counters.map(c => displayName(c)),
-    },
-    grid: { left: 60, right: 24, top: 16, bottom: 48, containLabel: false },
-    xAxis: {
-      type: 'category' as const,
-      data: timestamps.map(t => t.slice(0, 10)),
-      ...phXAxis(),
-    },
-    yAxis: {
-      type: 'value' as const,
-      ...phYAxis({
-        axisLabel: {
-          color: PH_COLORS.labelSubtle, fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif',
-          formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toString()
-        },
+        return paLineSeries({
+          name: displayName(counter),
+          color,
+          data,
+          smooth: true,
+          showArea: true,
+          lineWidth: 2.5,
+        });
       }),
-    },
-    series: counters.map((counter, i) => ({
-      name: displayName(counter),
-      type: 'line' as const,
-      smooth: true,
-      connectNulls: true,
-      data: timestamps.map(ts => {
-        const point = tsData.find(d => d.ts === ts && (d.counter === counter || (d as any).counter_id === counter));
-        return point ? point.value : null;
-      }),
-      lineStyle: { width: 2.5, color: COLORS[i % COLORS.length], shadowColor: 'rgba(14,124,102,0.18)', shadowBlur: 6, shadowOffsetY: 2 },
-      itemStyle: { color: COLORS[i % COLORS.length] },
-      symbol: 'circle',
-      symbolSize: 5,
-      areaStyle: {
-        color: {
-          type: 'linear' as const, x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: COLORS[i % COLORS.length] + '30' },
-            { offset: 1, color: COLORS[i % COLORS.length] + '03' },
-          ],
-        },
-      },
-    })),
-  } : null;
+    };
+  }, [tsData, counters, timestamps]);
+
 
   return (
     <section className="space-y-4">
