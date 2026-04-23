@@ -11061,11 +11061,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
               {/* ── Tabs: Sites / Dashboard ── */}
               <div className="px-5 pb-2 shrink-0 flex items-center gap-1 bg-muted/20 border-b border-border">
-                {[
+                {([
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
                   { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
-                ].map(tab => (
+                  ...(sectorColorMode === 'kpi' && !paramMode && mapKpi ? [{ id: 'kpi' as const, label: 'KPI List', icon: <List size={12} /> }] : []),
+                ]).map(tab => (
                   <button
                     key={tab.id}
                     onClick={() => setInventoryTab(tab.id)}
