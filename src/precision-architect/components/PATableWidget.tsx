@@ -22,8 +22,13 @@ interface Props {
  *   – calls /monitor/query/table with the same filter/period contract as the chart
  */
 const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
+  // STRICT apply-only contract: backend requests are driven by the FROZEN
+  // appliedTableConfig snapshot only. Live `tableConfig` is editor-only and
+  // must NEVER trigger a fetch. Both per-widget Apply and global Apply write
+  // the snapshot via setPages in PAToolbar / TableSettingsPanel.
+  const globalRev = usePAGlobalToolbar.getState().appliedRev;
   const tCfgSource: TableWidgetConfig | undefined = w
-    ? ((w.appliedRev ?? 0) > 0 ? (w.appliedTableConfig ?? w.tableConfig) : w.tableConfig)
+    ? (((w.appliedRev ?? 0) > 0 || globalRev > 0) ? w.appliedTableConfig : undefined)
     : undefined;
   const cfg: TableWidgetConfig | undefined = tCfgSource;
   const hasColumns = !!cfg && cfg.columns.length > 0;
