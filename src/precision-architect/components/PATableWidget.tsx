@@ -123,7 +123,20 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     // cfg.splitBy is intentionally ignored so old saved values can never resurrect
     // a split after the user chose "No split" in Edit KPI.
     const rawSplitBy = resolvedColumns.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    const effectiveSplitBy = rawSplitBy ? toBackendDimension(rawSplitBy) : null;
+    let effectiveSplitBy = rawSplitBy ? toBackendDimension(rawSplitBy) : null;
+
+    // Auto-split: when a filter dimension has multiple values and no explicit split
+    // is set, auto-split by that dimension so each value gets its own row.
+    // Without this, multiple plaques (e.g. NANTES, RENNES) would be aggregated
+    // into a single row with concatenated values.
+    if (!effectiveSplitBy) {
+      for (const [dim, vals] of byDim.entries()) {
+        if (vals.length > 1) {
+          effectiveSplitBy = dim;
+          break;
+        }
+      }
+    }
 
     return {
       date_from: normalizeDate(eff.from),
@@ -181,7 +194,10 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const splitInUse = (() => {
     const cols = (cfg?.columns ?? []).filter(c => c.visible);
     const raw = cols.find(c => c.splitBy && c.splitBy !== '__none__')?.splitBy ?? null;
-    return raw ? toBackendDimension(raw) : null;
+    if (raw) return toBackendDimension(raw);
+    // Detect auto-split from the request (when multiple filter values trigger it)
+    if (request && (request as any).split_by) return (request as any).split_by;
+    return null;
   })();
   const sourceTables = (tableResp as any)?.source_tables;
 
