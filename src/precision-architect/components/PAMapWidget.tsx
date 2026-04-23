@@ -497,9 +497,18 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
             {cfg.displayMode === 'sites' ? 'Sites' : 'Cells'} · {filteredSites.length}
           </div>
           <div className={`flex items-center gap-3 text-[10px] font-bold ${isDark ? 'text-slate-200' : ''}`}>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" />Optimal</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500" />Warning</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500" />Critical</span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.optimalColor || DEFAULT_STATUS_COLORS.optimal }} />
+              Optimal · ≥{cfg.warningThreshold ?? 80}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.warningColor || DEFAULT_STATUS_COLORS.warning }} />
+              Warning · {cfg.criticalThreshold ?? 60}–{cfg.warningThreshold ?? 80}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full" style={{ background: cfg.criticalColor || DEFAULT_STATUS_COLORS.critical }} />
+              Critical · &lt;{cfg.criticalThreshold ?? 60}
+            </span>
           </div>
         </div>
       )}
