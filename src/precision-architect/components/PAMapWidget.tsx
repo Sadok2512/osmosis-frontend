@@ -405,7 +405,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
       }
     }
-  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors]);
+  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
 
   // ─── Render inter-site lines (sample backbone overlay) ───
   useEffect(() => {
