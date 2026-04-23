@@ -20,7 +20,6 @@ const STEPS = [
   { id: 'general', label: 'General', icon: <Sliders className="w-3 h-3" /> },
   { id: 'topology', label: 'Topology Scope', icon: <Layers className="w-3 h-3" /> },
   { id: 'parameters', label: 'Parameters', icon: <FileCheck2 className="w-3 h-3" /> },
-  { id: 'logic', label: 'Logic', icon: <Sliders className="w-3 h-3" /> },
   { id: 'review', label: 'Review', icon: <Eye className="w-3 h-3" /> },
 ];
 
@@ -504,34 +503,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
             </div>
           )}
 
-          {/* ─── Step 4: Logic ─── */}
+          {/* ─── Step 4: Review ─── */}
           {step === 3 && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Condition Logic</label>
-                <p className="text-xs text-muted-foreground mt-1 mb-3">Choose how parameter conditions are combined</p>
-                <div className="flex gap-3">
-                  {(['AND', 'OR'] as const).map(l => (
-                    <button
-                      key={l}
-                      onClick={() => setLogic(l)}
-                      className={`flex-1 py-4 rounded-xl text-sm font-bold transition-all border-2 ${
-                        logic === l ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border hover:border-primary/30'
-                      }`}
-                    >
-                      <span className="text-lg">{l}</span>
-                      <p className="text-[10px] mt-1 font-normal opacity-70">
-                        {l === 'AND' ? 'All conditions must match' : 'Any condition can match'}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ─── Step 5: Review ─── */}
-          {step === 4 && (
             <div className="space-y-4">
               <div className="rounded-xl bg-muted/20 border border-border/50 p-4 space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">General</h4>
@@ -539,7 +512,6 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                   <div><span className="text-muted-foreground">Name: </span><strong className="text-foreground">{name}</strong></div>
                   <div><span className="text-muted-foreground">Status: </span><strong className="capitalize text-foreground">{status}</strong></div>
                   <div><span className="text-muted-foreground">Visibility: </span><strong className="capitalize text-foreground">{visibility}</strong></div>
-                  <div><span className="text-muted-foreground">Logic: </span><strong className="text-primary">{logic}</strong></div>
                 </div>
                 {description && <p className="text-xs text-muted-foreground italic pt-2 border-t border-border/30">{description}</p>}
               </div>

@@ -1124,7 +1124,7 @@ function mapSiteDetailPayloadToCells(payload: any): CellProperties[] {
         code_nidt: row?.code_nidt || row?.id_site || payload?.code_nidt || null,
         nom_site: row?.site_name || payload?.site_name || null,
         constructeur: row?.constructeur || row?.vendor || payload?.vendor || null,
-        plaque: row?.plaque || payload?.plaque || null,
+        cluster: row?.plaque || row?.cluster || payload?.plaque || payload?.cluster || null,
         zone_arcep: row?.zone_arcep || payload?.zone_arcep || null,
         dor: row?.dor || row?.dr || payload?.region || null,
         etat_cellule: row?.etat_cellule || row?.etat_fonctionnement || null,
@@ -1384,8 +1384,8 @@ export async function fetchKpiCellValues(
   kpiId: string,
   filters?: {
     vendor?: string; techno?: string; band?: string; dor?: string;
-    plaque?: string; zone_arcep?: string; region?: string;
-    site_name?: string; bcluster?: string;
+    cluster?: string; zone_arcep?: string; region?: string;
+    site_name?: string;
     date_from?: string; date_to?: string;
     level?: 'cell' | 'site' | 'band';
   },
@@ -1399,7 +1399,7 @@ export async function fetchKpiCellValues(
   const splitByMap: Record<string, string> = { cell: 'CELL', site: 'SITE', band: 'BAND' };
   const monitorFilters: { dimension: string; op: string; values: string[] }[] = [];
   if (filters?.vendor) monitorFilters.push({ dimension: 'VENDOR', op: 'IN', values: [filters.vendor] });
-  if (filters?.plaque) monitorFilters.push({ dimension: 'PLAQUE', op: 'IN', values: [filters.plaque] });
+  if (filters?.cluster) monitorFilters.push({ dimension: 'CLUSTER', op: 'IN', values: [filters.cluster] });
   if (filters?.dor) monitorFilters.push({ dimension: 'DOR', op: 'IN', values: [filters.dor] });
   if (filters?.band) monitorFilters.push({ dimension: 'BAND', op: 'IN', values: [filters.band] });
   if (filters?.techno) monitorFilters.push({ dimension: 'TECHNO', op: 'IN', values: [filters.techno] });

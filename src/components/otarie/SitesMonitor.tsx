@@ -2079,7 +2079,7 @@ export interface DashboardSiteFilters {
   bande?: string[];
   zone_arcep?: string[];
   saisonnier?: string[];
-  bcluster?: string[];
+  cluster?: string[];
 }
 
 /** Merge two DashboardSiteFilters with AND logic (intersection for same keys) */
@@ -5305,12 +5305,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (bp.get('zone_arcep')) base.zone_arcep = bp.get('zone_arcep')!;
       if (bp.get('techno')) base.techno = bp.get('techno')!;
       if (bp.get('bande')) base.bande = bp.get('bande')!;
-      if (bp.get('bcluster')) base.bcluster = bp.get('bcluster')!;
+      if (bp.get('cluster')) base.cluster = bp.get('cluster')!;
     }
-    // Merge active dashboard filters (bcluster, band, vendor from dashboard scope)
+    // Merge active dashboard filters (cluster, band, vendor from dashboard scope)
     if (dashboardActive && activeDashboardFilters) {
       const df = activeDashboardFilters;
-      if ((df as any).bcluster?.length && !base.bcluster) base.bcluster = (df as any).bcluster.join(',');
+      if ((df as any).cluster?.length && !base.cluster) base.cluster = (df as any).cluster.join(',');
       if (df.bande?.length && !base.bande) base.bande = df.bande.join(',');
       if (df.constructeur?.length && !base.vendor) base.vendor = df.constructeur.join(',');
       if (df.techno?.length && !base.techno) base.techno = df.techno.join(',');
@@ -5606,10 +5606,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Only pre-warm cells cache if user is already at sector-display zoom
           // to avoid downloading 6M+ cells when the map shows only site dots.
           if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
-            // Use dashboard filters (includes bcluster) instead of local filters (reset to ALL)
+            // Use dashboard filters (includes cluster) instead of local filters (reset to ALL)
             const cellFilters: BboxFilters = { ...currentBboxFilters };
             if (effectiveFilters) {
-              if ((effectiveFilters as any).bcluster?.length) cellFilters.bcluster = (effectiveFilters as any).bcluster.join(',');
+              if ((effectiveFilters as any).cluster?.length) cellFilters.cluster = (effectiveFilters as any).cluster.join(',');
               if (effectiveFilters.bande?.length) cellFilters.bande = effectiveFilters.bande.join(',');
               if (effectiveFilters.constructeur?.length) cellFilters.vendor = effectiveFilters.constructeur.join(',');
               if (effectiveFilters.techno?.length) cellFilters.techno = effectiveFilters.techno.join(',');
@@ -6207,7 +6207,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cellLoadingRef.current.clear();
       cellLoadAttemptCountRef.current.clear();
       invalidateBboxCache();
-      // Re-prefetch cells with new filters (e.g. bcluster applies band/vendor)
+      // Re-prefetch cells with new filters (e.g. cluster applies band/vendor)
       if (viewport.zoom >= SITES_TO_CELLS_ZOOM) {
         topoApi.prefetchCells(currentBboxFilters || undefined);
         setSites(prev => prev.map(s => ({ ...s, cells: [] })));
@@ -6236,7 +6236,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const cellFilters: BboxFilters = { ...currentBboxFilters };
     if (dashboardActive && activeDashboardFilters) {
       const df: any = activeDashboardFilters;
-      if (df.bcluster?.length && !cellFilters.bcluster) cellFilters.bcluster = df.bcluster.join(',');
+      if (df.cluster?.length && !cellFilters.cluster) cellFilters.cluster = df.cluster.join(',');
       if (df.bande?.length && !cellFilters.bande) cellFilters.bande = df.bande.join(',');
       if (df.constructeur?.length && !cellFilters.vendor) cellFilters.vendor = df.constructeur.join(',');
       if (df.techno?.length && !cellFilters.techno) cellFilters.techno = df.techno.join(',');
@@ -11651,7 +11651,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             const df = settings.siteFilters || {};
                             if (df.dor?.length) qs.set('dor', df.dor[0]);
                             if (df.constructeur?.length) qs.set('vendor', df.constructeur[0]);
-                            if ((df as any).bcluster?.length) qs.set('bcluster', (df as any).bcluster[0]);
+                            if ((df as any).cluster?.length) qs.set('cluster', (df as any).cluster[0]);
                             const { getVpsProxyUrl, getVpsProxyHeaders } = await import('@/lib/apiConfig');
                             const url = getVpsProxyUrl('parser', `/api/v1/topo/param-map?${qs}`);
                             const resp = await fetch(url, { headers: getVpsProxyHeaders() });

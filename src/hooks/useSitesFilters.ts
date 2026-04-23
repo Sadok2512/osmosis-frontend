@@ -18,15 +18,14 @@ export interface ActiveFilter {
 const FILTER_LABELS: Record<string, string> = {
   dor: 'DOR',
   dr: 'DR',
-  plaque: 'Plaque',
+  cluster: 'Cluster',
   constructeur: 'Constructeur',
   techno: 'Technologie',
   bande: 'Bande',
   zone_arcep: 'Zone ARCEP',
-  bcluster: 'BCluster',
 };
 
-const FILTER_KEYS = ['dor', 'dr', 'plaque', 'constructeur', 'techno', 'bande', 'zone_arcep', 'bcluster'];
+const FILTER_KEYS = ['dor', 'dr', 'cluster', 'constructeur', 'techno', 'bande', 'zone_arcep'];
 
 /** Build static fallback filter definitions from filterDimensions config */
 function buildStaticFilterDefs(): FilterDefinition[] {
@@ -94,7 +93,7 @@ export function useSitesFilters() {
         for (const s of sites) {
           if (s.dor) sets.dor.add(s.dor);
           if (s.dr) sets.dr.add(s.dr);
-          if (s.plaque) sets.plaque.add(s.plaque);
+          if (s.cluster || s.plaque || s.bcluster) sets.cluster.add(s.cluster || s.plaque || s.bcluster);
           if (s.constructeur) sets.constructeur.add(s.constructeur);
           if (s.zone_arcep) sets.zone_arcep.add(s.zone_arcep);
           if (Array.isArray(s.technos)) s.technos.forEach((t: string) => sets.techno.add(t));

@@ -708,7 +708,7 @@ const RanQueryModule: React.FC = () => {
           .then((resp) => {
             const map: Record<string, string[]> = {};
             for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
-            setTopoOpts({ plaque: map.plaque ?? [], dor: map.dor ?? [], zone_arcep: map.zone_arcep ?? [] });
+            setTopoOpts({ cluster: map.cluster ?? map.plaque ?? [], dor: map.dor ?? [], zone_arcep: map.zone_arcep ?? [] });
           })
           .catch(() => setTopoError('Unable to load filter options from backend'));
       })
@@ -1005,7 +1005,7 @@ const RanQueryModule: React.FC = () => {
         technologies: form.technologies,
         kpis: form.selectedKpis,
         timeConfig: buildTimeConfig(form),
-        plaques: form.plaques,
+        clusters: form.clusters,
         dors: form.dors,
         sites: form.sites,
         zoneArcep: form.zoneArcep,
@@ -1038,7 +1038,7 @@ const RanQueryModule: React.FC = () => {
       updatedAt: now,
       lastRunAt: null,
       results: [],
-      plaques: form.plaques,
+      clusters: form.clusters,
       dors: form.dors,
       sites: form.sites,
       zoneArcep: form.zoneArcep,
@@ -1069,7 +1069,7 @@ const RanQueryModule: React.FC = () => {
       relativeUnit: tc.timeMode === 'relative' ? tc.unit : 'hours',
       manualInput: '',
       selectedKpis: r.kpis,
-      plaques: r.plaques ?? [],
+      clusters: r.clusters ?? [],
       dors: r.dors ?? [],
       sites: r.sites ?? [],
       zoneArcep: r.zoneArcep ?? [],
@@ -1734,11 +1734,11 @@ const RanQueryModule: React.FC = () => {
               ) : (
                 <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
                   <ChipMultiSelect
-                    label="Plaque"
-                    options={topoOpts.plaque}
-                    selected={form.plaques}
-                    onChange={(v) => updateForm('plaques', v)}
-                    emptyHint="No plaque returned by backend"
+                    label="Cluster"
+                    options={topoOpts.cluster}
+                    selected={form.clusters}
+                    onChange={(v) => updateForm('clusters', v)}
+                    emptyHint="No cluster returned by backend"
                   />
                   <ChipMultiSelect
                     label="DOR"
