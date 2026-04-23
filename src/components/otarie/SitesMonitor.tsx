@@ -9185,8 +9185,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && paramUniqueValues.length <= 25 && (
-            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl p-3.5 max-h-[240px] overflow-y-auto transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16 }}>
-              <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">{paramConfirmed} — {paramSiteMarkers.length} sites</div>
+            <div className="absolute bottom-16 z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[280px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16, minWidth: 240 }}>
+              {/* Prominent param header */}
+              <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
+                <div className="flex items-center gap-2 min-w-0">
+                  <Settings2 size={14} className="text-primary shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground leading-none">Paramètre</span>
+                    <span className="text-[12px] font-black text-foreground truncate leading-tight mt-0.5" title={paramConfirmed}>{paramConfirmed}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-muted-foreground shrink-0 px-2 py-0.5 rounded-md bg-muted/60">{paramSiteMarkers.length} sites</span>
+              </div>
+              <div className="p-3 overflow-y-auto">
               {paramSiteMarkers.some(s => s.isMultiValue) && (
                 <div className="flex items-center gap-2 text-[10px] mb-1 text-orange-500 font-semibold">
                   <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: 'conic-gradient(#ef4444, #f59e0b, #22c55e, #3b82f6, #ef4444)' }} />
@@ -9204,6 +9215,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </div>
                   );
                 })}
+              </div>
               </div>
             </div>
           )}
