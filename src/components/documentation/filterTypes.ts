@@ -83,24 +83,46 @@ export const PARAMETER_OPTIONS = [
   'highSpeedFlag', 'prach_FreqOffset',
 ];
 
-// Dynamic fetch from parameter_changes table (CM parameters)
+// Dynamic fetch — primary source is the VPS dump endpoint (full CM parameter catalog,
+// up to 20 000 distinct names). Falls back to the Supabase parameter_changes table,
+// then to the static PARAMETER_OPTIONS list.
 let _cachedParamOptions: string[] | null = null;
 export async function fetchParameterOptions(): Promise<string[]> {
-  if (_cachedParamOptions) return _cachedParamOptions;
+  if (_cachedParamOptions && _cachedParamOptions.length > 0) return _cachedParamOptions;
+
+  // 1) Primary: VPS /dump/params/distinct
+  try {
+    const { fetchAvailableParameters } = await import('@/components/parameter-hub/parameterHubApi');
+    const list = await fetchAvailableParameters();
+    const unique = [...new Set((list || []).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    if (unique.length > 0) {
+      _cachedParamOptions = unique;
+      return _cachedParamOptions;
+    }
+  } catch (e) {
+    console.warn('[fetchParameterOptions] VPS dump unavailable, falling back to Supabase', e);
+  }
+
+  // 2) Fallback: Supabase parameter_changes
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const { data, error } = await (supabase as any)
       .from('parameter_changes')
       .select('param_name')
-      .order('param_name', { ascending: true });
+      .order('param_name', { ascending: true })
+      .limit(10000);
     if (error) throw error;
-    // Deduplicate param names
     const unique = [...new Set((data || []).map((r: any) => r.param_name).filter(Boolean))] as string[];
-    _cachedParamOptions = unique.length > 0 ? unique : PARAMETER_OPTIONS;
-    return _cachedParamOptions;
-  } catch {
-    return PARAMETER_OPTIONS;
+    if (unique.length > 0) {
+      _cachedParamOptions = unique;
+      return _cachedParamOptions;
+    }
+  } catch (e) {
+    console.warn('[fetchParameterOptions] Supabase fallback failed', e);
   }
+
+  // 3) Final fallback: static list
+  return PARAMETER_OPTIONS;
 }
 
 export const OPERATOR_OPTIONS = ['=', '!=', '>', '>=', '<', '<=', 'IN', 'NOT IN', 'BETWEEN'];
