@@ -378,6 +378,34 @@ const PAEChart: React.FC<PAEChartProps> = ({
           type: 'line' as const,
           lineStyle: { color: cfg?.metrics[0]?.color ?? primaryColor, type: 'dashed' as const, width: 1 },
         },
+        // Per-series tooltip with unit suffix → users can immediately tell
+        // which axis / unit each value belongs to (critical when mixing
+        // throughput % and volume GB on the same chart).
+        formatter: (params: any) => {
+          if (!Array.isArray(params)) return '';
+          const unitByName = new Map<string, string>();
+          (cfg?.metrics ?? []).forEach((m: any) => {
+            unitByName.set(m.alias || m.kpiKey, (m.unit ?? '').trim());
+          });
+          const fmt = (v: number) => {
+            if (v == null || Number.isNaN(v)) return '–';
+            const abs = Math.abs(v);
+            if (abs >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+            if (abs >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+            if (abs >= 1e3) return (v / 1e3).toFixed(2) + 'K';
+            return abs >= 100 ? v.toFixed(0) : v.toFixed(2);
+          };
+          const header = `<div style="font-weight:700;margin-bottom:4px">${params[0]?.axisValueLabel ?? params[0]?.name ?? ''}</div>`;
+          const rows = params.map((p: any) => {
+            const u = unitByName.get(p.seriesName) ?? '';
+            return `<div style="display:flex;align-items:center;gap:6px;line-height:18px">
+              <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${p.color}"></span>
+              <span style="flex:1">${p.seriesName}</span>
+              <span style="font-weight:700">${fmt(p.value)}${u ? ' ' + u : ''}</span>
+            </div>`;
+          }).join('');
+          return header + rows;
+        },
       },
       xAxis: {
         type: 'category' as const,
