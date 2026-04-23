@@ -348,14 +348,10 @@ const PAEChart: React.FC<PAEChartProps> = ({
     // name is shown on hover via the legend tooltip.
     const shortenLabel = (raw: string): string => {
       if (!raw) return '';
-      const s = raw.trim();
-      const bandMatch = s.match(/(LTE\d{3,4}|NR\d{3,4}|UMTS\d{3,4}|GSM\d{3,4}|2G|3G|4G|5G)\s*$/i);
-      const band = bandMatch ? bandMatch[0].toUpperCase() : '';
-      let head = band ? s.slice(0, s.length - bandMatch![0].length) : s;
-      head = head.replace(/[\s\-_]+$/g, '').replace(/[_]+/g, ' ').trim();
-      const MAX_HEAD = 24;
-      if (head.length > MAX_HEAD) head = head.slice(0, MAX_HEAD - 1) + '…';
-      return band ? (head ? `${head} · ${band}` : band) : head;
+      // Display the full series name in the legend; underscores are
+      // replaced by spaces for readability but no truncation is applied
+      // so users can read the entire metric label.
+      return raw.trim().replace(/[_]+/g, ' ');
     };
 
     // ── LEGEND SIZING ──────────────────────────────────────────────
