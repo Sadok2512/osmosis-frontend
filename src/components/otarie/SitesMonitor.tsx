@@ -3782,6 +3782,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showKpiDropdown, setShowKpiDropdown] = useState(false);
   const [showKpiLegend, setShowKpiLegend] = useState(true);
   const [showParamLegend, setShowParamLegend] = useState(true);
+  const [showKpiOverlayPanel, setShowKpiOverlayPanel] = useState(false);
+  const [kpiOverlayPanelLevels, setKpiOverlayPanelLevels] = useState<Set<'green' | 'orange' | 'red' | 'gray'>>(new Set(['green', 'orange', 'red', 'gray']));
+  const [kpiOverlayPanelSearch, setKpiOverlayPanelSearch] = useState('');
+  const [kpiOverlayPanelSort, setKpiOverlayPanelSort] = useState<'asc' | 'desc' | 'none'>('desc');
   const [hiddenKpiLevels, setHiddenKpiLevels] = useState<Set<'green'|'orange'|'red'|'gray'>>(new Set());
   // KPI value filter: e.g., ">98", "<50", "=100", ">=95"
   const [kpiValueFilter, setKpiValueFilter] = useState<string>('');
