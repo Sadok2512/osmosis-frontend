@@ -475,14 +475,18 @@ function mergeTableResponses(responses: TableResponse[], topN: number): TableRes
     Object.assign(sourceTables, response.source_tables || {});
     for (const row of response.rows || []) {
       const split = row.split_value || 'Total';
-      const existing = bySplit.get(split) || { split_value: split };
+      // Key must include timestamp so that multiple dates per split value
+      // are NOT collapsed into a single row (e.g. NANTES Apr-17 + NANTES Apr-18)
+      const ts = row.ts || '';
+      const mergeKey = ts ? `${split}||${ts}` : split;
+      const existing = bySplit.get(mergeKey) || { split_value: split, ts };
       // Backend returns {kpi_key, avg, min, max} — transform to {[kpi_key]: avg}
       // so the frontend can access r[col.kpiKey] directly.
       if (row.kpi_key && row.avg != null) {
         existing[row.kpi_key] = row.avg;
       }
       // Also keep all other fields (site_name, dor, band, vendor, etc.)
-      bySplit.set(split, { ...existing, ...row, split_value: split });
+      bySplit.set(mergeKey, { ...existing, ...row, split_value: split });
     }
   }
 
