@@ -211,14 +211,16 @@ const KpiReferenceWorkspace2: React.FC = () => {
       await updateKpiInVps(kpi.kpi_key, updateBody);
       return true;
     },
-    onSuccess: async () => {
+    onSuccess: async (_result, payload) => {
       await queryClient.invalidateQueries({ queryKey: ['kpi-reference2-catalog'] });
       await queryClient.invalidateQueries({ queryKey: ['kpi-reference-catalog'] });
-      toast({ title: 'KPI updated', description: 'The KPI reference has been refreshed.' });
+      sonnerToast.dismiss(`kpi-save-${payload.kpi.kpi_key}`);
+      sonnerToast.success('KPI mis à jour', { description: 'Le référentiel a été rafraîchi.' });
       setIsEditing(false);
     },
-    onError: (error: any) => {
-      toast({ title: 'Save failed', description: error?.message || 'Unable to update KPI metadata.', variant: 'destructive' });
+    onError: (error: any, payload) => {
+      sonnerToast.dismiss(`kpi-save-${payload.kpi.kpi_key}`);
+      sonnerToast.error('Échec de la sauvegarde', { description: error?.message || 'Impossible de mettre à jour le KPI.' });
     },
   });
 
