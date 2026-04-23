@@ -159,7 +159,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     | { status: 'invalid'; message: string };
   const [paramValidation, setParamValidation] = useState<ParamValidation>({ status: 'idle' });
 
-  const validateParamConditions = (): { ok: true; payload: any[] } | { ok: false; message: string } => {
+  type ValidateResult = { ok: true; payload: any[] } | { ok: false; message: string };
+  const validateParamConditions = (): ValidateResult => {
     for (const c of paramConditions) {
       if (!c.parameter) return { ok: false, message: 'Each condition requires a parameter.' };
       if (!c.operator) return { ok: false, message: 'Each condition requires an operator.' };
