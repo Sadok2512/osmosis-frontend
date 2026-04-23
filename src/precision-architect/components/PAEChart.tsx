@@ -254,11 +254,22 @@ const PAEChart: React.FC<PAEChartProps> = ({
 
     // Estimate space needed when legend is at the bottom. Since we now use
     // `type: 'plain'` (no pagination), we must reserve enough vertical room
-    // to fit ALL items wrapped over multiple rows. Approximate ~3 items per
-    // row, ~26px row height. Capped to keep the chart usable.
+    // to fit ALL items wrapped over multiple rows.
+    //
+    // Rows per item depends on the *displayed* (shortened) label width:
+    //   • short labels (<14 chars) → ~3 per row
+    //   • medium (14-22 chars) → ~2 per row
+    //   • long (>22 chars) → 1 per row
+    // This prevents the legend from overlapping the X-axis when series names
+    // are long (e.g. "DL VOLUME IP GBytes · LTE2100").
+    const avgDisplayLen = legendData.length > 0
+      ? legendData.reduce((s, n) => s + shortenLabel(n).length, 0) / legendData.length
+      : 0;
+    const itemsPerRow = avgDisplayLen > 22 ? 1 : avgDisplayLen > 14 ? 2 : 3;
+    const legendRows = Math.max(1, Math.ceil(legendData.length / itemsPerRow));
     const legendBlockSize = legendPos === 'right'
       ? Math.min(legendData.length * 24 + 12, 480)
-      : Math.max(34, Math.min(Math.ceil(legendData.length / 3) * 26 + 16, 220));
+      : Math.max(34, Math.min(legendRows * 26 + 16, 260));
 
     const legend = {
       show: showLegend,
