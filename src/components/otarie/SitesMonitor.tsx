@@ -5751,7 +5751,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const detail: SiteDetail = {
             ...baseSite,
             cells,
-            cell_count: cells.length,
+            cell_count: Number(baseSite.cell_count || 0) > 0 ? Number(baseSite.cell_count) : cells.length,
             traffic_dn_bytes: cells.reduce((sum, c) => sum + (c.traffic_dn_bytes || 0), 0),
             traffic_up_bytes: cells.reduce((sum, c) => sum + (c.traffic_up_bytes || 0), 0),
             p95_rtt_ms: cells.length > 0
@@ -7020,7 +7020,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           siteWithCells = {
             ...site,
             cells,
-            cell_count: cells.length || site.cell_count,
+            cell_count: Number(site.cell_count || 0) > 0 ? Number(site.cell_count) : cells.length,
             lte_cells: cells.filter((c: any) => is4GTech(c.techno)).length,
             nr_cells: cells.filter((c: any) => is5GTech(c.techno)).length,
           };
