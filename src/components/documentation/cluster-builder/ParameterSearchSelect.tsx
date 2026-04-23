@@ -21,7 +21,7 @@ const ParameterSearchSelect: React.FC<ParameterSearchSelectProps> = ({
   value,
   options,
   onChange,
-  placeholder = 'Select parameter…',
+  placeholder = 'Search parameter…',
   asyncSearch,
 }) => {
   const [open, setOpen] = useState(false);
