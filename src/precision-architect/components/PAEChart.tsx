@@ -215,7 +215,7 @@ const PAEChart: React.FC<PAEChartProps> = ({
       type: 'plain' as const,
       data: legendData,
       bottom: legendPos === 'bottom' ? 4 : undefined,
-      top: legendPos === 'top' ? 4 : undefined,
+      top: undefined,
       right: legendPos === 'right' ? 8 : 12,
       left: legendPos === 'right' ? undefined : 12,
       width: legendPos === 'right' ? 150 : '92%',
