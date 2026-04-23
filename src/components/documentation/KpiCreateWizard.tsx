@@ -379,9 +379,37 @@ const KpiCreateWizard: React.FC<KpiCreateWizardProps> = ({ onSubmit, onClose, in
               )}
               {testResults.length > 0 && (
                 <div>
+                  {(() => {
+                    const vals = testResults
+                      .map((r: any) => Number(r.kpi_value))
+                      .filter((v: number) => Number.isFinite(v));
+                    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+                    const min = vals.length ? Math.min(...vals) : 0;
+                    const max = vals.length ? Math.max(...vals) : 0;
+                    return (
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-700">Points</p>
+                          <p className="text-base font-black font-mono text-emerald-700">{testResults.length}</p>
+                        </div>
+                        <div className="rounded-lg bg-primary/10 border border-primary/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-primary">Average</p>
+                          <p className="text-base font-black font-mono text-primary">{avg.toFixed(3)}{unit}</p>
+                        </div>
+                        <div className="rounded-lg bg-sky-500/10 border border-sky-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-sky-700">Min</p>
+                          <p className="text-base font-black font-mono text-sky-700">{min.toFixed(3)}</p>
+                        </div>
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2">
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-amber-700">Max</p>
+                          <p className="text-base font-black font-mono text-amber-700">{max.toFixed(3)}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-bold text-foreground">{testResults.length} data points returned</span>
-                    <span className="text-[10px] text-emerald-600 font-bold">Formula works</span>
+                    <span className="text-[10px] text-emerald-600 font-bold">✓ Formula works</span>
                   </div>
                   <div className="rounded-xl border border-border overflow-hidden max-h-48 overflow-y-auto">
                     <table className="w-full text-[11px]">
