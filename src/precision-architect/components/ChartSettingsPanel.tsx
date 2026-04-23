@@ -188,16 +188,18 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
   const updateMetric = (id: string, patch: Partial<ChartMetric>) => {
     const nextMetrics = config.metrics.map(m => m.id === id ? { ...m, ...patch } : m);
-    // Visibility is a pure display toggle (no backend impact) — propagate it
-    // immediately to the appliedConfig snapshot so the chart re-renders without
-    // requiring a full Apply (which would re-issue the backend query).
-    const isVisibilityOnly = Object.keys(patch).length === 1 && 'visible' in patch;
-    if (isVisibilityOnly && widget.appliedConfig) {
+    // Display-only flags (visibility, axis side) have no backend impact —
+    // propagate them immediately to the appliedConfig snapshot so the chart
+    // re-renders without requiring a full Apply (which would re-issue the query).
+    const DISPLAY_ONLY_KEYS = new Set(['visible', 'axis']);
+    const patchKeys = Object.keys(patch);
+    const isDisplayOnly = patchKeys.length > 0 && patchKeys.every(k => DISPLAY_ONLY_KEYS.has(k));
+    if (isDisplayOnly && widget.appliedConfig) {
       const appliedCfg = widget.appliedConfig as ChartWidgetConfig;
       const nextApplied: ChartWidgetConfig = {
         ...appliedCfg,
         metrics: appliedCfg.metrics.map(m =>
-          m.id === id ? { ...m, visible: patch.visible } : m
+          m.id === id ? { ...m, ...patch } : m
         ),
       };
       onChange({ config: { ...config, metrics: nextMetrics }, appliedConfig: nextApplied });
@@ -1038,6 +1040,31 @@ function MetricsTab({
 
                   {/* Right-side actions cluster (always reachable) */}
                   <div className="flex items-center gap-1 shrink-0">
+                    {/* Inline Axis side toggle (Left / Right) — pure display, no backend impact */}
+                    <div className="flex items-center rounded-md border border-outline-variant/40 bg-white overflow-hidden">
+                      {(['left', 'right'] as const).map((side) => {
+                        const active = (m.axis ?? 'left') === side;
+                        return (
+                          <button
+                            key={side}
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); updateMetric(m.id, { axis: side }); }}
+                            className={cn(
+                              'px-1.5 py-1 text-[9px] font-black uppercase tracking-wider transition-colors',
+                              active
+                                ? 'bg-primary text-on-primary'
+                                : 'text-on-surface-variant hover:bg-surface-container-low'
+                            )}
+                            title={`Plot on ${side} Y axis`}
+                            aria-label={`Use ${side} axis`}
+                            aria-pressed={active}
+                          >
+                            {side === 'left' ? 'L' : 'R'}
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     {/* Inline Split By — always visible so users can split without expanding the card */}
                     <Popover>
                       <PopoverTrigger asChild>
