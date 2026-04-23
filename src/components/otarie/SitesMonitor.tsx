@@ -11094,10 +11094,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      const cellsLoadedForSite = rawCells2.length > 0;
-                      const displayedCellCount = cellsLoadedForSite
-                        ? siteCells.length
-                        : (site.cell_count || 0);
+                      // Stable total cell count — see Sites tab for rationale.
+                      const displayedCellCount = Math.max(rawCells2.length, site.cell_count || 0);
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sNum = getSectorNumber(c.cell_id);
