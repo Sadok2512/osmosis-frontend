@@ -50,9 +50,13 @@ export interface ChartThreshold {
 export interface ChartJalon {
   id: string;
   label: string;
-  /** ISO date or display label for the X position */
+  /** ISO date or display label for the X position (start). */
   date: string;
+  /** Optional end date for range-style jalons (rendered as markArea). */
+  endDate?: string;
   color: string;
+  /** 0..1 — controls fill/line opacity. Defaults to 0.8. */
+  opacity?: number;
 }
 
 export type TechnoId = '2g' | '3g' | '4g' | '5g';

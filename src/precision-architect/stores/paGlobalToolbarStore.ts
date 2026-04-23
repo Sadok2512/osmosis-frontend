@@ -5,6 +5,7 @@ import type {
   PeriodPreset,
   GrainOption,
   ChartFilterChip,
+  ChartJalon,
 } from '../types';
 
 /**
@@ -21,6 +22,8 @@ export interface PAGlobalToolbarState {
   preset: PeriodPreset;
   grain: GrainOption;
   filters: ChartFilterChip[];
+  /** Global jalons applied to every chart in the dashboard. */
+  jalons: ChartJalon[];
   /** Bumped each time the user clicks "Appliquer" on the top toolbar. */
   appliedRev: number;
   /** Snapshot of toolbar values frozen at the last Apply click.
@@ -45,6 +48,7 @@ interface PAGlobalToolbarStore extends PAGlobalToolbarState {
   setPreset: (p: PeriodPreset) => void;
   setGrain: (g: GrainOption) => void;
   setFilters: (f: ChartFilterChip[]) => void;
+  setJalons: (j: ChartJalon[]) => void;
   apply: () => void;
 }
 
@@ -62,6 +66,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       preset: '3j',
       grain: '1d',
       filters: [],
+      jalons: [],
       appliedRev: 0,
       applied: null,
 
@@ -71,6 +76,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       setPreset: (preset) => set({ preset }),
       setGrain: (grain) => set({ grain }),
       setFilters: (filters) => set({ filters }),
+      setJalons: (jalons) => set({ jalons }),
       apply: () =>
         set((s) => ({
           appliedRev: s.appliedRev + 1,
@@ -97,6 +103,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
         preset: s.preset,
         grain: s.grain,
         filters: s.filters,
+        jalons: s.jalons,
         applied: s.applied,
         appliedRev: s.appliedRev,
       }),

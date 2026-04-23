@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Loader2 } from 'lucide-react';
-import { ChartWidgetConfig, DEFAULT_CHART_CONFIG, ChartType } from '../types';
+import { ChartWidgetConfig, DEFAULT_CHART_CONFIG, ChartType, ChartJalon } from '../types';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 
 interface PAEChartProps {
   variant?: 'editor' | 'presentation';
@@ -64,6 +65,8 @@ const PAEChart: React.FC<PAEChartProps> = ({
   // Real data only — no synthetic fallback.
   const effectiveData = hasLegacyData ? data! : [];
 
+  // Global jalons (managed from the top-bar Jalons pill) — applied to every chart.
+  const globalJalons = usePAGlobalToolbar((s) => s.jalons);
 
 
   const option = useMemo(() => {
@@ -494,18 +497,36 @@ const PAEChart: React.FC<PAEChartProps> = ({
       },
       yAxis,
       series: (() => {
-        // ── SEUILS Y (horizontal threshold lines) + JALONS (vertical date markers) ──
-        // We attach them as markLine on the first series; ECharts renders them
-        // once at chart level. yAxisIndex routes each threshold to the correct axis.
+        // ── SEUILS Y (horizontal) + JALONS (vertical lines / date ranges) ──
+        // Jalons come from BOTH the global toolbar (applies to every chart)
+        // and the per-widget config (chart-specific). They are merged and
+        // de-duplicated by id so a global jalon overridden locally wins.
         const thresholds = cfg?.thresholds ?? [];
-        const jalons = cfg?.jalons ?? [];
-        if ((thresholds.length === 0 && jalons.length === 0) || series.length === 0) {
+        const localJalons = cfg?.jalons ?? [];
+        const seenIds = new Set(localJalons.map((j) => j.id));
+        const mergedJalons: ChartJalon[] = [
+          ...globalJalons.filter((j) => !seenIds.has(j.id)),
+          ...localJalons,
+        ];
+
+        if ((thresholds.length === 0 && mergedJalons.length === 0) || series.length === 0) {
           return series;
         }
         const lineTypeFor = (ls: string): 'solid' | 'dashed' | 'dotted' =>
           ls === 'dashed' ? 'dashed' : ls === 'dotted' ? 'dotted' : 'solid';
+        const hexAlphaJ = (hex: string, alpha: number) => {
+          // Accepts #rrggbb / #rgb — returns rgba()
+          const c = hex.replace('#', '');
+          const f = c.length === 3 ? c.split('').map((x) => x + x).join('') : c;
+          const r = parseInt(f.slice(0, 2), 16);
+          const g = parseInt(f.slice(2, 4), 16);
+          const b = parseInt(f.slice(4, 6), 16);
+          return `rgba(${r},${g},${b},${alpha})`;
+        };
         const hasRight = yAxis.length > 1;
-        const thresholdLines = thresholds.map(t => ({
+
+        // Thresholds → markLine (horizontal)
+        const thresholdLines = thresholds.map((t) => ({
           name: t.label,
           yAxis: t.value,
           xAxis: undefined as any,
@@ -517,31 +538,76 @@ const PAEChart: React.FC<PAEChartProps> = ({
             backgroundColor: 'rgba(255,255,255,0.85)', padding: [2, 4], borderRadius: 3,
           },
         }));
-        const jalonLines = jalons.map(j => ({
+
+        // Jalons split: range (start ≠ end) → markArea ; point → markLine
+        const pointJalons = mergedJalons.filter((j) => !j.endDate || j.endDate === j.date);
+        const rangeJalons = mergedJalons.filter((j) => j.endDate && j.endDate !== j.date);
+
+        const jalonLines = pointJalons.map((j) => ({
           name: j.label,
           xAxis: j.date,
-          lineStyle: { color: j.color, width: 1.5, type: 'dashed' as const },
+          lineStyle: {
+            color: j.color,
+            width: 1.5,
+            type: 'dashed' as const,
+            opacity: j.opacity ?? 0.8,
+          },
           label: {
             show: true, position: 'insideEndTop' as const,
             formatter: j.label, color: j.color, fontWeight: 700, fontSize: 10,
             backgroundColor: 'rgba(255,255,255,0.85)', padding: [2, 4], borderRadius: 3,
           },
         }));
-        const markLineData = [...thresholdLines, ...jalonLines];
-        return series.map((s, i) => i === 0 ? {
-          ...s,
-          markLine: {
-            silent: false,
-            symbol: ['none', 'none'],
-            animation: false,
-            data: markLineData,
+
+        const markAreaData = rangeJalons.map((j) => ([
+          {
+            name: j.label,
+            xAxis: j.date,
+            itemStyle: {
+              color: hexAlphaJ(j.color, (j.opacity ?? 0.8) * 0.25),
+              borderColor: j.color,
+              borderWidth: 1,
+              borderType: 'dashed' as const,
+            },
+            label: {
+              show: true,
+              position: 'insideTop' as const,
+              formatter: j.label,
+              color: j.color,
+              fontWeight: 700,
+              fontSize: 10,
+              backgroundColor: 'rgba(255,255,255,0.85)',
+              padding: [2, 4],
+              borderRadius: 3,
+            },
           },
-        } : s);
+          { xAxis: j.endDate! },
+        ]));
+
+        const markLineData = [...thresholdLines, ...jalonLines];
+
+        return series.map((s, i) => {
+          if (i !== 0) return s;
+          return {
+            ...s,
+            markLine: markLineData.length > 0 ? {
+              silent: false,
+              symbol: ['none', 'none'],
+              animation: false,
+              data: markLineData,
+            } : undefined,
+            markArea: markAreaData.length > 0 ? {
+              silent: false,
+              animation: false,
+              data: markAreaData,
+            } : undefined,
+          };
+        });
       })(),
       animationDuration: isPresentation ? 1600 : 900,
       animationEasing: 'cubicOut' as const,
     };
-  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels, config?.style.stacked, config?.thresholds, config?.jalons]);
+  }, [effectiveData, isPresentation, primaryColor, secondaryColor, showSecondary, config, seriesByMetric, xAxisLabels, config?.style.stacked, config?.thresholds, config?.jalons, globalJalons]);
 
   // Container ref + ResizeObserver — guarantees ECharts re-lays-out as soon as
   // the widget card has its real width (fixes right-axis clipping on first paint

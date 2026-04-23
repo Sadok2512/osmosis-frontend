@@ -1,14 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2 } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2, Plus, X, Edit2 } from 'lucide-react';
 import { useIsFetching } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { usePAReportStore } from '../stores/paReportStore';
-import type { TechnoId, PeriodPreset, GrainOption, DynWidget } from '../types';
+import type { TechnoId, PeriodPreset, GrainOption, DynWidget, ChartJalon } from '../types';
 
 const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
@@ -324,63 +326,61 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 };
 
 /* ───────────────────────── JALONS PILL ─────────────────────────
- * Aggregates all jalons (date markers) and seuils (Y thresholds) defined
- * across every chart widget in the active dashboard, and exposes them in
- * a popover. Clicking a jalon scrolls/highlights its source widget.
+ * Investigator-parity Jalons manager. Manages a list of GLOBAL jalons
+ * stored in paGlobalToolbarStore — they are merged into every chart
+ * widget at render time (PAEChart) so a single edit propagates to the
+ * whole dashboard.
  */
+const JALON_COLORS = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+
 const JalonsPill: React.FC = () => {
-  const pages = usePAReportStore((s) => s.pages);
-  const setActivePageId = usePAReportStore((s) => s.setActivePageId);
+  const jalons = usePAGlobalToolbar((s) => s.jalons);
+  const setJalons = usePAGlobalToolbar((s) => s.setJalons);
 
-  const items = useMemo(() => {
-    const acc: Array<{
-      kind: 'jalon' | 'seuil';
-      id: string;
-      label: string;
-      meta: string;
-      color: string;
-      pageId: string;
-      pageName: string;
-      widgetId: string;
-      widgetTitle: string;
-    }> = [];
-    pages.forEach((page) => {
-      page.widgets.forEach((w: any) => {
-        if (w.kind !== 'chart' || !w.config) return;
-        const widgetTitle = w.config?.title || w.title || 'Chart';
-        (w.config.jalons ?? []).forEach((j: any) => {
-          acc.push({
-            kind: 'jalon', id: j.id, label: j.label, meta: j.date,
-            color: j.color, pageId: page.id, pageName: page.name,
-            widgetId: w.id, widgetTitle,
-          });
-        });
-        (w.config.thresholds ?? []).forEach((t: any) => {
-          acc.push({
-            kind: 'seuil', id: t.id, label: t.label,
-            meta: `${t.value} · ${t.axis === 'right' ? 'Axe D' : 'Axe G'}`,
-            color: t.color, pageId: page.id, pageName: page.name,
-            widgetId: w.id, widgetTitle,
-          });
-        });
-      });
-    });
-    return acc;
-  }, [pages]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  // New jalon form state
+  const [label, setLabel] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [color, setColor] = useState(JALON_COLORS[0]);
+  const [opacity, setOpacity] = useState(80);
+  const [endDateTouched, setEndDateTouched] = useState(false);
 
-  const total = items.length;
+  useEffect(() => {
+    if (!endDateTouched && startDate) setEndDate(startDate);
+  }, [startDate, endDateTouched]);
 
-  const handleJump = (pageId: string, widgetId: string) => {
-    setActivePageId(pageId);
-    requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-widget-id="${widgetId}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('ring-2', 'ring-rose-400');
-        setTimeout(() => el.classList.remove('ring-2', 'ring-rose-400'), 1600);
-      }
-    });
+  const resetForm = () => {
+    setLabel(''); setStartDate(''); setEndDate(''); setColor(JALON_COLORS[0]);
+    setOpacity(80); setEndDateTouched(false);
   };
+
+  const handleAdd = () => {
+    if (!startDate || !label) return;
+    const newJ: ChartJalon = {
+      id: `jalon-${Date.now()}`,
+      date: startDate,
+      endDate: endDate || startDate,
+      label,
+      color,
+      opacity: opacity / 100,
+    };
+    setJalons([...jalons, newJ]);
+    resetForm();
+    setShowForm(false);
+  };
+
+  const updateJalon = (id: string, patch: Partial<ChartJalon>) =>
+    setJalons(jalons.map((j) => (j.id === id ? { ...j, ...patch } : j)));
+
+  const removeJalon = (id: string) => {
+    setJalons(jalons.filter((j) => j.id !== id));
+    if (editingId === id) setEditingId(null);
+  };
+
+  const fmtDt = (dt: string) => dt?.replace('T', ' ').slice(0, 16) || '';
+  const total = jalons.length;
 
   return (
     <Popover>
@@ -404,52 +404,210 @@ const JalonsPill: React.FC = () => {
           </span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0 max-h-[420px] overflow-hidden flex flex-col">
-        <div className="px-3 py-2.5 border-b border-outline-variant/20 bg-surface-container-low">
-          <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">
-            Jalons & Seuils du dashboard
-          </p>
-          <p className="text-[10px] text-on-surface-variant/70 mt-0.5">
-            {total === 0
-              ? 'Ajoutez-les depuis l\'onglet "Jalons & Seuils" de chaque chart.'
-              : `${items.filter(i => i.kind === 'jalon').length} jalon(s) · ${items.filter(i => i.kind === 'seuil').length} seuil(s)`}
-          </p>
+      <PopoverContent align="end" className="w-80 p-3 max-h-[440px] overflow-hidden flex flex-col">
+        <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+          Gestion des jalons
         </div>
-        <div className="flex-1 overflow-y-auto py-1">
-          {total === 0 ? (
-            <div className="px-3 py-6 text-center">
-              <Flag className="w-6 h-6 mx-auto text-on-surface-variant/40 mb-1.5" />
-              <p className="text-[11px] text-on-surface-variant">Aucun jalon ou seuil défini</p>
+
+        <div className="flex-1 overflow-y-auto space-y-2 -mx-1 px-1">
+          {/* Existing jalons list */}
+          {jalons.length > 0 && (
+            <div className="space-y-1">
+              {jalons.map((j) => {
+                const isEditing = editingId === j.id;
+                return (
+                  <div
+                    key={j.id}
+                    className={cn(
+                      'rounded-lg border transition-all',
+                      isEditing ? 'border-primary/40 bg-primary/5 p-2' : 'border-border/30 bg-card p-1.5'
+                    )}
+                  >
+                    {isEditing ? (
+                      <div className="space-y-1.5">
+                        <input
+                          value={j.label}
+                          onChange={(e) => updateJalon(j.id, { label: e.target.value })}
+                          className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+                        />
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <div>
+                            <label className="text-[8px] text-muted-foreground uppercase">Début</label>
+                            <input
+                              type="datetime-local"
+                              value={j.date}
+                              onChange={(e) => updateJalon(j.id, { date: e.target.value })}
+                              className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[8px] text-muted-foreground uppercase">Fin</label>
+                            <input
+                              type="datetime-local"
+                              value={j.endDate || j.date}
+                              onChange={(e) => updateJalon(j.id, { endDate: e.target.value })}
+                              min={j.date}
+                              className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
+                          <Slider
+                            value={[Math.round((j.opacity ?? 0.8) * 100)]}
+                            min={10}
+                            max={100}
+                            step={5}
+                            onValueChange={([v]) => updateJalon(j.id, { opacity: v / 100 })}
+                            className="flex-1"
+                          />
+                          <span className="text-[9px] text-muted-foreground w-8 text-right">
+                            {Math.round((j.opacity ?? 0.8) * 100)}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {JALON_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => updateJalon(j.id, { color: c })}
+                              className={cn(
+                                'w-4 h-4 rounded-full border-2 transition-all',
+                                j.color === c ? 'border-foreground scale-110' : 'border-transparent'
+                              )}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-5 text-[9px] px-2 ml-auto"
+                            onClick={() => setEditingId(null)}
+                          >
+                            <Check className="w-3 h-3 mr-0.5" /> OK
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: j.color, opacity: j.opacity ?? 0.8 }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-medium text-foreground truncate block">{j.label}</span>
+                          <span className="text-[8px] text-muted-foreground">
+                            {fmtDt(j.date)}
+                            {j.endDate && j.endDate !== j.date ? ` → ${fmtDt(j.endDate)}` : ''}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setEditingId(j.id)}
+                          className="text-muted-foreground hover:text-primary shrink-0"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => removeJalon(j.id)}
+                          className="text-muted-foreground hover:text-destructive shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {jalons.length === 0 && !showForm && (
+            <div className="text-[10px] text-muted-foreground/50 text-center py-3 italic">
+              Aucun jalon créé
+            </div>
+          )}
+
+          {/* New jalon form */}
+          {showForm ? (
+            <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-2 space-y-1.5">
+              <div className="text-[9px] font-bold text-primary uppercase tracking-wider">Nouveau jalon</div>
+              <input
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Nom du jalon..."
+                className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+              />
+              <div className="grid grid-cols-2 gap-1.5">
+                <div>
+                  <label className="text-[8px] text-muted-foreground uppercase">Début</label>
+                  <input
+                    type="datetime-local"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+                  />
+                </div>
+                <div>
+                  <label className="text-[8px] text-muted-foreground uppercase">Fin</label>
+                  <input
+                    type="datetime-local"
+                    value={endDate}
+                    onChange={(e) => { setEndDate(e.target.value); setEndDateTouched(true); }}
+                    min={startDate}
+                    className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
+                <Slider
+                  value={[opacity]}
+                  min={10}
+                  max={100}
+                  step={5}
+                  onValueChange={([v]) => setOpacity(v)}
+                  className="flex-1"
+                />
+                <span className="text-[9px] text-muted-foreground w-8 text-right">{opacity}%</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {JALON_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setColor(c)}
+                    className={cn(
+                      'w-4 h-4 rounded-full border-2 transition-all',
+                      color === c ? 'border-foreground scale-110' : 'border-transparent'
+                    )}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                <div className="ml-auto flex items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-5 text-[9px] px-2"
+                    onClick={() => { resetForm(); setShowForm(false); }}
+                  >
+                    Annuler
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="h-5 text-[9px] px-2"
+                    onClick={handleAdd}
+                    disabled={!startDate || !label}
+                  >
+                    <Plus className="w-3 h-3 mr-0.5" /> Ajouter
+                  </Button>
+                </div>
+              </div>
             </div>
           ) : (
-            items.map((it) => (
-              <button
-                key={`${it.kind}-${it.id}`}
-                type="button"
-                onClick={() => handleJump(it.pageId, it.widgetId)}
-                className="w-full text-left px-3 py-2 flex items-start gap-2.5 hover:bg-surface-container-low transition-colors border-b border-outline-variant/10 last:border-b-0"
-              >
-                <span
-                  className="mt-0.5 inline-block w-2.5 h-2.5 rounded-sm shrink-0"
-                  style={{ background: it.color }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-on-surface truncate">{it.label}</span>
-                    <span className={cn(
-                      'text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded',
-                      it.kind === 'jalon' ? 'bg-rose-50 text-rose-700' : 'bg-blue-50 text-blue-700'
-                    )}>
-                      {it.kind}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-on-surface-variant mt-0.5 truncate">{it.meta}</div>
-                  <div className="text-[10px] text-on-surface-variant/70 mt-0.5 truncate">
-                    {it.widgetTitle} <span className="opacity-50">· {it.pageName}</span>
-                  </div>
-                </div>
-              </button>
-            ))
+            <button
+              onClick={() => setShowForm(true)}
+              className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors"
+            >
+              <Plus className="w-3 h-3" /> Ajouter un jalon
+            </button>
           )}
         </div>
       </PopoverContent>
