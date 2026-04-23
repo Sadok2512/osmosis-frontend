@@ -10821,11 +10821,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
                       });
-                      // Display the actual loaded cells count when available (ground truth from
-                      // the cells API). Fall back to the view summary's `cell_count` only while
-                      // cells are still loading. The backend summary can over-report (e.g. 15)
-                      // while the real physical inventory is smaller (e.g. 12).
-                      const displayedCellCount = rawCells.length > 0 ? rawCells.length : Number(site.cell_count || 0);
+                      // Always show the count of cells actually visible under current filters.
+                      // Only fall back to backend summary while cells are still not resolved.
+                      const displayedCellCount = siteCells.length > 0
+                        ? siteCells.length
+                        : Number(site.cell_count || 0);
                       // Group cells by sector
                       const sectors = new Map<number, typeof siteCells>();
                       siteCells.forEach(c => {
