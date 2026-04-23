@@ -131,23 +131,34 @@ Deno.serve(async (req) => {
 
     // Agent streams can take minutes (multi-round tool calls) — use generous timeout
     const isAgentPost = req.method === 'POST' && service === 'agent';
-    const fetchTimeout = isAgentPost ? 290_000 : 60_000; // 290s for agent, 60s for others
+    // Edge function hard idle limit is ~150s. Keep total wall-clock well under it
+    // so we always have time to return a fallback response.
+    const startedAt = Date.now();
+    const TOTAL_BUDGET_MS = isAgentPost ? 290_000 : 130_000; // 130s total for non-agent
+    const PER_ATTEMPT_MS = isAgentPost ? 290_000 : 40_000;   // 40s per attempt
+    const remainingBudget = () => Math.max(0, TOTAL_BUDGET_MS - (Date.now() - startedAt));
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     const tryFetch = async (u: string): Promise<Response> => {
+      const attemptTimeout = Math.min(PER_ATTEMPT_MS, remainingBudget());
       return await fetch(u, {
         method: req.method,
         headers: upstreamHeaders,
         body: body ? body : undefined,
-        signal: AbortSignal.timeout(fetchTimeout),
+        signal: AbortSignal.timeout(attemptTimeout),
       });
     };
 
     // Retry transient failures (network errors, 502/503/504) with exponential backoff
-    const MAX_ATTEMPTS = isAgentPost ? 1 : 3;
+    const MAX_ATTEMPTS = isAgentPost ? 1 : 2; // 2 attempts max to stay under 150s
     let upstreamRes: Response | undefined;
     let lastErr: unknown;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      // Stop early if we don't have enough budget for another attempt + safety margin
+      if (remainingBudget() < 5_000) {
+        console.warn(`[vps-proxy] Aborting retries — budget exhausted (${remainingBudget()}ms left)`);
+        break;
+      }
       const baseUrl = urls[Math.min(attempt, urls.length - 1)];
       const u = buildUrl(baseUrl).toString();
       try {
@@ -155,8 +166,8 @@ Deno.serve(async (req) => {
         if (res.status === 502 || res.status === 503 || res.status === 504) {
           console.warn(`[vps-proxy] Upstream ${res.status} on attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u})`);
           await res.body?.cancel().catch(() => {});
-          if (attempt < MAX_ATTEMPTS - 1) {
-            await sleep(400 * Math.pow(2, attempt)); // 400ms, 800ms, 1600ms
+          if (attempt < MAX_ATTEMPTS - 1 && remainingBudget() > 5_000) {
+            await sleep(Math.min(400 * Math.pow(2, attempt), remainingBudget() - 1_000));
             continue;
           }
           upstreamRes = res; // surface the last transient response
@@ -168,8 +179,8 @@ Deno.serve(async (req) => {
         lastErr = fetchErr;
         const msg = fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
         console.warn(`[vps-proxy] Fetch failed attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u}): ${msg}`);
-        if (attempt < MAX_ATTEMPTS - 1) {
-          await sleep(400 * Math.pow(2, attempt));
+        if (attempt < MAX_ATTEMPTS - 1 && remainingBudget() > 5_000) {
+          await sleep(Math.min(400 * Math.pow(2, attempt), remainingBudget() - 1_000));
         }
       }
     }
