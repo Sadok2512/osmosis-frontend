@@ -242,8 +242,14 @@ export const usePAReportStore = create<PAReportState>()(
       },
 
       renameDashboard: (id, name) => {
+        // Keep `name` (switcher label) and `projectName` (rendered report header)
+        // in lockstep so the user never sees two different titles for the same
+        // dashboard. Previously only `name` was updated in the registry, so
+        // switching away and back restored the stale `projectName`.
         set((s) => ({
-          dashboards: s.dashboards.map((d) => (d.id === id ? { ...d, name, updatedAt: Date.now() } : d)),
+          dashboards: s.dashboards.map((d) =>
+            d.id === id ? { ...d, name, projectName: name, updatedAt: Date.now() } : d,
+          ),
           projectName: id === s.activeDashboardId ? name : s.projectName,
         }));
         const updated = get().dashboards.find((d) => d.id === id);
