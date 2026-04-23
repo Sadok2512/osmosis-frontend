@@ -16,6 +16,14 @@ const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '5g', label: '5G', bg: 'bg-emerald-500', text: 'text-white' },
 ];
 
+const VENDORS: { id: string; label: string; bg: string; text: string }[] = [
+  { id: 'Ericsson', label: 'ERI', bg: 'bg-[#60a5fa]', text: 'text-white' },
+  { id: 'Nokia',    label: 'NOK', bg: 'bg-[#1e40af]', text: 'text-white' },
+  { id: 'Huawei',   label: 'HUA', bg: 'bg-[#dc2626]', text: 'text-white' },
+  { id: 'Samsung',  label: 'SAM', bg: 'bg-[#7c3aed]', text: 'text-white' },
+  { id: 'Alcatel',  label: 'ALU', bg: 'bg-[#f97316]', text: 'text-white' },
+];
+
 const PERIODS: { id: PeriodPreset; label: string; days?: number }[] = [
   { id: '1j', label: '1 jour', days: 1 },
   { id: '3j', label: '3 jours', days: 3 },
@@ -58,12 +66,15 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
   // Global report-level state — single source of truth for all widgets that inherit.
   const {
-    technos, from, to, preset, grain, filters,
-    setTechnos, setRange, setPreset, setGrain, setFilters, apply,
+    technos, vendors, from, to, preset, grain, filters,
+    setTechnos, setVendors, setRange, setPreset, setGrain, setFilters, apply,
   } = usePAGlobalToolbar();
 
   const toggleTechno = (id: TechnoId) =>
     setTechnos(technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id]);
+
+  const toggleVendor = (id: string) =>
+    setVendors(vendors.includes(id) ? vendors.filter(v => v !== id) : [...vendors, id]);
 
   const applyPreset = (p: PeriodPreset) => {
     const cfg = PERIODS.find(x => x.id === p);
@@ -158,6 +169,58 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
                     <span className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', t.bg, t.text)}>
                       {t.label}
                     </span>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Vendor multi-select — pill picker, mirrors Techno UX */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-2 h-9 px-3 rounded-full bg-white border border-outline-variant/30 shadow-[0_1px_2px_rgba(0,0,0,0.04)] text-xs font-bold text-on-surface hover:border-primary hover:text-primary transition-colors"
+            >
+              <Filter className="w-3.5 h-3.5 text-on-surface-variant" />
+              <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Vendor</span>
+              <div className="flex items-center gap-1 ml-1">
+                {VENDORS.filter(v => vendors.includes(v.id)).map(v => (
+                  <span key={v.id} className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', v.bg, v.text)}>
+                    {v.label}
+                  </span>
+                ))}
+                {vendors.length === 0 && (
+                  <span className="text-[10px] italic text-on-surface-variant">tous</span>
+                )}
+              </div>
+              <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">{vendors.length}</span>
+              <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2" align="start">
+            <p className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant px-2 py-1.5">Sélectionner vendors</p>
+            <div className="space-y-0.5">
+              {VENDORS.map(v => {
+                const active = vendors.includes(v.id);
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => toggleVendor(v.id)}
+                    className={cn(
+                      'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-bold transition-colors',
+                      active ? 'bg-primary/10 text-primary' : 'text-on-surface hover:bg-surface-container-low'
+                    )}
+                  >
+                    <span className={cn('w-4 h-4 rounded border-2 flex items-center justify-center shrink-0', active ? 'border-primary bg-primary' : 'border-outline-variant/40 bg-white')}>
+                      {active && <Check className="w-3 h-3 text-on-primary" />}
+                    </span>
+                    <span className={cn('px-1.5 h-5 inline-flex items-center justify-center rounded-md text-[10px] font-black tracking-wide', v.bg, v.text)}>
+                      {v.label}
+                    </span>
+                    <span className="text-xs font-bold">{v.id}</span>
                   </button>
                 );
               })}
