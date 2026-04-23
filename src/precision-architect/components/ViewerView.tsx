@@ -34,7 +34,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
   const radius = theme?.borderRadius ?? 16;
   const spacing = theme?.spacing ?? 16;
   const padding = theme?.pagePadding ?? 32;
-  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-7xl';
+  const widthClass = theme?.pageWidth === 'full' ? 'max-w-none' : 'max-w-[1760px]';
   const headerAlign = theme?.headerAlign === 'center' ? 'text-center' : theme?.headerAlign === 'right' ? 'text-right' : 'text-left';
   const showHeader = theme?.showPageHeader && (theme?.pageTitle || theme?.pageSubtitle);
 
