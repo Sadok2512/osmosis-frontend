@@ -5,6 +5,7 @@ import type {
   PeriodPreset,
   GrainOption,
   ChartFilterChip,
+  ChartJalon,
 } from '../types';
 
 /**
