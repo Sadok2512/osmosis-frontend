@@ -9417,6 +9417,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <Palette size={14} />
                 Legend {showParamLegend ? 'ON' : 'OFF'}
               </button>
+              <button
+                onClick={() => setParamHeatmapEnabled(v => !v)}
+                title={paramHeatmapEnabled ? 'Désactiver la heatmap de densité' : 'Activer la heatmap de densité du paramètre'}
+                aria-pressed={paramHeatmapEnabled}
+                disabled={paramHeatPoints.length === 0}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all duration-200 flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed ${
+                  paramHeatmapEnabled
+                    ? 'bg-orange-500/15 text-orange-500 shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <Flame size={14} />
+                Heatmap {paramHeatmapEnabled ? 'ON' : 'OFF'}
+              </button>
             </>
           ) : (
             <>
