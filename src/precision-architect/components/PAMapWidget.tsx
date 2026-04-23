@@ -448,12 +448,28 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     });
   }, [cfg.showLines, cfg.defaultColor, filteredSites, isDark]);
 
-  // ─── Invalidate size when container resizes ───
+  // ─── Invalidate size when container resizes (handles presentation mode scaling) ───
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    const id = window.setTimeout(() => map.invalidateSize(), 80);
-    return () => window.clearTimeout(id);
+    const el = containerRef.current;
+    if (!map || !el) return;
+
+    // Initial invalidation cascade — covers presentation mode where the parent
+    // applies a CSS transform after mount, leaving Leaflet with stale tile bounds.
+    const timers = [40, 150, 400, 800].map((ms) =>
+      window.setTimeout(() => map.invalidateSize(), ms),
+    );
+
+    // Continuous observation — fires whenever the slide is rescaled or revealed.
+    const ro = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    ro.observe(el);
+
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+      ro.disconnect();
+    };
   }, [height]);
 
   const isTransparent = cfg.theme === 'transparent';
