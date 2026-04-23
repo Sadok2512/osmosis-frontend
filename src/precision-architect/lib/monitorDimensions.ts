@@ -32,9 +32,9 @@ const UI_TO_BACKEND: Record<string, string> = {
   DR: 'DOR',
   DOR: 'DOR',
 
-  // Cell / Site / Plaque / Bande / ARCEP / Cluster
-  // Backend KPI Engine expects UPPERCASE English keys (CELL, SITE, PLAQUE, BAND, ZONE_ARCEP, ...).
-  // Sending French labels like "Cellule" / "Bande" / "Plaque" silently returns rows: [].
+  // Cell / Site / Cluster / Bande / ARCEP
+  // Backend KPI Engine expects UPPERCASE English keys (CELL, SITE, CLUSTER, BAND, ZONE_ARCEP, ...).
+  // Sending French labels like "Cellule" / "Bande" silently returns rows: [].
   Cellule: 'CELL',
   CELLULE: 'CELL',
   Cell: 'CELL',

@@ -485,17 +485,17 @@ function splitFilterValues(value?: string | null): string[] {
     .filter(Boolean);
 }
 
-function getSiteBclusterCandidates(site: SiteSummary): Array<string | null | undefined> {
+function getSiteClusterCandidates(site: SiteSummary): Array<string | null | undefined> {
   return [
+    (site as any).cluster,
     (site as any).bcluster,
     (site as any).b_cluster,
-    (site as any).cluster,
     (site as any).cluster_name,
     (site as any).b_cluster_name,
     ...(site.cells || []).flatMap((cell: any) => [
+      cell.cluster,
       cell.bcluster,
       cell.b_cluster,
-      cell.cluster,
       cell.cluster_name,
       cell.b_cluster_name,
     ]),
@@ -552,9 +552,9 @@ function siteMatchesSearch(site: SiteSummary, search?: string): boolean {
     site.site_name,
     site.vendor,
     site.dor,
-    site.plaque,
+    site.cluster,
     (site as any).zone_arcep,
-    ...getSiteBclusterCandidates(site),
+    ...getSiteClusterCandidates(site),
     ...(site.cells?.map((cell) => cell.cell_id) || []),
   ]
     .map(normalizeFilterValue)
@@ -571,9 +571,8 @@ function filterDashboardSitesLocally(
   return sites.filter((site) => {
     if (!hasMatchingFilterValue([site.dor], siteFilters?.dor)) return false;
     if (!hasMatchingFilterValue([site.vendor], siteFilters?.constructeur)) return false;
-    if (!hasMatchingFilterValue([site.plaque], siteFilters?.plaque)) return false;
+    if (!hasMatchingFilterValue([site.cluster], siteFilters?.cluster)) return false;
     if (!hasMatchingFilterValue([(site as any).zone_arcep], siteFilters?.zone_arcep)) return false;
-    if (!hasMatchingFilterValue(getSiteBclusterCandidates(site), (siteFilters as any)?.bcluster)) return false;
     if (!siteMatchesTechFilter(site, siteFilters?.techno)) return false;
     if (!siteMatchesBandFilter(site, siteFilters?.bande)) return false;
     if (!siteMatchesSearch(site, search)) return false;
@@ -587,11 +586,10 @@ function filterSitesByBboxFilters(sites: SiteSummary[], filters?: BboxFilters): 
   const dashboardFilters = {
     dor: splitFilterValues(filters.dor),
     constructeur: splitFilterValues(filters.vendor),
-    plaque: splitFilterValues(filters.plaque),
+    cluster: splitFilterValues(filters.cluster),
     zone_arcep: splitFilterValues(filters.zone_arcep),
     techno: splitFilterValues(filters.techno),
     bande: splitFilterValues(filters.bande),
-    bcluster: splitFilterValues(filters.bcluster),
   } as DashboardSiteFilters;
 
   return filterDashboardSitesLocally(sites, dashboardFilters, filters.q);
@@ -723,8 +721,8 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     site_name: dto.nom_site,
     vendor,
     dor: normalizeDorValue(dto.dor, dto.region),
-    plaque: dto.plaque || '',
-    department: (dto.plaque || '').replace('DEPT_', ''),
+    cluster: dto.plaque || dto.cluster || '',
+    department: (dto.plaque || dto.cluster || '').replace('DEPT_', ''),
     cell_count: backendCellCount,
     backend_cell_count: backendCellCount,
     qoe_score_avg: 0,
@@ -741,7 +739,6 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
     bande: (dto as any).bande || null,
     bandes,
     technos,
-    bcluster: getBclusterValue(dto),
     lte_cells: dto.lte_cells || derivedLte,
     nr_cells: dto.nr_cells || derivedNr,
     cells_2g: (dto as any).cells_2g || derived2g,
@@ -853,7 +850,7 @@ export async function fetchTopoSiteDetail(siteId: string): Promise<SiteDetail> {
       site_name: 'Unknown',
       vendor: 'Unknown',
       dor: '',
-      plaque: '',
+      cluster: '',
       department: '',
       cell_count: 0,
       qoe_score_avg: 0,
@@ -933,11 +930,10 @@ export async function fetchDashboardSites(
   const bboxFilters: BboxFilters = {};
   if (siteFilters?.dor?.length) bboxFilters.dor = siteFilters.dor.join(',');
   if (siteFilters?.constructeur?.length) bboxFilters.vendor = siteFilters.constructeur.join(',');
-  if (siteFilters?.plaque?.length) bboxFilters.plaque = siteFilters.plaque.join(',');
+  if (siteFilters?.cluster?.length) bboxFilters.cluster = siteFilters.cluster.join(',');
   if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep.join(',');
   if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno.join(',');
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
-  if ((siteFilters as any)?.bcluster?.length) bboxFilters.bcluster = (siteFilters as any).bcluster.join(',');
   if (search) bboxFilters.q = search;
 
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE
@@ -1006,7 +1002,7 @@ export async function fetchDashboardSites(
   try {
     const params: Record<string, any> = {};
     if (siteFilters?.dor?.length) params.p_dor = siteFilters.dor;
-    if (siteFilters?.plaque?.length) params.p_plaque = siteFilters.plaque;
+    if (siteFilters?.cluster?.length) params.p_cluster = siteFilters.cluster;
     if (siteFilters?.zone_arcep?.length) params.p_zone_arcep = siteFilters.zone_arcep;
     if (siteFilters?.constructeur?.length) params.p_constructeur = siteFilters.constructeur;
     if (siteFilters?.techno?.length) params.p_techno = siteFilters.techno;
@@ -1026,8 +1022,8 @@ export async function fetchDashboardSites(
           site_name: row.nom_site,
           vendor: row.vendor || 'Unknown',
           dor: row.dor || '',
-          plaque: row.plaque || '',
-          department: (row.plaque || '').replace('DEPT_', ''),
+          cluster: row.plaque || row.cluster || '',
+          department: (row.plaque || row.cluster || '').replace('DEPT_', ''),
           cell_count: Number(row.total_cells) || 0,
           qoe_score_avg: 0,
           p50_thr_dn_mbps: 0,

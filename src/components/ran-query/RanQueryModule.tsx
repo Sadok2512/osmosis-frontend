@@ -82,7 +82,7 @@ interface ReportResultRow {
   unit: string;
   site_name?: string;
   cell_name?: string;
-  plaque?: string;
+  cluster?: string;
   dor?: string;
   band?: string;
 }
@@ -104,7 +104,7 @@ interface RanReport {
   errorMessage?: string;
   health?: ReportHealth;
   // ── Extended filter & aggregation context ──
-  plaques?: string[];
+  clusters?: string[];
   dors?: string[];
   sites?: string[];
   zoneArcep?: string[];
@@ -128,7 +128,7 @@ interface CreateFormState {
   manualInput: string;
   selectedKpis: string[];
   // ── New ──
-  plaques: string[];
+  clusters: string[];
   dors: string[];
   sites: string[];
   zoneArcep: string[];
@@ -145,12 +145,11 @@ const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
   { value: 'cell', label: 'Cell' },
   { value: 'site', label: 'Site' },
   { value: 'band', label: 'Band' },
-  { value: 'plaque', label: 'Plaque' },
+  { value: 'cluster', label: 'Cluster' },
   { value: 'dor', label: 'DOR' },
   { value: 'dr', label: 'DR' },
   { value: 'region', label: 'Region (UPR)' },
   { value: 'arcep', label: 'Zone ARCEP' },
-  { value: 'bcluster', label: 'BCluster' },
 ];
 const DEFAULT_DIMENSIONS = ['Neighbors', 'PMQAP', 'Transport'];
 
@@ -170,7 +169,7 @@ const DEFAULT_FORM = (): CreateFormState => {
     relativeUnit: 'hours',
     manualInput: '',
     selectedKpis: [],
-    plaques: [],
+    clusters: [],
     dors: [],
     sites: [],
     zoneArcep: [],
@@ -310,7 +309,7 @@ function buildFilterPayload(report: RanReport) {
     granularity,
   };
   // Topology filters — only include if user selected values
-  if (report.plaques && report.plaques.length > 0) base.plaque = report.plaques;
+  if (report.clusters && report.clusters.length > 0) base.cluster = report.clusters;
   if (report.dors && report.dors.length > 0) base.dor = report.dors;
   if (report.sites && report.sites.length > 0) base.site_name = report.sites;
   if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
@@ -319,7 +318,7 @@ function buildFilterPayload(report: RanReport) {
   const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
   const primaryAgg = aggList.find(a => a !== 'cell') || null;
   if (primaryAgg) {
-    const aggMap: Record<string, string> = { site: 'site_name', band: 'band', plaque: 'plaque', bcluster: 'bcluster', dor: 'dor', dr: 'dor', region: 'region', arcep: 'zone_arcep' };
+    const aggMap: Record<string, string> = { site: 'site_name', band: 'band', cluster: 'cluster', dor: 'dor', dr: 'dor', region: 'region', arcep: 'zone_arcep' };
     base.split_by_field = aggMap[primaryAgg] || primaryAgg;
   }
   if (report.dimensions && report.dimensions.length > 0) base.dimensions = report.dimensions;
@@ -398,7 +397,7 @@ async function executeReportApi(
             unit: pt.unit || unit,
             site_name: pt.site_name,
             cell_name: pt.cell_name || pt.ne_name || pt.split_field,
-            plaque: pt.plaque,
+            cluster: pt.cluster || pt.plaque,
             dor: pt.dor,
             band: pt.band || pt.source_band,
           });
@@ -476,7 +475,7 @@ function downloadCsv(report: RanReport) {
   // Build pivot CSV: dimension columns + KPI columns
   const aggLevels = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
   const dimHeaders: string[] = ['Timestamp', 'Vendor', 'Technology'];
-  if (aggLevels.includes('plaque')) dimHeaders.push('Plaque');
+  if (aggLevels.includes('cluster')) dimHeaders.push('Cluster');
   if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimHeaders.push('DOR');
   if (aggLevels.includes('site')) dimHeaders.push('Site');
   if (aggLevels.includes('band')) dimHeaders.push('Band');
@@ -489,7 +488,7 @@ function downloadCsv(report: RanReport) {
   const rowMap = new Map<string, Record<string, any>>();
   for (const r of report.results) {
     const dims = [r.timestamp, r.vendor, r.technology];
-    if (aggLevels.includes('plaque')) dims.push(r.plaque || '');
+    if (aggLevels.includes('cluster')) dims.push(r.cluster || r.plaque || '');
     if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dims.push(r.dor || '');
     if (aggLevels.includes('site')) dims.push(r.site_name || '');
     if (aggLevels.includes('band')) dims.push(r.band || '');
@@ -627,7 +626,7 @@ const RanQueryModule: React.FC = () => {
   const [counterModalOpen, setCounterModalOpen] = useState(false);
 
   // ── Backend-driven Filter Area / Dimension options ──
-  const [topoOpts, setTopoOpts] = useState<{ plaque: string[]; dor: string[]; zone_arcep: string[] }>({ plaque: [], dor: [], zone_arcep: [] });
+  const [topoOpts, setTopoOpts] = useState<{ cluster: string[]; dor: string[]; zone_arcep: string[] }>({ cluster: [], dor: [], zone_arcep: [] });
   const [topoLoading, setTopoLoading] = useState(true);
   const [topoError, setTopoError] = useState<string | null>(null);
   const [dimensionOpts, setDimensionOpts] = useState<string[]>(DEFAULT_DIMENSIONS);
@@ -697,7 +696,7 @@ const RanQueryModule: React.FC = () => {
         const map: Record<string, string[]> = {};
         for (const f of resp.filters ?? []) map[f.id] = f.values ?? [];
         setTopoOpts({
-          plaque: map.plaque ?? [],
+          cluster: map.cluster ?? map.plaque ?? [],
           dor: map.dor ?? [],
           zone_arcep: map.zone_arcep ?? [],
         });
@@ -740,8 +739,8 @@ const RanQueryModule: React.FC = () => {
         const agg = items
           .filter((f: any) => f.is_aggregatable && f.is_active !== false)
           .map((f: any) => ({ value: (f.dimension_key || '').toLowerCase(), label: f.display_name || f.dimension_key }));
-        // Always include BCluster
-        if (!agg.find((a: any) => a.value === 'bcluster')) agg.push({ value: 'bcluster', label: 'BCluster' });
+        // Always include Cluster
+        if (!agg.find((a: any) => a.value === 'cluster')) agg.push({ value: 'cluster', label: 'Cluster' });
         if (agg.length > 0) setAggregationOptions(agg);
       })
       .catch(() => {});
@@ -757,7 +756,7 @@ const RanQueryModule: React.FC = () => {
         const qs = new URLSearchParams();
         qs.set('search', q);
         qs.set('limit', '40');
-        if (form.plaques.length > 0) qs.set('plaque', form.plaques.join(','));
+        if (form.clusters.length > 0) qs.set('cluster', form.clusters.join(','));
         if (form.dors.length > 0) qs.set('dor', form.dors.join(','));
         const rows = await topoApi.filteredSites(qs.toString());
         const names = (Array.isArray(rows) ? rows : [])
@@ -772,7 +771,7 @@ const RanQueryModule: React.FC = () => {
       }
     }, 300);
     return () => window.clearTimeout(handle);
-  }, [siteSearch, form.plaques, form.dors]);
+  }, [siteSearch, form.clusters, form.dors]);
 
   // Split current selection into KPI keys vs counter keys
   const kpiKeySet = useMemo(() => new Set(allKpiCatalog.map(k => k.kpi_key)), [allKpiCatalog]);
@@ -876,7 +875,7 @@ const RanQueryModule: React.FC = () => {
     dimCols.push({ key: '_timestamp', label: 'Timestamp' });
     dimCols.push({ key: '_vendor', label: 'Vendor' });
     dimCols.push({ key: '_technology', label: 'Techno' });
-    if (aggLevels.includes('plaque')) dimCols.push({ key: '_plaque', label: 'Plaque' });
+    if (aggLevels.includes('cluster')) dimCols.push({ key: '_cluster', label: 'Cluster' });
     if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimCols.push({ key: '_dor', label: 'DOR' });
     if (aggLevels.includes('site')) dimCols.push({ key: '_site', label: 'Site' });
     if (aggLevels.includes('band')) dimCols.push({ key: '_band', label: 'Band' });
@@ -892,7 +891,7 @@ const RanQueryModule: React.FC = () => {
         _timestamp: r.timestamp,
         _vendor: r.vendor,
         _technology: r.technology,
-        _plaque: r.plaque || '',
+        _cluster: r.cluster || r.plaque || '',
         _dor: r.dor || '',
         _site: r.site_name || '',
         _band: r.band || '',

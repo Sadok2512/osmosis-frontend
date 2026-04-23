@@ -47,8 +47,8 @@ interface Props {
   onActivateTab?: (tab: string | null) => void;
 }
 
-const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP', 'BCluster'];
-const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology', 'BCluster'];
+const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Cluster', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
+const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology', 'Cluster'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },
@@ -884,8 +884,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const splits = filters
           .filter((f: any) => f.is_active !== false && f.is_aggregatable)
           .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
-        // Always include BCluster as a split option
-        if (!splits.find(s => s.key === 'BCLUSTER')) splits.push({ key: 'BCLUSTER', label: 'BCluster' });
+        // Always include Cluster as a split option
+        if (!splits.find(s => s.key === 'CLUSTER')) splits.push({ key: 'CLUSTER', label: 'Cluster' });
         if (splits.length > 0) setSplitOptions(splits);
         else setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
 
@@ -893,8 +893,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const dims = filters
           .filter((f: any) => f.is_active !== false && f.is_filterable)
           .map((f: any) => f.display_name);
-        // Always include BCluster (virtual dimension from saved clusters)
-        if (!dims.includes('BCluster')) dims.push('BCluster');
+        // Always include Cluster (virtual dimension from saved clusters)
+        if (!dims.includes('Cluster')) dims.push('Cluster');
         if (dims.length > 0) setFilterDimensions(dims);
       } else {
         throw new Error('empty catalog');
@@ -909,9 +909,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         { key: 'Technology', param: 'TECHNO' },
         { key: 'Band', param: 'BAND' },
         { key: 'DOR', param: 'DOR' },
-        { key: 'Plaque', param: 'PLAQUE' },
+        { key: 'Cluster', param: 'CLUSTER' },
         { key: 'Zone ARCEP', param: 'ARCEP' },
-        { key: 'BCluster', param: 'BCLUSTER' },
       ];
       Promise.allSettled(
         dimProbes.map(d =>
@@ -923,8 +922,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const available = results
           .filter(r => r.status === 'fulfilled' && (r as any).value.hasData)
           .map(r => (r as any).value.key as string);
-        // BCluster is always available (resolved from saved clusters, not PM)
-        if (!available.includes('BCluster')) available.push('BCluster');
+        // Cluster is always available (resolved from saved clusters, not PM)
+        if (!available.includes('Cluster')) available.push('Cluster');
         if (available.length > 0) setFilterDimensions(available);
       });
     });
@@ -1580,7 +1579,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 scopeAllowed={
                   dim === 'Site' ? perimeter.siteAllowed
                   : dim === 'Cell' ? perimeter.cellAllowed
-                  : dim === 'Plaque' ? perimeter.plaqueAllowed
+                  : dim === 'Cluster' ? perimeter.plaqueAllowed
                   : dim === 'DOR' || dim === 'DR' ? perimeter.dorAllowed
                   : dim === 'Band' ? perimeter.bandAllowed
                   : null

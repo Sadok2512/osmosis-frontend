@@ -39,7 +39,7 @@ const STATIC_FALLBACKS: Record<string, string[]> = {
   TECHNO: ['2G', '3G', '4G', '5G'],
   BAND: ['700', '800', '1800', '2100', '2600', '3500'],
   DOR: ['UPR Sud-Ouest', 'UPR Ile-De-France', 'UPR Nord-Est', 'UPR Ouest', 'UPR Sud-Est', 'UPR Maghreb'],
-  PLAQUE: ['BORDEAUX', 'TOULOUSE', 'PERPIGNAN', 'BAYONNE', 'ANGOULEME', 'TARBES', 'LILLE', 'REIMS', 'STRASBOURG', 'BREST', 'NANTES', 'RENNES', 'CAEN', 'LYON_CENTRE', 'GRENOBLE', 'NICE_CANNES', 'TUNIS', 'FEMTO'],
+  CLUSTER: ['BORDEAUX', 'TOULOUSE', 'PERPIGNAN', 'BAYONNE', 'ANGOULEME', 'TARBES', 'LILLE', 'REIMS', 'STRASBOURG', 'BREST', 'NANTES', 'RENNES', 'CAEN', 'LYON_CENTRE', 'GRENOBLE', 'NICE_CANNES', 'TUNIS', 'FEMTO'],
 };
 
 /** Try to enrich a dimension with values from VPS topo data */
