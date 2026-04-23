@@ -9557,18 +9557,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </button>
                 </div>
 
-                {/* Threshold quick-view */}
+                {/* Legend ON/OFF toggle */}
                 <button
-                  onClick={() => setShowKpiThresholdEditor(v => !v)}
+                  onClick={() => setShowKpiLegend(v => !v)}
                   className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-bold transition-all border shrink-0 ${
-                    showKpiThresholdEditor
+                    showKpiLegend
                       ? 'bg-primary/10 text-primary border-primary/20'
                       : 'text-muted-foreground hover:text-foreground border-transparent hover:bg-muted/50'
                   }`}
-                  title="Modifier les seuils"
+                  title={showKpiLegend ? 'Cacher la légende KPI' : 'Afficher la légende KPI'}
+                  aria-pressed={showKpiLegend}
                 >
                   <Palette size={11} />
-                  Seuils
+                  Legend {showKpiLegend ? 'ON' : 'OFF'}
                 </button>
 
                 {/* Invert toggle */}
