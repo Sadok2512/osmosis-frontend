@@ -198,8 +198,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
           ))}
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        {/* Content — fixed min-height so the modal keeps a consistent size across all steps */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-h-[480px]">
           {/* ─── Step 1: General ─── */}
           {step === 0 && (
             <>
