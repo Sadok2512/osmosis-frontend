@@ -258,6 +258,7 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(kpi));
     setIsEditing(false);
     setOpenSections(['overview']);
+    sonnerToast.loading('Chargement du KPI…', { id: `kpi-open-${kpi.kpi_key}`, description: kpi.display_name });
     scrollToReview();
   };
 
@@ -268,11 +269,21 @@ const KpiReferenceWorkspace2: React.FC = () => {
     setDraft(toDraft(target));
     setIsEditing(true);
     setOpenSections(['overview', 'formula', 'thresholds', 'source']);
+    sonnerToast.loading("Préparation de l'édition…", { id: `kpi-edit-${target.kpi_key}`, description: `Chargement de la formule et des sources de ${target.display_name}` });
     scrollToReview();
   };
 
+  // Dismiss loading toasts once the explain query settles for the selected KPI
+  useEffect(() => {
+    if (!selectedKpi) return;
+    if (explainQuery.isLoading || explainQuery.isFetching) return;
+    sonnerToast.dismiss(`kpi-open-${selectedKpi.kpi_key}`);
+    sonnerToast.dismiss(`kpi-edit-${selectedKpi.kpi_key}`);
+  }, [selectedKpi, explainQuery.isLoading, explainQuery.isFetching]);
+
   const saveDraft = () => {
     if (!selectedKpi || !draft) return;
+    sonnerToast.loading('Enregistrement du KPI…', { id: `kpi-save-${selectedKpi.kpi_key}` });
     updateMutation.mutate({ kpi: selectedKpi, draft });
   };
 
