@@ -204,6 +204,16 @@ const PAEChart: React.FC<PAEChartProps> = ({
           connectNulls: seriesType === 'line',
           yAxisIndex: m.axis === 'right' && hasRight ? 1 : 0,
           data: seriesData,
+          // Bars: tighten per-category gap so multiple series share the slot
+          // cleanly, and force a 2px minimum height so right-axis bars with
+          // very small values remain visible next to dominant left-axis bars.
+          ...(isBar ? {
+            barGap: '10%',
+            barCategoryGap: '30%',
+            barMinHeight: 2,
+          } : {}),
+          // Z-order: right-axis series render on top so tiny bars aren't hidden.
+          z: m.axis === 'right' ? 3 : 2,
           lineStyle: seriesType === 'line' ? {
             color: m.color,
             width: (m as any).lineWidth ?? style.lineThickness,
