@@ -141,8 +141,8 @@ const ParameterSearchSelect: React.FC<ParameterSearchSelectProps> = ({
             <div className="flex items-center justify-between mt-1.5 px-1 text-[10px] text-muted-foreground">
               <span>
                 {totalMatches.toLocaleString('fr-FR')} match{totalMatches !== 1 ? 'es' : ''}
-                {asyncSearch && query.trim().length === 0 && (
-                  <span className="ml-1 italic">— type to search backend</span>
+                {asyncSearch && (
+                  <span className="ml-1 italic">— from backend (MO.parameter)</span>
                 )}
               </span>
               {totalMatches > MAX_VISIBLE && (
