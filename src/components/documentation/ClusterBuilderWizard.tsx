@@ -182,7 +182,10 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
 
   const runParamValidation = async () => {
     const v = validateParamConditions();
-    if (!v.ok) { setParamValidation({ status: 'invalid', message: v.message }); return; }
+    if (v.ok === false) {
+      setParamValidation({ status: 'invalid', message: v.message });
+      return;
+    }
     const topology = topoConditions
       .filter(c => c.values.length > 0)
       .map(c => ({ dimension: c.field, operator: c.operator === 'NOT IN' ? 'not_in' : 'in', values: c.values }));
