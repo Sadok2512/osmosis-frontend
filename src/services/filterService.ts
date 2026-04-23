@@ -84,11 +84,31 @@ export interface MatchingCount {
   filter_id?: number;
 }
 
-export async function countMatching(topology: any[]): Promise<MatchingCount> {
+export async function countMatching(topology: any[], parameters?: any[]): Promise<MatchingCount> {
   return filterApi<MatchingCount>('count', {
     method: 'POST',
-    body: JSON.stringify({ topology }),
+    body: JSON.stringify({ topology, parameters: parameters || [] }),
   });
+}
+
+export interface ParamSearchResult {
+  parameters: string[];
+}
+
+export async function searchParameters(q: string, limit = 30): Promise<ParamSearchResult> {
+  const qs = new URLSearchParams({ q, limit: String(limit) });
+  return filterApi<ParamSearchResult>(`param-search?${qs}`);
+}
+
+export interface ParamValuesResult {
+  parameter: string;
+  values: { value: string; count: number }[];
+  total: number;
+}
+
+export async function getParameterValues(parameter: string): Promise<ParamValuesResult> {
+  const qs = new URLSearchParams({ parameter });
+  return filterApi<ParamValuesResult>(`param-values?${qs}`, { method: 'POST' });
 }
 
 export async function countFilterMatching(id: string): Promise<MatchingCount> {

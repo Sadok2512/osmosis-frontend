@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2, Radio } from 'lucide-react';
-import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
+import { TOPOLOGY_DIMENSIONS, OPERATOR_OPTIONS } from './filterTypes';
 import type { TopologyCondition, ParameterCondition } from './filterTypes';
 import BulkListInput from './BulkListInput';
 import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
-import { countMatching, type MatchingCount } from '@/services/filterService';
+import { countMatching, searchParameters, getParameterValues, type MatchingCount } from '@/services/filterService';
 
 interface CreateFilterWizardProps {
   onSubmit: (data: any) => void;
@@ -17,10 +17,8 @@ const STEPS = ['General Info', 'Topology', 'Parameters', 'Logic', 'Review'];
 
 const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClose, initialData, editMode }) => {
   const [step, setStep] = useState(0);
-  const [paramOptions, setParamOptions] = useState<string[]>(PARAMETER_OPTIONS);
   const [filtersReady, setFiltersReady] = useState(false);
 
-  useEffect(() => { fetchParameterOptions().then(setParamOptions); }, []);
   useEffect(() => { loadFilterCache().then(() => setFiltersReady(true)).catch(() => setFiltersReady(true)); }, []);
 
   // Step 1
@@ -59,7 +57,26 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   };
 
   const addParamCondition = () => {
-    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: paramOptions[0] || 'KPI', operator: '>', value: '' }]);
+    setParamConditions(prev => [...prev, { id: `p-${Date.now()}`, parameter: '', operator: '=', value: '' }]);
+  };
+
+  // Parameter search state per condition
+  const [paramSearches, setParamSearches] = useState<Record<string, { q: string; results: string[]; loading: boolean; open: boolean }>>({});
+  const paramSearchTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const searchParam = (condId: string, q: string) => {
+    setParamSearches(prev => ({ ...prev, [condId]: { q, results: prev[condId]?.results || [], loading: true, open: true } }));
+    if (paramSearchTimers.current[condId]) clearTimeout(paramSearchTimers.current[condId]);
+    paramSearchTimers.current[condId] = setTimeout(() => {
+      searchParameters(q, 20)
+        .then(res => setParamSearches(prev => ({ ...prev, [condId]: { ...prev[condId], results: res.parameters, loading: false } })))
+        .catch(() => setParamSearches(prev => ({ ...prev, [condId]: { ...prev[condId], results: [], loading: false } })));
+    }, 300);
+  };
+
+  const selectParam = (condId: string, param: string) => {
+    updateParam(condId, 'parameter', param);
+    setParamSearches(prev => ({ ...prev, [condId]: { ...prev[condId], open: false, q: param } }));
   };
 
   const updateParam = (id: string, field: keyof ParameterCondition, value: string) => {
@@ -96,24 +113,27 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
   const [countLoading, setCountLoading] = useState(false);
   const countTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Include parameter conditions with valid parameter+value in count
+  const validParamConditions = paramConditions.filter(p => p.parameter && p.value);
+
   useEffect(() => {
     if (countTimer.current) clearTimeout(countTimer.current);
     const topology = Object.entries(topoConditions)
       .filter(([, v]) => v.length > 0)
       .map(([dimension, values]) => ({ dimension, operator: 'in', values }));
-    if (topology.length === 0) {
+    if (topology.length === 0 && validParamConditions.length === 0) {
       setMatchingCount(null);
       return;
     }
     setCountLoading(true);
     countTimer.current = setTimeout(() => {
-      countMatching(topology)
+      countMatching(topology, validParamConditions)
         .then(setMatchingCount)
         .catch(() => setMatchingCount(null))
         .finally(() => setCountLoading(false));
-    }, 600); // debounce 600ms
+    }, 600);
     return () => { if (countTimer.current) clearTimeout(countTimer.current); };
-  }, [topoConditions]);
+  }, [topoConditions, paramConditions]);
 
   const canNext = () => {
     if (step === 0) return name.trim().length > 0;
@@ -256,40 +276,77 @@ const CreateFilterWizard: React.FC<CreateFilterWizardProps> = ({ onSubmit, onClo
             </div>
           )}
 
-          {/* Step 3: Parameters */}
+          {/* Step 3: CM Parameters */}
           {step === 2 && (
             <div className="space-y-3">
               {paramConditions.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
                   <p className="text-sm">No parameter conditions yet</p>
-                  <p className="text-xs mt-1">Add conditions to filter by KPI values</p>
+                  <p className="text-xs mt-1">Add conditions to filter by CM parameters from Nokia/Ericsson dump</p>
+                  <p className="text-[10px] mt-0.5 text-muted-foreground/60">e.g. LNCEL.pMax &gt; 460, LNCEL.a3Offset = 3</p>
                 </div>
               )}
-              {paramConditions.map(cond => (
-                <div key={cond.id} className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/10 p-3">
-                  <select value={cond.parameter} onChange={e => updateParam(cond.id, 'parameter', e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer">
-                    {paramOptions.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                  <select value={cond.operator} onChange={e => updateParam(cond.id, 'operator', e.target.value)}
-                    className="w-20 px-2 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer text-center">
-                    {OPERATOR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                  </select>
-                  <input value={cond.value} onChange={e => updateParam(cond.id, 'value', e.target.value)} placeholder="Value"
-                    className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  {cond.operator === 'BETWEEN' && (
-                    <input value={cond.value2 || ''} onChange={e => updateParam(cond.id, 'value2' as any, e.target.value)} placeholder="Max"
-                      className="w-24 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
-                  )}
-                  <button onClick={() => removeParam(cond.id)} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
+              {paramConditions.map(cond => {
+                const ps = paramSearches[cond.id] || { q: cond.parameter, results: [], loading: false, open: false };
+                return (
+                  <div key={cond.id} className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
+                    <div className="flex items-center gap-2">
+                      {/* Parameter search input */}
+                      <div className="flex-1 relative">
+                        <input
+                          value={ps.open ? ps.q : cond.parameter}
+                          onChange={e => searchParam(cond.id, e.target.value)}
+                          onFocus={() => { if (cond.parameter) searchParam(cond.id, cond.parameter); }}
+                          placeholder="Search parameter… (e.g. LNCEL.pMax)"
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground font-mono placeholder:text-muted-foreground placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-primary/30"
+                        />
+                        {ps.loading && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+                        {ps.open && (
+                          <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-border bg-card shadow-lg">
+                            {ps.results.length === 0 && !ps.loading ? (
+                              <div className="px-3 py-3 text-xs text-muted-foreground">
+                                {ps.q.length < 2 ? 'Type at least 2 characters…' : `No parameters matching "${ps.q}"`}
+                              </div>
+                            ) : (
+                              ps.results.map(p => (
+                                <button key={p} onClick={() => selectParam(cond.id, p)}
+                                  className={`w-full text-left px-3 py-1.5 text-xs font-mono transition-colors hover:bg-muted ${p === cond.parameter ? 'bg-primary/10 text-primary' : 'text-foreground'}`}>
+                                  {p}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* Operator */}
+                      <select value={cond.operator} onChange={e => updateParam(cond.id, 'operator', e.target.value)}
+                        className="w-20 px-2 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none cursor-pointer text-center">
+                        {OPERATOR_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                      {/* Value */}
+                      <input value={cond.value} onChange={e => updateParam(cond.id, 'value', e.target.value)} placeholder="Value"
+                        className="w-28 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      {cond.operator === 'BETWEEN' && (
+                        <input value={cond.value2 || ''} onChange={e => updateParam(cond.id, 'value2' as any, e.target.value)} placeholder="Max"
+                          className="w-28 px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30" />
+                      )}
+                      <button onClick={() => removeParam(cond.id)} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {cond.parameter && (
+                      <div className="text-[10px] text-muted-foreground pl-1">
+                        <span className="font-mono text-primary">{cond.parameter}</span>
+                        {cond.value && <> <span className="font-mono">{cond.operator}</span> <span className="font-mono font-bold">{cond.value}{cond.value2 ? ` — ${cond.value2}` : ''}</span></>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               <button onClick={addParamCondition}
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border-2 border-dashed border-border text-sm font-medium text-muted-foreground hover:border-primary hover:text-primary transition-colors w-full justify-center">
-                <Plus className="w-4 h-4" /> Add Parameter Condition
+                <Plus className="w-4 h-4" /> Add CM Parameter Condition
               </button>
             </div>
           )}
