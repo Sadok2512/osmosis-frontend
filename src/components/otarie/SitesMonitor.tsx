@@ -30,7 +30,7 @@ import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import CellRfCharts from './CellRfCharts';
 import BatchCoveragePanel from './BatchCoveragePanel';
-import { type FootprintCell } from './FootprintCoveragePanel';
+type FootprintCell = { id: string; cellName: string; siteName: string; lat: number; lng: number; azimuth: number; radiusKm: number; beamwidth: number; color: string; polygon: [number, number][]; txPower: number; antennaGain: number; freq: number };
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
