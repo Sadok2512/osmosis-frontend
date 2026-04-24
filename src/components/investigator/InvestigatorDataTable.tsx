@@ -785,3 +785,4 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 };
 
 export default InvestigatorDataTable;
+// wide-format table v1777073504
