@@ -3599,7 +3599,23 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
           mo = eqIdx > 0 ? last.substring(0, eqIdx) : last;
         }
       }
-      return { mo, parameter: p.parameter, value: p.value, cell: p.cell_name || '', bande: p.bande || '' };
+      // Build a compact MO instance path from the DN (e.g. MRBTS-1/LNBTS-1/LNCEL-3)
+      // This gives the user the unique instance identifier even when cell_name is empty.
+      let moPath = '';
+      if (p.dn) {
+        if (p.dn.includes('/')) {
+          // Nokia style — drop the leading PLMN-PLMN if present, keep the meaningful tail
+          const parts = p.dn.split('/').filter(Boolean).filter(s => !/^PLMN-PLMN$/i.test(s));
+          moPath = parts.slice(-3).join('/');
+        } else if (p.dn.includes(',')) {
+          // Ericsson 3GPP style — keep last 2-3 RDNs
+          const parts = p.dn.split(',').map(s => s.trim());
+          moPath = parts.slice(-3).join(',');
+        } else {
+          moPath = p.dn;
+        }
+      }
+      return { mo, moPath, parameter: p.parameter, value: p.value, cell: p.cell_name || '', bande: p.bande || '', dn: p.dn || '' };
     });
   }, [paramData]);
 
@@ -3608,6 +3624,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     const q = tableFilter.toLowerCase();
     return tableRows.filter(r =>
       r.mo.toLowerCase().includes(q) ||
+      r.moPath.toLowerCase().includes(q) ||
       r.parameter.toLowerCase().includes(q) ||
       (r.value || '').toLowerCase().includes(q) ||
       r.cell.toLowerCase().includes(q)
