@@ -249,6 +249,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const [backendLoading, setBackendLoading] = useState(false);
   const [backendPage, setBackendPage] = useState(1);
   const abortRef = useRef<AbortController | null>(null);
+  const lastBackendRefreshRef = useRef(0);
 
   // Fetch from KPI Engine /monitor/query/table when slot has KPIs and investigatorState is available
   const kpiIds = activeSlot?.kpiIds || [];
@@ -267,6 +268,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       setBackendTotal(0);
       setBackendLoading(false);
       return;
+    }
+
+    const isNewRefresh = lastBackendRefreshRef.current !== backendRefreshKey;
+    if (isNewRefresh) {
+      lastBackendRefreshRef.current = backendRefreshKey;
+      if (backendPage !== 1) {
+        setBackendPage(1);
+        return;
+      }
     }
 
     // Abort any in-flight request before starting a new one
