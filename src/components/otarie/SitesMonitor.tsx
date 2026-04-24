@@ -5816,12 +5816,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [dashboardActive, activeDashboardId]);
 
   // Debounced viewport change handler
+  // IMPORTANT: when a dashboard is active, sites are exclusively loaded by the
+  // dashboard scoped loader (loadDashboardScopedSites). A viewport-driven bbox
+  // fetch here would race and overwrite the filtered dashboard sites with the
+  // unfiltered global set (e.g. Nantes 224 sites replaced by 10 000 sites).
   const handleViewportForFetch = useCallback((v: ViewportState) => {
+    if (dashboardActive) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
     }, 450);
-  }, [fetchForViewport, currentBboxFilters]);
+  }, [fetchForViewport, currentBboxFilters, dashboardActive]);
 
   // ── Debounced server-side search (independent of dashboard) ──
   const searchAbortRef = useRef<AbortController | null>(null);
