@@ -418,9 +418,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
   const displayHasSplit = backendTableData ? true : hasSplitValues;
 
-  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> real name
+  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> cleaned real name (no "@SITE" suffix)
   const kpiMapping = useMemo(
-    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real })),
+    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real: cleanKpi(real), raw: real })),
     [displayKpiCols],
   );
 
@@ -490,13 +490,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.real)];
+    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = displayRows.map((r: any) => {
       const baseCols = [r.timestamp, ...dimensionCols.map(d => d.get(r))];
-      const kpiVals = kpiMapping.map(({ real }) => {
-        const v = r.kpiValues[real];
+      const kpiVals = kpiMapping.map(({ raw }) => {
+        const v = r.kpiValues[raw];
         return v == null ? '—' : v;
       });
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
@@ -637,16 +637,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           <thead className="sticky top-0 z-20">
             <tr className="bg-white" style={{ borderBottom: `1.5px solid ${ROW_BORDER}` }}>
               {/* Time column — always first */}
-              <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
+              <th className="text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
                 Time
               </th>
 
-              {/* Dynamic dimension columns — in requested order */}
+              {/* Dynamic dimension columns — first one is sticky/frozen */}
               {dimensionCols.map((dim, i) => (
                 <th
                   key={dim.key}
                   className={cn(
-                    'text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
+                    'text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
                     i === 0 && 'sticky left-0 bg-white z-30',
                   )}
                 >
@@ -654,14 +654,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                 </th>
               ))}
 
-              {/* KPI columns — real KPI names */}
+              {/* Generic KPI columns: KPI1, KPI2, ... — full name on hover */}
               {kpiMapping.map(({ generic, real }) => (
                 <th
                   key={generic}
-                  className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
+                  className="text-right py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap cursor-help"
                   title={real}
                 >
-                  <span className="truncate max-w-[220px] inline-block align-middle">{real}</span>
+                  {generic}
                 </th>
               ))}
             </tr>
@@ -671,18 +671,20 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
             {pageRows.map((row: any, idx) => {
               const absIdx = startIdx + idx;
 
+              const isOdd = absIdx % 2 === 1;
+              const rowBg = isOdd ? '#FAFBFC' : '#FFFFFF';
               return (
                 <tr
                   key={absIdx}
                   className="group transition-colors hover:bg-[#F0FAF8]"
-                  style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
+                  style={{ borderBottom: `1px solid ${ROW_BORDER}`, backgroundColor: rowBg }}
                 >
                   {/* Time */}
-                  <td className="py-3.5 px-6 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
+                  <td className="py-2 px-4 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
                     {row.timestamp}
                   </td>
 
-                  {/* Dimensions */}
+                  {/* Dimensions — first one is sticky/frozen */}
                   {dimensionCols.map((dim, i) => {
                     const value = dim.get(row);
                     const isFirst = i === 0;
@@ -690,11 +692,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       <td
                         key={dim.key}
                         className={cn(
-                          'py-3.5 px-6 whitespace-nowrap',
+                          'py-2 px-4 whitespace-nowrap',
                           isFirst
-                            ? 'sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors'
-                            : 'text-[11px] text-muted-foreground',
+                            ? 'sticky left-0 z-10 group-hover:bg-[#F0FAF8] transition-colors'
+                            : 'text-[11.5px] text-foreground/80',
                         )}
+                        style={isFirst ? { backgroundColor: rowBg } : undefined}
+                        title={value}
                       >
                         {isFirst ? (
                           <span className="inline-flex items-center gap-2">
@@ -711,10 +715,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     );
                   })}
 
-                  {/* Generic KPI values */}
-                  {kpiMapping.map(({ generic, real }) => {
-                    const val = row.kpiValues[real];
-                    const range = kpiRanges[real];
+                  {/* Generic KPI values — lookup uses raw key, tooltip shows clean name */}
+                  {kpiMapping.map(({ generic, real, raw }) => {
+                    const val = row.kpiValues[raw];
+                    const range = kpiRanges[raw];
                     let pct = 0;
                     if (val != null && isFinite(val) && range && range.max > range.min) {
                       pct = Math.max(4, Math.min(100, ((val - range.min) / (range.max - range.min)) * 100));
@@ -722,10 +726,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       pct = 100;
                     }
                     return (
-                      <td key={generic} className="py-3.5 px-6 whitespace-nowrap">
+                      <td
+                        key={generic}
+                        className="py-2 px-4 whitespace-nowrap"
+                        title={`${generic} = ${real}`}
+                      >
                         <div className="flex items-center justify-end gap-3">
                           <div
-                            className="relative h-1.5 w-24 rounded-full overflow-hidden"
+                            className="relative h-1.5 w-20 rounded-full overflow-hidden"
                             style={{ backgroundColor: TRACK_GREY }}
                           >
                             {val != null && (
