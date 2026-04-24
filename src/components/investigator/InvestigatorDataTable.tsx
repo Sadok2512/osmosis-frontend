@@ -580,7 +580,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           </span>
           <span className="w-px h-4 bg-[#E5E7EB]" />
           <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F8F9FA] text-muted-foreground font-medium">
-            {displayKpiCols.length} KPI{displayKpiCols.length !== 1 ? 's' : ''} × {displayHasSplit ? (splitBy || 'Site') : 'NE'}
+            {kpiMapping.length} KPI{kpiMapping.length !== 1 ? 's' : ''} × {dimensionCols.length} dim{dimensionCols.length !== 1 ? 's' : ''}
           </span>
           {useBackend && (
             <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
