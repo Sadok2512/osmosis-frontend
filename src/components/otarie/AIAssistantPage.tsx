@@ -259,8 +259,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       ...(forcedAgent ? { forcedAgent } : {}),
     });
 
-    // Route through parser :8000/api/v1/agent/orchestrator/stream (proxied to :1000)
-    const url = getApiUrl('agent/orchestrator/stream');
+    // Route directly to Agent Layer :1000 via vps-proxy (service=agent)
+    const url = getVpsProxyUrl('agent', '/orchestrator/stream');
     const headers = getAgentHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
