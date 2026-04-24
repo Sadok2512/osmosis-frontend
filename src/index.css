@@ -138,6 +138,75 @@ All colors MUST be HSL.
     --sidebar-ring: 38 92% 50%;
   }
 
+  /* ───────── OSMOSIS Chat Theme (scoped) ─────────
+     Inspired by the Bento green reference: deep teal sidebar,
+     warm off-white canvas, white cards, amber alerts, green CTAs.
+     Tokens are HSL triplets (used via hsl(var(--token))). */
+  .osmosis-theme {
+    --background: 160 30% 97%;       /* warm off-white canvas */
+    --foreground: 175 35% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 175 35% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 175 35% 12%;
+    --primary: 168 76% 30%;          /* deep teal/green CTA + user bubbles */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 160 20% 94%;
+    --secondary-foreground: 175 35% 12%;
+    --muted: 160 20% 95%;
+    --muted-foreground: 175 12% 42%;
+    --accent: 168 76% 30%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 160 18% 88%;
+    --input: 160 18% 88%;
+    --ring: 168 76% 30%;
+    --radius: 0.875rem;
+
+    /* Custom OSMOSIS surfaces (consumed by component overrides below) */
+    --osmosis-warning-bg: 45 100% 96%;
+    --osmosis-warning-border: 38 90% 72%;
+    --osmosis-warning-fg: 28 80% 30%;
+    --osmosis-user-bubble: 168 76% 30%;
+    --osmosis-bot-card: 0 0% 100%;
+  }
+
+  /* Inside the OSMOSIS page, the left rail uses its own deeper teal palette
+     so that bg-card / bg-muted utilities flip to dark-on-dark automatically. */
+  .osmosis-sidebar {
+    --card: 172 75% 18%;             /* sidebar surface */
+    --card-foreground: 160 30% 96%;
+    --background: 172 75% 18%;
+    --foreground: 160 30% 96%;
+    --muted: 172 60% 24%;
+    --muted-foreground: 160 25% 78%;
+    --secondary: 172 60% 24%;
+    --secondary-foreground: 160 30% 96%;
+    --border: 172 50% 26%;
+    --input: 172 50% 26%;
+    --primary: 0 0% 100%;            /* "Nouvelle session" pill = white on teal */
+    --primary-foreground: 168 76% 22%;
+    --accent: 172 60% 28%;
+    --accent-foreground: 160 30% 96%;
+    --ring: 160 30% 80%;
+    --destructive: 0 80% 65%;
+  }
+
+  /* Subtle polish reserved to OSMOSIS — does not leak elsewhere */
+  .osmosis-theme .osmosis-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: 1rem;
+    box-shadow: 0 1px 2px hsl(175 35% 12% / 0.04), 0 4px 16px hsl(175 35% 12% / 0.04);
+  }
+  .osmosis-theme .osmosis-warning {
+    background: hsl(var(--osmosis-warning-bg));
+    border: 1px solid hsl(var(--osmosis-warning-border) / 0.6);
+    color: hsl(var(--osmosis-warning-fg));
+    border-radius: 0.75rem;
+  }
+
   .dark {
     /* NOC Dark Monitoring Mode — #0B1220 base */
     --background: 216 43% 8%;
