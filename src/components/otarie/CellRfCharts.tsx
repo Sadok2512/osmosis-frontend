@@ -9,11 +9,18 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 interface Bin { index: number; label: string; count: number; }
 interface ChartData { name: string; unit: string; bins: Bin[]; }
 
-const CHARTS = [
-  { id: 'RACH', label: 'RACH Bins', color: '#f59e0b', histIds: ['NOKIA_NR_RACH_PREAMBLE_DIST', 'ERICSSON_LTE_RACH_PREAMBLE_DIST', 'NOKIA_LTE_RACH_MSG3'] },
+// Histogram IDs by technology — 4G uses LTE counters, 5G uses NR counters
+const CHARTS_4G = [
+  { id: 'RACH', label: 'RACH Bins', color: '#f59e0b', histIds: ['NOKIA_LTE_RACH_MSG3', 'ERICSSON_LTE_RACH_PREAMBLE_DIST'] },
   { id: 'PRB_DL', label: 'PRB DL', color: '#3b82f6', histIds: ['NOKIA_LTE_PRB_DL_UTIL', 'ERICSSON_LTE_PRB_UTIL_DL_DIST'] },
   { id: 'PRB_UL', label: 'PRB UL', color: '#06b6d4', histIds: ['NOKIA_LTE_PRB_AVAIL', 'ERICSSON_LTE_PRB_UTIL_UL_DIST'] },
   { id: 'INTERF', label: 'UL Interference', color: '#ef4444', histIds: ['NOKIA_LTE_UL_IOT_PUSCH_DIST', 'ERICSSON_LTE_INTERF_POWER_DIST'] },
+];
+const CHARTS_5G = [
+  { id: 'RACH', label: 'RACH Bins', color: '#f59e0b', histIds: ['NOKIA_NR_RACH_PREAMBLE_DIST', 'ERICSSON_NR_INTERF_POWER_DIST'] },
+  { id: 'PRB_DL', label: 'PRB DL', color: '#3b82f6', histIds: ['ERICSSON_NR_PRB_UTIL_DL_DIST'] },
+  { id: 'PRB_UL', label: 'PRB UL', color: '#06b6d4', histIds: ['ERICSSON_NR_PRB_UTIL_UL_DIST'] },
+  { id: 'INTERF', label: 'UL Interference', color: '#ef4444', histIds: ['NOKIA_NR_RTWP_UL', 'ERICSSON_NR_INTERF_POWER_DIST'] },
 ];
 
 interface Props {
@@ -23,12 +30,17 @@ interface Props {
 }
 
 const CellRfCharts: React.FC<Props> = ({ siteName, vendor, techno }) => {
+  const is5G = (techno || '').toUpperCase().includes('5G') || (techno || '').toUpperCase().includes('NR');
+  const CHARTS = is5G ? CHARTS_5G : CHARTS_4G;
+
   const [active, setActive] = useState<string | null>(null);
   const [data, setData] = useState<Record<string, ChartData | null>>({});
   const [loading, setLoading] = useState<string | null>(null);
+  const [prevSite, setPrevSite] = useState(siteName);
+  if (siteName !== prevSite) { setPrevSite(siteName); setData({}); setActive(null); }
 
   const fetchChart = useCallback(async (chartId: string) => {
-    if (data[chartId] !== undefined) return; // already fetched
+    if (data[chartId] !== undefined) return;
     const chart = CHARTS.find(c => c.id === chartId);
     if (!chart) return;
 
