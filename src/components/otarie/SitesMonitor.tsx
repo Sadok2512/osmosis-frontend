@@ -9265,14 +9265,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 isActive={footprintCells.length > 0}
               />
             </div>
-            <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
-              <BatchCoveragePanel
-                sites={renderSites}
-                onSimulate={handleCoverageSimulate}
-                onClear={handleCoverageClear}
-                isActive={!!coverageGrid}
-              />
-            </div>
           </div>
         )}
 
