@@ -3576,7 +3576,18 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   }, [paramData, searchedParam]);
 
   const tableRows = React.useMemo(() => {
-    return paramData.map(p => {
+    // Deduplicate identical rows. The dump can return duplicates when a row
+    // has been ingested multiple times or when the backend joins extra
+    // metadata. We dedupe on (parameter + dn + value + cell).
+    const seen = new Set<string>();
+    const unique: typeof paramData = [];
+    for (const p of paramData) {
+      const key = `${(p.parameter || '').toLowerCase()}|${(p.dn || '').toLowerCase()}|${p.value ?? ''}|${(p.cell_name || '').toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(p);
+    }
+    return unique.map(p => {
       // Extract MO from parameter name (e.g. "LNCEL.pMax" → "LNCEL")
       // This is the most reliable source — works for all vendors
       let mo = '—';
