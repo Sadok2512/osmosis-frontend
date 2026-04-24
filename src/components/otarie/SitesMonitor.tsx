@@ -9310,6 +9310,136 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Coverage simulation overlay kept in right panel only */}
 
+      {/* ── Polygon → Cluster save dialog ── */}
+      <Dialog open={showClusterPrompt} onOpenChange={(o) => {
+        setShowClusterPrompt(o);
+        if (!o) {
+          setClusterStep('ask');
+          setClusterName('');
+          setClusterDescription('');
+          setClusterSaveError(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[460px]">
+          <DialogHeader>
+            <DialogTitle>
+              {clusterStep === 'ask' ? 'Create cluster from polygon?' : 'Name your cluster'}
+            </DialogTitle>
+            <DialogDescription>
+              {polygonStats ? (
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-2">
+                  <span className="px-2 py-0.5 rounded-md bg-primary/10 text-primary font-semibold">
+                    {polygonStats.sitesInside} sites
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-muted text-foreground font-semibold">
+                    {polygonStats.cellsInside} cells
+                  </span>
+                  <span className="text-muted-foreground">{polygonStats.fmtArea}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground">{polygonStats.fmtPerimeter}</span>
+                </span>
+              ) : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {clusterStep === 'ask' && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Save the {polygonStats?.sitesInside ?? 0} sites enclosed by this polygon as a reusable cluster.
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowClusterPrompt(false)}>
+                  Not now
+                </Button>
+                <Button
+                  onClick={() => setClusterStep('name')}
+                  disabled={!polygonStats || polygonStats.sitesInside === 0}
+                >
+                  Yes, create cluster
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {clusterStep === 'name' && (
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cluster-name" className="text-xs">Cluster name</Label>
+                <Input
+                  id="cluster-name"
+                  autoFocus
+                  value={clusterName}
+                  onChange={(e) => setClusterName(e.target.value)}
+                  placeholder="e.g. North Paris coverage zone"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cluster-desc" className="text-xs">Description (optional)</Label>
+                <Textarea
+                  id="cluster-desc"
+                  value={clusterDescription}
+                  onChange={(e) => setClusterDescription(e.target.value)}
+                  placeholder="Short description of this cluster"
+                  rows={2}
+                />
+              </div>
+
+              {/* Preview list (first sites) */}
+              {polygonStats && polygonStats.siteNamesInside.length > 0 && (
+                <div className="rounded-lg border border-border/60 bg-muted/40 p-2 max-h-28 overflow-y-auto text-[11px] font-mono text-muted-foreground">
+                  {polygonStats.siteNamesInside.slice(0, 12).join(', ')}
+                  {polygonStats.siteNamesInside.length > 12 && ` … +${polygonStats.siteNamesInside.length - 12} more`}
+                </div>
+              )}
+
+              {clusterSaveError && (
+                <p className="text-xs text-destructive">{clusterSaveError}</p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowClusterPrompt(false)} disabled={savingCluster}>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!clusterName.trim() || savingCluster || !polygonStats}
+                  onClick={async () => {
+                    if (!polygonStats) return;
+                    setSavingCluster(true);
+                    setClusterSaveError(null);
+                    try {
+                      await createFilter({
+                        name: clusterName.trim(),
+                        description: clusterDescription.trim() || `Polygon cluster · ${polygonStats.sitesInside} sites · ${polygonStats.fmtArea}`,
+                        status: 'active',
+                        topology: [
+                          { dimension: 'sites', operator: 'in', values: polygonStats.siteIdsInside.length > 0 ? polygonStats.siteIdsInside : polygonStats.siteNamesInside },
+                        ],
+                        parameters: [],
+                        logic: 'AND',
+                      });
+                      setShowClusterPrompt(false);
+                      setClusterStep('ask');
+                      setClusterName('');
+                      setClusterDescription('');
+                      // Clear polygon after successful save
+                      setPolygonPoints([]);
+                      setPolygonClosed(false);
+                      setActiveMapTool(null);
+                    } catch (err: any) {
+                      setClusterSaveError(err?.message || 'Failed to save cluster');
+                    } finally {
+                      setSavingCluster(false);
+                    }
+                  }}
+                >
+                  {savingCluster ? 'Saving…' : 'Save cluster'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* LOS Drawing mode banner */}
       {losDrawingMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-primary text-primary-foreground px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-pulse pointer-events-auto">
