@@ -1008,9 +1008,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         </div>
 
         {/* ═══ ZONE 2: Stable Analysis Area — always mounted, stable height ═══ */}
-        <div className="shrink-0 mt-6" style={{ minHeight: 360 }}>
+        <div className="shrink-0 mt-8" style={{ minHeight: 360 }}>
 
-          {/* Analysis Tab Bar — ALWAYS visible per graph (all 6 sections shown, disabled when flag is off) */}
+          {/* Analysis Tab Bar — Precision Architect-style segmented bar */}
           {(() => {
             const activeConfig = activeSlot
               ? {
@@ -1027,20 +1027,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               neighbors: 'showNeighbors',
               cm_history: 'showCmHistory',
             };
+            // PA palette: green primary, orange accent, red alert
             const allTabs = [
-              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
-              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: '#14746C' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: '#14746C' },
+              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: '#F59E0B' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: '#EF4444' },
+              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: '#14746C' },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
             ];
 
             return (
-              <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm mb-4">
-                <div className="flex items-center gap-1 px-1 py-1 overflow-x-auto">
+              <div className="sticky top-[52px] z-20 bg-white/95 backdrop-blur-sm mb-5 border-b border-slate-200/70">
+                <div className="flex items-center gap-1.5 px-1 py-2 overflow-x-auto">
                   {!activeSlot && (
-                    <span className="px-3 py-2 text-[10px] text-muted-foreground italic">
+                    <span className="px-3 py-2 text-[10px] text-slate-400 italic">
                       Sélectionnez un graphe pour voir ses sections d'analyse
                     </span>
                   )}
@@ -1066,30 +1067,29 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         }}
                         title={enabled ? tab.label : `${tab.label} — désactivé. Activez-le dans les réglages du graphe.`}
                         className={cn(
-                          'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all duration-200 whitespace-nowrap',
+                          'relative flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-150 whitespace-nowrap border',
                           isActive
-                            ? 'bg-card text-foreground shadow-sm border border-border/60'
+                            ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
                             : enabled
-                              ? 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                              : 'text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20'
+                              ? 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                              : 'border-transparent text-slate-300 hover:text-slate-400 hover:bg-slate-50/60'
                         )}
+                        style={isActive && enabled ? { boxShadow: `inset 0 -2px 0 0 ${tab.color}, 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -4px rgba(15,23,42,0.08)` } : undefined}
                       >
-                        <tab.icon className={cn('w-3.5 h-3.5 transition-colors', isActive && enabled ? tab.color : enabled ? '' : 'opacity-60')} />
+                        <tab.icon
+                          className="w-3.5 h-3.5 transition-colors"
+                          style={isActive && enabled ? { color: tab.color } : undefined}
+                        />
                         <span className={cn(!enabled && 'opacity-70')}>{tab.label}</span>
                         {!enabled && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-muted/40 text-muted-foreground/70 uppercase tracking-wider">
+                          <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-400 uppercase tracking-wider">
                             off
                           </span>
                         )}
-                        {isActive && enabled && (
-                          <>
-                            <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                            {analysisTabs.getSection(tab.key).instances.length > 0 && (
-                              <span className="ml-1 text-[9px] opacity-60">
-                                ({analysisTabs.getSection(tab.key).instances.length})
-                              </span>
-                            )}
-                          </>
+                        {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
+                          <span className="ml-1 text-[9px] text-slate-400">
+                            ({analysisTabs.getSection(tab.key).instances.length})
+                          </span>
                         )}
                       </button>
                     );
