@@ -1481,38 +1481,89 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           }
         }
 
-        const markLineData = jalons.map(j => {
-          // Normalize jalon date to match allTimestamps format
-          const normDate = normalizeTimestamp(j.date, slotGranularity);
-          // Find closest timestamp in timeline if exact match doesn't exist
-          let xVal = normDate;
-          if (!allTimestamps.includes(normDate) && allTimestamps.length > 0) {
-            const jTime = new Date(j.date).getTime();
-            let closest = allTimestamps[0];
-            let closestDiff = Math.abs(new Date(closest).getTime() - jTime);
-            for (const ts of allTimestamps) {
-              const diff = Math.abs(new Date(ts).getTime() - jTime);
-              if (diff < closestDiff) { closest = ts; closestDiff = diff; }
-            }
-            xVal = closest;
+        // ── Jalons rendering ──
+        // - Single date  → vertical markLine
+        // - Date range   → markArea band + 2 boundary markLines
+        // Edge cases: ignore if start > end; clip is handled implicitly by chart
+        const showJalons = investigatorState.showJalons !== false;
+        const visibleJalons = showJalons ? jalons : [];
+
+        const snapToTimeline = (iso: string): string => {
+          const norm = normalizeTimestamp(iso, slotGranularity);
+          if (allTimestamps.includes(norm) || allTimestamps.length === 0) return norm;
+          const t = new Date(iso).getTime();
+          let closest = allTimestamps[0];
+          let closestDiff = Math.abs(new Date(closest).getTime() - t);
+          for (const ts of allTimestamps) {
+            const diff = Math.abs(new Date(ts).getTime() - t);
+            if (diff < closestDiff) { closest = ts; closestDiff = diff; }
           }
-          return {
-            xAxis: xVal,
-            label: {
-              show: true,
-              formatter: j.label,
-              fontSize: 9,
-              fontWeight: 'bold' as const,
-              color: j.color,
-              position: 'insideEndTop' as const,
-            },
-            lineStyle: {
-              color: j.color,
-              width: 2,
-              type: 'dashed' as const,
-            },
-          };
-        });
+          return closest;
+        };
+
+        const jalonMarkLineData: any[] = [];
+        const jalonMarkAreaData: any[][] = [];
+
+        for (const j of visibleJalons) {
+          const hasRange = !!j.endDate && j.endDate !== j.date;
+          if (hasRange) {
+            // Edge case: invalid order
+            if (new Date(j.endDate!).getTime() < new Date(j.date).getTime()) continue;
+            const xStart = snapToTimeline(j.date);
+            const xEnd = snapToTimeline(j.endDate!);
+            const opacity = j.opacity ?? 0.15;
+            // Shaded band
+            jalonMarkAreaData.push([
+              {
+                xAxis: xStart,
+                name: j.label,
+                itemStyle: {
+                  color: j.color,
+                  opacity: Math.min(0.25, Math.max(0.08, opacity * 0.25)),
+                  borderColor: j.color,
+                  borderWidth: 0,
+                },
+                label: {
+                  show: true,
+                  position: 'insideTop' as const,
+                  formatter: j.label,
+                  fontSize: 9,
+                  fontWeight: 'bold' as const,
+                  color: j.color,
+                  distance: 4,
+                },
+              },
+              { xAxis: xEnd },
+            ]);
+            // Boundary lines
+            jalonMarkLineData.push({
+              xAxis: xStart,
+              label: { show: false },
+              lineStyle: { color: j.color, width: 1.2, type: 'solid' as const, opacity: 0.7 },
+            });
+            jalonMarkLineData.push({
+              xAxis: xEnd,
+              label: { show: false },
+              lineStyle: { color: j.color, width: 1.2, type: 'solid' as const, opacity: 0.7 },
+            });
+          } else {
+            // Single date → vertical dashed line with label
+            jalonMarkLineData.push({
+              xAxis: snapToTimeline(j.date),
+              label: {
+                show: true,
+                formatter: j.label,
+                fontSize: 9,
+                fontWeight: 'bold' as const,
+                color: j.color,
+                position: 'insideEndTop' as const,
+              },
+              lineStyle: { color: j.color, width: 2, type: 'dashed' as const },
+            });
+          }
+        }
+
+        const markLineData = jalonMarkLineData;
 
         // Weekend highlighting — build markArea data
         const weekendAreas: { xAxis: string }[][] = [];
@@ -1530,12 +1581,15 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           }
         }
 
-        const markAreaData = weekendAreas.map(([start, end]) => [{
+        const weekendMarkAreaData = weekendAreas.map(([start, end]) => [{
           xAxis: start.xAxis,
           itemStyle: { color: 'rgba(148,163,184,0.12)' },
         }, {
           xAxis: end.xAxis,
         }]);
+
+        // Combine weekend + jalon areas (jalons rendered above weekends)
+        const markAreaData = [...weekendMarkAreaData, ...jalonMarkAreaData];
 
         // Smart x-axis interval
         const xInterval = smartXInterval(allTimestamps.length);
