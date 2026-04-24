@@ -573,13 +573,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                 Timestamp
               </th>
 
-              <th
-                className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
-              >
-                {useBackend ? (splitBy || 'Site') : scopeLabel}
-              </th>
+              {showSplitCol && (
+                <th
+                  className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
+                >
+                  {useBackend ? (splitBy || 'Site') : scopeLabel}
+                </th>
+              )}
 
-              {useBackend && (
+              {showMetaCols && (
                 <>
                   <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">DOR</th>
                   <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Band</th>
