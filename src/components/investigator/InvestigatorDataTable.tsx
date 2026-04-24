@@ -418,9 +418,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
   const displayHasSplit = backendTableData ? true : hasSplitValues;
 
-  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> real name
+  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> cleaned real name (no "@SITE" suffix)
   const kpiMapping = useMemo(
-    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real })),
+    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real: cleanKpi(real), raw: real })),
     [displayKpiCols],
   );
 
