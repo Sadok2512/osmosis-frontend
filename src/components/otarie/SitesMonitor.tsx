@@ -28,7 +28,7 @@ import CellHistogramPanel from './CellHistogramPanel';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
-import { InlineSimTab, SiteKpiChart } from './SitesMonitorHelpers';
+import { InlineSimTab } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
 import { siteMatchesViewConditions, hasAnyCellLevelCondition } from '@/lib/viewFilterHelpers';
@@ -13840,15 +13840,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           Lancer
                         </button>
                       </div>
-                    </div>
-
-                    {/* KPI Evolution Chart */}
-                    <div className="px-5 py-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <BarChart2 size={14} className="text-primary" />
-                        <h4 className="text-[11px] font-extrabold text-foreground uppercase tracking-wider">Analyse RF Spatiale</h4>
-                      </div>
-                      <SiteKpiChart siteDetail={{ ...siteDetail, qoe_score_avg: cell.qoe_score_avg, dms_dl_3: cell.dms_dl_3, dms_dl_8: cell.dms_dl_8, dms_dl_30: cell.dms_dl_30, dms_ul_3: cell.dms_ul_3, site_id: cell.cell_id }} />
                     </div>
 
                     {/* Histogram distributions — PRB, RACH, Interference */}
