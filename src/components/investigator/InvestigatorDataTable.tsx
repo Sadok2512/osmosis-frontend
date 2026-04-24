@@ -379,8 +379,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
     const lookup = new Map<string, number>();
     for (const r of backendRows) {
-      const key = `${r.ts}||${r.split_value || r.site_name || ''}||${r.kpi_key}`;
-      lookup.set(key, r.avg ?? r.value ?? null);
+      const sv = splitBy ? cleanSplit(r) : '';
+      const key = `${r.ts}||${sv}||${r.kpi_key}`;
+      // If multiple rows collapse to same key (no split), aggregate by averaging
+      const prev = lookup.get(key);
+      const v = r.avg ?? r.value ?? null;
+      if (v == null) continue;
+      lookup.set(key, prev == null ? v : (prev + v) / 2);
     }
 
     const rows: { timestamp: string; splitValue: string; site_name: string; dor: string; band: string; vendor: string; kpiValues: Record<string, number | null> }[] = [];
@@ -390,7 +395,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         for (const kpi of kpiCols) {
           kpiValues[kpi] = lookup.get(`${ts}||${sv}||${kpi}`) ?? null;
         }
-        const sample = backendRows.find(r => r.ts === ts && (r.split_value || r.site_name || '') === sv);
+        const sample = backendRows.find(r => r.ts === ts && (splitBy ? cleanSplit(r) === sv : true));
         rows.push({
           timestamp: fmt(ts),
           splitValue: sv || '—',
@@ -403,7 +408,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       }
     }
     return { rows, kpiCols };
-  }, [useBackend, backendRows]);
+  }, [useBackend, backendRows, splitBy]);
 
   // Fallback: client-side pivot from tsData
   const { rows, kpiColumns, hasSplitValues, scopeLabel, splitLabel } = useMemo(
