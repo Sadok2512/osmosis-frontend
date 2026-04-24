@@ -8755,7 +8755,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     : (bandColors['4G_GROUP'] || '#F39C12');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
-                    kpiColor = getKpiColor(getCellKpiValue(cell));
+                    kpiColor = getKpiColor(getCellKpiValue(cell, site.site_name || site.site_id));
                   }
                   const colorViewOverrideSector = getColorViewFill(site);
                   const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
