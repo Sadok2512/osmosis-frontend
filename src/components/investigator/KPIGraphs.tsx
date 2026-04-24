@@ -266,6 +266,18 @@ const SlotSettingsPopover: React.FC<{
             <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-[0.65]" />
           </div>
         </div>
+        {cfg.showGrid && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-foreground whitespace-nowrap">Grid Opacity</span>
+            <Slider
+              value={[cfg.gridOpacity ?? 50]}
+              onValueChange={v => onUpdateSlotConfig(slot.id, { gridOpacity: v[0] })}
+              min={0} max={100} step={5}
+              className="flex-1"
+            />
+            <span className="text-[9px] text-muted-foreground font-mono w-8 text-right">{cfg.gridOpacity ?? 50}%</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-foreground whitespace-nowrap">Line Width</span>
           <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
@@ -1580,10 +1592,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             formatter: (v: number) => `${v.toFixed(1)}`,
             margin: 14,
           },
-          splitLine: {
-            show: cfg.showGrid,
-            lineStyle: { color: 'rgba(15,23,42,0.08)', type: 'dashed' as const },
-          },
+          splitLine: (() => {
+            const baseAlpha = 0.08;
+            const maxAlpha = 0.5;
+            const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
+            const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
+            return {
+              show: cfg.showGrid,
+              lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
+            };
+          })(),
           axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
           axisTick: { show: true },
         };

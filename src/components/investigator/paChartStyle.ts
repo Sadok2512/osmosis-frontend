@@ -170,11 +170,18 @@ export function paYAxis(opts: {
   color?: string;
   isDualAxis: boolean;
   showGrid?: boolean;
+  /** 0–100 opacity for the grid split lines (default 100 → uses base SPLIT_LINE alpha) */
+  gridOpacity?: number;
   min?: number;
   max?: number;
 }) {
-  const { position, unit, color, isDualAxis, showGrid = true, min, max } = opts;
+  const { position, unit, color, isDualAxis, showGrid = true, gridOpacity = 100, min, max } = opts;
   const tinted = isDualAxis && color ? color : LABEL_COLOR;
+  // Scale grid color alpha by user-defined opacity (default base = 0.08, max = 0.5)
+  const baseAlpha = 0.08;
+  const maxAlpha = 0.5;
+  const alpha = baseAlpha + (maxAlpha - baseAlpha) * Math.max(0, Math.min(100, gridOpacity)) / 100;
+  const gridColor = `rgba(15,23,42,${alpha.toFixed(3)})`;
   return {
     type: 'value' as const,
     position,
@@ -194,7 +201,7 @@ export function paYAxis(opts: {
       margin: 8,
     },
     splitLine: showGrid && position === 'left'
-      ? { lineStyle: { color: SPLIT_LINE, type: 'dashed' as const } }
+      ? { lineStyle: { color: gridColor, type: 'dashed' as const } }
       : { show: false },
   };
 }
