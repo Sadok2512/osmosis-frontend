@@ -30,6 +30,8 @@ export interface GraphConfig {
   showThresholds: boolean;
   showAverage: boolean;
   showGrid: boolean;
+  /** Grid line opacity 0–100, default 50 */
+  gridOpacity?: number;
   showArea: boolean;
   showDataTable: boolean;
   showBreakdown: boolean;
