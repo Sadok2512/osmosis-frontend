@@ -3782,17 +3782,17 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                     <React.Fragment key={mo}>
                       {/* MO group header */}
                       <tr
-                        className="bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors border-t border-border"
+                        className="bg-primary/10 hover:bg-primary/15 cursor-pointer transition-colors border-y border-primary/20"
                         onClick={() => toggleMO(mo)}
                       >
-                        <td colSpan={6} className="px-3 py-2">
+                        <td colSpan={5} className="px-4 py-2">
                           <span className="inline-flex items-center gap-2">
-                            {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-primary" /> : <ChevronDown className="w-3.5 h-3.5 text-primary" />}
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/15 text-primary font-bold text-[11px] tracking-wide uppercase">
+                            {isCollapsed ? <ChevronRight className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-primary text-primary-foreground font-bold text-[12px] tracking-wider uppercase shadow-sm">
                               {mo}
                             </span>
-                            <span className="text-[11px] text-muted-foreground font-mono">
-                              {rows.length} param{rows.length > 1 ? 's' : ''}
+                            <span className="text-[12px] text-muted-foreground font-medium">
+                              {rows.length} parameter{rows.length > 1 ? 's' : ''}
                             </span>
                           </span>
                         </td>
@@ -3806,50 +3806,52 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                         const paramLeaf = paramParts.length > 1 ? paramParts[paramParts.length - 1] : r.parameter;
                         const paramMo = paramParts.length > 1 ? paramParts.slice(0, -1).join('.') : '';
                         return (
-                          <tr key={i} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/20'} hover:bg-accent/30 transition-colors border-b border-border/30`}>
-                            <td className="px-3 py-1.5">
-                              {paramMo ? (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-semibold text-[10px] font-mono">
-                                  {paramMo}
+                          <tr key={i} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'} hover:bg-accent/40 transition-colors border-b border-border/40`}>
+                            <td className="px-4 py-2 align-middle">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {paramMo && (
+                                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/15 text-primary font-bold text-[10px] font-mono uppercase tracking-wide border border-primary/30">
+                                    {paramMo}
+                                  </span>
+                                )}
+                                <span className="font-mono text-foreground font-semibold text-[13px]" title={r.parameter}>
+                                  {tableFilter ? (
+                                    <span dangerouslySetInnerHTML={{
+                                      __html: paramLeaf.replace(
+                                        new RegExp(`(${tableFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+                                        '<mark class="bg-yellow-400/50 text-foreground rounded px-0.5">$1</mark>'
+                                      )
+                                    }} />
+                                  ) : paramLeaf}
                                 </span>
-                              ) : <span className="text-muted-foreground/40">—</span>}
+                              </div>
                             </td>
-                            <td className="px-3 py-1.5 font-mono text-foreground font-medium" title={r.parameter}>
-                              {tableFilter ? (
-                                <span dangerouslySetInnerHTML={{
-                                  __html: paramLeaf.replace(
-                                    new RegExp(`(${tableFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
-                                    '<mark class="bg-yellow-400/40 text-foreground rounded px-0.5">$1</mark>'
-                                  )
-                                }} />
-                              ) : paramLeaf}
-                            </td>
-                            <td className="px-3 py-1.5">
+                            <td className="px-4 py-2 align-middle">
                               <span
-                                className="inline-block font-mono text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded transition-colors cursor-help break-all"
+                                className="font-mono text-[12px] text-foreground/80 hover:text-foreground hover:bg-muted px-2 py-1 rounded transition-colors cursor-help break-all leading-snug inline-block max-w-full"
                                 title={r.dn || r.moPath || '—'}
                               >
-                                {r.moPath || '—'}
+                                {r.moPath || <span className="text-muted-foreground/50">—</span>}
                               </span>
                             </td>
-                            <td className="px-3 py-1.5 text-foreground/80 font-mono text-[11px]" title={r.cell || '—'}>
-                              {r.cell || '—'}
-                              {r.bande && <span className="ml-1 text-[10px] text-muted-foreground/70">({r.bande})</span>}
+                            <td className="px-4 py-2 align-middle text-foreground font-mono text-[12px]" title={r.cell || '—'}>
+                              {r.cell || <span className="text-muted-foreground/50">—</span>}
+                              {r.bande && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{r.bande}</span>}
                             </td>
-                            <td className={`px-3 py-1.5 text-right font-mono font-bold text-[12px] ${
+                            <td className={`px-4 py-2 align-middle text-right font-mono font-bold text-[13px] ${
                               isZero ? 'text-muted-foreground/50' :
                               numVal !== null && numVal > 100 ? 'text-primary' :
                               'text-foreground'
                             }`}>
                               {r.value || '—'}
                             </td>
-                            <td className="px-1 py-1.5">
+                            <td className="px-2 py-2 align-middle">
                               <button
                                 onClick={(e) => { e.stopPropagation(); copyValue(r.value || ''); }}
-                                className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
+                                className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                 title="Copy value"
                               >
-                                <Copy className="w-3 h-3" />
+                                <Copy className="w-3.5 h-3.5" />
                               </button>
                             </td>
                           </tr>
