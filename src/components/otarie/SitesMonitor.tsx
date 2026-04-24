@@ -348,6 +348,17 @@ const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_
     return is5G ? 'NR700' : 'L700';
   }
 
+  // 3G bands
+  if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && (techno || '').includes('3G'))) return 'UMTS2100' as any;
+  if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && (techno || '').includes('3G'))) return 'UMTS900' as any;
+
+  // 2G bands
+  if (normalized.includes('GSM900') || (normalized.includes('900') && (techno || '').includes('2G'))) return 'GSM900' as any;
+  if (normalized.includes('GSM1800') || normalized.includes('DCS1800') || (normalized.includes('1800') && (techno || '').includes('2G'))) return 'GSM1800' as any;
+
+  // L900 (4G on 900MHz)
+  if (normalized.includes('900') || normalized.includes('L900') || normalized.includes('B8')) return 'L900' as any;
+
   return null;
 };
 

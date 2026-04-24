@@ -260,23 +260,23 @@ export const getSectorCoords = (
  * Returns a scale factor: 1.0 = largest, down to ~0.45 = smallest.
  */
 const BAND_PRIORITY: Record<string, number> = {
-  // 2G bands — very small
-  GSM900:   0.45,
-  GSM1800:  0.40,
-  // 3G bands — small-medium
-  UMTS900:  0.60,
-  UMTS2100: 0.52,
-  // 4G bands — low freq = big
-  L700:   1.0,
-  L800:   0.95,
-  L900:   0.90,
-  L1800:  0.78,
-  L2100:  0.68,
-  L2600:  0.58,
-  // 5G bands — low freq = big
-  NR700:  1.0,
-  NR2100: 0.72,
-  NR3500: 0.55,
+  // 2G bands — biggest beams (widest coverage, low frequency)
+  GSM900:   1.30,
+  GSM1800:  1.15,
+  // 3G bands — large beams
+  UMTS900:  1.10,
+  UMTS2100: 0.95,
+  // 4G bands — medium beams
+  L700:   0.90,
+  L800:   0.85,
+  L900:   0.80,
+  L1800:  0.70,
+  L2100:  0.62,
+  L2600:  0.55,
+  // 5G bands — smallest beams (high frequency, narrow coverage)
+  NR700:  0.75,
+  NR2100: 0.55,
+  NR3500: 0.42,
 };
 
 /** Get a radius scale factor based on band (lower freq = bigger). Falls back to 0.75. */
