@@ -335,28 +335,25 @@ const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_
   const normalized = bande.replace(/\s+/g, '').replace(/MHZ/gi, '').toUpperCase();
   const is5G = (techno || '').toUpperCase().includes('5G') || normalized.includes('NR') || /^N\d+$/i.test(normalized);
 
-  if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
-  if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
-  if (normalized.includes('1800') || normalized.includes('L1800') || normalized.includes('B3')) return 'L1800';
-  if (normalized.includes('800') || normalized.includes('L800') || normalized.includes('B20') || normalized.includes('B8')) return 'L800';
-
-  if (normalized.includes('2100') || normalized.includes('NR2100') || normalized.includes('L2100') || normalized === 'N1' || normalized === 'B1') {
-    return is5G ? 'NR2100' : 'L2100';
-  }
-
-  if (normalized.includes('700') || normalized.includes('NR700') || normalized.includes('L700') || normalized === 'N28' || normalized === 'B28') {
-    return is5G ? 'NR700' : 'L700';
-  }
-
-  // 3G bands
-  if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && (techno || '').includes('3G'))) return 'UMTS2100' as any;
-  if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && (techno || '').includes('3G'))) return 'UMTS900' as any;
-
-  // 2G bands
+  // 2G bands — check first (exact match before generic frequency checks)
   if (normalized.includes('GSM900') || (normalized.includes('900') && (techno || '').includes('2G'))) return 'GSM900' as any;
   if (normalized.includes('GSM1800') || normalized.includes('DCS1800') || (normalized.includes('1800') && (techno || '').includes('2G'))) return 'GSM1800' as any;
 
-  // L900 (4G on 900MHz)
+  // 3G bands — check before generic 2100/900
+  if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && (techno || '').includes('3G'))) return 'UMTS2100' as any;
+  if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && (techno || '').includes('3G'))) return 'UMTS900' as any;
+
+  // 5G bands
+  if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
+  if (normalized.includes('NR2100') || normalized === 'N1') return 'NR2100';
+  if (normalized.includes('NR700') || normalized === 'N28') return 'NR700';
+
+  // 4G bands
+  if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
+  if (normalized.includes('1800') || normalized.includes('L1800') || normalized.includes('B3')) return 'L1800';
+  if (normalized.includes('2100') || normalized.includes('L2100') || normalized === 'B1') return 'L2100';
+  if (normalized.includes('800') || normalized.includes('L800') || normalized.includes('B20')) return 'L800';
+  if (normalized.includes('700') || normalized.includes('L700') || normalized === 'B28') return 'L700';
   if (normalized.includes('900') || normalized.includes('L900') || normalized.includes('B8')) return 'L900' as any;
 
   return null;
