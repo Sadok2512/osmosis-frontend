@@ -5,9 +5,9 @@
 
 // ── Zoom thresholds ──
 /** Zoom level at which we switch FROM sites TO cells/sectors */
-export const SITES_TO_CELLS_ZOOM = 9;
+export const SITES_TO_CELLS_ZOOM = 12;
 /** Zoom level at which we switch FROM cells/sectors back TO sites */
-export const CELLS_TO_SITES_ZOOM = 7;
+export const CELLS_TO_SITES_ZOOM = 11;
 /** Zoom level at which mini-sectors appear */
 export const MINI_SECTOR_ZOOM = 8;
 /** Zoom level at which site name labels appear automatically */
