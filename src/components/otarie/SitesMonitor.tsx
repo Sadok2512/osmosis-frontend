@@ -3843,14 +3843,16 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                               {r.cell || <span className="text-muted-foreground/50">—</span>}
                               {r.bande && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{r.bande}</span>}
                             </td>
-                            <td className={`px-4 py-2 align-middle text-right font-mono font-bold text-[13px] ${
+                            <td className={`px-4 py-2 align-middle text-right font-mono font-bold text-[13px] sticky right-[44px] shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)] ${
+                              i % 2 === 0 ? 'bg-background' : 'bg-muted/30'
+                            } ${
                               isZero ? 'text-muted-foreground/50' :
                               numVal !== null && numVal > 100 ? 'text-primary' :
                               'text-foreground'
                             }`}>
                               {r.value || '—'}
                             </td>
-                            <td className="px-2 py-2 align-middle">
+                            <td className={`px-2 py-2 align-middle sticky right-0 ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
                               <button
                                 onClick={(e) => { e.stopPropagation(); copyValue(r.value || ''); }}
                                 className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
