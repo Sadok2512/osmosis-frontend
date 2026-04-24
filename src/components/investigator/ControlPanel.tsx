@@ -615,17 +615,12 @@ const JalonsManagerPopup: React.FC<{
                   <div className="space-y-1.5">
                     <input value={j.label} onChange={e => updateJalon(j.id, { label: e.target.value })}
                       className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <div>
-                        <label className="text-[8px] text-muted-foreground uppercase">Début</label>
-                        <input type="datetime-local" value={j.date} onChange={e => updateJalon(j.id, { date: e.target.value })}
-                          className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
-                      </div>
-                      <div>
-                        <label className="text-[8px] text-muted-foreground uppercase">Fin</label>
-                        <input type="datetime-local" value={j.endDate || j.date} onChange={e => updateJalon(j.id, { endDate: e.target.value })} min={j.date}
-                          className="w-full px-1.5 py-1 rounded-md border border-border bg-background text-[10px] text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
-                      </div>
+                    <div className="flex justify-center">
+                      <DateRangePopover
+                        from={j.date}
+                        to={j.endDate || j.date}
+                        onChange={(from, to) => updateJalon(j.id, { date: from, endDate: to })}
+                      />
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
