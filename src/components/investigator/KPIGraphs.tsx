@@ -803,6 +803,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
   const [counterSelectorSlotId, setCounterSelectorSlotId] = useState<string | null>(null);
   const chartRefsMap = useRef<Record<string, ReactECharts | null>>({});
+  // Committed render params — only updated when fetch succeeds, so axis + data swap atomically
+  const committedParamsRef = useRef<Record<string, { startDate: string; endDate: string; granularity: string }>>({});
+  // Per-slot fetching state for loading overlay
+  const [fetchingSlots, setFetchingSlots] = useState<Record<string, boolean>>({});
   // Counter data per slot: { [slotId]: { series, nameMap } }
   const [counterDataMap, setCounterDataMap] = useState<Record<string, { series: { ts: string; counter: string; counter_id?: string; value: number; dimension_key?: string }[]; nameMap: Record<string, string> }>>({});
 
@@ -839,6 +843,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
   useEffect(() => {
     const slotsWithCounters = graphSlots.filter(s => s.counterIds && s.counterIds.length > 0);
     if (slotsWithCounters.length === 0) return;
+
+    const controller = new AbortController();
 
     slotsWithCounters.forEach(slot => {
       const cIds = slot.counterIds!;
@@ -899,24 +905,64 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         }
       }
 
+      setFetchingSlots(prev => ({ ...prev, [slot.id]: true }));
+
       fetch(getApiUrl('pm/counters/timeseries'), {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify(body),
+        signal: controller.signal,
       })
         .then(r => r.ok ? r.json() : { series: [], meta: {} })
         .then(data => {
+          if (controller.signal.aborted) return;
+          // Commit render params atomically with data
+          committedParamsRef.current[slot.id] = {
+            startDate: slotContext.dateFrom,
+            endDate: slotContext.dateTo,
+            granularity: slotContext.granularity,
+          };
           setCounterDataMap(prev => ({
             ...prev,
             [slot.id]: { series: data.series || [], nameMap: data.meta?.name_map || {} },
           }));
+          setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!controller.signal.aborted) {
+            setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
+          }
+        });
     });
+
+    return () => controller.abort();
   }, [slotsCounterKey, investigatorState.startDate, investigatorState.endDate, investigatorState.splitBy, investigatorState.filters, investigatorState.kpiLevel, investigatorState.profileQci, investigatorState.profileArp, investigatorState.neighborType]);
   // Note: investigatorState.granularity removed from deps — each slot has its own
   // granularity tracked via slotsCounterKey. Changing global granularity only affects
   // slots that don't have a per-slot override.
+
+  // Commit render params when KPI data arrives from parent (handleApply)
+  useEffect(() => {
+    if (data.length === 0) return;
+    for (const slot of graphSlots) {
+      const slotHasData = data.some((d: any) => d._slotId === slot.id);
+      if (slotHasData) {
+        const ctx = resolveSlotContext(slot, {
+          startDate: investigatorState.startDate,
+          endDate: investigatorState.endDate,
+          granularity: investigatorState.granularity,
+          splitBy: investigatorState.splitBy,
+          filters: investigatorState.filters,
+          kpiLevel: investigatorState.kpiLevel,
+        });
+        committedParamsRef.current[slot.id] = {
+          startDate: ctx.dateFrom,
+          endDate: ctx.dateTo,
+          granularity: ctx.granularity,
+        };
+      }
+    }
+  }, [data]);
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 
@@ -1105,10 +1151,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           ? slotData.filter(d => d.splitValue && d.splitValue !== 'ALL')
           : slotData.map(d => ({ ...d, splitValue: undefined, splitValue2: undefined }));
 
-        // Fix #3: Use slot's effective context (dates/granularity) instead of instance state
-        const slotStartDate = (slot.startDate && slot.startDate.trim()) || investigatorState.startDate;
-        const slotEndDate = (slot.endDate && slot.endDate.trim()) || investigatorState.endDate;
-        const slotGranularity = normalizeGranularity(slot.granularity || investigatorState.granularity);
+        // Use committed params (from last successful fetch) so axis + data update atomically.
+        // Falls back to live state only on first render (before any fetch has committed).
+        const committed = committedParamsRef.current[slot.id];
+        const slotStartDate = committed?.startDate ?? ((slot.startDate && slot.startDate.trim()) || investigatorState.startDate);
+        const slotEndDate = committed?.endDate ?? ((slot.endDate && slot.endDate.trim()) || investigatorState.endDate);
+        const slotGranularity = normalizeGranularity(committed?.granularity ?? (slot.granularity || investigatorState.granularity));
         // Normalize all data point timestamps to match granularity format
         const normalizedData = effectiveData.map(d => ({ ...d, timestamp: normalizeTimestamp(d.timestamp, slotGranularity) }));
         const matchesKpi = (dKpi: string, kpiId: string) => dKpi === kpiId || dKpi.startsWith(kpiId + '@');
@@ -1965,17 +2013,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
               <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={(series || []).some((s: any) => Array.isArray(s.data) && s.data.some((v: any) => v != null && (typeof v !== 'number' || isFinite(v))))} />
             </div>
-            <SlotChart
-              ref={(el) => { chartRefsMap.current[slot.id] = el; }}
-              key={`${slot.id}-${cfg.chartType}`}
-              option={option}
-              height={chartHeight}
-              onDataZoom={(start, end) => {
-                if (cfg.zoomWindow?.start === start && cfg.zoomWindow?.end === end) return;
-                onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
-              }}
-              onChartClick={() => onSlotClick?.(slot.id)}
-            />
+            <div className="relative">
+              {fetchingSlots[slot.id] && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px]">
+                  <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              <SlotChart
+                ref={(el) => { chartRefsMap.current[slot.id] = el; }}
+                key={`${slot.id}-${cfg.chartType}`}
+                option={option}
+                height={chartHeight}
+                onDataZoom={(start, end) => {
+                  if (cfg.zoomWindow?.start === start && cfg.zoomWindow?.end === end) return;
+                  onUpdateSlotConfig(slot.id, { zoomWindow: { start, end } });
+                }}
+                onChartClick={() => onSlotClick?.(slot.id)}
+              />
+            </div>
 
 
 
