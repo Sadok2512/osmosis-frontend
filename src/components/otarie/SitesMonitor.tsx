@@ -30,7 +30,7 @@ import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import CellRfCharts from './CellRfCharts';
 import BatchCoveragePanel from './BatchCoveragePanel';
-import FootprintCoveragePanel, { type FootprintCell } from './FootprintCoveragePanel';
+import { type FootprintCell } from './FootprintCoveragePanel';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
@@ -9254,19 +9254,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
 
-        {/* Coverage panels — shown when coverage view is active */}
-        {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || footprintCells.length > 0 || !!coverageGrid) && (
-          <div className="absolute z-[1001] pointer-events-auto flex flex-col gap-2" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
-            <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
-              <FootprintCoveragePanel
-                sites={renderSites}
-                onFootprintChange={setFootprintCells}
-                onClear={() => setFootprintCells([])}
-                isActive={footprintCells.length > 0}
-              />
-            </div>
-          </div>
-        )}
 
         {/* Footprint coverage polygons */}
         {footprintCells.length > 0 && footprintCells.map(fc => (
