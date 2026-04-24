@@ -524,14 +524,16 @@ function InheritedFromToolbarCard({ onOverride, isStat }: { onOverride: () => vo
   const grain = applied?.grain ?? liveGrain;
   const vendors = applied?.vendors ?? liveVendors;
   const baseFilters = applied?.filters ?? liveFilters;
-  // Reflect synthetic vendor chips so the user sees exactly what the widget
-  // will receive (matches selectToolbarSnapshot behavior).
-  const filters: ChartFilterChip[] = vendors.length > 0
-    ? [
-        ...baseFilters.filter((f) => (f.dimension || '').toLowerCase() !== 'vendor'),
+  // `applied.filters` already contains synthetic Vendor chips (injected by the
+  // store's apply()). Avoid duplicating them; only add vendors when previewing
+  // the live draft (no Apply yet).
+  const alreadyHasVendor = baseFilters.some((f) => (f.dimension || '').toLowerCase() === 'vendor');
+  const filters: ChartFilterChip[] = alreadyHasVendor || vendors.length === 0
+    ? baseFilters
+    : [
+        ...baseFilters,
         ...vendors.map((v) => ({ id: `pa-toolbar-vendor-${v}`, dimension: 'Vendor', value: v })),
-      ]
-    : baseFilters;
+      ];
 
   const fmt = (iso: string) => {
     if (!iso) return '—';
