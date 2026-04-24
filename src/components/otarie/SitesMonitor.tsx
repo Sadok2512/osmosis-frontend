@@ -3416,17 +3416,61 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
   const [search, setSearch] = React.useState('');
   const [searchedParam, setSearchedParam] = React.useState<string | null>(null);
+  const [selectedParam, setSelectedParam] = React.useState<string | null>(null);
   const [paramData, setParamData] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
   const [hasSearched, setHasSearched] = React.useState(false);
+  const [suggestions, setSuggestions] = React.useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = React.useState(false);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const suggestionsRef = React.useRef<HTMLDivElement>(null);
 
   // Reset on site change
   React.useEffect(() => {
     setSearch('');
     setSearchedParam(null);
+    setSelectedParam(null);
     setParamData([]);
     setHasSearched(false);
+    setSuggestions([]);
   }, [siteName]);
+
+  // Close suggestions on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Live suggestions as user types (debounced)
+  React.useEffect(() => {
+    if (!siteName || !search.trim() || search.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    if (selectedParam && search === selectedParam) return; // don't re-search after selection
+    const term = search.trim();
+    const t = setTimeout(async () => {
+      setSuggestionsLoading(true);
+      try {
+        const { data } = await supabase
+          .from('parameter_dump')
+          .select('parameter')
+          .ilike('site_name', siteName)
+          .ilike('parameter', `%${term}%`)
+          .limit(200);
+        const unique = [...new Set((data || []).map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
+        setSuggestions(unique.slice(0, 50));
+        setShowSuggestions(true);
+      } catch { setSuggestions([]); }
+      setSuggestionsLoading(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, siteName, selectedParam]);
 
   // Fetch when searchedParam changes
   React.useEffect(() => {
@@ -3476,7 +3520,17 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   }, [siteName, searchedParam]);
 
   const doSearch = () => {
-    if (search.trim()) setSearchedParam(search.trim());
+    const target = selectedParam || search.trim();
+    if (target) {
+      setSearchedParam(target);
+      setShowSuggestions(false);
+    }
+  };
+
+  const pickSuggestion = (p: string) => {
+    setSelectedParam(p);
+    setSearch(p);
+    setShowSuggestions(false);
   };
 
   // Group results by MO (extract from DN or parameter prefix)
@@ -3565,20 +3619,53 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   return (
     <div className="space-y-2">
       {/* Search input + button */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5" ref={suggestionsRef}>
         <div className="relative flex-1">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
-            placeholder="Nom du paramètre..."
+            onChange={e => {
+              setSearch(e.target.value);
+              setSelectedParam(null);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') doSearch();
+              if (e.key === 'Escape') setShowSuggestions(false);
+            }}
+            placeholder="Tapez puis sélectionnez un paramètre..."
             className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
           />
+
+          {/* Suggestion dropdown */}
+          {showSuggestions && search.trim() && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-[280px] overflow-y-auto">
+              {suggestionsLoading ? (
+                <div className="flex items-center justify-center py-3">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                </div>
+              ) : suggestions.length === 0 ? (
+                <div className="py-3 px-3 text-[11px] text-muted-foreground text-center">Aucun paramètre trouvé</div>
+              ) : (
+                suggestions.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => pickSuggestion(p)}
+                    className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-accent transition-colors ${
+                      selectedParam === p ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={doSearch}
-          disabled={!search.trim()}
+          disabled={!selectedParam && !search.trim()}
           className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
         >
           Chercher
