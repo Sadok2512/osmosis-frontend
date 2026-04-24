@@ -637,16 +637,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           <thead className="sticky top-0 z-20">
             <tr className="bg-white" style={{ borderBottom: `1.5px solid ${ROW_BORDER}` }}>
               {/* Time column — always first */}
-              <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
+              <th className="text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
                 Time
               </th>
 
-              {/* Dynamic dimension columns — in requested order */}
+              {/* Dynamic dimension columns — first one is sticky/frozen */}
               {dimensionCols.map((dim, i) => (
                 <th
                   key={dim.key}
                   className={cn(
-                    'text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
+                    'text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
                     i === 0 && 'sticky left-0 bg-white z-30',
                   )}
                 >
