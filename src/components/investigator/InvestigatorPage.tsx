@@ -943,7 +943,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+      {/* Pure white canvas — Precision Architect inspired */}
+      <div className="flex-1 flex flex-col overflow-y-auto bg-white text-slate-900">
 
       {/* Unified Toolbar */}
       <ControlPanel
@@ -968,27 +969,33 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         }}
       />
 
-      {/* Main Content — two stable zones */}
-      <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 w-full flex flex-col" style={{ minHeight: 0 }}>
+      {/* Main Content — two stable zones, generous breathing room */}
+      <main className="flex-1 px-5 md:px-[3%] pt-7 pb-9 w-full flex flex-col" style={{ minHeight: 0 }}>
 
-        {/* ═══ Alerts Zone (fixed height when present) ═══ */}
-        <div className="shrink-0 space-y-2 mb-4">
+        {/* ═══ Alerts Zone — softer surfaces ═══ */}
+        <div className="shrink-0 space-y-2.5 mb-5">
           {applyError && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
+            <div
+              className="rounded-xl border border-[#ef4444]/25 bg-[#ef4444]/[0.04] px-4 py-3 flex items-center gap-2.5"
+              style={{ boxShadow: '0 1px 2px rgba(239,68,68,0.05)' }}
+            >
+              <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
+              <span className="text-[11px] font-semibold text-[#b91c1c] flex-1">
                 {applyError}
               </span>
-              <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
+              <button onClick={() => setApplyError(null)} className="text-[#ef4444] hover:text-[#b91c1c] transition-colors">
                 <span className="text-xs font-bold">✕</span>
               </button>
             </div>
           )}
 
           {hasUnfilteredFallback && (
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
-              <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
+            <div
+              className="rounded-xl border border-[#f59e0b]/25 bg-[#f59e0b]/[0.05] px-4 py-3 flex items-center gap-2.5"
+              style={{ boxShadow: '0 1px 2px rgba(245,158,11,0.05)' }}
+            >
+              <AlertTriangle className="w-4 h-4 text-[#f59e0b] shrink-0" />
+              <span className="text-[11px] font-semibold text-[#92400e]">
                 Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
               </span>
             </div>
