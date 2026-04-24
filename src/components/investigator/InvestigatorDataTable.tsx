@@ -418,6 +418,45 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
   const displayHasSplit = backendTableData ? true : hasSplitValues;
 
+  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> real name
+  const kpiMapping = useMemo(
+    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real })),
+    [displayKpiCols],
+  );
+
+  // Build the dynamic ordered dimension columns:
+  // [Time?] + [Dimension1, Dimension2, ...] + [KPI1..KPIN]
+  // Time is always present here (rows are timestamped).
+  // Dimensions order:
+  //   - Backend mode: splitBy (if any) -> DOR -> Band -> Vendor (only if any row has a value)
+  //   - Client mode: scopeLabel + (split column if hasSplitValues)
+  type DimCol = { key: string; label: string; get: (row: any) => string };
+  const dimensionCols: DimCol[] = useMemo(() => {
+    const cols: DimCol[] = [];
+    if (useBackend) {
+      if (splitBy) {
+        cols.push({
+          key: 'split',
+          label: normalizeScopeLabel(splitBy),
+          get: (r) => r.splitValue || '—',
+        });
+      }
+      const hasAny = (k: 'dor' | 'band' | 'vendor') =>
+        displayRows.some((r: any) => r[k] && String(r[k]).trim() !== '');
+      if (hasAny('dor')) cols.push({ key: 'dor', label: 'DOR', get: (r) => r.dor || '—' });
+      if (hasAny('band')) cols.push({ key: 'band', label: 'Band', get: (r) => r.band || '—' });
+      if (hasAny('vendor')) cols.push({ key: 'vendor', label: 'Vendor', get: (r) => r.vendor || '—' });
+      // If no dimension was requested at all, omit dimensions entirely (0..N rule).
+    } else {
+      // Client-side fallback
+      cols.push({ key: 'ne', label: scopeLabel, get: (r) => r.ne || '—' });
+      if (hasSplitValues) {
+        cols.push({ key: 'splitValue', label: splitLabel, get: (r) => r.splitValue || '—' });
+      }
+    }
+    return cols;
+  }, [useBackend, splitBy, displayRows, scopeLabel, hasSplitValues, splitLabel]);
+
   // Per-KPI min/max for inline progress bars
   const kpiRanges = useMemo(() => {
     const ranges: Record<string, { min: number; max: number }> = {};
@@ -442,19 +481,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Timestamp', splitBy || 'Site'];
-    if (backendTableData) headerCols.push('DOR', 'Band', 'Vendor');
-    headerCols.push(...displayKpiCols);
+    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
     const header = headerCols.map(escapeCsv).join(',');
 
-    const csvRows = displayRows.map(r => {
-      const baseCols = [r.timestamp, (r as any).splitValue || (r as any).ne || ''];
-      if (backendTableData) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
-      const kpiVals = displayKpiCols.map(k => r.kpiValues[k] ?? '');
+    const csvRows = displayRows.map((r: any) => {
+      const baseCols = [r.timestamp, ...dimensionCols.map(d => d.get(r))];
+      const kpiVals = kpiMapping.map(({ real }) => {
+        const v = r.kpiValues[real];
+        return v == null ? '—' : v;
+      });
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
 
-    const csv = [header, ...csvRows].join('\n');
+    // Append KPI mapping legend at the end of the CSV for traceability
+    const mappingLines = ['', '# KPI Mapping', ...kpiMapping.map(k => `${k.generic},${escapeCsv(k.real)}`)];
+
+    const csv = [header, ...csvRows, ...mappingLines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -538,7 +580,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           </span>
           <span className="w-px h-4 bg-[#E5E7EB]" />
           <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F8F9FA] text-muted-foreground font-medium">
-            {displayKpiCols.length} KPI{displayKpiCols.length !== 1 ? 's' : ''} × {displayHasSplit ? (splitBy || 'Site') : 'NE'}
+            {kpiMapping.length} KPI{kpiMapping.length !== 1 ? 's' : ''} × {dimensionCols.length} dim{dimensionCols.length !== 1 ? 's' : ''}
           </span>
           {useBackend && (
             <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
@@ -557,47 +599,67 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         </button>
       </div>
 
+      {/* KPI Mapping legend — generic KPIn -> real KPI name */}
+      {kpiMapping.length > 0 && (
+        <div
+          className="px-6 py-2 bg-[#FAFBFC] flex items-center gap-2 flex-wrap"
+          style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.1em] font-semibold text-muted-foreground">
+            KPI Mapping
+          </span>
+          {kpiMapping.map(({ generic, real }) => (
+            <span
+              key={generic}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-medium"
+              style={{ backgroundColor: `${BRAND_GREEN}10`, color: BRAND_GREEN }}
+              title={real}
+            >
+              <span className="font-bold">{generic}</span>
+              <span className="text-foreground/60">=</span>
+              <span className="text-foreground/80 truncate max-w-[200px]">{real}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[12.5px]">
           <thead className="sticky top-0 z-20">
             <tr className="bg-white" style={{ borderBottom: `1.5px solid ${ROW_BORDER}` }}>
+              {/* Time column — always first */}
               <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
-                Timestamp
+                Time
               </th>
 
-              <th
-                className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
-              >
-                {useBackend ? (splitBy || 'Site') : scopeLabel}
-              </th>
-
-              {useBackend && (
-                <>
-                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">DOR</th>
-                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Band</th>
-                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Vendor</th>
-                </>
-              )}
-
-              {!useBackend && hasSplitValues && (
-                <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
-                  {splitLabel}
-                </th>
-              )}
-
-              {displayKpiCols.map((kpi) => (
+              {/* Dynamic dimension columns — in requested order */}
+              {dimensionCols.map((dim, i) => (
                 <th
-                  key={kpi}
-                  className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
+                  key={dim.key}
+                  className={cn(
+                    'text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
+                    i === 0 && 'sticky left-0 bg-white z-30',
+                  )}
                 >
-                  <span className="truncate max-w-[220px] inline-block align-middle" title={kpi}>{kpi}</span>
+                  {dim.label}
+                </th>
+              ))}
+
+              {/* Generic KPI columns: KPI1, KPI2, ... */}
+              {kpiMapping.map(({ generic, real }) => (
+                <th
+                  key={generic}
+                  className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
+                  title={real}
+                >
+                  {generic}
                 </th>
               ))}
             </tr>
           </thead>
 
           <tbody>
-            {pageRows.map((row, idx) => {
+            {pageRows.map((row: any, idx) => {
               const absIdx = startIdx + idx;
 
               return (
@@ -606,43 +668,44 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                   className="group transition-colors hover:bg-[#F0FAF8]"
                   style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
                 >
+                  {/* Time */}
                   <td className="py-3.5 px-6 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
                     {row.timestamp}
                   </td>
 
-                  <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
-                      />
-                      <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
-                    </span>
-                  </td>
+                  {/* Dimensions */}
+                  {dimensionCols.map((dim, i) => {
+                    const value = dim.get(row);
+                    const isFirst = i === 0;
+                    return (
+                      <td
+                        key={dim.key}
+                        className={cn(
+                          'py-3.5 px-6 whitespace-nowrap',
+                          isFirst
+                            ? 'sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors'
+                            : 'text-[11px] text-muted-foreground',
+                        )}
+                      >
+                        {isFirst ? (
+                          <span className="inline-flex items-center gap-2">
+                            <span
+                              className="w-1.5 h-1.5 rounded-full shrink-0"
+                              style={{ backgroundColor: stableColorForSplit(value || '') }}
+                            />
+                            <span className="font-semibold text-foreground tracking-tight">{value}</span>
+                          </span>
+                        ) : (
+                          value
+                        )}
+                      </td>
+                    );
+                  })}
 
-                  {useBackend && (
-                    <>
-                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).dor || '—'}</td>
-                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).band || '—'}</td>
-                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).vendor || '—'}</td>
-                    </>
-                  )}
-
-                  {!useBackend && hasSplitValues && (
-                    <td className="py-3.5 px-6 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-2">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: stableColorForSplit(row.splitValue) }}
-                        />
-                        <span className="font-medium text-foreground/85">{row.splitValue}</span>
-                      </span>
-                    </td>
-                  )}
-
-                  {displayKpiCols.map((kpi) => {
-                    const val = row.kpiValues[kpi];
-                    const range = kpiRanges[kpi];
+                  {/* Generic KPI values */}
+                  {kpiMapping.map(({ generic, real }) => {
+                    const val = row.kpiValues[real];
+                    const range = kpiRanges[real];
                     let pct = 0;
                     if (val != null && isFinite(val) && range && range.max > range.min) {
                       pct = Math.max(4, Math.min(100, ((val - range.min) / (range.max - range.min)) * 100));
@@ -650,7 +713,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       pct = 100;
                     }
                     return (
-                      <td key={kpi} className="py-3.5 px-6 whitespace-nowrap">
+                      <td key={generic} className="py-3.5 px-6 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-3">
                           <div
                             className="relative h-1.5 w-24 rounded-full overflow-hidden"
