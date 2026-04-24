@@ -4411,8 +4411,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const fmtArea = area >= 1e6 ? `${(area / 1e6).toFixed(2)} km²` : `${Math.round(area)} m²`;
     const fmtPerimeter = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${Math.round(perimeter)} m`;
 
-    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside: 0 };
-  }, [polygonClosed, polygonPoints]);
+    // Point-in-polygon (ray-casting) to count sites/cells inside
+    const pointInPoly = (lat: number, lng: number): boolean => {
+      let inside = false;
+      for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
+        const [yi, xi] = polygonPoints[i];
+        const [yj, xj] = polygonPoints[j];
+        const intersect = ((yi > lat) !== (yj > lat)) &&
+          (lng < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    };
+    let sitesInside = 0;
+    let cellsInside = 0;
+    const siteIdsInside: string[] = [];
+    const siteNamesInside: string[] = [];
+    for (const s of filteredSites) {
+      const [lat, lng] = s.coordinates || [];
+      if (lat == null || lng == null) continue;
+      if (pointInPoly(lat, lng)) {
+        sitesInside++;
+        cellsInside += Array.isArray(s.cells) ? s.cells.length : 0;
+        if (s.site_id) siteIdsInside.push(String(s.site_id));
+        if (s.site_name) siteNamesInside.push(String(s.site_name));
+      }
+    }
+
+    return { area, perimeter, fmtArea, fmtPerimeter, sitesInside, cellsInside, siteIdsInside, siteNamesInside };
+  }, [polygonClosed, polygonPoints, filteredSites]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
