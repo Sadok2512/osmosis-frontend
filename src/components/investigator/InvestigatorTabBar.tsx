@@ -68,7 +68,14 @@ const InvestigatorTabBar: React.FC<Props> = ({
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
                   )}
                 >
-                  <FlaskConical className={cn('w-3 h-3 shrink-0', isActive ? 'text-primary' : 'opacity-50')} />
+                  {isActive ? (
+                    <span
+                      className="w-2.5 h-2.5 rounded-full bg-primary shrink-0 animate-[tab-pulse_1.2s_ease-in-out_infinite] shadow-[0_0_6px_hsl(var(--primary)/0.6)]"
+                      aria-label="active"
+                    />
+                  ) : (
+                    <FlaskConical className="w-3 h-3 shrink-0 opacity-40" />
+                  )}
 
                   {isEditing ? (
                     <input
