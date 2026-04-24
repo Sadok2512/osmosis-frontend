@@ -23,17 +23,28 @@ export const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverag
   });
 
   const activeCell = siteDetail.cells[selectedCellIdx] ?? cell;
-  const techno = (activeCell.techno?.includes('5G') ? '5G' : '4G') as '4G' | '5G';
-  const defaults = React.useMemo(() => getDefaultParams(techno, activeCell.bande), [techno, activeCell.bande]);
+  const cellTech = (activeCell.techno || '').toUpperCase();
+  const techno = cellTech.includes('5G') || cellTech.includes('NR') ? '5G'
+    : cellTech.includes('3G') || cellTech.includes('UMTS') ? '3G'
+    : cellTech.includes('2G') || cellTech.includes('GSM') ? '2G'
+    : '4G';
+  const defaults = React.useMemo(() => getDefaultParams(techno as any, activeCell.bande), [techno, activeCell.bande]);
+
+  // Auto-populate from cell data (ref_cell_daily + param_dump)
+  const cellPmax = (activeCell as any)?.pmax;
+  const cellBw = (activeCell as any)?.dl_bandwidth;
+  const cellTxAnt = (activeCell as any)?.num_tx_ant;
+  const autoTxPower = cellPmax ? Math.round(cellPmax / 10) : null;
+  const autoGain = cellTxAnt ? (cellTxAnt >= 32 ? 25 : cellTxAnt >= 8 ? 21 : cellTxAnt >= 4 ? 18 : 15) : null;
 
   const merged = React.useMemo(() => ({
     lat: siteDetail.coordinates[0],
     lng: siteDetail.coordinates[1],
     frequency: params.frequency ?? defaults.frequency ?? 1800,
-    txPower: params.txPower ?? defaults.txPower ?? 43,
+    txPower: params.txPower ?? autoTxPower ?? defaults.txPower ?? 43,
     antennaHeight: params.antennaHeight ?? activeCell.hba ?? defaults.antennaHeight ?? 25,
-    antennaGain: params.antennaGain ?? defaults.antennaGain ?? 18,
-    azimuth: params.azimuth ?? activeCell.azimut ?? defaults.azimuth ?? 0,
+    antennaGain: params.antennaGain ?? autoGain ?? defaults.antennaGain ?? 18,
+    azimuth: params.azimuth ?? activeCell.azimut ?? (activeCell as any)?.azimuth ?? defaults.azimuth ?? 0,
     beamwidth: params.beamwidth ?? defaults.beamwidth ?? 65,
     tilt: params.tilt ?? (activeCell as any).tilt ?? defaults.tilt ?? 4,
     mechanicalTilt: params.mechanicalTilt ?? defaults.mechanicalTilt ?? 0,
@@ -44,10 +55,10 @@ export const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverag
     techno,
     cableLoss: params.cableLoss ?? defaults.cableLoss ?? 2,
     bodyLoss: params.bodyLoss ?? defaults.bodyLoss ?? 3,
-    bandwidth: params.bandwidth ?? defaults.bandwidth ?? 20,
+    bandwidth: params.bandwidth ?? cellBw ?? defaults.bandwidth ?? 20,
     shadowFading: params.shadowFading ?? defaults.shadowFading ?? true,
     clutterEnabled: params.clutterEnabled ?? defaults.clutterEnabled ?? true,
-  }), [params, defaults, siteDetail, activeCell, techno]);
+  }), [params, defaults, siteDetail, activeCell, techno, autoTxPower, autoGain, cellBw]);
 
   const upd = (k: keyof SimulationParams, v: any) => setParams(p => ({ ...p, [k]: v }));
 
