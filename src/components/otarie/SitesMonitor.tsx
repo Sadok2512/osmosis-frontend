@@ -25,6 +25,7 @@ import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import CellRfCharts from './CellRfCharts';
+import BatchCoveragePanel from './BatchCoveragePanel';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
@@ -9204,6 +9205,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })}
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
+
+        {/* Batch coverage simulation panel */}
+        {!paramMode && !paramPanelOpen && (
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 16, left: (panelCollapsed ? 56 : 400) + 16 }}>
+            <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
+              <BatchCoveragePanel
+                sites={renderSites}
+                onSimulate={handleCoverageSimulate}
+                onClear={handleCoverageClear}
+                isActive={!!coverageGrid}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Tilt visualization overlay for selected site */}
         {showTiltOverlay && selectedSiteId && (() => {
