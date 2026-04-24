@@ -11210,6 +11210,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 // Use full dashboard scope (filteredSites) so the KPI list stays
                 // populated even when the map techno/band filter hides everything.
                 const sourceSites = mapFilteredSites.length > 0 ? mapFilteredSites : filteredSites;
+                const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+                const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
                 for (const site of sourceSites) {
                   const siteName = site.site_name || site.site_id || '';
                   if (kpiAnalysisLevel === 'site') {
@@ -11223,18 +11225,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     });
                   } else {
                     const cells = (site as any).cells || [];
-                    for (const c of cells) {
-                      const cellName = c.cell_id || c.cell_name || '';
-                      const v = getCellKpiValue(c, siteName);
+                    if (cells.length === 0) {
+                      // Fallback: site has no cell-level data → expose a site-level entry
+                      // so the user still sees the site (and matches the legend count).
+                      const v = getSiteKpiValue(site);
                       const hasValue = v != null && !isNaN(v);
                       entries.push({
-                        key: `c:${siteName}:${cellName}`,
+                        key: `s:${siteName}`,
                         siteName,
-                        cellName,
-                        band: c.bande || c.band,
                         value: hasValue ? v : NaN,
                         level: hasValue ? getKpiLevel(v) : 'gray',
                       });
+                    } else {
+                      for (const c of cells) {
+                        // Apply the same visibility filter the legend uses, so the list
+                        // and the legend always agree on which cells are counted.
+                        if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor)) continue;
+                        const cellName = c.cell_id || c.cell_name || '';
+                        const v = getCellKpiValue(c, siteName);
+                        const hasValue = v != null && !isNaN(v);
+                        entries.push({
+                          key: `c:${siteName}:${cellName}`,
+                          siteName,
+                          cellName,
+                          band: c.bande || c.band,
+                          value: hasValue ? v : NaN,
+                          level: hasValue ? getKpiLevel(v) : 'gray',
+                        });
+                      }
                     }
                   }
                 }
