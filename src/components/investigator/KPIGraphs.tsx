@@ -357,18 +357,19 @@ function makeSlotColorAllocator() {
   const used = new Set<string>();
   const assigned = new Map<string, string>();
   const palette = SPLIT_COLORS;
+  // Precision Architect ordered defaults: 1st = green, 2nd = orange, 3rd = red
+  const ORDERED_DEFAULTS = ['#14746C', '#F59E0B', '#EF4444'];
+  let kpiOrder = 0;
 
   const pick = (key: string, preferred: string): string => {
     if (assigned.has(key)) return assigned.get(key)!;
     let chosen = preferred;
     if (used.has(chosen)) {
-      // Find next free color in palette
       const startIdx = Math.max(0, palette.indexOf(preferred));
       for (let off = 1; off <= palette.length; off++) {
         const candidate = palette[(startIdx + off) % palette.length];
         if (!used.has(candidate)) { chosen = candidate; break; }
       }
-      // If all palette colors are used, allow reuse (graceful fallback)
       if (used.has(chosen)) chosen = preferred;
     }
     used.add(chosen);
@@ -377,7 +378,16 @@ function makeSlotColorAllocator() {
   };
 
   return {
-    forKpi: (kpiId: string) => pick(`kpi:${kpiId}`, stableColorForKpi(kpiId)),
+    forKpi: (kpiId: string) => {
+      const cacheKey = `kpi:${kpiId}`;
+      if (assigned.has(cacheKey)) return assigned.get(cacheKey)!;
+      // First KPIs in the slot follow the PA ordered palette (green → orange → red)
+      const preferred = kpiOrder < ORDERED_DEFAULTS.length
+        ? ORDERED_DEFAULTS[kpiOrder]
+        : stableColorForKpi(kpiId);
+      kpiOrder += 1;
+      return pick(cacheKey, preferred);
+    },
     forSplit: (splitValue: string, kpiId?: string) =>
       pick(`split:${kpiId || ''}:${splitValue}`, stableColorForSplit(splitValue, kpiId)),
     forCounter: (counterName: string) =>
