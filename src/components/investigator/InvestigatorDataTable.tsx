@@ -620,17 +620,19 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     {row.timestamp}
                   </td>
 
-                  <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
-                      />
-                      <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
-                    </span>
-                  </td>
+                  {showSplitCol && (
+                    <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
+                      <span className="inline-flex items-center gap-2">
+                        <span
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
+                        />
+                        <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
+                      </span>
+                    </td>
+                  )}
 
-                  {useBackend && (
+                  {showMetaCols && (
                     <>
                       <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).dor || '—'}</td>
                       <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).band || '—'}</td>
