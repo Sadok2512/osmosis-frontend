@@ -8218,7 +8218,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const defaultTechColor = mapTechnoFilter === 'ALL'
                     ? techGroupColor
                     : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || techGroupColor) : techGroupColor);
-                  const kpiColor = getKpiColor(getCellKpiValue(cell));
+                  const kpiColor = getKpiColor(getCellKpiValue(cell, site.site_name || site.site_id));
                   const techColor = colorViewOverride || (sectorColorMode === 'kpi' ? kpiColor : defaultTechColor);
                   const techPane = tech === '5G' ? 'pane5G' : tech === '3G' ? 'pane3G' : tech === '2G' ? 'pane2G' : 'pane4G';
                   return (
