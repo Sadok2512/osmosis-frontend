@@ -670,16 +670,18 @@ const JalonsManagerPopup: React.FC<{
           <div className="text-[9px] font-bold text-primary uppercase tracking-wider">Nouveau jalon</div>
           <input value={label} onChange={e => setLabel(e.target.value)} placeholder="Nom du jalon..."
             className="w-full px-2 py-1 rounded-md border border-border bg-background text-xs text-foreground outline-none focus:ring-1 focus:ring-primary/30" />
-          <div className="flex justify-center">
-            <DateRangePopover
-              from={startDate}
-              to={endDate || startDate}
-              onChange={(from, to) => {
-                setStartDate(from);
-                setEndDate(to);
-                setEndDateTouched(true);
-              }}
-            />
+          <div className="flex justify-center overflow-hidden">
+            <div className="origin-left scale-[0.78]">
+              <DateRangePopover
+                from={startDate}
+                to={endDate || startDate}
+                onChange={(from, to) => {
+                  setStartDate(from);
+                  setEndDate(to);
+                  setEndDateTouched(true);
+                }}
+              />
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <span className="text-[8px] text-muted-foreground uppercase shrink-0">Opacité</span>
