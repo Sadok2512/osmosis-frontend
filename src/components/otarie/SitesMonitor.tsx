@@ -24,7 +24,6 @@ import MapViewManager, { MapViewSettings } from './MapViewManager';
 import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
-import CellHistogramPanel from './CellHistogramPanel';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
@@ -11702,16 +11701,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 );
                               })()}
 
-                              {/* Histogram section — PRB, RACH, Interference */}
-                              <div className="mt-3 pt-3 border-t border-border/30">
-                                <CellHistogramPanel
-                                  siteName={site.site_name}
-                                  vendor={site.vendor}
-                                  techno={site.cells?.[0]?.techno}
-                                  dateFrom={kpiDateFrom}
-                                  dateTo={kpiDateTo}
-                                />
-                              </div>
                             </div>
                           )}
                         </div>
@@ -13923,17 +13912,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                     </div>
 
-                    {/* Histogram distributions — PRB, RACH, Interference */}
-                    <div className="px-5 py-4 border-t border-border/30">
-                      <CellHistogramPanel
-                        siteName={siteDetail.site_name}
-                        cellName={cell.cell_id}
-                        vendor={siteDetail.vendor}
-                        techno={cell.techno}
-                        dateFrom={kpiDateFrom}
-                        dateTo={kpiDateTo}
-                      />
-                    </div>
 
                   </>
                 )}
