@@ -5417,9 +5417,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => { cancelled = true; };
   }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
-  const getCellKpiValue = (cell: any): number => {
+  const getCellKpiValue = (cell: any, parentSiteName?: string): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
-    const siteName = cell.site_name || cell.site_id || '';
+    const siteName = parentSiteName || cell.site_name || cell.site_id || '';
     const bandName = cell.bande || cell.band || '';
 
     // Level-aware lookup priority
@@ -5438,8 +5438,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (fromKpi != null) return fromKpi;
 
     // Fallback: site-level average (always computed)
-    const fromSite = kpiValues.get(`site:${siteName}`);
-    if (fromSite != null) return fromSite;
+    if (siteName) {
+      const fromSite = kpiValues.get(`site:${siteName}`);
+      if (fromSite != null) return fromSite;
+    }
 
     return NaN;
   };
