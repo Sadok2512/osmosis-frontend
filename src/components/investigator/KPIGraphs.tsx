@@ -583,6 +583,25 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
   );
 };
 
+const formatTableWidgetValue = (value: number | null | undefined) => {
+  if (value == null || !Number.isFinite(Number(value))) return '—';
+  const num = Number(value);
+  if (num === 0) return '0';
+  const abs = Math.abs(num);
+  const maximumFractionDigits = abs > 0 && abs < 0.01 ? 8 : abs < 1 ? 4 : 2;
+  return num.toLocaleString('fr-FR', { maximumFractionDigits });
+};
+
+const getTableWidgetRows = (slot: GraphSlot, data: DataPoint[]) => {
+  const keys = [...(slot.kpiIds || []), ...((slot.counterIds || []) as string[])];
+  const matchesKey = (kpi: string) => keys.length === 0 || keys.some(key => kpi === key || kpi.startsWith(`${key}@`));
+
+  return data
+    .filter((d: any) => d._slotId === slot.id && matchesKey(d.kpi || ''))
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))
+    .slice(0, 80);
+};
+
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
 const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
   const { state } = useInvestigatorStore();
@@ -1123,6 +1142,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         }
 
         if (wType === 'table') {
+          const tableRows = getTableWidgetRows(slot, data);
           return (
             <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
               'rounded-2xl border bg-white p-5 relative cursor-pointer transition-all duration-300',
@@ -1139,6 +1159,30 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
+              {tableRows.length > 0 ? (
+                <div className="overflow-auto rounded-lg border border-border/40" style={{ maxHeight: chartHeight - 44 }}>
+                  <table className="w-full text-[11px] border-collapse">
+                    <thead className="sticky top-0 z-10 bg-background">
+                      <tr className="border-b border-border/50">
+                        <th className="text-left px-3 py-2 font-bold text-muted-foreground uppercase tracking-wider">Time</th>
+                        <th className="text-left px-3 py-2 font-bold text-muted-foreground uppercase tracking-wider">KPI</th>
+                        <th className="text-left px-3 py-2 font-bold text-muted-foreground uppercase tracking-wider">NE</th>
+                        <th className="text-right px-3 py-2 font-bold text-muted-foreground uppercase tracking-wider">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableRows.map((row, idx) => (
+                        <tr key={`${row.timestamp}-${row.kpi}-${idx}`} className="border-b border-border/30 hover:bg-muted/30">
+                          <td className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">{String(row.timestamp).slice(0, 16).replace('T', ' ')}</td>
+                          <td className="px-3 py-2 max-w-[180px] truncate font-semibold text-foreground" title={row.kpi}>{row.kpi}</td>
+                          <td className="px-3 py-2 max-w-[140px] truncate text-muted-foreground" title={row.networkElement || row.splitValue || ''}>{row.networkElement || row.splitValue || '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">{formatTableWidgetValue(row.value)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
               <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
                 <button
                   onClick={(e) => { e.stopPropagation(); onActivateTab?.('table_data'); }}
@@ -1149,6 +1193,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                   <p className="text-[10px] text-muted-foreground/60">{kpiIds.length} KPI{kpiIds.length > 1 ? 's' : ''} sélectionné{kpiIds.length > 1 ? 's' : ''}</p>
                 </button>
               </div>
+              )}
             </div>
           );
         }
