@@ -30,7 +30,6 @@ import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
 import CellRfCharts from './CellRfCharts';
 import BatchCoveragePanel from './BatchCoveragePanel';
-type FootprintCell = { id: string; cellName: string; siteName: string; lat: number; lng: number; azimuth: number; radiusKm: number; beamwidth: number; color: string; polygon: [number, number][]; txPower: number; antennaGain: number; freq: number };
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
@@ -5296,7 +5295,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [coverageGrid, setCoverageGrid] = useState<CoverageGrid | null>(null);
   const [coverageSimulating, setCoverageSimulating] = useState(false);
   const [coverageSite, setCoverageSite] = useState<any>(null);
-  const [footprintCells, setFootprintCells] = useState<FootprintCell[]>([]);
 
   const handleLaunchCoverageSim = useCallback((site: SiteDetail | SiteSummary) => {
     setCoverageSite({
@@ -9254,31 +9252,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
 
-
-        {/* Footprint coverage polygons */}
-        {footprintCells.length > 0 && footprintCells.map(fc => (
-          <Polygon
-            key={fc.id}
-            positions={fc.polygon}
-            pathOptions={{
-              fillColor: fc.color,
-              fillOpacity: 0.25,
-              color: fc.color,
-              weight: 1,
-              opacity: 0.6,
-            }}
-          >
-            <Popup>
-              <div className="text-xs space-y-1 min-w-[160px]">
-                <div className="font-bold">{fc.cellName}</div>
-                <div className="text-muted-foreground">{fc.siteName}</div>
-                <div className="flex justify-between"><span className="opacity-60">Azimut</span><span className="font-bold">{fc.azimuth}°</span></div>
-                <div className="flex justify-between"><span className="opacity-60">Rayon</span><span className="font-bold">{fc.radiusKm.toFixed(1)} km</span></div>
-                <div className="flex justify-between"><span className="opacity-60">TX Power</span><span className="font-bold">{fc.txPower} dBm</span></div>
-              </div>
-            </Popup>
-          </Polygon>
-        ))}
+        {/* Coverage RSRP panel — shown when coverage view is active */}
+        {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || !!coverageGrid) && (
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
+            <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
+              <BatchCoveragePanel
+                sites={renderSites}
+                onSimulate={handleCoverageSimulate}
+                onClear={handleCoverageClear}
+                isActive={!!coverageGrid}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Tilt visualization overlay for selected site */}
         {showTiltOverlay && selectedSiteId && (() => {
