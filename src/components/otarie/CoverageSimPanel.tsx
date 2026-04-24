@@ -48,19 +48,33 @@ const CoverageSimPanel: React.FC<CoverageSimPanelProps> = ({
 
   const safeIdx = selectedCellIdx < (site?.cells?.length || 0) ? selectedCellIdx : 0;
   const cell = site?.cells?.[safeIdx];
-  const techno = (cell?.techno?.includes('5G') ? '5G' : '4G') as '4G' | '5G';
-  const defaults = useMemo(() => getDefaultParams(techno, cell?.bande), [techno, cell?.bande]);
+  const cellTech = (cell?.techno || '').toUpperCase();
+  const techno = cellTech.includes('5G') || cellTech.includes('NR') ? '5G'
+    : cellTech.includes('3G') || cellTech.includes('UMTS') ? '3G'
+    : cellTech.includes('2G') || cellTech.includes('GSM') ? '2G'
+    : '4G';
+  const defaults = useMemo(() => getDefaultParams(techno as any, cell?.bande), [techno, cell?.bande]);
 
   const [params, setParams] = useState<Partial<SimulationParams>>({});
 
-  // Merged params with defaults
+  // Auto-populate from cell data (ref_cell_daily + param_dump), then defaults
+  const cellPmax = (cell as any)?.pmax;
+  const cellBw = (cell as any)?.dl_bandwidth;
+  const cellTxAnt = (cell as any)?.num_tx_ant;
+  // Nokia pmax is in 0.1 dBm → convert to dBm. RS Power ≈ pMax/10 for TX power estimate.
+  const autoTxPower = cellPmax ? Math.round(cellPmax / 10) : null;
+  // Antenna gain from TX antenna count: 2T→15dBi, 4T→18dBi, 8T→21dBi, 32T/64T→25dBi
+  const autoAntennaGain = cellTxAnt ? (cellTxAnt >= 32 ? 25 : cellTxAnt >= 8 ? 21 : cellTxAnt >= 4 ? 18 : 15) : null;
+  // Bandwidth from param_dump (MHz) — affects simulation radius
+  const autoBandwidth = cellBw ? cellBw : null;
+
   const mergedParams = useMemo(() => ({
     lat: site?.lat ?? 0,
     lng: site?.lng ?? 0,
     frequency: params.frequency ?? defaults.frequency ?? 1800,
-    txPower: params.txPower ?? ((cell as any)?.pmax ? Math.round((cell as any).pmax / 10) : null) ?? defaults.txPower ?? 43,
+    txPower: params.txPower ?? autoTxPower ?? defaults.txPower ?? 43,
     antennaHeight: params.antennaHeight ?? cell?.hba ?? defaults.antennaHeight ?? 25,
-    antennaGain: params.antennaGain ?? defaults.antennaGain ?? 18,
+    antennaGain: params.antennaGain ?? autoAntennaGain ?? defaults.antennaGain ?? 18,
     azimuth: params.azimuth ?? cell?.azimut ?? (cell as any)?.azimuth ?? defaults.azimuth ?? 0,
     beamwidth: params.beamwidth ?? defaults.beamwidth ?? 65,
     tilt: params.tilt ?? (cell as any)?.tilt ?? defaults.tilt ?? 4,
@@ -68,8 +82,9 @@ const CoverageSimPanel: React.FC<CoverageSimPanelProps> = ({
     radius: params.radius ?? defaults.radius ?? 5,
     gridSize: params.gridSize ?? defaults.gridSize ?? 80,
     environment: params.environment ?? defaults.environment ?? 'urban',
+    bandwidth: (params as any).bandwidth ?? autoBandwidth ?? defaults.bandwidth ?? 20,
     techno,
-  }), [params, defaults, site, cell, techno]);
+  }), [params, defaults, site, cell, techno, autoTxPower, autoAntennaGain, autoBandwidth]);
 
   const handleSimulate = useCallback(() => {
     if (!site) return;

@@ -323,32 +323,35 @@ export const RSRP_LEGEND = [
 ];
 
 /** Default simulation parameters by technology */
-export function getDefaultParams(techno: '4G' | '5G', band?: string): Partial<SimulationParams> {
+export function getDefaultParams(techno: '4G' | '5G' | '3G' | '2G', band?: string): Partial<SimulationParams> {
   const is5G = techno === '5G';
+  const is3G = techno === '3G';
+  const is2G = techno === '2G';
   const freq = band?.includes('3500') || band?.includes('NR3500') ? 3500
-    : band?.includes('2100') || band?.includes('NR2100') ? 2100
-    : band?.includes('1800') ? 1800
+    : band?.includes('2600') ? 2600
+    : band?.includes('2100') || band?.includes('NR2100') || band?.includes('UMTS2100') ? 2100
+    : band?.includes('1800') || band?.includes('GSM1800') || band?.includes('DCS') ? 1800
+    : band?.includes('900') || band?.includes('UMTS900') || band?.includes('GSM900') ? 900
     : band?.includes('800') ? 800
     : band?.includes('700') || band?.includes('NR700') ? 700
-    : band?.includes('2600') ? 2600
-    : is5G ? 3500 : 1800;
+    : is5G ? 3500 : is3G ? 2100 : is2G ? 900 : 1800;
 
   return {
     frequency: freq,
-    txPower: is5G ? 46 : 43,
-    antennaGain: is5G ? 25 : 18,
-    beamwidth: is5G && freq >= 3500 ? 90 : 65,
-    tilt: is5G ? 6 : 4,
+    txPower: is5G ? 46 : is2G ? 43 : is3G ? 43 : 43,
+    antennaGain: is5G ? 25 : is3G ? 18 : is2G ? 15 : 18,
+    beamwidth: is5G && freq >= 3500 ? 90 : is2G ? 360 : 65,
+    tilt: is5G ? 6 : is2G ? 0 : is3G ? 3 : 4,
     mechanicalTilt: 0,
     rxHeight: 1.5,
-    radius: freq >= 3500 ? 2 : freq >= 1800 ? 5 : 10,
+    radius: freq >= 3500 ? 2 : freq >= 1800 ? 5 : freq <= 900 ? 15 : 10,
     gridSize: 80,
     environment: 'urban' as const,
-    techno,
+    techno: (is5G ? '5G' : '4G') as '4G' | '5G',
     cableLoss: is5G ? 0.5 : 2,
     bodyLoss: 3,
     shadowFading: true,
     clutterEnabled: true,
-    bandwidth: is5G ? (freq >= 3500 ? 100 : 20) : 20,
+    bandwidth: is5G ? (freq >= 3500 ? 100 : 20) : is3G ? 5 : is2G ? 0.2 : 20,
   };
 }
