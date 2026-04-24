@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
+import DateRangePopover from '@/precision-architect/components/DateRangePopover';
 import CounterSelectorModal from './CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalog, fetchFilterCatalog, type MonitorFilterDef } from '@/components/kpi-monitor/api/kpiMonitorApi';
