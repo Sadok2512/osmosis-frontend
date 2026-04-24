@@ -266,6 +266,18 @@ const SlotSettingsPopover: React.FC<{
             <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-[0.65]" />
           </div>
         </div>
+        {cfg.showGrid && (
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-foreground whitespace-nowrap">Grid Opacity</span>
+            <Slider
+              value={[cfg.gridOpacity ?? 50]}
+              onValueChange={v => onUpdateSlotConfig(slot.id, { gridOpacity: v[0] })}
+              min={0} max={100} step={5}
+              className="flex-1"
+            />
+            <span className="text-[9px] text-muted-foreground font-mono w-8 text-right">{cfg.gridOpacity ?? 50}%</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-foreground whitespace-nowrap">Line Width</span>
           <Slider value={[cfg.lineWidth]} onValueChange={v => onUpdateSlotConfig(slot.id, { lineWidth: v[0] })} min={0.5} max={5} step={0.5} className="flex-1" />
