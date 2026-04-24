@@ -11106,7 +11106,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {inventoryTab === 'kpi' && sectorColorMode === 'kpi' && !paramMode && mapKpi && (() => {
                 type Entry = { key: string; siteName: string; cellName?: string; band?: string; value: number; level: 'green' | 'orange' | 'red' | 'gray' };
                 const entries: Entry[] = [];
-                for (const site of mapFilteredSites) {
+                // Use full dashboard scope (filteredSites) so the KPI list stays
+                // populated even when the map techno/band filter hides everything.
+                const sourceSites = mapFilteredSites.length > 0 ? mapFilteredSites : filteredSites;
+                for (const site of sourceSites) {
                   const siteName = site.site_name || site.site_id || '';
                   if (kpiAnalysisLevel === 'site') {
                     const v = getSiteKpiValue(site);
