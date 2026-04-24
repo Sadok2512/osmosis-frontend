@@ -1580,10 +1580,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             formatter: (v: number) => `${v.toFixed(1)}`,
             margin: 14,
           },
-          splitLine: {
-            show: cfg.showGrid,
-            lineStyle: { color: 'rgba(15,23,42,0.08)', type: 'dashed' as const },
-          },
+          splitLine: (() => {
+            const baseAlpha = 0.08;
+            const maxAlpha = 0.5;
+            const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
+            const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
+            return {
+              show: cfg.showGrid,
+              lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
+            };
+          })(),
           axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
           axisTick: { show: true },
         };
