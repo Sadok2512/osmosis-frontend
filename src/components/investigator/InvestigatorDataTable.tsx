@@ -284,16 +284,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
     const filters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
-    const body = {
+    const body: Record<string, any> = {
       kpi_keys: kpiIds,
       filters,
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
-      split_by: splitBy,
       granularity: ctx.granularity,
       page: backendPage,
       page_size: pageSize,
     };
+    if (splitBy) body.split_by = splitBy;
 
     fetch(getApiUrl('monitor/query/table'), {
       method: 'POST',
