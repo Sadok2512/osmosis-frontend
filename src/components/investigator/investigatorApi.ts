@@ -1,4 +1,4 @@
-// ── Investigator API — Data from Parser :8000, AI from Agent :1000 ──
+// ── Investigator API — KPI data from KPI Engine :8001, counters from Parser :8000, AI from Agent :1000 ──
 
 import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, fetchVpsWithRetry, AGENT_API_KEY } from '@/lib/apiConfig';
 import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
@@ -76,188 +76,7 @@ function detectNetworkElement(sv1?: string, sv2?: string, split1?: string, split
   return undefined;
 }
 
-// ── Fetch KPI computed on-the-fly from Parser (formula applied in SQL) ──
-async function fetchKpiComputeOnTheFly(
-  kpiId: string,
-  dateFrom: string,
-  dateTo: string,
-  granularity: string = '1d',
-  filters?: { dimension: string; values: string[] }[],
-  splitByPmDim?: string,
-  splitByField?: string,
-): Promise<{ data: DataPoint[]; isComputed: boolean }> {
-  try {
-    const url = getApiUrl('pm/kpi/compute');
-    const body: any = {
-      kpi_code: kpiId,
-      date_from: dateFrom,
-      date_to: dateTo,
-      granularity,
-    };
-    // DEBUG: log full request details
-    console.log('[DEBUG KpiCompute] url:', url, 'kpiId:', kpiId, 'splitByPmDim:', splitByPmDim, 'splitByField:', splitByField, 'filters:', JSON.stringify(filters));
-
-    // Extract site/cell/dimension from filters — support multi-value.
-    // Any filter whose dimension is not a structural field (SITE/CELL/VENDOR/TECH)
-    // is treated as a PM dimension_filter passthrough. Values from the UI come already
-    // formatted as "DIM=value" by /pm/counters/dimension-values, so no remapping is
-    // needed — we just forward them straight to the compute endpoint.
-    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
-    if (filters && filters.length > 0) {
-      for (const f of filters) {
-        const dim = (f.dimension || '').toUpperCase();
-        if (dim === 'SITE' && f.values?.length) {
-          body.site_name = f.values.length === 1 ? f.values[0] : f.values;
-        } else if (dim === 'CELL' && f.values?.length) {
-          body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
-        } else if (dim === 'VENDOR' && f.values?.length) {
-          body.vendor = f.values[0];
-        } else if ((dim === 'TECHNOLOGY' || dim === 'TECHNO') && f.values?.length) {
-          // Don't send object_type when all 4 techs selected (equivalent to no filter)
-          const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
-          const allSelected = f.values.length >= 4 && f.values.every(v => ALL_TECHS.has(v));
-          if (!allSelected) {
-            body.object_type = f.values.length === 1 ? f.values[0] : f.values;
-          }
-        } else if (dim === 'KPI_LEVEL') {
-          /* ignore, handled by kpi engine */
-        } else if (dim === 'PLAQUE' && f.values?.length) {
-          body.plaque = f.values[0];
-        } else if ((dim === 'DOR' || dim === 'DR') && f.values?.length) {
-          body.dor = f.values[0];
-        } else if (dim === 'BAND' && f.values?.length) {
-          body.band = f.values[0];
-        } else if (dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
-          /* zone arcep — skip */
-        } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
-          // PM dimension passthrough — covers PMQAP, FLEX_*, NEIGHBOR, SLICE, 5QI,
-          // RANSHARE, TRANSPORT, CA_REL, QCI_IDX, and any future dimension type.
-          body.dimension_filter = f.values.length === 1 ? f.values[0] : f.values;
-        }
-      }
-    }
-
-    // Split by PM dimension: single query with GROUP BY dimension_key
-    if (splitByPmDim && !body.dimension_filter) {
-      log('[KpiCompute] Split by PM dimension:', splitByPmDim);
-      try {
-        // Fetch dimension labels for display
-        const dimRes = await fetchWithTimeout(getApiUrl(`pm/counters/dimension-values?dimension_type=${splitByPmDim}&limit=50`), { headers: getApiHeaders() });
-        const labelMap: Record<string, string> = {};
-        if (dimRes.ok) {
-          const dimData = await dimRes.json();
-          for (const dv of (dimData.labeled_values || [])) {
-            if (typeof dv === 'object') labelMap[dv.value] = dv.label;
-          }
-        }
-
-        // Single request with split_by_dimension=true (+ optional double split field)
-        const splitBody: any = { ...body, split_by_dimension: true };
-        if (splitByField) splitBody.split_by_field = splitByField;
-        console.log('[DEBUG KpiCompute] PM_DIM split request body:', JSON.stringify(splitBody, null, 2));
-        const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
-        if (splitRes.ok) {
-          const splitResult = await splitRes.json();
-          if (!splitResult.error && splitResult.series?.length > 0) {
-            const allData: DataPoint[] = [];
-            for (const s of splitResult.series) {
-              const dimKey = s.dimension_key || '';
-              const dimLabel = labelMap[dimKey] || dimKey;
-              const splitField = s.split_field || undefined;
-              // If no dimension_key (fallback from non-dimensioned counters), use plain kpiId
-              const kpiKey = dimLabel ? `${kpiId}@${dimLabel}` : kpiId;
-              const dp: any = { timestamp: s.ts, kpi: kpiKey, value: s.kpi_value, splitValue: dimLabel || undefined, _isComputed: true };
-              if (splitField) dp.splitValue2 = splitField;
-              allData.push(dp);
-            }
-            if (allData.length > 0) return { data: allData, isComputed: true };
-          } else {
-            warn('[KpiCompute] Split by dimension returned 0 series for', kpiId, '— falling back to aggregated query');
-          }
-        }
-      } catch (e) { warn('[KpiCompute] Split failed:', e); }
-    }
-
-    // Split by field only (Cell/Site) without PM dimension
-    if (!splitByPmDim && splitByField) {
-      log('[KpiCompute] Split by field only:', splitByField);
-      try {
-        const splitBody: any = { ...body, split_by_field: splitByField };
-        console.log('[DEBUG KpiCompute] FIELD split request body:', JSON.stringify(splitBody, null, 2));
-        const splitRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(splitBody) });
-        if (splitRes.ok) {
-          const splitResult = await splitRes.json();
-          if (!splitResult.error && splitResult.series?.length > 0) {
-            const allData: DataPoint[] = [];
-            for (const s of splitResult.series) {
-              const fieldVal = s.split_field || s.ne_name || s.cell_name || s.site_name || '';
-              const dp: DataPoint = {
-                timestamp: s.ts,
-                kpi: fieldVal ? `${kpiId}@${fieldVal}` : kpiId,
-                value: s.kpi_value,
-                splitValue: fieldVal || undefined,
-                networkElement: fieldVal || undefined,
-              };
-              allData.push(dp);
-            }
-            if (allData.length > 0) return { data: allData, isComputed: true };
-          } else {
-            warn('[KpiCompute] Split by field returned 0 series for', kpiId);
-          }
-        }
-      } catch (e) { warn('[KpiCompute] Field split failed:', e); }
-    }
-
-    log('[KpiCompute] Request:', kpiId, 'filters:', JSON.stringify(filters), 'body:', JSON.stringify(body));
-    const res = await fetchWithTimeout(url, {
-      method: 'POST',
-      headers: getApiHeaders(),
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      warn('[KpiCompute] Failed:', res.status);
-      // Try with shorter date range (reduce load)
-      return { data: [], isComputed: false };
-    }
-
-    const result = await res.json();
-    if (result.error) {
-      warn('[KpiCompute] Error:', result.error, '— retrying with 1h granularity');
-      // Retry with hourly granularity (faster query)
-      if (granularity !== '1h') {
-        const retryBody = { ...body, granularity: '1h' };
-        try {
-          const retryRes = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(retryBody) });
-          if (retryRes.ok) {
-            const retryResult = await retryRes.json();
-            if (!retryResult.error && retryResult.series?.length > 0) {
-              log('[KpiCompute] Retry succeeded with 1h');
-              return {
-                data: retryResult.series.map((s: any) => ({ timestamp: s.ts, kpi: kpiId, value: s.kpi_value, _isComputed: true })),
-                isComputed: true,
-              };
-            }
-          }
-        } catch (retryErr) { warn('[KpiCompute] Retry failed:', retryErr); }
-      }
-      return { data: [], isComputed: false };
-    }
-
-    const series = (result.series || []).map((s: any) => ({
-      timestamp: s.ts,
-      kpi: kpiId,
-      value: s.kpi_value,
-      _isComputed: true,
-    }));
-
-    log('[KpiCompute] Result:', kpiId, series.length, 'points, formula:', result.formula_display?.substring(0, 60));
-    return { data: series, isComputed: series.length > 0 };
-  } catch (e) {
-    warn('[KpiCompute] Exception:', e);
-    return { data: [], isComputed: false };
-  }
-}
+// PATH A (fetchKpiComputeOnTheFly) removed — all KPI queries now use KPI Engine (:8001)
 
 // ── Fetch raw counter timeseries from Parser (fact_counters_15min) ──
 // Bug #3 fix: accept and forward the same filter context as the KPI request
@@ -525,20 +344,8 @@ export function resolveSlotContext(
   };
 }
 
-// ── Dedup cache to prevent 6x identical requests (bounded LRU, max 50 entries) ──
-const CACHE_MAX = 50;
-const _computeCache = new Map<string, Promise<{ data: DataPoint[]; isComputed: boolean }>>();
-function cacheSet(key: string, value: Promise<{ data: DataPoint[]; isComputed: boolean }>) {
-  if (_computeCache.size >= CACHE_MAX) {
-    // Evict oldest entry (first key in Map insertion order)
-    const oldest = _computeCache.keys().next().value;
-    if (oldest !== undefined) _computeCache.delete(oldest);
-  }
-  _computeCache.set(key, value);
-}
-
 // ── Fetch timeseries data per-slot ──
-// Strategy: call /kpi/compute FIRST (on-the-fly, always has data)
+// Strategy: KPI Engine (:8001) is the primary path; counter fallback for raw PM counters
 export async function fetchTimeSeriesForSlot(
   ctx: SlotRequestContext,
 ): Promise<{ data: DataPoint[]; hasUnfilteredFallback: boolean }> {
@@ -559,60 +366,18 @@ export async function fetchTimeSeriesForSlot(
 
   log('[fetchTimeSeriesForSlot] ctx:', { kpis: ctx.kpiIds, splitBy: ctx.splitBy, splitByPerKpi: ctx.splitByPerKpi, filters: ctx.filters, gran: ctx.granularity, dateFrom: ctx.dateFrom, dateTo: ctx.dateTo, neFromFilters });
 
-  // Detect PM and non-PM splits
-  const globalPmDimSplit = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : undefined;
-  const hasNonPmSplit1 = ctx.splitBy && !ctx.splitBy.startsWith('PM_DIM:') && ctx.splitBy !== 'None';
-  const pmDimSplit2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : undefined;
-  const hasNonPmSplit2 = ctx.splitBy2 && !ctx.splitBy2.startsWith('PM_DIM:') && ctx.splitBy2 !== 'None';
-  log('[fetchTimeSeriesForSlot] globalPmDimSplit:', globalPmDimSplit, 'hasNonPmSplit1:', hasNonPmSplit1, 'splitBy2:', ctx.splitBy2);
-
-  // Double split: detect if one split is PM and the other is a field (cell_name, site_name).
-  // Compute can handle: PM_DIM split + split_by_field (e.g. PMQAP + cell_name).
-  // Cell → cell_name (Ericsson has proper cell_name after the parser fix).
-  // Nokia pm_15m still has empty cell_name; those splits will show only the ENB until
-  // the Nokia-specific pm_15m_enriched path is wired in.
+  // Detect field-mappable splits for counter fallback
   const FIELD_MAP: Record<string, string> = { 'Cell': 'cell_name', 'CELL': 'cell_name', 'Site': 'site_name', 'SITE': 'site_name' };
-  let computeSplitByField: string | undefined;
-  let computePmDim: string | undefined;
-
-  if (globalPmDimSplit && hasNonPmSplit2) {
-    // Split1=PM, Split2=Cell/Site → compute can do both
-    computePmDim = globalPmDimSplit;
-    computeSplitByField = FIELD_MAP[ctx.splitBy2!] || undefined;
-  } else if (hasNonPmSplit1 && pmDimSplit2) {
-    // Split1=Cell/Site, Split2=PM → swap for compute (PM as dimension, field as split_by_field)
-    computePmDim = pmDimSplit2;
-    computeSplitByField = FIELD_MAP[ctx.splitBy!] || undefined;
-  } else if (globalPmDimSplit) {
-    computePmDim = globalPmDimSplit;
-  } else if (hasNonPmSplit1 && FIELD_MAP[ctx.splitBy!]) {
-    // Split1=Cell/Site only (no PM split) → compute with split_by_field alone
-    computeSplitByField = FIELD_MAP[ctx.splitBy!];
-    // If Split2 is also a field-mappable dimension, store it for second field split
-    if (hasNonPmSplit2 && FIELD_MAP[ctx.splitBy2!]) {
-      // Both splits are field-mappable — compute can't do two field splits,
-      // but we handle the primary one; KPI Engine handles Split2
-    }
-  }
-
-  // Can compute handle this? Only if there's no non-PM split without a field mapping.
-  // Per-KPI field splits (Cell/Site in splitByPerKpi) are also handled inside the loop.
-  const hasPerKpiFieldSplit = Object.values(ctx.splitByPerKpi || {}).some(
-    v => v && !v.startsWith('PM_DIM:') && FIELD_MAP[v],
-  );
-  const canCompute = !hasNonPmSplit1 || !!computeSplitByField || hasPerKpiFieldSplit;
-  log('[fetchTimeSeriesForSlot] computePmDim:', computePmDim, 'computeSplitByField:', computeSplitByField, 'canCompute:', canCompute);
+  const computeSplitByField = (ctx.splitBy && FIELD_MAP[ctx.splitBy]) || undefined;
 
   // Fast path: detect raw PM counters and route directly to counter fallback
-  // (avoids 3-4 wasted HTTP calls through KPI compute + KPI Engine)
-  // Note: Flex_ prefix is used by Nokia KPI definitions (e.g. Flex_ERAB_ADD_INIT_SETUP_ATT)
-  // so we do NOT include Flex_ here — those need /kpi/compute for formula resolution
+  // Flex_ prefix is used by Nokia KPI definitions — those need KPI Engine for formula resolution
   const RAW_COUNTER_RE = /^(M\d{2,}C\d|pm[A-Z])/;
   const rawCounterIds = ctx.kpiIds.filter(id => RAW_COUNTER_RE.test(id));
   const kpiOnlyIds = ctx.kpiIds.filter(id => !RAW_COUNTER_RE.test(id));
 
   if (rawCounterIds.length > 0 && kpiOnlyIds.length === 0) {
-    // ALL items are raw counters — skip compute + KPI Engine entirely
+    // ALL items are raw counters — skip KPI Engine entirely
     log('[Investigator] Fast path: all raw counters, using counter fallback directly:', rawCounterIds);
     const fallback = await fetchCounterTimeSeriesFallback(
       rawCounterIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
@@ -623,69 +388,7 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Step 1: Try /kpi/compute FIRST — SEQUENTIAL, one KPI at a time
-  const computeResults: DataPoint[] = [];
-  const computeFailed: string[] = [];
-
-  if (canCompute) {
-    for (const kpiId of ctx.kpiIds) {
-      // Per-KPI PM dimension split
-      const perKpiSplit = ctx.splitByPerKpi?.[kpiId];
-      const perKpiSplit2 = (ctx as any).splitByPerKpi2?.[kpiId];
-      const kpiPmDim = perKpiSplit?.startsWith('PM_DIM:') ? perKpiSplit.replace('PM_DIM:', '') : undefined;
-      const kpiPmDim2 = perKpiSplit2?.startsWith('PM_DIM:') ? perKpiSplit2.replace('PM_DIM:', '') : undefined;
-      // Per-KPI field split (Cell/Site) — when user picks Cell/Site as per-KPI split,
-      // it lands in splitByPerKpi (not in slot.splitBy), so derive the field here.
-      const perKpiField =
-        (perKpiSplit && !perKpiSplit.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit]) ||
-        (perKpiSplit2 && !perKpiSplit2.startsWith('PM_DIM:') && FIELD_MAP[perKpiSplit2]) ||
-        undefined;
-      const pmDimSplit = kpiPmDim || kpiPmDim2 || (perKpiSplit ? undefined : computePmDim);
-      const fieldSplit = perKpiField || computeSplitByField;
-
-      const cacheKey = `${kpiId}|${ctx.dateFrom}|${ctx.dateTo}|${ctx.granularity}|${JSON.stringify(ctx.filters)}|${pmDimSplit || ''}|${fieldSplit || ''}`;
-
-      // Sequential: do NOT pre-create promises — execute one at a time
-      let computed: { data: DataPoint[]; isComputed: boolean };
-      if (_computeCache.has(cacheKey)) {
-        computed = await _computeCache.get(cacheKey)!;
-      } else {
-        const queryStart = Date.now();
-        log('[Pipeline] Step 1 PM Compute START:', kpiId);
-        const promise = fetchKpiComputeOnTheFly(
-          kpiId, ctx.dateFrom, ctx.dateTo, ctx.granularity, ctx.filters, pmDimSplit, fieldSplit,
-        );
-        cacheSet(cacheKey, promise);
-        computed = await promise;
-        // Evict after settle — not while pending
-        setTimeout(() => _computeCache.delete(cacheKey), 30000);
-        log('[Pipeline] Step 1 PM Compute END:', kpiId, {
-          duration: `${Date.now() - queryStart}ms`,
-          points: computed.data.length,
-          status: computed.isComputed ? 'success' : 'no_data',
-        });
-      }
-
-      if (computed.isComputed) {
-        computeResults.push(...computed.data);
-      } else {
-        computeFailed.push(kpiId);
-      }
-    }
-
-    // If all KPIs computed successfully, return directly (skip KPI Engine)
-    if (computeFailed.length === 0 && computeResults.length > 0) {
-      log('[Investigator] All KPIs computed on-the-fly:', computeResults.length, 'points');
-      // Inject NE from filters if not already set
-      if (neFromFilters) computeResults.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
-      return { data: computeResults, hasUnfilteredFallback: false };
-    }
-  } else {
-    // Can't compute: all KPIs must go through KPI Engine
-    computeFailed.push(...ctx.kpiIds);
-  }
-
-  // Step 2: Fall back to KPI Engine for KPIs that failed compute — SEQUENTIAL
+  // Step 1: KPI Engine — primary path for all KPI queries
   const url = getApiUrl('monitor/query/timeseries');
   const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
@@ -705,20 +408,28 @@ export async function fetchTimeSeriesForSlot(
   const engineSplitBy = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : (ctx.splitBy || null);
   const engineSplitBy2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : (ctx.splitBy2 || null);
 
+  // Per-KPI splits: if any per-KPI split is active, use the first one as split_by
+  const perKpiSplits = Object.values(ctx.splitByPerKpi || {}).filter(v => v && v !== 'None');
+  let effectiveSplitBy = engineSplitBy;
+  if (perKpiSplits.length > 0 && !effectiveSplitBy) {
+    const firstSplit = perKpiSplits[0]!;
+    effectiveSplitBy = firstSplit.startsWith('PM_DIM:') ? firstSplit.replace('PM_DIM:', '') : firstSplit;
+  }
+
   const body: Record<string, any> = {
     date_from: ctx.dateFrom,
     date_to: ctx.dateTo,
     granularity: ctx.granularity,
-    selections: ctx.kpiIds.map(k => ({ kpi_key: k })),
+    selections: kpiOnlyIds.map(k => ({ kpi_key: k })),
     filters: allFilters,
-    split_by: engineSplitBy,
+    split_by: effectiveSplitBy,
     split_by_2: engineSplitBy2,
     top_n: 10,
     kpi_level: ctx.kpiLevel || 'CELL',
   };
 
   const kpiEngineStart = Date.now();
-  log('[Pipeline] Step 2 KPI Engine START:', computeFailed, JSON.stringify(body));
+  log('[Pipeline] KPI Engine START:', kpiOnlyIds, JSON.stringify(body));
   // 120s timeout: multi-KPI queries at 15min granularity can be slow on the VPS.
   const res = await fetchWithTimeout(url, {
     method: 'POST',
@@ -732,12 +443,12 @@ export async function fetchTimeSeriesForSlot(
   if (res.ok) {
     const data = await res.json();
     kpiSeries = data.series || [];
-    log('[Pipeline] Step 2 KPI Engine END:', {
+    log('[Pipeline] KPI Engine END:', {
       duration: `${Date.now() - kpiEngineStart}ms`,
       points: kpiSeries.length,
       status: kpiSeries.length > 0 ? 'success' : 'no_data',
     });
-    const noSplitRequested = !ctx.splitBy;
+    const noSplitRequested = !ctx.splitBy && perKpiSplits.length === 0;
     kpiResults = kpiSeries.map((s: any) => {
       const sv1 = noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value);
       const sv2 = s.split_value_2 && s.split_value_2 !== 'ALL' ? s.split_value_2 : undefined;
@@ -758,59 +469,36 @@ export async function fetchTimeSeriesForSlot(
       };
     });
   } else {
-    warn('[Pipeline] Step 2 KPI Engine FAILED:', res.status, {
+    warn('[Pipeline] KPI Engine FAILED:', res.status, {
       duration: `${Date.now() - kpiEngineStart}ms`,
       status: 'query_failed',
     });
   }
 
-  // Merge KPI Engine results with any compute results from Step 1
+  // Step 2: For KPIs not found in KPI Engine + raw counters, try counter fallback
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
-  const missingKpis = computeFailed.filter(k => !kpisWithData.has(k.toLowerCase()));
+  const missingKpis = kpiOnlyIds.filter(k => !kpisWithData.has(k.toLowerCase()));
+  const fallbackIds = [...missingKpis, ...rawCounterIds];
   let hasUnfilteredFallback = false;
 
-  // If splits were requested but KPI Engine returned data without splits,
-  // prefer counter fallback which can do proper PM dimension + cell splits
-  const splitRequested = !!(computePmDim || computeSplitByField || (ctx.splitBy && ctx.splitBy !== 'None'));
-  if (splitRequested && kpiResults.length > 0 && !kpiResults.some(d => d.splitValue)) {
-    // KPI Engine returned aggregated data without splits — try counter fallback instead
-    const unsplitKpis = computeFailed.filter(k => kpisWithData.has(k.toLowerCase()));
-    if (unsplitKpis.length > 0) {
-      log('[Investigator] KPI Engine returned data without splits, trying counter fallback for:', unsplitKpis);
-      const fallback = await fetchCounterTimeSeriesFallback(
-        unsplitKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
-        ctx.splitBy, ctx.filters, computeSplitByField,
-      );
-      if (fallback.data.length > 0 && fallback.data.some(d => d.splitValue)) {
-        // Counter fallback has proper split data — use it instead of KPI Engine
-        kpiResults = kpiResults.filter(d => !unsplitKpis.some(k => d.kpi.toLowerCase().startsWith(k.toLowerCase())));
-        kpiResults.push(...fallback.data);
-      }
-    }
-  }
-
-  // Step 3: For KPIs that failed both compute AND KPI Engine, try raw counter fallback — SEQUENTIAL
-  if (missingKpis.length > 0) {
+  if (fallbackIds.length > 0) {
     const fallbackStart = Date.now();
-    log('[Pipeline] Step 3 Counter Fallback START:', missingKpis);
+    log('[Pipeline] Counter Fallback START:', fallbackIds);
     const fallback = await fetchCounterTimeSeriesFallback(
-      missingKpis, ctx.dateFrom, ctx.dateTo, ctx.granularity,
+      fallbackIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
     );
-    log('[Pipeline] Step 3 Counter Fallback END:', {
+    log('[Pipeline] Counter Fallback END:', {
       duration: `${Date.now() - fallbackStart}ms`,
       points: fallback.data.length,
       status: fallback.data.length > 0 ? 'success' : 'no_counter_data',
     });
-    const allData = [...computeResults, ...kpiResults, ...fallback.data];
-    if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
-    return { data: allData, hasUnfilteredFallback };
+    kpiResults.push(...fallback.data);
+    if (fallback.isUnfiltered) hasUnfilteredFallback = true;
   }
 
-  // Fix #2: Merge compute results with KPI Engine results (don't drop successful computes)
-  const allData = [...computeResults, ...kpiResults];
-  if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
-  return { data: allData, hasUnfilteredFallback };
+  if (neFromFilters) kpiResults.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
+  return { data: kpiResults, hasUnfilteredFallback };
 }
 
 // ── Legacy wrapper (keeps backward compat) ──
