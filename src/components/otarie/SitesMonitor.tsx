@@ -6487,7 +6487,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const points = visibleSites
       .filter(s => Number.isFinite(s.coordinates?.[0]) && Number.isFinite(s.coordinates?.[1]))
       .map(s => ({ id: s.site_id, lat: s.coordinates[0], lng: s.coordinates[1] }));
-    return computeSmartAutoDensity(points, viewport.zoom);
+    // More aggressive LOD at zoom 12-13 to reduce visual density
+    const lodFactor = viewport.zoom <= 12 ? 0.6 : viewport.zoom <= 13 ? 0.8 : 1.0;
+    return computeSmartAutoDensity(points, viewport.zoom, lodFactor);
   }, [visibleSites, viewport.zoom]);
 
   /** Per-site density factor for getZoomAwareRadius — Smart Auto only, neutral (1.0) when missing. */

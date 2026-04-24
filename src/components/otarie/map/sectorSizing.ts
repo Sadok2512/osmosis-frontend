@@ -21,10 +21,10 @@ export const getZoomAwareRadius = (
   let targetPx: number;
   if (zoom <= 9) targetPx = 7;
   else if (zoom <= 11) targetPx = 10;
-  else if (zoom <= 12) targetPx = 13;
-  else if (zoom <= 13) targetPx = 16;
-  else if (zoom <= 14) targetPx = 20;
-  else targetPx = 24;
+  else if (zoom <= 12) targetPx = 12;
+  else if (zoom <= 13) targetPx = 13;
+  else if (zoom <= 14) targetPx = 18;
+  else targetPx = 22;
 
   // Dynamic viewport scaling — smaller screens get proportionally smaller beams
   const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
@@ -113,6 +113,8 @@ const hexSizeKmForZoom = (zoom: number): number => {
 export const computeSmartAutoDensity = (
   sites: SitePoint[],
   zoom: number,
+  /** LOD aggressiveness: 1.0 = default, >1 = more aggressive filtering */
+  lodFactor: number = 1.0,
 ): Map<string, SiteDensityInfo> => {
   const result = new Map<string, SiteDensityInfo>();
   if (!sites || sites.length === 0) return result;
@@ -202,12 +204,15 @@ export const computeSmartAutoDensity = (
     const strokeScale = Math.max(0.2, Math.min(1.0, 1.0 - 0.70 * p));
 
     // LOD filtering: in very dense areas, only render a subset
+    // lodFactor > 1 makes filtering more aggressive (used at zoom 12-13)
     const priority = hashPriority(s.id);
     let visible = true;
-    if (p > 0.95) visible = priority < 0.10;
-    else if (p > 0.90) visible = priority < 0.30;
-    else if (p > 0.85) visible = priority < 0.50;
-    else if (p > 0.80) visible = priority < 0.70;
+    const lf = lodFactor;
+    if (p > 0.95) visible = priority < 0.08 * lf;
+    else if (p > 0.90) visible = priority < 0.20 * lf;
+    else if (p > 0.85) visible = priority < 0.40 * lf;
+    else if (p > 0.80) visible = priority < 0.60 * lf;
+    else if (p > 0.70 && lf > 1) visible = priority < 0.80 * lf;
 
     result.set(s.id, { density, percentile: p, beamScale, opacityScale, strokeScale, visible, priority });
   }
