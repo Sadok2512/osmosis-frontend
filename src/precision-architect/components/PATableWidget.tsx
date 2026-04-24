@@ -269,19 +269,97 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       )}
       <div className="flex-1 overflow-auto custom-scrollbar">
         {(() => {
-          // Build context columns: Timestamp + active filters + split dimension
           const hasTs = rows.some(r => r.ts);
-          // Exclude filter dimensions that are already shown as split column
           const splitDim = splitInUse ? splitInUse.toUpperCase() : null;
           const filterContextCols = effectiveFilters
             .reduce((acc, f) => {
               const dim = toBackendDimension(f.dimension);
-              if (splitDim && dim.toUpperCase() === splitDim) return acc; // skip — shown in split column
+              if (splitDim && dim.toUpperCase() === splitDim) return acc;
               if (!acc.find(a => a.dim === dim)) acc.push({ dim, values: [f.value] });
               else acc.find(a => a.dim === dim)!.values.push(f.value);
               return acc;
             }, [] as { dim: string; values: string[] }[]);
 
+          // ── PIVOT MODE: when split is active, pivot split_values into columns ──
+          if (splitInUse && hasTs && rows.length > 0) {
+            // Get all distinct split values and timestamps
+            const splitValues = [...new Set(rows.map(r => r.split_value || '').filter(Boolean))].sort();
+            const allTimestamps = [...new Set(rows.map(r => r.ts || '').filter(Boolean))].sort();
+
+            // Generate full date range from request period
+            const fromDate = effectiveFrom ? new Date(effectiveFrom) : null;
+            const toDate = effectiveTo ? new Date(effectiveTo) : null;
+            const fullDates: string[] = [];
+            if (fromDate && toDate) {
+              const granStr = (cfg?.data?.granularity || '1d').toLowerCase();
+              const stepMs = granStr.includes('15m') ? 15*60*1000 : granStr.includes('1h') ? 3600*1000 : 86400*1000;
+              const d = new Date(fromDate);
+              while (d <= toDate) {
+                fullDates.push(stepMs >= 86400*1000 ? d.toISOString().slice(0, 10) : d.toISOString().slice(0, 16));
+                d.setTime(d.getTime() + stepMs);
+              }
+            }
+            const timestamps = fullDates.length > 0 ? fullDates : allTimestamps;
+
+            // Build lookup: {ts}_{split} → value per KPI
+            const lookup = new Map<string, Record<string, any>>();
+            for (const r of rows) {
+              const key = `${(r.ts || '').slice(0, 10)}_${r.split_value}`;
+              if (!lookup.has(key)) lookup.set(key, {});
+              const entry = lookup.get(key)!;
+              for (const col of visibleColumns) {
+                const raw = r[col.kpiKey];
+                const v = raw && typeof raw === 'object' && !Array.isArray(raw)
+                  ? (raw.avg ?? raw.value ?? null) : raw;
+                if (v != null) entry[col.kpiKey] = v;
+              }
+            }
+
+            return (
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
+                    <th className="text-left px-4 py-2.5">Timestamp</th>
+                    {splitValues.map(sv => (
+                      visibleColumns.map(col => (
+                        <th key={`${sv}_${col.id}`} className="text-right px-4 py-2.5">
+                          <div className="flex flex-col items-end">
+                            <span className="text-primary">{sv}</span>
+                            <span className="text-on-surface-variant/50 normal-case text-[8px]">
+                              {col.alias || col.kpiKey}{col.unit ? ` (${col.unit})` : ''}
+                            </span>
+                          </div>
+                        </th>
+                      ))
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {timestamps.map((ts, i) => {
+                    const tsShort = ts.slice(0, 10);
+                    return (
+                      <tr key={ts} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
+                        <td className="px-4 py-2.5 font-mono text-on-surface tabular-nums whitespace-nowrap">{tsShort}</td>
+                        {splitValues.map(sv => (
+                          visibleColumns.map(col => {
+                            const entry = lookup.get(`${tsShort}_${sv}`);
+                            const v = entry?.[col.kpiKey];
+                            return (
+                              <td key={`${sv}_${col.id}`} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
+                                {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
+                              </td>
+                            );
+                          })
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            );
+          }
+
+          // ── STANDARD MODE: no split or no timestamps ──
           return (
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-white z-10">
