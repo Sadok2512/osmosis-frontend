@@ -1509,30 +1509,31 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-[420px] p-3" align="start">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Gestion des jalons</div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Gestion des jalons</div>
+                  {state.jalons.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setState(prev => ({ ...prev, showJalons: prev.showJalons === false ? true : false }))}
+                      title={state.showJalons === false ? 'Afficher les jalons' : 'Masquer les jalons'}
+                      className={cn(
+                        "h-6 px-1.5 rounded-md",
+                        state.showJalons === false && "opacity-60"
+                      )}
+                    >
+                      {state.showJalons === false
+                        ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
+                        : <Eye className="w-3.5 h-3.5 text-primary" />}
+                    </Button>
+                  )}
+                </div>
                 <JalonsManagerPopup
                   jalons={state.jalons}
                   onUpdate={(jalons) => setState(prev => ({ ...prev, jalons }))}
                 />
               </PopoverContent>
             </Popover>
-            {/* Show/Hide Jalons toggle */}
-            {state.jalons.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setState(prev => ({ ...prev, showJalons: prev.showJalons === false ? true : false }))}
-                title={state.showJalons === false ? 'Afficher les jalons' : 'Masquer les jalons'}
-                className={cn(
-                  "h-7 2xl:h-8 px-2 rounded-lg bg-card",
-                  state.showJalons === false && "opacity-60"
-                )}
-              >
-                {state.showJalons === false
-                  ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
-                  : <Eye className="w-3.5 h-3.5 text-primary" />}
-              </Button>
-            )}
 
             {/* Spacer */}
             <div className="flex-1" />
