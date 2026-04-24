@@ -140,7 +140,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const state = inst?.state ?? {
     dimension: 'Cell' as const, selectedKpis: [], graphSlots: [], splitBy: 'None',
     startDate: '', endDate: '', granularity: '1d' as const, filters: {}, topLimit: 10,
-    sortBy: null, graphLayout: 2 as const, activeGraphTab: 'TimeSeries' as const, jalons: [],
+    sortBy: null, graphLayout: 2 as const, activeGraphTab: 'TimeSeries' as const, jalons: [], showJalons: true,
     kpiLevel: 'CELL' as const, profileQci: null, profileArp: null, neighborType: null,
   };
   const tsData = inst?.tsData ?? [];

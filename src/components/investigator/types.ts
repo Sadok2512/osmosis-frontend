@@ -126,6 +126,7 @@ export interface InvestigationState {
   graphLayout: 1 | 2 | 4;
   activeGraphTab: GraphTab;
   jalons: Jalon[];
+  showJalons?: boolean;
   // Profile & Neighbor dimension filters
   kpiLevel: KpiLevel;
   profileQci?: number | null;
