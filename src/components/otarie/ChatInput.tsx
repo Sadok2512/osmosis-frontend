@@ -57,7 +57,7 @@ const ChatInput = React.memo(({ onSend, isLoading, forcedAgent, onForcedAgentCha
           >
             Auto
           </button>
-          {(['PULSE', 'TOPO', 'OPTIMIZE', 'DIAGNOSE', 'ANOMALY', 'INSIGHT'] as AgentId[]).map(agent => {
+          {(['PULSE', 'TRACE', 'SENTINEL', 'TOPO', 'PARMY', 'ANALYTIC'] as AgentId[]).map(agent => {
             const meta = AGENT_META[agent];
             const isActive = forcedAgent === agent;
             return (
