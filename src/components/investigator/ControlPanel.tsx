@@ -1197,6 +1197,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     })),
   });
 
+  // Same rule for global granularity: changing the top toolbar grain must
+  // update existing slots unless the user later edits a slot explicitly.
+  const propagateGranularityToSlots = (nextGranularity: Granularity) => (prev: any) => ({
+    ...prev,
+    granularity: nextGranularity,
+    graphSlots: (prev.graphSlots || []).map((s: any) => ({
+      ...s,
+      granularity: nextGranularity,
+    })),
+  });
+
   const applyPeriod = (days: number) => {
     const end = new Date();
     const start = new Date();
@@ -1477,7 +1488,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </PopoverTrigger>
               <PopoverContent className="w-[140px] p-1" align="start">
                 {GRANULARITIES.map(g => (
-                  <button key={g.value} onClick={() => setState(prev => ({ ...prev, granularity: g.value }))}
+                  <button key={g.value} onClick={() => setState(propagateGranularityToSlots(g.value))}
                     className={cn('w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all',
                       state.granularity === g.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60')}>
                     {g.label}
