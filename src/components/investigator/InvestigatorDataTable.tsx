@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,8 +6,12 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { resolveSlotContext } from './investigatorApi';
+import { normalizeGranularity } from './types';
 import type { DataPoint, GraphSlot } from './types';
 
 interface Props {
@@ -16,6 +20,17 @@ interface Props {
   siteName?: string;
   filterContext?: Record<string, string[]>;
   forceSplitOff?: boolean;
+  investigatorState?: {
+    startDate: string;
+    endDate: string;
+    granularity: string;
+    splitBy: string;
+    filters: Record<string, string[]>;
+    kpiLevel: string;
+    profileQci?: number | null;
+    profileArp?: number | null;
+    neighborType?: string | null;
+  };
 }
 
 type RuntimeDataPoint = DataPoint & {
@@ -224,10 +239,83 @@ function buildPivotTable(
   };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff, investigatorState }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
+  const [backendRows, setBackendRows] = useState<any[]>([]);
+  const [backendTotal, setBackendTotal] = useState(0);
+  const [backendLoading, setBackendLoading] = useState(false);
+  const [backendPage, setBackendPage] = useState(1);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Fetch from KPI Engine /monitor/query/table when slot has KPIs and investigatorState is available
+  const kpiIds = activeSlot?.kpiIds || [];
+  const hasKpis = kpiIds.length > 0;
+  const splitBy = activeSlot?.splitBy && activeSlot.splitBy !== 'None' ? activeSlot.splitBy : 'SITE';
+
+  useEffect(() => {
+    if (!hasKpis || !investigatorState || !activeSlot) {
+      setBackendRows([]);
+      setBackendTotal(0);
+      return;
+    }
+
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setBackendLoading(true);
+
+    const ctx = resolveSlotContext(activeSlot, {
+      startDate: investigatorState.startDate,
+      endDate: investigatorState.endDate,
+      granularity: investigatorState.granularity as any,
+      splitBy: investigatorState.splitBy,
+      filters: investigatorState.filters,
+      kpiLevel: investigatorState.kpiLevel,
+      profileQci: investigatorState.profileQci,
+      profileArp: investigatorState.profileArp,
+      neighborType: investigatorState.neighborType,
+    });
+
+    const filters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
+
+    const body = {
+      kpi_keys: kpiIds,
+      filters,
+      date_from: ctx.dateFrom,
+      date_to: ctx.dateTo,
+      split_by: splitBy,
+      granularity: ctx.granularity,
+      page: backendPage,
+      page_size: pageSize,
+    };
+
+    fetch(getApiUrl('monitor/query/table'), {
+      method: 'POST',
+      headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+      .then(r => r.ok ? r.json() : { rows: [], total: 0 })
+      .then(data => {
+        if (controller.signal.aborted) return;
+        setBackendRows(data.rows || []);
+        setBackendTotal(data.total || 0);
+        setBackendLoading(false);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setBackendLoading(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, [activeSlot?.id, kpiIds.join(','), investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity, JSON.stringify(investigatorState?.filters), splitBy, backendPage, pageSize]);
+
+  // Use backend data when available, fall back to tsData pivot
+  const useBackend = hasKpis && investigatorState && backendRows.length > 0;
 
   const tableData = useMemo(
     () => sanitizeTableData(tsData, activeSlot),
@@ -236,7 +324,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
   useEffect(() => {
     setCurrentPage(0);
-  }, [pageSize, tableData.length, activeSlot?.id]);
+    setBackendPage(1);
+  }, [pageSize, activeSlot?.id]);
 
   const sourceInfo = useMemo(() => {
     const kpis = [...new Set(tableData.map(d => cleanKpi(d.kpi)))];
@@ -247,47 +336,85 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     };
   }, [tableData, activeSlot]);
 
+  // Backend table mode: build rows/columns from backend response
+  const backendTableData = useMemo(() => {
+    if (!useBackend) return null;
+    const kpiCols = [...new Set(backendRows.map(r => r.kpi_key))];
+    const timestamps = [...new Set(backendRows.map(r => r.ts))].sort();
+    const splitValues = [...new Set(backendRows.map(r => r.split_value || r.site_name || ''))].sort();
+
+    const lookup = new Map<string, number>();
+    for (const r of backendRows) {
+      const key = `${r.ts}||${r.split_value || r.site_name || ''}||${r.kpi_key}`;
+      lookup.set(key, r.avg ?? r.value ?? null);
+    }
+
+    const rows: { timestamp: string; splitValue: string; site_name: string; dor: string; band: string; vendor: string; kpiValues: Record<string, number | null> }[] = [];
+    for (const ts of timestamps) {
+      for (const sv of splitValues) {
+        const kpiValues: Record<string, number | null> = {};
+        for (const kpi of kpiCols) {
+          kpiValues[kpi] = lookup.get(`${ts}||${sv}||${kpi}`) ?? null;
+        }
+        const sample = backendRows.find(r => r.ts === ts && (r.split_value || r.site_name || '') === sv);
+        rows.push({
+          timestamp: fmt(ts),
+          splitValue: sv || '—',
+          site_name: sample?.site_name || sv,
+          dor: sample?.dor || '',
+          band: sample?.band || '',
+          vendor: sample?.vendor || '',
+          kpiValues,
+        });
+      }
+    }
+    return { rows, kpiCols };
+  }, [useBackend, backendRows]);
+
+  // Fallback: client-side pivot from tsData
   const { rows, kpiColumns, hasSplitValues, scopeLabel, splitLabel } = useMemo(
     () => buildPivotTable(tableData, siteName, filterContext, forceSplitOff, activeSlot),
     [tableData, siteName, filterContext, forceSplitOff, activeSlot]
   );
 
+  // Choose data source
+  const displayRows = backendTableData?.rows || rows;
+  const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
+  const displayHasSplit = backendTableData ? true : hasSplitValues;
+
   // Per-KPI min/max for inline progress bars
   const kpiRanges = useMemo(() => {
     const ranges: Record<string, { min: number; max: number }> = {};
-    for (const kpi of kpiColumns) {
+    for (const kpi of displayKpiCols) {
       let min = Infinity, max = -Infinity;
-      for (const r of rows) {
+      for (const r of displayRows) {
         const v = r.kpiValues[kpi];
         if (v == null || !isFinite(v)) continue;
         if (v < min) min = v;
         if (v > max) max = v;
       }
-      ranges[kpi] = {
-        min: isFinite(min) ? min : 0,
-        max: isFinite(max) ? max : 0,
-      };
+      ranges[kpi] = { min: isFinite(min) ? min : 0, max: isFinite(max) ? max : 0 };
     }
     return ranges;
-  }, [rows, kpiColumns]);
+  }, [displayRows, displayKpiCols]);
 
-  const totalRows = rows.length;
+  const totalRows = useBackend ? backendTotal : displayRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-  const safePage = Math.min(currentPage, totalPages - 1);
-  const startIdx = safePage * pageSize;
-  const endIdx = Math.min(startIdx + pageSize, totalRows);
-  const pageRows = rows.slice(startIdx, endIdx);
+  const safePage = useBackend ? backendPage - 1 : Math.min(currentPage, totalPages - 1);
+  const startIdx = useBackend ? 0 : safePage * pageSize;
+  const endIdx = useBackend ? displayRows.length : Math.min(startIdx + pageSize, displayRows.length);
+  const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Timestamp', scopeLabel];
-    if (hasSplitValues) headerCols.push(splitLabel);
-    headerCols.push(...kpiColumns);
+    const headerCols = ['Timestamp', splitBy || 'Site'];
+    if (backendTableData) headerCols.push('DOR', 'Band', 'Vendor');
+    headerCols.push(...displayKpiCols);
     const header = headerCols.map(escapeCsv).join(',');
 
-    const csvRows = rows.map(r => {
-      const baseCols = [r.timestamp, r.ne];
-      if (hasSplitValues) baseCols.push(r.splitValue);
-      const kpiVals = kpiColumns.map(k => r.kpiValues[k] ?? '');
+    const csvRows = displayRows.map(r => {
+      const baseCols = [r.timestamp, (r as any).splitValue || (r as any).ne || ''];
+      if (backendTableData) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
+      const kpiVals = displayKpiCols.map(k => r.kpiValues[k] ?? '');
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
 
@@ -301,7 +428,17 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     URL.revokeObjectURL(url);
   };
 
-  if (tableData.length === 0) {
+  // Loading state
+  if (backendLoading && !useBackend) {
+    return (
+      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col items-center justify-center h-48 gap-2">
+        <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+        <p className="text-[11px] text-muted-foreground">Chargement des données...</p>
+      </div>
+    );
+  }
+
+  if (tableData.length === 0 && !useBackend && !backendLoading) {
     const hasNoKpis =
       (!activeSlot?.kpiIds || activeSlot.kpiIds.length === 0) &&
       (!(activeSlot as GraphSlot & { counterIds?: string[] })?.counterIds ||
@@ -365,8 +502,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           </span>
           <span className="w-px h-4 bg-[#E5E7EB]" />
           <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F8F9FA] text-muted-foreground font-medium">
-            {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasSplitValues ? splitLabel : 'NE'}
+            {displayKpiCols.length} KPI{displayKpiCols.length !== 1 ? 's' : ''} × {displayHasSplit ? (splitBy || 'Site') : 'NE'}
           </span>
+          {useBackend && (
+            <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
+              KPI Engine
+            </span>
+          )}
+          {backendLoading && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
         </div>
         <button
           onClick={exportCsv}
@@ -389,16 +532,24 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
               <th
                 className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
               >
-                {scopeLabel}
+                {useBackend ? (splitBy || 'Site') : scopeLabel}
               </th>
 
-              {hasSplitValues && (
+              {useBackend && (
+                <>
+                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">DOR</th>
+                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Band</th>
+                  <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Vendor</th>
+                </>
+              )}
+
+              {!useBackend && hasSplitValues && (
                 <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
                   {splitLabel}
                 </th>
               )}
 
-              {kpiColumns.map((kpi) => (
+              {displayKpiCols.map((kpi) => (
                 <th
                   key={kpi}
                   className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
@@ -427,13 +578,21 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     <span className="inline-flex items-center gap-2">
                       <span
                         className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: stableColorForSplit(row.ne) }}
+                        style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
                       />
-                      <span className="font-semibold text-foreground tracking-tight">{row.ne}</span>
+                      <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
                     </span>
                   </td>
 
-                  {hasSplitValues && (
+                  {useBackend && (
+                    <>
+                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).dor || '—'}</td>
+                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).band || '—'}</td>
+                      <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).vendor || '—'}</td>
+                    </>
+                  )}
+
+                  {!useBackend && hasSplitValues && (
                     <td className="py-3.5 px-6 whitespace-nowrap">
                       <span className="inline-flex items-center gap-2">
                         <span
@@ -445,7 +604,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     </td>
                   )}
 
-                  {kpiColumns.map((kpi) => {
+                  {displayKpiCols.map((kpi) => {
                     const val = row.kpiValues[kpi];
                     const range = kpiRanges[kpi];
                     let pct = 0;
@@ -532,14 +691,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           <button
             className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
-            onClick={() => setCurrentPage(0)}
+            onClick={() => { if (useBackend) setBackendPage(1); else setCurrentPage(0); }}
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
             className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
-            onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+            onClick={() => { if (useBackend) setBackendPage(p => Math.max(1, p - 1)); else setCurrentPage((p) => Math.max(0, p - 1)); }}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -555,7 +714,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
               return chips.map((p) => (
                 <button
                   key={p}
-                  onClick={() => setCurrentPage(p)}
+                  onClick={() => { if (useBackend) setBackendPage(p + 1); else setCurrentPage(p); }}
                   className={cn(
                     'min-w-[28px] h-7 px-2 rounded-md text-[11px] font-semibold transition-colors',
                     p === safePage ? 'text-white' : 'text-foreground hover:bg-[#F8F9FA]',
@@ -572,14 +731,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           <button
             className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
-            onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+            onClick={() => { if (useBackend) setBackendPage(p => Math.min(totalPages, p + 1)); else setCurrentPage((p) => Math.min(totalPages - 1, p + 1)); }}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
             className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
-            onClick={() => setCurrentPage(totalPages - 1)}
+            onClick={() => { if (useBackend) setBackendPage(totalPages); else setCurrentPage(totalPages - 1); }}
           >
             <ChevronsRight className="w-4 h-4" />
           </button>

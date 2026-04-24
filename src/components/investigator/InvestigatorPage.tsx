@@ -1274,6 +1274,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         (!activeTableSlot?.splitBy || activeTableSlot.splitBy === 'None') &&
                         !slotData.some((d: any) => d.networkElement || d.splitValue)
                       }
+                      investigatorState={state}
                     />
                   </>
                 );
