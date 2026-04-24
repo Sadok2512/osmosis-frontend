@@ -11126,7 +11126,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const cells = (site as any).cells || [];
                     for (const c of cells) {
                       const cellName = c.cell_id || c.cell_name || '';
-                      const v = getCellKpiValue(c);
+                      const v = getCellKpiValue(c, siteName);
                       const hasValue = v != null && !isNaN(v);
                       entries.push({
                         key: `c:${siteName}:${cellName}`,
