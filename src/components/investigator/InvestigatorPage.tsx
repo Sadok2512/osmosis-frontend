@@ -877,7 +877,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       )}
 
       {state.activeGraphTab === 'Neighbors' && (
-        <div className="rounded-xl border border-border/60 bg-card p-6">
+        <div className="rounded-2xl border border-slate-200/70 bg-white p-6" style={{ boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.08)' }}>
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg bg-cyan-500/10">
               <Activity className="w-5 h-5 text-cyan-500" />
