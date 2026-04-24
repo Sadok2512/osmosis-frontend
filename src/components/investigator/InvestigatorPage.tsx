@@ -226,6 +226,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
+  const [tableDataRefreshBySlot, setTableDataRefreshBySlot] = React.useState<Record<string, number>>({});
   const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
 
   // Escape key exits fullscreen
@@ -543,6 +544,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const currentTsData = current?.tsData ?? tsData;
       const otherData = currentTsData.filter((d: any) => d._slotId != null && (d._slotId !== targetSlot.id || d._isCounter));
       setTsData([...otherData, ...taggedData]);
+      setTableDataRefreshBySlot(prev => ({ ...prev, [targetSlot.id]: (prev[targetSlot.id] || 0) + 1 }));
+      setAnalysisTab('table_data');
+      setTableDataSlotId(targetSlot.id);
       setHasLoadedOnce(true);
 
       if (taggedData.length === 0 && counterPointCount === 0) {
