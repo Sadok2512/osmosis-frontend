@@ -8576,9 +8576,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // LOD filtering: at zoom ≤ 13 hide sites in very dense areas. At zoom 14+ all sites render.
           if (viewport.zoom <= 13 && densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
+          const siteHasRealCells = site.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells
             ? siteDetail.cells
-            : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+            : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
+          const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
