@@ -654,14 +654,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                 </th>
               ))}
 
-              {/* KPI columns — real KPI names */}
+              {/* Generic KPI columns: KPI1, KPI2, ... — full name on hover */}
               {kpiMapping.map(({ generic, real }) => (
                 <th
                   key={generic}
-                  className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
+                  className="text-right py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap cursor-help"
                   title={real}
                 >
-                  <span className="truncate max-w-[220px] inline-block align-middle">{real}</span>
+                  {generic}
                 </th>
               ))}
             </tr>
