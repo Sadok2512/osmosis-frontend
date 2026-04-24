@@ -5417,9 +5417,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return () => { cancelled = true; };
   }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
 
-  const getCellKpiValue = (cell: any): number => {
+  const getCellKpiValue = (cell: any, parentSiteName?: string): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
-    const siteName = cell.site_name || cell.site_id || '';
+    const siteName = parentSiteName || cell.site_name || cell.site_id || '';
     const bandName = cell.bande || cell.band || '';
 
     // Level-aware lookup priority
@@ -5438,8 +5438,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (fromKpi != null) return fromKpi;
 
     // Fallback: site-level average (always computed)
-    const fromSite = kpiValues.get(`site:${siteName}`);
-    if (fromSite != null) return fromSite;
+    if (siteName) {
+      const fromSite = kpiValues.get(`site:${siteName}`);
+      if (fromSite != null) return fromSite;
+    }
 
     return NaN;
   };
@@ -7987,7 +7989,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
-                const val = getCellKpiValue(cell);
+                const val = getCellKpiValue(cell, site.site_name || site.site_id);
                 const colorViewOverridePoint = getColorViewFill(site);
                 const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#27AE60') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3498DB') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12');
                 const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? techColor : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
@@ -8216,7 +8218,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const defaultTechColor = mapTechnoFilter === 'ALL'
                     ? techGroupColor
                     : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || techGroupColor) : techGroupColor);
-                  const kpiColor = getKpiColor(getCellKpiValue(cell));
+                  const kpiColor = getKpiColor(getCellKpiValue(cell, site.site_name || site.site_id));
                   const techColor = colorViewOverride || (sectorColorMode === 'kpi' ? kpiColor : defaultTechColor);
                   const techPane = tech === '5G' ? 'pane5G' : tech === '3G' ? 'pane3G' : tech === '2G' ? 'pane2G' : 'pane4G';
                   return (
@@ -11124,7 +11126,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const cells = (site as any).cells || [];
                     for (const c of cells) {
                       const cellName = c.cell_id || c.cell_name || '';
-                      const v = getCellKpiValue(c);
+                      const v = getCellKpiValue(c, siteName);
                       const hasValue = v != null && !isNaN(v);
                       entries.push({
                         key: `c:${siteName}:${cellName}`,
