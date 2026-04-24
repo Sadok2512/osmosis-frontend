@@ -481,7 +481,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
+    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.real)];
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = displayRows.map((r: any) => {
