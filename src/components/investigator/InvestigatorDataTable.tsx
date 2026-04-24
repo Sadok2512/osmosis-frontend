@@ -252,7 +252,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   // Fetch from KPI Engine /monitor/query/table when slot has KPIs and investigatorState is available
   const kpiIds = activeSlot?.kpiIds || [];
   const hasKpis = kpiIds.length > 0;
-  const splitBy = activeSlot?.splitBy && activeSlot.splitBy !== 'None' ? activeSlot.splitBy : 'SITE';
+  // Only send split_by when the user has explicitly chosen one on the slot.
+  // If forceSplitOff is true OR the slot's splitBy is 'None'/empty, omit it from the request.
+  const rawSplit = activeSlot?.splitBy;
+  const splitBy = !forceSplitOff && rawSplit && rawSplit !== 'None' ? rawSplit : null;
 
   useEffect(() => {
     if (!hasKpis || !investigatorState || !activeSlot) {
@@ -281,16 +284,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
     const filters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
 
-    const body = {
+    const body: Record<string, any> = {
       kpi_keys: kpiIds,
       filters,
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
-      split_by: splitBy,
       granularity: ctx.granularity,
       page: backendPage,
       page_size: pageSize,
     };
+    if (splitBy) body.split_by = splitBy;
 
     fetch(getApiUrl('monitor/query/table'), {
       method: 'POST',
