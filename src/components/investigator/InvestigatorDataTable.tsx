@@ -481,19 +481,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Timestamp', splitBy || 'Site'];
-    if (backendTableData) headerCols.push('DOR', 'Band', 'Vendor');
-    headerCols.push(...displayKpiCols);
+    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
     const header = headerCols.map(escapeCsv).join(',');
 
-    const csvRows = displayRows.map(r => {
-      const baseCols = [r.timestamp, (r as any).splitValue || (r as any).ne || ''];
-      if (backendTableData) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
-      const kpiVals = displayKpiCols.map(k => r.kpiValues[k] ?? '');
+    const csvRows = displayRows.map((r: any) => {
+      const baseCols = [r.timestamp, ...dimensionCols.map(d => d.get(r))];
+      const kpiVals = kpiMapping.map(({ real }) => {
+        const v = r.kpiValues[real];
+        return v == null ? '—' : v;
+      });
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
 
-    const csv = [header, ...csvRows].join('\n');
+    // Append KPI mapping legend at the end of the CSV for traceability
+    const mappingLines = ['', '# KPI Mapping', ...kpiMapping.map(k => `${k.generic},${escapeCsv(k.real)}`)];
+
+    const csv = [header, ...csvRows, ...mappingLines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
