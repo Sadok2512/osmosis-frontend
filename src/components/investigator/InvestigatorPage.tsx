@@ -1429,7 +1429,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
       {/* AI Panel */}
       {showAIPanel && (
-        <div className="w-[380px] shrink-0 border-l border-border h-full">
+        <div className="w-[380px] shrink-0 border-l border-slate-200/70 h-full bg-white">
           <InvestigatorAIPanel onClose={() => setShowAIPanel(false)} />
         </div>
       )}
