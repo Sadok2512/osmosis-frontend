@@ -63,7 +63,7 @@ const DateRangePopover: React.FC<Props> = ({ from, to, onChange, showTime = true
       <PopoverTrigger asChild>
         <div className="flex items-center gap-1.5 cursor-pointer">
           {/* Start pill */}
-          <div className="flex items-center h-9 rounded-full border border-outline-variant/30 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden hover:border-primary transition-colors">
+          <div className="flex items-center h-9 rounded-full border border-primary/40 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden hover:border-primary transition-colors">
             <button
               type="button"
               className={cn(
@@ -71,25 +71,25 @@ const DateRangePopover: React.FC<Props> = ({ from, to, onChange, showTime = true
                 !startDate && 'text-on-surface-variant',
               )}
             >
-              <CalendarIcon className="h-3.5 w-3.5 text-on-surface-variant" />
+              <CalendarIcon className="h-3.5 w-3.5 text-primary" />
               {startDate ? format(startDate, 'dd/MM/yyyy') : 'Début'}
             </button>
             {showTime && startDate && (
               <>
-                <div className="w-px h-4 bg-outline-variant/40" />
+                <div className="w-px h-5 bg-primary/30" />
                 <input
                   type="time"
                   value={startTime}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => handleStartTime(e.target.value)}
-                  className="h-full w-[68px] px-1.5 text-xs font-medium bg-transparent text-on-surface border-none outline-none focus:bg-surface-container-low/50 transition-colors"
+                  className="h-full w-[72px] px-2 text-xs font-bold bg-primary/5 text-primary border-none outline-none focus:bg-primary/10 transition-colors"
                 />
               </>
             )}
           </div>
           <span className="text-on-surface-variant/60 font-bold select-none">—</span>
           {/* End pill */}
-          <div className="flex items-center h-9 rounded-full border border-outline-variant/30 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden hover:border-primary transition-colors">
+          <div className="flex items-center h-9 rounded-full border border-primary/40 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden hover:border-primary transition-colors">
             <button
               type="button"
               className={cn(
@@ -97,18 +97,18 @@ const DateRangePopover: React.FC<Props> = ({ from, to, onChange, showTime = true
                 !endDate && 'text-on-surface-variant',
               )}
             >
-              <CalendarIcon className="h-3.5 w-3.5 text-on-surface-variant" />
+              <CalendarIcon className="h-3.5 w-3.5 text-primary" />
               {endDate ? format(endDate, 'dd/MM/yyyy') : 'Fin'}
             </button>
             {showTime && endDate && (
               <>
-                <div className="w-px h-4 bg-outline-variant/40" />
+                <div className="w-px h-5 bg-primary/30" />
                 <input
                   type="time"
                   value={endTime}
                   onClick={(e) => e.stopPropagation()}
                   onChange={(e) => handleEndTime(e.target.value)}
-                  className="h-full w-[68px] px-1.5 text-xs font-medium bg-transparent text-on-surface border-none outline-none focus:bg-surface-container-low/50 transition-colors"
+                  className="h-full w-[72px] px-2 text-xs font-bold bg-primary/5 text-primary border-none outline-none focus:bg-primary/10 transition-colors"
                 />
               </>
             )}

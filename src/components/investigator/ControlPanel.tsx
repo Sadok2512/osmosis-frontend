@@ -1497,7 +1497,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   {state.jalons.length > 0 && <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[9px] font-bold">{state.jalons.length}</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[320px] p-3" align="start">
+              <PopoverContent className="w-[420px] p-3" align="start">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Gestion des jalons</div>
                 <JalonsManagerPopup
                   jalons={state.jalons}
