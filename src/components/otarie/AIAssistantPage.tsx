@@ -1503,3 +1503,4 @@ const MarkdownBlock: React.FC<{ content: string }> = React.memo(({ content }) =>
 MarkdownBlock.displayName = 'MarkdownBlock';
 
 export default AIAssistantPage;
+// v1.8 redeploy 1777056207
