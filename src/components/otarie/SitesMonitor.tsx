@@ -4429,7 +4429,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     let cellsInside = 0;
     const siteIdsInside: string[] = [];
     const siteNamesInside: string[] = [];
-    for (const s of filteredSites) {
+    for (const s of filteredSitesRef.current) {
       const [lat, lng] = s.coordinates || [];
       if (lat == null || lng == null) continue;
       if (pointInPoly(lat, lng)) {
@@ -4441,7 +4441,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return { area, perimeter, fmtArea, fmtPerimeter, sitesInside, cellsInside, siteIdsInside, siteNamesInside };
-  }, [polygonClosed, polygonPoints, filteredSites]);
+  }, [polygonClosed, polygonPoints]);
 
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
