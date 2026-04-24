@@ -3443,7 +3443,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Live suggestions as user types (debounced)
+  // Live suggestions as user types (debounced) — VPS first, Supabase fallback
   React.useEffect(() => {
     if (!siteName || !search.trim() || search.trim().length < 1) {
       setSuggestions([]);
@@ -3453,17 +3453,34 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     const term = search.trim();
     const t = setTimeout(async () => {
       setSuggestionsLoading(true);
+      let names: string[] = [];
+      // 1) Try VPS parser endpoint first (live data)
       try {
-        const { data } = await supabase
-          .from('parameter_dump')
-          .select('parameter')
-          .ilike('site_name', siteName)
-          .ilike('parameter', `%${term}%`)
-          .limit(200);
-        const unique = [...new Set((data || []).map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
-        setSuggestions(unique.slice(0, 50));
-        setShowSuggestions(true);
-      } catch { setSuggestions([]); }
+        const resp = await fetch(
+          getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?search=${encodeURIComponent(term)}&limit=200`),
+          { headers: getVpsProxyHeaders() },
+        );
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data)) {
+            names = [...new Set(data.map((r: any) => r.parameter || r.param_name).filter(Boolean))] as string[];
+          }
+        }
+      } catch { /* ignore, fallback below */ }
+      // 2) Supabase fallback if VPS gave nothing
+      if (names.length === 0) {
+        try {
+          const { data } = await supabase
+            .from('parameter_dump')
+            .select('parameter')
+            .ilike('site_name', siteName)
+            .ilike('parameter', `%${term}%`)
+            .limit(200);
+          names = [...new Set((data || []).map((r: any) => r.parameter).filter(Boolean))] as string[];
+        } catch { /* ignore */ }
+      }
+      setSuggestions(names.sort().slice(0, 50));
+      setShowSuggestions(true);
       setSuggestionsLoading(false);
     }, 250);
     return () => clearTimeout(t);
