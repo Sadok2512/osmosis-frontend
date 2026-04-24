@@ -4,9 +4,9 @@
  * combined best-server RSRP map.
  */
 import React, { useState, useMemo, useCallback } from 'react';
-import { Radio, Loader2, Play, X, Layers } from 'lucide-react';
+import { Loader2, Play, X, Layers } from 'lucide-react';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams } from '@/services/propagationEngine';
-import type { SiteSummary } from '@/types';
+import type { SiteSummary, CellProperties } from '@/types';
 
 interface Props {
   sites: SiteSummary[];
@@ -26,7 +26,7 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
     const bandSet = new Map<string, number>();
     for (const site of sites) {
       for (const cell of (site.cells || [])) {
-        const band = cell.bande || cell.band || '';
+        const band = (cell as any).bande || (cell as any).band || '';
         if (band) bandSet.set(band, (bandSet.get(band) || 0) + 1);
       }
     }
@@ -38,10 +38,10 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
   // Get cells matching selected band
   const matchingCells = useMemo(() => {
     if (!selectedBand) return [];
-    const cells: { cell: any; site: SiteSummary }[] = [];
+    const cells: { cell: CellProperties; site: SiteSummary }[] = [];
     for (const site of sites) {
       for (const cell of (site.cells || [])) {
-        if ((cell.bande || cell.band) === selectedBand) {
+        if (((cell as any).bande || (cell as any).band) === selectedBand) {
           cells.push({ cell, site });
         }
       }
@@ -62,14 +62,20 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
       : firstTech.includes('2G') || firstTech.includes('GSM') ? '2G' : '4G';
     const defaults = getDefaultParams(techno as any, selectedBand!);
 
-    let mergedGrid: CoverageGrid | null = null;
+    const allPoints: CoverageGrid['points'] = [];
+    let mergedBounds: CoverageGrid['bounds'] | null = null;
+    let firstParams: SimulationParams | null = null;
+    let minRsrp = Infinity, maxRsrp = -Infinity, sumRsrp = 0, countRsrp = 0;
 
     // Process in batches to keep UI responsive
     for (let i = 0; i < matchingCells.length; i++) {
       const { cell, site } = matchingCells[i];
-      const lat = site.coordinates?.[0] ?? site.lat ?? 0;
-      const lng = site.coordinates?.[1] ?? site.lng ?? 0;
-      if (!lat || !lng) continue;
+      const lat = site.coordinates?.[0] ?? 0;
+      const lng = site.coordinates?.[1] ?? 0;
+      if (!lat || !lng) {
+        setProgress(i + 1);
+        continue;
+      }
 
       const pmax = (cell as any).pmax;
       const txPower = pmax ? Math.round(pmax / 10) : defaults.txPower ?? 43;
@@ -98,34 +104,27 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
 
       try {
         const grid = simulateCoverage(simParams);
+        if (!firstParams) firstParams = simParams;
 
-        if (!mergedGrid) {
-          mergedGrid = grid;
-        } else {
-          // Merge: take max RSRP at each pixel (best server)
-          const minLat = Math.min(mergedGrid.bounds.south, grid.bounds.south);
-          const maxLat = Math.max(mergedGrid.bounds.north, grid.bounds.north);
-          const minLng = Math.min(mergedGrid.bounds.west, grid.bounds.west);
-          const maxLng = Math.max(mergedGrid.bounds.east, grid.bounds.east);
-
-          // Simple merge: expand grid bounds and take max values
-          // For cells within existing grid, update with max
-          for (let r = 0; r < grid.data.length; r++) {
-            for (let c = 0; c < grid.data[r].length; c++) {
-              const val = grid.data[r][c];
-              if (val <= -200) continue; // No coverage
-              const ptLat = grid.bounds.south + (r / grid.data.length) * (grid.bounds.north - grid.bounds.south);
-              const ptLng = grid.bounds.west + (c / grid.data[r].length) * (grid.bounds.east - grid.bounds.west);
-              // Find corresponding row/col in merged grid
-              const mRow = Math.round((ptLat - mergedGrid.bounds.south) / (mergedGrid.bounds.north - mergedGrid.bounds.south) * (mergedGrid.data.length - 1));
-              const mCol = Math.round((ptLng - mergedGrid.bounds.west) / (mergedGrid.bounds.east - mergedGrid.bounds.west) * (mergedGrid.data[0].length - 1));
-              if (mRow >= 0 && mRow < mergedGrid.data.length && mCol >= 0 && mCol < mergedGrid.data[0].length) {
-                mergedGrid.data[mRow][mCol] = Math.max(mergedGrid.data[mRow][mCol], val);
-              }
-            }
+        // Merge points
+        for (const pt of grid.points) {
+          allPoints.push(pt);
+          if (pt.rsrp > -200) {
+            if (pt.rsrp < minRsrp) minRsrp = pt.rsrp;
+            if (pt.rsrp > maxRsrp) maxRsrp = pt.rsrp;
+            sumRsrp += pt.rsrp;
+            countRsrp++;
           }
-          // Expand bounds
-          mergedGrid.bounds = { south: minLat, north: maxLat, west: minLng, east: maxLng };
+        }
+
+        // Expand bounds
+        if (!mergedBounds) {
+          mergedBounds = { ...grid.bounds };
+        } else {
+          mergedBounds.minLat = Math.min(mergedBounds.minLat, grid.bounds.minLat);
+          mergedBounds.maxLat = Math.max(mergedBounds.maxLat, grid.bounds.maxLat);
+          mergedBounds.minLng = Math.min(mergedBounds.minLng, grid.bounds.minLng);
+          mergedBounds.maxLng = Math.max(mergedBounds.maxLng, grid.bounds.maxLng);
         }
       } catch { /* skip failed cell */ }
 
@@ -134,7 +133,18 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
       if (i % 5 === 0) await new Promise(r => setTimeout(r, 0));
     }
 
-    if (mergedGrid) {
+    if (mergedBounds && firstParams && allPoints.length > 0) {
+      const mergedGrid: CoverageGrid = {
+        points: allPoints,
+        bounds: mergedBounds,
+        params: firstParams,
+        stats: {
+          minRsrp: minRsrp === Infinity ? -200 : minRsrp,
+          maxRsrp: maxRsrp === -Infinity ? -200 : maxRsrp,
+          avgRsrp: countRsrp > 0 ? sumRsrp / countRsrp : -200,
+          pointCount: allPoints.length,
+        },
+      };
       onSimulate(mergedGrid);
     }
     setSimulating(false);
@@ -149,6 +159,9 @@ const BatchCoveragePanel: React.FC<Props> = ({ sites, onSimulate, onClear, isAct
 
       {/* Band selector */}
       <div className="flex flex-wrap gap-1">
+        {availableBands.length === 0 && (
+          <span className="text-[10px] text-muted-foreground italic">Aucune bande détectée dans la vue actuelle</span>
+        )}
         {availableBands.map(({ band, count }) => (
           <button
             key={band}
