@@ -1017,7 +1017,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           );
         }
 
-        if (wType === 'kpi_card') {
+        if (wType === 'table') {
           return (
             <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
               'rounded-2xl border bg-white p-5 relative cursor-pointer transition-all duration-300',
@@ -1026,47 +1026,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 : 'border-slate-200/70 hover:border-slate-300 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-6px_rgba(15,23,42,0.06)]'
             )}>
               <div className="flex items-center gap-2 mb-3 relative z-10">
-                <Activity className="w-3.5 h-3.5 text-emerald-500" />
+                <Hash className="w-3.5 h-3.5 text-amber-500" />
                 <span className="text-xs font-bold text-foreground">{slot.name}</span>
-                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500">KPI Card</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">Table</span>
                 <span className="ml-auto" />
-                <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"><Plus className="w-3.5 h-3.5" /></button>
-                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
-                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
-              </div>
-              <KpiCardWidget
-                kpiIds={kpiIds}
-                data={data.filter((d: any) => d._slotId === slot.id)}
-                allKpis={allKpis}
-              />
-            </div>
-          );
-        }
-
-
-
-        if (wType === 'neighbors') {
-          return (
-            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
-              'rounded-2xl border bg-white p-5 relative cursor-pointer transition-all duration-300',
-              isActive
-                ? 'border-[#14746C]/40 ring-2 ring-[#14746C]/15 shadow-[0_2px_4px_rgba(20,116,108,0.06),0_12px_28px_-12px_rgba(20,116,108,0.18)]'
-                : 'border-slate-200/70 hover:border-slate-300 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-6px_rgba(15,23,42,0.06)]'
-            )}>
-              <div className="flex items-center gap-2 mb-3 relative z-10">
-                <GitBranch className="w-3.5 h-3.5 text-cyan-500" />
-                <span className="text-xs font-bold text-foreground">{slot.name}</span>
-                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-500">Neighbors</span>
-                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter KPI"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
-                <div className="text-center space-y-2">
-                  <GitBranch className="w-10 h-10 text-cyan-500/30 mx-auto" />
-                  <p className="text-xs text-muted-foreground">Neighbors Flux — analyse des relations inter-cellules</p>
-                  <p className="text-[10px] text-muted-foreground/60">Sélectionnez une cellule dans le tableau Worst Elements</p>
-                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onActivateTab?.('table_data'); }}
+                  className="text-center space-y-2 group"
+                >
+                  <Hash className="w-10 h-10 text-amber-500/40 mx-auto group-hover:text-amber-500/70 transition-colors" />
+                  <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Voir les données tabulaires</p>
+                  <p className="text-[10px] text-muted-foreground/60">{kpiIds.length} KPI{kpiIds.length > 1 ? 's' : ''} sélectionné{kpiIds.length > 1 ? 's' : ''}</p>
+                </button>
               </div>
             </div>
           );
