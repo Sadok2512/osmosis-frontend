@@ -24,6 +24,7 @@ import MapViewManager, { MapViewSettings } from './MapViewManager';
 import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
+import CellRfCharts from './CellRfCharts';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
@@ -13950,6 +13951,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       </div>
                     </div>
 
+                    {/* RF Distribution Charts — RACH, PRB, Interference */}
+                    <CellRfCharts siteName={siteDetail.site_name} vendor={siteDetail.vendor} techno={cell.techno} />
 
                   </>
                 )}
