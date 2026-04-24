@@ -453,6 +453,12 @@ const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; 
   onDataZoomRef.current = onDataZoom;
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Persist user legend toggles across option rebuilds. Without this, every
+  // re-render (notMerge=true wipes state) brings hidden series back to life
+  // so the user feels the legend "doesn't disable anything".
+  const legendSelectedRef = React.useRef<Record<string, boolean>>({});
+  const [legendVersion, setLegendVersion] = React.useState(0);
+
   const onEvents = React.useMemo(() => ({
     datazoom: (params: any) => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -465,13 +471,46 @@ const SlotChart = React.forwardRef<ReactECharts, { option: any; height: number; 
         }
       }, 300);
     },
+    legendselectchanged: (params: any) => {
+      // ECharts emits the FULL selected map on every toggle.
+      legendSelectedRef.current = { ...(params?.selected || {}) };
+      // Force a re-render so the merged option below picks up the new state.
+      setLegendVersion((v) => v + 1);
+    },
   }), []);
+
+  // Merge persisted legend selection into the incoming option. We only keep
+  // entries for series that still exist in the current option to avoid
+  // resurrecting stale toggles for removed KPIs.
+  const mergedOption = React.useMemo(() => {
+    const seriesNames: string[] = Array.isArray(option?.series)
+      ? option.series.map((s: any) => s?.name).filter((n: any) => typeof n === 'string')
+      : [];
+    if (seriesNames.length === 0) return option;
+    const persisted = legendSelectedRef.current;
+    const filtered: Record<string, boolean> = {};
+    for (const name of seriesNames) {
+      if (Object.prototype.hasOwnProperty.call(persisted, name)) {
+        filtered[name] = persisted[name];
+      }
+    }
+    if (Object.keys(filtered).length === 0) return option;
+    return {
+      ...option,
+      legend: Array.isArray(option?.legend)
+        ? option.legend.map((l: any) => ({ ...l, selected: { ...(l?.selected || {}), ...filtered } }))
+        : { ...(option?.legend || {}), selected: { ...(option?.legend?.selected || {}), ...filtered } },
+    };
+    // legendVersion is intentionally part of the dependency list so a toggle
+    // re-runs the merge even when the parent didn't rebuild `option`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [option, legendVersion]);
 
   return (
     <div style={{ height, position: 'relative' }} onMouseDown={e => e.stopPropagation()} onClick={() => onChartClick?.()}>
       <ReactECharts
         ref={ref}
-        option={option}
+        option={mergedOption}
         notMerge={true}
         lazyUpdate={false}
         onEvents={onEvents}
