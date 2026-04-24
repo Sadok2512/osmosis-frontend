@@ -392,6 +392,8 @@ function makeSlotColorAllocator() {
   // Precision Architect ordered defaults: 1st = green, 2nd = orange, 3rd = red
   const ORDERED_DEFAULTS = ['#14746C', '#F59E0B', '#EF4444'];
   let kpiOrder = 0;
+  let splitOrder = 0;
+  let counterOrder = 0;
 
   const pick = (key: string, preferred: string): string => {
     if (assigned.has(key)) return assigned.get(key)!;
@@ -420,10 +422,28 @@ function makeSlotColorAllocator() {
       kpiOrder += 1;
       return pick(cacheKey, preferred);
     },
-    forSplit: (splitValue: string, kpiId?: string) =>
-      pick(`split:${kpiId || ''}:${splitValue}`, stableColorForSplit(splitValue, kpiId)),
-    forCounter: (counterName: string) =>
-      pick(`ctr:${counterName}`, stableColorForCounter(counterName)),
+    forSplit: (splitValue: string, kpiId?: string) => {
+      const cacheKey = `split:${kpiId || ''}:${splitValue}`;
+      if (assigned.has(cacheKey)) return assigned.get(cacheKey)!;
+      // Split values (e.g. NANTES, RENNES, Plaque values) follow the PA ordered
+      // palette in order of appearance: green → orange → red, then the rest of
+      // the diverse palette. This avoids the random blue/pink default users
+      // were seeing for the first two split groups.
+      const preferred = splitOrder < ORDERED_DEFAULTS.length
+        ? ORDERED_DEFAULTS[splitOrder]
+        : stableColorForSplit(splitValue, kpiId);
+      splitOrder += 1;
+      return pick(cacheKey, preferred);
+    },
+    forCounter: (counterName: string) => {
+      const cacheKey = `ctr:${counterName}`;
+      if (assigned.has(cacheKey)) return assigned.get(cacheKey)!;
+      const preferred = counterOrder < ORDERED_DEFAULTS.length
+        ? ORDERED_DEFAULTS[counterOrder]
+        : stableColorForCounter(counterName);
+      counterOrder += 1;
+      return pick(cacheKey, preferred);
+    },
   };
 }
 
