@@ -14,7 +14,7 @@ export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'C
 export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
 
 export type ChartType = 'line' | 'line_straight' | 'line_points' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
-export type WidgetType = 'timeseries' | 'histogram' | 'kpi_card' | 'neighbors';
+export type WidgetType = 'timeseries' | 'histogram' | 'table';
 
 export interface YAxisConfig {
   mode: 'auto' | 'manual';
