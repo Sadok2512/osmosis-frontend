@@ -226,6 +226,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [isGraphFullscreen, setIsGraphFullscreen] = React.useState(false);
   const analysisTabs = useAnalysisTabs();
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
+  const [tableDataRefreshBySlot, setTableDataRefreshBySlot] = React.useState<Record<string, number>>({});
   const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
 
   // Escape key exits fullscreen
@@ -543,6 +544,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const currentTsData = current?.tsData ?? tsData;
       const otherData = currentTsData.filter((d: any) => d._slotId != null && (d._slotId !== targetSlot.id || d._isCounter));
       setTsData([...otherData, ...taggedData]);
+      setTableDataRefreshBySlot(prev => ({ ...prev, [targetSlot.id]: (prev[targetSlot.id] || 0) + 1 }));
+      setAnalysisTab('table_data');
+      setTableDataSlotId(targetSlot.id);
       setHasLoadedOnce(true);
 
       if (taggedData.length === 0 && counterPointCount === 0) {
@@ -1089,21 +1093,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                           style={isActive && enabled ? { color: tab.color } : undefined}
                         />
                         <span className={cn(!enabled && 'opacity-70')}>{tab.label}</span>
-                        {!enabled && (
+                        {tab.key === 'table_data' && enabled ? (
+                          <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-primary/10 text-primary border border-primary/25 uppercase tracking-wider">
+                            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                            Actif
+                          </span>
+                        ) : !enabled && (
                           <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-400 uppercase tracking-wider">
                             off
-                          </span>
-                        )}
-                        {enabled && tab.key === 'table_data' && (
-                          <span
-                            className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border"
-                            style={{
-                              color: tab.color,
-                              borderColor: `${tab.color}40`,
-                              background: `${tab.color}14`,
-                            }}
-                          >
-                            Actif
                           </span>
                         )}
                         {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
@@ -1286,6 +1283,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         (!activeTableSlot?.splitBy || activeTableSlot.splitBy === 'None') &&
                         !slotData.some((d: any) => d.networkElement || d.splitValue)
                       }
+                      backendRefreshKey={activeTableSlot ? (tableDataRefreshBySlot[activeTableSlot.id] || 0) : 0}
                       investigatorState={state}
                     />
                   </>
