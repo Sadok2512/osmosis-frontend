@@ -3815,6 +3815,9 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                                 }} />
                               ) : r.parameter}
                             </td>
+                            <td className="px-2 py-1 font-mono text-[9px] text-muted-foreground truncate max-w-[150px]" title={r.dn || r.moPath || '—'}>
+                              {r.moPath || '—'}
+                            </td>
                             <td className="px-2 py-1 text-muted-foreground truncate max-w-[80px]" title={r.cell || '—'}>
                               {r.cell || '—'}
                               {r.bande && <span className="ml-1 text-[8px] text-muted-foreground/60">({r.bande})</span>}
