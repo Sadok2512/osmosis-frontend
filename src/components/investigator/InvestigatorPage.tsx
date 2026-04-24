@@ -1055,7 +1055,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   )}
                   {activeSlot && allTabs.map((tab) => {
                     const cfgKey = configKeyMap[tab.key];
-                    const enabled = cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true;
+                    // Neighbors explorer is always available (not per-graph toggle)
+                    const enabled = tab.key === 'neighbors' ? true : (cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true);
                     const isActive = analysisTab === tab.key;
                     return (
                       <button
@@ -1389,9 +1390,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             </div>
 
             {/* Neighbors — only mount when the tab is actually active */}
-            {analysisTab === 'neighbors' && (
-              <NeighborExplorer />
-            )}
+            {analysisTab === 'neighbors' && <NeighborExplorer />}
 
             {/* CM History — only mount when the tab is actually active */}
             {analysisTab === 'cm_history' && (() => {
