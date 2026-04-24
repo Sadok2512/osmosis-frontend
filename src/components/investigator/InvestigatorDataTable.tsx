@@ -257,6 +257,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const rawSplit = activeSlot?.splitBy;
   const splitBy = !forceSplitOff && rawSplit && rawSplit !== 'None' ? rawSplit : null;
 
+  // Stabilize deps so the effect does not re-fire (and abort itself) on every render
+  const kpiIdsKey = kpiIds.join(',');
+  const filtersKey = useMemo(
+    () => JSON.stringify(investigatorState?.filters ?? []),
+    [investigatorState?.filters]
+  );
+
   useEffect(() => {
     if (!hasKpis || !investigatorState || !activeSlot) {
       setBackendRows([]);
@@ -264,6 +271,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       return;
     }
 
+    // Abort any in-flight request before starting a new one
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -303,19 +311,24 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     })
       .then(r => r.ok ? r.json() : { rows: [], total: 0 })
       .then(data => {
-        if (controller.signal.aborted) return;
-        setBackendRows(data.rows || []);
-        setBackendTotal(data.total || 0);
+        // Only commit results if THIS controller is still the active one
+        if (abortRef.current !== controller) return;
+        setBackendRows(Array.isArray(data?.rows) ? data.rows : []);
+        setBackendTotal(typeof data?.total === 'number' ? data.total : (data?.rows?.length ?? 0));
         setBackendLoading(false);
       })
-      .catch(() => {
-        if (!controller.signal.aborted) {
+      .catch((err) => {
+        // Silently ignore aborts; only clear loading on real errors
+        if (err?.name === 'AbortError') return;
+        if (abortRef.current === controller) {
           setBackendLoading(false);
         }
       });
 
-    return () => controller.abort();
-  }, [activeSlot?.id, kpiIds.join(','), investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity, JSON.stringify(investigatorState?.filters), splitBy, backendPage, pageSize]);
+    // Do NOT abort on cleanup — let the request finish so React StrictMode
+    // double-mount or fast re-renders don't cancel a perfectly valid query.
+    // The next effect run will abort via abortRef.current.abort() above.
+  }, [activeSlot?.id, kpiIdsKey, investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity, filtersKey, splitBy, backendPage, pageSize]);
 
   // Use backend data when available, fall back to tsData pivot
   const useBackend = hasKpis && investigatorState && backendRows.length > 0;
