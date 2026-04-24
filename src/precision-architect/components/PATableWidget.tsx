@@ -59,14 +59,14 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   // (no override), we look at the global toolbar filters; otherwise we look at
   // the widget's own filters. Either source must contain at least one
   // perimeter dimension (Cluster / Site / Vendor / DOR / Bande).
-  const effectiveFilters = inheritsScope ? gFilters : (cfg?.data.filters ?? []);
+  const effectiveFilters = inheritsScope ? gFilters : (cfg?.data?.filters ?? []);
   const PERIMETER_DIMS = new Set(['CLUSTER', 'PLAQUE', 'SITE', 'VENDOR', 'DOR', 'BAND',
     'Cluster', 'Plaque', 'Site', 'Vendor', 'DOR', 'Bande']);
   const hasPerimeterFilter = effectiveFilters.some(
     f => PERIMETER_DIMS.has(f.dimension) || PERIMETER_DIMS.has(toBackendDimension(f.dimension))
   );
-  const effectiveFrom = inheritsTime ? gFrom : (cfg?.data.timeRange.from ?? '');
-  const effectiveTo = inheritsTime ? gTo : (cfg?.data.timeRange.to ?? '');
+  const effectiveFrom = inheritsTime ? gFrom : (cfg?.data?.timeRange?.from ?? '');
+  const effectiveTo = inheritsTime ? gTo : (cfg?.data?.timeRange?.to ?? '');
   const hasDateRange = !!effectiveFrom && !!effectiveTo;
   const missingRequirements = !hasPerimeterFilter || !hasDateRange;
 
