@@ -3786,14 +3786,18 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                     <React.Fragment key={mo}>
                       {/* MO group header */}
                       <tr
-                        className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50"
+                        className="bg-primary/5 hover:bg-primary/10 cursor-pointer transition-colors border-t border-border"
                         onClick={() => toggleMO(mo)}
                       >
-                        <td colSpan={6} className="px-2 py-1.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            {isCollapsed ? <ChevronRight className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-primary" />}
-                            <span className="font-black text-foreground text-[10px]">{mo}</span>
-                            <span className="text-[9px] text-muted-foreground font-mono ml-1">({rows.length})</span>
+                        <td colSpan={6} className="px-3 py-2">
+                          <span className="inline-flex items-center gap-2">
+                            {isCollapsed ? <ChevronRight className="w-3.5 h-3.5 text-primary" /> : <ChevronDown className="w-3.5 h-3.5 text-primary" />}
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/15 text-primary font-bold text-[11px] tracking-wide uppercase">
+                              {mo}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground font-mono">
+                              {rows.length} param{rows.length > 1 ? 's' : ''}
+                            </span>
                           </span>
                         </td>
                       </tr>
@@ -3802,40 +3806,54 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                         const isZero = r.value === '0' || r.value === '0.0';
                         const isNumeric = r.value && !isNaN(Number(r.value));
                         const numVal = isNumeric ? Number(r.value) : null;
+                        const paramParts = (r.parameter || '').split('.');
+                        const paramLeaf = paramParts.length > 1 ? paramParts[paramParts.length - 1] : r.parameter;
+                        const paramMo = paramParts.length > 1 ? paramParts.slice(0, -1).join('.') : '';
                         return (
-                          <tr key={i} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/10'} hover:bg-accent/20 transition-colors`}>
-                            <td className="px-2 py-1 text-muted-foreground/30 font-mono">│</td>
-                            <td className="px-2 py-1 font-mono text-foreground/90 truncate max-w-[180px]" title={r.parameter}>
+                          <tr key={i} className={`${i % 2 === 0 ? 'bg-background' : 'bg-muted/20'} hover:bg-accent/30 transition-colors border-b border-border/30`}>
+                            <td className="px-3 py-1.5">
+                              {paramMo ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-secondary text-secondary-foreground font-semibold text-[10px] font-mono">
+                                  {paramMo}
+                                </span>
+                              ) : <span className="text-muted-foreground/40">—</span>}
+                            </td>
+                            <td className="px-3 py-1.5 font-mono text-foreground font-medium" title={r.parameter}>
                               {tableFilter ? (
                                 <span dangerouslySetInnerHTML={{
-                                  __html: r.parameter.replace(
+                                  __html: paramLeaf.replace(
                                     new RegExp(`(${tableFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
                                     '<mark class="bg-yellow-400/40 text-foreground rounded px-0.5">$1</mark>'
                                   )
                                 }} />
-                              ) : r.parameter}
+                              ) : paramLeaf}
                             </td>
-                            <td className="px-2 py-1 font-mono text-[9px] text-muted-foreground truncate max-w-[150px]" title={r.dn || r.moPath || '—'}>
-                              {r.moPath || '—'}
+                            <td className="px-3 py-1.5">
+                              <span
+                                className="inline-block font-mono text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted/50 px-1.5 py-0.5 rounded transition-colors cursor-help break-all"
+                                title={r.dn || r.moPath || '—'}
+                              >
+                                {r.moPath || '—'}
+                              </span>
                             </td>
-                            <td className="px-2 py-1 text-muted-foreground truncate max-w-[80px]" title={r.cell || '—'}>
+                            <td className="px-3 py-1.5 text-foreground/80 font-mono text-[11px]" title={r.cell || '—'}>
                               {r.cell || '—'}
-                              {r.bande && <span className="ml-1 text-[8px] text-muted-foreground/60">({r.bande})</span>}
+                              {r.bande && <span className="ml-1 text-[10px] text-muted-foreground/70">({r.bande})</span>}
                             </td>
-                            <td className={`px-2 py-1 text-right font-mono font-semibold ${
-                              isZero ? 'text-muted-foreground/40' :
+                            <td className={`px-3 py-1.5 text-right font-mono font-bold text-[12px] ${
+                              isZero ? 'text-muted-foreground/50' :
                               numVal !== null && numVal > 100 ? 'text-primary' :
                               'text-foreground'
                             }`}>
                               {r.value || '—'}
                             </td>
-                            <td className="px-1 py-1">
+                            <td className="px-1 py-1.5">
                               <button
                                 onClick={(e) => { e.stopPropagation(); copyValue(r.value || ''); }}
-                                className="p-0.5 rounded hover:bg-muted text-muted-foreground/40 hover:text-foreground transition-colors"
+                                className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground transition-colors"
                                 title="Copy value"
                               >
-                                <Copy className="w-2.5 h-2.5" />
+                                <Copy className="w-3 h-3" />
                               </button>
                             </td>
                           </tr>
