@@ -7886,13 +7886,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const rad = ((cell.azimut || idx * 120) - 90) * (Math.PI / 180);
                 const cellLat = site.coordinates[0] + offsetDist * Math.cos(rad);
                 const cellLng = site.coordinates[1] + offsetDist * Math.sin(rad);
-                const cellIs5G = (cell.techno || '').toUpperCase().includes('5G');
+                const cellTechGroup = getCellTechGroup(cell.techno);
+                const cellPane = cellTechGroup === '5G' ? 'pane5G' : cellTechGroup === '3G' ? 'pane3G' : cellTechGroup === '2G' ? 'pane2G' : 'pane4G';
                 return (
                   <CircleMarker
                     key={cell.cell_id}
                     center={[cellLat, cellLng]}
                     radius={isHovered ? 9 : showCellLabels ? 7 : 5}
-                    pane={cellIs5G ? 'pane5G' : 'pane4G'}
+                    pane={cellPane}
                     pathOptions={{
                       color: isHovered ? '#fff' : 'transparent',
                       fillColor: color,
@@ -8098,16 +8099,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               <React.Fragment key={site.site_id}>
                 {miniItems.map(({ tech, az, r, bandKey, cell }) => {
                   const sectorCoords = getSectorCoords(site.coordinates, az, r, 60);
+                  const techGroupColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60')
+                    : tech === '3G' ? (bandColors['3G_GROUP'] || '#3498DB')
+                    : tech === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD')
+                    : (bandColors['4G_GROUP'] || '#F39C12');
                   const defaultTechColor = mapTechnoFilter === 'ALL'
-                    ? (tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : (bandColors['4G_GROUP'] || '#F39C12'))
-                    : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || (tech === '5G' ? '#27AE60' : '#F39C12')) : (tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : (bandColors['4G_GROUP'] || '#F39C12')));
+                    ? techGroupColor
+                    : (bandKey ? (bandColors[bandKey] || DEFAULT_BAND_COLORS[bandKey] || techGroupColor) : techGroupColor);
                   const kpiColor = getKpiColor(getCellKpiValue(cell));
                   const techColor = colorViewOverride || (sectorColorMode === 'kpi' ? kpiColor : defaultTechColor);
+                  const techPane = tech === '5G' ? 'pane5G' : tech === '3G' ? 'pane3G' : tech === '2G' ? 'pane2G' : 'pane4G';
                   return (
                     <Polygon
                       key={`${site.site_id}_mini_${tech}_${bandKey || 'unk'}_${az}`}
                       positions={sectorCoords}
-                      pane={tech === '5G' ? 'pane5G' : 'pane4G'}
+                      pane={techPane}
                       pathOptions={{
                         color: isHovered ? '#fff' : deriveStrokeColor(techColor),
                         fillColor: techColor,
@@ -8628,8 +8634,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             return (
               <React.Fragment key={site.site_id}>
                 {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {
-                  // In ALL mode: use only tech group colors (2 colors total), not per-band colors
-                  const topoColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : (bandColors['4G_GROUP'] || '#F39C12');
+                  // Use correct tech group color for all technologies
+                  const topoColor = tech === '5G' ? (bandColors['5G_GROUP'] || '#27AE60')
+                    : tech === '3G' ? (bandColors['3G_GROUP'] || '#3498DB')
+                    : tech === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD')
+                    : (bandColors['4G_GROUP'] || '#F39C12');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     kpiColor = getKpiColor(getCellKpiValue(cell));
@@ -8638,11 +8647,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
                   const strokeColor = isFocusFaded ? '#cbd5e1' : deriveStrokeColor(fillColor);
                   const sectorCoords = getSectorCoords(site.coordinates, az, radius, 60);
+                  const techPane = tech === '5G' ? 'pane5G' : tech === '3G' ? 'pane3G' : tech === '2G' ? 'pane2G' : 'pane4G';
                   return (
                     <Polygon
                       key={`${site.site_id}_${tech}_${bandKey || 'unk'}_${az}`}
                       positions={sectorCoords}
-                      pane={tech === '5G' ? 'pane5G' : 'pane4G'}
+                      pane={techPane}
                       pathOptions={{
                         color: isHovered ? '#fff' : strokeColor,
                         fillColor,
