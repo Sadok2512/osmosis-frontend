@@ -10787,6 +10787,78 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     ))}
                   </div>
                 </div>
+                {/* UMTS group */}
+                <div className="px-4 py-3 border-t border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('UMTS')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['3G_GROUP'] || '#3498DB' }}>
+                        3G UMTS
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(['UMTS2100', 'UMTS900'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {/* GSM group */}
+                <div className="px-4 py-3 border-t border-border/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleAllBands('GSM')} className="text-[9px] font-black uppercase tracking-widest hover:underline" style={{ color: bandColors['2G_GROUP'] || '#8E44AD' }}>
+                        2G GSM
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(['GSM1800', 'GSM900'] as const).map(band => (
+                      <div key={band} className="flex items-center gap-2.5 w-full group">
+                        <button
+                          onClick={() => toggleBand(band)}
+                          className={`w-4 h-4 rounded border-2 transition-all flex items-center justify-center shrink-0 ${
+                            enabledBands.has(band) ? 'border-transparent' : 'border-muted-foreground/30 bg-transparent'
+                          }`}
+                          style={{ background: enabledBands.has(band) ? bandColors[band] : 'transparent' }}
+                        >
+                          {enabledBands.has(band) && <span className="text-white text-[8px] font-black">✓</span>}
+                        </button>
+                        <span className={`text-[11px] font-bold transition-all flex-1 cursor-pointer ${
+                          enabledBands.has(band) ? 'text-foreground' : 'text-muted-foreground line-through'
+                        }`} onClick={() => toggleBand(band)}>{band}</span>
+                        <label className="w-5 h-5 rounded-full border border-border/50 cursor-pointer overflow-hidden shrink-0 hover:ring-2 hover:ring-primary/30 transition-all" style={{ background: bandColors[band] }} title="Change color">
+                          <input
+                            type="color"
+                            value={bandColors[band]}
+                            onChange={(e) => updateBandColor(band, e.target.value)}
+                            className="opacity-0 w-0 h-0 absolute"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                   </>
                 )}
               </div>
