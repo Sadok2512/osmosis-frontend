@@ -1041,7 +1041,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: '#14746C' },
               { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: '#F59E0B' },
               { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: '#EF4444' },
-              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: '#14746C' },
+              // Neighbors moved to Network Explorer
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
             ];
 
@@ -1390,7 +1390,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             </div>
 
             {/* Neighbors — only mount when the tab is actually active */}
-            {analysisTab === 'neighbors' && <NeighborExplorer />}
+            {/* Neighbors moved to Network Explorer */}
 
             {/* CM History — only mount when the tab is actually active */}
             {analysisTab === 'cm_history' && (() => {
