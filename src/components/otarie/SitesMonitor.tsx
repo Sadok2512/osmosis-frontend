@@ -3520,7 +3520,17 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   }, [siteName, searchedParam]);
 
   const doSearch = () => {
-    if (search.trim()) setSearchedParam(search.trim());
+    const target = selectedParam || search.trim();
+    if (target) {
+      setSearchedParam(target);
+      setShowSuggestions(false);
+    }
+  };
+
+  const pickSuggestion = (p: string) => {
+    setSelectedParam(p);
+    setSearch(p);
+    setShowSuggestions(false);
   };
 
   // Group results by MO (extract from DN or parameter prefix)
