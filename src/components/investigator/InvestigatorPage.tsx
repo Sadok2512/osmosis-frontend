@@ -1140,11 +1140,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               : Boolean((activeSlot.config || DEFAULT_GRAPH_CONFIG)[flag]);
             if (enabled) return null;
             return (
-              <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 px-4 py-8 text-center animate-in fade-in duration-200">
-                <p className="text-[11px] font-semibold text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 px-4 py-10 text-center animate-in fade-in duration-200">
+                <p className="text-[11px] font-semibold text-slate-500">
                   Cette section est désactivée pour ce graphe.
                 </p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                <p className="text-[10px] text-slate-400 mt-1">
                   Activez-la dans les réglages du graphe (icône ⚙️) pour voir les données.
                 </p>
               </div>
