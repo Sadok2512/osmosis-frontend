@@ -8866,8 +8866,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
                     const cellKpiValue = getCellKpiValue(cell, site.site_name || site.site_id);
-                    const fallbackSiteKpiValue = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
-                    kpiColor = getKpiColor(isSyntheticOnlySite && Number.isNaN(cellKpiValue) ? fallbackSiteKpiValue : cellKpiValue);
+                    kpiColor = getKpiColor(cellKpiValue);
                   }
                   const colorViewOverrideSector = getColorViewFill(site);
                   const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
@@ -8999,9 +8998,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const isFaded = false; // cells already filtered by tech above
                 const colorViewOverrideCell = getColorViewFill(site);
                 const cellKpiValue = getCellKpiValue(cell, site.site_name || site.site_id);
-                const fallbackSiteKpiValue = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
-                const effectiveKpiValue = isSyntheticOnlySite && Number.isNaN(cellKpiValue) ? fallbackSiteKpiValue : cellKpiValue;
-                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(effectiveKpiValue)));
+                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(cellKpiValue)));
                 const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' && !colorViewOverrideCell ? getBandStrokeColor(cell.bande, cell.techno) : deriveStrokeColor(fillColor));
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
