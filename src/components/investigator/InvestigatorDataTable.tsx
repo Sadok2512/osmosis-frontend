@@ -366,7 +366,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     if (!useBackend) return null;
     const kpiCols = [...new Set(backendRows.map(r => r.kpi_key))];
     const timestamps = [...new Set(backendRows.map(r => r.ts))].sort();
-    const splitValues = [...new Set(backendRows.map(r => r.split_value || r.site_name || ''))].sort();
+    // Sanitize split_value: drop ISO-timestamp values that some backends echo when no split is set
+    const isIsoTs = (v: string) => /^\d{4}-\d{2}-\d{2}T/.test(v);
+    const cleanSplit = (r: any) => {
+      const raw = r.split_value || r.site_name || '';
+      if (!raw || isIsoTs(String(raw))) return '';
+      return String(raw);
+    };
+    const splitValues = splitBy
+      ? [...new Set(backendRows.map(cleanSplit))].sort()
+      : [''];
 
     const lookup = new Map<string, number>();
     for (const r of backendRows) {
