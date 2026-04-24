@@ -418,6 +418,45 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
   const displayHasSplit = backendTableData ? true : hasSplitValues;
 
+  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> real name
+  const kpiMapping = useMemo(
+    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real })),
+    [displayKpiCols],
+  );
+
+  // Build the dynamic ordered dimension columns:
+  // [Time?] + [Dimension1, Dimension2, ...] + [KPI1..KPIN]
+  // Time is always present here (rows are timestamped).
+  // Dimensions order:
+  //   - Backend mode: splitBy (if any) -> DOR -> Band -> Vendor (only if any row has a value)
+  //   - Client mode: scopeLabel + (split column if hasSplitValues)
+  type DimCol = { key: string; label: string; get: (row: any) => string };
+  const dimensionCols: DimCol[] = useMemo(() => {
+    const cols: DimCol[] = [];
+    if (useBackend) {
+      if (splitBy) {
+        cols.push({
+          key: 'split',
+          label: normalizeScopeLabel(splitBy),
+          get: (r) => r.splitValue || '—',
+        });
+      }
+      const hasAny = (k: 'dor' | 'band' | 'vendor') =>
+        displayRows.some((r: any) => r[k] && String(r[k]).trim() !== '');
+      if (hasAny('dor')) cols.push({ key: 'dor', label: 'DOR', get: (r) => r.dor || '—' });
+      if (hasAny('band')) cols.push({ key: 'band', label: 'Band', get: (r) => r.band || '—' });
+      if (hasAny('vendor')) cols.push({ key: 'vendor', label: 'Vendor', get: (r) => r.vendor || '—' });
+      // If no dimension was requested at all, omit dimensions entirely (0..N rule).
+    } else {
+      // Client-side fallback
+      cols.push({ key: 'ne', label: scopeLabel, get: (r) => r.ne || '—' });
+      if (hasSplitValues) {
+        cols.push({ key: 'splitValue', label: splitLabel, get: (r) => r.splitValue || '—' });
+      }
+    }
+    return cols;
+  }, [useBackend, splitBy, displayRows, scopeLabel, hasSplitValues, splitLabel]);
+
   // Per-KPI min/max for inline progress bars
   const kpiRanges = useMemo(() => {
     const ranges: Record<string, { min: number; max: number }> = {};
