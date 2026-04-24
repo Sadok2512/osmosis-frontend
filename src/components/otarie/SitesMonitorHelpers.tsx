@@ -94,75 +94,40 @@ export const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverag
 
   return (
     <div className="px-4 py-3 space-y-3">
-      {siteDetail.cells.length > 1 && (
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider mb-1 block">Cellule</label>
-          <div className="flex flex-wrap gap-1">
-            {siteDetail.cells.map((c: any, idx: number) => (
-              <button
-                key={c.cell_id}
-                onClick={() => { setSelectedCellIdx(idx); setParams({}); }}
-                className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all ${
-                  idx === selectedCellIdx
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {c.bande} {c.azimut}°
-              </button>
-            ))}
+      {/* Cell info header */}
+      <div className="rounded-xl bg-muted/30 border border-border/50 p-3">
+        <div className="text-[10px] font-bold text-foreground uppercase tracking-wider truncate">{activeCell.cell_id}</div>
+        <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground">
+          <span className="px-1.5 py-0.5 rounded text-white text-[8px] font-bold" style={{ backgroundColor: techno === '5G' ? '#27AE60' : techno === '3G' ? '#3498DB' : techno === '2G' ? '#8E44AD' : '#F39C12' }}>{techno}</span>
+          <span className="font-semibold">{activeCell.bande}</span>
+          <span>•</span>
+          <span>Az {merged.azimuth}°</span>
+        </div>
+      </div>
+
+      {/* Fixed parameters — read-only from cell config */}
+      <div className="rounded-xl border border-border/50 overflow-hidden">
+        {[
+          { label: 'Fréquence', value: `${merged.frequency} MHz`, icon: '📡' },
+          { label: `Puissance TX (${techno === '5G' ? 'SSB' : 'RS'})`, value: `${merged.txPower} dBm`, icon: '⚡' },
+          { label: 'Hauteur Antenne (HBA)', value: `${merged.antennaHeight} m`, icon: '📏' },
+          { label: 'Azimut', value: `${merged.azimuth}°`, icon: '🧭' },
+          { label: 'Tilt', value: `${merged.tilt}°`, icon: '📐' },
+          { label: 'Gain Antenne', value: `${merged.antennaGain} dBi`, icon: '📶' },
+          { label: 'Bande passante', value: `${merged.bandwidth} MHz`, icon: '📊' },
+          { label: 'Rayon', value: `${merged.radius} km`, icon: '🎯' },
+        ].map((p, i) => (
+          <div key={p.label} className={`flex items-center justify-between px-3 py-2 text-[11px] ${i % 2 === 0 ? 'bg-muted/20' : ''}`}>
+            <span className="text-muted-foreground flex items-center gap-1.5">
+              <span className="text-[10px]">{p.icon}</span>
+              {p.label}
+            </span>
+            <span className="font-bold font-mono text-foreground">{p.value}</span>
           </div>
-        </div>
-      )}
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Fréquence</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.frequency} MHz</span>
-        </div>
-        <Slider value={[merged.frequency]} min={400} max={6000} step={100} onValueChange={v => upd('frequency', v[0])} className="mt-1" />
+        ))}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Puissance TX ({techno === '5G' ? 'SSB' : 'RS'})</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.txPower} dBm</span>
-        </div>
-        <Slider value={[merged.txPower]} min={20} max={60} step={1} onValueChange={v => upd('txPower', v[0])} className="mt-1" />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Hauteur Antenne (HBA)</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.antennaHeight} m</span>
-        </div>
-        <Slider value={[merged.antennaHeight]} min={5} max={100} step={1} onValueChange={v => upd('antennaHeight', v[0])} className="mt-1" />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Azimut</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.azimuth}°</span>
-        </div>
-        <Slider value={[merged.azimuth]} min={0} max={359} step={1} onValueChange={v => upd('azimuth', v[0])} className="mt-1" />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Rayon Simulation</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.radius} km</span>
-        </div>
-        <Slider value={[merged.radius]} min={0.5} max={20} step={0.5} onValueChange={v => upd('radius', v[0])} className="mt-1" />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between">
-          <label className="text-[9px] font-bold text-muted-foreground uppercase">Bande passante</label>
-          <span className="text-[11px] font-bold text-foreground">{merged.bandwidth} MHz</span>
-        </div>
-        <Slider value={[merged.bandwidth]} min={5} max={100} step={5} onValueChange={v => upd('bandwidth', v[0])} className="mt-1" />
-      </div>
-
+      {/* Environment selector */}
       <div>
         <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Environnement</label>
         <div className="flex gap-1">
@@ -180,21 +145,6 @@ export const InlineSimTab = ({ cell, siteDetail, simDefaults, simTechno, coverag
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="flex gap-3">
-        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
-          <input type="checkbox" checked={merged.shadowFading} onChange={e => upd('shadowFading', e.target.checked)} className="rounded" />
-          Shadow Fading
-        </label>
-        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
-          <input type="checkbox" checked={merged.clutterEnabled} onChange={e => upd('clutterEnabled', e.target.checked)} className="rounded" />
-          Clutter
-        </label>
-        <label className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground cursor-pointer">
-          <input type="checkbox" checked={useTerrain} onChange={e => setUseTerrain(e.target.checked)} className="rounded" />
-          Terrain DEM
-        </label>
       </div>
 
       <button
