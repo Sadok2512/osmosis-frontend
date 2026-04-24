@@ -79,7 +79,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showCmHistory: true,
   fillStyle: 'gradient',
   legendPosition: 'bottom',
-  background: 'transparent',
+  background: 'light',
 };
 
 export interface GraphSlot {
