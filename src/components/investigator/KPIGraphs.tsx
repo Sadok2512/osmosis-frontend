@@ -132,6 +132,27 @@ const SlotSettingsPopover: React.FC<{
 
         <div className="h-px bg-border/40" />
 
+        {/* Per-slot Granularity */}
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Granularity</span>
+        <div className="flex gap-1">
+          {(['15min', '1h', '1d', '1w'] as const).map(g => (
+            <button
+              key={g}
+              onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { granularity: g } as any); }}
+              className={cn(
+                'flex-1 px-2 py-1.5 rounded-md text-[9px] font-bold border transition-colors',
+                (slot.granularity || '') === g
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
+              )}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
+        <div className="h-px bg-border/40" />
+
         {/* Background */}
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-foreground">Background</span>
@@ -793,8 +814,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
     filters: slot.filters || {},
     startDate: slot.startDate || '',
     endDate: slot.endDate || '',
-    granularity: slot.granularity || '',
-  })).join('|'), [graphSlots]);
+    granularity: slot.granularity || investigatorState.granularity || '',
+  })).join('|'), [graphSlots, investigatorState.granularity]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -893,7 +914,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         })
         .catch(() => {});
     });
-  }, [slotsCounterKey, investigatorState.startDate, investigatorState.endDate, investigatorState.granularity, investigatorState.splitBy, investigatorState.filters, investigatorState.kpiLevel, investigatorState.profileQci, investigatorState.profileArp, investigatorState.neighborType]);
+  }, [slotsCounterKey, investigatorState.startDate, investigatorState.endDate, investigatorState.splitBy, investigatorState.filters, investigatorState.kpiLevel, investigatorState.profileQci, investigatorState.profileArp, investigatorState.neighborType]);
+  // Note: investigatorState.granularity removed from deps — each slot has its own
+  // granularity tracked via slotsCounterKey. Changing global granularity only affects
+  // slots that don't have a per-slot override.
 
   const getDef = (kpiId: string) => KPI_MAP[kpiId] || allKpis.find(k => k.id === kpiId) || null;
 

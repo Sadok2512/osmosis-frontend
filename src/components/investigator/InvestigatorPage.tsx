@@ -661,16 +661,24 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     });
   };
 
-  const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig>) => {
+  const handleUpdateSlotConfig = (slotId: string, updates: Partial<GraphConfig> & { granularity?: string }) => {
     setState(prev => ({
       ...prev,
       graphSlots: prev.graphSlots.map(s => {
+        if (s.id !== slotId) return s;
+        // Granularity is a slot-level field, not a config field
+        const slotUpdates: any = {};
+        const configUpdates = { ...updates };
+        if ('granularity' in configUpdates) {
+          slotUpdates.granularity = configUpdates.granularity;
+          delete configUpdates.granularity;
+        }
         const baseConfig = {
           ...DEFAULT_GRAPH_CONFIG,
           ...((s.widgetType || 'timeseries') === 'timeseries' ? { showDataTable: true } : {}),
           ...(s.config || {}),
         };
-        return s.id === slotId ? { ...s, config: { ...baseConfig, ...updates } } : s;
+        return { ...s, ...slotUpdates, config: { ...baseConfig, ...configUpdates } };
       }),
     }));
 
