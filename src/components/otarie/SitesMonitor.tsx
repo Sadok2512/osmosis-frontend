@@ -4376,8 +4376,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handlePolygonDblClick = useCallback(() => {
     if (polygonPoints.length >= 3) {
       setPolygonClosed(true);
+      // Auto-prompt user to save polygon as a cluster
+      setShowClusterPrompt(true);
     }
   }, [polygonPoints.length]);
+
+  // ── Polygon → Cluster creation flow ──
+  const [showClusterPrompt, setShowClusterPrompt] = useState(false);
+  const [clusterStep, setClusterStep] = useState<'ask' | 'name'>('ask');
+  const [clusterName, setClusterName] = useState('');
+  const [clusterDescription, setClusterDescription] = useState('');
+  const [savingCluster, setSavingCluster] = useState(false);
+  const [clusterSaveError, setClusterSaveError] = useState<string | null>(null);
 
   // Polygon area (Shoelace formula on geodesic approx) & perimeter
   const polygonStats = useMemo(() => {
