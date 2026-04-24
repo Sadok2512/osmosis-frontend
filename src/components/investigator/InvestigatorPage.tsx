@@ -699,12 +699,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   const renderGraphSection = () => (
     <section className={cn(
-      'space-y-4',
-      isGraphFullscreen && 'fixed inset-0 z-[100] bg-background p-4 md:p-6 overflow-auto'
+      'space-y-5',
+      isGraphFullscreen && 'fixed inset-0 z-[100] bg-white p-4 md:p-6 overflow-auto'
     )}>
       <div className={cn(
-        'flex flex-col gap-2 border-b border-border/40 pb-3',
-        isGraphFullscreen && 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm'
+        'flex flex-col gap-2 border-b border-slate-200/70 pb-4',
+        isGraphFullscreen && 'sticky top-0 z-10 bg-white/95 backdrop-blur-sm'
       )}>
         {/* Multi-investigator tab bar — local to this module header */}
         {tabBar}
