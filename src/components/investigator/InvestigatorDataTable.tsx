@@ -490,13 +490,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.real)];
+    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = displayRows.map((r: any) => {
       const baseCols = [r.timestamp, ...dimensionCols.map(d => d.get(r))];
-      const kpiVals = kpiMapping.map(({ real }) => {
-        const v = r.kpiValues[real];
+      const kpiVals = kpiMapping.map(({ raw }) => {
+        const v = r.kpiValues[raw];
         return v == null ? '—' : v;
       });
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
