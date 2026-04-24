@@ -7989,7 +7989,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           return (
             <React.Fragment key={site.site_id}>
               {cellsToRender.map((cell, idx) => {
-                const val = getCellKpiValue(cell);
+                const val = getCellKpiValue(cell, site.site_name || site.site_id);
                 const colorViewOverridePoint = getColorViewFill(site);
                 const techColor = is5GTech(cell.techno) ? (bandColors['5G_GROUP'] || '#27AE60') : is3GTech(cell.techno) ? (bandColors['3G_GROUP'] || '#3498DB') : is2GTech(cell.techno) ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12');
                 const color = colorViewOverridePoint || (sectorColorMode === 'topo' ? (mapTechnoFilter === 'ALL' ? techColor : getBandColor(cell.bande, cell.techno)) : getKpiColor(val));
