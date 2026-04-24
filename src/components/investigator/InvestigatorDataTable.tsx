@@ -599,6 +599,30 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         </button>
       </div>
 
+      {/* KPI Mapping legend — generic KPIn -> real KPI name */}
+      {kpiMapping.length > 0 && (
+        <div
+          className="px-6 py-2 bg-[#FAFBFC] flex items-center gap-2 flex-wrap"
+          style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.1em] font-semibold text-muted-foreground">
+            KPI Mapping
+          </span>
+          {kpiMapping.map(({ generic, real }) => (
+            <span
+              key={generic}
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-medium"
+              style={{ backgroundColor: `${BRAND_GREEN}10`, color: BRAND_GREEN }}
+              title={real}
+            >
+              <span className="font-bold">{generic}</span>
+              <span className="text-foreground/60">=</span>
+              <span className="text-foreground/80 truncate max-w-[200px]">{real}</span>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[12.5px]">
           <thead className="sticky top-0 z-20">
