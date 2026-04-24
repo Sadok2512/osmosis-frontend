@@ -3536,6 +3536,11 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   const [sortAsc, setSortAsc] = React.useState(true);
   const [collapsedMOs, setCollapsedMOs] = React.useState<Set<string>>(new Set());
 
+  // Auto-expand all MO groups whenever a new search returns results
+  React.useEffect(() => {
+    setCollapsedMOs(new Set());
+  }, [paramData, searchedParam]);
+
   const tableRows = React.useMemo(() => {
     return paramData.map(p => {
       // Extract MO from parameter name (e.g. "LNCEL.pMax" → "LNCEL")
