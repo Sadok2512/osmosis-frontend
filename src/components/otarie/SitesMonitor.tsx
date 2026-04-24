@@ -3619,20 +3619,53 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
   return (
     <div className="space-y-2">
       {/* Search input + button */}
-      <div className="flex gap-1.5">
+      <div className="flex gap-1.5" ref={suggestionsRef}>
         <div className="relative flex-1">
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') doSearch(); }}
-            placeholder="Nom du paramètre..."
+            onChange={e => {
+              setSearch(e.target.value);
+              setSelectedParam(null);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') doSearch();
+              if (e.key === 'Escape') setShowSuggestions(false);
+            }}
+            placeholder="Tapez puis sélectionnez un paramètre..."
             className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
           />
+
+          {/* Suggestion dropdown */}
+          {showSuggestions && search.trim() && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-[280px] overflow-y-auto">
+              {suggestionsLoading ? (
+                <div className="flex items-center justify-center py-3">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-primary" />
+                </div>
+              ) : suggestions.length === 0 ? (
+                <div className="py-3 px-3 text-[11px] text-muted-foreground text-center">Aucun paramètre trouvé</div>
+              ) : (
+                suggestions.map(p => (
+                  <button
+                    key={p}
+                    onClick={() => pickSuggestion(p)}
+                    className={`w-full text-left px-3 py-1.5 text-[11px] hover:bg-accent transition-colors ${
+                      selectedParam === p ? 'bg-primary/10 text-primary font-semibold' : 'text-foreground'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
         <button
           onClick={doSearch}
-          disabled={!search.trim()}
+          disabled={!selectedParam && !search.trim()}
           className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-semibold hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
         >
           Chercher
