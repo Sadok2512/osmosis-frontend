@@ -3416,17 +3416,61 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName }) => {
   const [search, setSearch] = React.useState('');
   const [searchedParam, setSearchedParam] = React.useState<string | null>(null);
+  const [selectedParam, setSelectedParam] = React.useState<string | null>(null);
   const [paramData, setParamData] = React.useState<{ parameter: string; cell_name: string | null; value: string | null; bande: string | null; dn: string | null }[]>([]);
   const [dataLoading, setDataLoading] = React.useState(false);
   const [hasSearched, setHasSearched] = React.useState(false);
+  const [suggestions, setSuggestions] = React.useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = React.useState(false);
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const suggestionsRef = React.useRef<HTMLDivElement>(null);
 
   // Reset on site change
   React.useEffect(() => {
     setSearch('');
     setSearchedParam(null);
+    setSelectedParam(null);
     setParamData([]);
     setHasSearched(false);
+    setSuggestions([]);
   }, [siteName]);
+
+  // Close suggestions on outside click
+  React.useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Live suggestions as user types (debounced)
+  React.useEffect(() => {
+    if (!siteName || !search.trim() || search.trim().length < 1) {
+      setSuggestions([]);
+      return;
+    }
+    if (selectedParam && search === selectedParam) return; // don't re-search after selection
+    const term = search.trim();
+    const t = setTimeout(async () => {
+      setSuggestionsLoading(true);
+      try {
+        const { data } = await supabase
+          .from('parameter_dump')
+          .select('parameter')
+          .ilike('site_name', siteName)
+          .ilike('parameter', `%${term}%`)
+          .limit(200);
+        const unique = [...new Set((data || []).map((r: any) => r.parameter).filter(Boolean))].sort() as string[];
+        setSuggestions(unique.slice(0, 50));
+        setShowSuggestions(true);
+      } catch { setSuggestions([]); }
+      setSuggestionsLoading(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [search, siteName, selectedParam]);
 
   // Fetch when searchedParam changes
   React.useEffect(() => {
