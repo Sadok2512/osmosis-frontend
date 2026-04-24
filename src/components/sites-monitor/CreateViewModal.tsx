@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2 } from 'lucide-react';
+import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 
 // ── Types ──
-export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter';
+export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter' | 'coverage';
 export type AnalysisLevel = 'site' | 'cell' | 'band';
 
 export interface KpiThreshold {
@@ -195,7 +195,9 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       ? `KPI ${technology} – ${selectedKpis.map(k => k.label).join(', ') || 'Overlay'}`
       : viewType === 'parameter'
         ? `Param – ${paramFilters['parameter'] || 'Search'}`
-        : `Topo Search`
+        : viewType === 'coverage'
+          ? `Coverage ${technology}`
+          : `Topo Search`
   );
 
   const isValid = (
@@ -244,7 +246,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                 <p className="text-xs text-muted-foreground mt-0.5">Choisissez le type de vue à créer</p>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {/* KPI Overlay */}
                 <button
                   onClick={() => setViewType('kpi_overlay')}
@@ -320,6 +322,33 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
                     </p>
                   </div>
                   {viewType === 'parameter' && (
+                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                      <span className="text-[10px] font-bold">✓</span>
+                    </div>
+                  )}
+                </button>
+
+                {/* Coverage Prediction */}
+                <button
+                  onClick={() => setViewType('coverage')}
+                  className={`group relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                    viewType === 'coverage'
+                      ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                      : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+                    viewType === 'coverage' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary'
+                  }`}>
+                    <Radio size={24} />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm font-bold">Coverage Prediction</div>
+                    <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                      Simulation de couverture RSRP par bande fréquence
+                    </p>
+                  </div>
+                  {viewType === 'coverage' && (
                     <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
                       <span className="text-[10px] font-bold">✓</span>
                     </div>
