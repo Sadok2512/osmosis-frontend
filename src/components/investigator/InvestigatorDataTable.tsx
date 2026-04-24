@@ -444,15 +444,20 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const endIdx = useBackend ? displayRows.length : Math.min(startIdx + pageSize, displayRows.length);
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
+  const showSplitCol = useBackend ? !!splitBy : true;
+  const showMetaCols = !!(useBackend && splitBy);
+
   const exportCsv = () => {
-    const headerCols = ['Timestamp', splitBy || 'Site'];
-    if (backendTableData) headerCols.push('DOR', 'Band', 'Vendor');
+    const headerCols = ['Timestamp'];
+    if (showSplitCol) headerCols.push(splitBy || 'Site');
+    if (showMetaCols) headerCols.push('DOR', 'Band', 'Vendor');
     headerCols.push(...displayKpiCols);
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = displayRows.map(r => {
-      const baseCols = [r.timestamp, (r as any).splitValue || (r as any).ne || ''];
-      if (backendTableData) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
+      const baseCols: any[] = [r.timestamp];
+      if (showSplitCol) baseCols.push((r as any).splitValue || (r as any).ne || '');
+      if (showMetaCols) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
       const kpiVals = displayKpiCols.map(k => r.kpiValues[k] ?? '');
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
