@@ -280,13 +280,11 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
               return acc;
             }, [] as { dim: string; values: string[] }[]);
 
-          // ── PIVOT MODE: when split is active, pivot split_values into columns ──
+          // ── FULL DATE RANGE: fill missing dates with "—" rows, grouped by split value ──
           if (splitInUse && hasTs && rows.length > 0) {
-            // Get all distinct split values and timestamps
             const splitValues = [...new Set(rows.map(r => r.split_value || '').filter(Boolean))].sort();
-            const allTimestamps = [...new Set(rows.map(r => r.ts || '').filter(Boolean))].sort();
 
-            // Generate full date range from request period
+            // Generate full date range
             const fromDate = effectiveFrom ? new Date(effectiveFrom) : null;
             const toDate = effectiveTo ? new Date(effectiveTo) : null;
             const fullDates: string[] = [];
@@ -299,9 +297,9 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
                 d.setTime(d.getTime() + stepMs);
               }
             }
-            const timestamps = fullDates.length > 0 ? fullDates : allTimestamps;
+            const timestamps = fullDates.length > 0 ? fullDates : [...new Set(rows.map(r => r.ts || ''))].sort();
 
-            // Build lookup: {ts}_{split} → value per KPI
+            // Build lookup: {ts_short}_{split} → row
             const lookup = new Map<string, Record<string, any>>();
             for (const r of rows) {
               const key = `${(r.ts || '').slice(0, 10)}_${r.split_value}`;
@@ -315,42 +313,52 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
               }
             }
 
+            // Build expanded rows: all dates × all splits, grouped by split
+            const expandedRows: { ts: string; split: string; values: Record<string, any> }[] = [];
+            for (const sv of splitValues) {
+              for (const ts of timestamps) {
+                const tsShort = ts.slice(0, 10);
+                expandedRows.push({ ts: tsShort, split: sv, values: lookup.get(`${tsShort}_${sv}`) || {} });
+              }
+            }
+
             return (
               <table className="w-full text-xs">
                 <thead className="sticky top-0 bg-white z-10">
                   <tr className="text-[9px] font-black uppercase tracking-widest text-on-surface-variant/60 border-b border-outline-variant/20">
                     <th className="text-left px-4 py-2.5">Timestamp</th>
-                    {splitValues.map(sv => (
-                      visibleColumns.map(col => (
-                        <th key={`${sv}_${col.id}`} className="text-right px-4 py-2.5">
-                          <div className="flex flex-col items-end">
-                            <span className="text-primary">{sv}</span>
-                            <span className="text-on-surface-variant/50 normal-case text-[8px]">
-                              {col.alias || col.kpiKey}{col.unit ? ` (${col.unit})` : ''}
-                            </span>
-                          </div>
-                        </th>
-                      ))
+                    <th className="text-left px-4 py-2.5">{splitInUse}</th>
+                    {visibleColumns.map(col => (
+                      <th key={col.id} className="text-right px-4 py-2.5">
+                        <span className="inline-flex items-center gap-1">
+                          {col.alias || col.kpiKey}
+                          {col.unit && <span className="text-on-surface-variant/50 normal-case">({col.unit})</span>}
+                        </span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {timestamps.map((ts, i) => {
-                    const tsShort = ts.slice(0, 10);
+                  {expandedRows.map((row, i) => {
+                    // Add visual separator between split groups
+                    const prevSplit = i > 0 ? expandedRows[i - 1].split : null;
+                    const isNewGroup = prevSplit !== null && prevSplit !== row.split;
                     return (
-                      <tr key={ts} className={cn('border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors', i % 2 === 1 && 'bg-slate-50/30')}>
-                        <td className="px-4 py-2.5 font-mono text-on-surface tabular-nums whitespace-nowrap">{tsShort}</td>
-                        {splitValues.map(sv => (
-                          visibleColumns.map(col => {
-                            const entry = lookup.get(`${tsShort}_${sv}`);
-                            const v = entry?.[col.kpiKey];
-                            return (
-                              <td key={`${sv}_${col.id}`} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
-                                {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
-                              </td>
-                            );
-                          })
-                        ))}
+                      <tr key={`${row.split}-${row.ts}`} className={cn(
+                        'border-b border-outline-variant/10 hover:bg-surface-container-low/40 transition-colors',
+                        i % 2 === 1 && 'bg-slate-50/30',
+                        isNewGroup && 'border-t-2 border-t-primary/20',
+                      )}>
+                        <td className="px-4 py-2.5 font-mono text-on-surface tabular-nums whitespace-nowrap">{row.ts}</td>
+                        <td className="px-4 py-2.5 font-black text-on-surface">{row.split}</td>
+                        {visibleColumns.map(col => {
+                          const v = row.values[col.kpiKey];
+                          return (
+                            <td key={col.id} className="px-4 py-2.5 text-right font-bold tabular-nums text-on-surface">
+                              {v === null || v === undefined ? <span className="text-on-surface-variant/40">—</span> : formatValue(v)}
+                            </td>
+                          );
+                        })}
                       </tr>
                     );
                   })}
