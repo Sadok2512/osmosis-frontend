@@ -9,7 +9,7 @@ import { KPIS as FALLBACK_KPIS, KPI_MAP } from './mockData';
 import { fetchKpiDefinitions, fetchKpisWithData, fetchKpiDimensions, type KpiDimensionsResponse } from './investigatorApi';
 import { usePerimeterScope, type PerimeterScope } from './usePerimeterScope';
 import type { KpiDefinition } from './types';
-import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye } from 'lucide-react';
+import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -1505,6 +1505,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 />
               </PopoverContent>
             </Popover>
+            {/* Show/Hide Jalons toggle */}
+            {state.jalons.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setState(prev => ({ ...prev, showJalons: prev.showJalons === false ? true : false }))}
+                title={state.showJalons === false ? 'Afficher les jalons' : 'Masquer les jalons'}
+                className={cn(
+                  "h-7 2xl:h-8 px-2 rounded-lg bg-card",
+                  state.showJalons === false && "opacity-60"
+                )}
+              >
+                {state.showJalons === false
+                  ? <EyeOff className="w-3.5 h-3.5 text-muted-foreground" />
+                  : <Eye className="w-3.5 h-3.5 text-primary" />}
+              </Button>
+            )}
 
             {/* Spacer */}
             <div className="flex-1" />
