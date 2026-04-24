@@ -3757,25 +3757,22 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
 
           {/* MO-grouped table */}
           <div className="rounded-lg border border-border bg-card overflow-hidden max-h-[calc(100vh-460px)] overflow-auto">
-            <table className="w-full text-[12px] min-w-[760px]">
-              <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
-                <tr>
-                  <th className="text-left px-3 py-2 font-bold text-foreground/80 cursor-pointer select-none hover:text-foreground transition-colors w-[120px]" onClick={() => toggleSort('mo')}>
-                    <span className="inline-flex items-center gap-0.5">MO <SortIcon col="mo" /></span>
+            <table className="w-full text-[13px]">
+              <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm z-10 shadow-sm">
+                <tr className="border-b-2 border-border">
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors min-w-[280px]" onClick={() => toggleSort('parameter')}>
+                    <span className="inline-flex items-center gap-1">Parameter <SortIcon col="parameter" /></span>
                   </th>
-                  <th className="text-left px-3 py-2 font-bold text-foreground/80 cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('parameter')}>
-                    <span className="inline-flex items-center gap-0.5">Parameter <SortIcon col="parameter" /></span>
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground select-none w-full">
+                    <span className="inline-flex items-center gap-1">Instance (MO path)</span>
                   </th>
-                  <th className="text-left px-3 py-2 font-bold text-foreground/80 select-none min-w-[260px]">
-                    <span className="inline-flex items-center gap-0.5">Instance (MO path)</span>
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors w-[140px]" onClick={() => toggleSort('cell')}>
+                    <span className="inline-flex items-center gap-1">Cell <SortIcon col="cell" /></span>
                   </th>
-                  <th className="text-left px-3 py-2 font-bold text-foreground/80 cursor-pointer select-none hover:text-foreground transition-colors w-[110px]" onClick={() => toggleSort('cell')}>
-                    <span className="inline-flex items-center gap-0.5">Cell <SortIcon col="cell" /></span>
+                  <th className="text-right px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors w-[120px]" onClick={() => toggleSort('value')}>
+                    <span className="inline-flex items-center gap-1 justify-end">Value <SortIcon col="value" /></span>
                   </th>
-                  <th className="text-right px-3 py-2 font-bold text-foreground/80 cursor-pointer select-none hover:text-foreground transition-colors w-[110px]" onClick={() => toggleSort('value')}>
-                    <span className="inline-flex items-center gap-0.5 justify-end">Value <SortIcon col="value" /></span>
-                  </th>
-                  <th className="w-[32px]" />
+                  <th className="w-[40px]" />
                 </tr>
               </thead>
               <tbody>
