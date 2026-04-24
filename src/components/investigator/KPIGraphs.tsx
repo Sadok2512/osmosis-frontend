@@ -583,6 +583,25 @@ const KpiCardWidget: React.FC<{ kpiIds: string[]; data: DataPoint[]; allKpis: Kp
   );
 };
 
+const formatTableWidgetValue = (value: number | null | undefined) => {
+  if (value == null || !Number.isFinite(Number(value))) return '—';
+  const num = Number(value);
+  if (num === 0) return '0';
+  const abs = Math.abs(num);
+  const maximumFractionDigits = abs > 0 && abs < 0.01 ? 8 : abs < 1 ? 4 : 2;
+  return num.toLocaleString('fr-FR', { maximumFractionDigits });
+};
+
+const getTableWidgetRows = (slot: GraphSlot, data: DataPoint[]) => {
+  const keys = [...(slot.kpiIds || []), ...((slot.counterIds || []) as string[])];
+  const matchesKey = (kpi: string) => keys.length === 0 || keys.some(key => kpi === key || kpi.startsWith(`${key}@`));
+
+  return data
+    .filter((d: any) => d._slotId === slot.id && matchesKey(d.kpi || ''))
+    .sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)))
+    .slice(0, 80);
+};
+
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
 const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
   const { state } = useInvestigatorStore();
