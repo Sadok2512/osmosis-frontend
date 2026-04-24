@@ -4388,6 +4388,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [clusterDescription, setClusterDescription] = useState('');
   const [savingCluster, setSavingCluster] = useState(false);
   const [clusterSaveError, setClusterSaveError] = useState<string | null>(null);
+  // Ref to filteredSites so polygonStats (declared earlier) can read latest value
+  const filteredSitesRef = useRef<any[]>([]);
 
   // Polygon area (Shoelace formula on geodesic approx) & perimeter
   const polygonStats = useMemo(() => {
