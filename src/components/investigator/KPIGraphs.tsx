@@ -975,8 +975,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         if (wType === 'kpi_card') {
           return (
             <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
-              'rounded-xl border bg-card p-4 relative cursor-pointer transition-all duration-300',
-              isActive ? 'border-primary/60 ring-2 ring-primary/20 shadow-lg shadow-primary/5' : 'border-border/60 hover:border-border'
+              'rounded-2xl border bg-white p-5 relative cursor-pointer transition-all duration-300',
+              isActive
+                ? 'border-[#14746C]/40 ring-2 ring-[#14746C]/15 shadow-[0_2px_4px_rgba(20,116,108,0.06),0_12px_28px_-12px_rgba(20,116,108,0.18)]'
+                : 'border-slate-200/70 hover:border-slate-300 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-6px_rgba(15,23,42,0.06)]'
             )}>
               <div className="flex items-center gap-2 mb-3 relative z-10">
                 <Activity className="w-3.5 h-3.5 text-emerald-500" />
