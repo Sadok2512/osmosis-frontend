@@ -699,12 +699,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   const renderGraphSection = () => (
     <section className={cn(
-      'space-y-4',
-      isGraphFullscreen && 'fixed inset-0 z-[100] bg-background p-4 md:p-6 overflow-auto'
+      'space-y-5',
+      isGraphFullscreen && 'fixed inset-0 z-[100] bg-white p-4 md:p-6 overflow-auto'
     )}>
       <div className={cn(
-        'flex flex-col gap-2 border-b border-border/40 pb-3',
-        isGraphFullscreen && 'sticky top-0 z-10 bg-background/95 backdrop-blur-sm'
+        'flex flex-col gap-2 border-b border-slate-200/70 pb-4',
+        isGraphFullscreen && 'sticky top-0 z-10 bg-white/95 backdrop-blur-sm'
       )}>
         {/* Multi-investigator tab bar — local to this module header */}
         {tabBar}
@@ -877,7 +877,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       )}
 
       {state.activeGraphTab === 'Neighbors' && (
-        <div className="rounded-xl border border-border/60 bg-card p-6">
+        <div className="rounded-2xl border border-slate-200/70 bg-white p-6" style={{ boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.08)' }}>
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-lg bg-cyan-500/10">
               <Activity className="w-5 h-5 text-cyan-500" />
@@ -943,7 +943,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      <div className="flex-1 flex flex-col overflow-y-auto bg-background text-foreground">
+      {/* Pure white canvas — Precision Architect inspired */}
+      <div className="flex-1 flex flex-col overflow-y-auto bg-white text-slate-900">
 
       {/* Unified Toolbar */}
       <ControlPanel
@@ -968,27 +969,33 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         }}
       />
 
-      {/* Main Content — two stable zones */}
-      <main className="flex-1 px-4 md:px-[2.5%] pt-5 pb-6 w-full flex flex-col" style={{ minHeight: 0 }}>
+      {/* Main Content — two stable zones, generous breathing room */}
+      <main className="flex-1 px-5 md:px-[3%] pt-7 pb-9 w-full flex flex-col" style={{ minHeight: 0 }}>
 
-        {/* ═══ Alerts Zone (fixed height when present) ═══ */}
-        <div className="shrink-0 space-y-2 mb-4">
+        {/* ═══ Alerts Zone — softer surfaces ═══ */}
+        <div className="shrink-0 space-y-2.5 mb-5">
           {applyError && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-              <span className="text-[11px] font-semibold text-red-700 dark:text-red-400 flex-1">
+            <div
+              className="rounded-xl border border-[#ef4444]/25 bg-[#ef4444]/[0.04] px-4 py-3 flex items-center gap-2.5"
+              style={{ boxShadow: '0 1px 2px rgba(239,68,68,0.05)' }}
+            >
+              <AlertTriangle className="w-4 h-4 text-[#ef4444] shrink-0" />
+              <span className="text-[11px] font-semibold text-[#b91c1c] flex-1">
                 {applyError}
               </span>
-              <button onClick={() => setApplyError(null)} className="text-red-600 hover:text-red-800 dark:hover:text-red-300">
+              <button onClick={() => setApplyError(null)} className="text-[#ef4444] hover:text-[#b91c1c] transition-colors">
                 <span className="text-xs font-bold">✕</span>
               </button>
             </div>
           )}
 
           {hasUnfilteredFallback && (
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-2.5 flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-yellow-600 shrink-0" />
-              <span className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-400">
+            <div
+              className="rounded-xl border border-[#f59e0b]/25 bg-[#f59e0b]/[0.05] px-4 py-3 flex items-center gap-2.5"
+              style={{ boxShadow: '0 1px 2px rgba(245,158,11,0.05)' }}
+            >
+              <AlertTriangle className="w-4 h-4 text-[#f59e0b] shrink-0" />
+              <span className="text-[11px] font-semibold text-[#92400e]">
                 Certains KPIs proviennent d'un fallback non-filtré (raw PM counters). Les filtres actifs ne s'appliquent pas à ces données.
               </span>
             </div>
@@ -1001,9 +1008,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         </div>
 
         {/* ═══ ZONE 2: Stable Analysis Area — always mounted, stable height ═══ */}
-        <div className="shrink-0 mt-6" style={{ minHeight: 360 }}>
+        <div className="shrink-0 mt-8" style={{ minHeight: 360 }}>
 
-          {/* Analysis Tab Bar — ALWAYS visible per graph (all 6 sections shown, disabled when flag is off) */}
+          {/* Analysis Tab Bar — Precision Architect-style segmented bar */}
           {(() => {
             const activeConfig = activeSlot
               ? {
@@ -1020,20 +1027,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               neighbors: 'showNeighbors',
               cm_history: 'showCmHistory',
             };
+            // PA palette: green primary, orange accent, red alert
             const allTabs = [
-              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: 'text-blue-500' },
-              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: 'text-purple-500' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: 'text-orange-500' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: 'text-red-500' },
-              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: 'text-blue-500' },
-              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: 'text-orange-500' },
+              { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: '#14746C' },
+              { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: '#14746C' },
+              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: '#F59E0B' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: '#EF4444' },
+              { key: 'neighbors' as const, icon: Layers, label: 'Neighbors', color: '#14746C' },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
             ];
 
             return (
-              <div className="border-b border-border/60 sticky top-[52px] z-20 bg-background/95 backdrop-blur-sm mb-4">
-                <div className="flex items-center gap-1 px-1 py-1 overflow-x-auto">
+              <div className="sticky top-[52px] z-20 bg-white/95 backdrop-blur-sm mb-5 border-b border-slate-200/70">
+                <div className="flex items-center gap-1.5 px-1 py-2 overflow-x-auto">
                   {!activeSlot && (
-                    <span className="px-3 py-2 text-[10px] text-muted-foreground italic">
+                    <span className="px-3 py-2 text-[10px] text-slate-400 italic">
                       Sélectionnez un graphe pour voir ses sections d'analyse
                     </span>
                   )}
@@ -1059,30 +1067,29 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         }}
                         title={enabled ? tab.label : `${tab.label} — désactivé. Activez-le dans les réglages du graphe.`}
                         className={cn(
-                          'flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-bold transition-all duration-200 whitespace-nowrap',
+                          'relative flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-150 whitespace-nowrap border',
                           isActive
-                            ? 'bg-card text-foreground shadow-sm border border-border/60'
+                            ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
                             : enabled
-                              ? 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                              : 'text-muted-foreground/50 hover:text-muted-foreground/70 hover:bg-muted/20'
+                              ? 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                              : 'border-transparent text-slate-300 hover:text-slate-400 hover:bg-slate-50/60'
                         )}
+                        style={isActive && enabled ? { boxShadow: `inset 0 -2px 0 0 ${tab.color}, 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -4px rgba(15,23,42,0.08)` } : undefined}
                       >
-                        <tab.icon className={cn('w-3.5 h-3.5 transition-colors', isActive && enabled ? tab.color : enabled ? '' : 'opacity-60')} />
+                        <tab.icon
+                          className="w-3.5 h-3.5 transition-colors"
+                          style={isActive && enabled ? { color: tab.color } : undefined}
+                        />
                         <span className={cn(!enabled && 'opacity-70')}>{tab.label}</span>
                         {!enabled && (
-                          <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-muted/40 text-muted-foreground/70 uppercase tracking-wider">
+                          <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-400 uppercase tracking-wider">
                             off
                           </span>
                         )}
-                        {isActive && enabled && (
-                          <>
-                            <span className={cn('w-2 h-2 rounded-full ml-1', tab.color.replace('text-', 'bg-'))} />
-                            {analysisTabs.getSection(tab.key).instances.length > 0 && (
-                              <span className="ml-1 text-[9px] opacity-60">
-                                ({analysisTabs.getSection(tab.key).instances.length})
-                              </span>
-                            )}
-                          </>
+                        {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
+                          <span className="ml-1 text-[9px] text-slate-400">
+                            ({analysisTabs.getSection(tab.key).instances.length})
+                          </span>
                         )}
                       </button>
                     );
@@ -1133,11 +1140,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               : Boolean((activeSlot.config || DEFAULT_GRAPH_CONFIG)[flag]);
             if (enabled) return null;
             return (
-              <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 px-4 py-8 text-center animate-in fade-in duration-200">
-                <p className="text-[11px] font-semibold text-muted-foreground">
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 px-4 py-10 text-center animate-in fade-in duration-200">
+                <p className="text-[11px] font-semibold text-slate-500">
                   Cette section est désactivée pour ce graphe.
                 </p>
-                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                <p className="text-[10px] text-slate-400 mt-1">
                   Activez-la dans les réglages du graphe (icône ⚙️) pour voir les données.
                 </p>
               </div>
@@ -1422,7 +1429,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
       {/* AI Panel */}
       {showAIPanel && (
-        <div className="w-[380px] shrink-0 border-l border-border h-full">
+        <div className="w-[380px] shrink-0 border-l border-slate-200/70 h-full bg-white">
           <InvestigatorAIPanel onClose={() => setShowAIPanel(false)} />
         </div>
       )}
