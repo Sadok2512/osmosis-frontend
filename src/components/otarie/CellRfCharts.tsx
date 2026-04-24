@@ -10,7 +10,7 @@ interface Bin { index: number; label: string; count: number; }
 interface ChartData { name: string; unit: string; bins: Bin[]; }
 
 const CHARTS = [
-  { id: 'RACH', label: 'RACH Bins', color: '#f59e0b', histIds: ['NOKIA_LTE_RACH_MSG3', 'NOKIA_LTE_RACH_PREAMBLE_MSG1_CE0', 'ERICSSON_LTE_RACH_PREAMBLE_DIST'] },
+  { id: 'RACH', label: 'RACH Bins', color: '#f59e0b', histIds: ['NOKIA_NR_RACH_PREAMBLE_DIST', 'ERICSSON_LTE_RACH_PREAMBLE_DIST', 'NOKIA_LTE_RACH_MSG3'] },
   { id: 'PRB_DL', label: 'PRB DL', color: '#3b82f6', histIds: ['NOKIA_LTE_PRB_DL_UTIL', 'ERICSSON_LTE_PRB_UTIL_DL_DIST'] },
   { id: 'PRB_UL', label: 'PRB UL', color: '#06b6d4', histIds: ['NOKIA_LTE_PRB_AVAIL', 'ERICSSON_LTE_PRB_UTIL_UL_DIST'] },
   { id: 'INTERF', label: 'UL Interference', color: '#ef4444', histIds: ['NOKIA_LTE_UL_IOT_PUSCH_DIST', 'ERICSSON_LTE_INTERF_POWER_DIST'] },
