@@ -9208,7 +9208,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Batch coverage simulation panel */}
         {!paramMode && !paramPanelOpen && (
-          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 16, left: (panelCollapsed ? 56 : 400) + 16 }}>
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
             <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
               <BatchCoveragePanel
                 sites={renderSites}
