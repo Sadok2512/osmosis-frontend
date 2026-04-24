@@ -3767,6 +3767,9 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                   <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors" onClick={() => toggleSort('parameter')}>
                     <span className="inline-flex items-center gap-0.5">Parameter <SortIcon col="parameter" /></span>
                   </th>
+                  <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors w-[150px]">
+                    <span className="inline-flex items-center gap-0.5">Instance (MO path)</span>
+                  </th>
                   <th className="text-left px-2 py-1.5 font-bold text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors w-[80px]" onClick={() => toggleSort('cell')}>
                     <span className="inline-flex items-center gap-0.5">Cell <SortIcon col="cell" /></span>
                   </th>
@@ -3786,7 +3789,7 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                         className="bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors border-t border-border/50"
                         onClick={() => toggleMO(mo)}
                       >
-                        <td colSpan={5} className="px-2 py-1.5">
+                        <td colSpan={6} className="px-2 py-1.5">
                           <span className="inline-flex items-center gap-1.5">
                             {isCollapsed ? <ChevronRight className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-primary" />}
                             <span className="font-black text-foreground text-[10px]">{mo}</span>
