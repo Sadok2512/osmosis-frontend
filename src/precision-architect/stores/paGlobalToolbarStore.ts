@@ -78,18 +78,35 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       setFilters: (filters) => set({ filters }),
       setJalons: (jalons) => set({ jalons }),
       apply: () =>
-        set((s) => ({
-          appliedRev: s.appliedRev + 1,
-          applied: {
-            technos: s.technos,
-            vendors: s.vendors,
-            from: s.from,
-            to: s.to,
-            preset: s.preset,
-            grain: s.grain,
-            filters: s.filters,
-          },
-        })),
+        set((s) => {
+          // Inject one synthetic Vendor chip per selected vendor so every
+          // downstream consumer that reads `applied.filters` (PA chart, table,
+          // stat, map widgets) automatically applies the toolbar Vendor
+          // selection — without having to know about the separate `vendors[]`.
+          const baseFilters = s.filters.filter(
+            (f) => (f.dimension || '').toLowerCase() !== 'vendor'
+          );
+          const vendorChips: ChartFilterChip[] = s.vendors.map((v) => ({
+            id: `pa-toolbar-vendor-${v}`,
+            dimension: 'Vendor',
+            value: v,
+          }));
+          const mergedFilters = s.vendors.length > 0
+            ? [...baseFilters, ...vendorChips]
+            : s.filters;
+          return {
+            appliedRev: s.appliedRev + 1,
+            applied: {
+              technos: s.technos,
+              vendors: s.vendors,
+              from: s.from,
+              to: s.to,
+              preset: s.preset,
+              grain: s.grain,
+              filters: mergedFilters,
+            },
+          };
+        }),
     }),
     {
       name: 'pa-global-toolbar',
