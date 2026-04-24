@@ -64,7 +64,7 @@ const InvestigatorTabBar: React.FC<Props> = ({
                   className={cn(
                     'group relative flex items-center gap-1.5 pl-3 pr-1.5 py-2 rounded-t-lg text-[11px] font-semibold cursor-pointer transition-all max-w-[220px] min-w-[120px] select-none',
                     isActive
-                      ? 'bg-background text-foreground border border-b-0 border-border/60 shadow-sm z-10 -mb-px'
+                      ? 'bg-background text-foreground font-bold border border-b-0 border-primary/40 ring-1 ring-primary/20 shadow-sm z-10 -mb-px'
                       : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent'
                   )}
                 >
