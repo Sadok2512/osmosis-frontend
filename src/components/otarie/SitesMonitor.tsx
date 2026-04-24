@@ -3755,24 +3755,29 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
             </div>
           </div>
 
+          {/* Hint for horizontal scroll on narrow panels */}
+          <div className="text-[9px] text-muted-foreground/70 italic flex items-center gap-1">
+            <ChevronRight className="w-3 h-3" />
+            Faites défiler horizontalement pour voir la colonne <strong className="text-foreground/80">Value</strong>
+          </div>
           {/* MO-grouped table */}
-          <div className="rounded-lg border border-border bg-card overflow-hidden max-h-[calc(100vh-460px)] overflow-auto">
-            <table className="w-full text-[13px]">
-              <thead className="sticky top-0 bg-muted/90 backdrop-blur-sm z-10 shadow-sm">
+          <div className="rounded-lg border border-border bg-card max-h-[calc(100vh-460px)] overflow-auto">
+            <table className="text-[13px]" style={{ minWidth: '780px', width: 'max-content' }}>
+              <thead className="sticky top-0 bg-muted/95 backdrop-blur-sm z-10 shadow-sm">
                 <tr className="border-b-2 border-border">
-                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors min-w-[280px]" onClick={() => toggleSort('parameter')}>
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors min-w-[260px]" onClick={() => toggleSort('parameter')}>
                     <span className="inline-flex items-center gap-1">Parameter <SortIcon col="parameter" /></span>
                   </th>
-                  <th className="text-left px-4 py-2.5 font-bold text-foreground select-none w-full">
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground select-none min-w-[240px]">
                     <span className="inline-flex items-center gap-1">Instance (MO path)</span>
                   </th>
-                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors w-[140px]" onClick={() => toggleSort('cell')}>
+                  <th className="text-left px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors min-w-[140px]" onClick={() => toggleSort('cell')}>
                     <span className="inline-flex items-center gap-1">Cell <SortIcon col="cell" /></span>
                   </th>
-                  <th className="text-right px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors w-[120px]" onClick={() => toggleSort('value')}>
+                  <th className="text-right px-4 py-2.5 font-bold text-foreground cursor-pointer select-none hover:bg-muted transition-colors min-w-[110px] sticky right-[44px] bg-muted/95 shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)]" onClick={() => toggleSort('value')}>
                     <span className="inline-flex items-center gap-1 justify-end">Value <SortIcon col="value" /></span>
                   </th>
-                  <th className="w-[40px]" />
+                  <th className="w-[44px] sticky right-0 bg-muted/95" />
                 </tr>
               </thead>
               <tbody>
@@ -3838,14 +3843,16 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
                               {r.cell || <span className="text-muted-foreground/50">—</span>}
                               {r.bande && <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{r.bande}</span>}
                             </td>
-                            <td className={`px-4 py-2 align-middle text-right font-mono font-bold text-[13px] ${
+                            <td className={`px-4 py-2 align-middle text-right font-mono font-bold text-[13px] sticky right-[44px] shadow-[-4px_0_8px_-4px_rgba(0,0,0,0.15)] ${
+                              i % 2 === 0 ? 'bg-background' : 'bg-muted/30'
+                            } ${
                               isZero ? 'text-muted-foreground/50' :
                               numVal !== null && numVal > 100 ? 'text-primary' :
                               'text-foreground'
                             }`}>
                               {r.value || '—'}
                             </td>
-                            <td className="px-2 py-2 align-middle">
+                            <td className={`px-2 py-2 align-middle sticky right-0 ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}>
                               <button
                                 onClick={(e) => { e.stopPropagation(); copyValue(r.value || ''); }}
                                 className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
