@@ -8,6 +8,7 @@ import KPIHistogram from './KPIHistogram';
 import KPIBreakdown from './KPIBreakdown';
 import AlarmsTabContent from './AlarmsTabContent';
 import NeighborsTabContent from './NeighborsTabContent';
+import NeighborExplorer from './NeighborExplorer';
 import CMHistoryTabContent from './CMHistoryTabContent';
 import CounterGraphSection from './CounterGraphSection';
 import HistogramSection from './HistogramSection';
@@ -1388,24 +1389,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             </div>
 
             {/* Neighbors — only mount when the tab is actually active */}
-            {analysisTab === 'neighbors' && (() => {
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showNeighbors);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Neighbors ».</div>;
-              }
-              const sec = analysisTabs.getSection('neighbors');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
-                <NeighborsTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
-              ) : null;
-            })()}
+            {analysisTab === 'neighbors' && (
+              <NeighborExplorer />
+            )}
 
             {/* CM History — only mount when the tab is actually active */}
             {analysisTab === 'cm_history' && (() => {
