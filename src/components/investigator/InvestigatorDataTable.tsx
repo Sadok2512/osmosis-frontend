@@ -711,10 +711,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     );
                   })}
 
-                  {/* Generic KPI values */}
-                  {kpiMapping.map(({ generic, real }) => {
-                    const val = row.kpiValues[real];
-                    const range = kpiRanges[real];
+                  {/* Generic KPI values — lookup uses raw key, tooltip shows clean name */}
+                  {kpiMapping.map(({ generic, real, raw }) => {
+                    const val = row.kpiValues[raw];
+                    const range = kpiRanges[raw];
                     let pct = 0;
                     if (val != null && isFinite(val) && range && range.max > range.min) {
                       pct = Math.max(4, Math.min(100, ((val - range.min) / (range.max - range.min)) * 100));
@@ -722,10 +722,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       pct = 100;
                     }
                     return (
-                      <td key={generic} className="py-3.5 px-6 whitespace-nowrap">
+                      <td
+                        key={generic}
+                        className="py-2 px-4 whitespace-nowrap"
+                        title={`${generic} = ${real}`}
+                      >
                         <div className="flex items-center justify-end gap-3">
                           <div
-                            className="relative h-1.5 w-24 rounded-full overflow-hidden"
+                            className="relative h-1.5 w-20 rounded-full overflow-hidden"
                             style={{ backgroundColor: TRACK_GREY }}
                           >
                             {val != null && (
