@@ -446,16 +446,25 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       if (hasAny('dor')) cols.push({ key: 'dor', label: 'DOR', get: (r) => r.dor || '—' });
       if (hasAny('band')) cols.push({ key: 'band', label: 'Band', get: (r) => r.band || '—' });
       if (hasAny('vendor')) cols.push({ key: 'vendor', label: 'Vendor', get: (r) => r.vendor || '—' });
-      // If no dimension was requested at all, omit dimensions entirely (0..N rule).
+      // Fallback: always show at least one Network Element column so the user
+      // can identify which entity each row refers to (e.g. global/aggregated view).
+      if (cols.length === 0) {
+        const scope = getPrimaryScope(filterContext, siteName);
+        cols.push({
+          key: 'ne',
+          label: scope.label || 'NE',
+          get: (r) => r.site_name || r.splitValue || scope.value || '—',
+        });
+      }
     } else {
       // Client-side fallback
-      cols.push({ key: 'ne', label: scopeLabel, get: (r) => r.ne || '—' });
+      cols.push({ key: 'ne', label: scopeLabel || 'NE', get: (r) => r.ne || '—' });
       if (hasSplitValues) {
         cols.push({ key: 'splitValue', label: splitLabel, get: (r) => r.splitValue || '—' });
       }
     }
     return cols;
-  }, [useBackend, splitBy, displayRows, scopeLabel, hasSplitValues, splitLabel]);
+  }, [useBackend, splitBy, displayRows, scopeLabel, hasSplitValues, splitLabel, filterContext, siteName]);
 
   // Per-KPI min/max for inline progress bars
   const kpiRanges = useMemo(() => {
