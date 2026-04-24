@@ -280,10 +280,11 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
   };
   if (extra) {
     const ext = base as any;
-    if (extra.tilt != null) ext.tilt = extra.tilt;
-    if (extra.pmax != null) ext.pmax = extra.pmax;
-    if (extra.dl_bandwidth != null) ext.dl_bandwidth = extra.dl_bandwidth;
-    if (extra.num_tx_ant != null) ext.num_tx_ant = extra.num_tx_ant;
+    const ex = extra as any;
+    if (ex.tilt != null) ext.tilt = ex.tilt;
+    if (ex.pmax != null) ext.pmax = ex.pmax;
+    if (ex.dl_bandwidth != null) ext.dl_bandwidth = ex.dl_bandwidth;
+    if (ex.num_tx_ant != null) ext.num_tx_ant = ex.num_tx_ant;
     if (extra.pci != null) ext.pci = extra.pci;
     if (extra.eci != null) ext.eci = extra.eci;
     if (extra.nci != null) ext.nci = extra.nci;
