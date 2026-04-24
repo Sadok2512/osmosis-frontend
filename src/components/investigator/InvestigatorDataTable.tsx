@@ -328,55 +328,72 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     );
   }
 
-  return (
-    <div className="flex-grow rounded-2xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col">
-      {/* Top meta strip — light, airy */}
-      <div className="px-6 py-3 bg-white border-b border-border/30">
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
-            Cells Inventory
-          </span>
-          <span className="text-foreground/80 font-semibold">{sourceInfo.slotLabel}</span>
-          <span className="text-muted-foreground/40">·</span>
-          <span className="text-muted-foreground">
-            KPIs: <span className="text-foreground/70">{sourceInfo.kpiNames || '—'}</span>
-          </span>
-          <span className="text-muted-foreground/40">·</span>
-          <span className="text-muted-foreground">{totalRows.toLocaleString()} rows</span>
-        </div>
-      </div>
+  // Brand colors per design spec
+  const BRAND_GREEN = '#14746C';
+  const ROW_BORDER = '#E5E7EB';
+  const TRACK_GREY = '#F1F2F4';
 
-      {/* Toolbar */}
-      <div className="h-12 border-b border-border/20 flex items-center justify-between px-6 bg-white">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Table</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium">
+  return (
+    <div
+      className="flex-grow rounded-xl bg-white overflow-hidden flex flex-col"
+      style={{
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+        border: `1px solid ${ROW_BORDER}`,
+      }}
+    >
+      {/* Info bar — subtle bordered container */}
+      <div
+        className="px-6 py-3 bg-white flex items-center justify-between gap-4"
+        style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
+      >
+        <div className="flex items-center gap-3 text-[12px] flex-wrap">
+          <span
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-[0.1em]"
+            style={{ color: BRAND_GREEN, backgroundColor: `${BRAND_GREEN}10` }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: BRAND_GREEN }} />
+            Source
+          </span>
+          <span className="text-foreground font-semibold">{sourceInfo.slotLabel}</span>
+          <span className="w-px h-4 bg-[#E5E7EB]" />
+          <span className="text-muted-foreground text-[11px]">
+            KPI: <span className="text-foreground/80 font-medium">{sourceInfo.kpiNames || '—'}</span>
+          </span>
+          <span className="w-px h-4 bg-[#E5E7EB]" />
+          <span className="text-muted-foreground text-[11px]">
+            <span className="text-foreground font-semibold">{totalRows.toLocaleString()}</span> rows
+          </span>
+          <span className="w-px h-4 bg-[#E5E7EB]" />
+          <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F8F9FA] text-muted-foreground font-medium">
             {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''} × {hasSplitValues ? splitLabel : 'NE'}
           </span>
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          style={{ border: `1px solid ${ROW_BORDER}` }}
         >
           <Download className="w-3.5 h-3.5" />
-          CSV
+          Export CSV
         </button>
       </div>
 
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
-        <table className="w-full border-collapse text-[12px]">
+        <table className="w-full border-collapse text-[12.5px]">
           <thead className="sticky top-0 z-20">
-            <tr className="bg-white border-b border-border/40">
-              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
+            <tr className="bg-white" style={{ borderBottom: `1.5px solid ${ROW_BORDER}` }}>
+              <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
                 Timestamp
               </th>
 
-              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap">
+              <th
+                className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
+              >
                 {scopeLabel}
               </th>
 
               {hasSplitValues && (
-                <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
+                <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
                   {splitLabel}
                 </th>
               )}
@@ -384,9 +401,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
               {kpiColumns.map((kpi) => (
                 <th
                   key={kpi}
-                  className="text-right py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap"
+                  className="text-right py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap"
                 >
-                  <span className="truncate max-w-[200px] inline-block align-middle" title={kpi}>{kpi}</span>
+                  <span className="truncate max-w-[220px] inline-block align-middle" title={kpi}>{kpi}</span>
                 </th>
               ))}
             </tr>
@@ -399,13 +416,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
               return (
                 <tr
                   key={absIdx}
-                  className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
+                  className="group transition-colors hover:bg-[#F0FAF8]"
+                  style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
                 >
-                  <td className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
+                  <td className="py-3.5 px-6 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
                     {row.timestamp}
                   </td>
 
-                  <td className="py-3 px-5 sticky left-0 bg-white group-hover:bg-muted/30 transition-colors whitespace-nowrap">
+                  <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
                     <span className="inline-flex items-center gap-2">
                       <span
                         className="w-1.5 h-1.5 rounded-full shrink-0"
@@ -416,7 +434,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                   </td>
 
                   {hasSplitValues && (
-                    <td className="py-3 px-5 whitespace-nowrap">
+                    <td className="py-3.5 px-6 whitespace-nowrap">
                       <span className="inline-flex items-center gap-2">
                         <span
                           className="w-1.5 h-1.5 rounded-full shrink-0"
@@ -436,22 +454,21 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     } else if (val != null && isFinite(val) && range && range.max === range.min && val !== 0) {
                       pct = 100;
                     }
-                    const barColor = stableColorForSplit(kpi);
                     return (
-                      <td
-                        key={kpi}
-                        className="py-3 px-5 whitespace-nowrap"
-                      >
+                      <td key={kpi} className="py-3.5 px-6 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-3">
-                          <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
+                          <div
+                            className="relative h-1.5 w-24 rounded-full overflow-hidden"
+                            style={{ backgroundColor: TRACK_GREY }}
+                          >
                             {val != null && (
                               <div
-                                className="absolute inset-y-0 left-0 rounded-full"
-                                style={{ width: `${pct}%`, backgroundColor: barColor }}
+                                className="absolute inset-y-0 left-0 rounded-full transition-all"
+                                style={{ width: `${pct}%`, backgroundColor: BRAND_GREEN }}
                               />
                             )}
                           </div>
-                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
+                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[4rem] text-[12.5px]">
                             {fmtVal(val ?? null)}
                           </span>
                         </div>
@@ -465,21 +482,30 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         </table>
       </div>
 
-      <div className="h-10 border-t border-border/20 flex items-center justify-between px-4 bg-muted/30">
-        <div className="flex items-center gap-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+      {/* Pagination — clean, right-aligned */}
+      <div
+        className="h-12 flex items-center justify-between px-6 bg-white"
+        style={{ borderTop: `1px solid ${ROW_BORDER}` }}
+      >
+        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
           <span>
-            Showing {startIdx + 1}–{endIdx} of {totalRows.toLocaleString()} rows
+            Showing <span className="font-semibold text-foreground">{startIdx + 1}–{endIdx}</span> of{' '}
+            <span className="font-semibold text-foreground">{totalRows.toLocaleString()}</span>
           </span>
           <div className="relative">
             <button
               onClick={() => setShowPageSizeMenu(!showPageSizeMenu)}
-              className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[#F8F9FA] transition-colors"
+              style={{ border: `1px solid ${ROW_BORDER}` }}
             >
-              <span>Items per page: {pageSize}</span>
+              <span>Items per page: <span className="font-semibold text-foreground">{pageSize}</span></span>
               <ChevronDown className="w-3 h-3" />
             </button>
             {showPageSizeMenu && (
-              <div className="absolute bottom-full mb-1 left-0 bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
+              <div
+                className="absolute bottom-full mb-1 left-0 bg-white rounded-md shadow-lg z-50 overflow-hidden"
+                style={{ border: `1px solid ${ROW_BORDER}` }}
+              >
                 {PAGE_SIZES.map((s) => (
                   <button
                     key={s}
@@ -489,9 +515,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       setShowPageSizeMenu(false);
                     }}
                     className={cn(
-                      'block w-full text-left px-3 py-1.5 text-[10px] hover:bg-primary/10 transition-colors',
-                      s === pageSize && 'bg-primary/10 text-primary font-bold',
+                      'block w-full text-left px-4 py-1.5 text-[11px] hover:bg-[#F0FAF8] transition-colors',
+                      s === pageSize && 'font-semibold',
                     )}
+                    style={s === pageSize ? { color: BRAND_GREEN, backgroundColor: `${BRAND_GREEN}10` } : undefined}
                   >
                     {s}
                   </button>
@@ -503,34 +530,54 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
         <div className="flex items-center gap-1">
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
             onClick={() => setCurrentPage(0)}
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
             onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <div className="flex items-center px-2">
-            <span className="text-[10px] font-bold bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center rounded">
-              {safePage + 1}
-            </span>
-            <span className="text-[9px] text-muted-foreground ml-1">/ {totalPages}</span>
+
+          {/* Page chips around current */}
+          <div className="flex items-center gap-1 px-1">
+            {(() => {
+              const chips: number[] = [];
+              const window = 1;
+              const start = Math.max(0, safePage - window);
+              const end = Math.min(totalPages - 1, safePage + window);
+              for (let i = start; i <= end; i++) chips.push(i);
+              return chips.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setCurrentPage(p)}
+                  className={cn(
+                    'min-w-[28px] h-7 px-2 rounded-md text-[11px] font-semibold transition-colors',
+                    p === safePage ? 'text-white' : 'text-foreground hover:bg-[#F8F9FA]',
+                  )}
+                  style={p === safePage ? { backgroundColor: BRAND_GREEN } : undefined}
+                >
+                  {p + 1}
+                </button>
+              ));
+            })()}
+            <span className="text-[10px] text-muted-foreground ml-1">/ {totalPages}</span>
           </div>
+
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
             onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
-            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
             onClick={() => setCurrentPage(totalPages - 1)}
           >
