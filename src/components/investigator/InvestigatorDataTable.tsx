@@ -366,40 +366,37 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     if (!useBackend) return null;
     const kpiCols = [...new Set(backendRows.map(r => r.kpi_key))];
     const timestamps = [...new Set(backendRows.map(r => r.ts))].sort();
-    // Sanitize split_value: drop ISO-timestamp values that some backends echo when no split is set
-    const isIsoTs = (v: string) => /^\d{4}-\d{2}-\d{2}T/.test(v);
+    const splitValues = [...new Set(backendRows.map(r => r.split_value || r.site_name || ''))].sort();
+
+    // Fix: KPI Engine puts timestamp as split_value when no split_by — detect and clean
     const cleanSplit = (r: any) => {
-      const raw = r.split_value || r.site_name || '';
-      if (!raw || isIsoTs(String(raw))) return '';
-      return String(raw);
+      const sv = r.split_value || r.site_name || '';
+      // If split_value equals ts (timestamp used as split), treat as empty
+      if (sv === r.ts || sv === fmt(r.ts)) return '';
+      return sv;
     };
-    const splitValues = splitBy
-      ? [...new Set(backendRows.map(cleanSplit))].sort()
-      : [''];
+
+    const cleanedRows = backendRows.map(r => ({ ...r, _cleanSplit: cleanSplit(r) }));
+    const splitValuesClean = [...new Set(cleanedRows.map(r => r._cleanSplit))].sort();
 
     const lookup = new Map<string, number>();
-    for (const r of backendRows) {
-      const sv = splitBy ? cleanSplit(r) : '';
-      const key = `${r.ts}||${sv}||${r.kpi_key}`;
-      // If multiple rows collapse to same key (no split), aggregate by averaging
-      const prev = lookup.get(key);
-      const v = r.avg ?? r.value ?? null;
-      if (v == null) continue;
-      lookup.set(key, prev == null ? v : (prev + v) / 2);
+    for (const r of cleanedRows) {
+      const key = `${r.ts}||${r._cleanSplit}||${r.kpi_key}`;
+      lookup.set(key, r.avg ?? r.value ?? null);
     }
 
     const rows: { timestamp: string; splitValue: string; site_name: string; dor: string; band: string; vendor: string; kpiValues: Record<string, number | null> }[] = [];
     for (const ts of timestamps) {
-      for (const sv of splitValues) {
+      for (const sv of splitValuesClean) {
         const kpiValues: Record<string, number | null> = {};
         for (const kpi of kpiCols) {
           kpiValues[kpi] = lookup.get(`${ts}||${sv}||${kpi}`) ?? null;
         }
-        const sample = backendRows.find(r => r.ts === ts && (splitBy ? cleanSplit(r) === sv : true));
+        const sample = cleanedRows.find(r => r.ts === ts && r._cleanSplit === sv);
         rows.push({
           timestamp: fmt(ts),
           splitValue: sv || '—',
-          site_name: sample?.site_name || sv,
+          site_name: sample?.site_name && sample.site_name !== sample.ts ? sample.site_name : (sv || '—'),
           dor: sample?.dor || '',
           band: sample?.band || '',
           vendor: sample?.vendor || '',
@@ -408,7 +405,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       }
     }
     return { rows, kpiCols };
-  }, [useBackend, backendRows, splitBy]);
+  }, [useBackend, backendRows]);
 
   // Fallback: client-side pivot from tsData
   const { rows, kpiColumns, hasSplitValues, scopeLabel, splitLabel } = useMemo(
@@ -444,20 +441,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const endIdx = useBackend ? displayRows.length : Math.min(startIdx + pageSize, displayRows.length);
   const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
 
-  const showSplitCol = useBackend ? !!splitBy : true;
-  const showMetaCols = !!(useBackend && splitBy);
-
   const exportCsv = () => {
-    const headerCols = ['Timestamp'];
-    if (showSplitCol) headerCols.push(splitBy || 'Site');
-    if (showMetaCols) headerCols.push('DOR', 'Band', 'Vendor');
+    const headerCols = ['Timestamp', splitBy || 'Site'];
+    if (backendTableData) headerCols.push('DOR', 'Band', 'Vendor');
     headerCols.push(...displayKpiCols);
     const header = headerCols.map(escapeCsv).join(',');
 
     const csvRows = displayRows.map(r => {
-      const baseCols: any[] = [r.timestamp];
-      if (showSplitCol) baseCols.push((r as any).splitValue || (r as any).ne || '');
-      if (showMetaCols) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
+      const baseCols = [r.timestamp, (r as any).splitValue || (r as any).ne || ''];
+      if (backendTableData) baseCols.push((r as any).dor || '', (r as any).band || '', (r as any).vendor || '');
       const kpiVals = displayKpiCols.map(k => r.kpiValues[k] ?? '');
       return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
     });
@@ -573,15 +565,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                 Timestamp
               </th>
 
-              {showSplitCol && (
-                <th
-                  className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
-                >
-                  {useBackend ? (splitBy || 'Site') : scopeLabel}
-                </th>
-              )}
+              <th
+                className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap"
+              >
+                {useBackend ? (splitBy || 'Site') : scopeLabel}
+              </th>
 
-              {showMetaCols && (
+              {useBackend && (
                 <>
                   <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">DOR</th>
                   <th className="text-left py-3.5 px-6 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">Band</th>
@@ -620,19 +610,17 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                     {row.timestamp}
                   </td>
 
-                  {showSplitCol && (
-                    <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
-                      <span className="inline-flex items-center gap-2">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
-                        />
-                        <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
-                      </span>
-                    </td>
-                  )}
+                  <td className="py-3.5 px-6 sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors whitespace-nowrap">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: stableColorForSplit(useBackend ? ((row as any).splitValue || '') : (row as any).ne || '') }}
+                      />
+                      <span className="font-semibold text-foreground tracking-tight">{useBackend ? (row as any).splitValue : (row as any).ne}</span>
+                    </span>
+                  </td>
 
-                  {showMetaCols && (
+                  {useBackend && (
                     <>
                       <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).dor || '—'}</td>
                       <td className="py-3.5 px-6 whitespace-nowrap text-[11px] text-muted-foreground">{(row as any).band || '—'}</td>
