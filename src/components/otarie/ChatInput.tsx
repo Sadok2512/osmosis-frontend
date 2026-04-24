@@ -1,15 +1,15 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 
-type AgentId = 'PULSE' | 'TOPO' | 'OPTIMIZE' | 'DIAGNOSE' | 'ANOMALY' | 'INSIGHT' | 'OSMOSIS';
+type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
   PULSE: { emoji: '💓', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
+  TRACE: { emoji: '🔍', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
+  SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
   TOPO: { emoji: '🗺️', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
-  OPTIMIZE: { emoji: '⚙️', label: 'OPTIMIZE', color: 'hsl(30, 85%, 55%)' },
-  DIAGNOSE: { emoji: '🔍', label: 'DIAGNOSE', color: 'hsl(35, 90%, 50%)' },
-  ANOMALY: { emoji: '🚨', label: 'ANOMALY', color: 'hsl(0, 80%, 55%)' },
-  INSIGHT: { emoji: '📈', label: 'INSIGHT', color: 'hsl(190, 70%, 50%)' },
+  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
+  ANALYTIC: { emoji: '📈', label: 'ANALYTIC', color: 'hsl(190, 70%, 50%)' },
   OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
 };
 
