@@ -263,7 +263,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const kpiIdsKey = kpiIds.join(',');
 
   useEffect(() => {
-    if (!hasKpis || !investigatorState || !activeSlot || backendRefreshKey <= 0) {
+    if (!hasKpis || !investigatorState || !activeSlot) {
       setBackendRows([]);
       setBackendTotal(0);
       setBackendLoading(false);
@@ -336,7 +336,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     // Do NOT abort on cleanup — let the request finish so React StrictMode
     // double-mount or fast re-renders don't cancel a perfectly valid query.
     // The next effect run will abort via abortRef.current.abort() above.
-  }, [activeSlot?.id, kpiIdsKey, backendRefreshKey, splitBy, backendPage, pageSize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlot?.id, kpiIdsKey, backendRefreshKey, splitBy, backendPage, pageSize, investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity]);
 
   // Use backend data when available, fall back to tsData pivot
   const useBackend = hasKpis && investigatorState && backendRows.length > 0;
