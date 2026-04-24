@@ -36,6 +36,8 @@ export interface ViewConfig {
   topoFilters?: Record<string, string>;
   // Parameter
   paramFilters?: Record<string, string>;
+  // Coverage Prediction
+  coverageBand?: string;
 }
 
 interface Props {
@@ -200,10 +202,13 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
           : `Topo Search`
   );
 
+  const [coverageBand, setCoverageBand] = useState<string>('');
+
   const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
     (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim())) ||
-    (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim()))
+    (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim())) ||
+    (viewType === 'coverage' && Boolean(coverageBand))
   );
 
   const handleSave = () => {
@@ -223,6 +228,9 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       config.paramFilters = Object.fromEntries(
         Object.entries(paramFilters).filter(([, v]) => v.trim())
       );
+    } else if (viewType === 'coverage') {
+      config.technology = technology;
+      config.coverageBand = coverageBand;
     }
     onSave(config);
   };
