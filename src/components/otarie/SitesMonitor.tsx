@@ -9254,8 +9254,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         {/* Coverage simulation overlay */}
         <CoverageCanvasOverlay grid={coverageGrid} opacity={0.55} visible={!!coverageGrid} />
 
-        {/* Batch coverage + Footprint panels */}
-        {!paramMode && !paramPanelOpen && (
+        {/* Coverage panels — shown when coverage view is active */}
+        {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || footprintCells.length > 0 || !!coverageGrid) && (
           <div className="absolute z-[1001] pointer-events-auto flex flex-col gap-2" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
             <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
               <FootprintCoveragePanel
