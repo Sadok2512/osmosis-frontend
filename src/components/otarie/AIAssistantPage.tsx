@@ -559,9 +559,9 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
   const sidebarWidth = sidebarMode === 'full' ? 'w-[280px]' : sidebarMode === 'collapsed' ? 'w-[52px]' : 'w-0';
 
   return (
-    <div className="flex-1 flex h-full bg-background overflow-hidden">
+    <div className="osmosis-theme flex-1 flex h-full bg-background overflow-hidden">
       {/* ══════════ LEFT SIDEBAR ══════════ */}
-      <div className={`${sidebarWidth} shrink-0 transition-all duration-300 overflow-hidden border-r border-border bg-card flex flex-col`}>
+      <div className={`osmosis-sidebar ${sidebarWidth} shrink-0 transition-all duration-300 overflow-hidden border-r border-border bg-card flex flex-col`}>
         {sidebarMode === 'full' && (
           <>
             {/* Sidebar Header */}
