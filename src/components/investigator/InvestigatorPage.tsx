@@ -1210,6 +1210,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                     // Fallback: untagged points that match this slot's KPIs/counters
                     const untagged = tsData.filter((d: any) => d._slotId == null && matchesSlotConfig(d));
                     if (untagged.length > 0) return untagged;
+                    // Last resort: any data matching KPI keys regardless of slot tag
+                    const anyMatch = tsData.filter((d: any) => matchesSlotConfig(d));
+                    if (anyMatch.length > 0) return anyMatch;
                     return [] as any[];
                   }
                   // No slot tags in dataset → pure KPI/counter key match
