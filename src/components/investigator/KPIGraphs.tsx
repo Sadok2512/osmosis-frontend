@@ -1580,6 +1580,24 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const autoLeft = computeAutoRange(series, 0);
         const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
 
+        // Determine which axis owns the grid: prefer left, fall back to right
+        // when no series live on the left (otherwise grid lines disappear when
+        // the user moves every KPI to the right axis).
+        const leftHasData = autoLeft.min != null && autoLeft.max != null;
+        const gridOwnerIsRight = hasRightAxis && !leftHasData;
+
+        const buildSplitLine = (active: boolean) => {
+          if (!active) return { show: false };
+          const baseAlpha = 0.08;
+          const maxAlpha = 0.5;
+          const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
+          const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
+          return {
+            show: cfg.showGrid,
+            lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
+          };
+        };
+
         // Build yAxis array (always left; optionally right)
         const yAxisLeft = {
           type: 'value' as const,
@@ -1592,16 +1610,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             formatter: (v: number) => `${v.toFixed(1)}`,
             margin: 14,
           },
-          splitLine: (() => {
-            const baseAlpha = 0.08;
-            const maxAlpha = 0.5;
-            const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
-            const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
-            return {
-              show: cfg.showGrid,
-              lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
-            };
-          })(),
+          splitLine: buildSplitLine(!gridOwnerIsRight),
           axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
           axisTick: { show: true },
         };
@@ -1618,7 +1627,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             formatter: (v: number) => `${v.toFixed(1)}`,
             margin: 14,
           },
-          splitLine: { show: false },
+          splitLine: buildSplitLine(gridOwnerIsRight),
           axisLine: { show: true, lineStyle: { color: 'rgba(15,23,42,0.15)' } },
           axisTick: { show: true },
         };
