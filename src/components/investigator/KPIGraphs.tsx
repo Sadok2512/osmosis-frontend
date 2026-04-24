@@ -30,9 +30,8 @@ import {
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
-  { value: 'kpi_card', label: 'KPI Card', icon: Activity, color: 'text-emerald-500' },
   { value: 'histogram', label: 'Histogram', icon: BarChart3, color: 'text-purple-500' },
-  { value: 'neighbors', label: 'Neighbors Flux', icon: GitBranch, color: 'text-cyan-500' },
+  { value: 'table', label: 'Table', icon: Hash, color: 'text-amber-500' },
 ];
 
 const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd }) => {
