@@ -3451,13 +3451,14 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
     }
     if (selectedParam && search === selectedParam) return; // don't re-search after selection
     const term = search.trim();
+    const termLc = term.toLowerCase();
     const t = setTimeout(async () => {
       setSuggestionsLoading(true);
       let names: string[] = [];
       // 1) Try VPS parser endpoint first (live data)
       try {
         const resp = await fetch(
-          getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?search=${encodeURIComponent(term)}&limit=200`),
+          getVpsProxyUrl('parser', `/api/v1/topo/site-params/${encodeURIComponent(siteName)}?search=${encodeURIComponent(term)}&limit=500`),
           { headers: getVpsProxyHeaders() },
         );
         if (resp.ok) {
@@ -3475,11 +3476,28 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
             .select('parameter')
             .ilike('site_name', siteName)
             .ilike('parameter', `%${term}%`)
-            .limit(200);
+            .limit(500);
           names = [...new Set((data || []).map((r: any) => r.parameter).filter(Boolean))] as string[];
         } catch { /* ignore */ }
       }
-      setSuggestions(names.sort().slice(0, 50));
+      // Client-side filter: VPS sometimes ignores `search` and returns unrelated rows
+      const matches = names.filter(n => n.toLowerCase().includes(termLc));
+      // Rank: exact > leaf-name match > prefix > contains
+      const rank = (n: string) => {
+        const lc = n.toLowerCase();
+        const leaf = lc.split('.').pop() || lc;
+        if (lc === termLc) return 0;
+        if (leaf === termLc) return 1;
+        if (leaf.startsWith(termLc)) return 2;
+        if (lc.startsWith(termLc)) return 3;
+        if (leaf.includes(termLc)) return 4;
+        return 5;
+      };
+      matches.sort((a, b) => {
+        const r = rank(a) - rank(b);
+        return r !== 0 ? r : a.localeCompare(b);
+      });
+      setSuggestions(matches.slice(0, 50));
       setShowSuggestions(true);
       setSuggestionsLoading(false);
     }, 250);
