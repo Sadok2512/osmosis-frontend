@@ -3116,11 +3116,26 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <span className="uppercase tracking-wider">Save</span>
                       </button>
                       <button
-                        onClick={() => setShowDeleteConfirm(db.id)}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-destructive/30 text-destructive/70 hover:text-destructive hover:border-destructive hover:bg-destructive/5"
+                        onClick={() => {
+                          if (isActive) {
+                            // Eye off → hide sites by deactivating dashboard
+                            onActiveDashboardIdChange(null);
+                            onActiveViewIdChange(null);
+                            onDashboardActiveChange?.(false, null, null);
+                          } else {
+                            // Eye on → activate dashboard to show its sites
+                            activateDashboard(db.id);
+                          }
+                        }}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border ${
+                          isActive
+                            ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
+                            : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted'
+                        }`}
+                        title={isActive ? 'Masquer les sites sur la carte' : 'Afficher les sites sur la carte'}
                       >
-                        <Trash2 size={12} />
-                        <span className="uppercase tracking-wider">Delete</span>
+                        {isActive ? <Eye size={12} /> : <EyeOff size={12} />}
+                        <span className="uppercase tracking-wider">{isActive ? 'Visible' : 'Hidden'}</span>
                       </button>
                       <button
                         onClick={() => requestDashboardSwitch(null)}
