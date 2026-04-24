@@ -140,6 +140,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       setActiveTopoKeys(['pci']);
       setParamFilters({});
       setActiveParamKeys(['parameter']);
+      setCoverageBand('');
     }
     onOpenChange(o);
   };
