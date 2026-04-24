@@ -8158,9 +8158,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
+          const siteHasRealCells = site.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells
             ? siteDetail.cells
-            : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+            : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
+          const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           const showMiniSectors = (showBeamSectors && viewport.zoom >= 8 && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
@@ -8856,7 +8858,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     : (bandColors['4G_GROUP'] || '#F39C12');
                   let kpiColor = topoColor;
                   if (sectorColorMode === 'kpi') {
-                    kpiColor = getKpiColor(getCellKpiValue(cell, site.site_name || site.site_id));
+                    const cellKpiValue = getCellKpiValue(cell, site.site_name || site.site_id);
+                    const fallbackSiteKpiValue = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+                    kpiColor = getKpiColor(isSyntheticOnlySite && Number.isNaN(cellKpiValue) ? fallbackSiteKpiValue : cellKpiValue);
                   }
                   const colorViewOverrideSector = getColorViewFill(site);
                   const fillColor = colorViewOverrideSector || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor));
@@ -8987,7 +8991,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 const sectorCoords = getSectorCoords(site.coordinates, az, cellRadius, 60);
                 const isFaded = false; // cells already filtered by tech above
                 const colorViewOverrideCell = getColorViewFill(site);
-                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(getCellKpiValue(cell, site.site_name || site.site_id))));
+                const cellKpiValue = getCellKpiValue(cell, site.site_name || site.site_id);
+                const fallbackSiteKpiValue = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
+                const effectiveKpiValue = isSyntheticOnlySite && Number.isNaN(cellKpiValue) ? fallbackSiteKpiValue : cellKpiValue;
+                const fillColor = colorViewOverrideCell || (isFocusFaded ? FADED_COLOR : ((sectorColorMode as string) === 'topo' ? getBandColor(cell.bande, cell.techno) : getKpiColor(effectiveKpiValue)));
                 const strokeColor = isFocusFaded ? '#cbd5e1' : ((sectorColorMode as string) === 'topo' && !colorViewOverrideCell ? getBandStrokeColor(cell.bande, cell.techno) : deriveStrokeColor(fillColor));
                 const isFocusCell = focusCellId === cell.cell_id;
                 const isCellDimmed = focusMode === 'cell' && isSelectedSite && !isFocusCell;
