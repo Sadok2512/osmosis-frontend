@@ -184,7 +184,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <div className="flex items-center gap-2 mt-2 px-3 opacity-50">
             <div className="w-2 h-2 rounded-full bg-sidebar-primary" />
-            <span className="text-[10px] font-medium text-sidebar-foreground">V1.3 Beta • Orange France</span>
+            <span className="text-[10px] font-medium text-sidebar-foreground">V1.4 Beta • Orange France</span>
           </div>
         )}
       </div>
