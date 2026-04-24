@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { getVpsProxyUrl } from "@/lib/apiConfig";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -141,34 +141,55 @@ export function PmLiveMonitor({ defaultVendor = "nokia" }: Props) {
   const [dateFilter, setDateFilter] = useState("");
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const isFetching = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  /* ── Fetch ── */
+  /* ── Fetch with race lock + AbortController ── */
   const fetchProgress = useCallback(async () => {
+    if (isFetching.current) return; // 1.2 — prevent overlapping fetches
+    isFetching.current = true;
     try {
+      abortRef.current?.abort();
+      const controller = new AbortController(); // 1.3 — cleanup on unmount
+      abortRef.current = controller;
       const params: Record<string, string> = {};
       if (statusFilter) params.status_filter = statusFilter;
       const url = getVpsProxyUrl("parser", `/api/v1/pm/${vendor}/progress`, params);
-      const r = await fetch(url);
-      if (!r.ok) return;
+      const r = await fetch(url, { signal: controller.signal });
+      if (!r.ok) {
+        setFetchError(`HTTP ${r.status}`); // 1.1 — surface errors
+        return;
+      }
       const d: ProgressData = await r.json();
-      setData(d);
-    } catch {
-      /* ignore */
+      if (!controller.signal.aborted) {
+        setData(d);
+        setFetchError(null);
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') {
+        setFetchError(e?.message || 'Fetch failed');
+      }
+    } finally {
+      isFetching.current = false;
     }
   }, [vendor, statusFilter]);
 
-  /* ── Poll every 4s ── */
+  /* ── Poll every 4s + cleanup ── */
   useEffect(() => {
     setLoading(true);
     fetchProgress().finally(() => setLoading(false));
     const timer = setInterval(fetchProgress, 4000);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      abortRef.current?.abort(); // 1.3 — abort on unmount
+    };
   }, [fetchProgress]);
 
   /* ── Derived state ── */
   const svc = data?.service;
   const sum = data?.summary ?? { total_done: 0, total_failed: 0, total_processing: 0, total_rows_inserted: 0, total_pending: 0 };
-  const errCount = sum.total_failed + sum.total_processing;
+  const errCount = (sum.total_failed ?? 0) + (sum.total_processing ?? 0); // 1.6 — null safety
 
   let displayStatus = "READY";
   let statusColor = "text-blue-400";
@@ -192,25 +213,32 @@ export function PmLiveMonitor({ defaultVendor = "nokia" }: Props) {
     badgeCls = "bg-yellow-500/15 text-yellow-400 border-yellow-500/30";
   }
 
-  /* ── Filter files client-side ── */
-  let files = data?.files ?? [];
-  if (dateFilter) {
-    files = files.filter((f) => {
-      const ts = f.started_at || f.finished_at || "";
-      return ts.startsWith(dateFilter);
-    });
-  }
-  // RAT filter: match filename patterns like _2G_, _3G_, _LTE_, _NR_
-  if (rat) {
-    const ratPatterns: Record<string, RegExp> = {
-      "2g": /[_.](?:2[Gg]|GSM|BSC)/i,
-      "3g": /[_.](?:3[Gg]|UMTS|WCDMA|RNC)/i,
-      "4g": /[_.](?:4[Gg]|LTE|eNB|LNBTS)/i,
-      "5g": /[_.](?:5[Gg]|NR|gNB|NRBTS)/i,
-    };
-    const re = ratPatterns[rat];
-    if (re) files = files.filter((f) => re.test(f.file_name));
-  }
+  /* ── Filter files client-side (memoized) ── */
+  const files = useMemo(() => { // 2.2 — useMemo prevents re-filtering every render
+    let result = data?.files ?? [];
+    if (dateFilter) {
+      result = result.filter((f) => {
+        const ts = f.started_at || f.finished_at || "";
+        try {
+          return new Date(ts).toISOString().slice(0, 10) === dateFilter; // 1.5 — robust date compare
+        } catch {
+          return ts.startsWith(dateFilter); // fallback
+        }
+      });
+    }
+    // RAT filter: match filename patterns like _2G_, _3G_, _LTE_, _NR_
+    if (rat) {
+      const ratPatterns: Record<string, RegExp> = {
+        "2g": /[_.](?:2[Gg]|GSM|BSC)/i,
+        "3g": /[_.](?:3[Gg]|UMTS|WCDMA|RNC)/i,
+        "4g": /[_.](?:4[Gg]|LTE|eNB|LNBTS)/i,
+        "5g": /[_.](?:5[Gg]|NR|gNB|NRBTS)/i,
+      };
+      const re = ratPatterns[rat];
+      if (re) result = result.filter((f) => re.test(f.file_name));
+    }
+    return result;
+  }, [data?.files, dateFilter, rat]);
 
   /* ── Retry handler ── */
   const retryFailed = async () => {
@@ -245,13 +273,13 @@ export function PmLiveMonitor({ defaultVendor = "nokia" }: Props) {
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-xs text-muted-foreground font-medium">RAT</span>
-          <Select value={rat} onValueChange={setRat}>
+          <Select value={rat || "_all"} onValueChange={(v) => setRat(v === "_all" ? "" : v)}>
             <SelectTrigger className="w-[130px] h-8 text-xs">
               <SelectValue placeholder="All RATs" />
             </SelectTrigger>
             <SelectContent>
               {RAT_OPTIONS.map((o) => (
-                <SelectItem key={o.value} value={o.value || "_all"}>
+                <SelectItem key={o.value || "_all"} value={o.value || "_all"}>
                   {o.label}
                 </SelectItem>
               ))}
@@ -305,7 +333,7 @@ export function PmLiveMonitor({ defaultVendor = "nokia" }: Props) {
           {vendor.charAt(0).toUpperCase() + vendor.slice(1)} PM
         </Badge>
 
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter || "_all"} onValueChange={(v) => setStatusFilter(v === "_all" ? "" : v)}>
           <SelectTrigger className="w-[130px] h-7 text-xs">
             <SelectValue placeholder="All Files" />
           </SelectTrigger>
