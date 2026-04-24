@@ -671,18 +671,20 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
             {pageRows.map((row: any, idx) => {
               const absIdx = startIdx + idx;
 
+              const isOdd = absIdx % 2 === 1;
+              const rowBg = isOdd ? '#FAFBFC' : '#FFFFFF';
               return (
                 <tr
                   key={absIdx}
                   className="group transition-colors hover:bg-[#F0FAF8]"
-                  style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
+                  style={{ borderBottom: `1px solid ${ROW_BORDER}`, backgroundColor: rowBg }}
                 >
                   {/* Time */}
-                  <td className="py-3.5 px-6 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
+                  <td className="py-2 px-4 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
                     {row.timestamp}
                   </td>
 
-                  {/* Dimensions */}
+                  {/* Dimensions — first one is sticky/frozen */}
                   {dimensionCols.map((dim, i) => {
                     const value = dim.get(row);
                     const isFirst = i === 0;
@@ -690,11 +692,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
                       <td
                         key={dim.key}
                         className={cn(
-                          'py-3.5 px-6 whitespace-nowrap',
+                          'py-2 px-4 whitespace-nowrap',
                           isFirst
-                            ? 'sticky left-0 bg-white group-hover:bg-[#F0FAF8] transition-colors'
-                            : 'text-[11px] text-muted-foreground',
+                            ? 'sticky left-0 z-10 group-hover:bg-[#F0FAF8] transition-colors'
+                            : 'text-[11.5px] text-foreground/80',
                         )}
+                        style={isFirst ? { backgroundColor: rowBg } : undefined}
+                        title={value}
                       >
                         {isFirst ? (
                           <span className="inline-flex items-center gap-2">
