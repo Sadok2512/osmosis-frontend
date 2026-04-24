@@ -307,15 +307,15 @@ const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[
   { value: 'scatter', label: 'Scatter', icon: CircleDot },
 ];
 
-// PA diverse palette for Investigator series
+// PA diverse palette for Investigator series — Precision Architect tokens
 const SERIES_COLORS = [
-  '#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#14746C', '#F59E0B', '#EF4444', '#6bd8cb', '#8b5cf6',
   '#3b82f6', '#10b981', '#ec4899', '#06b6d4', '#84cc16',
 ];
 
 // Extended diverse palette for split dimension values — 20 distinct colors
 const SPLIT_COLORS = [
-  '#00685f', '#6bd8cb', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#14746C', '#F59E0B', '#EF4444', '#6bd8cb', '#8b5cf6',
   '#3b82f6', '#10b981', '#ec4899', '#06b6d4', '#84cc16',
   '#f97316', '#6366f1', '#14b8a6', '#d946ef', '#0ea5e9',
   '#eab308', '#a855f7', '#f43f5e', '#22c55e', '#0891b2',
