@@ -20,6 +20,7 @@ interface Props {
   siteName?: string;
   filterContext?: Record<string, string[]>;
   forceSplitOff?: boolean;
+  backendRefreshKey?: number;
   investigatorState?: {
     startDate: string;
     endDate: string;
@@ -239,7 +240,7 @@ function buildPivotTable(
   };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff, investigatorState }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff, backendRefreshKey = 0, investigatorState }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
@@ -257,17 +258,14 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
   const rawSplit = activeSlot?.splitBy;
   const splitBy = !forceSplitOff && rawSplit && rawSplit !== 'None' ? rawSplit : null;
 
-  // Stabilize deps so the effect does not re-fire (and abort itself) on every render
+  // Stabilize KPI deps; backend table refresh is driven by Apply, not by live pending filters.
   const kpiIdsKey = kpiIds.join(',');
-  const filtersKey = useMemo(
-    () => JSON.stringify(investigatorState?.filters ?? []),
-    [investigatorState?.filters]
-  );
 
   useEffect(() => {
-    if (!hasKpis || !investigatorState || !activeSlot) {
+    if (!hasKpis || !investigatorState || !activeSlot || backendRefreshKey <= 0) {
       setBackendRows([]);
       setBackendTotal(0);
+      setBackendLoading(false);
       return;
     }
 
@@ -328,7 +326,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     // Do NOT abort on cleanup — let the request finish so React StrictMode
     // double-mount or fast re-renders don't cancel a perfectly valid query.
     // The next effect run will abort via abortRef.current.abort() above.
-  }, [activeSlot?.id, kpiIdsKey, investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity, filtersKey, splitBy, backendPage, pageSize]);
+  }, [activeSlot?.id, kpiIdsKey, backendRefreshKey, splitBy, backendPage, pageSize]);
 
   // Use backend data when available, fall back to tsData pivot
   const useBackend = hasKpis && investigatorState && backendRows.length > 0;
