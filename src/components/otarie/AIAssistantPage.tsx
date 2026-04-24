@@ -261,7 +261,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
 
     // Route through parser :8000/api/v1/agent/orchestrator/stream (proxied to :1000)
     const url = getApiUrl('agent/orchestrator/stream');
-    const headers = getApiHeaders();
+    const headers = getAgentHeaders();
 
     addDebugLog(`Mode: ${isLocalMode() ? 'LOCAL' : 'CLOUD'}`);
     addDebugLog(`URL: ${url}`);
