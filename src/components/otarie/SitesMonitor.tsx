@@ -6361,6 +6361,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, [sites, searchModeSites, isSearchActive, localSearch, filters, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, inventorySortOrder, mapKpi, activeViewFilters, activeViewConditions, kpiValues]);
 
+  // Keep ref in sync so the polygon→cluster flow can count sites without ordering issues
+  useEffect(() => { filteredSitesRef.current = filteredSites; }, [filteredSites]);
+
   // Radius analysis stats
   const radiusStats = useMemo(() => {
     if (!radiusCenter || !radiusConfirmed || radiusConfirmedMeters <= 0) return null;
