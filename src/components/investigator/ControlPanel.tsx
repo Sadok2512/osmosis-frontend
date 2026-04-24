@@ -620,7 +620,7 @@ const JalonsManagerPopup: React.FC<{
                         from={j.date}
                         to={j.endDate || j.date}
                         onChange={(from, to) => updateJalon(j.id, { date: from, endDate: to })}
-                        showTime={false}
+                        showTime
                       />
                     </div>
                     <div className="flex items-center gap-1">
@@ -678,7 +678,7 @@ const JalonsManagerPopup: React.FC<{
                 setEndDate(to);
                 setEndDateTouched(true);
               }}
-              showTime={false}
+              showTime
             />
           </div>
           <div className="flex items-center gap-1">
