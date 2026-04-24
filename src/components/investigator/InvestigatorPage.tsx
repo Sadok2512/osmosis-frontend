@@ -35,8 +35,7 @@ import { toast } from 'sonner';
 const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Timeseries',
   histogram: 'Histogram',
-  kpi_card: 'KPI Card',
-  neighbors: 'Neighbors',
+  table: 'Table',
 };
 
 const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries', initialFilters: Record<string, string[]> = {}): GraphSlot => ({
