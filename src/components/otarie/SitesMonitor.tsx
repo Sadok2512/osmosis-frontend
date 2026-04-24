@@ -5534,8 +5534,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const fromKpi = kpiValues.get(cellName);
     if (fromKpi != null) return fromKpi;
 
-    // Fallback: site-level average (always computed)
-    if (siteName) {
+    // No site-level fallback at cell level: a cell without its own KPI value
+    // must be reported as "no data" (gray), otherwise every cell on a site
+    // inherits the site's average and the gray bucket disappears from the map.
+    // Site-level fallback is only used when explicitly working at site granularity.
+    if (kpiAnalysisLevel === 'site' && siteName) {
       const fromSite = kpiValues.get(`site:${siteName}`);
       if (fromSite != null) return fromSite;
     }
