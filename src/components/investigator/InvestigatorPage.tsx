@@ -1094,6 +1094,18 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                             off
                           </span>
                         )}
+                        {enabled && tab.key === 'table_data' && (
+                          <span
+                            className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border"
+                            style={{
+                              color: tab.color,
+                              borderColor: `${tab.color}40`,
+                              background: `${tab.color}14`,
+                            }}
+                          >
+                            Actif
+                          </span>
+                        )}
                         {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
                           <span className="ml-1 text-[9px] text-slate-400">
                             ({analysisTabs.getSection(tab.key).instances.length})
