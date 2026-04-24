@@ -1117,7 +1117,10 @@ const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
 };
 
 // Fit map to dashboard sites after loading
-const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: number }) => {
+const FitToDashboardSites = React.forwardRef<HTMLDivElement, { sites: SiteSummary[]; fitKey: number }>(function FitToDashboardSites(
+  { sites, fitKey },
+  _ref,
+) {
   const map = useMap();
   const lastFitKeyRef = useRef<number>(0);
   const isFirstFit = useRef(true);
@@ -1149,7 +1152,7 @@ const FitToDashboardSites = ({ sites, fitKey }: { sites: SiteSummary[]; fitKey: 
     return () => clearTimeout(timer);
   }, [fitKey, sites, map]);
   return null;
-};
+});
 
 const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();

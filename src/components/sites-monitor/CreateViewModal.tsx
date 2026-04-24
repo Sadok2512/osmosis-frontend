@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +74,10 @@ const PARAM_FILTER_KEYS = [
   { key: 'value', label: 'Valeur' },
 ];
 
-export function CreateViewModal({ open, onOpenChange, onSave, saving, availableKpis = [] }: Props) {
+export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function CreateViewModal(
+  { open, onOpenChange, onSave, saving, availableKpis = [] }: Props,
+  ref,
+) {
   const [step, setStep] = useState<1 | 2>(1);
   const [viewType, setViewType] = useState<ViewType | null>(null);
   const [name, setName] = useState('');
@@ -238,7 +241,7 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto p-0">
+      <DialogContent ref={ref} className="max-w-xl max-h-[85vh] overflow-y-auto p-0">
         {/* Progress bar */}
         <div className="flex items-center gap-0 px-6 pt-5 pb-0">
           <div className={`flex-1 h-1 rounded-full transition-colors ${step >= 1 ? 'bg-primary' : 'bg-muted'}`} />
@@ -895,4 +898,4 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
       </DialogContent>
     </Dialog>
   );
-}
+});
