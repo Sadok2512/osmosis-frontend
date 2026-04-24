@@ -5,7 +5,7 @@ import {
   ThumbsUp, ThumbsDown, Brain, Search, MoreHorizontal, Clock, ChevronRight,
   Cpu
 } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -287,8 +287,8 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => '');
       addDebugLog(`Error: ${errBody.slice(0, 200)}`);
-      if (resp.status === 429) { toast({ title: 'Limite atteinte', description: 'Réessayez dans un instant.', variant: 'destructive' }); throw new Error('Rate limited'); }
-      if (resp.status === 402) { toast({ title: 'Crédits insuffisants', variant: 'destructive' }); throw new Error('Payment required'); }
+      if (resp.status === 429) { toast.error('Limite atteinte — réessayez dans un instant.'); throw new Error('Rate limited'); }
+      if (resp.status === 402) { toast.error('Crédits insuffisants'); throw new Error('Payment required'); }
       if (resp.status === 404) {
         const fallbackMsg = "⚠️ Le service d'analyse IA (Agent Orchestrator) n'est pas disponible actuellement. Veuillez vérifier que le serveur VPS est démarré et que le service orchestrator est actif sur le port 1000.";
         setMessages(prev => [...prev, { role: 'assistant', content: fallbackMsg }]);
@@ -487,7 +487,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
         is_shared: true, widgets, dashboard_type: 'analytic_qoe',
         owner_username: session?.username || 'OSMOSIS AI',
       });
-      toast({ title: '📊 Dashboard créé !', description: `"${spec.name}" est disponible dans Dashboard Overview.` });
+      toast.success(`📊 Dashboard "${spec.name}" créé !`);
       addDebugLog(`✅ Dashboard "${spec.name}" created with ${widgets.length} charts`);
     } catch (e) {
       console.error('Dashboard creation failed:', e);
@@ -952,7 +952,7 @@ const FeedbackButtons: React.FC<{
   const handleRate = (rating: 1 | -1) => {
     if (existing === rating) return;
     submitFeedback({ sessionId, messageIndex, userQuestion, assistantResponse, agent, rating });
-    toast({ title: rating === 1 ? '👍 Merci !' : '👎 Noté', description: rating === 1 ? 'Réponse enregistrée comme exemple.' : 'Nous en tiendrons compte.' });
+    toast(rating === 1 ? '👍 Merci ! Réponse enregistrée.' : '👎 Noté, nous en tiendrons compte.');
   };
   return (
     <div className="flex items-center gap-1">
@@ -980,8 +980,8 @@ const ExportPDFButton: React.FC<{ msgRef: string; index: number }> = ({ msgRef, 
     setExporting(true);
     try {
       await exportElementToPDF(el, `OSMOSIS_response_${index + 1}`);
-      toast({ title: 'PDF exporté' });
-    } catch { toast({ title: 'Erreur export', variant: 'destructive' }); }
+      toast.success('PDF exporté');
+    } catch { toast.error('Erreur export'); }
     finally { setExporting(false); }
   };
   return (
