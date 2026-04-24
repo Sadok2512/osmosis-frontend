@@ -800,6 +800,97 @@ export function CreateViewModal({ open, onOpenChange, onSave, saving, availableK
               </div>
             </div>
           )}
+
+          {/* ── STEP 2: Coverage Prediction ── */}
+          {step === 2 && viewType === 'coverage' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <button onClick={() => setStep(1)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                  <ChevronLeft size={16} className="text-muted-foreground" />
+                </button>
+                <div>
+                  <h2 className="text-base font-black tracking-tight flex items-center gap-2">
+                    <Radio size={16} className="text-primary" /> Coverage Prediction
+                  </h2>
+                  <p className="text-[10px] text-muted-foreground">Simulation de couverture RSRP par bande de fréquence</p>
+                </div>
+              </div>
+
+              {/* View name */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Nom de la vue *</label>
+                <Input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="Ex: Coverage LTE800 Centre"
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Technology */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Technologie</label>
+                <div className="flex gap-2">
+                  {(['4G', '5G'] as const).map(t => (
+                    <button
+                      key={t}
+                      onClick={() => setTechnology(t)}
+                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
+                        technology === t
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/30 text-muted-foreground border-border hover:border-primary/40'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Band selection */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Bande de fréquence *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(technology === '5G'
+                    ? ['NR_700', 'NR_2100', 'NR_3500']
+                    : ['LTE700', 'LTE800', 'LTE1800', 'LTE2100', 'LTE2600']
+                  ).map(b => (
+                    <button
+                      key={b}
+                      onClick={() => setCoverageBand(b)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
+                        coverageBand === b
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-muted/30 text-foreground border-border hover:border-primary/40'
+                      }`}
+                    >
+                      {b}
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  value={coverageBand}
+                  onChange={e => setCoverageBand(e.target.value)}
+                  placeholder="Ou saisissez une bande personnalisée"
+                  className="text-xs h-8 mt-2 font-mono"
+                />
+              </div>
+
+              <div className="text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-2.5 border border-border/50">
+                💡 La simulation calculera la couverture RSRP de toutes les cellules de cette bande dans le périmètre du dashboard actif (modèle COST-231 Hata).
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
+                  <ChevronLeft size={14} className="mr-1" /> Retour
+                </Button>
+                <Button onClick={handleSave} disabled={!isValid || saving} className="flex-1">
+                  {saving ? 'Création...' : 'Créer la vue'}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
