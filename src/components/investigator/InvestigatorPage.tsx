@@ -22,7 +22,7 @@ import InvestigatorTabBar from './InvestigatorTabBar';
 import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity, InvestigationState } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
-  Maximize2, Minimize2, AlertTriangle, Activity, Square, Columns2,
+  Maximize2, Minimize2, AlertTriangle, Activity, Square, Columns2, Columns3,
   BarChart3, PieChart, LineChart as LineChartIcon,
   Settings2, Bell, Cpu, Layers, Table2, Hash,
 } from 'lucide-react';
@@ -845,6 +845,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             {([
               { val: 1 as const, icon: Square, title: 'Single' },
               { val: 2 as const, icon: Columns2, title: 'Dual' },
+              { val: 3 as const, icon: Columns3, title: 'Triple' },
             ]).map(l => (
               <button
                 key={l.val}

@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 
 interface Props {
   selectedKpis: string[];
-  layout: 1 | 2 | 4;
+  layout: 1 | 2 | 3 | 4;
   dateFrom?: string;
   dateTo?: string;
   granularity?: Granularity;

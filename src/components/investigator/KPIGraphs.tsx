@@ -887,7 +887,7 @@ interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   investigatorState: InvestigationState;
-  layout: 1 | 2 | 4;
+  layout: 1 | 2 | 3 | 4;
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
   onSetSlotKpiIds: (slotId: string, kpiIds: string[]) => void;
@@ -919,8 +919,8 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
 const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
-  const cols = isFullscreen ? 1 : layout === 1 ? 1 : 2;
-  const chartHeight = isFullscreen ? 700 : layout === 1 ? 520 : layout === 4 ? 340 : 400;
+  const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
+  const chartHeight = isFullscreen ? 700 : layout === 1 ? 520 : layout === 4 ? 340 : layout === 3 ? 360 : 400;
   const [allKpis, setAllKpis] = useState<KpiDefinition[]>(KPIS);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [counterCatalog, setCounterCatalog] = useState<{ counter_name: string; display_name: string; family: string; vendor: string; techno: string; object_type: string; count: number }[]>([]);
@@ -1091,7 +1091,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
   return (
     <div className="space-y-3">
-      <div className={`grid gap-4 ${isFullscreen ? 'grid-cols-1 w-full' : cols === 1 ? 'grid-cols-1 max-w-[1400px]' : 'grid-cols-1 md:grid-cols-2'}`}>
+      <div className={`grid gap-4 ${isFullscreen ? 'grid-cols-1 w-full' : cols === 1 ? 'grid-cols-1 max-w-[1400px]' : cols === 3 ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
       {graphSlots.map(slot => {
         const kpiIds = slot.kpiIds || [];
         const counterIds = slot.counterIds || [];
