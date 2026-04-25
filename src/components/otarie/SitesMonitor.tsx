@@ -956,10 +956,27 @@ function persistTaggedSitesScoped(sites: SiteSummary[], dashboardId?: string | n
   try { localStorage.setItem(key, JSON.stringify(sites)); } catch {}
 }
 
+function loadTaggedPolygons(dashboardId?: string | null): TaggedPolygon[] {
+  const key = scopedStorageKey(TAGGED_POLYGONS_KEY, dashboardId);
+  if (!key) return [];
+  try {
+    const raw = localStorage.getItem(key);
+    const arr: TaggedPolygon[] = raw ? JSON.parse(raw) : [];
+    return arr.filter(p => Array.isArray(p.points) && p.points.length >= 3);
+  } catch { return []; }
+}
+
+function persistTaggedPolygons(polys: TaggedPolygon[], dashboardId?: string | null) {
+  const key = scopedStorageKey(TAGGED_POLYGONS_KEY, dashboardId);
+  if (!key) return;
+  try { localStorage.setItem(key, JSON.stringify(polys)); } catch {}
+}
+
 function purgeDashboardArtifacts(dashboardId: string) {
   try {
     localStorage.removeItem(scopedStorageKey(CUSTOM_POINTS_KEY, dashboardId)!);
     localStorage.removeItem(scopedStorageKey(TAGGED_SITES_KEY, dashboardId)!);
+    localStorage.removeItem(scopedStorageKey(TAGGED_POLYGONS_KEY, dashboardId)!);
     localStorage.removeItem(`osmosis_tagged_links__db_${dashboardId}`);
   } catch {}
 }
@@ -971,6 +988,7 @@ function purgeLegacyArtifacts() {
   try {
     localStorage.removeItem(CUSTOM_POINTS_KEY);
     localStorage.removeItem(TAGGED_SITES_KEY);
+    localStorage.removeItem(TAGGED_POLYGONS_KEY);
     localStorage.removeItem('osmosis_tagged_links');
     localStorage.setItem(FLAG, '1');
   } catch {}
