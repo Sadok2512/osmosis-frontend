@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-import { formatAxisLabel } from './timeUtils';
+import { buildTimeline, formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity, Jalon } from './types';
 import { normalizeTimestamp } from './timeUtils';
 import {
@@ -103,6 +103,9 @@ const extractCounters = (formula: string): string[] => {
   const matches = formula.match(/[`{]([A-Za-z0-9_]+)[}`]/g) || [];
   return [...new Set(matches.map(m => m.replace(/[`{}]/g, '')))];
 };
+
+const matchesKpiSeries = (seriesKpi: string, kpiId: string): boolean =>
+  seriesKpi === kpiId || seriesKpi.startsWith(`${kpiId}@`);
 
 /* ──────────────────── Sub-components ──────────────────── */
 
@@ -404,7 +407,7 @@ const SingleKpiBreakdown: React.FC<{
     // From KPI timeseries data
     if (timeSeriesData) {
       for (const d of timeSeriesData) {
-        if (d.kpi === kpiId) {
+        if (matchesKpiSeries(d.kpi, kpiId)) {
           const el = d.splitValue || d.networkElement;
           if (el && el !== 'Aggregated') elements.add(el);
         }
@@ -472,15 +475,6 @@ const SingleKpiBreakdown: React.FC<{
             ? rawCounter.split('@').slice(1).join('@') || undefined
             : undefined;
 
-          if (parsedCounter) {
-            return [{
-              ts,
-              counter: parsedCounter,
-              value: s.value ?? s.kpi_value ?? s.val ?? 0,
-              dimension_key: explicitDimension || parsedDimension,
-            }];
-          }
-
           const expanded = names
             .filter((name) => Object.prototype.hasOwnProperty.call(s, name))
             .map((name) => ({
@@ -490,6 +484,17 @@ const SingleKpiBreakdown: React.FC<{
               dimension_key: explicitDimension,
             }))
             .filter((point) => point.value != null);
+
+          if (expanded.length > 0) return expanded;
+
+          if (parsedCounter) {
+            return [{
+              ts,
+              counter: parsedCounter,
+              value: s.value ?? s.kpi_value ?? s.val ?? 0,
+              dimension_key: explicitDimension || parsedDimension,
+            }];
+          }
 
           return expanded;
         });
@@ -522,7 +527,11 @@ const SingleKpiBreakdown: React.FC<{
   const chartOption = useMemo(() => {
     if (counterTsData.length === 0) return null;
     const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
-    const timestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
+    const apiTimestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
+    const timeline = buildTimeline(dateFrom, dateTo, granularity);
+    const timestampSet = new Set(timeline);
+    for (const ts of apiTimestamps) timestampSet.add(ts);
+    const timestamps = [...timestampSet].sort();
 
     // Top-N dimension values (by total value across all counters) when split is active
     let topDimValues: string[] = [];
@@ -673,7 +682,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, jalons]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, jalons, dateFrom, dateTo]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -683,7 +692,7 @@ const SingleKpiBreakdown: React.FC<{
     if (!splitActive || !timeSeriesData || timeSeriesData.length === 0) return null;
 
     // Filter data for this KPI
-    const kpiData = timeSeriesData.filter(d => d.kpi === kpiId);
+    const kpiData = timeSeriesData.filter(d => matchesKpiSeries(d.kpi, kpiId));
     if (kpiData.length === 0) return null;
 
     // Group by splitValue (cell name)
@@ -699,7 +708,11 @@ const SingleKpiBreakdown: React.FC<{
 
     if (cellMap.size <= 1 && cellMap.has('Aggregated')) return null; // No real split
 
-    const sortedTs = [...timestamps].sort();
+    const apiTimestamps = [...timestamps].sort();
+    const timeline = buildTimeline(dateFrom, dateTo, granularity);
+    const timelineSet = new Set(timeline);
+    for (const ts of apiTimestamps) timelineSet.add(ts);
+    const sortedTs = [...timelineSet].sort();
     const cells = [...cellMap.keys()].sort();
 
     const series = cells.map((cell, idx) => {
@@ -750,7 +763,7 @@ const SingleKpiBreakdown: React.FC<{
       },
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(sortedTs, jalons, granularity) } : s),
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, jalons]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, jalons, dateFrom, dateTo]);
 
   return (
     <div className="space-y-4">
@@ -849,8 +862,11 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Breakdown is perimeter-level only. Ignore graph split metadata.
-  const getEffectiveSplit = useCallback((_kpiId: string) => undefined, []);
+  const getEffectiveSplit = useCallback((kpiId: string) => {
+    const perKpiSplit = splitByPerKpi?.[kpiId];
+    if (perKpiSplit && perKpiSplit !== 'None') return perKpiSplit;
+    return splitBy && splitBy !== 'None' ? splitBy : undefined;
+  }, [splitByPerKpi, splitBy]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {

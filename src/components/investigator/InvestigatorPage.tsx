@@ -1402,13 +1402,13 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       key={activeSlot.id}
                       selectedKpis={activeSlot.kpiIds}
                       layout={state.graphLayout}
-                      dateFrom={(activeSlot.startDate || state.startDate).split("T")[0] || "2026-01-01"}
-                      dateTo={(activeSlot.endDate || state.endDate).split("T")[0] || "2026-03-24"}
-                      granularity={activeSlot.granularity || state.granularity}
+                      dateFrom={activeSnapshot?.startDate || activeSlot.startDate || state.startDate}
+                      dateTo={activeSnapshot?.endDate || activeSlot.endDate || state.endDate}
+                      granularity={activeSnapshot?.granularity || activeSlot.granularity || state.granularity}
                       filters={Object.entries(activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                      splitBy={activeSlot.splitBy !== 'None' ? activeSlot.splitBy : state.splitBy !== 'None' ? state.splitBy : undefined}
+                      splitBy={activeSnapshot?.splitBy || undefined}
                       splitByPerKpi={activeSlot.config?.splitByPerKpi}
                       timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
                       jalons={state.jalons}
