@@ -73,9 +73,8 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
 
 function isSectionEnabled(slot: GraphSlot | null | undefined, flag: keyof GraphConfig): boolean {
   if (!slot) return false;
-  if (flag === 'showDataTable' && (slot.widgetType || 'timeseries') === 'timeseries') {
-    return slot.config?.showDataTable ?? true;
-  }
+  // Single source of truth: a section is visible only if its toggle is explicitly true.
+  // Missing/undefined => fall back to DEFAULT_GRAPH_CONFIG which is OFF for tableData/alarms/neighbors.
   return Boolean((slot.config as any)?.[flag] ?? (DEFAULT_GRAPH_CONFIG as any)[flag]);
 }
 
