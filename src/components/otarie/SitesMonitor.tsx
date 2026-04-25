@@ -902,8 +902,26 @@ export interface CustomMapPoint {
   createdAt: string;
 }
 
+// ── Tagged Polygon type ──
+export interface TaggedPolygon {
+  id: string;
+  name: string;
+  type: 'tagged_polygon';
+  /** Polygon vertices as [lat, lng] pairs */
+  points: [number, number][];
+  /** Cached centroid for "fly to" actions */
+  center: [number, number];
+  /** Pre-computed display strings (km², km) — pure presentation */
+  fmtArea?: string;
+  fmtPerimeter?: string;
+  sitesInside?: number;
+  cellsInside?: number;
+  createdAt: string;
+}
+
 const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
 const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
+const TAGGED_POLYGONS_KEY = 'osmosis_tagged_polygons';
 
 function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
   if (!dashboardId) return null;
