@@ -49,8 +49,8 @@ const NeighborExplorer: React.FC = () => {
   const [vendor, setVendor] = useState<string>('Nokia');
   const [rat, setRat] = useState<string>('');
   const [siteName, setSiteName] = useState<string>('');
-  const [plaque, setPlaque] = useState<string>('');
-  const [dor, setDor] = useState<string>('');
+  const [plaque, setPlaque] = useState<string[]>([]);
+  const [dor, setDor] = useState<string[]>([]);
   const [relationType, setRelationType] = useState<string>('');
   const [splitBy, setSplitBy] = useState<'all' | 'target_band'>('all');
   const [data, setData] = useState<ExploreResult | null>(null);
