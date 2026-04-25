@@ -228,6 +228,27 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [tableDataRefreshBySlot, setTableDataRefreshBySlot] = React.useState<Record<string, number>>({});
   const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
 
+  // If the currently selected analysis tab points to a section that is now OFF
+  // on the active slot, clear it so the empty/disabled panel never shows.
+  React.useEffect(() => {
+    if (!activeSlotId || !analysisTab) return;
+    const slot = state.graphSlots.find(s => s.id === activeSlotId);
+    if (!slot) return;
+    const flagMap: Record<string, keyof GraphConfig> = {
+      table_data: 'showDataTable',
+      breakdown: 'showBreakdown',
+      top_worst: 'showTopWorst',
+      alarms: 'showAlarms',
+      neighbors: 'showNeighbors',
+      cm_history: 'showCmHistory',
+    };
+    const flag = flagMap[analysisTab];
+    if (!flag) return;
+    const enabled = Boolean((slot.config || DEFAULT_GRAPH_CONFIG)[flag]);
+    if (!enabled) setAnalysisTab(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSlotId, analysisTab, state.graphSlots]);
+
   // Escape key exits fullscreen
   React.useEffect(() => {
     if (!isGraphFullscreen) return;
