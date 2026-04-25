@@ -1127,7 +1127,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                           'relative flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-150 whitespace-nowrap border',
                           isActive
                             ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
-                            ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
                             : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                         )}
                         style={isActive ? { boxShadow: `inset 0 -2px 0 0 ${tab.color}, 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -4px rgba(15,23,42,0.08)` } : undefined}
