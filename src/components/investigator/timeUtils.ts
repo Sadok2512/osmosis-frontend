@@ -128,3 +128,64 @@ export function formatDateTime(d: Date): string {
 export function formatDate(d: Date): string {
   return formatLocalDateValue(d);
 }
+
+/**
+ * Build ECharts markArea data to highlight Saturday/Sunday on a timeseries chart.
+ * - granularity weekly+ → returns [] (no point)
+ * - granularity daily → one tiny band per Sat/Sun point (centered on the day)
+ * - granularity sub-daily → contiguous bands extended to the next non-weekend timestamp
+ *
+ * Each entry follows ECharts markArea format: [{ xAxis, itemStyle? }, { xAxis }]
+ */
+export function buildWeekendMarkAreas(
+  timestamps: string[],
+  granularity: string,
+  color: string = 'rgba(148,163,184,0.14)'
+): Array<Array<{ xAxis: string; itemStyle?: { color: string } }>> {
+  if (!timestamps || timestamps.length === 0) return [];
+  const g = (granularity || '').toLowerCase();
+  // Skip for weekly/monthly granularities
+  if (g.endsWith('w') || g.endsWith('mo') || g === '1mo' || g === 'week' || g === 'month') return [];
+
+  const isSubDaily = g.endsWith('min') || g.endsWith('h') || g === '15m' || g === '30m';
+  const isDaily = g === '1d' || g === 'day' || g === 'd';
+
+  const out: Array<Array<{ xAxis: string; itemStyle?: { color: string } }>> = [];
+
+  if (isDaily) {
+    // Highlight each weekend day as a single-day band (start=end=that day's ts).
+    // ECharts will render a thin vertical band centered on the category.
+    for (const ts of timestamps) {
+      const day = new Date(ts).getDay();
+      if (day === 0 || day === 6) {
+        out.push([{ xAxis: ts, itemStyle: { color } }, { xAxis: ts }]);
+      }
+    }
+    return out;
+  }
+
+  // Sub-daily (or unknown): build contiguous spans covering Sat 00:00 → Mon 00:00.
+  // We extend the band to the FIRST non-weekend timestamp after the last weekend point
+  // so that the visible Sunday slot is fully covered.
+  let bandStart: string | null = null;
+  let lastWeekendTs: string | null = null;
+  for (let i = 0; i < timestamps.length; i++) {
+    const ts = timestamps[i];
+    const day = new Date(ts).getDay();
+    const isWE = day === 0 || day === 6;
+    if (isWE) {
+      if (bandStart === null) bandStart = ts;
+      lastWeekendTs = ts;
+    } else if (bandStart !== null) {
+      // Extend band end to current (first non-weekend) timestamp for full Sunday cover.
+      out.push([{ xAxis: bandStart, itemStyle: { color } }, { xAxis: ts }]);
+      bandStart = null;
+      lastWeekendTs = null;
+    }
+  }
+  if (bandStart !== null && lastWeekendTs !== null) {
+    // Trailing weekend at the end of the timeline — close band on last weekend ts.
+    out.push([{ xAxis: bandStart, itemStyle: { color } }, { xAxis: lastWeekendTs }]);
+  }
+  return out;
+}
