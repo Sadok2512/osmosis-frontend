@@ -178,16 +178,16 @@ const SlotSettingsPopover: React.FC<{
 
         <div className="h-px bg-border/40" />
 
-        {/* Table View — disabled when no table data available */}
-        <div className={cn('flex items-center justify-between', !hasTableData && 'opacity-50')}>
-          <span className="text-[10px] text-foreground" title={!hasTableData ? 'Aucune donnée disponible' : undefined}>
-            Table View {!hasTableData && <span className="text-muted-foreground">(no data)</span>}
+        {/* Table View — toggle is always enabled; (no data) hint is shown when the
+            chart has no series yet, but the user can still pre-activate it so the
+            table appears automatically after Apply. */}
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-foreground" title={!hasTableData ? 'Activez puis cliquez Appliquer pour charger les données' : undefined}>
+            Table View {!hasTableData && <span className="text-muted-foreground">(no data yet)</span>}
           </span>
           <Switch
-            checked={hasTableData && cfg.showDataTable}
-            disabled={!hasTableData}
+            checked={cfg.showDataTable}
             onCheckedChange={v => {
-              if (!hasTableData) return;
               onUpdateSlotConfig(slot.id, { showDataTable: v });
               if (!v && onActivateTab) onActivateTab(null);
               else if (v && onActivateTab) onActivateTab('table_data');
