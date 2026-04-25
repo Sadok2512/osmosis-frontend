@@ -245,6 +245,12 @@ interface SlotRequestContext {
   neighborType?: string | null;
 }
 
+interface KpiEngineQueryGroup {
+  kpiIds: string[];
+  splitBy: string | null;
+  splitBy2: string | null;
+}
+
 
 /** Resolve a slot's effective request context, with filters isolated per slot */
 export function resolveSlotContext(
@@ -413,73 +419,90 @@ export async function fetchTimeSeriesForSlot(
   // Strip PM_DIM: prefix for KPI Engine — it expects raw dimension names
   const engineSplitBy = ctx.splitBy?.startsWith('PM_DIM:') ? ctx.splitBy.replace('PM_DIM:', '') : (ctx.splitBy || null);
   const engineSplitBy2 = ctx.splitBy2?.startsWith('PM_DIM:') ? ctx.splitBy2.replace('PM_DIM:', '') : (ctx.splitBy2 || null);
+  const splitPerKpi = ctx.splitByPerKpi || {};
+  const splitKpiEntries = kpiOnlyIds.filter(kpiId => {
+    const split = splitPerKpi[kpiId];
+    return split && split !== 'None';
+  });
+  const unsplitKpiIds = kpiOnlyIds.filter(kpiId => !splitKpiEntries.includes(kpiId));
+  const activeSplitKpiId = splitKpiEntries[0] || null;
+  const activePerKpiSplit = activeSplitKpiId ? splitPerKpi[activeSplitKpiId] : null;
+  const effectiveSplitBy = activePerKpiSplit
+    ? (activePerKpiSplit.startsWith('PM_DIM:') ? activePerKpiSplit.replace('PM_DIM:', '') : activePerKpiSplit)
+    : engineSplitBy;
 
-  // Per-KPI splits: if any per-KPI split is active, use the first one as split_by
-  const perKpiSplits = Object.values(ctx.splitByPerKpi || {}).filter(v => v && v !== 'None');
-  let effectiveSplitBy = engineSplitBy;
-  if (perKpiSplits.length > 0 && !effectiveSplitBy) {
-    const firstSplit = perKpiSplits[0]!;
-    effectiveSplitBy = firstSplit.startsWith('PM_DIM:') ? firstSplit.replace('PM_DIM:', '') : firstSplit;
-  }
+  const runKpiEngineQuery = async (kpiIds: string[], splitBy: string | null, splitBy2: string | null) => {
+    if (kpiIds.length === 0) return [] as any[];
+    const body: Record<string, any> = {
+      date_from: ctx.dateFrom,
+      date_to: ctx.dateTo,
+      granularity: ctx.granularity,
+      selections: kpiIds.map(k => ({ kpi_key: k })),
+      filters: allFilters,
+      split_by: splitBy,
+      split_by_2: splitBy2,
+      top_n: 10,
+      kpi_level: ctx.kpiLevel || 'CELL',
+    };
 
-  const body: Record<string, any> = {
-    date_from: ctx.dateFrom,
-    date_to: ctx.dateTo,
-    granularity: ctx.granularity,
-    selections: kpiOnlyIds.map(k => ({ kpi_key: k })),
-    filters: allFilters,
-    split_by: effectiveSplitBy,
-    split_by_2: engineSplitBy2,
-    top_n: 10,
-    kpi_level: ctx.kpiLevel || 'CELL',
-  };
+    const kpiEngineStart = Date.now();
+    log('[Pipeline] KPI Engine START:', kpiIds, JSON.stringify({
+      ...body,
+      kpis: kpiIds.map((kpiId) => ({ name: kpiId, split: splitBy })),
+    }));
+    const res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify(body),
+    }, 120_000);
 
-  const kpiEngineStart = Date.now();
-  log('[Pipeline] KPI Engine START:', kpiOnlyIds, JSON.stringify(body));
-  // 120s timeout: multi-KPI queries at 15min granularity can be slow on the VPS.
-  const res = await fetchWithTimeout(url, {
-    method: 'POST',
-    headers: getApiHeaders(),
-    body: JSON.stringify(body),
-  }, 120_000);
+    if (!res.ok) {
+      warn('[Pipeline] KPI Engine FAILED:', res.status, {
+        duration: `${Date.now() - kpiEngineStart}ms`,
+        status: 'query_failed',
+        kpiIds,
+        splitBy,
+        splitBy2,
+      });
+      return [] as any[];
+    }
 
-  let kpiSeries: any[] = [];
-  let kpiResults: DataPoint[] = [];
-
-  if (res.ok) {
     const data = await res.json();
-    kpiSeries = data.series || [];
+    const series = data.series || [];
     log('[Pipeline] KPI Engine END:', {
       duration: `${Date.now() - kpiEngineStart}ms`,
-      points: kpiSeries.length,
-      status: kpiSeries.length > 0 ? 'success' : 'no_data',
+      points: series.length,
+      status: series.length > 0 ? 'success' : 'no_data',
+      kpiIds,
+      splitBy,
+      splitBy2,
     });
-    const noSplitRequested = !ctx.splitBy && perKpiSplits.length === 0;
-    kpiResults = kpiSeries.map((s: any) => {
-      const sv1 = noSplitRequested ? undefined : (s.split_value === 'ALL' ? undefined : s.split_value);
-      const sv2 = s.split_value_2 && s.split_value_2 !== 'ALL' ? s.split_value_2 : undefined;
-      // Build composite kpi key for double split
-      let kpiKey = s.kpi_key;
-      if (sv1) kpiKey += `@${sv1}`;
-      if (sv2) kpiKey += `@${sv2}`;
-      // Detect network element from split values or backend fields
-      const ne = detectNetworkElement(sv1, sv2, ctx.splitBy, ctx.splitBy2)
-        || s.cell_name || s.network_element || s.site_name || s.ne || undefined;
-      return {
-        timestamp: s.ts,
-        kpi: kpiKey,
-        value: s.value,
-        splitValue: sv1,
-        splitValue2: sv2,
-        networkElement: ne,
-      };
-    });
-  } else {
-    warn('[Pipeline] KPI Engine FAILED:', res.status, {
-      duration: `${Date.now() - kpiEngineStart}ms`,
-      status: 'query_failed',
-    });
-  }
+    return series;
+  };
+
+  const kpiSeries = [
+    ...(await runKpiEngineQuery(unsplitKpiIds, null, null)),
+    ...(await runKpiEngineQuery(splitKpiEntries, effectiveSplitBy, engineSplitBy2)),
+  ];
+
+  const kpiResults: DataPoint[] = kpiSeries.map((s: any) => {
+    const isSplitSeries = activeSplitKpiId != null && s.kpi_key === activeSplitKpiId;
+    const sv1 = isSplitSeries ? (s.split_value === 'ALL' ? undefined : s.split_value) : undefined;
+    const sv2 = isSplitSeries && s.split_value_2 && s.split_value_2 !== 'ALL' ? s.split_value_2 : undefined;
+    let kpiKey = s.kpi_key;
+    if (sv1) kpiKey += `@${sv1}`;
+    if (sv2) kpiKey += `@${sv2}`;
+    const ne = detectNetworkElement(sv1, sv2, isSplitSeries ? activePerKpiSplit || undefined : undefined, ctx.splitBy2)
+      || s.cell_name || s.network_element || s.site_name || s.ne || undefined;
+    return {
+      timestamp: s.ts,
+      kpi: kpiKey,
+      value: s.value,
+      splitValue: sv1,
+      splitValue2: sv2,
+      networkElement: ne,
+    };
+  });
 
   // Step 2: For KPIs not found in KPI Engine + raw counters, try counter fallback
   const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
