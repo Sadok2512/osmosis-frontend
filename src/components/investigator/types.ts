@@ -128,7 +128,7 @@ export interface InvestigationState {
   filters: Record<string, string[]>;
   topLimit: number;
   sortBy: string | null;
-  graphLayout: 1 | 2 | 4;
+  graphLayout: 1 | 2 | 3 | 4;
   activeGraphTab: GraphTab;
   jalons: Jalon[];
   showJalons?: boolean;
