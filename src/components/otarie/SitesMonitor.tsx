@@ -4795,6 +4795,56 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setRenamingPointId(null);
     setRenameValue('');
   }, []);
+
+  // ── Tagged Polygons (scoped per dashboard) ──
+  const [taggedPolygons, setTaggedPolygons] = useState<TaggedPolygon[]>([]);
+  const [renamingPolygonId, setRenamingPolygonId] = useState<string | null>(null);
+  const [renamePolygonValue, setRenamePolygonValue] = useState('');
+
+  const addTaggedPolygon = useCallback((poly: Omit<TaggedPolygon, 'id' | 'createdAt' | 'type' | 'name'> & { name?: string }) => {
+    if (!activeDashboardIdRef.current) return null;
+    let created: TaggedPolygon | null = null;
+    setTaggedPolygons(prev => {
+      const idx = prev.length + 1;
+      const p: TaggedPolygon = {
+        id: `pg_${Date.now()}`,
+        name: poly.name?.trim() || `Polygone ${idx}`,
+        type: 'tagged_polygon',
+        points: poly.points,
+        center: poly.center,
+        fmtArea: poly.fmtArea,
+        fmtPerimeter: poly.fmtPerimeter,
+        sitesInside: poly.sitesInside,
+        cellsInside: poly.cellsInside,
+        createdAt: new Date().toISOString(),
+      };
+      created = p;
+      const next = [...prev, p];
+      persistTaggedPolygons(next, activeDashboardIdRef.current);
+      return next;
+    });
+    return created;
+  }, []);
+
+  const deleteTaggedPolygon = useCallback((id: string) => {
+    setTaggedPolygons(prev => {
+      const next = prev.filter(p => p.id !== id);
+      persistTaggedPolygons(next, activeDashboardIdRef.current);
+      return next;
+    });
+  }, []);
+
+  const renameTaggedPolygon = useCallback((id: string, newName: string) => {
+    if (!newName.trim()) return;
+    setTaggedPolygons(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, name: newName.trim() } : p);
+      persistTaggedPolygons(next, activeDashboardIdRef.current);
+      return next;
+    });
+    setRenamingPolygonId(null);
+    setRenamePolygonValue('');
+  }, []);
+
   const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>([]);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
