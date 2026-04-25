@@ -1374,6 +1374,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
             {/* Top Worst — only mount when the tab is actually active */}
             {analysisTab === 'top_worst' && (() => {
+              if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showTopWorst) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                    <span>« Top Worst Cells » est désactivé pour ce graphe.</span>
+                    <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                  </div>
+                );
+              }
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showTopWorst);
               if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Top Worst Cells ».</div>;
@@ -1399,6 +1407,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
             {/* Alarms — only mount when the tab is actually active */}
             {analysisTab === 'alarms' && (() => {
+              if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showAlarms) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                    <span>« Alarms » est désactivé pour ce graphe.</span>
+                    <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                  </div>
+                );
+              }
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showAlarms);
               if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Alarms ».</div>;
@@ -1430,6 +1446,14 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
             {/* CM History — only mount when the tab is actually active */}
             {analysisTab === 'cm_history' && (() => {
+              if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showCmHistory) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                    <span>« CM History » est désactivé pour ce graphe.</span>
+                    <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                  </div>
+                );
+              }
               const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showCmHistory);
               if (enabledSlots.length === 0) {
                 return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « CM History ».</div>;
