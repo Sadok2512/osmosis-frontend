@@ -296,7 +296,12 @@ export const usePAReportStore = create<PAReportState>()(
           set((s) => {
             const byId = new Map<string, PADashboard>();
             for (const d of s.dashboards) byId.set(d.id, d);
-            for (const d of cloudPa) byId.set(d.id, d);
+            for (const d of cloudPa) {
+              const local = byId.get(d.id);
+              if (!local || d.updatedAt >= local.updatedAt) {
+                byId.set(d.id, d);
+              }
+            }
             return { dashboards: Array.from(byId.values()) };
           });
         } catch (e) {

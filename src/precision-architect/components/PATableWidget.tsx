@@ -283,13 +283,18 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
           // ── FULL DATE RANGE: fill missing dates with "—" rows, grouped by split value ──
           if (splitInUse && hasTs && rows.length > 0) {
             const splitValues = [...new Set(rows.map(r => r.split_value || '').filter(Boolean))].sort();
+            const granStr = ((inheritsTime ? gGrain : cfg?.data?.granularity) || '1d').toLowerCase();
+            const isSubDaily = granStr.includes('15m') || granStr.includes('1h');
+            const normalizeTsKey = (raw: string) => {
+              if (!raw) return raw;
+              return isSubDaily ? raw.slice(0, 16) : raw.slice(0, 10);
+            };
 
             // Generate full date range
             const fromDate = effectiveFrom ? new Date(effectiveFrom) : null;
             const toDate = effectiveTo ? new Date(effectiveTo) : null;
             const fullDates: string[] = [];
             if (fromDate && toDate) {
-              const granStr = (cfg?.data?.granularity || '1d').toLowerCase();
               const stepMs = granStr.includes('15m') ? 15*60*1000 : granStr.includes('1h') ? 3600*1000 : 86400*1000;
               const d = new Date(fromDate);
               while (d <= toDate) {
@@ -302,7 +307,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
             // Build lookup: {ts_short}_{split} → row
             const lookup = new Map<string, Record<string, any>>();
             for (const r of rows) {
-              const key = `${(r.ts || '').slice(0, 10)}_${r.split_value}`;
+              const normalizedTs = normalizeTsKey(r.ts || '');
+              const key = `${normalizedTs}_${r.split_value}`;
               if (!lookup.has(key)) lookup.set(key, {});
               const entry = lookup.get(key)!;
               for (const col of visibleColumns) {
@@ -317,8 +323,8 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
             const expandedRows: { ts: string; split: string; values: Record<string, any> }[] = [];
             for (const sv of splitValues) {
               for (const ts of timestamps) {
-                const tsShort = ts.slice(0, 10);
-                expandedRows.push({ ts: tsShort, split: sv, values: lookup.get(`${tsShort}_${sv}`) || {} });
+                const normalizedTs = normalizeTsKey(ts);
+                expandedRows.push({ ts: normalizedTs, split: sv, values: lookup.get(`${normalizedTs}_${sv}`) || {} });
               }
             }
 
