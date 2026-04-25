@@ -1448,7 +1448,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               );
             })()}
 
-            {/* Alarms — only mount when the tab is actually active */}
+            {/* Alarms — bound strictly to the ACTIVE graph */}
             {analysisTab === 'alarms' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showAlarms) {
                 return (
@@ -1458,22 +1458,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showAlarms);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Alarms ».</div>;
-              }
-              const sec = analysisTabs.getSection('alarms');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
-                <AlarmsTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
-              ) : null;
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `alarms-${activeSlot.id}`;
+              return (
+                <AlarmsTabContent key={tabId} tabId={tabId} contextSnapshot={snapshot} />
+              );
             })()}
 
             {/* Counters */}
