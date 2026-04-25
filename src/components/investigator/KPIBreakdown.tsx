@@ -464,19 +464,54 @@ const SingleKpiBreakdown: React.FC<{
 
     // Breakdown stays at perimeter level. Ignore chart split-by here and only use base filters.
     const dimFilterValues: string[] = [];
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
     for (const f of filters) {
       const dim = (f.dimension || '').toUpperCase();
       if (dim === 'SITE' && f.values?.length) body.site_name = f.values.length === 1 ? f.values[0] : f.values;
       else if (dim === 'CELL' && f.values?.length) body.cell_name = f.values.length === 1 ? f.values[0] : f.values;
-      else if (PM_DIM_TYPES.has(dim) && f.values?.length) dimFilterValues.push(...f.values);
+      else if ((dim === 'TECHNO' || dim === 'TECHNOLOGY') && f.values?.length) {
+        const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
+        const allSelected = f.values.length >= 4 && f.values.every(v => ALL_TECHS.has(v));
+        if (!allSelected) body.object_type = f.values.length === 1 ? f.values[0] : f.values;
+      } else if (dim === 'VENDOR' && f.values?.length) {
+        body.vendor = f.values[0];
+      } else if (dim === 'KPI_LEVEL') {
+        /* ignore */
+      } else if (dim === 'PLAQUE' && f.values?.length) {
+        body.plaque = f.values[0];
+      } else if ((dim === 'DOR' || dim === 'DR') && f.values?.length) {
+        body.dor = f.values[0];
+      } else if (dim === 'BAND' && f.values?.length) {
+        body.band = f.values[0];
+      } else if (dim === 'ZONE_ARCEP' || dim === 'ZONE ARCEP') {
+        /* skip until parser supports it consistently */
+      } else if (!STRUCTURAL_DIMS.has(dim) && PM_DIM_TYPES.has(dim) && f.values?.length) {
+        dimFilterValues.push(...f.values);
+      } else if (!STRUCTURAL_DIMS.has(dim) && f.values?.length) {
+        dimFilterValues.push(...f.values);
+      }
     }
     if (dimFilterValues.length > 0) body.dimension_filter = dimFilterValues;
 
     const ctrl = new AbortController();
-    fetch(getApiUrl('pm/counters/timeseries'), {
-      method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body), signal: ctrl.signal,
-    })
-      .then(r => r.ok ? r.json() : { series: [] })
+    const executeCounterRequest = (requestBody: any) => fetch(getApiUrl('pm/counters/timeseries'), {
+      method: 'POST', headers: getApiHeaders(), body: JSON.stringify(requestBody), signal: ctrl.signal,
+    }).then(r => r.ok ? r.json() : { series: [] });
+
+    const fanOutField = Array.isArray(body.site_name) && body.site_name.length > 1
+      ? 'site_name'
+      : Array.isArray(body.cell_name) && body.cell_name.length > 1
+        ? 'cell_name'
+        : null;
+
+    const requestPromise = fanOutField
+      ? Promise.all((body[fanOutField] as string[]).map((value) => executeCounterRequest({ ...body, [fanOutField]: value })))
+          .then((results) => ({
+            series: results.flatMap((item: any) => item.series || item.data || item.timeseries || []),
+          }))
+      : executeCounterRequest(body);
+
+    requestPromise
       .then(data => {
         const raw = data.series || data.data || [];
         const norm: CounterTsPoint[] = raw.flatMap((s: any) => {
