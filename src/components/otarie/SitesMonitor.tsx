@@ -5943,6 +5943,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setCustomPoints(loadCustomPoints(dbId));
     setTaggedSites(loadTaggedSitesScoped(dbId));
     setTaggedLinks(loadTaggedLinks(dbId));
+    setTaggedPolygons(loadTaggedPolygons(dbId));
     // Reset transient interaction states
     setPointCreationMode(false);
     setLinkCreationMode(false);
