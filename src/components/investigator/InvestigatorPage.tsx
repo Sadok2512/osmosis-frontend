@@ -1420,8 +1420,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       filters={Object.entries(activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                      splitBy={activeSnapshot?.splitBy || undefined}
-                      splitByPerKpi={activeSlot.config?.splitByPerKpi}
+                      splitBy={undefined}
+                      splitByPerKpi={undefined}
                       timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
                       jalons={state.jalons}
                     />

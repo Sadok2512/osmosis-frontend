@@ -862,11 +862,8 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  const getEffectiveSplit = useCallback((kpiId: string) => {
-    const perKpiSplit = splitByPerKpi?.[kpiId];
-    if (perKpiSplit && perKpiSplit !== 'None') return perKpiSplit;
-    return splitBy && splitBy !== 'None' ? splitBy : undefined;
-  }, [splitByPerKpi, splitBy]);
+  // Breakdown stays aggregated on the slot perimeter, regardless of graph split state.
+  const getEffectiveSplit = useCallback((_kpiId: string) => undefined, []);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
