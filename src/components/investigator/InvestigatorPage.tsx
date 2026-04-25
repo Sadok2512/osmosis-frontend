@@ -712,6 +712,25 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     }
   };
 
+  useEffect(() => {
+    if (!analysisTab || !activeSlot) return;
+    const flagMap: Record<AnalysisTabKey, keyof GraphConfig | null> = {
+      table_data: 'showDataTable',
+      breakdown: 'showBreakdown',
+      top_worst: 'showTopWorst',
+      counters: null,
+      histograms: null,
+      slicing: null,
+      alarms: 'showAlarms',
+      neighbors: 'showNeighbors',
+      cm_history: 'showCmHistory',
+    };
+    const flag = flagMap[analysisTab];
+    if (flag && !isSectionEnabled(activeSlot, flag)) {
+      setAnalysisTab(null);
+    }
+  }, [analysisTab, activeSlot, setAnalysisTab]);
+
   // ═══ Save / Load handlers ═══
   const handleGetContext = useCallback(() => ({
     state,
@@ -1067,6 +1086,12 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               // Neighbors moved to Network Explorer
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
             ];
+            const visibleTabs = activeSlot
+              ? allTabs.filter((tab) => {
+                  const cfgKey = configKeyMap[tab.key];
+                  return cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true;
+                })
+              : [];
 
             return (
               <div className="sticky top-[52px] z-20 bg-white/95 backdrop-blur-sm mb-5 border-b border-slate-200/70">
@@ -1086,7 +1111,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       <button
                         key={`analysis-tab-${tab.key}`}
                         data-analysis-tab={tab.key}
-                        data-enabled={enabled}
                         onClick={() => {
                           const newTab = isActive ? null : tab.key;
                           setAnalysisTab(newTab);
@@ -1102,6 +1126,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         className={cn(
                           'relative flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-150 whitespace-nowrap border',
                           isActive
+                            ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
                             ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
                             : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                         )}

@@ -182,7 +182,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
           showAverage: false,
           showGrid: true,
           showArea: false,
-          showDataTable: true,
+          showDataTable: false,
           showBreakdown: false,
           showTopWorst: false,
           showAlarms: false,

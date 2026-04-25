@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
   ChevronLeft,
@@ -6,12 +6,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Download,
-  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
-import { resolveSlotContext } from './investigatorApi';
-import { normalizeGranularity } from './types';
 import type { DataPoint, GraphSlot } from './types';
 
 interface Props {
@@ -36,7 +32,43 @@ interface Props {
 
 type RuntimeDataPoint = DataPoint & {
   _slotId?: string;
+  time?: string;
+  timestamp?: string;
+  date?: string;
+  NE?: string;
+  ne?: string;
+  plaque?: string;
+  plaque_name?: string;
+  cell?: string;
+  cell_name?: string;
+  site?: string;
+  site_name?: string;
+  dimensionName?: string;
+  dimension_name?: string;
+  dimName?: string;
+  dimension?: any;
+  dimensions?: any;
+  dims?: Array<{ key?: string; name?: string; value?: string }>;
+  labels?: Record<string, string>;
+  tags?: Record<string, string>;
+  kpiName?: string;
+  kpi_name?: string;
+  metric?: string;
+  metricName?: string;
+  metric_name?: string;
+  kpiValue?: number;
+  kpi_value?: number;
+  measureValue?: number;
+  measure_value?: number;
 };
+
+type PivotRow = {
+  time: string;
+  dimensionValue: string;
+  kpiValues: Record<string, number | null>;
+};
+
+const PAGE_SIZES = [25, 50, 100, 200];
 
 const SPLIT_COLORS = [
   '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
@@ -57,26 +89,16 @@ function stableColorForSplit(splitValue: string): string {
   return SPLIT_COLORS[stableHash(splitValue)];
 }
 
-const COLORS = [
-  '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
-  '#ec4899', '#84cc16', '#ef4444', '#6366f1', '#14b8a6',
-];
-
-const PAGE_SIZES = [25, 50, 100, 200];
-
-const fmt = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts);
+const fmtTime = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts);
 
 const fmtVal = (v: number | null | undefined) => {
-  if (v == null) return '—';
+  if (v == null) return '-';
   const num = Number(v);
-  if (!isFinite(num)) return '—';
+  if (!isFinite(num)) return '-';
   if (num === 0) return '0';
   const abs = Math.abs(num);
-  // Adaptive precision: keep small values visible (e.g. 0.000234 GBytes)
-  // instead of rounding them to "0,00".
   let fractionDigits = 2;
   if (abs > 0 && abs < 0.01) {
-    // Show enough digits to surface the first 2 significant figures
     fractionDigits = Math.min(8, Math.max(2, 2 - Math.floor(Math.log10(abs))));
   } else if (abs < 1) {
     fractionDigits = 4;
@@ -89,49 +111,133 @@ const fmtVal = (v: number | null | undefined) => {
 
 const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 
-function normalizeScopeLabel(key: string): string {
-  const normalized = key.toUpperCase();
-  if (normalized === 'SITE') return 'Site';
-  if (normalized === 'PLAQUE') return 'Plaque';
-  if (normalized === 'DOR') return 'DOR';
-  if (normalized === 'DR') return 'DR';
-  if (normalized === 'ZONE_ARCEP' || normalized === 'ZONE ARCEP') return 'Zone ARCEP';
-  return key;
-}
-
-function getPrimaryScope(filterContext?: Record<string, string[]>, siteName?: string) {
-  if (filterContext) {
-    const priority = ['Plaque', 'PLAQUE', 'Site', 'SITE', 'DOR', 'DR', 'Zone ARCEP', 'ZONE_ARCEP'];
-
-    for (const key of priority) {
-      const vals = filterContext[key];
-      if (vals && vals.length > 0) {
-        return {
-          label: normalizeScopeLabel(key),
-          value: vals.join(', '),
-        };
-      }
-    }
-
-    for (const [key, vals] of Object.entries(filterContext)) {
-      if (vals && vals.length > 0) {
-        return {
-          label: normalizeScopeLabel(key),
-          value: vals.join(', '),
-        };
-      }
-    }
-  }
-
-  return { label: 'Network Element', value: siteName || '—' };
-}
-
 function escapeCsv(value: string | number | null | undefined): string {
   const text = value == null ? '' : String(value);
   if (/[,"\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
+}
+
+function normalizeDimensionLabel(label?: string | null): string {
+  if (!label) return 'NE';
+  const raw = String(label).trim();
+  if (!raw) return 'NE';
+  const normalized = raw.toUpperCase();
+  if (normalized === 'ZONE_ARCEP') return 'ZONE ARCEP';
+  return normalized;
+}
+
+function getFirstDimensionEntry(item: RuntimeDataPoint) {
+  if (Array.isArray(item.dimensions) && item.dimensions.length > 0) {
+    return item.dimensions[0];
+  }
+  if (Array.isArray(item.dims) && item.dims.length > 0) {
+    return item.dims[0];
+  }
+  return null;
+}
+
+function getDimensionValue(item: RuntimeDataPoint): string {
+  const firstDimension = getFirstDimensionEntry(item);
+  const directCandidates = [
+    item.networkElement,
+    item.splitValue,
+    item.NE,
+    item.ne,
+    item.plaque,
+    item.plaque_name,
+    item.cell,
+    item.cell_name,
+    item.site,
+    item.site_name,
+    item.dimension?.NE,
+    item.dimension?.ne,
+    item.dimension?.plaque,
+    item.dimension?.cell,
+    item.dimension?.site,
+    !Array.isArray(item.dimensions) ? item.dimensions?.NE : undefined,
+    !Array.isArray(item.dimensions) ? item.dimensions?.ne : undefined,
+    !Array.isArray(item.dimensions) ? item.dimensions?.plaque : undefined,
+    !Array.isArray(item.dimensions) ? item.dimensions?.cell : undefined,
+    !Array.isArray(item.dimensions) ? item.dimensions?.site : undefined,
+    firstDimension?.value,
+    firstDimension?.name,
+    item.labels?.NE,
+    item.labels?.ne,
+    item.labels?.plaque,
+    item.labels?.cell,
+    item.labels?.site,
+    item.tags?.NE,
+    item.tags?.ne,
+    item.tags?.plaque,
+    item.tags?.cell,
+    item.tags?.site,
+  ];
+
+  for (const candidate of directCandidates) {
+    if (candidate == null) continue;
+    const value = String(candidate).trim();
+    if (value && value !== 'undefined' && value !== 'null' && value !== '-') {
+      return value;
+    }
+  }
+
+  return '-';
+}
+
+function getDimensionLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot | null): string {
+  const firstDimension = getFirstDimensionEntry(item);
+  const directLabel =
+    item.dimensionName ||
+    item.dimension_name ||
+    item.dimName ||
+    firstDimension?.key ||
+    firstDimension?.name ||
+    (activeSlot?.splitBy && activeSlot.splitBy !== 'None' ? activeSlot.splitBy : null);
+
+  if (directLabel) return normalizeDimensionLabel(directLabel);
+
+  if (item.plaque || item.plaque_name || item.dimension?.plaque || item.labels?.plaque || item.tags?.plaque) return 'PLAQUE';
+  if (item.cell || item.cell_name || item.dimension?.cell || item.labels?.cell || item.tags?.cell) return 'CELL';
+  if (item.site || item.site_name || item.dimension?.site || item.labels?.site || item.tags?.site) return 'SITE';
+  if (item.NE || item.ne || item.dimension?.NE || item.labels?.NE || item.tags?.NE) return 'NE';
+  if (item.networkElement) return 'NE';
+  return 'NE';
+}
+
+function getKpiName(item: RuntimeDataPoint): string | null {
+  const candidate =
+    item.kpi ||
+    item.kpiName ||
+    item.kpi_name ||
+    item.metric ||
+    item.metricName ||
+    item.metric_name;
+
+  if (!candidate) return null;
+  const value = cleanKpi(String(candidate).trim());
+  return value || null;
+}
+
+function getKpiValue(item: RuntimeDataPoint): number | null {
+  const candidate =
+    item.value ??
+    item.kpiValue ??
+    item.kpi_value ??
+    item.measureValue ??
+    item.measure_value;
+
+  if (candidate == null) return null;
+  const num = Number(candidate);
+  return isFinite(num) ? num : null;
+}
+
+function getTimeValue(item: RuntimeDataPoint): string | null {
+  const candidate = item.time ?? item.timestamp ?? item.date;
+  if (!candidate) return null;
+  const value = String(candidate).trim();
+  return value || null;
 }
 
 function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): RuntimeDataPoint[] {
@@ -143,7 +249,11 @@ function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): 
     ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
   ]);
 
-  const keyMatches = (point: DataPoint) => slotKeys.size === 0 || slotKeys.has(cleanKpi(point.kpi));
+  const keyMatches = (point: RuntimeDataPoint) => {
+    const pointKpi = getKpiName(point);
+    return slotKeys.size === 0 || (!!pointKpi && slotKeys.has(pointKpi));
+  };
+
   const taggedForSlot = runtimeData.filter(point => point._slotId === activeSlot.id && keyMatches(point));
   if (taggedForSlot.length > 0) return taggedForSlot;
 
@@ -153,393 +263,122 @@ function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): 
   return runtimeData.filter(keyMatches);
 }
 
-function getSplitColumnLabel(activeSlot?: GraphSlot | null, tsData: RuntimeDataPoint[] = []): string {
-  const rawSplit = activeSlot?.splitBy;
-  if (rawSplit && rawSplit !== 'None') {
-    return normalizeScopeLabel(rawSplit);
-  }
+function buildPivotTable(tsData: RuntimeDataPoint[], activeSlot?: GraphSlot | null) {
+  const rowsByKey = new Map<string, PivotRow>();
+  const kpiSet = new Set<string>();
+  let resolvedDimensionLabel: string | null =
+    activeSlot?.splitBy && activeSlot.splitBy !== 'None'
+      ? normalizeDimensionLabel(activeSlot.splitBy)
+      : null;
 
-  if (tsData.some(d => d.splitValue)) {
-    return 'Split';
-  }
+  for (const item of tsData) {
+    const time = getTimeValue(item);
+    const kpiName = getKpiName(item);
+    const value = getKpiValue(item);
+    const dimensionValue = getDimensionValue(item);
 
-  return 'Cell';
-}
+    if (!time || !kpiName) continue;
 
-function buildPivotTable(
-  tsData: RuntimeDataPoint[],
-  siteName?: string,
-  filterContext?: Record<string, string[]>,
-  forceSplitOff?: boolean,
-  activeSlot?: GraphSlot | null,
-) {
-  const scope = getPrimaryScope(filterContext, siteName);
-
-  // Build KPI columns from the slot's selected KPIs + counters (so empty KPIs still show a column).
-  // Fall back to whatever appears in tsData if no slot info available.
-  const selectedKeys = activeSlot
-    ? [
-        ...(activeSlot.kpiIds || []),
-        ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
-      ]
-    : [];
-  const kpiSet = new Set<string>(selectedKeys);
-  tsData.forEach(d => kpiSet.add(cleanKpi(d.kpi)));
-  const kpiColumns = [...kpiSet];
-
-  const timestampSet = new Set<string>();
-  const splitValueSet = new Set<string>();
-
-  for (const d of tsData) {
-    timestampSet.add(d.timestamp);
-    if (!forceSplitOff) {
-      splitValueSet.add(d.networkElement || d.splitValue || '');
+    if (!resolvedDimensionLabel) {
+      resolvedDimensionLabel = getDimensionLabel(item, activeSlot);
     }
-  }
 
-  const timestamps = [...timestampSet].sort();
-  const splitValues = forceSplitOff ? [''] : [...splitValueSet].sort();
+    kpiSet.add(kpiName);
 
-  const lookup = new Map<string, { sum: number; count: number }>();
-  for (const d of tsData) {
-    const splitValue = forceSplitOff ? '' : (d.networkElement || d.splitValue || '');
-    const kpi = cleanKpi(d.kpi);
-    const key = `${d.timestamp}||${splitValue}||${kpi}`;
-    const current = lookup.get(key) || { sum: 0, count: 0 };
-    lookup.set(key, { sum: current.sum + d.value, count: current.count + 1 });
-  }
-
-  const rows: { timestamp: string; ne: string; splitValue: string; kpiValues: Record<string, number | null> }[] = [];
-
-  for (const ts of timestamps) {
-    for (const splitValue of splitValues) {
-      const kpiValues: Record<string, number | null> = {};
-      for (const kpi of kpiColumns) {
-        const key = `${ts}||${splitValue}||${kpi}`;
-        const aggregate = lookup.get(key);
-        kpiValues[kpi] = aggregate ? aggregate.sum / aggregate.count : null;
-      }
-
-      rows.push({
-        timestamp: fmt(ts),
-        ne: scope.value,
-        splitValue: splitValue || '—',
-        kpiValues,
+    const key = `${time}__${dimensionValue}`;
+    if (!rowsByKey.has(key)) {
+      rowsByKey.set(key, {
+        time,
+        dimensionValue,
+        kpiValues: {},
       });
     }
+
+    rowsByKey.get(key)!.kpiValues[kpiName] = value;
   }
 
-  const hasSplitValues = !forceSplitOff && tsData.some(d => d.splitValue || d.networkElement);
+  const kpiColumns = Array.from(kpiSet);
+  const rows = Array.from(rowsByKey.values())
+    .sort((a, b) => {
+      const timeDiff = String(b.time).localeCompare(String(a.time));
+      if (timeDiff !== 0) return timeDiff;
+      return a.dimensionValue.localeCompare(b.dimensionValue);
+    })
+    .map((row) => ({
+      ...row,
+      time: fmtTime(row.time),
+    }));
 
   return {
     rows,
     kpiColumns,
-    hasSplitValues,
-    scopeLabel: scope.label,
-    splitLabel: getSplitColumnLabel(activeSlot, tsData),
+    dimensionLabel: resolvedDimensionLabel || 'NE',
   };
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, filterContext, forceSplitOff, backendRefreshKey = 0, investigatorState }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
-  const [backendRows, setBackendRows] = useState<any[]>([]);
-  const [backendTotal, setBackendTotal] = useState(0);
-  const [backendLoading, setBackendLoading] = useState(false);
-  const [backendPage, setBackendPage] = useState(1);
-  const abortRef = useRef<AbortController | null>(null);
-  const lastBackendRefreshRef = useRef(0);
-
-  // Fetch from KPI Engine /monitor/query/table when slot has KPIs and investigatorState is available
-  const kpiIds = activeSlot?.kpiIds || [];
-  const hasKpis = kpiIds.length > 0;
-  // Only send split_by when the user has explicitly chosen one on the slot.
-  // If forceSplitOff is true OR the slot's splitBy is 'None'/empty, omit it from the request.
-  const rawSplit = activeSlot?.splitBy;
-  const splitBy = !forceSplitOff && rawSplit && rawSplit !== 'None' ? rawSplit : null;
-
-  // Stabilize KPI deps; backend table refresh is driven by Apply, not by live pending filters.
-  const kpiIdsKey = kpiIds.join(',');
-
-  useEffect(() => {
-    if (!hasKpis || !investigatorState || !activeSlot) {
-      setBackendRows([]);
-      setBackendTotal(0);
-      setBackendLoading(false);
-      return;
-    }
-
-    const isNewRefresh = lastBackendRefreshRef.current !== backendRefreshKey;
-    if (isNewRefresh) {
-      lastBackendRefreshRef.current = backendRefreshKey;
-      if (backendPage !== 1) {
-        setBackendPage(1);
-        return;
-      }
-    }
-
-    // Abort any in-flight request before starting a new one
-    if (abortRef.current) abortRef.current.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    setBackendLoading(true);
-
-    const ctx = resolveSlotContext(activeSlot, {
-      startDate: investigatorState.startDate,
-      endDate: investigatorState.endDate,
-      granularity: investigatorState.granularity as any,
-      splitBy: investigatorState.splitBy,
-      filters: investigatorState.filters,
-      kpiLevel: investigatorState.kpiLevel,
-      profileQci: investigatorState.profileQci,
-      profileArp: investigatorState.profileArp,
-      neighborType: investigatorState.neighborType,
-    });
-
-    const filters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
-
-    const body: Record<string, any> = {
-      kpi_keys: kpiIds,
-      filters,
-      date_from: ctx.dateFrom,
-      date_to: ctx.dateTo,
-      granularity: ctx.granularity,
-      page: backendPage,
-      page_size: pageSize,
-    };
-    if (splitBy) body.split_by = splitBy;
-
-    fetch(getApiUrl('monitor/query/table'), {
-      method: 'POST',
-      headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-      .then(r => r.ok ? r.json() : { rows: [], total: 0 })
-      .then(data => {
-        // Only commit results if THIS controller is still the active one
-        if (abortRef.current !== controller) return;
-        setBackendRows(Array.isArray(data?.rows) ? data.rows : []);
-        setBackendTotal(typeof data?.total === 'number' ? data.total : (data?.rows?.length ?? 0));
-        setBackendLoading(false);
-      })
-      .catch((err) => {
-        // Silently ignore aborts; only clear loading on real errors
-        if (err?.name === 'AbortError') return;
-        if (abortRef.current === controller) {
-          setBackendLoading(false);
-        }
-      });
-
-    // Do NOT abort on cleanup — let the request finish so React StrictMode
-    // double-mount or fast re-renders don't cancel a perfectly valid query.
-    // The next effect run will abort via abortRef.current.abort() above.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSlot?.id, kpiIdsKey, backendRefreshKey, splitBy, backendPage, pageSize, investigatorState?.startDate, investigatorState?.endDate, investigatorState?.granularity]);
-
-  // Use backend data when available, fall back to tsData pivot
-  const useBackend = hasKpis && investigatorState && backendRows.length > 0;
 
   const tableData = useMemo(
     () => sanitizeTableData(tsData, activeSlot),
     [tsData, activeSlot]
   );
 
+  const { rows, kpiColumns, dimensionLabel } = useMemo(
+    () => buildPivotTable(tableData, activeSlot),
+    [tableData, activeSlot]
+  );
+
   useEffect(() => {
     setCurrentPage(0);
-    setBackendPage(1);
-  }, [pageSize, activeSlot?.id]);
+  }, [pageSize, rows.length, activeSlot?.id]);
 
   const sourceInfo = useMemo(() => {
-    const kpis = [...new Set(tableData.map(d => cleanKpi(d.kpi)))];
+    const kpis = kpiColumns.join(', ');
     return {
       slotLabel: (activeSlot as GraphSlot & { label?: string } | null)?.label || activeSlot?.name || activeSlot?.id || 'Timeseries',
-      kpiNames: kpis.join(', '),
-      rowCount: tableData.length,
+      kpiNames: kpis,
+      rowCount: rows.length,
     };
-  }, [tableData, activeSlot]);
+  }, [kpiColumns, rows.length, activeSlot]);
 
-  // Robust dimension-value extractor: walk every common field name a backend
-  // might use (NE, plaque, cell, site, dimension, dimensions, labels, tags…).
-  const getDimensionValue = (item: any): string => {
-    if (!item) return '';
-    const direct =
-      item.NE ??
-      item.ne ??
-      item.plaque ??
-      item.plaque_name ??
-      item.cell ??
-      item.cell_name ??
-      item.site ??
-      item.site_name ??
-      item.dimension?.NE ??
-      item.dimension?.plaque ??
-      item.dimension?.cell ??
-      item.dimensions?.NE ??
-      item.dimensions?.plaque ??
-      item.dimensions?.cell ??
-      item.dimensions?.[0]?.value ??
-      item.dimensions?.[0]?.name ??
-      item.labels?.NE ??
-      item.labels?.plaque ??
-      item.tags?.NE ??
-      item.tags?.plaque ??
-      '';
-    return direct ? String(direct) : '';
-  };
-
-  // Backend table mode: build rows/columns from backend response
-  const backendTableData = useMemo(() => {
-    if (!useBackend) return null;
-    const kpiCols = [...new Set(backendRows.map(r => r.kpi_key))];
-    const timestamps = [...new Set(backendRows.map(r => r.ts))].sort();
-
-    // Fix: KPI Engine puts timestamp as split_value when no split_by — detect and clean.
-    // Always prefer a real dimension value over a "—" fallback.
-    const cleanSplit = (r: any) => {
-      const sv = r.split_value;
-      if (sv && sv !== r.ts && sv !== fmt(r.ts)) return String(sv);
-      // Fall through to other dimension fields
-      return getDimensionValue(r);
-    };
-
-    const cleanedRows = backendRows.map(r => ({ ...r, _cleanSplit: cleanSplit(r) }));
-    const splitValuesClean = [...new Set(cleanedRows.map(r => r._cleanSplit))].sort();
-
-    const lookup = new Map<string, number>();
-    for (const r of cleanedRows) {
-      const key = `${r.ts}||${r._cleanSplit}||${r.kpi_key}`;
-      lookup.set(key, r.avg ?? r.value ?? null);
-    }
-
-    const rows: { timestamp: string; splitValue: string; site_name: string; dor: string; band: string; vendor: string; kpiValues: Record<string, number | null> }[] = [];
-    for (const ts of timestamps) {
-      for (const sv of splitValuesClean) {
-        const kpiValues: Record<string, number | null> = {};
-        for (const kpi of kpiCols) {
-          kpiValues[kpi] = lookup.get(`${ts}||${sv}||${kpi}`) ?? null;
-        }
-        const sample = cleanedRows.find(r => r.ts === ts && r._cleanSplit === sv);
-        const resolvedDim =
-          sv ||
-          getDimensionValue(sample) ||
-          (sample?.site_name && sample.site_name !== sample.ts ? sample.site_name : '') ||
-          '—';
-        rows.push({
-          timestamp: fmt(ts),
-          splitValue: resolvedDim,
-          site_name: resolvedDim,
-          dor: sample?.dor || '',
-          band: sample?.band || '',
-          vendor: sample?.vendor || '',
-          kpiValues,
-        });
-      }
-    }
-    return { rows, kpiCols };
-  }, [useBackend, backendRows]);
-
-  // Fallback: client-side pivot from tsData
-  const { rows, kpiColumns, hasSplitValues, scopeLabel, splitLabel } = useMemo(
-    () => buildPivotTable(tableData, siteName, filterContext, forceSplitOff, activeSlot),
-    [tableData, siteName, filterContext, forceSplitOff, activeSlot]
-  );
-
-  // Choose data source
-  const displayRows = backendTableData?.rows || rows;
-  const displayKpiCols = backendTableData?.kpiCols || kpiColumns;
-  const displayHasSplit = backendTableData ? true : hasSplitValues;
-
-  // Wide-format generic KPI mapping: KPI1, KPI2, ... -> cleaned real name (no "@SITE" suffix)
-  const kpiMapping = useMemo(
-    () => displayKpiCols.map((real, i) => ({ generic: `KPI${i + 1}`, real: cleanKpi(real), raw: real })),
-    [displayKpiCols],
-  );
-
-  // Build the dynamic ordered dimension columns:
-  // [Time?] + [Dimension1, Dimension2, ...] + [KPI1..KPIN]
-  // Time is always present here (rows are timestamped).
-  // Dimensions order:
-  //   - Backend mode: splitBy (if any) -> DOR -> Band -> Vendor (only if any row has a value)
-  //   - Client mode: scopeLabel + (split column if hasSplitValues)
-  type DimCol = { key: string; label: string; get: (row: any) => string };
-  const dimensionCols: DimCol[] = useMemo(() => {
-    const cols: DimCol[] = [];
-    if (useBackend) {
-      if (splitBy) {
-        cols.push({
-          key: 'split',
-          label: normalizeScopeLabel(splitBy),
-          get: (r) => r.splitValue || '—',
-        });
-      }
-      const hasAny = (k: 'dor' | 'band' | 'vendor') =>
-        displayRows.some((r: any) => r[k] && String(r[k]).trim() !== '');
-      if (hasAny('dor')) cols.push({ key: 'dor', label: 'DOR', get: (r) => r.dor || '—' });
-      if (hasAny('band')) cols.push({ key: 'band', label: 'Band', get: (r) => r.band || '—' });
-      if (hasAny('vendor')) cols.push({ key: 'vendor', label: 'Vendor', get: (r) => r.vendor || '—' });
-      // Fallback: always show at least one Network Element column so the user
-      // can identify which entity each row refers to (e.g. global/aggregated view).
-      if (cols.length === 0) {
-        const scope = getPrimaryScope(filterContext, siteName);
-        cols.push({
-          key: 'ne',
-          label: scope.label || 'NE',
-          get: (r) => r.site_name || r.splitValue || scope.value || '—',
-        });
-      }
-    } else {
-      // Client-side fallback
-      cols.push({ key: 'ne', label: scopeLabel || 'NE', get: (r) => r.ne || '—' });
-      if (hasSplitValues) {
-        cols.push({ key: 'splitValue', label: splitLabel, get: (r) => r.splitValue || '—' });
-      }
-    }
-    return cols;
-  }, [useBackend, splitBy, displayRows, scopeLabel, hasSplitValues, splitLabel, filterContext, siteName]);
-
-  // Per-KPI min/max for inline progress bars
   const kpiRanges = useMemo(() => {
     const ranges: Record<string, { min: number; max: number }> = {};
-    for (const kpi of displayKpiCols) {
-      let min = Infinity, max = -Infinity;
-      for (const r of displayRows) {
-        const v = r.kpiValues[kpi];
-        if (v == null || !isFinite(v)) continue;
-        if (v < min) min = v;
-        if (v > max) max = v;
+    for (const kpi of kpiColumns) {
+      let min = Infinity;
+      let max = -Infinity;
+      for (const row of rows) {
+        const value = row.kpiValues[kpi];
+        if (value == null || !isFinite(value)) continue;
+        if (value < min) min = value;
+        if (value > max) max = value;
       }
-      ranges[kpi] = { min: isFinite(min) ? min : 0, max: isFinite(max) ? max : 0 };
+      ranges[kpi] = {
+        min: isFinite(min) ? min : 0,
+        max: isFinite(max) ? max : 0,
+      };
     }
     return ranges;
-  }, [displayRows, displayKpiCols]);
+  }, [rows, kpiColumns]);
 
-  const totalRows = useBackend ? backendTotal : displayRows.length;
+  const totalRows = rows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
-  const safePage = useBackend ? backendPage - 1 : Math.min(currentPage, totalPages - 1);
-  const startIdx = useBackend ? 0 : safePage * pageSize;
-  const endIdx = useBackend ? displayRows.length : Math.min(startIdx + pageSize, displayRows.length);
-  const pageRows = useBackend ? displayRows : displayRows.slice(startIdx, endIdx);
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const startIdx = safePage * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, totalRows);
+  const pageRows = rows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const headerCols = ['Time', ...dimensionCols.map(d => d.label), ...kpiMapping.map(k => k.generic)];
-    const header = headerCols.map(escapeCsv).join(',');
+    const header = ['TIME', dimensionLabel, ...kpiColumns].map(escapeCsv).join(',');
+    const csvRows = rows.map((row) =>
+      [row.time, row.dimensionValue, ...kpiColumns.map((kpi) => row.kpiValues[kpi] ?? '')]
+        .map(escapeCsv)
+        .join(',')
+    );
 
-    const csvRows = displayRows.map((r: any) => {
-      const baseCols = [r.timestamp, ...dimensionCols.map(d => d.get(r))];
-      const kpiVals = kpiMapping.map(({ raw }) => {
-        const v = r.kpiValues[raw];
-        return v == null ? '—' : v;
-      });
-      return [...baseCols, ...kpiVals].map(escapeCsv).join(',');
-    });
-
-    // Append KPI mapping legend at the end of the CSV for traceability
-    const mappingLines = ['', '# KPI Mapping', ...kpiMapping.map(k => `${k.generic},${escapeCsv(k.real)}`)];
-
-    const csv = [header, ...csvRows, ...mappingLines].join('\n');
+    const csv = [header, ...csvRows].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -549,17 +388,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     URL.revokeObjectURL(url);
   };
 
-  // Loading state
-  if (backendLoading && !useBackend) {
-    return (
-      <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col items-center justify-center h-48 gap-2">
-        <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
-        <p className="text-[11px] text-muted-foreground">Chargement des données...</p>
-      </div>
-    );
-  }
-
-  if (tableData.length === 0 && !useBackend && !backendLoading) {
+  if (tableData.length === 0 || rows.length === 0) {
     const hasNoKpis =
       (!activeSlot?.kpiIds || activeSlot.kpiIds.length === 0) &&
       (!(activeSlot as GraphSlot & { counterIds?: string[] })?.counterIds ||
@@ -569,16 +398,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
       <div className="flex-grow rounded-xl border border-border/20 bg-card shadow-sm overflow-hidden flex flex-col items-center justify-center h-48 gap-2 px-6 text-center">
         {hasNoKpis ? (
           <>
-            <p className="text-xs font-semibold text-foreground">Aucun KPI ni compteur sélectionné sur ce graphe</p>
+            <p className="text-xs font-semibold text-foreground">Aucun KPI ni compteur selectionne sur ce graphe</p>
             <p className="text-[11px] text-muted-foreground">
-              Ouvrez le sélecteur de KPI/compteurs sur le graphe « {activeSlot?.name || 'Timeseries'} », ajoutez au moins un élément, puis cliquez sur <span className="font-semibold text-primary">Appliquer</span>.
+              Ouvrez le selecteur de KPI/compteurs sur le graphe "{activeSlot?.name || 'Timeseries'}", ajoutez au moins un element, puis cliquez sur <span className="font-semibold text-primary">Appliquer</span>.
             </p>
           </>
         ) : (
           <>
-            <p className="text-xs font-semibold text-foreground">Aucune donnée pour ce graphe</p>
+            <p className="text-xs font-semibold text-foreground">Aucune donnee exploitable pour ce graphe</p>
             <p className="text-[11px] text-muted-foreground">
-              Cliquez sur <span className="font-semibold text-primary">Appliquer</span> pour exécuter la requête, ou ajustez la période / les filtres.
+              Cliquez sur <span className="font-semibold text-primary">Appliquer</span> pour executer la requete, ou ajustez la periode / les filtres.
             </p>
           </>
         )}
@@ -586,199 +415,107 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     );
   }
 
-  // Brand colors per design spec
-  const BRAND_GREEN = '#14746C';
-  const ROW_BORDER = '#E5E7EB';
-  const TRACK_GREY = '#F1F2F4';
-
   return (
-    <div
-      className="flex-grow rounded-xl bg-white overflow-hidden flex flex-col"
-      style={{
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-        border: `1px solid ${ROW_BORDER}`,
-      }}
-    >
-      {/* Info bar — subtle bordered container */}
-      <div
-        className="px-6 py-3 bg-white flex items-center justify-between gap-4"
-        style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
-      >
-        <div className="flex items-center gap-3 text-[12px] flex-wrap">
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold uppercase tracking-[0.1em]"
-            style={{ color: BRAND_GREEN, backgroundColor: `${BRAND_GREEN}10` }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: BRAND_GREEN }} />
-            Source
+    <div className="flex-grow rounded-2xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col">
+      <div className="px-6 py-3 bg-white border-b border-border/30">
+        <div className="flex items-center gap-3 text-[11px]">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
+            Table Data
           </span>
-          <span className="text-foreground font-semibold">{sourceInfo.slotLabel}</span>
-          <span className="w-px h-4 bg-[#E5E7EB]" />
-          <span className="text-muted-foreground text-[11px]">
-            KPI: <span className="text-foreground/80 font-medium">{sourceInfo.kpiNames || '—'}</span>
+          <span className="text-foreground/80 font-semibold">{sourceInfo.slotLabel}</span>
+          <span className="text-muted-foreground/40">|</span>
+          <span className="text-muted-foreground">
+            KPIs: <span className="text-foreground/70">{sourceInfo.kpiNames || '-'}</span>
           </span>
-          <span className="w-px h-4 bg-[#E5E7EB]" />
-          <span className="text-muted-foreground text-[11px]">
-            <span className="text-foreground font-semibold">{totalRows.toLocaleString()}</span> rows
+          <span className="text-muted-foreground/40">|</span>
+          <span className="text-muted-foreground">{totalRows.toLocaleString()} rows</span>
+        </div>
+      </div>
+
+      <div className="h-12 border-b border-border/20 flex items-center justify-between px-6 bg-white">
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Table</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium">
+            {dimensionLabel} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
           </span>
-          <span className="w-px h-4 bg-[#E5E7EB]" />
-          <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#F8F9FA] text-muted-foreground font-medium">
-            {kpiMapping.length} KPI{kpiMapping.length !== 1 ? 's' : ''} × {dimensionCols.length} dim{dimensionCols.length !== 1 ? 's' : ''}
-          </span>
-          {useBackend && (
-            <span className="text-[9px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-medium">
-              KPI Engine
-            </span>
-          )}
-          {backendLoading && <RefreshCw className="w-3 h-3 animate-spin text-muted-foreground" />}
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-          style={{ border: `1px solid ${ROW_BORDER}` }}
+          className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
         >
           <Download className="w-3.5 h-3.5" />
-          Export CSV
+          CSV
         </button>
       </div>
 
-      {/* KPI Mapping legend — generic KPIn -> real KPI name */}
-      {kpiMapping.length > 0 && (
-        <div
-          className="px-6 py-2 bg-[#FAFBFC] flex items-center gap-2 flex-wrap"
-          style={{ borderBottom: `1px solid ${ROW_BORDER}` }}
-        >
-          <span className="text-[10px] uppercase tracking-[0.1em] font-semibold text-muted-foreground">
-            KPI Mapping
-          </span>
-          {kpiMapping.map(({ generic, real }) => (
-            <span
-              key={generic}
-              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10.5px] font-medium"
-              style={{ backgroundColor: `${BRAND_GREEN}10`, color: BRAND_GREEN }}
-              title={real}
-            >
-              <span className="font-bold">{generic}</span>
-              <span className="text-foreground/60">=</span>
-              <span className="text-foreground/80 truncate max-w-[200px]">{real}</span>
-            </span>
-          ))}
-        </div>
-      )}
-
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
-        <table className="w-full border-collapse text-[12.5px]">
+        <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
-            <tr className="bg-white" style={{ borderBottom: `1.5px solid ${ROW_BORDER}` }}>
-              {/* Time column — always first */}
-              <th className="text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap">
-                Time
+            <tr className="bg-white border-b border-border/40">
+              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
+                TIME
               </th>
-
-              {/* Dynamic dimension columns — first one is sticky/frozen */}
-              {dimensionCols.map((dim, i) => (
+              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap">
+                {dimensionLabel}
+              </th>
+              {kpiColumns.map((kpi) => (
                 <th
-                  key={dim.key}
-                  className={cn(
-                    'text-left py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap',
-                    i === 0 && 'sticky left-0 bg-white z-30',
-                  )}
+                  key={kpi}
+                  className="text-right py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap"
                 >
-                  {dim.label}
-                </th>
-              ))}
-
-              {/* Generic KPI columns: KPI1, KPI2, ... — full name on hover */}
-              {kpiMapping.map(({ generic, real }) => (
-                <th
-                  key={generic}
-                  className="text-right py-2 px-4 font-semibold text-[11px] text-foreground/70 uppercase tracking-[0.08em] whitespace-nowrap cursor-help"
-                  title={real}
-                >
-                  {generic}
+                  <span className="truncate max-w-[240px] inline-block align-middle" title={kpi}>{kpi}</span>
                 </th>
               ))}
             </tr>
           </thead>
 
           <tbody>
-            {pageRows.map((row: any, idx) => {
+            {pageRows.map((row, idx) => {
               const absIdx = startIdx + idx;
 
-              const isOdd = absIdx % 2 === 1;
-              const rowBg = isOdd ? '#FAFBFC' : '#FFFFFF';
               return (
                 <tr
-                  key={absIdx}
-                  className="group transition-colors hover:bg-[#F0FAF8]"
-                  style={{ borderBottom: `1px solid ${ROW_BORDER}`, backgroundColor: rowBg }}
+                  key={`${row.time}-${row.dimensionValue}-${absIdx}`}
+                  className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
                 >
-                  {/* Time */}
-                  <td className="py-2 px-4 tabular-nums text-muted-foreground whitespace-nowrap text-[11.5px]">
-                    {row.timestamp}
+                  <td className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
+                    {row.time}
                   </td>
 
-                  {/* Dimensions — first one is sticky/frozen */}
-                  {dimensionCols.map((dim, i) => {
-                    const value = dim.get(row);
-                    const isFirst = i === 0;
-                    return (
-                      <td
-                        key={dim.key}
-                        className={cn(
-                          'py-2 px-4 whitespace-nowrap',
-                          isFirst
-                            ? 'sticky left-0 z-10 group-hover:bg-[#F0FAF8] transition-colors'
-                            : 'text-[11.5px] text-foreground/80',
-                        )}
-                        style={isFirst ? { backgroundColor: rowBg } : undefined}
-                        title={value}
-                      >
-                        {isFirst ? (
-                          <span className="inline-flex items-center gap-2">
-                            <span
-                              className="w-1.5 h-1.5 rounded-full shrink-0"
-                              style={{ backgroundColor: stableColorForSplit(value || '') }}
-                            />
-                            <span className="font-semibold text-foreground tracking-tight">{value}</span>
-                          </span>
-                        ) : (
-                          value
-                        )}
-                      </td>
-                    );
-                  })}
+                  <td className="py-3 px-5 sticky left-0 bg-white group-hover:bg-muted/30 transition-colors whitespace-nowrap">
+                    <span className="inline-flex items-center gap-2">
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: stableColorForSplit(row.dimensionValue) }}
+                      />
+                      <span className="font-semibold text-foreground tracking-tight">{row.dimensionValue}</span>
+                    </span>
+                  </td>
 
-                  {/* Generic KPI values — lookup uses raw key, tooltip shows clean name */}
-                  {kpiMapping.map(({ generic, real, raw }) => {
-                    const val = row.kpiValues[raw];
-                    const range = kpiRanges[raw];
+                  {kpiColumns.map((kpi) => {
+                    const value = row.kpiValues[kpi];
+                    const range = kpiRanges[kpi];
                     let pct = 0;
-                    if (val != null && isFinite(val) && range && range.max > range.min) {
-                      pct = Math.max(4, Math.min(100, ((val - range.min) / (range.max - range.min)) * 100));
-                    } else if (val != null && isFinite(val) && range && range.max === range.min && val !== 0) {
+                    if (value != null && isFinite(value) && range && range.max > range.min) {
+                      pct = Math.max(4, Math.min(100, ((value - range.min) / (range.max - range.min)) * 100));
+                    } else if (value != null && isFinite(value) && range && range.max === range.min && value !== 0) {
                       pct = 100;
                     }
+                    const barColor = stableColorForSplit(kpi);
+
                     return (
-                      <td
-                        key={generic}
-                        className="py-2 px-4 whitespace-nowrap"
-                        title={`${generic} = ${real}`}
-                      >
+                      <td key={kpi} className="py-3 px-5 whitespace-nowrap">
                         <div className="flex items-center justify-end gap-3">
-                          <div
-                            className="relative h-1.5 w-20 rounded-full overflow-hidden"
-                            style={{ backgroundColor: TRACK_GREY }}
-                          >
-                            {val != null && (
+                          <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
+                            {value != null && (
                               <div
-                                className="absolute inset-y-0 left-0 rounded-full transition-all"
-                                style={{ width: `${pct}%`, backgroundColor: BRAND_GREEN }}
+                                className="absolute inset-y-0 left-0 rounded-full"
+                                style={{ width: `${pct}%`, backgroundColor: barColor }}
                               />
                             )}
                           </div>
-                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[4rem] text-[12.5px]">
-                            {fmtVal(val ?? null)}
+                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
+                            {fmtVal(value)}
                           </span>
                         </div>
                       </td>
@@ -791,45 +528,35 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
         </table>
       </div>
 
-      {/* Pagination — clean, right-aligned */}
-      <div
-        className="h-12 flex items-center justify-between px-6 bg-white"
-        style={{ borderTop: `1px solid ${ROW_BORDER}` }}
-      >
-        <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
+      <div className="h-10 border-t border-border/20 flex items-center justify-between px-4 bg-muted/30">
+        <div className="flex items-center gap-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
           <span>
-            Showing <span className="font-semibold text-foreground">{startIdx + 1}–{endIdx}</span> of{' '}
-            <span className="font-semibold text-foreground">{totalRows.toLocaleString()}</span>
+            Showing {startIdx + 1}-{endIdx} of {totalRows.toLocaleString()} rows
           </span>
           <div className="relative">
             <button
               onClick={() => setShowPageSizeMenu(!showPageSizeMenu)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-[#F8F9FA] transition-colors"
-              style={{ border: `1px solid ${ROW_BORDER}` }}
+              className="flex items-center gap-1 cursor-pointer hover:text-primary transition-colors"
             >
-              <span>Items per page: <span className="font-semibold text-foreground">{pageSize}</span></span>
+              <span>Items per page: {pageSize}</span>
               <ChevronDown className="w-3 h-3" />
             </button>
             {showPageSizeMenu && (
-              <div
-                className="absolute bottom-full mb-1 left-0 bg-white rounded-md shadow-lg z-50 overflow-hidden"
-                style={{ border: `1px solid ${ROW_BORDER}` }}
-              >
-                {PAGE_SIZES.map((s) => (
+              <div className="absolute bottom-full mb-1 left-0 bg-card border border-border rounded-md shadow-lg z-50 overflow-hidden">
+                {PAGE_SIZES.map((size) => (
                   <button
-                    key={s}
+                    key={size}
                     onClick={() => {
-                      setPageSize(s);
+                      setPageSize(size);
                       setCurrentPage(0);
                       setShowPageSizeMenu(false);
                     }}
                     className={cn(
-                      'block w-full text-left px-4 py-1.5 text-[11px] hover:bg-[#F0FAF8] transition-colors',
-                      s === pageSize && 'font-semibold',
+                      'block w-full text-left px-3 py-1.5 text-[10px] hover:bg-primary/10 transition-colors',
+                      size === pageSize && 'bg-primary/10 text-primary font-bold',
                     )}
-                    style={s === pageSize ? { color: BRAND_GREEN, backgroundColor: `${BRAND_GREEN}10` } : undefined}
                   >
-                    {s}
+                    {size}
                   </button>
                 ))}
               </div>
@@ -839,56 +566,36 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 
         <div className="flex items-center gap-1">
           <button
-            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
-            onClick={() => { if (useBackend) setBackendPage(1); else setCurrentPage(0); }}
+            onClick={() => setCurrentPage(0)}
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
           <button
-            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={safePage === 0}
-            onClick={() => { if (useBackend) setBackendPage(p => Math.max(1, p - 1)); else setCurrentPage((p) => Math.max(0, p - 1)); }}
+            onClick={() => setCurrentPage((page) => Math.max(0, page - 1))}
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
-
-          {/* Page chips around current */}
-          <div className="flex items-center gap-1 px-1">
-            {(() => {
-              const chips: number[] = [];
-              const window = 1;
-              const start = Math.max(0, safePage - window);
-              const end = Math.min(totalPages - 1, safePage + window);
-              for (let i = start; i <= end; i++) chips.push(i);
-              return chips.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => { if (useBackend) setBackendPage(p + 1); else setCurrentPage(p); }}
-                  className={cn(
-                    'min-w-[28px] h-7 px-2 rounded-md text-[11px] font-semibold transition-colors',
-                    p === safePage ? 'text-white' : 'text-foreground hover:bg-[#F8F9FA]',
-                  )}
-                  style={p === safePage ? { backgroundColor: BRAND_GREEN } : undefined}
-                >
-                  {p + 1}
-                </button>
-              ));
-            })()}
-            <span className="text-[10px] text-muted-foreground ml-1">/ {totalPages}</span>
+          <div className="flex items-center px-2">
+            <span className="text-[10px] font-bold bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center rounded">
+              {safePage + 1}
+            </span>
+            <span className="text-[9px] text-muted-foreground ml-1">/ {totalPages}</span>
           </div>
-
           <button
-            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
-            onClick={() => { if (useBackend) setBackendPage(p => Math.min(totalPages, p + 1)); else setCurrentPage((p) => Math.min(totalPages - 1, p + 1)); }}
+            onClick={() => setCurrentPage((page) => Math.min(totalPages - 1, page + 1))}
           >
             <ChevronRight className="w-4 h-4" />
           </button>
           <button
-            className="p-1.5 rounded-md hover:bg-[#F8F9FA] disabled:opacity-30 transition-colors"
+            className="p-1 hover:bg-muted rounded disabled:opacity-30 transition-colors"
             disabled={safePage >= totalPages - 1}
-            onClick={() => { if (useBackend) setBackendPage(totalPages); else setCurrentPage(totalPages - 1); }}
+            onClick={() => setCurrentPage(totalPages - 1)}
           >
             <ChevronsRight className="w-4 h-4" />
           </button>
@@ -899,4 +606,3 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
 };
 
 export default InvestigatorDataTable;
-// wide-format table v1777073504
