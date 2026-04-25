@@ -361,19 +361,48 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
     };
   }, [tableData, activeSlot]);
 
+  // Robust dimension-value extractor: walk every common field name a backend
+  // might use (NE, plaque, cell, site, dimension, dimensions, labels, tags…).
+  const getDimensionValue = (item: any): string => {
+    if (!item) return '';
+    const direct =
+      item.NE ??
+      item.ne ??
+      item.plaque ??
+      item.plaque_name ??
+      item.cell ??
+      item.cell_name ??
+      item.site ??
+      item.site_name ??
+      item.dimension?.NE ??
+      item.dimension?.plaque ??
+      item.dimension?.cell ??
+      item.dimensions?.NE ??
+      item.dimensions?.plaque ??
+      item.dimensions?.cell ??
+      item.dimensions?.[0]?.value ??
+      item.dimensions?.[0]?.name ??
+      item.labels?.NE ??
+      item.labels?.plaque ??
+      item.tags?.NE ??
+      item.tags?.plaque ??
+      '';
+    return direct ? String(direct) : '';
+  };
+
   // Backend table mode: build rows/columns from backend response
   const backendTableData = useMemo(() => {
     if (!useBackend) return null;
     const kpiCols = [...new Set(backendRows.map(r => r.kpi_key))];
     const timestamps = [...new Set(backendRows.map(r => r.ts))].sort();
-    const splitValues = [...new Set(backendRows.map(r => r.split_value || r.site_name || ''))].sort();
 
-    // Fix: KPI Engine puts timestamp as split_value when no split_by — detect and clean
+    // Fix: KPI Engine puts timestamp as split_value when no split_by — detect and clean.
+    // Always prefer a real dimension value over a "—" fallback.
     const cleanSplit = (r: any) => {
-      const sv = r.split_value || r.site_name || '';
-      // If split_value equals ts (timestamp used as split), treat as empty
-      if (sv === r.ts || sv === fmt(r.ts)) return '';
-      return sv;
+      const sv = r.split_value;
+      if (sv && sv !== r.ts && sv !== fmt(r.ts)) return String(sv);
+      // Fall through to other dimension fields
+      return getDimensionValue(r);
     };
 
     const cleanedRows = backendRows.map(r => ({ ...r, _cleanSplit: cleanSplit(r) }));
@@ -393,10 +422,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, siteName, 
           kpiValues[kpi] = lookup.get(`${ts}||${sv}||${kpi}`) ?? null;
         }
         const sample = cleanedRows.find(r => r.ts === ts && r._cleanSplit === sv);
+        const resolvedDim =
+          sv ||
+          getDimensionValue(sample) ||
+          (sample?.site_name && sample.site_name !== sample.ts ? sample.site_name : '') ||
+          '—';
         rows.push({
           timestamp: fmt(ts),
-          splitValue: sv || '—',
-          site_name: sample?.site_name && sample.site_name !== sample.ts ? sample.site_name : (sv || '—'),
+          splitValue: resolvedDim,
+          site_name: resolvedDim,
           dor: sample?.dor || '',
           band: sample?.band || '',
           vendor: sample?.vendor || '',
