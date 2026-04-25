@@ -11,6 +11,7 @@ import { usePerimeterScope, type PerimeterScope } from './usePerimeterScope';
 import type { KpiDefinition } from './types';
 import { Filter, Calendar as CalendarIcon, X, Plus, ChevronDown, Check, TrendingUp, AreaChart, BarChart, CircleDot, Settings2, Flag, Layers, Fingerprint, GitBranch, Sparkles, Edit2, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
@@ -1241,16 +1242,41 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     setState(prev => {
       const dateOnly = (prev.startDate || '').split('T')[0];
       const fullStart = `${dateOnly}T${time}`;
-      return propagateDatesToSlots(fullStart, prev.endDate)(prev);
+      // If same day and new start > end time → push end to start
+      const endDateOnly = (prev.endDate || '').split('T')[0];
+      let nextEnd = prev.endDate;
+      if (endDateOnly === dateOnly && prev.endDate && fullStart > prev.endDate) {
+        nextEnd = fullStart;
+        toast.info("Heure de fin ajustée pour rester ≥ début");
+      }
+      return propagateDatesToSlots(fullStart, nextEnd)(prev);
     });
   };
   const setEndTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.endDate || '').split('T')[0];
       const fullEnd = `${dateOnly}T${time}`;
+      const startDateOnly = (prev.startDate || '').split('T')[0];
+      // Block end < start when same day
+      if (startDateOnly === dateOnly && prev.startDate && fullEnd < prev.startDate) {
+        toast.error("L'heure de fin doit être ≥ à l'heure de début");
+        return prev;
+      }
       return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
     });
   };
+
+  // Guarded apply: ensures end ≥ start before triggering backend fetch
+  const handleApplyGuarded = useCallback(() => {
+    const s = state.startDate;
+    const e = state.endDate;
+    if (s && e && e < s) {
+      toast.error("La date de fin doit être supérieure ou égale à la date de début.");
+      return;
+    }
+    onApply();
+  }, [state.startDate, state.endDate, onApply]);
+
 
   // (effectiveFilters memo is declared earlier, before siteFilterForProbe)
 
@@ -1540,7 +1566,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
             {/* Apply button */}
             <Button
-              onClick={onApply}
+              onClick={handleApplyGuarded}
               size="sm"
               disabled={!Object.values(effectiveFilters).some(v => v.length > 0) || isApplying}
               className={cn(
@@ -1951,7 +1977,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             {hasSplit1Active && (
                               <Button
                                 size="sm"
-                                onClick={() => { onApply(); }}
+                                onClick={() => { handleApplyGuarded(); }}
                                 disabled={isApplying}
                                 className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
                               >
@@ -2190,7 +2216,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           {hasSplit1Active && (
                             <Button
                               size="sm"
-                              onClick={() => { onApply(); }}
+                              onClick={() => { handleApplyGuarded(); }}
                               disabled={isApplying}
                               className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
                             >
