@@ -5,9 +5,10 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Search, Download, Loader2, ArrowRightLeft, Filter } from 'lucide-react';
+import { Search, Download, Loader2, ArrowRightLeft, Filter, ChevronDown } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { MultiSelectPopover } from '@/components/parameter-hub/MultiSelectPopover';
 
 interface NeighborEntry {
   source_cell: string;
@@ -48,8 +49,8 @@ const NeighborExplorer: React.FC = () => {
   const [vendor, setVendor] = useState<string>('Nokia');
   const [rat, setRat] = useState<string>('');
   const [siteName, setSiteName] = useState<string>('');
-  const [plaque, setPlaque] = useState<string>('');
-  const [dor, setDor] = useState<string>('');
+  const [plaque, setPlaque] = useState<string[]>([]);
+  const [dor, setDor] = useState<string[]>([]);
   const [relationType, setRelationType] = useState<string>('');
   const [splitBy, setSplitBy] = useState<'all' | 'target_band'>('all');
   const [data, setData] = useState<ExploreResult | null>(null);
@@ -84,8 +85,8 @@ const NeighborExplorer: React.FC = () => {
       if (vendor) params.set('vendor', vendor);
       if (rat) params.set('rat', rat);
       if (siteName.trim()) params.set('site_name', siteName.trim());
-      if (plaque.trim()) params.set('plaque', plaque.trim());
-      if (dor.trim()) params.set('dor', dor.trim());
+      if (plaque.length) params.set('plaque', plaque.join(','));
+      if (dor.length) params.set('dor', dor.join(','));
       if (relationType) params.set('relation_type', relationType);
       params.set('split_by', splitBy);
 
@@ -190,43 +191,53 @@ const NeighborExplorer: React.FC = () => {
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Plaque</label>
-          {plaqueOpts.length > 0 ? (
-            <select
-              value={plaque}
-              onChange={e => setPlaque(e.target.value)}
-              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-36"
-            >
-              <option value="">All ({plaqueOpts.length})</option>
-              {plaqueOpts.map(p => <option key={p} value={p}>{p}</option>)}
-            </select>
-          ) : (
-            <input
-              value={plaque}
-              onChange={e => setPlaque(e.target.value)}
-              placeholder="Plaque..."
-              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
-            />
-          )}
+          <MultiSelectPopover
+            title="Plaque / Cluster"
+            options={plaqueOpts}
+            selected={plaque}
+            onConfirm={setPlaque}
+            emptyHint="No plaque available"
+            trigger={
+              <button
+                type="button"
+                className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-44 hover:bg-muted/40"
+              >
+                <span className="truncate">
+                  {plaque.length === 0
+                    ? `All (${plaqueOpts.length})`
+                    : plaque.length === 1
+                      ? plaque[0]
+                      : `${plaque.length} selected`}
+                </span>
+                <ChevronDown size={12} className="opacity-60 shrink-0" />
+              </button>
+            }
+          />
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">DOR</label>
-          {dorOpts.length > 0 ? (
-            <select
-              value={dor}
-              onChange={e => setDor(e.target.value)}
-              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-36"
-            >
-              <option value="">All ({dorOpts.length})</option>
-              {dorOpts.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          ) : (
-            <input
-              value={dor}
-              onChange={e => setDor(e.target.value)}
-              placeholder="DOR..."
-              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
-            />
-          )}
+          <MultiSelectPopover
+            title="DOR"
+            options={dorOpts}
+            selected={dor}
+            onConfirm={setDor}
+            emptyHint="No DOR available"
+            trigger={
+              <button
+                type="button"
+                className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-44 hover:bg-muted/40"
+              >
+                <span className="truncate">
+                  {dor.length === 0
+                    ? `All (${dorOpts.length})`
+                    : dor.length === 1
+                      ? dor[0]
+                      : `${dor.length} selected`}
+                </span>
+                <ChevronDown size={12} className="opacity-60 shrink-0" />
+              </button>
+            }
+          />
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Type</label>
