@@ -1217,58 +1217,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               {tableData.rows.length > 0 ? (
-                <div className="overflow-auto rounded-xl border border-slate-200/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]" style={{ maxHeight: chartHeight - 44 }}>
-                  <table className="w-full text-[11px] border-collapse">
-                    <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
-                      <tr className="border-b border-slate-200/80">
-                        {tableData.columns.map((column) => (
-                          <th
-                            key={column.key}
-                            className={cn(
-                              'px-3 py-2.5 font-bold uppercase tracking-[0.12em] text-[10px]',
-                              column.kind === 'time' ? 'text-left text-slate-500' : '',
-                              column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
-                              (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
-                            )}
-                          >
-                            {column.label}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tableData.rows.map((row, idx) => (
-                        <tr key={`${row.rawTime}-${idx}`} className={cn('border-b border-slate-100/90 hover:bg-[#14746C]/[0.045]', idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/35')}>
-                          {tableData.columns.map((column) => {
-                            if (column.key === 'time') {
-                              return (
-                                <td key={column.key} className="px-3 py-2.5 whitespace-nowrap tabular-nums text-slate-500 font-medium">
-                                  {row.time}
-                                </td>
-                              );
-                            }
-
-                            if (column.kind === 'kpi') {
-                              return (
-                                <td key={column.key} className="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-900">
-                                  {formatInvestigatorValue((row.values[column.key] as number | null | undefined) ?? null)}
-                                </td>
-                              );
-                            }
-
-                            return (
-                              <td key={column.key} className="px-3 py-2.5">
-                                <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold border shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]', TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS, 'border-[#14746C]/15')}>
-                                  {String(row.values[column.key] ?? '—')}
-                                </span>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <PivotTableWidgetBody columns={tableData.columns} rows={tableData.rows} maxHeight={chartHeight - 44} />
               ) : (
                 <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
                   <button
