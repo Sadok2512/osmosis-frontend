@@ -917,6 +917,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [kpiDimData, setKpiDimData] = useState<Map<string, KpiDimensionsResponse>>(new Map());
   // Jalon form draft — lifted here so it survives popover open/close (outside-click preserves entry)
   const [jalonDraft, setJalonDraft] = useState<JalonDraft>({ ...EMPTY_JALON_DRAFT });
+  const [openKpiSplitPopoverId, setOpenKpiSplitPopoverId] = useState<string | null>(null);
+  const [kpiSplitDrafts, setKpiSplitDrafts] = useState<Record<string, string>>({});
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
@@ -1350,6 +1352,45 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     onApply();
   }, [currentStartDateRaw, currentEndDateRaw, onApply]);
 
+  const getKpiSplitDraftKey = useCallback((slotId: string, kpiId: string) => `${slotId}::${kpiId}`, []);
+
+  const primeKpiSplitDraft = useCallback((slotId: string, kpiId: string, cfg: GraphConfig) => {
+    const key = getKpiSplitDraftKey(slotId, kpiId);
+    const currentValue = cfg.splitByPerKpi?.[kpiId] || 'None';
+    setKpiSplitDrafts(prev => prev[key] === currentValue ? prev : { ...prev, [key]: currentValue });
+  }, [getKpiSplitDraftKey]);
+
+  const applyKpiSplitDraft = useCallback((slotId: string, kpiId: string, splitValue: string) => {
+    setState(prev => ({
+      ...prev,
+      graphSlots: prev.graphSlots.map(s => {
+        if (s.id !== slotId) return s;
+        const prevCfg = s.config || DEFAULT_GRAPH_CONFIG;
+        const nextPerKpi = { ...(prevCfg.splitByPerKpi || {}) };
+        const nextPerKpi2 = { ...(prevCfg.splitByPerKpi2 || {}) };
+
+        s.kpiIds.forEach(id => {
+          delete nextPerKpi[id];
+          delete nextPerKpi2[id];
+        });
+
+        if (splitValue && splitValue !== 'None') {
+          nextPerKpi[kpiId] = splitValue;
+        }
+
+        return {
+          ...s,
+          splitBy: 'None',
+          splitBy2: 'None',
+          config: {
+            ...prevCfg,
+            splitByPerKpi: nextPerKpi,
+            splitByPerKpi2: nextPerKpi2,
+          },
+        };
+      }),
+    }));
+  }, [setState]);
 
   // (effectiveFilters memo is declared earlier, before siteFilterForProbe)
 
@@ -1769,17 +1810,25 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 const defEntry = kpiDefs.find(k => k.id === kpiIdItem);
                 const name = catalogEntry?.display_name || defEntry?.label || kpiIdItem;
                 const color = catalogEntry?.color || defEntry?.color || '#6366f1';
+                const popoverId = `${slot.id}::${kpiIdItem}`;
                 const splitVal = cfg.splitByPerKpi?.[kpiIdItem];
                 const hasSplit = splitVal && splitVal !== 'None';
                 const isPmSplit = hasSplit && splitVal.startsWith('PM_DIM:');
                 const splitLabel = hasSplit ? (isPmSplit ? splitVal : (splitOptions.find(s => s.key === splitVal)?.label || splitVal)) : null;
-                const splitVal2 = cfg.splitByPerKpi2?.[kpiIdItem];
-                const hasSplit2 = splitVal2 && splitVal2 !== 'None';
-                const isPmSplit2 = hasSplit2 && splitVal2.startsWith('PM_DIM:');
-                const splitLabel2 = hasSplit2 ? (isPmSplit2 ? splitVal2 : (splitOptions.find(s => s.key === splitVal2)?.label || splitVal2)) : null;
+                const draftSplitValue = kpiSplitDrafts[popoverId] ?? splitVal ?? 'None';
                 return (
                   <React.Fragment key={`${slot.id}-${kpiIdItem}`}>
-                    <Popover>
+                    <Popover
+                      open={openKpiSplitPopoverId === popoverId}
+                      onOpenChange={(open) => {
+                        if (open) {
+                          primeKpiSplitDraft(slot.id, kpiIdItem, cfg);
+                          setOpenKpiSplitPopoverId(popoverId);
+                        } else if (openKpiSplitPopoverId === popoverId) {
+                          setOpenKpiSplitPopoverId(null);
+                        }
+                      }}
+                    >
                       <PopoverTrigger asChild>
                         <button
                           onClick={() => onSlotClick?.(slot.id)}
@@ -1813,15 +1862,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                               <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc.bg, dc.text, dc.textDark, dc.border)}>
                                 <GitBranch className="w-2.5 h-2.5" />
                                 {splitLabel}
-                              </span>
-                            );
-                          })()}
-                          {hasSplit2 && (() => {
-                            const dc2 = getDimensionColor(splitVal2);
-                            return (
-                              <span className={cn("inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider border", dc2.bg, dc2.text, dc2.textDark, dc2.border)}>
-                                <GitBranch className="w-2.5 h-2.5" />
-                                {splitLabel2}
                               </span>
                             );
                           })()}
@@ -1981,8 +2021,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       })()}
                       {/* Split */}
                       {(() => {
-                        const hasSplit1Active = Object.values(cfg.splitByPerKpi || {}).some(v => v && v !== 'None');
-                        const hasSplit2Active = Object.values(cfg.splitByPerKpi2 || {}).some(v => v && v !== 'None');
+                        const activeKpiSplit = slot.kpiIds.map(id => cfg.splitByPerKpi?.[id]).find(v => v && v !== 'None') || null;
+                        const hasSplit1Active = true;
+                        const hasSplit2Active = false;
                         const hasSplitOptions = splitOptions.length > 0 || activePmDimensions.size > 0;
                         // Data-driven per-KPI dimension list (from CH probe). Falls back to catalog metadata.
                         const probedDims = kpiAvailableDimsMap.get(kpiIdItem);
@@ -2007,12 +2048,16 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           <>
                             {hasSplit1Active ? (
                               <div className="space-y-0.5">
-                                <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split 1</span>
-                                <select value={Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None') || 'None'}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Split</span>
+                                  <span className={cn('text-[8px] font-bold uppercase tracking-wider', activeKpiSplit === splitVal && hasSplit ? 'text-primary' : 'text-muted-foreground')}>
+                                    {activeKpiSplit === splitVal && hasSplit ? 'Actif sur ce KPI' : activeKpiSplit ? 'Actif sur un autre KPI' : 'Aucun split actif'}
+                                  </span>
+                                </div>
+                                <select value={draftSplitValue}
                                   onChange={e => {
                                     const val = e.target.value;
-                                    if (val === 'None') setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: {}, splitByPerKpi2: {} } } : s) }));
-                                    else setState(prev => ({ ...prev, graphSlots: prev.graphSlots.map(s => s.id === slot.id ? { ...s, splitBy: 'None', config: { ...cfg, splitByPerKpi: buildSplits(val) } } : s) }));
+                                    setKpiSplitDrafts(prev => ({ ...prev, [popoverId]: val }));
                                   }}
                                   className="w-full px-1.5 py-0.5 rounded border border-border bg-background text-foreground text-[9px] font-medium"
                                 >
@@ -2049,7 +2094,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                                   {relevantPmDims.length > 0 && <optgroup label="PM Dimensions">{relevantPmDims.map(d => <option key={`pm2_${d}`} value={`PM_DIM:${d}`}>{PM_DIMENSION_LABELS[d] || d}</option>)}</optgroup>}
                                 </select>
                               </div>
-                            ) : hasSplit1Active && hasSplitOptions ? (
+                            ) : false ? (
                               <button onClick={() => {
                                 const split1Val = Object.values(cfg.splitByPerKpi || {}).find(v => v && v !== 'None');
                                 const available = splitOptions.filter(s => s.key !== split1Val);
@@ -2064,11 +2109,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             {hasSplit1Active && (
                               <Button
                                 size="sm"
-                                onClick={() => { handleApplyGuarded(); }}
-                                disabled={isApplying}
+                                onClick={() => {
+                                  applyKpiSplitDraft(slot.id, kpiIdItem, draftSplitValue);
+                                  setOpenKpiSplitPopoverId(null);
+                                }}
                                 className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
                               >
-                                {isApplying ? 'Chargement…' : 'Appliquer'}
+                                Appliquer
                               </Button>
                             )}
                           </>
@@ -2082,14 +2129,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         + {splitLabel}
                         <button
                           onClick={() => {
-                            const newPerKpi = { ...(cfg.splitByPerKpi || {}) };
-                            delete newPerKpi[kpiIdItem];
-                            setState(prev => ({
-                              ...prev,
-                              graphSlots: prev.graphSlots.map(s =>
-                                s.id === slot.id ? { ...s, config: { ...cfg, splitByPerKpi: newPerKpi } } : s
-                              ),
-                            }));
+                            applyKpiSplitDraft(slot.id, kpiIdItem, 'None');
                           }}
                           className="hover:text-destructive ml-0.5"
                         >

@@ -285,7 +285,10 @@ export function resolveSlotContext(
   const isPerimeterDim = (v: string) => PERIMETER_DIMENSIONS.includes(v);
 
   let splitValue: string | undefined;
-  const perKpi = slot.config?.splitByPerKpi || {};
+  const rawPerKpi = slot.config?.splitByPerKpi || {};
+  const perKpi = Object.fromEntries(
+    Object.entries(rawPerKpi).filter(([key, value]) => slot.kpiIds.includes(key) && value && value !== 'None')
+  ) as Record<string, string>;
   const perKpiValues = Object.values(perKpi).filter(v => v && v !== 'None');
   const hasPerKpiSplits = Object.keys(perKpi).length > 0;
 
@@ -305,7 +308,10 @@ export function resolveSlotContext(
 
   // Split 2 (cross-tabulation)
   let splitValue2: string | undefined;
-  const perKpi2 = slot.config?.splitByPerKpi2 || {};
+  const rawPerKpi2 = slot.config?.splitByPerKpi2 || {};
+  const perKpi2 = Object.fromEntries(
+    Object.entries(rawPerKpi2).filter(([key, value]) => slot.kpiIds.includes(key) && value && value !== 'None')
+  ) as Record<string, string>;
   const activeSplit2 = Object.values(perKpi2).find(v => v && v !== 'None');
   if (activeSplit2) {
     splitValue2 = activeSplit2;
