@@ -46,7 +46,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   widgetType,
   config: {
     ...DEFAULT_GRAPH_CONFIG,
-    ...(widgetType === 'timeseries' ? { showDataTable: true } : {}),
+    // Respect DEFAULT_GRAPH_CONFIG (tableData/alarms/neighbors are OFF by default).
   },
   filters: { ...initialFilters },
   startDate: '',
