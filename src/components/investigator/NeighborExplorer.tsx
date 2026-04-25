@@ -48,6 +48,8 @@ const NeighborExplorer: React.FC = () => {
   const [vendor, setVendor] = useState<string>('Nokia');
   const [rat, setRat] = useState<string>('');
   const [siteName, setSiteName] = useState<string>('');
+  const [plaque, setPlaque] = useState<string>('');
+  const [dor, setDor] = useState<string>('');
   const [relationType, setRelationType] = useState<string>('');
   const [splitBy, setSplitBy] = useState<'all' | 'target_band'>('all');
   const [data, setData] = useState<ExploreResult | null>(null);
@@ -61,6 +63,8 @@ const NeighborExplorer: React.FC = () => {
       if (vendor) params.set('vendor', vendor);
       if (rat) params.set('rat', rat);
       if (siteName.trim()) params.set('site_name', siteName.trim());
+      if (plaque.trim()) params.set('plaque', plaque.trim());
+      if (dor.trim()) params.set('dor', dor.trim());
       if (relationType) params.set('relation_type', relationType);
       params.set('split_by', splitBy);
 
@@ -73,7 +77,7 @@ const NeighborExplorer: React.FC = () => {
       console.warn('[NeighborExplorer] fetch error:', e);
     }
     setLoading(false);
-  }, [vendor, rat, siteName, relationType, splitBy]);
+  }, [vendor, rat, siteName, plaque, dor, relationType, splitBy]);
 
   // Chart options
   const chartOption = useMemo(() => {
