@@ -80,7 +80,7 @@ function detectNetworkElement(sv1?: string, sv2?: string, split1?: string, split
 
 // ── Fetch raw counter timeseries from Parser (fact_counters_15min) ──
 // Bug #3 fix: accept and forward the same filter context as the KPI request
-async function fetchCounterTimeSeriesFallback(
+export async function fetchCounterTimeSeriesFallback(
   counterNames: string[],
   dateFrom: string,
   dateTo: string,
