@@ -168,6 +168,24 @@ const NeighborExplorer: React.FC = () => {
           />
         </div>
         <div>
+          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Plaque</label>
+          <input
+            value={plaque}
+            onChange={e => setPlaque(e.target.value)}
+            placeholder="Plaque..."
+            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
+          />
+        </div>
+        <div>
+          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">DOR</label>
+          <input
+            value={dor}
+            onChange={e => setDor(e.target.value)}
+            placeholder="DOR..."
+            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
+          />
+        </div>
+        <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Type</label>
           <select value={relationType} onChange={e => setRelationType(e.target.value)} className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold">
             <option value="">All</option>
