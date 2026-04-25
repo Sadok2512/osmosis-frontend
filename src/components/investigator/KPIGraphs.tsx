@@ -242,6 +242,10 @@ const SlotSettingsPopover: React.FC<{
             <span className="text-[10px] text-foreground">Grid Lines</span>
             <Switch checked={cfg.showGrid} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showGrid: v })} className="scale-[0.65]" />
           </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-foreground" title="Surligne les samedi/dimanche sur le graphique">Week-ends</span>
+            <Switch checked={cfg.showWeekend !== false} onCheckedChange={v => onUpdateSlotConfig(slot.id, { showWeekend: v })} className="scale-[0.65]" />
+          </div>
         </div>
         {cfg.showGrid && (
           <div className="flex items-center gap-2">
