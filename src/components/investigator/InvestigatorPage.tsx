@@ -1226,8 +1226,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
                 return (
                   <>
-                    {/* Slot tabs — switch between graphs that have Table Data enabled */}
-                    {enabledSlots.length > 1 && (
+                    {/* Slot picker — only shown if the active graph itself doesn't
+                        have Table Data enabled (so the user can pick another enabled
+                        slot to inspect). When the active graph is enabled, we only
+                        show its data — no other tabs. */}
+                    {!activeIsEnabled && enabledSlots.length > 1 && (
                       <div className="flex items-center gap-1 mb-2 border-b border-border/30 px-1">
                         {enabledSlots.map(s => {
                           const isActive = s.id === effectiveSlotId;
