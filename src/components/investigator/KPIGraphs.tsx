@@ -103,53 +103,10 @@ const SlotSettingsPopover: React.FC<{
       </div>
 
       <div className="p-3 space-y-2.5">
-        {/* Chart Type selector */}
-        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Chart Type</span>
-        <div className="flex gap-1">
-          {([
-            { value: 'line' as ChartType, label: 'Line', Icon: TrendingUp },
-            { value: 'area' as ChartType, label: 'Area', Icon: AreaChart },
-            { value: 'bar' as ChartType, label: 'Bar', Icon: BarChart },
-            { value: 'scatter' as ChartType, label: 'Scatter', Icon: CircleDot },
-          ]).map(ct => (
-            <button
-              key={ct.value}
-              onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { chartType: ct.value }); }}
-              className={cn(
-                'flex-1 flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-md text-[9px] font-medium border transition-colors',
-                cfg.chartType === ct.value
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-              )}
-            >
-              <ct.Icon className="w-3.5 h-3.5" />
-              {ct.label}
-            </button>
-          ))}
-        </div>
+        {/* Chart Type and Granularity removed from Graph Settings:
+            - Chart type is configured per-KPI (chartTypePerKpi).
+            - Granularity is configured globally / per-slot via the toolbar. */}
 
-        <div className="h-px bg-border/40" />
-
-        {/* Per-slot Granularity */}
-        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block">Granularity</span>
-        <div className="flex gap-1">
-          {(['15min', '1h', '1d', '1w'] as const).map(g => (
-            <button
-              key={g}
-              onClick={(e) => { e.stopPropagation(); onUpdateSlotConfig(slot.id, { granularity: g } as any); }}
-              className={cn(
-                'flex-1 px-2 py-1.5 rounded-md text-[9px] font-bold border transition-colors',
-                (slot.granularity || '') === g
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-border/40 text-muted-foreground hover:bg-muted/50'
-              )}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-
-        <div className="h-px bg-border/40" />
 
         {/* Background */}
         <div className="flex items-center justify-between">
