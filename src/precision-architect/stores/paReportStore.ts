@@ -130,7 +130,15 @@ export const usePAReportStore = create<PAReportState>()(
       dashboards: [INITIAL_DASHBOARD],
       activeDashboardId: INITIAL_DASHBOARD.id,
 
-      setProjectName: (projectName) => set({ projectName }),
+      setProjectName: (projectName) =>
+        set((s) => ({
+          projectName,
+          dashboards: s.dashboards.map((d) =>
+            d.id === s.activeDashboardId
+              ? { ...d, name: projectName, projectName, updatedAt: Date.now() }
+              : d,
+          ),
+        })),
       setPages: (updater) =>
         set((s) => ({
           pages: typeof updater === 'function' ? (updater as any)(s.pages) : updater,
