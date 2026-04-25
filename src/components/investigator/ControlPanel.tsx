@@ -1586,7 +1586,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               </PopoverTrigger>
               <PopoverContent className="w-[160px] p-1" align="start">
                 {GRANULARITIES.map(g => {
-                  const isActive = state.granularity === g.value;
+                  const isActive = currentGranularity === g.value;
                   return (
                     <button
                       key={g.value}
