@@ -1476,7 +1476,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             {/* Neighbors — only mount when the tab is actually active */}
             {/* Neighbors moved to Network Explorer */}
 
-            {/* CM History — only mount when the tab is actually active */}
+            {/* CM History — bound strictly to the ACTIVE graph */}
             {analysisTab === 'cm_history' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showCmHistory) {
                 return (
@@ -1486,22 +1486,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showCmHistory);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « CM History ».</div>;
-              }
-              const sec = analysisTabs.getSection('cm_history');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
-                <CMHistoryTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
-              ) : null;
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `cm_history-${activeSlot.id}`;
+              return (
+                <CMHistoryTabContent key={tabId} tabId={tabId} contextSnapshot={snapshot} />
+              );
             })()}
 
           </div>
