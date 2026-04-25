@@ -78,7 +78,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showTopWorst: true,
   showAlarms: false,
   showNeighbors: false,
-  showCmHistory: true,
+  showCmHistory: false,
   fillStyle: 'gradient',
   legendPosition: 'bottom',
   background: 'light',
