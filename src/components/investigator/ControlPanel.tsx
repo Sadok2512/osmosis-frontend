@@ -915,7 +915,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [pmDimLoading, setPmDimLoading] = useState(false);
   // Real data-driven map: kpi_code → { dimensions, available_dimensions } fetched from CH probe.
   const [kpiDimData, setKpiDimData] = useState<Map<string, KpiDimensionsResponse>>(new Map());
-  // editingJalon state removed — managed inside JalonsManagerPopup
+  // Jalon form draft — lifted here so it survives popover open/close (outside-click preserves entry)
+  const [jalonDraft, setJalonDraft] = useState<JalonDraft>({ ...EMPTY_JALON_DRAFT });
 
   // Load split and filter dimensions from backend catalog
   useEffect(() => {
