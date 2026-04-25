@@ -1611,7 +1611,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                       <button
                         key={g.value}
                         type="button"
-                        onClick={() => { if (!disabled) setState(propagateGranularityToSlots(g.value)); }}
+                        onClick={() => { if (!disabled) setState(updateTemporalContext(currentStartDateRaw, currentEndDateRaw, g.value)); }}
                         disabled={disabled}
                         title={disabled ? (reason || 'Option indisponible pour cette granularité') : undefined}
                         aria-disabled={disabled}
