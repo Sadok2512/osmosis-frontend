@@ -1242,16 +1242,41 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     setState(prev => {
       const dateOnly = (prev.startDate || '').split('T')[0];
       const fullStart = `${dateOnly}T${time}`;
-      return propagateDatesToSlots(fullStart, prev.endDate)(prev);
+      // If same day and new start > end time → push end to start
+      const endDateOnly = (prev.endDate || '').split('T')[0];
+      let nextEnd = prev.endDate;
+      if (endDateOnly === dateOnly && prev.endDate && fullStart > prev.endDate) {
+        nextEnd = fullStart;
+        toast.info("Heure de fin ajustée pour rester ≥ début");
+      }
+      return propagateDatesToSlots(fullStart, nextEnd)(prev);
     });
   };
   const setEndTime = (time: string) => {
     setState(prev => {
       const dateOnly = (prev.endDate || '').split('T')[0];
       const fullEnd = `${dateOnly}T${time}`;
+      const startDateOnly = (prev.startDate || '').split('T')[0];
+      // Block end < start when same day
+      if (startDateOnly === dateOnly && prev.startDate && fullEnd < prev.startDate) {
+        toast.error("L'heure de fin doit être ≥ à l'heure de début");
+        return prev;
+      }
       return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
     });
   };
+
+  // Guarded apply: ensures end ≥ start before triggering backend fetch
+  const handleApplyGuarded = useCallback(() => {
+    const s = state.startDate;
+    const e = state.endDate;
+    if (s && e && e < s) {
+      toast.error("La date de fin doit être supérieure ou égale à la date de début.");
+      return;
+    }
+    onApply();
+  }, [state.startDate, state.endDate, onApply]);
+
 
   // (effectiveFilters memo is declared earlier, before siteFilterForProbe)
 
