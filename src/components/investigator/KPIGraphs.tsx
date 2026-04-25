@@ -30,7 +30,6 @@ import {
 
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
-  { value: 'histogram', label: 'Histogram', icon: BarChart3, color: 'text-purple-500' },
   { value: 'table', label: 'Table', icon: Hash, color: 'text-amber-500' },
 ];
 
