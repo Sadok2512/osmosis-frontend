@@ -1177,9 +1177,9 @@ const NetworkTopologyPage: React.FC = () => {
                     <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Type site name..." className="pl-9" />
                   </div>
                 </div>
-                <FilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.constructeur || []} />
-                <FilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={['2G', '3G', '4G', '5G']} />
-                <FilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || []} />
+                <FilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
+                <FilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
+                <FilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
                 <FilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
                 <Button variant="outline" size="sm" onClick={searchSites} disabled={sitesLoading}>
                   <RefreshCw className={`w-4 h-4 mr-1 ${sitesLoading ? 'animate-spin' : ''}`} /> Refresh
