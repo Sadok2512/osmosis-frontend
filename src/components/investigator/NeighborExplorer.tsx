@@ -145,6 +145,7 @@ const AddFilterDropdown: React.FC<{
   );
 };
 
+const NeighborExplorer: React.FC = () => {
 
   const state = useInvestigatorStore(s => s.state);
   const [filters, setFilters] = useState<Record<FilterKey, string[]>>({
