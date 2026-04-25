@@ -5,7 +5,8 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Search, Download, Loader2, ArrowRightLeft, Filter, ChevronDown } from 'lucide-react';
+import { Search, Download, Loader2, ArrowRightLeft, Filter, ChevronDown, Plus, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { MultiSelectPopover } from '@/components/parameter-hub/MultiSelectPopover';
