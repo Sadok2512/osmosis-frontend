@@ -66,7 +66,8 @@ const FILTER_EXCLUDE = new Set([
 const SPLIT_NONE = new Set(['', 'NONE', 'ALL']);
 
 export const TABLE_ACCENT_TEXT_CLASS = 'text-[#14746C]';
-export const TABLE_ACCENT_BG_CLASS = 'bg-[#14746C]/6';
+export const TABLE_ACCENT_BG_CLASS = 'bg-[#14746C]/8';
+export const TABLE_ACCENT_BORDER_CLASS = 'border-[#14746C]/15';
 
 const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
 

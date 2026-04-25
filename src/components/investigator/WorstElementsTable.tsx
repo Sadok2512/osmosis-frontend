@@ -87,12 +87,12 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-        <div className="flex items-center gap-3">
-          <span className="text-xs font-bold text-foreground uppercase">
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200/80 bg-gradient-to-r from-white via-[#14746C]/[0.02] to-white">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-xs font-bold text-foreground uppercase tracking-[0.14em]">
             Top {limit} Worst Cells
           </span>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] text-muted-foreground font-medium shadow-sm">
             {elements.length} cell{elements.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -101,7 +101,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
           <select
             value={limit}
             onChange={e => onLimitChange(Number(e.target.value))}
-            className="px-2 py-1 rounded-md border border-border bg-background text-foreground text-[10px] font-medium"
+            className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-foreground text-[10px] font-medium shadow-sm"
           >
             {[5, 10, 15, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -116,7 +116,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border/40 bg-muted/30">
+              <tr className="border-b border-slate-200/80 bg-slate-50/90">
                 <th className="text-left text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 py-2.5 w-8">#</th>
                 <th className="text-left text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Cell</th>
                 <th className="text-left text-[9px] font-bold text-muted-foreground uppercase tracking-wider px-3 py-2.5">Vendor</th>
@@ -152,8 +152,8 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                 <React.Fragment key={el.id}>
                   <tr
                     className={cn(
-                      'border-b border-border/20 hover:bg-muted/20 transition-colors cursor-pointer group',
-                      expandedRow === el.id && 'bg-muted/10'
+                      'border-b border-slate-100/90 hover:bg-[#14746C]/[0.04] transition-colors cursor-pointer group',
+                      expandedRow === el.id ? 'bg-[#14746C]/[0.055]' : (i % 2 === 0 ? 'bg-white' : 'bg-slate-50/35')
                     )}
                     onClick={() => handleRowSelect(el.name, el.id)}
                   >
@@ -169,7 +169,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                             {el.name}
                           </button>
                         ) : (
-                          <span className="text-xs font-bold text-foreground">{el.name}</span>
+                          <span className="text-xs font-bold text-foreground tracking-tight">{el.name}</span>
                         )}
                         {el.site_name && <div className="text-[9px] text-muted-foreground">{el.site_name}</div>}
                       </div>
@@ -186,7 +186,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                     {allKpiKeys.map(kpi => {
                       const val = el.kpiValues[kpi];
                       return (
-                        <td key={kpi} className="px-3 py-2.5 text-right text-xs font-mono font-bold tabular-nums">
+                        <td key={kpi} className="px-3 py-2.5 text-right text-xs font-mono font-bold tabular-nums text-slate-900">
                           {formatInvestigatorValue(val)}
                         </td>
                       );

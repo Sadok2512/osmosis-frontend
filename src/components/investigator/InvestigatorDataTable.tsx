@@ -14,6 +14,7 @@ import {
   formatInvestigatorValue,
   sanitizeTableData,
   TABLE_ACCENT_BG_CLASS,
+  TABLE_ACCENT_BORDER_CLASS,
   TABLE_ACCENT_TEXT_CLASS,
 } from './tableDisplayUtils';
 
@@ -170,32 +171,34 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
   }
 
   return (
-    <div className="flex-grow rounded-2xl border border-border/40 bg-white shadow-[0_1px_3px_rgba(0,0,0,0.04),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden flex flex-col">
-      <div className="px-6 py-3 bg-white border-b border-border/30">
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80">
+    <div className="flex-grow rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.05),0_18px_40px_-24px_rgba(20,116,108,0.28)] overflow-hidden flex flex-col">
+      <div className="px-6 py-3.5 bg-gradient-to-r from-white via-[#14746C]/[0.025] to-white border-b border-slate-200/80">
+        <div className="flex items-center gap-3 text-[11px] flex-wrap">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/80">
             Table Data
           </span>
-          <span className="text-foreground/80 font-semibold">{sourceInfo.slotLabel}</span>
+          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-foreground/90 font-semibold shadow-sm">
+            {sourceInfo.slotLabel}
+          </span>
           <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">
-            KPIs: <span className="text-foreground/70">{sourceInfo.kpiNames || '-'}</span>
+            KPIs: <span className="text-foreground/70 font-medium">{sourceInfo.kpiNames || '-'}</span>
           </span>
           <span className="text-muted-foreground/40">|</span>
           <span className="text-muted-foreground">{totalRows.toLocaleString()} rows</span>
         </div>
       </div>
 
-      <div className="h-12 border-b border-border/20 flex items-center justify-between px-6 bg-white">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Table</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium">
+      <div className="min-h-12 border-b border-slate-200/70 flex items-center justify-between px-6 py-2.5 bg-white">
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Layout</span>
+          <span className={cn('text-[10px] px-2.5 py-1 rounded-full font-semibold border', TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS, TABLE_ACCENT_BORDER_CLASS)}>
             {columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length || 1} dimension{columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length > 1 ? 's' : ''} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
           </span>
         </div>
         <button
           onClick={exportCsv}
-          className="flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors border border-slate-200/80"
         >
           <Download className="w-3.5 h-3.5" />
           CSV
@@ -205,13 +208,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
-            <tr className="bg-white border-b border-border/40">
+            <tr className="bg-slate-50/95 backdrop-blur border-b border-slate-200/80">
               {columns.map((column) => (
                 <th
                   key={column.key}
                   className={cn(
-                    'py-3 px-5 font-bold text-[13px] uppercase tracking-[0.08em] whitespace-nowrap',
-                    column.kind === 'time' ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                    'py-3 px-5 font-bold text-[12px] uppercase tracking-[0.12em] whitespace-nowrap',
+                    column.kind === 'time' ? 'text-left text-slate-500' : '',
                     column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
                     (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
                   )}
@@ -229,12 +232,16 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
               return (
                 <tr
                   key={`${row.rawTime}-${absIdx}`}
-                  className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
+                  className={cn(
+                    'border-b border-slate-100/90 transition-colors group',
+                    absIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/35',
+                    'hover:bg-[#14746C]/[0.045]',
+                  )}
                 >
                   {columns.map((column) => {
                     if (column.key === 'time') {
                       return (
-                        <td key={column.key} className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
+                        <td key={column.key} className="py-3.5 px-5 tabular-nums text-slate-500 whitespace-nowrap text-[11px] font-medium">
                           {row.time}
                         </td>
                       );
@@ -253,9 +260,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
                       const barColor = stableColorForSplit(kpi);
 
                       return (
-                        <td key={column.key} className="py-3 px-5 whitespace-nowrap">
+                        <td key={column.key} className="py-3.5 px-5 whitespace-nowrap">
                           <div className="flex items-center justify-end gap-3">
-                            <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
+                            <div className="relative h-1.5 w-24 rounded-full bg-slate-100 overflow-hidden">
                               {value != null && (
                                 <div
                                   className="absolute inset-y-0 left-0 rounded-full"
@@ -263,7 +270,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
                                 />
                               )}
                             </div>
-                            <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
+                            <span className="tabular-nums font-semibold text-slate-900 text-right min-w-[4.5rem]">
                               {formatInvestigatorValue(value)}
                             </span>
                           </div>
@@ -276,12 +283,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
                       <td
                         key={column.key}
                         className={cn(
-                          'py-3 px-5 whitespace-nowrap transition-colors',
+                          'py-3.5 px-5 whitespace-nowrap transition-colors',
                           TABLE_ACCENT_BG_CLASS,
-                          'group-hover:bg-[#14746C]/10',
+                          TABLE_ACCENT_BORDER_CLASS,
+                          'group-hover:bg-[#14746C]/12',
                         )}
                       >
-                        <span className="inline-flex items-center gap-2">
+                        <span className={cn('inline-flex items-center gap-2 rounded-full border px-2.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]', TABLE_ACCENT_BORDER_CLASS, TABLE_ACCENT_BG_CLASS)}>
                           <span
                             className="w-1.5 h-1.5 rounded-full shrink-0"
                             style={{ backgroundColor: stableColorForSplit(displayValue) }}
@@ -300,8 +308,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
         </table>
       </div>
 
-      <div className="h-10 border-t border-border/20 flex items-center justify-between px-4 bg-muted/30">
-        <div className="flex items-center gap-4 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+      <div className="min-h-10 border-t border-slate-200/80 flex items-center justify-between px-4 py-2 bg-slate-50/70">
+        <div className="flex items-center gap-4 text-[9px] font-bold text-muted-foreground uppercase tracking-[0.16em]">
           <span>
             Showing {startIdx + 1}-{endIdx} of {totalRows.toLocaleString()} rows
           </span>
