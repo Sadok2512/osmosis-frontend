@@ -4882,6 +4882,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setRenamePolygonValue('');
   }, []);
 
+  // Wire ref so the polygon-close auto-tag effect can call addTaggedPolygon
+  // even though that effect is declared earlier in the component body.
+  useEffect(() => { addTaggedPolygonRef.current = addTaggedPolygon as any; }, [addTaggedPolygon]);
+
   const [taggedLinks, setTaggedLinks] = useState<TaggedLink[]>([]);
   const [linkCreationMode, setLinkCreationMode] = useState(false);
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
