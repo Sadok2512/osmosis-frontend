@@ -209,7 +209,8 @@ const NeighborExplorer: React.FC = () => {
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `neighbors_${vendor}_${siteName || 'all'}.csv`;
+    const tag = (filters.vendor.join('-') || 'all') + '_' + (filters.site[0] || 'all');
+    a.download = `neighbors_${tag}.csv`;
     a.click();
   };
 
