@@ -365,6 +365,80 @@ const NeighborExplorer: React.FC = () => {
         </div>
       </div>
 
+// ── FilterChip: chip with custom popover content (used by free-text Site) ──
+const FilterChip: React.FC<{
+  label: string;
+  display: string;
+  hasValue: boolean;
+  onRemove: () => void;
+  popoverContent: React.ReactNode;
+}> = ({ label, display, hasValue, onRemove, popoverContent }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={`group inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-semibold transition-colors ${
+            hasValue
+              ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/15'
+              : 'bg-muted/30 border-border text-foreground hover:bg-muted/50'
+          }`}
+        >
+          <span className="opacity-70">{label}:</span>
+          <span className="truncate max-w-[120px]">{display}</span>
+          <ChevronDown size={10} className="opacity-50" />
+          <span
+            role="button"
+            onClick={(e) => { e.stopPropagation(); onRemove(); }}
+            className="ml-0.5 -mr-0.5 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive cursor-pointer"
+          >
+            <X size={10} />
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 rounded-xl border border-border/60 shadow-xl bg-card" align="start" sideOffset={6}>
+        {popoverContent}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+// ── AddFilterDropdown: pick a hidden dimension to add ──
+const AddFilterDropdown: React.FC<{
+  existingKeys: FilterKey[];
+  onAdd: (key: FilterKey) => void;
+}> = ({ existingKeys, onAdd }) => {
+  const [open, setOpen] = useState(false);
+  const available = FILTER_DEFS.filter(f => !existingKeys.includes(f.key));
+  if (available.length === 0) return null;
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold text-primary hover:bg-primary/10 border border-dashed border-primary/30 transition-colors">
+          <Plus className="w-3 h-3" /> Ajouter filtre
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-1 rounded-xl border border-border/60 shadow-xl bg-card" align="start" sideOffset={6}>
+        <div className="px-2 py-1.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+          Dimensions
+        </div>
+        <div className="max-h-[260px] overflow-y-auto">
+          {available.map(def => (
+            <button
+              key={def.key}
+              onClick={() => { onAdd(def.key); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-semibold text-foreground hover:bg-muted/50 text-left"
+            >
+              <Filter size={11} className="opacity-50" />
+              {def.label}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
 
       {/* Stats */}
       {data && (
