@@ -220,6 +220,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           from={from}
           to={to}
           onChange={(f, t) => setRange(f, t, 'custom')}
+          showTime={!['1d', '1w', '1S'].includes(grain as string)}
         />
 
         <Popover>
