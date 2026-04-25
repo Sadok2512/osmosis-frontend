@@ -1426,7 +1426,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               })()}
             </div>
 
-            {/* Top Worst — only mount when the tab is actually active */}
+            {/* Top Worst — bound strictly to the ACTIVE graph */}
             {analysisTab === 'top_worst' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showTopWorst) {
                 return (
@@ -1436,27 +1436,16 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showTopWorst);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Top Worst Cells ».</div>;
-              }
-              const sec = analysisTabs.getSection('top_worst');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `top_worst-${activeSlot.id}`;
+              return (
                 <TopWorstTabContent
-                  key={activeInstance.id}
+                  key={tabId}
                   instanceId={instanceId}
-                  tabId={activeInstance.id}
-                  contextSnapshot={activeInstance.contextSnapshot}
+                  tabId={tabId}
+                  contextSnapshot={snapshot}
                 />
-              ) : null;
+              );
             })()}
 
             {/* Alarms — only mount when the tab is actually active */}
