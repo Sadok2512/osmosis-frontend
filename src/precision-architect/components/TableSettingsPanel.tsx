@@ -617,9 +617,39 @@ function TimeFiltersSection({
   onApply: () => void;
 }) {
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
+  const toolbar = usePAGlobalToolbar((s) => s.applied ? {
+    technos: s.applied.technos,
+    from: s.applied.from,
+    to: s.applied.to,
+    preset: s.applied.preset,
+    grain: s.applied.grain,
+    filters: s.applied.filters,
+  } : {
+    technos: s.technos,
+    from: s.from,
+    to: s.to,
+    preset: s.preset,
+    grain: s.grain,
+    filters: s.filters,
+  });
 
   if (inherits) {
-    return <InheritedFromToolbarCard onOverride={() => patchData({ inheritFromDashboard: false, timeRange: { ...data.timeRange, inherit: false } })} />;
+    return (
+      <InheritedFromToolbarCard
+        onOverride={() => patchData({
+          inheritFromDashboard: false,
+          technos: structuredClone(toolbar.technos),
+          filters: structuredClone(toolbar.filters),
+          granularity: toolbar.grain,
+          timeRange: {
+            inherit: false,
+            preset: toolbar.preset,
+            from: toolbar.from,
+            to: toolbar.to,
+          },
+        })}
+      />
+    );
   }
 
   return (
