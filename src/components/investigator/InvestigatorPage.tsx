@@ -1188,7 +1188,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                             Off
                           </span>
                         )}
-                        {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
+                        {isActive && enabled
+                          && tab.key !== 'top_worst'
+                          && tab.key !== 'alarms'
+                          && tab.key !== 'cm_history'
+                          && analysisTabs.getSection(tab.key).instances.length > 0 && (
                           <span className="ml-1 text-[9px] text-slate-400">
                             ({analysisTabs.getSection(tab.key).instances.length})
                           </span>
@@ -1201,8 +1205,16 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             );
           })()}
 
-          {/* Multi-tab sub-bar for sections with instances — always mounted */}
-          {analysisTab && analysisTab !== 'table_data' && analysisTab !== 'breakdown' && (() => {
+          {/* Multi-tab sub-bar for sections with instances — always mounted.
+              Top Worst / Alarms / CM History are bound strictly to the active graph,
+              so we hide the per-graph tab bar for them. */}
+          {analysisTab
+            && analysisTab !== 'table_data'
+            && analysisTab !== 'breakdown'
+            && analysisTab !== 'top_worst'
+            && analysisTab !== 'alarms'
+            && analysisTab !== 'cm_history'
+            && (() => {
             const sec = analysisTabs.getSection(analysisTab);
             return (
               <AnalysisTabBar
@@ -1404,7 +1416,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       layout={state.graphLayout}
                       dateFrom={activeSnapshot?.startDate || activeSlot.startDate || state.startDate}
                       dateTo={activeSnapshot?.endDate || activeSlot.endDate || state.endDate}
-                      granularity={activeSnapshot?.granularity || activeSlot.granularity || state.granularity}
+                      granularity={(activeSnapshot?.granularity as any) || activeSlot.granularity || state.granularity}
                       filters={Object.entries(activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
@@ -1418,7 +1430,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               })()}
             </div>
 
-            {/* Top Worst — only mount when the tab is actually active */}
+            {/* Top Worst — bound strictly to the ACTIVE graph */}
             {analysisTab === 'top_worst' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showTopWorst) {
                 return (
@@ -1428,30 +1440,19 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showTopWorst);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Top Worst Cells ».</div>;
-              }
-              const sec = analysisTabs.getSection('top_worst');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `top_worst-${activeSlot.id}`;
+              return (
                 <TopWorstTabContent
-                  key={activeInstance.id}
+                  key={tabId}
                   instanceId={instanceId}
-                  tabId={activeInstance.id}
-                  contextSnapshot={activeInstance.contextSnapshot}
+                  tabId={tabId}
+                  contextSnapshot={snapshot}
                 />
-              ) : null;
+              );
             })()}
 
-            {/* Alarms — only mount when the tab is actually active */}
+            {/* Alarms — bound strictly to the ACTIVE graph */}
             {analysisTab === 'alarms' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showAlarms) {
                 return (
@@ -1461,22 +1462,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showAlarms);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « Alarms ».</div>;
-              }
-              const sec = analysisTabs.getSection('alarms');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
-                <AlarmsTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
-              ) : null;
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `alarms-${activeSlot.id}`;
+              return (
+                <AlarmsTabContent key={tabId} tabId={tabId} contextSnapshot={snapshot} />
+              );
             })()}
 
             {/* Counters */}
@@ -1490,7 +1480,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             {/* Neighbors — only mount when the tab is actually active */}
             {/* Neighbors moved to Network Explorer */}
 
-            {/* CM History — only mount when the tab is actually active */}
+            {/* CM History — bound strictly to the ACTIVE graph */}
             {analysisTab === 'cm_history' && (() => {
               if (!activeSlot || !(activeSlot.config || DEFAULT_GRAPH_CONFIG).showCmHistory) {
                 return (
@@ -1500,22 +1490,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   </div>
                 );
               }
-              const enabledSlots = state.graphSlots.filter(s => (s.config || DEFAULT_GRAPH_CONFIG).showCmHistory);
-              if (enabledSlots.length === 0) {
-                return <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">Aucun graphe n'a activé « CM History ».</div>;
-              }
-              const sec = analysisTabs.getSection('cm_history');
-              const activeTabId = sec.activeId || sec.instances[0]?.id || null;
-              const activeInstance = sec.instances
-                .filter(inst2 => {
-                  if (!inst2.sourceGraphId) return true;
-                  return enabledSlots.some(s => s.id === inst2.sourceGraphId);
-                })
-                .find(inst2 => inst2.id === activeTabId);
-
-              return activeInstance ? (
-                <CMHistoryTabContent key={activeInstance.id} tabId={activeInstance.id} contextSnapshot={activeInstance.contextSnapshot} />
-              ) : null;
+              const snapshot = buildSnapshot(activeSlot, state);
+              const tabId = `cm_history-${activeSlot.id}`;
+              return (
+                <CMHistoryTabContent key={tabId} tabId={tabId} contextSnapshot={snapshot} />
+              );
             })()}
 
           </div>
