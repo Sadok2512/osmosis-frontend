@@ -1584,7 +1584,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
-<<<<<<< HEAD
               <PopoverContent className="w-[160px] p-1" align="start">
                 {(() => {
                   // Compute range span (days) to determine which granularities make sense.
@@ -1629,17 +1628,6 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     );
                   });
                 })()}
-=======
-              <PopoverContent className="w-[140px] p-1" align="start">
-                {GRANULARITIES.map(g => (
-                  <button key={g.value} onClick={() => setState(updateTemporalContext(currentStartDateRaw, currentEndDateRaw, g.value))}
-                    className={cn('w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all',
-                      currentGranularity === g.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60')}>
-                    {g.label}
-                    {currentGranularity === g.value && <Check className="w-3 h-3 inline ml-2" />}
-                  </button>
-                ))}
->>>>>>> d1f92c8b (Fix investigator tables and slot time controls)
               </PopoverContent>
             </Popover>
 
