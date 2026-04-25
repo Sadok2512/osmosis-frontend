@@ -364,11 +364,7 @@ const NeighborExplorer: React.FC = () => {
           </button>
         </div>
       </div>
-        >
-          {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-          Rechercher
-        </button>
-      </div>
+
 
       {/* Stats */}
       {data && (
