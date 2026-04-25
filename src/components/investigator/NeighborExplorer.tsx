@@ -3,7 +3,7 @@
  * Filters: vendor, techno, site, relation type. Split by target band.
  * Graph + CSV export.
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Search, Download, Loader2, ArrowRightLeft, Filter } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
