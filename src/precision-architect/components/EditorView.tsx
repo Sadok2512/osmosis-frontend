@@ -48,6 +48,7 @@ import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
+import StatSettingsPanel from './StatSettingsPanel';
 
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
@@ -772,11 +773,10 @@ export default function EditorView({
             );
           }
 
-          // STAT (KPI Card) reuses the Chart settings panel for full Data Source parity
-          // (KPI METRICS / TIME & FILTERS, Add Counter / Add KPI, Split, Top N, Appearance, Jalons).
+          // STAT (KPI Card) uses its dedicated settings panel backed by statConfig.
           if (w.kind === 'stat') {
             return (
-              <ChartSettingsPanel
+              <StatSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}

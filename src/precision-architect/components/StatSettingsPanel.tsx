@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { X, Type as TypeIcon, Palette, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { X, Type as TypeIcon, Palette, Database } from 'lucide-react';
 import {
   DynWidget,
   StatWidgetConfig,
   StatTheme,
-  HeroAlign,
   DEFAULT_STAT_CONFIG,
 } from '../types';
 import { cn } from '@/lib/utils';
 import ColorSwatchPalette from './ColorSwatchPalette';
+import { useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { DEFAULT_REFERENCE_PERIODS, listReferencePeriods } from '../lib/referencePeriods';
 
 interface Props {
   widget: DynWidget;
@@ -27,6 +28,22 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
   const [tab, setTab] = useState<Tab>('content');
   const cfg: StatWidgetConfig = widget.statConfig ?? DEFAULT_STAT_CONFIG;
   const widgetLabel = `STAT · ${((widget as any).title && (widget as any).title.trim()) || cfg.label || 'Untitled'}`;
+  const { data: kpiCatalog } = useKpiCatalog();
+  const [kpiSearch, setKpiSearch] = useState('');
+  const [referencePeriods, setReferencePeriods] = useState(DEFAULT_REFERENCE_PERIODS);
+
+  useEffect(() => {
+    let alive = true;
+    listReferencePeriods().then(periods => { if (alive) setReferencePeriods(periods); });
+    return () => { alive = false; };
+  }, []);
+
+  const filteredKpis = useMemo(() => {
+    const q = (kpiSearch || cfg.kpiKey || '').toLowerCase();
+    return (kpiCatalog || []).filter(k =>
+      !q || k.kpi_key.toLowerCase().includes(q) || (k.display_name || '').toLowerCase().includes(q)
+    ).slice(0, 30);
+  }, [kpiCatalog, kpiSearch, cfg.kpiKey]);
 
   const update = (patch: Partial<StatWidgetConfig>) => {
     onChange({ statConfig: { ...cfg, ...patch } });
@@ -136,7 +153,72 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
           <div className="max-w-3xl mx-auto space-y-6">
             {tab === 'content' && (
-              <Section icon={<TypeIcon className="w-4 h-4" />} title="Content">
+              <>
+                <Section icon={<Database className="w-4 h-4" />} title="KPI Source (optional)">
+                  <Field label="KPI Key">
+                    <div className="space-y-1">
+                      <input
+                        type="text"
+                        value={cfg.kpiKey || ''}
+                        onChange={(e) => { update({ kpiKey: e.target.value }); setKpiSearch(e.target.value); }}
+                        onFocus={() => setKpiSearch(cfg.kpiKey || '')}
+                        placeholder="Search KPI (e.g. DL_VOLUME)..."
+                        className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-mono focus:outline-none focus:border-primary"
+                      />
+                      {kpiSearch && filteredKpis.length > 0 && (
+                        <div className="max-h-36 overflow-y-auto rounded-lg border border-outline-variant/20 bg-white shadow-lg">
+                          {filteredKpis.map(k => (
+                            <button
+                              key={k.kpi_key}
+                              onClick={() => {
+                                update({ kpiKey: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || cfg.unit });
+                                setKpiSearch('');
+                              }}
+                              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-primary/5 transition-colors"
+                            >
+                              <span className="font-bold">{k.display_name || k.kpi_key}</span>
+                              {k.unit && <span className="ml-1 text-on-surface-variant/50">({k.unit})</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </Field>
+                  <Field label="Aggregation">
+                    <SegmentControl
+                      value={cfg.aggregation || 'avg'}
+                      options={[
+                        { value: 'avg', label: 'Avg' },
+                        { value: 'sum', label: 'Sum' },
+                        { value: 'min', label: 'Min' },
+                        { value: 'max', label: 'Max' },
+                        { value: 'last', label: 'Last' },
+                      ]}
+                      onChange={(v) => update({ aggregation: v as any })}
+                    />
+                  </Field>
+                  <Field label="Reference Period">
+                    <select
+                      value={cfg.referencePeriodId || referencePeriods.find(p => p.isDefault)?.id || referencePeriods[0]?.id || 'last_7_days'}
+                      onChange={(e) => update({ referencePeriodId: e.target.value })}
+                      className="w-full max-w-sm px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-bold bg-white focus:outline-none focus:border-primary"
+                    >
+                      {referencePeriods.map(period => (
+                        <option key={period.id} value={period.id}>{period.name}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[10px] text-on-surface-variant/60">
+                      KPI widgets are period-based aggregates over the selected reference period.
+                    </p>
+                  </Field>
+                  {cfg.kpiKey && (
+                    <p className="text-[10px] text-on-surface-variant/60">
+                      Value computed from backend over the full period. No time buckets.
+                    </p>
+                  )}
+                </Section>
+
+                <Section icon={<TypeIcon className="w-4 h-4" />} title="Content">
                 <Field label="Label">
                   <input
                     type="text"
@@ -166,7 +248,8 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
                     />
                   </Field>
                 </div>
-              </Section>
+                </Section>
+              </>
             )}
 
             {tab === 'appearance' && (
