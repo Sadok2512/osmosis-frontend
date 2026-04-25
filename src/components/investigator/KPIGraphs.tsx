@@ -1190,7 +1190,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           );
         }
 
-        if (wType === 'table_legacy') {
+        if ((wType as string) === 'table_legacy') {
           const tableRows = getTableWidgetRows(slot, data);
           return (
             <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
