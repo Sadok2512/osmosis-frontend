@@ -81,6 +81,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showAlarms: false,
   showNeighbors: false,
   showCmHistory: false,
+  showWeekend: true,
   fillStyle: 'gradient',
   legendPosition: 'bottom',
   background: 'light',
