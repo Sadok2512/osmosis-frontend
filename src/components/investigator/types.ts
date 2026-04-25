@@ -39,6 +39,8 @@ export interface GraphConfig {
   showAlarms: boolean;
   showNeighbors: boolean;
   showCmHistory: boolean;
+  /** Highlight Saturday/Sunday with a subtle vertical band. Default true. */
+  showWeekend?: boolean;
   fillStyle?: 'none' | 'gradient' | 'solid';
   legendPosition?: 'bottom' | 'right' | 'hidden';
   background?: 'transparent' | 'light' | 'dark';
@@ -79,6 +81,7 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showAlarms: false,
   showNeighbors: false,
   showCmHistory: false,
+  showWeekend: true,
   fillStyle: 'gradient',
   legendPosition: 'bottom',
   background: 'light',
