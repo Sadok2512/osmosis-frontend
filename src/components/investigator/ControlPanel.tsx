@@ -1556,15 +1556,50 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[140px] p-1" align="start">
-                {GRANULARITIES.map(g => (
-                  <button key={g.value} onClick={() => setState(propagateGranularityToSlots(g.value))}
-                    className={cn('w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all',
-                      state.granularity === g.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60')}>
-                    {g.label}
-                    {state.granularity === g.value && <Check className="w-3 h-3 inline ml-2" />}
-                  </button>
-                ))}
+              <PopoverContent className="w-[160px] p-1" align="start">
+                {(() => {
+                  // Compute range span (days) to determine which granularities make sense.
+                  // Rule: avoid extremely heavy queries / nonsensical buckets.
+                  //   15min  → range ≤ 7 days
+                  //   1h     → range ≤ 31 days
+                  //   1d     → always allowed
+                  //   1w     → range ≥ 14 days (otherwise too few buckets)
+                  let rangeDays: number | null = null;
+                  if (startDate && endDate) {
+                    const ms = endDate.getTime() - startDate.getTime();
+                    if (!isNaN(ms) && ms >= 0) rangeDays = ms / 86_400_000;
+                  }
+                  const isDisabled = (g: Granularity): { disabled: boolean; reason: string } => {
+                    if (rangeDays === null) return { disabled: false, reason: '' };
+                    if (g === '15min' && rangeDays > 7) return { disabled: true, reason: 'Indisponible : période > 7 jours' };
+                    if (g === '1h' && rangeDays > 31) return { disabled: true, reason: 'Indisponible : période > 31 jours' };
+                    if (g === '1w' && rangeDays < 14) return { disabled: true, reason: 'Indisponible : période < 14 jours' };
+                    return { disabled: false, reason: '' };
+                  };
+                  return GRANULARITIES.map(g => {
+                    const { disabled, reason } = isDisabled(g.value);
+                    const isActive = state.granularity === g.value;
+                    return (
+                      <button
+                        key={g.value}
+                        type="button"
+                        onClick={() => { if (!disabled) setState(propagateGranularityToSlots(g.value)); }}
+                        disabled={disabled}
+                        title={disabled ? (reason || 'Option indisponible pour cette granularité') : undefined}
+                        aria-disabled={disabled}
+                        className={cn(
+                          'w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all flex items-center justify-between',
+                          isActive && !disabled && 'bg-primary/10 text-primary',
+                          !isActive && !disabled && 'text-foreground hover:bg-muted/60',
+                          disabled && 'text-muted-foreground/50 opacity-50 cursor-not-allowed hover:bg-transparent'
+                        )}
+                      >
+                        <span>{g.label}</span>
+                        {isActive && <Check className="w-3 h-3 ml-2 shrink-0" />}
+                      </button>
+                    );
+                  });
+                })()}
               </PopoverContent>
             </Popover>
 
