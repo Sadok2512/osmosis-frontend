@@ -557,38 +557,75 @@ const VISIBILITY_OPTIONS: { value: JalonVisibility; label: string }[] = [
   { value: 'personal', label: 'Personnel' },
 ];
 
-/* ── Jalons Manager Popup ── */
+/* ── Jalons Manager Popup ──
+ * Form draft state is lifted out of this component (via props) so closing the
+ * popover (e.g. by clicking outside) preserves the user's in-progress entry.
+ */
+type JalonDraft = {
+  showForm: boolean;
+  label: string;
+  startDate: string;
+  endDate: string;
+  color: string;
+  opacity: number;
+  visibility: JalonVisibility;
+  endDateTouched: boolean;
+};
+
+const EMPTY_JALON_DRAFT: JalonDraft = {
+  showForm: false,
+  label: '',
+  startDate: '',
+  endDate: '',
+  color: JALON_COLORS[0],
+  opacity: 80,
+  visibility: 'all',
+  endDateTouched: false,
+};
+
 const JalonsManagerPopup: React.FC<{
   jalons: Jalon[];
   onUpdate: (jalons: Jalon[]) => void;
-}> = ({ jalons, onUpdate }) => {
+  draft: JalonDraft;
+  setDraft: React.Dispatch<React.SetStateAction<JalonDraft>>;
+}> = ({ jalons, onUpdate, draft, setDraft }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm] = useState(false);
 
-  // New jalon form state
-  const [label, setLabel] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [color, setColor] = useState(JALON_COLORS[0]);
-  const [opacity, setOpacity] = useState(80);
-  const [visibility, setVisibility] = useState<JalonVisibility>('all');
-  const [endDateTouched, setEndDateTouched] = useState(false);
+  const { showForm, label, startDate, endDate, color, opacity, visibility, endDateTouched } = draft;
+  const setShowForm = (v: boolean) => setDraft(d => ({ ...d, showForm: v }));
+  const setLabel = (v: string) => setDraft(d => ({ ...d, label: v }));
+  const setStartDate = (v: string) => setDraft(d => ({ ...d, startDate: v }));
+  const setEndDate = (v: string) => setDraft(d => ({ ...d, endDate: v }));
+  const setColor = (v: string) => setDraft(d => ({ ...d, color: v }));
+  const setOpacity = (v: number) => setDraft(d => ({ ...d, opacity: v }));
+  const setVisibility = (v: JalonVisibility) => setDraft(d => ({ ...d, visibility: v }));
+  const setEndDateTouched = (v: boolean) => setDraft(d => ({ ...d, endDateTouched: v }));
 
   useEffect(() => {
-    if (!endDateTouched && startDate) setEndDate(startDate);
-  }, [startDate, endDateTouched]);
+    if (!endDateTouched && startDate && !endDate) {
+      setDraft(d => ({ ...d, endDate: startDate }));
+    }
+  }, [startDate, endDateTouched, endDate, setDraft]);
 
-  const resetForm = () => {
-    setLabel(''); setStartDate(''); setEndDate(''); setColor(JALON_COLORS[0]);
-    setOpacity(80); setVisibility('all'); setEndDateTouched(false);
-  };
+  const resetForm = () => setDraft({ ...EMPTY_JALON_DRAFT });
 
   const handleAdd = () => {
-    if (!startDate || !label) return;
-    const newJ: Jalon = { id: `jalon-${Date.now()}`, date: startDate, endDate: endDate || startDate, label, color, opacity: opacity / 100, visibility };
+    if (!startDate) {
+      toast.error('Veuillez sélectionner une date de début pour le jalon.');
+      return;
+    }
+    const finalLabel = label.trim() || `Jalon ${jalons.length + 1}`;
+    const newJ: Jalon = {
+      id: `jalon-${Date.now()}`,
+      date: startDate,
+      endDate: endDate || startDate,
+      label: finalLabel,
+      color,
+      opacity: opacity / 100,
+      visibility,
+    };
     onUpdate([...jalons, newJ]);
     resetForm();
-    setShowForm(false);
   };
 
   const updateJalon = (id: string, patch: Partial<Jalon>) => {
