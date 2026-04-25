@@ -46,7 +46,7 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
   widgetType,
   config: {
     ...DEFAULT_GRAPH_CONFIG,
-    ...(widgetType === 'timeseries' ? { showDataTable: true } : {}),
+    // Respect DEFAULT_GRAPH_CONFIG (tableData/alarms/neighbors are OFF by default).
   },
   filters: { ...initialFilters },
   startDate: '',
@@ -73,9 +73,8 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
 
 function isSectionEnabled(slot: GraphSlot | null | undefined, flag: keyof GraphConfig): boolean {
   if (!slot) return false;
-  if (flag === 'showDataTable' && (slot.widgetType || 'timeseries') === 'timeseries') {
-    return slot.config?.showDataTable ?? true;
-  }
+  // Single source of truth: a section is visible only if its toggle is explicitly true.
+  // Missing/undefined => fall back to DEFAULT_GRAPH_CONFIG which is OFF for tableData/alarms/neighbors.
   return Boolean((slot.config as any)?.[flag] ?? (DEFAULT_GRAPH_CONFIG as any)[flag]);
 }
 
@@ -679,7 +678,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         }
         const baseConfig = {
           ...DEFAULT_GRAPH_CONFIG,
-          ...((s.widgetType || 'timeseries') === 'timeseries' ? { showDataTable: true } : {}),
           ...(s.config || {}),
         };
         return { ...s, ...slotUpdates, config: { ...baseConfig, ...configUpdates } };

@@ -71,11 +71,13 @@ export const DEFAULT_GRAPH_CONFIG: GraphConfig = {
   showGrid: true,
   gridOpacity: 50,
   showArea: false,
-  showDataTable: true,
-  showBreakdown: false,
+  // Default visibility for bottom analysis sections.
+  // Single source of truth: tableData / alarms / neighbors are OFF by default.
+  showDataTable: false,
+  showBreakdown: true,
   showTopWorst: true,
-  showAlarms: true,
-  showNeighbors: true,
+  showAlarms: false,
+  showNeighbors: false,
   showCmHistory: true,
   fillStyle: 'gradient',
   legendPosition: 'bottom',
