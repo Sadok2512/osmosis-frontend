@@ -708,25 +708,8 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     return id ? `${c} (${id})` : c;
   };
 
-  // Weekend highlighting
-  const weekendAreas: { xAxis: string }[][] = [];
-  let inWeekend = false;
-  for (let ti = 0; ti < timestamps.length; ti++) {
-    const day = new Date(timestamps[ti]).getDay();
-    const isWE = day === 0 || day === 6;
-    if (isWE && !inWeekend) {
-      weekendAreas.push([{ xAxis: timestamps[ti] }, { xAxis: timestamps[ti] }]);
-      inWeekend = true;
-    } else if (isWE && inWeekend) {
-      weekendAreas[weekendAreas.length - 1][1] = { xAxis: timestamps[ti] };
-    } else {
-      inWeekend = false;
-    }
-  }
-  const markAreaData = weekendAreas.map(([start, end]) => [{
-    xAxis: start.xAxis,
-    itemStyle: { color: 'rgba(148,163,184,0.12)' },
-  }, { xAxis: end.xAxis }]);
+  // Weekend highlighting (granularity-aware)
+  const markAreaData = buildWeekendMarkAreas(timestamps, normalizeGranularity(state.granularity));
 
   // Auto Y-axis range
   const allVals = tsData.map(d => d.value).filter(v => v != null && !isNaN(v));
