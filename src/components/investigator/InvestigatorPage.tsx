@@ -1188,7 +1188,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                             Off
                           </span>
                         )}
-                        {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
+                        {isActive && enabled
+                          && tab.key !== 'top_worst'
+                          && tab.key !== 'alarms'
+                          && tab.key !== 'cm_history'
+                          && analysisTabs.getSection(tab.key).instances.length > 0 && (
                           <span className="ml-1 text-[9px] text-slate-400">
                             ({analysisTabs.getSection(tab.key).instances.length})
                           </span>
