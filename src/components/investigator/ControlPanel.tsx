@@ -1229,29 +1229,38 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     });
   }, [perimeterFilteredCatalog, kpisWithData]);
 
-  // Propagate global date to every existing slot so per-slot overrides
-  // do not silently shadow the user's new global selection.
-  const propagateDatesToSlots = (nextStart: string, nextEnd: string) => (prev: any) => ({
-    ...prev,
-    startDate: nextStart,
-    endDate: nextEnd,
-    graphSlots: (prev.graphSlots || []).map((s: any) => ({
-      ...s,
-      startDate: nextStart,
-      endDate: nextEnd,
-    })),
-  });
+  const activeSlot = useMemo(
+    () => state.graphSlots.find(s => s.id === activeSlotId) || null,
+    [activeSlotId, state.graphSlots],
+  );
 
-  // Same rule for global granularity: changing the top toolbar grain must
-  // update existing slots unless the user later edits a slot explicitly.
-  const propagateGranularityToSlots = (nextGranularity: Granularity) => (prev: any) => ({
-    ...prev,
-    granularity: nextGranularity,
-    graphSlots: (prev.graphSlots || []).map((s: any) => ({
-      ...s,
-      granularity: nextGranularity,
-    })),
-  });
+  const currentStartDateRaw = (activeSlot?.startDate && activeSlot.startDate.trim()) || state.startDate;
+  const currentEndDateRaw = (activeSlot?.endDate && activeSlot.endDate.trim()) || state.endDate;
+  const currentGranularity = activeSlot?.granularity || state.granularity;
+
+  const updateTemporalContext = (
+    nextStart: string,
+    nextEnd: string,
+    nextGranularity: Granularity = currentGranularity,
+  ) => (prev: any) => {
+    if (!activeSlotId) {
+      return {
+        ...prev,
+        startDate: nextStart,
+        endDate: nextEnd,
+        granularity: nextGranularity,
+      };
+    }
+
+    return {
+      ...prev,
+      graphSlots: (prev.graphSlots || []).map((s: any) => (
+        s.id === activeSlotId
+          ? { ...s, startDate: nextStart, endDate: nextEnd, granularity: nextGranularity }
+          : s
+      )),
+    };
+  };
 
   const applyPeriod = (days: number) => {
     const end = new Date();
@@ -1259,7 +1268,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     start.setDate(end.getDate() - days);
     const ns = formatDateTime(start);
     const ne = formatDateTime(end);
-    setState(propagateDatesToSlots(ns, ne));
+    setState(updateTemporalContext(ns, ne));
   };
 
   // Parse dates as local (add T12:00 to avoid UTC midnight timezone shift)
@@ -1276,14 +1285,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     if (!tPart) return '00:00';
     return tPart.slice(0, 5) || '00:00';
   };
-  const startDate = parseSafeDate(state.startDate);
-  const endDate = parseSafeDate(state.endDate);
-  const startTime = parseTime(state.startDate);
-  const endTime = parseTime(state.endDate);
-  const showTimePickers = state.granularity === '15min' || state.granularity === '1h';
+  const startDate = parseSafeDate(currentStartDateRaw);
+  const endDate = parseSafeDate(currentEndDateRaw);
+  const startTime = parseTime(currentStartDateRaw);
+  const endTime = parseTime(currentEndDateRaw);
+  const showTimePickers = currentGranularity === '15min' || currentGranularity === '1h';
 
   const setStartTime = (time: string) => {
-    setState(prev => {
+    /* setState(prev => {
       const dateOnly = (prev.startDate || '').split('T')[0];
       const fullStart = `${dateOnly}T${time}`;
       // If same day and new start > end time → push end to start
@@ -1307,19 +1316,38 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         return prev;
       }
       return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
-    });
+    }); */
+    const dateOnly = (currentStartDateRaw || '').split('T')[0];
+    const fullStart = `${dateOnly}T${time}`;
+    const endDateOnly = (currentEndDateRaw || '').split('T')[0];
+    let nextEnd = currentEndDateRaw;
+    if (endDateOnly === dateOnly && currentEndDateRaw && fullStart > currentEndDateRaw) {
+      nextEnd = fullStart;
+      toast.info("Heure de fin ajustée pour rester ≥ début");
+    }
+    setState(updateTemporalContext(fullStart, nextEnd));
+  };
+  const setEndTime = (time: string) => {
+    const dateOnly = (currentEndDateRaw || '').split('T')[0];
+    const fullEnd = `${dateOnly}T${time}`;
+    const startDateOnly = (currentStartDateRaw || '').split('T')[0];
+    if (startDateOnly === dateOnly && currentStartDateRaw && fullEnd < currentStartDateRaw) {
+      toast.error("L'heure de fin doit être ≥ à l'heure de début");
+      return;
+    }
+    setState(updateTemporalContext(currentStartDateRaw, fullEnd));
   };
 
   // Guarded apply: ensures end ≥ start before triggering backend fetch
   const handleApplyGuarded = useCallback(() => {
-    const s = state.startDate;
-    const e = state.endDate;
+    const s = currentStartDateRaw;
+    const e = currentEndDateRaw;
     if (s && e && e < s) {
       toast.error("La date de fin doit être supérieure ou égale à la date de début.");
       return;
     }
     onApply();
-  }, [state.startDate, state.endDate, onApply]);
+  }, [currentStartDateRaw, currentEndDateRaw, onApply]);
 
 
   // (effectiveFilters memo is declared earlier, before siteFilterForProbe)
@@ -1474,15 +1502,15 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         today={undefined}
                         onSelect={(d) => d && setState(prev => {
                           const nextStart = format(d, 'yyyy-MM-dd');
-                          const timePart = parseTime(prev.startDate);
+                          const timePart = parseTime(currentStartDateRaw);
                           const fullStart = showTimePickers ? `${nextStart}T${timePart}` : nextStart;
-                          const prevEndOnly = prev.endDate ? prev.endDate.split('T')[0] : '';
-                          const endTimePart = parseTime(prev.endDate);
+                          const prevEndOnly = currentEndDateRaw ? currentEndDateRaw.split('T')[0] : '';
+                          const endTimePart = parseTime(currentEndDateRaw);
                           const keepEnd = prevEndOnly && prevEndOnly >= nextStart;
                           const newEnd = keepEnd
                             ? (showTimePickers ? `${prevEndOnly}T${endTimePart}` : prevEndOnly)
                             : fullStart;
-                          return propagateDatesToSlots(fullStart, newEnd)(prev);
+                          return updateTemporalContext(fullStart, newEnd)(prev);
                         })}
                         initialFocus
                         className="p-3 pointer-events-auto"
@@ -1498,9 +1526,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                         disabled={(date) => !!startDate && date < startDate}
                         onSelect={(d) => d && setState(prev => {
                           const nextEnd = format(d, 'yyyy-MM-dd');
-                          const timePart = parseTime(prev.endDate);
+                          const timePart = parseTime(currentEndDateRaw);
                           const fullEnd = showTimePickers ? `${nextEnd}T${timePart}` : nextEnd;
-                          return propagateDatesToSlots(prev.startDate, fullEnd)(prev);
+                          return updateTemporalContext(currentStartDateRaw, fullEnd)(prev);
                         })}
                         today={undefined}
                         modifiers={startDate ? { rangeStart: startDate } : undefined}
@@ -1522,8 +1550,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <CalendarIcon className="w-3 h-3 text-muted-foreground" />
                   Période
-                  {state.startDate && state.endDate && (() => {
-                    const diffDays = Math.round((new Date(state.endDate.split('T')[0]).getTime() - new Date(state.startDate.split('T')[0]).getTime()) / 86400000) + 1;
+                  {currentStartDateRaw && currentEndDateRaw && (() => {
+                    const diffDays = Math.round((new Date(currentEndDateRaw.split('T')[0]).getTime() - new Date(currentStartDateRaw.split('T')[0]).getTime()) / 86400000) + 1;
                     const match = PERIODS.find(p => p.days === diffDays);
                     return match ? (
                       <span className="font-bold text-primary">{match.label}</span>
@@ -1552,10 +1580,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <span className="text-muted-foreground">Grain:</span>
-                  <span className="font-bold text-primary">{GRANULARITIES.find(g => g.value === state.granularity)?.label || state.granularity}</span>
+                  <span className="font-bold text-primary">{GRANULARITIES.find(g => g.value === currentGranularity)?.label || currentGranularity}</span>
                   <ChevronDown className="w-3 h-3 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
+<<<<<<< HEAD
               <PopoverContent className="w-[160px] p-1" align="start">
                 {(() => {
                   // Compute range span (days) to determine which granularities make sense.
@@ -1600,6 +1629,17 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     );
                   });
                 })()}
+=======
+              <PopoverContent className="w-[140px] p-1" align="start">
+                {GRANULARITIES.map(g => (
+                  <button key={g.value} onClick={() => setState(updateTemporalContext(currentStartDateRaw, currentEndDateRaw, g.value))}
+                    className={cn('w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all',
+                      currentGranularity === g.value ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60')}>
+                    {g.label}
+                    {currentGranularity === g.value && <Check className="w-3 h-3 inline ml-2" />}
+                  </button>
+                ))}
+>>>>>>> d1f92c8b (Fix investigator tables and slot time controls)
               </PopoverContent>
             </Popover>
 

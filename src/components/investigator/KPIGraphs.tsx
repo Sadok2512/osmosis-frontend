@@ -9,6 +9,7 @@ import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
 import type { KpiDefinition } from './types';
+import { buildPivotTable, formatInvestigatorValue, sanitizeTableData, TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS } from './tableDisplayUtils';
 import { cn } from '@/lib/utils';
 import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download } from 'lucide-react';
 import BreakdownChart from './BreakdownChart';
@@ -558,6 +559,15 @@ const getTableWidgetRows = (slot: GraphSlot, data: DataPoint[]) => {
     .slice(0, 80);
 };
 
+const getPivotTableWidgetData = (slot: GraphSlot, data: DataPoint[]) => {
+  const sanitized = sanitizeTableData(data, slot);
+  const pivot = buildPivotTable(sanitized, slot, slot.filters || {});
+  return {
+    columns: pivot.columns,
+    rows: pivot.rows.slice(0, 80),
+  };
+};
+
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
 const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number }> = ({ counterNames, height }) => {
   const { state } = useInvestigatorStore();
@@ -1098,6 +1108,89 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         }
 
         if (wType === 'table') {
+          const tableData = getPivotTableWidgetData(slot, data);
+          return (
+            <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(
+              'rounded-2xl border bg-white p-5 relative cursor-pointer transition-all duration-300',
+              isActive
+                ? 'border-[#14746C]/40 ring-2 ring-[#14746C]/15 shadow-[0_2px_4px_rgba(20,116,108,0.06),0_12px_28px_-12px_rgba(20,116,108,0.18)]'
+                : 'border-slate-200/70 hover:border-slate-300 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_6px_rgba(15,23,42,0.06)]'
+            )}>
+              <div className="flex items-center gap-2 mb-3 relative z-10">
+                <Hash className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold text-foreground">{slot.name}</span>
+                <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600">Table</span>
+                <span className="ml-auto" />
+                <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter KPI"><Plus className="w-3.5 h-3.5" /></button>
+                <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
+              </div>
+              {tableData.rows.length > 0 ? (
+                <div className="overflow-auto rounded-lg border border-border/40" style={{ maxHeight: chartHeight - 44 }}>
+                  <table className="w-full text-[11px] border-collapse">
+                    <thead className="sticky top-0 z-10 bg-background">
+                      <tr className="border-b border-border/50">
+                        {tableData.columns.map((column) => (
+                          <th
+                            key={column.key}
+                            className={cn(
+                              'px-3 py-2 font-bold uppercase tracking-wider',
+                              column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : `text-left ${TABLE_ACCENT_TEXT_CLASS}`,
+                            )}
+                          >
+                            {column.label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableData.rows.map((row, idx) => (
+                        <tr key={`${row.rawTime}-${idx}`} className="border-b border-border/30 hover:bg-muted/30">
+                          {tableData.columns.map((column) => {
+                            if (column.key === 'time') {
+                              return (
+                                <td key={column.key} className="px-3 py-2 whitespace-nowrap tabular-nums text-muted-foreground">
+                                  {row.time}
+                                </td>
+                              );
+                            }
+
+                            if (column.kind === 'kpi') {
+                              return (
+                                <td key={column.key} className="px-3 py-2 text-right tabular-nums font-semibold text-foreground">
+                                  {formatInvestigatorValue((row.values[column.key] as number | null | undefined) ?? null)}
+                                </td>
+                              );
+                            }
+
+                            return (
+                              <td key={column.key} className={cn('px-3 py-2 font-semibold', TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS)}>
+                                {String(row.values[column.key] ?? '—')}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center" style={{ minHeight: chartHeight - 40 }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onActivateTab?.('table_data'); }}
+                    className="text-center space-y-2 group"
+                  >
+                    <Hash className="w-10 h-10 text-amber-500/40 mx-auto group-hover:text-amber-500/70 transition-colors" />
+                    <p className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">Voir les données tabulaires</p>
+                    <p className="text-[10px] text-muted-foreground/60">{kpiIds.length} KPI{kpiIds.length > 1 ? 's' : ''} sélectionné{kpiIds.length > 1 ? 's' : ''}</p>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (wType === 'table_legacy') {
           const tableRows = getTableWidgetRows(slot, data);
           return (
             <div key={slot.id} onClick={() => onSlotClick?.(slot.id)} className={cn(

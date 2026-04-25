@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { WorstElement } from './types';
 import { ArrowUp, ArrowDown, Minus, ChevronDown, AlertTriangle, Bell, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatInvestigatorValue } from './tableDisplayUtils';
 
 export interface DrilldownContext {
   kpiIds: string[];
@@ -186,7 +187,7 @@ const WorstElementsTable: React.FC<Props> = ({ elements, limit, onLimitChange, o
                       const val = el.kpiValues[kpi];
                       return (
                         <td key={kpi} className="px-3 py-2.5 text-right text-xs font-mono font-bold tabular-nums">
-                          {val != null ? val.toFixed(2) : '—'}
+                          {formatInvestigatorValue(val)}
                         </td>
                       );
                     })}

@@ -9,6 +9,13 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DataPoint, GraphSlot } from './types';
+import {
+  buildPivotTable,
+  formatInvestigatorValue,
+  sanitizeTableData,
+  TABLE_ACCENT_BG_CLASS,
+  TABLE_ACCENT_TEXT_CLASS,
+} from './tableDisplayUtils';
 
 interface Props {
   tsData: DataPoint[];
@@ -29,44 +36,6 @@ interface Props {
     neighborType?: string | null;
   };
 }
-
-type RuntimeDataPoint = DataPoint & {
-  _slotId?: string;
-  time?: string;
-  timestamp?: string;
-  date?: string;
-  NE?: string;
-  ne?: string;
-  plaque?: string;
-  plaque_name?: string;
-  cell?: string;
-  cell_name?: string;
-  site?: string;
-  site_name?: string;
-  dimensionName?: string;
-  dimension_name?: string;
-  dimName?: string;
-  dimension?: any;
-  dimensions?: any;
-  dims?: Array<{ key?: string; name?: string; value?: string }>;
-  labels?: Record<string, string>;
-  tags?: Record<string, string>;
-  kpiName?: string;
-  kpi_name?: string;
-  metric?: string;
-  metricName?: string;
-  metric_name?: string;
-  kpiValue?: number;
-  kpi_value?: number;
-  measureValue?: number;
-  measure_value?: number;
-};
-
-type PivotRow = {
-  time: string;
-  dimensionValue: string;
-  kpiValues: Record<string, number | null>;
-};
 
 const PAGE_SIZES = [25, 50, 100, 200];
 
@@ -89,28 +58,6 @@ function stableColorForSplit(splitValue: string): string {
   return SPLIT_COLORS[stableHash(splitValue)];
 }
 
-const fmtTime = (ts: string) => (ts.length > 10 ? ts.slice(0, 16).replace('T', ' ') : ts);
-
-const fmtVal = (v: number | null | undefined) => {
-  if (v == null) return '-';
-  const num = Number(v);
-  if (!isFinite(num)) return '-';
-  if (num === 0) return '0';
-  const abs = Math.abs(num);
-  let fractionDigits = 2;
-  if (abs > 0 && abs < 0.01) {
-    fractionDigits = Math.min(8, Math.max(2, 2 - Math.floor(Math.log10(abs))));
-  } else if (abs < 1) {
-    fractionDigits = 4;
-  }
-  return num.toLocaleString('fr-FR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: fractionDigits,
-  });
-};
-
-const cleanKpi = (k: string) => (k.includes('@') ? k.split('@')[0] : k);
-
 function escapeCsv(value: string | number | null | undefined): string {
   const text = value == null ? '' : String(value);
   if (/[,"\n]/.test(text)) {
@@ -119,204 +66,7 @@ function escapeCsv(value: string | number | null | undefined): string {
   return text;
 }
 
-function normalizeDimensionLabel(label?: string | null): string {
-  if (!label) return 'NE';
-  const raw = String(label).trim();
-  if (!raw) return 'NE';
-  const normalized = raw.toUpperCase();
-  if (normalized === 'ZONE_ARCEP') return 'ZONE ARCEP';
-  return normalized;
-}
-
-function getFirstDimensionEntry(item: RuntimeDataPoint) {
-  if (Array.isArray(item.dimensions) && item.dimensions.length > 0) {
-    return item.dimensions[0];
-  }
-  if (Array.isArray(item.dims) && item.dims.length > 0) {
-    return item.dims[0];
-  }
-  return null;
-}
-
-function getDimensionValue(item: RuntimeDataPoint): string {
-  const firstDimension = getFirstDimensionEntry(item);
-  const directCandidates = [
-    item.networkElement,
-    item.splitValue,
-    item.NE,
-    item.ne,
-    item.plaque,
-    item.plaque_name,
-    item.cell,
-    item.cell_name,
-    item.site,
-    item.site_name,
-    item.dimension?.NE,
-    item.dimension?.ne,
-    item.dimension?.plaque,
-    item.dimension?.cell,
-    item.dimension?.site,
-    !Array.isArray(item.dimensions) ? item.dimensions?.NE : undefined,
-    !Array.isArray(item.dimensions) ? item.dimensions?.ne : undefined,
-    !Array.isArray(item.dimensions) ? item.dimensions?.plaque : undefined,
-    !Array.isArray(item.dimensions) ? item.dimensions?.cell : undefined,
-    !Array.isArray(item.dimensions) ? item.dimensions?.site : undefined,
-    firstDimension?.value,
-    firstDimension?.name,
-    item.labels?.NE,
-    item.labels?.ne,
-    item.labels?.plaque,
-    item.labels?.cell,
-    item.labels?.site,
-    item.tags?.NE,
-    item.tags?.ne,
-    item.tags?.plaque,
-    item.tags?.cell,
-    item.tags?.site,
-  ];
-
-  for (const candidate of directCandidates) {
-    if (candidate == null) continue;
-    const value = String(candidate).trim();
-    if (value && value !== 'undefined' && value !== 'null' && value !== '-') {
-      return value;
-    }
-  }
-
-  return '-';
-}
-
-function getDimensionLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot | null): string {
-  const firstDimension = getFirstDimensionEntry(item);
-  const directLabel =
-    item.dimensionName ||
-    item.dimension_name ||
-    item.dimName ||
-    firstDimension?.key ||
-    firstDimension?.name ||
-    (activeSlot?.splitBy && activeSlot.splitBy !== 'None' ? activeSlot.splitBy : null);
-
-  if (directLabel) return normalizeDimensionLabel(directLabel);
-
-  if (item.plaque || item.plaque_name || item.dimension?.plaque || item.labels?.plaque || item.tags?.plaque) return 'PLAQUE';
-  if (item.cell || item.cell_name || item.dimension?.cell || item.labels?.cell || item.tags?.cell) return 'CELL';
-  if (item.site || item.site_name || item.dimension?.site || item.labels?.site || item.tags?.site) return 'SITE';
-  if (item.NE || item.ne || item.dimension?.NE || item.labels?.NE || item.tags?.NE) return 'NE';
-  if (item.networkElement) return 'NE';
-  return 'NE';
-}
-
-function getKpiName(item: RuntimeDataPoint): string | null {
-  const candidate =
-    item.kpi ||
-    item.kpiName ||
-    item.kpi_name ||
-    item.metric ||
-    item.metricName ||
-    item.metric_name;
-
-  if (!candidate) return null;
-  const value = cleanKpi(String(candidate).trim());
-  return value || null;
-}
-
-function getKpiValue(item: RuntimeDataPoint): number | null {
-  const candidate =
-    item.value ??
-    item.kpiValue ??
-    item.kpi_value ??
-    item.measureValue ??
-    item.measure_value;
-
-  if (candidate == null) return null;
-  const num = Number(candidate);
-  return isFinite(num) ? num : null;
-}
-
-function getTimeValue(item: RuntimeDataPoint): string | null {
-  const candidate = item.time ?? item.timestamp ?? item.date;
-  if (!candidate) return null;
-  const value = String(candidate).trim();
-  return value || null;
-}
-
-function sanitizeTableData(tsData: DataPoint[], activeSlot?: GraphSlot | null): RuntimeDataPoint[] {
-  const runtimeData = tsData as RuntimeDataPoint[];
-  if (!activeSlot) return runtimeData;
-
-  const slotKeys = new Set([
-    ...(activeSlot.kpiIds || []),
-    ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
-  ]);
-
-  const keyMatches = (point: RuntimeDataPoint) => {
-    const pointKpi = getKpiName(point);
-    return slotKeys.size === 0 || (!!pointKpi && slotKeys.has(pointKpi));
-  };
-
-  const taggedForSlot = runtimeData.filter(point => point._slotId === activeSlot.id && keyMatches(point));
-  if (taggedForSlot.length > 0) return taggedForSlot;
-
-  const untaggedMatches = runtimeData.filter(point => point._slotId == null && keyMatches(point));
-  if (untaggedMatches.length > 0) return untaggedMatches;
-
-  return runtimeData.filter(keyMatches);
-}
-
-function buildPivotTable(tsData: RuntimeDataPoint[], activeSlot?: GraphSlot | null) {
-  const rowsByKey = new Map<string, PivotRow>();
-  const kpiSet = new Set<string>();
-  let resolvedDimensionLabel: string | null =
-    activeSlot?.splitBy && activeSlot.splitBy !== 'None'
-      ? normalizeDimensionLabel(activeSlot.splitBy)
-      : null;
-
-  for (const item of tsData) {
-    const time = getTimeValue(item);
-    const kpiName = getKpiName(item);
-    const value = getKpiValue(item);
-    const dimensionValue = getDimensionValue(item);
-
-    if (!time || !kpiName) continue;
-
-    if (!resolvedDimensionLabel) {
-      resolvedDimensionLabel = getDimensionLabel(item, activeSlot);
-    }
-
-    kpiSet.add(kpiName);
-
-    const key = `${time}__${dimensionValue}`;
-    if (!rowsByKey.has(key)) {
-      rowsByKey.set(key, {
-        time,
-        dimensionValue,
-        kpiValues: {},
-      });
-    }
-
-    rowsByKey.get(key)!.kpiValues[kpiName] = value;
-  }
-
-  const kpiColumns = Array.from(kpiSet);
-  const rows = Array.from(rowsByKey.values())
-    .sort((a, b) => {
-      const timeDiff = String(b.time).localeCompare(String(a.time));
-      if (timeDiff !== 0) return timeDiff;
-      return a.dimensionValue.localeCompare(b.dimensionValue);
-    })
-    .map((row) => ({
-      ...row,
-      time: fmtTime(row.time),
-    }));
-
-  return {
-    rows,
-    kpiColumns,
-    dimensionLabel: resolvedDimensionLabel || 'NE',
-  };
-}
-
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterContext }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
@@ -326,9 +76,9 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
     [tsData, activeSlot]
   );
 
-  const { rows, kpiColumns, dimensionLabel } = useMemo(
-    () => buildPivotTable(tableData, activeSlot),
-    [tableData, activeSlot]
+  const { rows, kpiColumns, columns } = useMemo(
+    () => buildPivotTable(tableData, activeSlot, filterContext),
+    [tableData, activeSlot, filterContext]
   );
 
   useEffect(() => {
@@ -371,9 +121,13 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
   const pageRows = rows.slice(startIdx, endIdx);
 
   const exportCsv = () => {
-    const header = ['TIME', dimensionLabel, ...kpiColumns].map(escapeCsv).join(',');
+    const header = columns.map((column) => escapeCsv(column.label)).join(',');
     const csvRows = rows.map((row) =>
-      [row.time, row.dimensionValue, ...kpiColumns.map((kpi) => row.kpiValues[kpi] ?? '')]
+      columns.map((column) => {
+        if (column.key === 'time') return row.time;
+        if (column.kind === 'kpi') return row.values[column.key] ?? '';
+        return row.values[column.key] ?? '';
+      })
         .map(escapeCsv)
         .join(',')
     );
@@ -436,7 +190,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Table</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium">
-            {dimensionLabel} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
+            {columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length || 1} dimension{columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length > 1 ? 's' : ''} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
           </span>
         </div>
         <button
@@ -452,18 +206,17 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
             <tr className="bg-white border-b border-border/40">
-              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap">
-                TIME
-              </th>
-              <th className="text-left py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] sticky left-0 bg-white z-30 whitespace-nowrap">
-                {dimensionLabel}
-              </th>
-              {kpiColumns.map((kpi) => (
+              {columns.map((column) => (
                 <th
-                  key={kpi}
-                  className="text-right py-3 px-5 font-bold text-[13px] text-emerald-600 uppercase tracking-[0.08em] whitespace-nowrap"
+                  key={column.key}
+                  className={cn(
+                    'py-3 px-5 font-bold text-[13px] uppercase tracking-[0.08em] whitespace-nowrap',
+                    column.kind === 'time' ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                    column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                    (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                  )}
                 >
-                  <span className="truncate max-w-[240px] inline-block align-middle" title={kpi}>{kpi}</span>
+                  <span className="truncate max-w-[240px] inline-block align-middle" title={column.label}>{column.label}</span>
                 </th>
               ))}
             </tr>
@@ -478,46 +231,65 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot }) => {
                   key={`${row.time}-${row.dimensionValue}-${absIdx}`}
                   className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
                 >
-                  <td className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
-                    {row.time}
-                  </td>
-
-                  <td className="py-3 px-5 sticky left-0 bg-white group-hover:bg-muted/30 transition-colors whitespace-nowrap">
-                    <span className="inline-flex items-center gap-2">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                        style={{ backgroundColor: stableColorForSplit(row.dimensionValue) }}
-                      />
-                      <span className="font-semibold text-foreground tracking-tight">{row.dimensionValue}</span>
-                    </span>
-                  </td>
-
-                  {kpiColumns.map((kpi) => {
-                    const value = row.kpiValues[kpi];
-                    const range = kpiRanges[kpi];
-                    let pct = 0;
-                    if (value != null && isFinite(value) && range && range.max > range.min) {
-                      pct = Math.max(4, Math.min(100, ((value - range.min) / (range.max - range.min)) * 100));
-                    } else if (value != null && isFinite(value) && range && range.max === range.min && value !== 0) {
-                      pct = 100;
+                  {columns.map((column) => {
+                    if (column.key === 'time') {
+                      return (
+                        <td key={column.key} className="py-3 px-5 tabular-nums text-muted-foreground/90 whitespace-nowrap text-[11px]">
+                          {row.time}
+                        </td>
+                      );
                     }
-                    const barColor = stableColorForSplit(kpi);
 
-                    return (
-                      <td key={kpi} className="py-3 px-5 whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-3">
-                          <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
-                            {value != null && (
-                              <div
-                                className="absolute inset-y-0 left-0 rounded-full"
-                                style={{ width: `${pct}%`, backgroundColor: barColor }}
-                              />
-                            )}
+                    if (column.kind === 'kpi') {
+                      const kpi = column.label;
+                      const value = row.kpiValues[kpi];
+                      const range = kpiRanges[kpi];
+                      let pct = 0;
+                      if (value != null && isFinite(value) && range && range.max > range.min) {
+                        pct = Math.max(4, Math.min(100, ((value - range.min) / (range.max - range.min)) * 100));
+                      } else if (value != null && isFinite(value) && range && range.max === range.min && value !== 0) {
+                        pct = 100;
+                      }
+                      const barColor = stableColorForSplit(kpi);
+
+                      return (
+                        <td key={column.key} className="py-3 px-5 whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-3">
+                            <div className="relative h-1 w-20 rounded-full bg-muted/50 overflow-hidden">
+                              {value != null && (
+                                <div
+                                  className="absolute inset-y-0 left-0 rounded-full"
+                                  style={{ width: `${pct}%`, backgroundColor: barColor }}
+                                />
+                              )}
+                            </div>
+                            <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
+                              {formatInvestigatorValue(value)}
+                            </span>
                           </div>
-                          <span className="tabular-nums font-semibold text-foreground text-right min-w-[3.5rem]">
-                            {fmtVal(value)}
+                        </td>
+                      );
+                    }
+
+                    const displayValue = String(row.values[column.key] ?? '—');
+                    return (
+                      <td
+                        key={column.key}
+                        className={cn(
+                          'py-3 px-5 whitespace-nowrap transition-colors',
+                          TABLE_ACCENT_BG_CLASS,
+                          'group-hover:bg-[#14746C]/10',
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: stableColorForSplit(displayValue) }}
+                          />
+                          <span className={cn('font-semibold tracking-tight', TABLE_ACCENT_TEXT_CLASS)}>
+                            {displayValue}
                           </span>
-                        </div>
+                        </span>
                       </td>
                     );
                   })}
