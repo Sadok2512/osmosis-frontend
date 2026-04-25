@@ -58,10 +58,10 @@ const NeighborExplorer: React.FC = () => {
   const [plaqueOpts, setPlaqueOpts] = useState<string[]>([]);
   const [dorOpts, setDorOpts] = useState<string[]>([]);
 
-  // Load Plaque / DOR values from backend catalog
+  // Load Plaque / DOR values from backend topo catalog
   useEffect(() => {
     let aborted = false;
-    fetch(getApiUrl('monitor/catalog/filters'), { headers: getApiHeaders() })
+    fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() })
       .then(r => (r.ok ? r.json() : null))
       .then(data => {
         if (aborted || !data) return;
@@ -73,7 +73,7 @@ const NeighborExplorer: React.FC = () => {
         setPlaqueOpts((map.plaque ?? map.cluster ?? []).filter(Boolean).sort());
         setDorOpts((map.dor ?? []).filter(Boolean).sort());
       })
-      .catch(err => console.warn('[NeighborExplorer] catalog load failed', err));
+      .catch(err => console.warn('[NeighborExplorer] topo filters load failed', err));
     return () => { aborted = true; };
   }, []);
 
