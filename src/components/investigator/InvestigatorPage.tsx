@@ -1182,11 +1182,18 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
           <div className="relative animate-in fade-in duration-200" key={`panel-${activeSlotId ?? 'none'}-${analysisTab ?? 'none'}`}>
 
-            {/* Table Data — only render for slots with showDataTable === true */}
+            {/* Table Data — render only if the ACTIVE slot has the toggle on */}
             <div style={{ display: analysisTab === 'table_data' ? undefined : 'none' }}>
               {(() => {
-                // Keep the same enablement logic as the tab bar: timeseries slots
-                // default to showDataTable=true even if the flag is missing in config.
+                // Strict gating on the active slot's toggle (single source of truth).
+                if (!activeSlot || !isSectionEnabled(activeSlot, 'showDataTable')) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                      <span>« Table Data » est désactivé pour ce graphe.</span>
+                      <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                    </div>
+                  );
+                }
                 const enabledSlots = state.graphSlots.filter(s => isSectionEnabled(s, 'showDataTable'));
                 if (enabledSlots.length === 0) {
                   return (
