@@ -4491,10 +4491,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // dashboard switches. Saving as a reusable cluster (filter) is still
   // proposed via the existing dialog and remains a separate concern.
   const polygonAutoTaggedRef = useRef<string | null>(null);
+  const addTaggedPolygonRef = useRef<((p: any) => any) | null>(null);
   useEffect(() => {
     if (!polygonClosed || !polygonStats) return;
     if (!activeDashboardIdRef.current) return;
-    // Use a fingerprint to avoid re-tagging the same closed polygon on every
+    if (!addTaggedPolygonRef.current) return;
+    // Fingerprint to avoid re-tagging the same closed polygon on every
     // re-render (e.g. after sites refresh changing polygonStats).
     const fp = polygonPoints.map(p => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join('|');
     if (polygonAutoTaggedRef.current === fp) return;
@@ -4502,7 +4504,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const latSum = polygonPoints.reduce((s, p) => s + p[0], 0);
     const lngSum = polygonPoints.reduce((s, p) => s + p[1], 0);
     const center: [number, number] = [latSum / polygonPoints.length, lngSum / polygonPoints.length];
-    addTaggedPolygon({
+    addTaggedPolygonRef.current({
       points: polygonPoints.slice() as [number, number][],
       center,
       fmtArea: polygonStats.fmtArea,
@@ -4510,7 +4512,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       sitesInside: polygonStats.sitesInside,
       cellsInside: polygonStats.cellsInside,
     });
-  }, [polygonClosed, polygonStats, polygonPoints, addTaggedPolygon]);
+  }, [polygonClosed, polygonStats, polygonPoints]);
 
   // Reset auto-tag fingerprint whenever the polygon tool clears (so a brand
   // new polygon can be tagged again).
