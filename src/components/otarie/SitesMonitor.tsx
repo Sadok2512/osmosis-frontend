@@ -6780,6 +6780,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return counts;
   }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande, kpiLegendScope, getSiteKpiValue]);
 
+  const inventoryVisibleSites = useMemo(() => {
+    if (sectorColorMode !== 'kpi') return filteredSites;
+    return filteredSites.filter(siteMatchesKpiLegend);
+  }, [filteredSites, sectorColorMode, siteMatchesKpiLegend]);
+
   // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
   // The legacy global `sectorDensityFactor` (based on total visible count) has been
@@ -11848,7 +11853,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Sort bar (sites tab only) ── */}
               {inventoryTab === 'sites' && (
                 <div className="px-5 py-2 flex items-center justify-between shrink-0 border-b border-border/30">
-                  <span className="text-[10px] text-muted-foreground font-semibold">{filteredSites.length} sites</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold">{inventoryVisibleSites.length} sites</span>
                   <button
                     onClick={() => setInventorySortOrder(prev => prev === 'none' ? 'desc' : prev === 'desc' ? 'asc' : 'none')}
                     className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
@@ -11882,7 +11887,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>
                   </div>
-                ) : filteredSites.length === 0 ? (
+                ) : inventoryVisibleSites.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <Search size={28} className="mb-3 opacity-20" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">{isSearchActive ? 'Aucun résultat' : 'No sites found'}</span>
@@ -11890,10 +11895,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 ) : (
                   <div className="space-y-2">
                     {(() => {
-                      const displayed = filteredSites.slice(0, 100);
+                      const displayed = inventoryVisibleSites.slice(0, 100);
                       // Ensure selected site is always in the list even if beyond first 100
                       if (selectedSiteId && !displayed.find(s => s.site_id === selectedSiteId)) {
-                        const sel = filteredSites.find(s => s.site_id === selectedSiteId);
+                        const sel = inventoryVisibleSites.find(s => s.site_id === selectedSiteId);
                         if (sel) displayed.unshift(sel);
                       }
                       return displayed;
@@ -11913,6 +11918,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
                         if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
+                        if (sectorColorMode === 'kpi') {
+                          if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande, kpiOverlayVendor, site.vendor)) return false;
+                          if (!isCellVisibleForKpiLegend(c, site.site_name || site.site_id || '')) return false;
+                        }
                         return true;
                       });
                       // Show real filtered cells when resolved; otherwise avoid stale backend totals
@@ -12126,9 +12135,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         </div>
                       );
                     })}
-                    {filteredSites.length > 100 && (
+                    {inventoryVisibleSites.length > 100 && (
                       <div className="px-4 py-3 text-center text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        + {filteredSites.length - 100} more — refine search
+                        + {inventoryVisibleSites.length - 100} more — refine search
                       </div>
                     )}
                   </div>
