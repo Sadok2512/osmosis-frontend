@@ -1576,7 +1576,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             <div className="h-6 w-px bg-border/60 shrink-0" />
 
             {/* Granularity — compact dropdown */}
-            <Popover>
+            <Popover open={granularityOpen} onOpenChange={setGranularityOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="h-7 2xl:h-8 text-[10px] 2xl:text-[11px] gap-1 2xl:gap-1.5 px-2 2xl:px-3 rounded-lg bg-card shrink-0">
                   <span className="text-muted-foreground">Grain:</span>
@@ -1591,7 +1591,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     <button
                       key={g.value}
                       type="button"
-                      onClick={() => setState(updateTemporalContext(currentStartDateRaw, currentEndDateRaw, g.value))}
+                      onClick={() => {
+                        setState(updateTemporalContext(currentStartDateRaw, currentEndDateRaw, g.value));
+                        setGranularityOpen(false);
+                      }}
                       className={cn(
                         'w-full text-left px-3 py-2 rounded-md text-[11px] font-semibold transition-all flex items-center justify-between',
                         isActive ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted/60'
