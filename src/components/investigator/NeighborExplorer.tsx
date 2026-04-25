@@ -45,29 +45,58 @@ const TYPE_COLORS: Record<string, string> = {
   INTER_SYSTEM: '#ef4444',
 };
 
+// ── Filter dimensions definition ────────────────────────────────
+type FilterKey = 'vendor' | 'rat' | 'site' | 'plaque' | 'dor' | 'type';
+
+interface FilterDef {
+  key: FilterKey;
+  label: string;
+  param: string;
+  multi: boolean;
+  staticOptions?: string[];
+  freeText?: boolean; // allow typed entries (Site)
+}
+
+const FILTER_DEFS: FilterDef[] = [
+  { key: 'vendor', label: 'Vendor', param: 'vendor', multi: true, staticOptions: ['Nokia', 'Ericsson'] },
+  { key: 'rat', label: 'Technology', param: 'rat', multi: true, staticOptions: ['LTE', 'NR'] },
+  { key: 'site', label: 'Site', param: 'site_name', multi: true, freeText: true },
+  { key: 'plaque', label: 'Plaque', param: 'plaque', multi: true },
+  { key: 'dor', label: 'DOR', param: 'dor', multi: true },
+  { key: 'type', label: 'Type', param: 'relation_type', multi: true, staticOptions: ['INTER_FREQ', 'NR_INTER_FREQ', 'NR_RELATION', 'INTRA_FREQ'] },
+];
+
+const FILTER_LABEL_MAP: Record<FilterKey, string> = FILTER_DEFS.reduce((acc, f) => {
+  acc[f.key] = f.label; return acc;
+}, {} as Record<FilterKey, string>);
+
 const NeighborExplorer: React.FC = () => {
   const state = useInvestigatorStore(s => s.state);
-  const [vendor, setVendor] = useState<string>('Nokia');
-  const [rat, setRat] = useState<string>('');
-  const [siteName, setSiteName] = useState<string>('');
-  const [plaque, setPlaque] = useState<string[]>([]);
-  const [dor, setDor] = useState<string[]>([]);
-  const [relationType, setRelationType] = useState<string>('');
+  const [filters, setFilters] = useState<Record<FilterKey, string[]>>({
+    vendor: ['Nokia'],
+    rat: [],
+    site: [],
+    plaque: [],
+    dor: [],
+    type: [],
+  });
+  const [activeKeys, setActiveKeys] = useState<FilterKey[]>(['vendor', 'rat', 'site', 'plaque', 'dor', 'type']);
   const [splitBy, setSplitBy] = useState<'all' | 'target_band'>('all');
   const [data, setData] = useState<ExploreResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [plaqueOpts, setPlaqueOpts] = useState<string[]>([]);
   const [dorOpts, setDorOpts] = useState<string[]>([]);
+  const [siteSearch, setSiteSearch] = useState(''); // freeText input draft
 
   // Load Plaque / DOR values from backend topo catalog
   useEffect(() => {
     let aborted = false;
     fetch(getApiUrl('topo/filters'), { headers: getApiHeaders() })
       .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (aborted || !data) return;
-        const items = Array.isArray(data) ? data : (data.filters || data.data || []);
+      .then(d => {
+        if (aborted || !d) return;
+        const items = Array.isArray(d) ? d : (d.filters || d.data || []);
         const map: Record<string, string[]> = {};
         for (const f of items) {
           if (f && f.id) map[f.id] = Array.isArray(f.values) ? f.values : [];
@@ -79,16 +108,39 @@ const NeighborExplorer: React.FC = () => {
     return () => { aborted = true; };
   }, []);
 
+  const optionsFor = useCallback((key: FilterKey): string[] => {
+    const def = FILTER_DEFS.find(f => f.key === key);
+    if (def?.staticOptions) return def.staticOptions;
+    if (key === 'plaque') return plaqueOpts;
+    if (key === 'dor') return dorOpts;
+    return [];
+  }, [plaqueOpts, dorOpts]);
+
+  const setFilterValues = (key: FilterKey, vals: string[]) => {
+    setFilters(prev => ({ ...prev, [key]: vals }));
+  };
+
+  const addFilter = (key: FilterKey) => {
+    setActiveKeys(prev => prev.includes(key) ? prev : [...prev, key]);
+  };
+
+  const removeFilter = (key: FilterKey) => {
+    setActiveKeys(prev => prev.filter(k => k !== key));
+    setFilters(prev => ({ ...prev, [key]: [] }));
+  };
+
+  const clearAllFilters = () => {
+    setFilters({ vendor: [], rat: [], site: [], plaque: [], dor: [], type: [] });
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ limit: '500' });
-      if (vendor) params.set('vendor', vendor);
-      if (rat) params.set('rat', rat);
-      if (siteName.trim()) params.set('site_name', siteName.trim());
-      if (plaque.length) params.set('plaque', plaque.join(','));
-      if (dor.length) params.set('dor', dor.join(','));
-      if (relationType) params.set('relation_type', relationType);
+      for (const def of FILTER_DEFS) {
+        const vals = filters[def.key];
+        if (vals && vals.length) params.set(def.param, vals.join(','));
+      }
       params.set('split_by', splitBy);
 
       const res = await fetch(getApiUrl(`neighbors/list/explore?${params}`), { headers: getApiHeaders() });
@@ -100,7 +152,7 @@ const NeighborExplorer: React.FC = () => {
       console.warn('[NeighborExplorer] fetch error:', e);
     }
     setLoading(false);
-  }, [vendor, rat, siteName, plaque, dor, relationType, splitBy]);
+  }, [filters, splitBy]);
 
   // Chart options
   const chartOption = useMemo(() => {
