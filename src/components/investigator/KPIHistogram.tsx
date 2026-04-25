@@ -14,7 +14,7 @@ import {
 
 interface Props {
   selectedKpis: string[];
-  layout: 1 | 2 | 4;
+  layout: 1 | 2 | 3 | 4;
 }
 
 const KPIHistogram: React.FC<Props> = ({ selectedKpis, layout }) => {
