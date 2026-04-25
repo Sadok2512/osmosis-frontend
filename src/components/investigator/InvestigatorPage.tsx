@@ -1201,8 +1201,16 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             );
           })()}
 
-          {/* Multi-tab sub-bar for sections with instances — always mounted */}
-          {analysisTab && analysisTab !== 'table_data' && analysisTab !== 'breakdown' && (() => {
+          {/* Multi-tab sub-bar for sections with instances — always mounted.
+              Top Worst / Alarms / CM History are bound strictly to the active graph,
+              so we hide the per-graph tab bar for them. */}
+          {analysisTab
+            && analysisTab !== 'table_data'
+            && analysisTab !== 'breakdown'
+            && analysisTab !== 'top_worst'
+            && analysisTab !== 'alarms'
+            && analysisTab !== 'cm_history'
+            && (() => {
             const sec = analysisTabs.getSection(analysisTab);
             return (
               <AnalysisTabBar
