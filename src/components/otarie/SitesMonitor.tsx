@@ -191,6 +191,7 @@ interface SitesMonitorProps {
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
 const SITES_TO_CELLS_ZOOM = 12;
+const FULL_BEAM_DETAIL_ZOOM = 13;
 const CELLS_TO_SITES_ZOOM = 11;
 
 // Band-based color mapping — default engineering palette
@@ -7437,13 +7438,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return getColorForValue(val, colorViewColorMap);
   }, [colorViewMode, colorViewColorMap]);
 
-  // In KPI mode: ALWAYS force sector rendering.
+  // At zoom 12 we enter a "beam lite" stage via mini sectors.
+  // Full per-cell/per-band beam rendering only starts at zoom 13+.
   // In KPI mode: ALWAYS force sector rendering (regardless of showBeamSectors state).
-  // In Topo mode: sectors only if user enabled beams AND zoom >= threshold.
+  // In Topo mode: sectors only if user enabled beams AND zoom >= full-detail threshold.
   const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode;
   const showSectors = !paramMode && (
     kpiForcesSectors
-    || (viewport.zoom >= SITES_TO_CELLS_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
+    || (viewport.zoom >= FULL_BEAM_DETAIL_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
     || (taggedDisplayMode === 'tagged-only' && mapDisplayMode === 'sites')
   );
 
