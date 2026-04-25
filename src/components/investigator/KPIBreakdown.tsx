@@ -36,6 +36,7 @@ interface KpiExplain {
   formula_type: string;
   numerator: string;
   denominator: string;
+  counters?: string[];
   techno: string;
   vendor: string;
 }
@@ -100,8 +101,8 @@ const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', 
 
 const extractCounters = (formula: string): string[] => {
   if (!formula) return [];
-  const matches = formula.match(/[`{]([A-Za-z0-9_]+)[}`]/g) || [];
-  return [...new Set(matches.map(m => m.replace(/[`{}]/g, '')))];
+  const matches = formula.match(/`([^`]+)`/g) || [];
+  return [...new Set(matches.map(m => m.replace(/`/g, '').trim()).filter(Boolean))];
 };
 
 const matchesKpiSeries = (seriesKpi: string, kpiId: string): boolean =>
@@ -366,6 +367,7 @@ const SingleKpiBreakdown: React.FC<{
               formula_type: data.formula_type || 'ratio',
               numerator: data.numerator,
               denominator: data.denominator,
+              counters: Array.isArray(data.counters) ? data.counters : [],
               techno: data.techno || '',
               vendor: data.vendor || '',
             });
@@ -388,13 +390,25 @@ const SingleKpiBreakdown: React.FC<{
   // Extract counter infos from explain
   useEffect(() => {
     if (!explain) { setCounterInfos([]); return; }
-    const numC = extractCounters(explain.numerator).map(name => ({
+    const formulaNumCounters = extractCounters(explain.numerator);
+    const formulaDenCounters = extractCounters(explain.denominator);
+    const formulaCounters = [...new Set([...formulaNumCounters, ...formulaDenCounters])];
+    const fallbackCounters = Array.isArray(explain.counters) ? explain.counters.filter(Boolean) : [];
+    const resolvedCounters = formulaCounters.length > 0 ? formulaCounters : fallbackCounters;
+
+    const numSource = formulaNumCounters.length > 0 ? formulaNumCounters : resolvedCounters;
+    const denSource = formulaDenCounters.length > 0 ? formulaDenCounters : [];
+
+    const numC = numSource.map(name => ({
       name, tag: 'NUM' as const, source: explain.vendor, aggregation: 'SUM',
     }));
-    const denC = extractCounters(explain.denominator).map(name => ({
+    const denC = denSource.map(name => ({
       name, tag: 'DEN' as const, source: explain.vendor, aggregation: 'SUM',
     }));
-    setCounterInfos([...numC, ...denC]);
+    const merged = [...numC, ...denC].filter((counter, index, arr) =>
+      arr.findIndex((item) => item.name === counter.name && item.tag === counter.tag) === index
+    );
+    setCounterInfos(merged);
     setHiddenCounters(new Set());
   }, [explain]);
 
@@ -829,8 +843,14 @@ const SingleKpiBreakdown: React.FC<{
           ) : (
             <div className="flex flex-col items-center justify-center h-[260px] text-muted-foreground gap-2">
               <Layers className="w-10 h-10 opacity-20" />
-              <span className="text-sm font-medium">No counter data available</span>
-              <span className="text-[10px]">Select a KPI with defined counters to see the breakdown</span>
+              <span className="text-sm font-medium">
+                {counterInfos.length === 0 ? 'No counters defined for this KPI' : 'No counter data available'}
+              </span>
+              <span className="text-[10px]">
+                {counterInfos.length === 0
+                  ? 'The KPI formula did not expose any counters in the explain response.'
+                  : 'No counter timeseries was returned for the selected period and filters.'}
+              </span>
             </div>
           )}
         </div>
