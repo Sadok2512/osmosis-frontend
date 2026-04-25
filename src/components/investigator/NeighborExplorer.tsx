@@ -55,6 +55,27 @@ const NeighborExplorer: React.FC = () => {
   const [data, setData] = useState<ExploreResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [plaqueOpts, setPlaqueOpts] = useState<string[]>([]);
+  const [dorOpts, setDorOpts] = useState<string[]>([]);
+
+  // Load Plaque / DOR values from backend catalog
+  useEffect(() => {
+    let aborted = false;
+    fetch(getApiUrl('monitor/catalog/filters'), { headers: getApiHeaders() })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (aborted || !data) return;
+        const items = Array.isArray(data) ? data : (data.filters || data.data || []);
+        const map: Record<string, string[]> = {};
+        for (const f of items) {
+          if (f && f.id) map[f.id] = Array.isArray(f.values) ? f.values : [];
+        }
+        setPlaqueOpts((map.plaque ?? map.cluster ?? []).filter(Boolean).sort());
+        setDorOpts((map.dor ?? []).filter(Boolean).sort());
+      })
+      .catch(err => console.warn('[NeighborExplorer] catalog load failed', err));
+    return () => { aborted = true; };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
