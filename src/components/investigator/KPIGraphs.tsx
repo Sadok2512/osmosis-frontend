@@ -583,9 +583,10 @@ const PivotTableWidgetBody: React.FC<{
   const safePage = Math.min(currentPage, totalPages - 1);
   const startIdx = safePage * pageSize;
   const pageRows = rows.slice(startIdx, startIdx + pageSize);
+  const FOOTER_H = 36;
   return (
     <div className="flex flex-col" style={{ maxHeight }}>
-      <div className="overflow-auto rounded-xl border border-slate-200/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex-1">
+      <div className="overflow-auto rounded-xl border border-slate-200/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex-1 min-h-0" style={{ maxHeight: maxHeight - FOOTER_H }}>
         <table className="w-full text-[11px] border-collapse">
           <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
             <tr className="border-b border-slate-200/80">
