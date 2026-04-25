@@ -3,7 +3,7 @@
  * Filters: vendor, techno, site, relation type. Split by target band.
  * Graph + CSV export.
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Search, Download, Loader2, ArrowRightLeft, Filter } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
@@ -55,6 +55,27 @@ const NeighborExplorer: React.FC = () => {
   const [data, setData] = useState<ExploreResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [plaqueOpts, setPlaqueOpts] = useState<string[]>([]);
+  const [dorOpts, setDorOpts] = useState<string[]>([]);
+
+  // Load Plaque / DOR values from backend catalog
+  useEffect(() => {
+    let aborted = false;
+    fetch(getApiUrl('monitor/catalog/filters'), { headers: getApiHeaders() })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (aborted || !data) return;
+        const items = Array.isArray(data) ? data : (data.filters || data.data || []);
+        const map: Record<string, string[]> = {};
+        for (const f of items) {
+          if (f && f.id) map[f.id] = Array.isArray(f.values) ? f.values : [];
+        }
+        setPlaqueOpts((map.plaque ?? map.cluster ?? []).filter(Boolean).sort());
+        setDorOpts((map.dor ?? []).filter(Boolean).sort());
+      })
+      .catch(err => console.warn('[NeighborExplorer] catalog load failed', err));
+    return () => { aborted = true; };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -169,21 +190,43 @@ const NeighborExplorer: React.FC = () => {
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Plaque</label>
-          <input
-            value={plaque}
-            onChange={e => setPlaque(e.target.value)}
-            placeholder="Plaque..."
-            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
-          />
+          {plaqueOpts.length > 0 ? (
+            <select
+              value={plaque}
+              onChange={e => setPlaque(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-36"
+            >
+              <option value="">All ({plaqueOpts.length})</option>
+              {plaqueOpts.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          ) : (
+            <input
+              value={plaque}
+              onChange={e => setPlaque(e.target.value)}
+              placeholder="Plaque..."
+              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
+            />
+          )}
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">DOR</label>
-          <input
-            value={dor}
-            onChange={e => setDor(e.target.value)}
-            placeholder="DOR..."
-            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
-          />
+          {dorOpts.length > 0 ? (
+            <select
+              value={dor}
+              onChange={e => setDor(e.target.value)}
+              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-36"
+            >
+              <option value="">All ({dorOpts.length})</option>
+              {dorOpts.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          ) : (
+            <input
+              value={dor}
+              onChange={e => setDor(e.target.value)}
+              placeholder="DOR..."
+              className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-32"
+            />
+          )}
         </div>
         <div>
           <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Type</label>
