@@ -19,7 +19,7 @@ import InvestigatorAIPanel from './InvestigatorAIPanel';
 import InvestigatorDataTable from './InvestigatorDataTable';
 import InvestigatorSaveLoadBar from './InvestigatorSaveLoadBar';
 import InvestigatorTabBar from './InvestigatorTabBar';
-import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity } from './types';
+import { GraphSlot, DEFAULT_GRAPH_CONFIG, GraphConfig, WorstElement, WidgetType, KpiDefinition, Granularity, normalizeGranularity, InvestigationState } from './types';
 import { fetchKpiDefinitions, fetchWorstByDOR, fetchWorstCellsDirect, fetchFilterValues, fetchCellDetails, resolveSlotContext, fetchTimeSeriesForSlot } from './investigatorApi';
 import {
   Maximize2, Minimize2, AlertTriangle, Activity, Square, Columns2,
@@ -39,7 +39,15 @@ const WIDGET_NAMES: Record<WidgetType, string> = {
   table: 'Table',
 };
 
-const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType = 'timeseries', initialFilters: Record<string, string[]> = {}): GraphSlot => ({
+type SlotTemporalTemplate = Pick<InvestigationState, 'startDate' | 'endDate' | 'granularity'>;
+
+const createSlot = (
+  index: number,
+  kpiIds: string[] = [],
+  widgetType: WidgetType = 'timeseries',
+  initialFilters: Record<string, string[]> = {},
+  temporalTemplate?: Partial<SlotTemporalTemplate>,
+): GraphSlot => ({
   id: `slot-${Date.now()}-${index}`,
   kpiIds,
   name: `${WIDGET_NAMES[widgetType]} ${index}`,
@@ -49,9 +57,9 @@ const createSlot = (index: number, kpiIds: string[] = [], widgetType: WidgetType
     // Respect DEFAULT_GRAPH_CONFIG (tableData/alarms/neighbors are OFF by default).
   },
   filters: { ...initialFilters },
-  startDate: '',
-  endDate: '',
-  granularity: '' as Granularity,
+  startDate: temporalTemplate?.startDate || '',
+  endDate: temporalTemplate?.endDate || '',
+  granularity: (temporalTemplate?.granularity || '1d') as Granularity,
   splitBy: 'None',
 });
 
@@ -198,7 +206,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       if (targetIdx < 0 && slots.length > 0) targetIdx = 0;
 
       if (targetIdx < 0) {
-        const newSlot = createSlot(1, [], 'timeseries', {});
+        const newSlot = createSlot(1, [], 'timeseries', {}, {
+          startDate: prev.startDate,
+          endDate: prev.endDate,
+          granularity: prev.granularity,
+        });
         newSlot.counterIds = counterNames;
         slots = [newSlot];
         setTimeout(() => setActiveSlotId(newSlot.id), 0);
@@ -227,6 +239,38 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
   const [tableDataRefreshBySlot, setTableDataRefreshBySlot] = React.useState<Record<string, number>>({});
   const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
+
+  useEffect(() => {
+    const needsBackfill = state.graphSlots.some(
+      (slot) => !slot.startDate?.trim() || !slot.endDate?.trim() || !slot.granularity,
+    );
+    if (!needsBackfill) return;
+
+    setState((prev) => {
+      let changed = false;
+      const graphSlots = prev.graphSlots.map((slot) => {
+        const nextStartDate = slot.startDate?.trim() || prev.startDate || '';
+        const nextEndDate = slot.endDate?.trim() || prev.endDate || '';
+        const nextGranularity = slot.granularity || prev.granularity || '1d';
+        if (
+          nextStartDate === slot.startDate &&
+          nextEndDate === slot.endDate &&
+          nextGranularity === slot.granularity
+        ) {
+          return slot;
+        }
+        changed = true;
+        return {
+          ...slot,
+          startDate: nextStartDate,
+          endDate: nextEndDate,
+          granularity: nextGranularity as Granularity,
+        };
+      });
+
+      return changed ? { ...prev, graphSlots } : prev;
+    });
+  }, [setState, state.graphSlots]);
 
   // If the currently selected analysis tab points to a section that is now OFF
   // on the active slot, clear it so the empty/disabled panel never shows.
@@ -876,10 +920,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               const inheritedSplit = source?.splitBy && source.splitBy !== 'None'
                 ? source.splitBy
                 : (prev.splitBy && prev.splitBy !== 'None' ? prev.splitBy : 'None');
-              const newSlot = createSlot(nextIndex, [], widgetType || 'timeseries', inheritedFilters);
-              newSlot.startDate = inheritedStart;
-              newSlot.endDate = inheritedEnd;
-              newSlot.granularity = inheritedGran;
+              const newSlot = createSlot(nextIndex, [], widgetType || 'timeseries', inheritedFilters, {
+                startDate: inheritedStart,
+                endDate: inheritedEnd,
+                granularity: inheritedGran,
+              });
               newSlot.splitBy = inheritedSplit;
               return { ...prev, graphSlots: [...prev.graphSlots, newSlot] };
             });

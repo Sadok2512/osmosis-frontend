@@ -254,6 +254,16 @@ function buildFilterColumns(filterContext?: Record<string, string[]>) {
     }));
 }
 
+function buildFilterDisplay(filterColumns: Array<{ key: string; label: string; value: string }>): string | null {
+  if (filterColumns.length === 0) return null;
+  return filterColumns.map((filterCol) => `${filterCol.label}=${filterCol.value}`).join(' | ');
+}
+
+function buildSplitDisplay(parts: Array<{ label: string; value: string }>): string | null {
+  if (parts.length === 0) return null;
+  return parts.map((part) => `${part.label}=${part.value}`).join(' | ');
+}
+
 function getSplitValues(item: RuntimeDataPoint, activeSlot?: GraphSlot | null) {
   const split1Label = detectPrimarySplitLabel(item, activeSlot);
   const split2Label = detectSecondarySplitLabel(item, activeSlot);
@@ -304,9 +314,8 @@ export function buildPivotTable(
   const rowsByKey = new Map<string, PivotTableRow>();
   const kpiSet = new Set<string>();
   const filterColumns = buildFilterColumns(filterContext);
-  const splitColumns = new Map<string, TableColumn>();
-  let fallbackDimensionLabel: string | null = null;
-  let hasExplicitSplit = false;
+  const filterDisplay = buildFilterDisplay(filterColumns);
+  let shouldShowSplitColumn = false;
 
   for (const item of tsData) {
     const time = getTimeValue(item);
@@ -318,37 +327,31 @@ export function buildPivotTable(
     const rowValues: Record<string, string | number | null> = {};
     const keyParts = [time];
 
-    for (const filterCol of filterColumns) {
-      rowValues[filterCol.key] = filterCol.value;
-      keyParts.push(filterCol.value);
+    if (filterDisplay) {
+      rowValues.filterValue = filterDisplay;
+      keyParts.push(filterDisplay);
     }
 
+    const splitParts: Array<{ label: string; value: string }> = [];
     if (splitInfo.split1Label && splitInfo.split1Value) {
-      const key = `split:${splitInfo.split1Label}`;
-      splitColumns.set(key, { key, label: splitInfo.split1Label, kind: 'split' });
-      rowValues[key] = splitInfo.split1Value;
-      keyParts.push(splitInfo.split1Value);
-      hasExplicitSplit = true;
+      splitParts.push({ label: splitInfo.split1Label, value: splitInfo.split1Value });
     }
-
     if (splitInfo.split2Label && splitInfo.split2Value) {
-      const key = `split:${splitInfo.split2Label}`;
-      if (!splitColumns.has(key)) {
-        splitColumns.set(key, { key, label: splitInfo.split2Label, kind: 'split' });
-      }
-      rowValues[key] = splitInfo.split2Value;
-      keyParts.push(splitInfo.split2Value);
-      hasExplicitSplit = true;
+      splitParts.push({ label: splitInfo.split2Label, value: splitInfo.split2Value });
     }
 
-    if (!hasExplicitSplit) {
+    if (splitParts.length > 0) {
+      const splitDisplay = buildSplitDisplay(splitParts)!;
+      rowValues.splitValue = splitDisplay;
+      keyParts.push(splitDisplay);
+    } else {
       const dimensionLabel = getFallbackDimensionLabel(item, activeSlot);
       const dimensionValue = getFallbackDimensionValue(item);
-      fallbackDimensionLabel = fallbackDimensionLabel || dimensionLabel;
-      rowValues.dimensionValue = dimensionValue;
-      keyParts.push(dimensionValue);
+      rowValues.splitValue = buildSplitDisplay([{ label: dimensionLabel, value: dimensionValue }]) || '—';
+      keyParts.push(String(rowValues.splitValue));
     }
 
+    shouldShowSplitColumn = true;
     kpiSet.add(kpiName);
 
     const rowKey = keyParts.join('__');
@@ -375,23 +378,12 @@ export function buildPivotTable(
     ]);
     kpiColumns.push(...fallbackKpis);
   }
+
   const columns: TableColumn[] = [{ key: 'time', label: 'TIME', kind: 'time' }];
-
-  filterColumns.forEach((filterCol) => {
-    columns.push({ key: filterCol.key, label: filterCol.label, kind: 'filter' });
-  });
-
-  if (splitColumns.size > 0) {
-    Array.from(splitColumns.values()).forEach((column) => columns.push(column));
-  } else if (fallbackDimensionLabel) {
-    const filterLabels = new Set(filterColumns.map((f) => f.label));
-    if (!filterLabels.has(fallbackDimensionLabel)) {
-      columns.push({ key: 'dimensionValue', label: fallbackDimensionLabel, kind: 'dimension' });
-    }
-  } else if (filterColumns.length === 0) {
-    columns.push({ key: 'dimensionValue', label: 'NE', kind: 'dimension' });
+  if (filterDisplay) columns.push({ key: 'filterValue', label: 'FILTER', kind: 'filter' });
+  if (shouldShowSplitColumn || hasTimelineContext(activeSlot, timeContext)) {
+    columns.push({ key: 'splitValue', label: 'SPLIT', kind: 'split' });
   }
-
   kpiColumns.forEach((kpi) => {
     columns.push({ key: `kpi:${kpi}`, label: kpi, kind: 'kpi' });
   });
@@ -401,37 +393,13 @@ export function buildPivotTable(
   const timeGranularity = activeSlot?.granularity || timeContext?.granularity || '1d';
   const timeline = timeStart && timeEnd ? buildTimeline(timeStart, timeEnd, timeGranularity) : [];
 
-  if (splitColumns.size > 0 && timeline.length > 0) {
-    for (const column of splitColumns.values()) {
-      for (const time of timeline) {
-        const hasTimeRow = Array.from(rowsByKey.values()).some((row) => row.rawTime === time);
-        if (hasTimeRow) continue;
-        const values: Record<string, string | number | null> = {};
-        filterColumns.forEach((filterCol) => {
-          values[filterCol.key] = filterCol.value;
-        });
-        values[column.key] = '—';
-        kpiColumns.forEach((kpi) => {
-          values[`kpi:${kpi}`] = null;
-        });
-        rowsByKey.set(`${time}__placeholder__${column.key}`, {
-          time: formatInvestigatorTime(time),
-          rawTime: time,
-          values,
-          kpiValues: Object.fromEntries(kpiColumns.map((kpi) => [kpi, null])),
-        });
-      }
-    }
-  } else if (timeline.length > 0) {
-    const dimensionColumn = columns.find((column) => column.kind === 'dimension');
+  if (timeline.length > 0) {
+    const existingTimes = new Set(Array.from(rowsByKey.values()).map((row) => row.rawTime));
     for (const time of timeline) {
-      const hasTimeRow = Array.from(rowsByKey.values()).some((row) => row.rawTime === time);
-      if (hasTimeRow) continue;
+      if (existingTimes.has(time)) continue;
       const values: Record<string, string | number | null> = {};
-      filterColumns.forEach((filterCol) => {
-        values[filterCol.key] = filterCol.value;
-      });
-      if (dimensionColumn) values[dimensionColumn.key] = '—';
+      if (filterDisplay) values.filterValue = filterDisplay;
+      if (columns.some((column) => column.key === 'splitValue')) values.splitValue = '—';
       kpiColumns.forEach((kpi) => {
         values[`kpi:${kpi}`] = null;
       });
@@ -465,4 +433,10 @@ export function buildPivotTable(
     rows,
     kpiColumns,
   };
+}
+
+function hasTimelineContext(activeSlot?: GraphSlot | null, timeContext?: TableTimeContext): boolean {
+  const timeStart = (activeSlot?.startDate && activeSlot.startDate.trim()) || (timeContext?.startDate || '').trim();
+  const timeEnd = (activeSlot?.endDate && activeSlot.endDate.trim()) || (timeContext?.endDate || '').trim();
+  return Boolean(timeStart && timeEnd);
 }

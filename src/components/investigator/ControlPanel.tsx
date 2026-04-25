@@ -2448,9 +2448,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                   kpiIds: validKeys,
                   name: `Graph ${nextIndex}`,
                   filters: {},
-                  startDate: '',
-                  endDate: '',
-                  granularity: '' as Granularity,
+                  startDate: prev.startDate || '',
+                  endDate: prev.endDate || '',
+                  granularity: (prev.granularity || '1d') as Granularity,
                   splitBy: 'None',
                   ...(hasAxisConfig ? { config: { ...DEFAULT_GRAPH_CONFIG, yAxisAssignments: axisAssign } } : {}),
                 };

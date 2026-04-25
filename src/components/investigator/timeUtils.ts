@@ -1,5 +1,43 @@
 import { Granularity, normalizeGranularity } from './types';
 
+function parseLocalTemporalInput(raw: string): Date | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const match = trimmed.match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2})(?::?(\d{2}))?(?::?(\d{2}))?)?$/,
+  );
+  if (match) {
+    const [, year, month, day, hour = '00', minute = '00', second = '00'] = match;
+    const parsed = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second),
+      0,
+    );
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+function formatLocalDateValue(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatLocalDateTimeValue(date: Date): string {
+  return `${formatLocalDateValue(date)}T${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
+}
+
 /** Get step in milliseconds for a granularity */
 export function getStepMs(gran: Granularity | string): number {
   const g = normalizeGranularity(gran);
@@ -23,9 +61,9 @@ export function normalizeTimestamp(ts: string, gran: Granularity | string): stri
 export function buildTimeline(startDate: string, endDate: string, gran: Granularity | string): string[] {
   const g = normalizeGranularity(gran);
   const step = getStepMs(g);
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
+  const start = parseLocalTemporalInput(startDate);
+  const end = parseLocalTemporalInput(endDate);
+  if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
 
   const points: string[] = [];
   const maxPoints = 3000;
@@ -34,9 +72,9 @@ export function buildTimeline(startDate: string, endDate: string, gran: Granular
   while (cur <= endMs && points.length < maxPoints) {
     const d = new Date(cur);
     if (g === '1d' || g === '1w') {
-      points.push(d.toISOString().slice(0, 10));
+      points.push(formatLocalDateValue(d));
     } else {
-      points.push(d.toISOString().slice(0, 19));
+      points.push(formatLocalDateTimeValue(d));
     }
     cur += step;
   }
@@ -50,7 +88,8 @@ export function formatAxisLabel(ts: string, gran: Granularity | string): string 
   const g = normalizeGranularity(gran);
   if (!ts) return '';
   try {
-    const d = new Date(ts);
+    const d = parseLocalTemporalInput(ts);
+    if (!d) return ts.slice(0, 10);
     if (g === '15min' || g === '1h') {
       const dd = d.getDate().toString().padStart(2, '0');
       const mon = MONTH_NAMES[d.getMonth()];
@@ -82,10 +121,10 @@ function getWeekNumber(d: Date): number {
 
 /** Format ISO datetime for shortcuts */
 export function formatDateTime(d: Date): string {
-  return d.toISOString().slice(0, 19);
+  return formatLocalDateTimeValue(d);
 }
 
 /** Format date-only */
 export function formatDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return formatLocalDateValue(d);
 }
