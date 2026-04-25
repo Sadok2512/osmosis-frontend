@@ -1566,7 +1566,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
             {/* Apply button */}
             <Button
-              onClick={onApply}
+              onClick={handleApplyGuarded}
               size="sm"
               disabled={!Object.values(effectiveFilters).some(v => v.length > 0) || isApplying}
               className={cn(
