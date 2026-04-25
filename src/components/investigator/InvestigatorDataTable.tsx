@@ -78,8 +78,8 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
   );
 
   const { rows, kpiColumns, columns } = useMemo(
-    () => buildPivotTable(tableData, activeSlot, filterContext),
-    [tableData, activeSlot, filterContext]
+    () => buildPivotTable(tableData, activeSlot, filterContext, investigatorState),
+    [tableData, activeSlot, filterContext, investigatorState]
   );
 
   useEffect(() => {
@@ -143,7 +143,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
     URL.revokeObjectURL(url);
   };
 
-  if (tableData.length === 0 || rows.length === 0) {
+  if (rows.length === 0) {
     const hasNoKpis =
       (!activeSlot?.kpiIds || activeSlot.kpiIds.length === 0) &&
       (!(activeSlot as GraphSlot & { counterIds?: string[] })?.counterIds ||

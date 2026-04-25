@@ -1,4 +1,5 @@
 import type { DataPoint, GraphSlot } from './types';
+import { buildTimeline } from './timeUtils';
 
 export type RuntimeDataPoint = DataPoint & {
   _slotId?: string;
@@ -51,6 +52,12 @@ export interface PivotTableResult {
   columns: TableColumn[];
   rows: PivotTableRow[];
   kpiColumns: string[];
+}
+
+interface TableTimeContext {
+  startDate?: string;
+  endDate?: string;
+  granularity?: string;
 }
 
 const FILTER_EXCLUDE = new Set([
@@ -292,6 +299,7 @@ export function buildPivotTable(
   tsData: RuntimeDataPoint[],
   activeSlot?: GraphSlot | null,
   filterContext?: Record<string, string[]>,
+  timeContext?: TableTimeContext,
 ): PivotTableResult {
   const rowsByKey = new Map<string, PivotTableRow>();
   const kpiSet = new Set<string>();
@@ -360,6 +368,13 @@ export function buildPivotTable(
   }
 
   const kpiColumns = Array.from(kpiSet);
+  if (kpiColumns.length === 0 && activeSlot) {
+    const fallbackKpis = new Set([
+      ...(activeSlot.kpiIds || []),
+      ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+    ]);
+    kpiColumns.push(...fallbackKpis);
+  }
   const columns: TableColumn[] = [{ key: 'time', label: 'TIME', kind: 'time' }];
 
   filterColumns.forEach((filterCol) => {
@@ -373,11 +388,61 @@ export function buildPivotTable(
     if (!filterLabels.has(fallbackDimensionLabel)) {
       columns.push({ key: 'dimensionValue', label: fallbackDimensionLabel, kind: 'dimension' });
     }
+  } else if (filterColumns.length === 0) {
+    columns.push({ key: 'dimensionValue', label: 'NE', kind: 'dimension' });
   }
 
   kpiColumns.forEach((kpi) => {
     columns.push({ key: `kpi:${kpi}`, label: kpi, kind: 'kpi' });
   });
+
+  const timeStart = (activeSlot?.startDate && activeSlot.startDate.trim()) || (timeContext?.startDate || '').trim();
+  const timeEnd = (activeSlot?.endDate && activeSlot.endDate.trim()) || (timeContext?.endDate || '').trim();
+  const timeGranularity = activeSlot?.granularity || timeContext?.granularity || '1d';
+  const timeline = timeStart && timeEnd ? buildTimeline(timeStart, timeEnd, timeGranularity) : [];
+
+  if (splitColumns.size > 0 && timeline.length > 0) {
+    for (const column of splitColumns.values()) {
+      for (const time of timeline) {
+        const hasTimeRow = Array.from(rowsByKey.values()).some((row) => row.rawTime === time);
+        if (hasTimeRow) continue;
+        const values: Record<string, string | number | null> = {};
+        filterColumns.forEach((filterCol) => {
+          values[filterCol.key] = filterCol.value;
+        });
+        values[column.key] = '—';
+        kpiColumns.forEach((kpi) => {
+          values[`kpi:${kpi}`] = null;
+        });
+        rowsByKey.set(`${time}__placeholder__${column.key}`, {
+          time: formatInvestigatorTime(time),
+          rawTime: time,
+          values,
+          kpiValues: Object.fromEntries(kpiColumns.map((kpi) => [kpi, null])),
+        });
+      }
+    }
+  } else if (timeline.length > 0) {
+    const dimensionColumn = columns.find((column) => column.kind === 'dimension');
+    for (const time of timeline) {
+      const hasTimeRow = Array.from(rowsByKey.values()).some((row) => row.rawTime === time);
+      if (hasTimeRow) continue;
+      const values: Record<string, string | number | null> = {};
+      filterColumns.forEach((filterCol) => {
+        values[filterCol.key] = filterCol.value;
+      });
+      if (dimensionColumn) values[dimensionColumn.key] = '—';
+      kpiColumns.forEach((kpi) => {
+        values[`kpi:${kpi}`] = null;
+      });
+      rowsByKey.set(`${time}__placeholder`, {
+        time: formatInvestigatorTime(time),
+        rawTime: time,
+        values,
+        kpiValues: Object.fromEntries(kpiColumns.map((kpi) => [kpi, null])),
+      });
+    }
+  }
 
   const rows = Array.from(rowsByKey.values())
     .sort((a, b) => {

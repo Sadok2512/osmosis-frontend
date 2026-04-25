@@ -25,7 +25,7 @@ export function buildTimeline(startDate: string, endDate: string, gran: Granular
   const step = getStepMs(g);
   const start = new Date(startDate);
   const end = new Date(endDate);
-  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return [];
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return [];
 
   const points: string[] = [];
   const maxPoints = 3000;
