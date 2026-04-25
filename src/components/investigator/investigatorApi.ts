@@ -433,6 +433,14 @@ export async function fetchTimeSeriesForSlot(
 
   const runKpiEngineQuery = async (kpiIds: string[], splitBy: string | null, splitBy2: string | null) => {
     if (kpiIds.length === 0) return [] as any[];
+    const hasSplit = Boolean(splitBy || splitBy2);
+    const normalizedPrimarySplit = splitBy?.toUpperCase() || '';
+    const normalizedSecondarySplit = splitBy2?.toUpperCase() || '';
+    const needsWideSplitLimit =
+      normalizedPrimarySplit === 'SITE'
+      || normalizedPrimarySplit === 'CELL'
+      || normalizedSecondarySplit === 'SITE'
+      || normalizedSecondarySplit === 'CELL';
     const body: Record<string, any> = {
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
@@ -441,9 +449,13 @@ export async function fetchTimeSeriesForSlot(
       filters: allFilters,
       split_by: splitBy,
       split_by_2: splitBy2,
-      top_n: 10,
       kpi_level: ctx.kpiLevel || 'CELL',
     };
+    if (hasSplit) {
+      body.top_n = needsWideSplitLimit ? 500 : 100;
+      body.page = 1;
+      body.page_size = body.top_n;
+    }
 
     const kpiEngineStart = Date.now();
     log('[Pipeline] KPI Engine START:', kpiIds, JSON.stringify({
