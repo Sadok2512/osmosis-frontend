@@ -512,6 +512,53 @@ All colors MUST be HSL.
   }
 }
 
+.selected-site-pulse-marker {
+  background: transparent;
+  border: 0;
+}
+
+.selected-site-pulse-marker .selected-site-pulse-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  background: rgba(37, 99, 235, 0.95);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+}
+
+.selected-site-pulse-marker .selected-site-pulse-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-left: -7px;
+  margin-top: -7px;
+  border-radius: 9999px;
+  border: 3px solid rgba(37, 99, 235, 0.7);
+  animation: selected-site-pulse-ring-anim 1.4s ease-out infinite;
+}
+
+@keyframes selected-site-pulse-ring-anim {
+  0% {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+  70% {
+    transform: scale(3.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(3.8);
+    opacity: 0;
+  }
+}
+
 /* Precision Architect — Map widget transparent theme: remove Leaflet's default
    white background so the map blends with the surrounding card. */
 .pa-map-transparent.leaflet-container,

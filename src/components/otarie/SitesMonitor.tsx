@@ -6794,6 +6794,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return filteredSites.filter(siteMatchesKpiLegend);
   }, [filteredSites, sectorColorMode, siteMatchesKpiLegend]);
 
+  const selectedSiteCoords = useMemo<[number, number] | null>(() => {
+    const candidate =
+      (siteDetail?.coordinates?.length === 2 ? siteDetail : null)
+      ?? (selectedSiteSnapshot?.coordinates?.length === 2 ? selectedSiteSnapshot : null)
+      ?? (selectedSiteId ? sites.find((site) => site.site_id === selectedSiteId) ?? null : null);
+    const coords = candidate?.coordinates;
+    if (!coords || coords.length !== 2) return null;
+    const [lat, lng] = coords;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return [lat, lng];
+  }, [siteDetail, selectedSiteSnapshot, selectedSiteId, sites]);
+
   // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
   // The legacy global `sectorDensityFactor` (based on total visible count) has been
@@ -8235,6 +8247,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {paramMode && !paramLoading && paramSiteMarkers.length > 0 && (
           <FitHighlightBounds coords={paramSiteMarkers.map(p => [p.latitude, p.longitude] as [number, number])} />
+        )}
+        {selectedSiteCoords && (
+          <Marker
+            position={selectedSiteCoords}
+            pane="paneParam"
+            interactive={false}
+            icon={L.divIcon({
+              className: 'selected-site-pulse-marker',
+              iconSize: [72, 72],
+              iconAnchor: [36, 36],
+              html: '<div class="selected-site-pulse-core"></div><div class="selected-site-pulse-ring"></div>',
+            })}
+          />
         )}
         {/* Parameter density heatmap overlay */}
         {paramMode && !paramLoading && paramHeatmapEnabled && paramHeatPoints.length > 0 && (
