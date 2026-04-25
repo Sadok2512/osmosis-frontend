@@ -298,7 +298,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
               const stepMs = granStr.includes('15m') ? 15*60*1000 : granStr.includes('1h') ? 3600*1000 : 86400*1000;
               const d = new Date(fromDate);
               while (d <= toDate) {
-                fullDates.push(stepMs >= 86400*1000 ? d.toISOString().slice(0, 10) : d.toISOString().slice(0, 16));
+                fullDates.push(formatLocalTimelinePoint(d, stepMs < 86400*1000));
                 d.setTime(d.getTime() + stepMs);
               }
             }
@@ -438,6 +438,13 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     </div>
   );
 };
+
+function formatLocalTimelinePoint(date: Date, includeTime: boolean): string {
+  const pad2 = (value: number) => String(value).padStart(2, '0');
+  const base = `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+  if (!includeTime) return base;
+  return `${base}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+}
 
 type PATableRequest = TableRequest & {
   _rev?: number;
