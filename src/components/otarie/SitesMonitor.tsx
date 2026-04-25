@@ -5654,6 +5654,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
   }, []);
 
+  const kpiLegendScope = kpiAnalysisLevel === 'site' ? 'site' : 'cell';
+
   const isCellVisibleForKpiLegend = useCallback((cell: CellProperties) => {
     if (sectorColorMode !== 'kpi') return true;
     // Color level filter (green/orange/red toggle)
@@ -6395,6 +6397,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const siteMatchesKpiLegend = useCallback((site: SiteSummary) => {
     if (sectorColorMode !== 'kpi' || (hiddenKpiLevels.size === 0 && !kpiValueFilterFn)) return true;
+    if (kpiLegendScope === 'site') {
+      const siteVal = getSiteKpiValue(site);
+      if (hiddenKpiLevels.has(getKpiLevel(siteVal))) return false;
+      if (kpiValueFilterFn && !kpiValueFilterFn(siteVal)) return false;
+      return true;
+    }
     const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
     const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
     const cells = (site.cells || []).filter(c =>
@@ -6440,6 +6448,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     getKpiLevel,
     getCellKpiValue,
     kpiValueFilterFn,
+    kpiLegendScope,
+    getSiteKpiValue,
   ]);
 
   const toggleBand = useCallback((band: string) => {
@@ -6616,6 +6626,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const kpiLevelCounts = useMemo(() => {
     const counts = { green: 0, orange: 0, red: 0, gray: 0 } as Record<'green'|'orange'|'red'|'gray', number>;
     if (sectorColorMode !== 'kpi') return counts;
+    if (kpiLegendScope === 'site') {
+      for (const s of mapFilteredSites) {
+        const val = getSiteKpiValue(s);
+        counts[getKpiLevel(val)]++;
+      }
+      return counts;
+    }
     const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
     const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
     for (const s of mapFilteredSites) {
@@ -6631,7 +6648,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
     return counts;
-  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande]);
+  }, [mapFilteredSites, sectorColorMode, kpiValues, mapKpi, getKpiLevel, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive, activeDashboardFilters, localTechno, localBande, kpiLegendScope, getSiteKpiValue]);
 
   // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
@@ -8659,7 +8676,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (isIndoor) {
             const { has2G, has3G, has4G, has5G } = inferSiteTechState(renderSiteForCells);
             const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
-            const kpiColor = renderSiteCells.length > 0 ? getKpiColor(getCellKpiValue(renderSiteCells[0])) : getKpiColor(kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? site.qoe_score_avg ?? NaN);
+            const kpiColor = getKpiColor(getSiteKpiValue(site));
             const colorViewOverrideIndoor = getColorViewFill(site);
             const color = colorViewOverrideIndoor || ((sectorColorMode as string) === 'topo' ? topoColor : kpiColor);
             const iconSize = Math.min(32, Math.max(18, (Math.min(viewport.zoom, 13) - 12) * 6 + 18));
@@ -10661,7 +10678,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       key={level}
                       onClick={() => toggleKpiLevel(level)}
                       className={`flex items-center gap-2 w-full px-1.5 py-1 rounded-md transition-all cursor-pointer hover:bg-muted/50 ${hidden ? 'opacity-35' : ''}`}
-                      title={hidden ? `Afficher ${qualifier || label} (${count} cellules)` : `Masquer ${qualifier || label} (${count} cellules)`}
+                      title={hidden ? `Afficher ${qualifier || label} (${count} ${kpiLegendScope === 'site' ? 'sites' : 'cellules'})` : `Masquer ${qualifier || label} (${count} ${kpiLegendScope === 'site' ? 'sites' : 'cellules'})`}
                     >
                       <span className="w-3 h-3 rounded-full shrink-0 relative" style={{ background: color }}>
                         {hidden && <X size={8} className="absolute inset-0 m-auto text-white" />}
