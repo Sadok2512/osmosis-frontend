@@ -5656,14 +5656,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const kpiLegendScope = kpiAnalysisLevel === 'site' ? 'site' : 'cell';
 
-  const isCellVisibleForKpiLegend = useCallback((cell: CellProperties) => {
+  const isCellVisibleForKpiLegend = useCallback((cell: CellProperties, parentSiteName?: string) => {
     if (sectorColorMode !== 'kpi') return true;
     // Color level filter (green/orange/red toggle)
-    if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(cell)))) return false;
+    const cellValue = getCellKpiValue(cell, parentSiteName);
+    if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(cellValue))) return false;
     // Value filter (e.g., ">98")
     if (kpiValueFilterFn) {
-      const val = getCellKpiValue(cell);
-      if (!kpiValueFilterFn(val)) return false;
+      if (!kpiValueFilterFn(cellValue)) return false;
     }
     return true;
   }, [sectorColorMode, hiddenKpiLevels, getKpiLevel, getCellKpiValue, kpiValueFilterFn]);
@@ -6428,8 +6428,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     return cells.some(c => {
-      if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(getCellKpiValue(c)))) return false;
-      if (kpiValueFilterFn && !kpiValueFilterFn(getCellKpiValue(c))) return false;
+      const siteName = site.site_name || site.site_id || '';
+      const value = getCellKpiValue(c, siteName);
+      if (hiddenKpiLevels.size > 0 && hiddenKpiLevels.has(getKpiLevel(value))) return false;
+      if (kpiValueFilterFn && !kpiValueFilterFn(value)) return false;
       return true;
     });
   }, [
@@ -6643,7 +6645,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       } else {
         for (const c of cells) {
           if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, s.vendor)) continue;
-          counts[getKpiLevel(getCellKpiValue(c))]++;
+          counts[getKpiLevel(getCellKpiValue(c, s.site_name || s.site_id || ''))]++;
         }
       }
     }
@@ -8308,7 +8310,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (!tech) continue;
               if (sectorColorMode === 'kpi') {
                 if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashboardActive ? activeDashboardFilters?.bande ?? null : null, dashboardActive ? activeDashboardFilters?.techno ?? null : null, localTechno, localBande, kpiOverlayVendor, site.vendor)) continue;
-                if (!isCellVisibleForKpiLegend(cell)) continue;
+                if (!isCellVisibleForKpiLegend(cell, site.site_name || site.site_id || '')) continue;
               } else {
                 if (tech === '2G' && !enabledTechnos.has('2G')) continue;
                 if (tech === '3G' && !enabledTechnos.has('3G')) continue;
@@ -8367,7 +8369,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     localBande,
                     kpiOverlayVendor,
                     site.vendor,
-                  ) && isCellVisibleForKpiLegend(cell),
+                  ) && isCellVisibleForKpiLegend(cell, site.site_name || site.site_id || ''),
                 )
               : renderCells;
 
@@ -9016,7 +9018,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const detailCells = sectorColorMode === 'kpi'
             ? baseDetailCells.filter(cell => {
                 const overlay = isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor);
-                const legend = isCellVisibleForKpiLegend(cell);
+                const legend = isCellVisibleForKpiLegend(cell, site.site_name || site.site_id || '');
                 return overlay && legend;
               })
             : baseDetailCells;
