@@ -7836,6 +7836,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </Tooltip>
           </Marker>
         ))}
+
+        {/* ── Persisted Tagged Polygons (per active dashboard) ── */}
+        {taggedPolygons.map(poly => (
+          <Polygon
+            key={poly.id}
+            positions={poly.points}
+            pathOptions={{
+              color: 'hsl(280, 70%, 55%)',
+              weight: 2,
+              fillColor: 'hsl(280, 70%, 55%)',
+              fillOpacity: 0.08,
+              dashArray: '4 4',
+            }}
+          >
+            <Tooltip direction="center" opacity={0.95} sticky>
+              <div className="text-[11px] font-semibold">{poly.name}</div>
+              <div className="text-[10px] text-muted-foreground">
+                {poly.fmtArea} · {poly.fmtPerimeter}
+              </div>
+            </Tooltip>
+          </Polygon>
+        ))}
+
         {/* ── Search coordinate marker ── */}
         {searchCoordMarker && (
           <Marker
