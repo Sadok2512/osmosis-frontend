@@ -39,6 +39,8 @@ export interface GraphConfig {
   showAlarms: boolean;
   showNeighbors: boolean;
   showCmHistory: boolean;
+  /** Highlight Saturday/Sunday with a subtle vertical band. Default true. */
+  showWeekend?: boolean;
   fillStyle?: 'none' | 'gradient' | 'solid';
   legendPosition?: 'bottom' | 'right' | 'hidden';
   background?: 'transparent' | 'light' | 'dark';
