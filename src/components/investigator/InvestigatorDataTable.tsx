@@ -228,7 +228,7 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
 
               return (
                 <tr
-                  key={`${row.time}-${row.dimensionValue}-${absIdx}`}
+                  key={`${row.rawTime}-${absIdx}`}
                   className="border-b border-border/15 hover:bg-muted/30 transition-colors group"
                 >
                   {columns.map((column) => {
