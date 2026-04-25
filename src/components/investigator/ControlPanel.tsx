@@ -1237,6 +1237,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const currentStartDateRaw = (activeSlot?.startDate && activeSlot.startDate.trim()) || state.startDate;
   const currentEndDateRaw = (activeSlot?.endDate && activeSlot.endDate.trim()) || state.endDate;
   const currentGranularity = activeSlot?.granularity || state.granularity;
+  const [granularityOpen, setGranularityOpen] = useState(false);
 
   const updateTemporalContext = (
     nextStart: string,
