@@ -3,7 +3,7 @@ import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Type, Palette,
 } from 'lucide-react';
-import { DynWidget, ChartWidgetConfig, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG } from '../types';
+import { DynWidget, ChartWidgetConfig, DEFAULT_HERO_CONFIG, DEFAULT_STAT_CONFIG, DEFAULT_DIVIDER_CONFIG, MapFilterChip, MapWidgetConfig } from '../types';
 import PAEChart from './PAEChart';
 import PAMapWidget from './PAMapWidget';
 import PATableWidget from './PATableWidget';
@@ -11,7 +11,7 @@ import PAHeroWidget from './PAHeroWidget';
 import PAStatWidget from './PAStatWidget';
 import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
-import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { selectToolbarSnapshot, usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
 
 interface Props {
@@ -330,9 +330,21 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
   // (per-widget OR global). Before that, show a placeholder instead of auto-loading.
   const widgetRev = w.appliedRev ?? 0;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
-  const mapCfg = hasBeenApplied
+  const toolbar = selectToolbarSnapshot(global);
+  const rawMapCfg = hasBeenApplied
     ? (w.appliedMapConfig ?? w.mapConfig)
     : undefined;
+  const mapCfg = useMemo<MapWidgetConfig | undefined>(() => {
+    if (!rawMapCfg) return undefined;
+    if (rawMapCfg.inheritFromDashboard === false) return rawMapCfg;
+    return {
+      ...rawMapCfg,
+      filters: mergeMapFilters(
+        mapToolbarFiltersFromSnapshot(toolbar.technos, toolbar.filters),
+        rawMapCfg.filters,
+      ),
+    };
+  }, [rawMapCfg, toolbar]);
   const mode = mapCfg?.displayMode ?? 'sites';
   // Force remount when either local or global Apply is bumped, so PAMapWidget
   // picks up the freshest config (theme, mapType, filters, layers).
@@ -359,6 +371,75 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
       </div>
     </div>
   );
+}
+
+function normalizeMapDimension(dimension: string): string {
+  const normalized = toBackendDimension(dimension);
+  if (normalized === 'RAT') return 'TECHNO';
+  if (normalized === 'VENDOR') return 'VENDOR';
+  if (normalized === 'DOR') return 'DOR';
+  if (normalized === 'CELL') return 'CELL';
+  if (normalized === 'SITE') return 'SITE';
+  if (normalized === 'ZONE_ARCEP') return 'ARCEP';
+  if (normalized === 'BAND') return 'BANDE';
+  if (normalized === 'CLUSTER') return 'PLAQUE';
+  return normalized.toUpperCase();
+}
+
+function mapToolbarFiltersFromSnapshot(technos: string[], filters: { dimension: string; value: string }[]): MapFilterChip[] {
+  const grouped = new Map<string, Set<string>>();
+  for (const filter of filters) {
+    const dimension = normalizeMapDimension(filter.dimension);
+    const values = grouped.get(dimension) ?? new Set<string>();
+    values.add(filter.value);
+    grouped.set(dimension, values);
+  }
+
+  const normalizedTechnos = technos.map((tech) => tech.toUpperCase());
+  const allTechsSelected = normalizedTechnos.length >= 4
+    && ['2G', '3G', '4G', '5G'].every((tech) => normalizedTechnos.includes(tech));
+  if (normalizedTechnos.length > 0 && !allTechsSelected) {
+    const values = grouped.get('TECHNO') ?? new Set<string>();
+    normalizedTechnos.forEach((tech) => values.add(tech));
+    grouped.set('TECHNO', values);
+  }
+
+  return Array.from(grouped.entries()).map(([dimension, values], index) => ({
+    id: `toolbar-${dimension}-${index}`,
+    dimension,
+    values: Array.from(values),
+  }));
+}
+
+function mergeMapFilters(base: MapFilterChip[], overrides: MapFilterChip[]): MapFilterChip[] {
+  const merged = new Map<string, MapFilterChip>();
+
+  for (const filter of base) {
+    merged.set(normalizeMapDimension(filter.dimension), {
+      ...filter,
+      dimension: normalizeMapDimension(filter.dimension),
+      values: Array.from(new Set(filter.values)),
+    });
+  }
+
+  for (const filter of overrides) {
+    const dimension = normalizeMapDimension(filter.dimension);
+    const uniqueValues = Array.from(new Set(filter.values));
+    const existing = merged.get(dimension);
+    if (!existing || existing.values.length === 0) {
+      merged.set(dimension, { ...filter, dimension, values: uniqueValues });
+      continue;
+    }
+    if (uniqueValues.length === 0) continue;
+    const nextValues = existing.values.filter((value) => uniqueValues.includes(value));
+    merged.set(dimension, {
+      ...filter,
+      dimension,
+      values: nextValues.length > 0 ? nextValues : ['__PA_NO_MATCH__'],
+    });
+  }
+
+  return Array.from(merged.values());
 }
 
 /* ---------- Chart widget with backend integration ---------- */

@@ -18,6 +18,7 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { formatLocalDateTimeInput } from '../lib/localDateTime';
 
 interface Props {
   widget: DynWidget;
@@ -758,7 +759,7 @@ function TimeFiltersToolbar({
     if (preset !== 'custom' && cfg?.days) {
       const to = new Date(tr.to || new Date().toISOString());
       const from = new Date(to.getTime() - cfg.days * 86400000);
-      patchData({ timeRange: { ...tr, preset, from: from.toISOString().slice(0, 16), to: to.toISOString().slice(0, 16) } });
+      patchData({ timeRange: { ...tr, preset, from: formatLocalDateTimeInput(from), to: formatLocalDateTimeInput(to) } });
     } else {
       patchData({ timeRange: { ...tr, preset } });
     }

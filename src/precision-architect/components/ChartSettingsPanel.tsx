@@ -18,6 +18,7 @@ import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import ColorSwatchPalette from './ColorSwatchPalette';
+import { formatLocalDateTimeInput } from '../lib/localDateTime';
 
 interface Props {
   widget: DynWidget;
@@ -698,8 +699,8 @@ function TimeFiltersToolbar({
         timeRange: {
           ...tr,
           preset,
-          from: from.toISOString().slice(0, 16),
-          to: to.toISOString().slice(0, 16),
+          from: formatLocalDateTimeInput(from),
+          to: formatLocalDateTimeInput(to),
         },
       });
     } else {
