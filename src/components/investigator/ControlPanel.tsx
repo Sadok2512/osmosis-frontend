@@ -1601,6 +1601,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 <JalonsManagerPopup
                   jalons={state.jalons}
                   onUpdate={(jalons) => setState(prev => ({ ...prev, jalons }))}
+                  draft={jalonDraft}
+                  setDraft={setJalonDraft}
                 />
               </PopoverContent>
             </Popover>
