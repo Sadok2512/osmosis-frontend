@@ -67,7 +67,7 @@ function escapeCsv(value: string | number | null | undefined): string {
   return text;
 }
 
-const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterContext }) => {
+const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterContext, investigatorState }) => {
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
