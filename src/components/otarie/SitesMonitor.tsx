@@ -9016,12 +9016,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (mapTechnoFilter === 'ALL') {
             // Group cells by band+azimuth for band-based sizing
             const cellItems: { tech: string; az: number; radius: number; bandKey: string | null; cell: typeof site.cells[0] }[] = [];
+            const dashBand = dashboardActive ? activeDashboardFilters?.bande ?? null : null;
+            const dashTechno = dashboardActive ? activeDashboardFilters?.techno ?? null : null;
             // Detect "all azimuths = 0" pattern (missing azimut data) → spread by sector number
             const allAzZero = renderSiteCells.length > 1
               && renderSiteCells.every(c => Number(c.azimut) === 0);
             for (const cell of renderSiteCells) {
               const tech = getCellTechGroup(cell.techno);
               if (!tech) continue;
+              if (sectorColorMode === 'kpi') {
+                if (!isCellVisibleForKpiOverlay(cell, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, site.vendor)) continue;
+                if (!isCellVisibleForKpiLegend(cell, site.site_name || site.site_id || '')) continue;
+              }
               let az = Number(cell.azimut);
               if (!Number.isFinite(az) || az < 0 || az > 360 || allAzZero) {
                 // Fallback: assign azimuth based on sector number (tri-sector heuristic)
