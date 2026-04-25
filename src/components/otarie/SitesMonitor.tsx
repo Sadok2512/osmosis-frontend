@@ -4485,6 +4485,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { area, perimeter, fmtArea, fmtPerimeter, sitesInside, cellsInside, siteIdsInside, siteNamesInside };
   }, [polygonClosed, polygonPoints]);
 
+  // ── Auto-tag closed polygon to active dashboard ──
+  // When a polygon is closed AND a dashboard is active, persist it as a
+  // TaggedPolygon so it appears in the left "Tagged" sidebar and survives
+  // dashboard switches. Saving as a reusable cluster (filter) is still
+  // proposed via the existing dialog and remains a separate concern.
+  const polygonAutoTaggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!polygonClosed || !polygonStats) return;
+    if (!activeDashboardIdRef.current) return;
+    // Use a fingerprint to avoid re-tagging the same closed polygon on every
+    // re-render (e.g. after sites refresh changing polygonStats).
+    const fp = polygonPoints.map(p => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join('|');
+    if (polygonAutoTaggedRef.current === fp) return;
+    polygonAutoTaggedRef.current = fp;
+    const latSum = polygonPoints.reduce((s, p) => s + p[0], 0);
+    const lngSum = polygonPoints.reduce((s, p) => s + p[1], 0);
+    const center: [number, number] = [latSum / polygonPoints.length, lngSum / polygonPoints.length];
+    addTaggedPolygon({
+      points: polygonPoints.slice() as [number, number][],
+      center,
+      fmtArea: polygonStats.fmtArea,
+      fmtPerimeter: polygonStats.fmtPerimeter,
+      sitesInside: polygonStats.sitesInside,
+      cellsInside: polygonStats.cellsInside,
+    });
+  }, [polygonClosed, polygonStats, polygonPoints, addTaggedPolygon]);
+
+  // Reset auto-tag fingerprint whenever the polygon tool clears (so a brand
+  // new polygon can be tagged again).
+  useEffect(() => {
+    if (!polygonClosed && polygonPoints.length === 0) {
+      polygonAutoTaggedRef.current = null;
+    }
+  }, [polygonClosed, polygonPoints.length]);
+
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
     : viewport.zoom <= CELLS_TO_SITES_ZOOM
