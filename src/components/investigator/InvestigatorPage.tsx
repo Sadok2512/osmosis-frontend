@@ -1412,7 +1412,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                       layout={state.graphLayout}
                       dateFrom={activeSnapshot?.startDate || activeSlot.startDate || state.startDate}
                       dateTo={activeSnapshot?.endDate || activeSlot.endDate || state.endDate}
-                      granularity={activeSnapshot?.granularity || activeSlot.granularity || state.granularity}
+                      granularity={(activeSnapshot?.granularity as any) || activeSlot.granularity || state.granularity}
                       filters={Object.entries(activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
