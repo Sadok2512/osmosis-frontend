@@ -5,9 +5,10 @@
  */
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Search, Download, Loader2, ArrowRightLeft, Filter } from 'lucide-react';
+import { Search, Download, Loader2, ArrowRightLeft, Filter, ChevronDown } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
+import { MultiSelectPopover } from '@/components/parameter-hub/MultiSelectPopover';
 
 interface NeighborEntry {
   source_cell: string;
