@@ -1086,13 +1086,8 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
               // Neighbors moved to Network Explorer
               { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
             ];
-            const visibleTabs = activeSlot
-              ? allTabs.filter((tab) => {
-                  const cfgKey = configKeyMap[tab.key];
-                  return cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true;
-                })
-              : [];
-
+            // All tabs stay visible (clean design). Disabled ones are dimmed
+            // and their content area shows a placeholder instead of data.
             return (
               <div className="sticky top-[52px] z-20 bg-white/95 backdrop-blur-sm mb-5 border-b border-slate-200/70">
                 <div className="flex items-center gap-1.5 px-1 py-2 overflow-x-auto">
@@ -1104,8 +1099,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   {activeSlot && allTabs.map((tab) => {
                     const cfgKey = configKeyMap[tab.key];
                     const enabled = cfgKey ? Boolean((activeConfig as any)[cfgKey]) : true;
-                    // Hide tabs whose section is OFF on the active slot.
-                    if (!enabled) return null;
                     const isActive = analysisTab === tab.key;
                     return (
                       <button
@@ -1114,35 +1107,42 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         onClick={() => {
                           const newTab = isActive ? null : tab.key;
                           setAnalysisTab(newTab);
-                          if (newTab && activeSlot) {
+                          if (newTab && enabled && activeSlot) {
                             const snap = buildSnapshot(activeSlot, state);
                             analysisTabs.ensureTab(newTab, activeSlotId, snap);
                           }
-                          if (newTab === 'top_worst' && worstElements.length === 0 && !isLoadingWorst) {
+                          if (newTab === 'top_worst' && enabled && worstElements.length === 0 && !isLoadingWorst) {
                             handleFindWorst();
                           }
                         }}
-                        title={tab.label}
+                        title={enabled ? tab.label : `${tab.label} — désactivé. Activez le toggle dans les réglages du graphe.`}
                         className={cn(
                           'relative flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all duration-150 whitespace-nowrap border',
                           isActive
                             ? 'bg-white text-slate-900 border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_4px_12px_-4px_rgba(15,23,42,0.08)]'
-                            : 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                            : enabled
+                              ? 'border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                              : 'border-transparent text-slate-300 hover:text-slate-500 hover:bg-slate-50/50'
                         )}
                         style={isActive ? { boxShadow: `inset 0 -2px 0 0 ${tab.color}, 0 1px 2px rgba(15,23,42,0.04), 0 4px 12px -4px rgba(15,23,42,0.08)` } : undefined}
                       >
                         <tab.icon
-                          className="w-3.5 h-3.5 transition-colors"
+                          className={cn('w-3.5 h-3.5 transition-colors', !enabled && !isActive && 'opacity-50')}
                           style={isActive ? { color: tab.color } : undefined}
                         />
-                        <span>{tab.label}</span>
-                        {tab.key === 'table_data' && (
+                        <span className={cn(!enabled && !isActive && 'opacity-60')}>{tab.label}</span>
+                        {tab.key === 'table_data' && enabled && (
                           <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[8px] font-bold bg-primary/10 text-primary border border-primary/25 uppercase tracking-wider">
                             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
                             Actif
                           </span>
                         )}
-                        {isActive && analysisTabs.getSection(tab.key).instances.length > 0 && (
+                        {!enabled && (
+                          <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-bold bg-slate-100 text-slate-400 border border-slate-200 uppercase tracking-wider">
+                            Off
+                          </span>
+                        )}
+                        {isActive && enabled && analysisTabs.getSection(tab.key).instances.length > 0 && (
                           <span className="ml-1 text-[9px] text-slate-400">
                             ({analysisTabs.getSection(tab.key).instances.length})
                           </span>
