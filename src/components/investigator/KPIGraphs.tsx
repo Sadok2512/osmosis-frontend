@@ -564,8 +564,99 @@ const getPivotTableWidgetData = (slot: GraphSlot, data: DataPoint[]) => {
   const pivot = buildPivotTable(sanitized, slot, slot.filters || {});
   return {
     columns: pivot.columns,
-    rows: pivot.rows.slice(0, 80),
+    rows: pivot.rows,
   };
+};
+
+/* Paginated inline pivot-table widget — shows ALL rows across pages */
+const PAGE_SIZES_INLINE = [25, 50, 100, 200];
+const PivotTableWidgetBody: React.FC<{
+  columns: ReturnType<typeof buildPivotTable>['columns'];
+  rows: ReturnType<typeof buildPivotTable>['rows'];
+  maxHeight: number;
+}> = ({ columns, rows, maxHeight }) => {
+  const [pageSize, setPageSize] = useState(50);
+  const [currentPage, setCurrentPage] = useState(0);
+  useEffect(() => { setCurrentPage(0); }, [pageSize, rows.length]);
+  const totalRows = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const startIdx = safePage * pageSize;
+  const pageRows = rows.slice(startIdx, startIdx + pageSize);
+  return (
+    <div className="flex flex-col" style={{ maxHeight }}>
+      <div className="overflow-auto rounded-xl border border-slate-200/80 bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex-1">
+        <table className="w-full text-[11px] border-collapse">
+          <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+            <tr className="border-b border-slate-200/80">
+              {columns.map((column) => (
+                <th
+                  key={column.key}
+                  className={cn(
+                    'px-3 py-2.5 font-bold uppercase tracking-[0.12em] text-[10px]',
+                    column.kind === 'time' ? 'text-left text-slate-500' : '',
+                    column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                    (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                  )}
+                >
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {pageRows.map((row, idx) => (
+              <tr key={`${row.rawTime}-${startIdx + idx}`} className={cn('border-b border-slate-100/90 hover:bg-[#14746C]/[0.045]', idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/35')}>
+                {columns.map((column) => {
+                  if (column.key === 'time') {
+                    return (
+                      <td key={column.key} className="px-3 py-2.5 whitespace-nowrap tabular-nums text-slate-500 font-medium">
+                        {row.time}
+                      </td>
+                    );
+                  }
+                  if (column.kind === 'kpi') {
+                    return (
+                      <td key={column.key} className="px-3 py-2.5 text-right tabular-nums font-semibold text-slate-900">
+                        {formatInvestigatorValue((row.values[column.key] as number | null | undefined) ?? null)}
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={column.key} className="px-3 py-2.5">
+                      <span className={cn('inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold border shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]', TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS, 'border-[#14746C]/15')}>
+                        {String(row.values[column.key] ?? '—')}
+                      </span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Pagination footer */}
+      <div className="flex items-center justify-between gap-2 px-2 py-1.5 mt-2 text-[10px] text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-2">
+          <span>{totalRows.toLocaleString('fr-FR')} lignes</span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="bg-white border border-slate-200 rounded px-1.5 py-0.5 text-[10px] focus:outline-none focus:ring-1 focus:ring-[#14746C]/40"
+          >
+            {PAGE_SIZES_INLINE.map((s) => <option key={s} value={s}>{s} / page</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          <button disabled={safePage === 0} onClick={() => setCurrentPage(0)} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronsLeft className="w-3 h-3" /></button>
+          <button disabled={safePage === 0} onClick={() => setCurrentPage((p) => Math.max(0, p - 1))} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronLeft className="w-3 h-3" /></button>
+          <span className="px-2 tabular-nums font-medium text-foreground">{safePage + 1} / {totalPages}</span>
+          <button disabled={safePage >= totalPages - 1} onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronRight className="w-3 h-3" /></button>
+          <button disabled={safePage >= totalPages - 1} onClick={() => setCurrentPage(totalPages - 1)} className="p-1 rounded hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed"><ChevronsRight className="w-3 h-3" /></button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 /** Inline Counter Timeseries widget — fetches and renders PM counter data */
