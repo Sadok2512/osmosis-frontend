@@ -1769,28 +1769,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
         const markLineData = jalonMarkLineData;
 
-        // Weekend highlighting — build markArea data
-        const weekendAreas: { xAxis: string }[][] = [];
-        let inWeekend = false;
-        for (let ti = 0; ti < allTimestamps.length; ti++) {
-          const day = new Date(allTimestamps[ti]).getDay(); // 0=Sun, 6=Sat
-          const isWE = day === 0 || day === 6;
-          if (isWE && !inWeekend) {
-            weekendAreas.push([{ xAxis: allTimestamps[ti] }, { xAxis: allTimestamps[ti] }]);
-            inWeekend = true;
-          } else if (isWE && inWeekend) {
-            weekendAreas[weekendAreas.length - 1][1] = { xAxis: allTimestamps[ti] };
-          } else {
-            inWeekend = false;
-          }
-        }
-
-        const weekendMarkAreaData = weekendAreas.map(([start, end]) => [{
-          xAxis: start.xAxis,
-          itemStyle: { color: 'rgba(148,163,184,0.12)' },
-        }, {
-          xAxis: end.xAxis,
-        }]);
+        // Weekend highlighting — granularity-aware (skip weekly+, single-day for daily,
+        // contiguous bands for sub-daily). Honors per-slot showWeekend toggle (default ON).
+        const weekendMarkAreaData = (cfg.showWeekend !== false)
+          ? buildWeekendMarkAreas(allTimestamps, slotGranularity)
+          : [];
 
         // Combine weekend + jalon areas (jalons rendered above weekends)
         const markAreaData = [...weekendMarkAreaData, ...jalonMarkAreaData];
