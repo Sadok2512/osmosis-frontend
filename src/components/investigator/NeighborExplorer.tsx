@@ -216,104 +216,154 @@ const NeighborExplorer: React.FC = () => {
 
   return (
     <div className="space-y-4 p-4">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-end">
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Vendor</label>
-          <select value={vendor} onChange={e => setVendor(e.target.value)} className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold">
-            <option value="">All</option>
-            <option value="Nokia">Nokia</option>
-            <option value="Ericsson">Ericsson</option>
-          </select>
+      {/* Filters — chip-based, Investigator-style */}
+      <div className="flex flex-wrap gap-1.5 items-center">
+        <div className="flex items-center gap-1 mr-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Filter size={11} /> Filtres
         </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Technology</label>
-          <select value={rat} onChange={e => setRat(e.target.value)} className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold">
-            <option value="">All</option>
-            <option value="LTE">LTE (4G)</option>
-            <option value="NR">NR (5G)</option>
-          </select>
+
+        {activeKeys.map(key => {
+          const def = FILTER_DEFS.find(f => f.key === key)!;
+          const vals = filters[key];
+          const opts = optionsFor(key);
+          const count = vals.length;
+          const display = count === 0 ? 'Tous' : count === 1 ? vals[0] : `${count} sélectionnés`;
+
+          // Free-text site filter: combobox with typed entries
+          if (def.freeText) {
+            return (
+              <FilterChip
+                key={key}
+                label={def.label}
+                display={display}
+                hasValue={count > 0}
+                onRemove={() => removeFilter(key)}
+                popoverContent={
+                  <div className="p-3 w-[280px] space-y-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{def.label}</div>
+                    <div className="flex gap-1">
+                      <input
+                        value={siteSearch}
+                        onChange={e => setSiteSearch(e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && siteSearch.trim()) {
+                            const v = siteSearch.trim();
+                            if (!vals.includes(v)) setFilterValues(key, [...vals, v]);
+                            setSiteSearch('');
+                          }
+                        }}
+                        placeholder="Tape un site puis Entrée…"
+                        className="flex-1 px-2 py-1.5 rounded-md border border-border bg-background text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = siteSearch.trim();
+                          if (v && !vals.includes(v)) setFilterValues(key, [...vals, v]);
+                          setSiteSearch('');
+                        }}
+                        className="px-2 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    {vals.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1 border-t border-border/40">
+                        {vals.map(v => (
+                          <span key={v} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-semibold">
+                            {v}
+                            <button onClick={() => setFilterValues(key, vals.filter(x => x !== v))}>
+                              <X size={9} />
+                            </button>
+                          </span>
+                        ))}
+                        <button
+                          onClick={() => setFilterValues(key, [])}
+                          className="text-[9px] text-muted-foreground hover:text-destructive ml-auto"
+                        >
+                          Effacer
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                }
+              />
+            );
+          }
+
+          // Standard multi-select chip
+          return (
+            <MultiSelectPopover
+              key={key}
+              title={def.label}
+              options={opts}
+              selected={vals}
+              onConfirm={(next) => setFilterValues(key, next)}
+              emptyHint={`Aucune valeur pour ${def.label}`}
+              trigger={
+                <button
+                  type="button"
+                  className={`group inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[10px] font-semibold transition-colors ${
+                    count > 0
+                      ? 'bg-primary/10 border-primary/30 text-primary hover:bg-primary/15'
+                      : 'bg-muted/30 border-border text-foreground hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="opacity-70">{def.label}:</span>
+                  <span className="truncate max-w-[120px]">{display}</span>
+                  <ChevronDown size={10} className="opacity-50" />
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); removeFilter(key); }}
+                    className="ml-0.5 -mr-0.5 p-0.5 rounded hover:bg-destructive/20 hover:text-destructive cursor-pointer"
+                  >
+                    <X size={10} />
+                  </span>
+                </button>
+              }
+            />
+          );
+        })}
+
+        {/* + Ajouter filtre */}
+        <AddFilterDropdown
+          existingKeys={activeKeys}
+          onAdd={addFilter}
+        />
+
+        {/* Effacer filtres */}
+        {activeKeys.some(k => filters[k].length > 0) && (
+          <button
+            onClick={clearAllFilters}
+            className="flex items-center gap-1 text-[9px] text-muted-foreground hover:text-destructive transition-colors ml-1"
+          >
+            <X className="w-2.5 h-2.5" /> Effacer filtres
+          </button>
+        )}
+
+        {/* Split By + Search button on the right */}
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] font-bold uppercase text-muted-foreground">Split</span>
+            <select
+              value={splitBy}
+              onChange={e => setSplitBy(e.target.value as any)}
+              className="px-2 py-1 rounded-lg border border-border bg-background text-[10px] font-semibold"
+            >
+              <option value="all">All</option>
+              <option value="target_band">Target Band</option>
+            </select>
+          </div>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-40"
+          >
+            {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+            Rechercher
+          </button>
         </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Site</label>
-          <input
-            value={siteName}
-            onChange={e => setSiteName(e.target.value)}
-            placeholder="Site name..."
-            className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs w-40"
-          />
-        </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Plaque</label>
-          <MultiSelectPopover
-            title="Plaque / Cluster"
-            options={plaqueOpts}
-            selected={plaque}
-            onConfirm={setPlaque}
-            emptyHint="No plaque available"
-            trigger={
-              <button
-                type="button"
-                className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-44 hover:bg-muted/40"
-              >
-                <span className="truncate">
-                  {plaque.length === 0
-                    ? `All (${plaqueOpts.length})`
-                    : plaque.length === 1
-                      ? plaque[0]
-                      : `${plaque.length} selected`}
-                </span>
-                <ChevronDown size={12} className="opacity-60 shrink-0" />
-              </button>
-            }
-          />
-        </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">DOR</label>
-          <MultiSelectPopover
-            title="DOR"
-            options={dorOpts}
-            selected={dor}
-            onConfirm={setDor}
-            emptyHint="No DOR available"
-            trigger={
-              <button
-                type="button"
-                className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold w-44 hover:bg-muted/40"
-              >
-                <span className="truncate">
-                  {dor.length === 0
-                    ? `All (${dorOpts.length})`
-                    : dor.length === 1
-                      ? dor[0]
-                      : `${dor.length} selected`}
-                </span>
-                <ChevronDown size={12} className="opacity-60 shrink-0" />
-              </button>
-            }
-          />
-        </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Type</label>
-          <select value={relationType} onChange={e => setRelationType(e.target.value)} className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold">
-            <option value="">All</option>
-            <option value="INTER_FREQ">Inter-Freq</option>
-            <option value="NR_INTER_FREQ">NR Inter-Freq</option>
-            <option value="NR_RELATION">NR Relation</option>
-            <option value="INTRA_FREQ">Intra-Freq</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Split By</label>
-          <select value={splitBy} onChange={e => setSplitBy(e.target.value as any)} className="px-2 py-1.5 rounded-lg border border-border bg-background text-xs font-semibold">
-            <option value="all">All</option>
-            <option value="target_band">Target Band</option>
-          </select>
-        </div>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 disabled:opacity-40"
+      </div>
         >
           {loading ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
           Rechercher
