@@ -678,7 +678,6 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
         }
         const baseConfig = {
           ...DEFAULT_GRAPH_CONFIG,
-          ...((s.widgetType || 'timeseries') === 'timeseries' ? { showDataTable: true } : {}),
           ...(s.config || {}),
         };
         return { ...s, ...slotUpdates, config: { ...baseConfig, ...configUpdates } };
