@@ -4065,6 +4065,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const selectedSiteIdRef = useRef<string | null>(null);
   useEffect(() => { selectedSiteIdRef.current = selectedSiteId; }, [selectedSiteId]);
+  const [inventoryFlashSiteId, setInventoryFlashSiteId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!selectedSiteId) return;
+    setInventoryFlashSiteId(selectedSiteId);
+    const timer = window.setTimeout(() => {
+      setInventoryFlashSiteId((current) => current === selectedSiteId ? null : current);
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [selectedSiteId]);
   const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -11946,7 +11955,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             isSelected
                               ? 'border-primary/40 bg-card shadow-lg'
                               : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
-                          }`}
+                          } ${inventoryFlashSiteId === site.site_id ? 'inventory-site-flash' : ''}`}
                         >
                           {/* Site row */}
                           <button

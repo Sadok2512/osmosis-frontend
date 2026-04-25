@@ -493,6 +493,25 @@ All colors MUST be HSL.
   100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.0); border-radius: 12px; }
 }
 
+.inventory-site-flash {
+  animation: inventory-site-flash-anim 1.4s ease-out;
+}
+
+@keyframes inventory-site-flash-anim {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.45);
+    background-color: rgba(59, 130, 246, 0.18);
+  }
+  35% {
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.18);
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    background-color: transparent;
+  }
+}
+
 /* Precision Architect — Map widget transparent theme: remove Leaflet's default
    white background so the map blends with the surrounding card. */
 .pa-map-transparent.leaflet-container,
