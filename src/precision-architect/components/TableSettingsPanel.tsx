@@ -617,21 +617,32 @@ function TimeFiltersSection({
   onApply: () => void;
 }) {
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
-  const toolbar = usePAGlobalToolbar((s) => s.applied ? {
-    technos: s.applied.technos,
-    from: s.applied.from,
-    to: s.applied.to,
-    preset: s.applied.preset,
-    grain: s.applied.grain,
-    filters: s.applied.filters,
-  } : {
-    technos: s.technos,
-    from: s.from,
-    to: s.to,
-    preset: s.preset,
-    grain: s.grain,
-    filters: s.filters,
-  });
+  // Select primitives individually to avoid creating a new object reference on every render
+  // (which would cause an infinite re-render loop with zustand's default Object.is equality).
+  const applied = usePAGlobalToolbar((s) => s.applied);
+  const sTechnos = usePAGlobalToolbar((s) => s.technos);
+  const sFrom = usePAGlobalToolbar((s) => s.from);
+  const sTo = usePAGlobalToolbar((s) => s.to);
+  const sPreset = usePAGlobalToolbar((s) => s.preset);
+  const sGrain = usePAGlobalToolbar((s) => s.grain);
+  const sFilters = usePAGlobalToolbar((s) => s.filters);
+  const toolbar = applied
+    ? {
+        technos: applied.technos,
+        from: applied.from,
+        to: applied.to,
+        preset: applied.preset,
+        grain: applied.grain,
+        filters: applied.filters,
+      }
+    : {
+        technos: sTechnos,
+        from: sFrom,
+        to: sTo,
+        preset: sPreset,
+        grain: sGrain,
+        filters: sFilters,
+      };
 
   if (inherits) {
     return (
