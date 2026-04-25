@@ -85,8 +85,8 @@ const NeighborExplorer: React.FC = () => {
       if (vendor) params.set('vendor', vendor);
       if (rat) params.set('rat', rat);
       if (siteName.trim()) params.set('site_name', siteName.trim());
-      if (plaque.trim()) params.set('plaque', plaque.trim());
-      if (dor.trim()) params.set('dor', dor.trim());
+      if (plaque.length) params.set('plaque', plaque.join(','));
+      if (dor.length) params.set('dor', dor.join(','));
       if (relationType) params.set('relation_type', relationType);
       params.set('split_by', splitBy);
 
