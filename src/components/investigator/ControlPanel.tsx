@@ -1977,7 +1977,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                             {hasSplit1Active && (
                               <Button
                                 size="sm"
-                                onClick={() => { onApply(); }}
+                                onClick={() => { handleApplyGuarded(); }}
                                 disabled={isApplying}
                                 className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
                               >
@@ -2216,7 +2216,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                           {hasSplit1Active && (
                             <Button
                               size="sm"
-                              onClick={() => { onApply(); }}
+                              onClick={() => { handleApplyGuarded(); }}
                               disabled={isApplying}
                               className="w-full mt-2 h-7 text-[10px] font-bold uppercase tracking-wider"
                             >
