@@ -731,8 +731,14 @@ const JalonsManagerPopup: React.FC<{
                 style={{ backgroundColor: c }} />
             ))}
             <div className="ml-auto flex items-center gap-1">
-              <Button size="sm" variant="ghost" className="h-5 text-[9px] px-2" onClick={() => { resetForm(); setShowForm(false); }}>Annuler</Button>
-              <Button size="sm" className="h-5 text-[9px] px-2" onClick={handleAdd} disabled={!startDate || !label}>
+              <Button size="sm" variant="ghost" className="h-5 text-[9px] px-2" onClick={() => { resetForm(); }}>Effacer</Button>
+              <Button
+                size="sm"
+                className="h-5 text-[9px] px-2"
+                onClick={handleAdd}
+                disabled={!startDate}
+                title={!startDate ? 'Sélectionnez une date de début' : 'Ajouter le jalon'}
+              >
                 <Plus className="w-3 h-3 mr-0.5" /> Ajouter
               </Button>
             </div>
