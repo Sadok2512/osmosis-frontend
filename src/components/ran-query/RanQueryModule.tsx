@@ -327,6 +327,44 @@ function buildFilterPayload(report: RanReport) {
   return { vendors, base };
 }
 
+function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
+  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
+  const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const primaryAgg = aggList.find(a => a !== 'cell') || null;
+  const splitMap: Record<string, string> = {
+    cell: 'CELL',
+    site: 'SITE',
+    band: 'BAND',
+    cluster: 'CLUSTER',
+    dor: 'DOR',
+    dr: 'DOR',
+    region: 'DOR',
+    arcep: 'ZONE_ARCEP',
+    plaque: 'PLAQUE',
+  };
+  const filters: Array<{ dimension: string; op: 'IN'; values: string[] }> = [
+    { dimension: 'VENDOR', op: 'IN', values: [vendor] },
+  ];
+  if (report.technologies.length > 0) {
+    filters.push({ dimension: 'TECHNOLOGY', op: 'IN', values: report.technologies });
+  }
+  if (report.clusters?.length) filters.push({ dimension: 'CLUSTER', op: 'IN', values: report.clusters });
+  if (report.dors?.length) filters.push({ dimension: 'DOR', op: 'IN', values: report.dors });
+  if (report.sites?.length) filters.push({ dimension: 'SITE', op: 'IN', values: report.sites });
+  if (report.zoneArcep?.length) filters.push({ dimension: 'ZONE_ARCEP', op: 'IN', values: report.zoneArcep });
+
+  return {
+    date_from,
+    date_to,
+    granularity: report.timeConfig.granularity,
+    selections: kpiKeys.map((kpi) => ({ kpi_key: kpi })),
+    filters,
+    split_by: primaryAgg ? (splitMap[primaryAgg] || primaryAgg.toUpperCase()) : null,
+    split_by_2: null,
+    kpi_level: aggList.includes('cell') ? 'CELL' : 'SITE',
+  };
+}
+
 const MAX_CONCURRENT = 4;
 
 /** Run promises with concurrency limit. */
@@ -359,13 +397,14 @@ async function executeReportApi(
   // ── Fetch KPIs (batch per vendor: 1 request per vendor with all KPI codes) ──
   const kpiTasks = kpiKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
     try {
+      const payload = buildMonitorQueryPayload(report, vendor, kpiKeys);
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 180_000);
-      const res = await fetch(getApiUrl('pm/kpi/compute-batch'), {
+      const res = await fetch(getApiUrl('monitor/query/table'), {
         method: 'POST',
         headers: getApiHeaders(),
         signal: controller.signal,
-        body: JSON.stringify({ ...base, kpi_codes: kpiKeys, vendor }),
+        body: JSON.stringify(payload),
       });
       clearTimeout(timeout);
       if (!res.ok) {
@@ -374,37 +413,32 @@ async function executeReportApi(
       }
       const data = await res.json();
       const batchResults: ReportResultRow[] = [];
-      for (const kpiResult of (data?.results || [])) {
-        if (kpiResult.skipped) continue; // Vendor mismatch — skip silently
-        // Skip internal fallback messages (not real errors)
-        const isInternalMsg = kpiResult.error && (
-          kpiResult.error.includes('ClickHouse') ||
-          kpiResult.error.includes('fallback') ||
-          kpiResult.error.includes('CH fallback')
-        );
-        if (kpiResult.error && !isInternalMsg && (!kpiResult.series || kpiResult.series.length === 0)) {
-          errors.push(`KPI ${kpiResult.kpi_code} (${vendor}): ${kpiResult.error}`);
-          continue;
-        }
-        const kpiCode = kpiResult.kpi_code || '';
-        const unit = kpiResult.unit || (kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '');
-        for (const pt of (kpiResult.series || [])) {
+      const rows = Array.isArray(data?.rows) ? data.rows : [];
+      for (const pt of rows) {
+        for (const kpiCode of kpiKeys) {
+          const rawValue = pt?.[kpiCode];
+          if (rawValue == null || rawValue === '') continue;
+          const unit = kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '';
           batchResults.push({
             kpi: kpiCode,
             vendor,
-            technology: pt.techno || report.technologies[0] || '4G',
-            timestamp: pt.ts || pt.timestamp || base.date_from as string,
-            value: Number(pt.kpi_value ?? pt.value ?? 0),
-            unit: pt.unit || unit,
-            site_name: pt.site_name,
-            cell_name: pt.cell_name || pt.ne_name || pt.split_field,
+            technology: pt.techno || pt.technology || report.technologies[0] || '4G',
+            timestamp: pt.ts || pt.timestamp || pt.date || payload.date_from,
+            value: Number(rawValue ?? 0),
+            unit,
+            site_name: pt.site_name || pt.site,
+            cell_name: pt.cell_name || pt.cell || pt.ne_name || pt.network_element,
             cluster: pt.cluster || pt.plaque,
+            plaque: pt.plaque,
             dor: pt.dor,
             band: pt.band || pt.source_band,
           });
         }
       }
-      console.log(`[RapportBuilder] KPI batch ${vendor}: ${batchResults.length} rows from ${(data?.results || []).length} KPIs`);
+      if (batchResults.length === 0 && data?.error) {
+        errors.push(`KPIs batch (${vendor}): ${data.error}`);
+      }
+      console.log(`[RapportBuilder] KPI batch ${vendor}: ${batchResults.length} rows from ${(rows || []).length} table rows`);
       return batchResults;
     } catch (err: any) {
       const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
