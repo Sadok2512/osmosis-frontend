@@ -912,6 +912,7 @@ const SingleKpiBreakdown: React.FC<{
         onToggleElement={toggleElement}
         onSelectAllElements={selectAllElements}
         onDeselectAllElements={deselectAllElements}
+        elementColorMap={elementColorMap}
       />
 
       {/* KPI Timeseries */}
