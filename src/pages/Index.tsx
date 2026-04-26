@@ -50,13 +50,6 @@ const Index: React.FC = () => {
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
   const [sites, setSites] = useState<SiteSummary[]>([]);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
-  const [accentColor, setAccentColor] = useState<AccentColor>('default');
-  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
-  const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
-  const [sites, setSites] = useState<SiteSummary[]>([]);
   const [siteSearch, setSiteSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
