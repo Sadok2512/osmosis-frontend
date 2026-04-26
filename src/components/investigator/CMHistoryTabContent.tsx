@@ -1,5 +1,6 @@
 import React from 'react';
 import CMChangesCard from './CMChangesCard';
+import BackendRequestLogPanel from './BackendRequestLogPanel';
 import type { TabContextSnapshot } from './useAnalysisTabs';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { Info } from 'lucide-react';
@@ -37,9 +38,15 @@ const CMHistoryTabContent: React.FC<Props> = ({ tabId, contextSnapshot }) => {
           <span>{startDate} → {endDate}</span>
         </div>
       )}
-      <CMChangesCard cellNames={cellNames} siteNames={siteNames} plaques={plaques} dateFrom={startDate} dateTo={endDate} />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
+        <div className="min-w-0">
+          <CMChangesCard cellNames={cellNames} siteNames={siteNames} plaques={plaques} dateFrom={startDate} dateTo={endDate} />
+        </div>
+        <BackendRequestLogPanel />
+      </div>
     </div>
   );
 };
 
 export default CMHistoryTabContent;
+
