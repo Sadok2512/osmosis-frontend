@@ -892,7 +892,7 @@ const SingleKpiBreakdown: React.FC<{
       },
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(sortedTs, jalons, granularity) } : s),
     };
-  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, jalons, dateFrom, dateTo]);
+  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, elementColorMap, jalons, dateFrom, dateTo]);
 
   return (
     <div className="space-y-4">
