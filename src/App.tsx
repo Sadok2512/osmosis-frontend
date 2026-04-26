@@ -14,6 +14,7 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const UserLogin = lazy(() => import("./pages/UserLogin"));
 const InvestigatorDrilldown = lazy(() => import("./pages/InvestigatorDrilldown"));
+const InvestigatorExport = lazy(() => import("./pages/InvestigatorExport"));
 const PrecisionArchitect = lazy(() => import("./pages/PrecisionArchitect"));
 
 // Single, app-wide QueryClient. We persist its cache to localStorage so chart
@@ -66,6 +67,7 @@ const App = () => (
             <Route path="/login" element={<UserLogin />} />
             <Route path="/" element={<Index />} />
             <Route path="/investigator" element={<InvestigatorDrilldown />} />
+            <Route path="/investigator/export" element={<InvestigatorExport />} />
             <Route path="/precision-architect" element={<PrecisionArchitect />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<AdminPanel />} />
