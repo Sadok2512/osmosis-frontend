@@ -194,19 +194,17 @@ const Index: React.FC = () => {
   return (
     <CSVDataProvider>
       <div className={`flex h-screen w-screen overflow-hidden font-sans bg-background text-foreground ${sidebarClass} ${theme === 'dark' ? 'dark' : ''}`} style={accentStyles[accentColor] as React.CSSProperties}>
-        {!isEmbed && (
-          <AppSidebar
-            filters={filters}
-            setFilters={setFilters}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            isCollapsed={isSidebarCollapsed}
-            setIsCollapsed={setIsSidebarCollapsed}
-            theme={theme}
-            setTheme={setTheme}
-            enabledModules={enabledModules}
-          />
-        )}
+        <AppSidebar
+          filters={filters}
+          setFilters={setFilters}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isCollapsed={isSidebarCollapsed}
+          setIsCollapsed={setIsSidebarCollapsed}
+          theme={theme}
+          setTheme={setTheme}
+          enabledModules={enabledModules}
+        />
         <div className="flex-1 flex flex-col overflow-hidden relative z-0">
           <Suspense fallback={<LazyFallback />}>
             <div style={{ display: activeTab === 'sites' || activeTab === 'list' ? 'flex' : 'none', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
