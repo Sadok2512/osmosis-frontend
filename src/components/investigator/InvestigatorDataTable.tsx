@@ -35,6 +35,7 @@ interface Props {
     profileQci?: number | null;
     profileArp?: number | null;
     neighborType?: string | null;
+    expectedSplitValues?: string[];
   };
 }
 

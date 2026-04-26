@@ -1338,6 +1338,24 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                   || null;
                 const activeTableSlot = enabledSlots.find(s => s.id === effectiveSlotId) || null;
                 const slotData = activeTableSlot ? slotDataById.get(activeTableSlot.id) || [] : [];
+                const normalizeSplitKey = (value?: string | null) =>
+                  String(value || '').replace(/^PM_DIM:/i, '').trim().toUpperCase();
+                const configuredSplitKeys = activeTableSlot
+                  ? [
+                      normalizeSplitKey(activeTableSlot.splitBy),
+                      ...Object.values(activeTableSlot.config?.splitByPerKpi || {}).map(normalizeSplitKey),
+                    ]
+                  : [];
+                const splitUsesPlaque = configuredSplitKeys.includes('PLAQUE');
+                const selectedPlaques =
+                  activeTableSlot?.filters?.PLAQUE ||
+                  activeTableSlot?.filters?.Plaque ||
+                  state.filters?.PLAQUE ||
+                  state.filters?.Plaque ||
+                  [];
+                const expectedSplitValues = splitUsesPlaque
+                  ? (selectedPlaques.length > 0 ? selectedPlaques : (worstFilterOptions.PLAQUE || []))
+                  : [];
 
                 return (
                   <>
@@ -1394,7 +1412,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         !slotData.some((d: any) => d.networkElement || d.splitValue)
                       }
                       backendRefreshKey={activeTableSlot ? (tableDataRefreshBySlot[activeTableSlot.id] || 0) : 0}
-                      investigatorState={state}
+                      investigatorState={{ ...state, expectedSplitValues }}
                     />
                   </>
                 );

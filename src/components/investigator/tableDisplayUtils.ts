@@ -61,6 +61,7 @@ interface TableTimeContext {
   startDate?: string;
   endDate?: string;
   granularity?: string;
+  expectedSplitValues?: string[];
 }
 
 const FILTER_EXCLUDE = new Set([
@@ -161,14 +162,8 @@ function cleanDisplayValue(value: unknown): string | null {
 }
 
 function detectPrimarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot | null): string | null {
-  if (activeSlot?.splitBy && !SPLIT_NONE.has(activeSlot.splitBy.toUpperCase())) {
-    return normalizeDimensionLabel(activeSlot.splitBy);
-  }
-  const configuredPerKpiSplit = Object.values(activeSlot?.config?.splitByPerKpi || {})
-    .find((split) => split && !SPLIT_NONE.has(String(split).toUpperCase()));
-  if (configuredPerKpiSplit) {
-    return normalizeDimensionLabel(configuredPerKpiSplit);
-  }
+  const configuredSplit = getConfiguredPrimarySplitLabel(activeSlot);
+  if (configuredSplit) return configuredSplit;
 
   const firstDimension = getFirstDimensionEntries(item)[0];
   const directLabel =
@@ -179,6 +174,19 @@ function detectPrimarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot 
     firstDimension?.name;
 
   return directLabel ? normalizeDimensionLabel(directLabel) : null;
+}
+
+function getConfiguredPrimarySplitLabel(activeSlot?: GraphSlot | null): string | null {
+  if (activeSlot?.splitBy && !SPLIT_NONE.has(activeSlot.splitBy.toUpperCase())) {
+    return normalizeDimensionLabel(activeSlot.splitBy);
+  }
+  const configuredPerKpiSplit = Object.values(activeSlot?.config?.splitByPerKpi || {})
+    .find((split) => split && !SPLIT_NONE.has(String(split).toUpperCase()));
+  if (configuredPerKpiSplit) {
+    return normalizeDimensionLabel(configuredPerKpiSplit);
+  }
+
+  return null;
 }
 
 function detectSecondarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot | null): string | null {
@@ -325,6 +333,16 @@ export function buildPivotTable(
   let shouldShowSplitColumn = false;
   const splitColumnLabels = new Set<string>();
   const observedSplitValues = new Set<string>();
+  const expectedSplitValues = Array.from(new Set(
+    (timeContext?.expectedSplitValues || [])
+      .map(cleanDisplayValue)
+      .filter((value): value is string => Boolean(value))
+  ));
+  const expectedSplitLabel = expectedSplitValues.length > 0 ? getConfiguredPrimarySplitLabel(activeSlot) : null;
+  if (expectedSplitValues.length > 0) {
+    shouldShowSplitColumn = true;
+    if (expectedSplitLabel) splitColumnLabels.add(expectedSplitLabel);
+  }
 
   for (const item of tsData) {
     const time = getTimeValue(item);
@@ -407,7 +425,7 @@ export function buildPivotTable(
 
   if (timeline.length > 0) {
     const splitValues = columns.some((column) => column.key === 'splitValue')
-      ? Array.from(observedSplitValues)
+      ? Array.from(new Set([...expectedSplitValues, ...observedSplitValues]))
       : [null];
 
     for (const time of timeline) {

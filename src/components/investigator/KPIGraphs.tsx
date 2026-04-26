@@ -565,7 +565,16 @@ const getTableWidgetRows = (slot: GraphSlot, data: DataPoint[]) => {
 
 const getPivotTableWidgetData = (slot: GraphSlot, data: DataPoint[]) => {
   const sanitized = sanitizeTableData(data, slot);
-  const pivot = buildPivotTable(sanitized, slot, slot.filters || {});
+  const normalizeSplitKey = (value?: string | null) =>
+    String(value || '').replace(/^PM_DIM:/i, '').trim().toUpperCase();
+  const splitUsesPlaque = [
+    normalizeSplitKey(slot.splitBy),
+    ...Object.values(slot.config?.splitByPerKpi || {}).map(normalizeSplitKey),
+  ].includes('PLAQUE');
+  const expectedSplitValues = splitUsesPlaque
+    ? (slot.filters?.PLAQUE || slot.filters?.Plaque || [])
+    : [];
+  const pivot = buildPivotTable(sanitized, slot, slot.filters || {}, { expectedSplitValues });
   return {
     columns: pivot.columns,
     rows: pivot.rows,
