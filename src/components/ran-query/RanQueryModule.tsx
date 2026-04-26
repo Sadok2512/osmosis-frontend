@@ -27,7 +27,7 @@ import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
-import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry, logBackendRequest } from '@/lib/apiConfig';
 import ClusterPicker, { type ClusterSelection } from '@/components/shared/ClusterPicker';
 import { topoApi } from '@/lib/localDb';
 import {
@@ -370,18 +370,37 @@ function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: st
     date_from,
     date_to,
     granularity: report.timeConfig.granularity,
+    kpi_keys: kpiKeys,
     selections: kpiKeys.map((kpi) => ({ kpi_key: kpi })),
     filters,
     split_by: primaryAgg ? (splitMap[primaryAgg] || primaryAgg.toUpperCase()) : null,
     split_by_2: null,
     kpi_level: aggList.includes('cell') ? 'CELL' : 'SITE',
+    page: 1,
+    page_size: 500,
   };
 }
 
 function parseMetricValue(value: unknown): number | null {
   if (value == null || value === '') return null;
+  if (typeof value === 'object' && value !== null) {
+    const metric = value as Record<string, unknown>;
+    return parseMetricValue(metric.avg ?? metric.value ?? metric.val);
+  }
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : null;
+}
+
+function getReportDimensionValue(row: Record<string, any>, aggregation: string | null, fallback?: unknown): string | undefined {
+  const value =
+    (aggregation === 'plaque' ? row.plaque : undefined) ||
+    (aggregation === 'cluster' ? row.cluster : undefined) ||
+    (aggregation === 'dor' || aggregation === 'dr' || aggregation === 'region' ? (row.dor || row.DOR || row.region) : undefined) ||
+    (aggregation === 'site' ? (row.site_name || row.site) : undefined) ||
+    (aggregation === 'band' ? (row.band || row.source_band) : undefined) ||
+    (aggregation === 'arcep' ? (row.zone_arcep || row.ZONE_ARCEP) : undefined) ||
+    fallback;
+  return value == null ? undefined : String(value);
 }
 
 const MAX_CONCURRENT = 4;
@@ -417,9 +436,11 @@ async function executeReportApi(
   const kpiTasks = kpiKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
     try {
       const payload = buildMonitorQueryPayload(report, vendor, kpiKeys);
+      const url = getApiUrl('monitor/query/table');
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 180_000);
-      const res = await fetch(getApiUrl('monitor/query/table'), {
+      logBackendRequest('Rapport Builder KPI Table', 'POST', url, payload);
+      const res = await fetch(url, {
         method: 'POST',
         headers: getApiHeaders(),
         signal: controller.signal,
@@ -427,17 +448,23 @@ async function executeReportApi(
       });
       clearTimeout(timeout);
       if (!res.ok) {
-        errors.push(`KPIs batch (${vendor}): HTTP ${res.status}`);
+        const text = await res.text().catch(() => '');
+        errors.push(`KPIs batch (${vendor}): HTTP ${res.status}${text ? ` ${text.slice(0, 180)}` : ''}`);
         return [];
       }
       const data = await res.json();
       const batchResults: ReportResultRow[] = [];
       const rows = Array.isArray(data?.rows) ? data.rows : [];
+      const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+      const primaryAgg = aggList.find(a => a !== 'cell') || null;
       for (const pt of rows) {
-        for (const kpiCode of kpiKeys) {
-          const value = parseMetricValue(pt?.[kpiCode]);
+        const rowKpis = pt?.kpi_key ? [String(pt.kpi_key)] : kpiKeys;
+        for (const kpiCode of rowKpis) {
+          if (!kpiKeys.includes(kpiCode)) continue;
+          const value = parseMetricValue(pt?.[kpiCode] ?? pt?.avg ?? pt?.value);
           if (value == null) continue;
           const unit = kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '';
+          const splitValue = getReportDimensionValue(pt, primaryAgg, pt.split_value);
           batchResults.push({
             kpi: kpiCode,
             vendor,
@@ -445,12 +472,12 @@ async function executeReportApi(
             timestamp: pt.ts || pt.timestamp || pt.date || payload.date_from,
             value,
             unit,
-            site_name: pt.site_name || pt.site,
+            site_name: pt.site_name || pt.site || (primaryAgg === 'site' ? splitValue : undefined),
             cell_name: pt.cell_name || pt.cell || pt.ne_name || pt.network_element,
-            cluster: pt.cluster || pt.plaque,
-            plaque: pt.plaque,
-            dor: pt.dor,
-            band: pt.band || pt.source_band,
+            cluster: pt.cluster || (primaryAgg === 'cluster' ? splitValue : undefined),
+            plaque: pt.plaque || (primaryAgg === 'plaque' ? splitValue : undefined),
+            dor: pt.dor || pt.DOR || (primaryAgg === 'dor' || primaryAgg === 'dr' || primaryAgg === 'region' ? splitValue : undefined),
+            band: pt.band || pt.source_band || (primaryAgg === 'band' ? splitValue : undefined),
           });
         }
       }
@@ -470,18 +497,21 @@ async function executeReportApi(
   // ── Fetch Counters (per vendor, batch, with concurrency limit) ──
   const counterTasks = counterKeys.length === 0 ? [] : vendors.map(vendor => async (): Promise<ReportResultRow[]> => {
     try {
+      const url = getApiUrl('pm/counters/timeseries');
+      const body = {
+        ...base,
+        counter_names: counterKeys,
+        vendor,
+        split_by_field: base.split_by_field || 'cell_name',
+      };
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 120_000);
-      const res = await fetch(getApiUrl('pm/counters/timeseries'), {
+      logBackendRequest('Rapport Builder Counter Timeseries', 'POST', url, body);
+      const res = await fetch(url, {
         method: 'POST',
         headers: getApiHeaders(),
         signal: controller.signal,
-        body: JSON.stringify({
-          ...base,
-          counter_names: counterKeys,
-          vendor,
-          split_by_field: base.split_by_field || 'cell_name',
-        }),
+        body: JSON.stringify(body),
       });
       clearTimeout(timeout);
       if (!res.ok) {
