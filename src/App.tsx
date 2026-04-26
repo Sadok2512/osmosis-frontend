@@ -67,6 +67,7 @@ const App = () => (
             <Route path="/login" element={<UserLogin />} />
             <Route path="/" element={<Index />} />
             <Route path="/investigator" element={<InvestigatorDrilldown />} />
+            <Route path="/investigator/export" element={<InvestigatorExport />} />
             <Route path="/precision-architect" element={<PrecisionArchitect />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<AdminPanel />} />
