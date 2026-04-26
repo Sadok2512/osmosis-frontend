@@ -193,6 +193,8 @@ const splitRequestValue = (splitBy?: string): string | undefined => {
   return splitFieldFor(splitBy) ? splitBy : splitBy.startsWith('PM_DIM:') ? splitBy : `PM_DIM:${splitBy}`;
 };
 
+const toDateOnly = (value: string): string => (value || '').split('T')[0];
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? value as Record<string, unknown> : {};
 
@@ -522,6 +524,28 @@ const SingleKpiBreakdown: React.FC<{
 
   const splitActive = !!(splitBy && splitBy !== 'None');
 
+  const counterFetchRange = useMemo(() => {
+    const kpiDates = (timeSeriesData || [])
+      .filter(d => matchesKpiSeries(d.kpi, kpiId) && d.timestamp)
+      .map(d => toDateOnly(d.timestamp))
+      .filter(Boolean)
+      .sort();
+
+    if (kpiDates.length === 0) {
+      return { from: dateFrom, to: dateTo };
+    }
+
+    const selectedFrom = toDateOnly(dateFrom);
+    const selectedTo = toDateOnly(dateTo);
+    const firstKpiDate = kpiDates[0];
+    const lastKpiDate = kpiDates[kpiDates.length - 1];
+
+    return {
+      from: selectedFrom && firstKpiDate < selectedFrom ? selectedFrom : firstKpiDate,
+      to: selectedTo && lastKpiDate > selectedTo ? selectedTo : lastKpiDate,
+    };
+  }, [timeSeriesData, kpiId, dateFrom, dateTo]);
+
   // Extract unique split element names from KPI timeSeriesData and counter data
   const splitElements = useMemo(() => {
     if (!splitActive) return [];
@@ -569,7 +593,7 @@ const SingleKpiBreakdown: React.FC<{
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
     const ctrl = new AbortController();
-    fetchCounterTimeSeriesFallback(names, dateFrom, dateTo, granularity, splitRequestValue(splitBy), filters, splitFieldFor(splitBy))
+    fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, splitRequestValue(splitBy), filters, splitFieldFor(splitBy))
       .then(({ data }) => {
         if (ctrl.signal.aborted) return;
         const norm: CounterTsPoint[] = (data as CounterSeriesPoint[]).map((point) => ({
@@ -587,7 +611,7 @@ const SingleKpiBreakdown: React.FC<{
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters), splitBy]);
+  }, [counterInfos.map(c => c.name).join(','), counterFetchRange.from, counterFetchRange.to, granularity, JSON.stringify(filters), splitBy]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
