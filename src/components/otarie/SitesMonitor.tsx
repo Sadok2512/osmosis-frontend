@@ -4066,15 +4066,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const selectedSiteIdRef = useRef<string | null>(null);
   useEffect(() => { selectedSiteIdRef.current = selectedSiteId; }, [selectedSiteId]);
-  const [inventoryFlashSiteId, setInventoryFlashSiteId] = useState<string | null>(null);
-  useEffect(() => {
-    if (!selectedSiteId) return;
-    setInventoryFlashSiteId(selectedSiteId);
-    const timer = window.setTimeout(() => {
-      setInventoryFlashSiteId((current) => current === selectedSiteId ? null : current);
-    }, 1400);
-    return () => window.clearTimeout(timer);
-  }, [selectedSiteId]);
   const [selectedSiteSnapshot, setSelectedSiteSnapshot] = useState<SiteSummary | null>(null);
   const [siteDetail, setSiteDetail] = useState<SiteDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -11978,11 +11969,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         <div
                           key={site.site_id}
                           ref={(el) => { if (el) siteRowRefs.current.set(site.site_id, el); }}
-                          className={`rounded-2xl border-2 transition-all duration-200 overflow-hidden ${
-                            isSelected
-                              ? 'border-primary/40 bg-card shadow-lg'
-                              : 'border-border bg-card hover:border-primary/20 hover:shadow-md'
-                          } ${inventoryFlashSiteId === site.site_id ? 'inventory-site-flash' : ''}`}
+                          className="rounded-2xl border-2 border-border bg-card transition-all duration-200 overflow-hidden hover:border-primary/20 hover:shadow-md"
                         >
                           {/* Site row */}
                           <button
@@ -11991,9 +11978,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             onMouseLeave={() => setHoveredSiteId(null)}
                             className="w-full text-left px-4 py-3.5 flex items-center gap-3"
                           >
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
-                              isSelected ? 'bg-primary text-primary-foreground shadow-md shadow-primary/20' : 'bg-muted text-muted-foreground'
-                            }`}>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all bg-muted text-muted-foreground">
                               <MapPin size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
