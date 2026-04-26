@@ -74,6 +74,48 @@ function createFreshInstance(name = 'Untitled Investigator'): InvestigatorInstan
   };
 }
 
+function normalizeInvestigationState(state?: Partial<InvestigationState> | null): InvestigationState {
+  const dates = defaultDateRange();
+  return {
+    ...INITIAL_STATE,
+    ...dates,
+    ...(state || {}),
+    selectedKpis: Array.isArray(state?.selectedKpis) ? state.selectedKpis : [],
+    graphSlots: Array.isArray(state?.graphSlots) ? state.graphSlots : [],
+    filters: state?.filters && typeof state.filters === 'object' ? state.filters : {},
+    jalons: Array.isArray(state?.jalons) ? state.jalons : [],
+    granularity: state?.granularity || INITIAL_STATE.granularity,
+    splitBy: state?.splitBy || INITIAL_STATE.splitBy,
+    kpiLevel: state?.kpiLevel || INITIAL_STATE.kpiLevel,
+  };
+}
+
+function normalizeInstance(raw: Partial<InvestigatorInstance> | null | undefined): InvestigatorInstance {
+  const fresh = createFreshInstance(raw?.name || 'Untitled Investigator');
+  const state = normalizeInvestigationState(raw?.state);
+  const activeSlotId = raw?.activeSlotId && state.graphSlots.some(slot => slot.id === raw.activeSlotId)
+    ? raw.activeSlotId
+    : state.graphSlots[0]?.id || null;
+
+  return {
+    ...fresh,
+    ...raw,
+    instanceId: raw?.instanceId || fresh.instanceId,
+    investigatorId: raw?.investigatorId ?? null,
+    name: raw?.name || fresh.name,
+    saveStatus: raw?.saveStatus || 'idle',
+    lastSavedAt: raw?.lastSavedAt ?? null,
+    hasUnsavedChanges: Boolean(raw?.hasUnsavedChanges),
+    state,
+    activeSlotId,
+    hasLoadedOnce: Boolean(raw?.hasLoadedOnce),
+    tsData: [],
+    worstElements: [],
+    loading: false,
+    error: null,
+  };
+}
+
 interface InvestigatorWorkspaceStore {
   instances: InvestigatorInstance[];
   activeInstanceId: string | null;
@@ -223,6 +265,22 @@ export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
     {
       name: 'investigator-workspace-v1',
       version: 1,
+      merge: (persisted, current) => {
+        const raw = persisted as Partial<InvestigatorWorkspaceStore> | undefined;
+        const instances = Array.isArray(raw?.instances) && raw.instances.length > 0
+          ? raw.instances.map(normalizeInstance)
+          : current.instances;
+        const activeInstanceId = raw?.activeInstanceId && instances.some(i => i.instanceId === raw.activeInstanceId)
+          ? raw.activeInstanceId
+          : instances[0]?.instanceId || current.activeInstanceId;
+
+        return {
+          ...current,
+          ...raw,
+          instances,
+          activeInstanceId,
+        };
+      },
       partialize: (s) => ({
         instances: s.instances.map(i => ({
           instanceId: i.instanceId,

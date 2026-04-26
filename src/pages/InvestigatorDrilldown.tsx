@@ -6,6 +6,57 @@ import { normalizeGranularity } from '@/components/investigator/types';
 
 const InvestigatorWorkspace = React.lazy(() => import('@/components/investigator/InvestigatorPage'));
 
+class InvestigatorRouteBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('[InvestigatorRoute] render failed', error);
+    try {
+      window.localStorage.removeItem('investigator-workspace-v1');
+    } catch {
+      // ignore storage failures
+    }
+  }
+
+  private reload = () => {
+    try {
+      window.localStorage.removeItem('investigator-workspace-v1');
+    } catch {
+      // ignore storage failures
+    }
+    window.location.reload();
+  };
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-background text-foreground p-6">
+        <div className="max-w-md rounded-lg border border-border bg-card p-5 shadow-sm">
+          <h1 className="text-sm font-bold">Investigator failed to open</h1>
+          <p className="mt-2 text-xs text-muted-foreground">
+            The local Investigator workspace was reset. Reload to open a clean workspace.
+          </p>
+          <button
+            type="button"
+            onClick={this.reload}
+            className="mt-4 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+          >
+            Reload Investigator
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
 function defaultDateRange() {
   const now = new Date();
   const end = new Date(now);
@@ -133,13 +184,15 @@ const InvestigatorDrilldown: React.FC = () => {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <React.Suspense fallback={
-        <div className="flex h-screen items-center justify-center">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-        </div>
-      }>
-        <InvestigatorWorkspace />
-      </React.Suspense>
+      <InvestigatorRouteBoundary>
+        <React.Suspense fallback={
+          <div className="flex h-screen items-center justify-center">
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+          </div>
+        }>
+          <InvestigatorWorkspace />
+        </React.Suspense>
+      </InvestigatorRouteBoundary>
     </div>
   );
 };
