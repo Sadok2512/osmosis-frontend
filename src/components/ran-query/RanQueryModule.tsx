@@ -27,7 +27,7 @@ import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 import ClusterPicker, { type ClusterSelection } from '@/components/shared/ClusterPicker';
 import { topoApi } from '@/lib/localDb';
 import {
@@ -678,7 +678,7 @@ const RanQueryModule: React.FC = () => {
     const counterUrl = vendor && vendor !== 'Multi-Vendor'
       ? `pm/counters/catalog?vendor=${encodeURIComponent(vendor)}&limit=5000`
       : 'pm/counters/catalog?limit=5000';
-    fetch(getApiUrl(counterUrl), { headers: getApiHeaders() })
+    fetchVpsWithRetry(getApiUrl(counterUrl), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(d => setCounterCatalog(Array.isArray(d) ? d : []))
       .catch(() => setCounterCatalog([]));

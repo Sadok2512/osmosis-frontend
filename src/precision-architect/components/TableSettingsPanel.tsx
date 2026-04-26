@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
@@ -94,7 +94,7 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
   const [counterCatalog, setCounterCatalog] = useState<any[]>([]);
   useEffect(() => {
     let alive = true;
-    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+    fetchVpsWithRetry(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
       .then(r => (r.ok ? r.json() : []))
       .then(d => { if (alive) setCounterCatalog(Array.isArray(d) ? d : []); })
       .catch(() => {});
