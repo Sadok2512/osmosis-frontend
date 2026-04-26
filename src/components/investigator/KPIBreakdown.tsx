@@ -233,6 +233,7 @@ const FormulaPanel: React.FC<{
   onDeselectAllElements?: () => void;
   elementColorMap?: Map<string, string>;
 }> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements, elementColorMap }) => {
+  const [showSplitElements, setShowSplitElements] = useState(false);
 
   if (!explain) {
     return (
@@ -319,7 +320,15 @@ const FormulaPanel: React.FC<{
           >
             {selectedElements.size === splitElements.length ? 'Deselect All' : 'Select All'}
           </button>
-          {splitElements.map((el, idx) => {
+          {splitElements.length > 30 && (
+            <button
+              onClick={() => setShowSplitElements(v => !v)}
+              className="px-2 py-0.5 rounded text-[9px] font-bold border border-border/40 text-muted-foreground hover:bg-muted/30 transition-colors"
+            >
+              {showSplitElements ? 'Hide list' : `Show ${splitElements.length} sites`}
+            </button>
+          )}
+          {(splitElements.length <= 30 || showSplitElements) && splitElements.map((el, idx) => {
             const isSelected = selectedElements.has(el);
             const color = elementColorMap?.get(el) || SPLIT_COLORS[idx % SPLIT_COLORS.length];
             return (
@@ -607,7 +616,7 @@ const SingleKpiBreakdown: React.FC<{
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
     const ctrl = new AbortController();
-    fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, splitRequestValue(splitBy), filters, splitFieldFor(splitBy))
+    fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, undefined, filters, undefined)
       .then(({ data }) => {
         if (ctrl.signal.aborted) return;
         const norm: CounterTsPoint[] = (data as CounterSeriesPoint[]).map((point) => ({
@@ -649,6 +658,7 @@ const SingleKpiBreakdown: React.FC<{
   const chartOption = useMemo(() => {
     if (counterInfos.length === 0) return null;
     const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
+    const counterSplitActive = splitActive && counterTsData.some(point => Boolean(point.dimension_key));
     const apiTimestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
     const timeline = buildTimeline(dateFrom, dateTo, granularity);
     const timestampSet = new Set(timeline);
@@ -658,7 +668,7 @@ const SingleKpiBreakdown: React.FC<{
     // Top-N dimension values (by total value across all counters) when split is active
     let topDimValues: string[] = [];
     let otherDimValues = new Set<string>();
-    if (splitActive) {
+    if (counterSplitActive) {
       const totals = new Map<string, number>();
       for (const p of counterTsData) {
         const dv = p.dimension_key || '—';
@@ -686,7 +696,7 @@ const SingleKpiBreakdown: React.FC<{
     };
 
     const specs: SeriesSpec[] = [];
-    if (splitActive) {
+    if (counterSplitActive) {
       visibleCounters.forEach(counter => {
         topDimValues.forEach((dv, dvIdx) => {
           specs.push({
@@ -723,7 +733,7 @@ const SingleKpiBreakdown: React.FC<{
     // Pre-index data by (counter, dimValue) for fast lookup
     const indexed = new Map<string, Map<string, number>>();
     for (const p of counterTsData) {
-      const dv = splitActive ? (otherDimValues.has(p.dimension_key || '—') ? '__OTHER__' : (p.dimension_key || '—')) : '__ALL__';
+      const dv = counterSplitActive ? (otherDimValues.has(p.dimension_key || '—') ? '__OTHER__' : (p.dimension_key || '—')) : '__ALL__';
       const key = `${p.counter}||${dv}`;
       if (!indexed.has(key)) indexed.set(key, new Map());
       const tsMap = indexed.get(key)!;
@@ -733,7 +743,7 @@ const SingleKpiBreakdown: React.FC<{
     const series = specs.map(spec => {
       const isNum = spec.counter.tag === 'NUM';
       const isHovered = hoveredCounter === spec.counter.name;
-      const dvKey = splitActive ? (spec.isOther ? '__OTHER__' : (spec.dimValue || '—')) : '__ALL__';
+      const dvKey = counterSplitActive ? (spec.isOther ? '__OTHER__' : (spec.dimValue || '—')) : '__ALL__';
       const tsMap = indexed.get(`${spec.counter.name}||${dvKey}`) || new Map<string, number>();
 
       return {
