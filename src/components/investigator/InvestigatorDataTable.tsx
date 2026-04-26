@@ -139,8 +139,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
     const a = document.createElement('a');
     a.href = url;
     a.download = `table_data_${activeSlot?.name || 'export'}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   if (rows.length === 0) {

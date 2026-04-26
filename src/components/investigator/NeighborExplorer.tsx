@@ -283,11 +283,15 @@ const NeighborExplorer: React.FC = () => {
     const rows = filtered.map(n => [n.source_cell, n.source_site, n.source_band, n.relation_type, n.target_band, n.target_earfcn ?? '', n.target_pci ?? '', n.target_eci ?? '', n.vendor, n.rat]);
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     const tag = (filters.vendor.join('-') || 'all') + '_' + (filters.site[0] || 'all');
     a.download = `neighbors_${tag}.csv`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   return (

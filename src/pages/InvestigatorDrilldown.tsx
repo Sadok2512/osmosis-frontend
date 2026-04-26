@@ -81,6 +81,7 @@ const InvestigatorDrilldown: React.FC = () => {
     hydratedRef.current = true;
 
     const cell = searchParams.get('cell');
+    const exportKey = searchParams.get('exportKey');
     const kpisRaw = searchParams.get('kpis');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
@@ -91,6 +92,31 @@ const InvestigatorDrilldown: React.FC = () => {
     const dor = searchParams.get('dor');
     const plaque = searchParams.get('plaque');
     const band = searchParams.get('band');
+
+    if (exportKey) {
+      try {
+        const raw = window.localStorage.getItem(exportKey);
+        if (raw) {
+          window.localStorage.removeItem(exportKey);
+          const payload = JSON.parse(raw) as {
+            state?: InvestigationState;
+            activeSlotId?: string | null;
+          };
+          if (payload.state) {
+            const newId = ws.addNewTab('Export: Investigator');
+            ws.updateInstanceState(newId, payload.state);
+            ws.updateInstance(newId, {
+              activeSlotId: payload.activeSlotId || payload.state.graphSlots?.[0]?.id || null,
+              hasLoadedOnce: false,
+              hasUnsavedChanges: false,
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('[InvestigatorDrilldown] export hydrate failed', err);
+      }
+    }
 
     if (!cell) return;
 

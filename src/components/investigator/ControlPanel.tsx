@@ -1442,6 +1442,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   };
 
   const activeFilterDims = Object.keys(effectiveFilters);
+  const openStandaloneExport = () => {
+    try {
+      const exportKey = `investigator-export-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const payload = {
+        version: 1,
+        createdAt: Date.now(),
+        activeSlotId,
+        state,
+      };
+      window.localStorage.setItem(exportKey, JSON.stringify(payload));
+      const url = `${window.location.origin}/investigator?standalone=1&exportKey=${encodeURIComponent(exportKey)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('[Investigator] standalone export failed', err);
+      toast.error("Impossible d'ouvrir l'export Investigator");
+    }
+  };
 
   return (
     <div className="sticky top-0 z-30">
@@ -1459,10 +1476,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                const url = `${window.location.origin}/investigator?standalone=1`;
-                window.open(url, '_blank', 'noopener,noreferrer');
-              }}
+              onClick={openStandaloneExport}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
               title="Ouvrir uniquement l'Investigator en plein écran (sans sidebar) dans un nouvel onglet"
             >

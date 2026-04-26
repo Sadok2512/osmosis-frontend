@@ -916,7 +916,9 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   const link = document.createElement('a');
   link.href = url;
   link.download = `${filename}.png`;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 };
 
 const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
