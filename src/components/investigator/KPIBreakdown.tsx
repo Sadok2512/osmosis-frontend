@@ -809,7 +809,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, splitElements, jalons, dateFrom, dateTo]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, splitElements, elementColorMap, jalons, dateFrom, dateTo]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
