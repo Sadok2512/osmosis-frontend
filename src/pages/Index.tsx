@@ -41,7 +41,17 @@ const Index: React.FC = () => {
     : null;
   const isEmbed = Boolean(embedTab);
 
-  const [activeTab, setActiveTab] = useState<AppTab>(embedTab ?? 'dashboard_overview');
+  // Defer activating the embed tab to a microtask after mount so all
+  // persisted Zustand stores have hydrated first — otherwise mounting a
+  // heavy module (Investigator) concurrently with hydration triggers an
+  // infinite "forceStoreRerender" loop and the page renders blank.
+  const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
+  useEffect(() => {
+    if (embedTab) {
+      const id = window.setTimeout(() => setActiveTab(embedTab), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [embedTab]);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
