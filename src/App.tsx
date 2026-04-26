@@ -2,9 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient } from "@tanstack/react-query";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 
@@ -35,27 +33,8 @@ const queryClient = new QueryClient({
   },
 });
 
-const persister = createSyncStoragePersister({
-  storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-  key: 'lovable-query-cache-v1',
-  // Throttle writes so we don't spam localStorage on every cache update.
-  throttleTime: 1000,
-});
-
 const App = () => (
-  <PersistQueryClientProvider
-    client={queryClient}
-    persistOptions={{
-      persister,
-      maxAge: 24 * 60 * 60 * 1000, // 24h
-      // Only persist successful, non-empty responses; skip in-flight queries.
-      dehydrateOptions: {
-        shouldDehydrateQuery: (q) =>
-          q.state.status === 'success' && q.state.data !== undefined,
-      },
-      buster: 'v1',
-    }}
-  >
+  <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -74,7 +53,7 @@ const App = () => (
         </Suspense>
       </BrowserRouter>
     </TooltipProvider>
-  </PersistQueryClientProvider>
+  </QueryClientProvider>
 );
 
 export default App;
