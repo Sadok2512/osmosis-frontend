@@ -23,7 +23,7 @@ import DateRangePopover from '@/precision-architect/components/DateRangePopover'
 import CounterSelectorModal from './CounterSelectorModal';
 import { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { fetchKpiCatalog, fetchFilterCatalog, type MonitorFilterDef } from '@/components/kpi-monitor/api/kpiMonitorApi';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 
 const CHART_TYPES: { value: ChartType; label: string; icon: React.ElementType }[] = [
   { value: 'line', label: 'Line', icon: TrendingUp },
@@ -1016,7 +1016,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
 
   // Load counter catalog for counter selector
   useEffect(() => {
-    fetch(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
+    fetchVpsWithRetry(getApiUrl('pm/counters/catalog?limit=25000'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : []).then(d => setCounterCatalog(Array.isArray(d) ? d : [])).catch(() => {});
   }, []);
 

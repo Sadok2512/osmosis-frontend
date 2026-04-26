@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { vendorBadge, techBadge } from '@/constants/brandColors';
 import { X, Search, Check, RotateCcw, Star, BarChart3, ChevronDown, ChevronRight, Filter, SlidersHorizontal } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -56,7 +56,7 @@ async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<C
     if (vendor) params.set('vendor', vendor);
     if (techno) params.set('techno', techno);
     params.set('limit', '5000');
-    const res = await fetch(getApiUrl(`pm/counters/catalog?${params.toString()}`), { headers: getApiHeaders() });
+    const res = await fetchVpsWithRetry(getApiUrl(`pm/counters/catalog?${params.toString()}`), { headers: getApiHeaders() });
     if (!res.ok) return [];
     return res.json();
   } catch { return []; }

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
@@ -46,7 +46,7 @@ const COLORS = PA_PALETTE;
 
 async function fetchCounterCatalog(): Promise<CounterDef[]> {
   try {
-    const res = await fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() });
+    const res = await fetchVpsWithRetry(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() });
     if (!res.ok) return [];
     return res.json();
   } catch { return []; }

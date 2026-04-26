@@ -4,7 +4,7 @@ import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jal
 import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs, smartXInterval, buildWeekendMarkAreas } from './timeUtils';
 import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import CounterSelectorModal from './CounterSelectorModal';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
@@ -956,7 +956,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
       setSplitOptions(['Site', 'Cell', 'Plaque', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'].map(s => ({ key: s, label: s })));
     });
     // Load counter catalog
-    fetch(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
+    fetchVpsWithRetry(getApiUrl('pm/counters/catalog'), { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(data => setCounterCatalog(Array.isArray(data) ? data : []))
       .catch(() => {});
