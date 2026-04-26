@@ -4,7 +4,7 @@ import { DataPoint, GraphSlot, GraphConfig, DEFAULT_GRAPH_CONFIG, ChartType, Jal
 import { buildTimeline, normalizeTimestamp, formatAxisLabel, getStepMs, smartXInterval, buildWeekendMarkAreas } from './timeUtils';
 import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
 import CounterSelectorModal from './CounterSelectorModal';
-import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry, logBackendRequest } from '@/lib/apiConfig';
 import { useInvestigatorStore } from '@/stores/investigatorStore';
 import { KPI_MAP, KPIS } from './mockData';
 import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './investigatorApi';
@@ -683,7 +683,9 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const dateTo = state.endDate?.split('T')[0] || today;
     const body: any = { counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false };
     if (siteName) body.site_name = siteName;
-    fetch(getApiUrl('pm/counters/timeseries'), {
+    const ctsUrl = getApiUrl('pm/counters/timeseries');
+    logBackendRequest('Counter Timeseries (KPIGraphs)', 'POST', ctsUrl, body);
+    fetch(ctsUrl, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
@@ -1028,7 +1030,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
       setFetchingSlots(prev => ({ ...prev, [slot.id]: true }));
 
-      fetch(getApiUrl('pm/counters/timeseries'), {
+      const slotCtsUrl = getApiUrl('pm/counters/timeseries');
+      logBackendRequest(`Counter Timeseries (slot ${slot.id})`, 'POST', slotCtsUrl, body);
+      fetch(slotCtsUrl, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify(body),

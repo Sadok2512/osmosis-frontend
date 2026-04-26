@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { vendorBadge } from '@/constants/brandColors';
 import ReactECharts from 'echarts-for-react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { BarChart3, ChevronRight, Search, RefreshCw, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -58,7 +58,9 @@ const HistogramSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   // Load catalog
   useEffect(() => {
     setLoadingCatalog(true);
-    fetch(getApiUrl('pm/histograms/catalog'), { headers: getApiHeaders() })
+    const catalogUrl = getApiUrl('pm/histograms/catalog');
+    logBackendRequest('Histogram (catalog)', 'GET', catalogUrl);
+    fetch(catalogUrl, { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(data => { setCatalog(data); setLoadingCatalog(false); })
       .catch(() => setLoadingCatalog(false));
@@ -68,15 +70,18 @@ const HistogramSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   useEffect(() => {
     if (!selectedId) { setBins([]); return; }
     setLoading(true);
-    fetch(getApiUrl('pm/histograms/data'), {
+    const histUrl = getApiUrl('pm/histograms/data');
+    const histBody = {
+      histogram_id: selectedId,
+      site_name: siteName || undefined,
+      date_from: dateFrom,
+      date_to: dateTo,
+    };
+    logBackendRequest('Histogram (data)', 'POST', histUrl, histBody);
+    fetch(histUrl, {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({
-        histogram_id: selectedId,
-        site_name: siteName || undefined,
-        date_from: dateFrom,
-        date_to: dateTo,
-      }),
+      body: JSON.stringify(histBody),
     })
       .then(r => r.ok ? r.json() : { bins: [] })
       .then(data => {

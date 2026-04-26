@@ -1,6 +1,6 @@
 // ── Investigator API — KPI data from KPI Engine :8001, counters from Parser :8000, AI from Agent :1000 ──
 
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, fetchVpsWithRetry, AGENT_API_KEY } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, fetchVpsWithRetry, AGENT_API_KEY, logBackendRequest } from '@/lib/apiConfig';
 import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
 
@@ -148,6 +148,7 @@ export async function fetchCounterTimeSeriesFallback(
     }
 
     const executeRequest = async (requestBody: any, forcedSplitField?: string) => {
+      logBackendRequest('Counter Timeseries (fallback)', 'POST', url, requestBody);
       const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: getApiHeaders(),
@@ -462,6 +463,7 @@ export async function fetchTimeSeriesForSlot(
       ...body,
       kpis: kpiIds.map((kpiId) => ({ name: kpiId, split: splitBy })),
     }));
+    logBackendRequest('Timeseries (KPI Engine)', 'POST', url, body);
     const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
@@ -588,6 +590,7 @@ export async function fetchWorstElements(
   };
 
   try {
+    logBackendRequest('Top Worst Cells (table)', 'POST', url, body);
     const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
@@ -671,6 +674,7 @@ export async function fetchWorstByDOR(
   };
 
   try {
+    logBackendRequest('Top Worst by DOR (table)', 'POST', url, body);
     const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
@@ -778,6 +782,7 @@ export async function fetchWorstCellsDirect(
   if (siteName) body.site_name = siteName;
 
   try {
+    logBackendRequest('Worst Cells (PM)', 'POST', url, body);
     const res = await fetchWithTimeout(url, {
       method: 'POST',
       headers: getApiHeaders(),
@@ -928,6 +933,7 @@ export async function fetchHistogramData(
     kpi_keys: [kpiId], split_by: 'CELL', top_n: 200, page: 1, page_size: 200,
   };
   try {
+    logBackendRequest('KPI Distribution (table)', 'POST', url, body);
     const res = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const data = await res.json();
@@ -963,6 +969,7 @@ export async function fetchBreakdownData(
     selections: [{ kpi_key: kpiId }], filters: allFilters, split_by: dimension.toUpperCase(), top_n: 10,
   };
   try {
+    logBackendRequest('Breakdown by Dimension', 'POST', url, body);
     const res = await fetchWithTimeout(url, { method: 'POST', headers: getApiHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const data = await res.json();

@@ -40,6 +40,33 @@ const DATA_SOURCE_KEY = 'osmosis_data_source';
 /** Default request timeout (30s) */
 export const REQUEST_TIMEOUT_MS = 30_000;
 
+/**
+ * Log a backend request with the originating widget name.
+ * Format: [Backend][WidgetName] METHOD url  body=…
+ * Use in any component that issues a fetch towards the VPS / KPI Engine.
+ */
+export function logBackendRequest(
+  widgetName: string,
+  method: string,
+  url: string,
+  body?: unknown,
+): void {
+  try {
+    const safeBody = body === undefined
+      ? undefined
+      : (typeof body === 'string' ? body : JSON.stringify(body));
+    // eslint-disable-next-line no-console
+    console.log(
+      `%c[Backend][${widgetName}]%c ${method} ${url}`,
+      'color:#0E7C66;font-weight:600',
+      'color:inherit',
+      safeBody ? { body: safeBody.length > 2000 ? safeBody.slice(0, 2000) + '…' : safeBody } : '',
+    );
+  } catch {
+    // ignore logging failures
+  }
+}
+
 /** Agent API key from env */
 export const AGENT_API_KEY = import.meta.env.VITE_AGENT_API_KEY || '';
 

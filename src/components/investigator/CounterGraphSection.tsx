@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
-import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry, logBackendRequest } from '@/lib/apiConfig';
 import { BarChart3, Plus, X, RefreshCw, Cpu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CounterSelectorModal from './CounterSelectorModal';
@@ -54,10 +54,13 @@ async function fetchCounterCatalog(): Promise<CounterDef[]> {
 
 async function fetchCounterTimeseries(counterNames: string[], dateFrom: string, dateTo: string, granularity: string = '1d', splitByDimension: boolean = false): Promise<CounterPoint[]> {
   try {
-    const res = await fetch(getApiUrl('pm/counters/timeseries'), {
+    const url = getApiUrl('pm/counters/timeseries');
+    const body = { counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity, split_by_dimension: splitByDimension };
+    logBackendRequest('Counter Graph', 'POST', url, body);
+    const res = await fetch(url, {
       method: 'POST',
       headers: getApiHeaders(),
-      body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity, split_by_dimension: splitByDimension }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) return [];
     const data = await res.json();
@@ -140,7 +143,9 @@ const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
     };
     if (dimensionFilter.length > 0) body.dimension_filter = dimensionFilter;
 
-    fetch(getApiUrl('pm/counters/timeseries'), {
+    const cgUrl = getApiUrl('pm/counters/timeseries');
+    logBackendRequest('Counter Graph (selection)', 'POST', cgUrl, body);
+    fetch(cgUrl, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),

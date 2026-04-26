@@ -1,5 +1,5 @@
 import React from 'react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { Settings2, ArrowRight, Clock, User, RefreshCw, ChevronDown, ChevronRight, MapPin, Search, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -28,6 +28,7 @@ interface Props {
 async function fetchCmChanges(params: { cell_names?: string[]; site_names?: string[]; plaques?: string[]; date_from?: string; date_to?: string; days?: number; limit: number }): Promise<CMChange[]> {
   if (!params.cell_names?.length && !params.site_names?.length && !params.plaques?.length) return [];
   const url = getApiUrl('cm/cell-changes');
+  logBackendRequest('CM History', 'POST', url, params);
   try {
     const res = await fetch(url, {
       method: 'POST',

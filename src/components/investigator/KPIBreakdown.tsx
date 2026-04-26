@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { fetchExplain } from '../kpi-monitor/api/kpiMonitorApi';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { buildTimeline, formatAxisLabel } from './timeUtils';
 import { DataPoint, Granularity, Jalon } from './types';
 import { normalizeTimestamp } from './timeUtils';
@@ -461,7 +461,9 @@ const SingleKpiBreakdown: React.FC<{
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch(getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`), { headers: getApiHeaders() });
+        const explainUrl = getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`);
+        logBackendRequest('KPI Breakdown (explain)', 'GET', explainUrl);
+        const res = await fetch(explainUrl, { headers: getApiHeaders() });
         if (res.ok) {
           const data: unknown = await res.json();
           const normalized = normalizeKpiExplain(data, kpiId);
