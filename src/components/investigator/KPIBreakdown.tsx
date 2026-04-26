@@ -195,6 +195,13 @@ const splitRequestValue = (splitBy?: string): string | undefined => {
 
 const toDateOnly = (value: string): string => (value || '').split('T')[0];
 
+const parseConstantDenominator = (value?: string): number | null => {
+  const cleaned = String(value || '').trim().replace(/[(),\s]/g, '');
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) && parsed !== 0 ? parsed : null;
+};
+
 const asRecord = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' ? value as Record<string, unknown> : {};
 
@@ -654,12 +661,34 @@ const SingleKpiBreakdown: React.FC<{
 
   const numCounterNames = useMemo(() => counterInfos.filter(c => c.tag === 'NUM').map(c => c.name), [counterInfos]);
   const denCounterNames = useMemo(() => counterInfos.filter(c => c.tag === 'DEN').map(c => c.name), [counterInfos]);
+  const constantDenominator = useMemo(() => parseConstantDenominator(explain?.denominator), [explain?.denominator]);
+
+  const derivedCounterTsData = useMemo((): CounterTsPoint[] => {
+    if (counterTsData.length > 0 || !constantDenominator || !timeSeriesData?.length) return [];
+
+    const byTimestamp = new Map<string, number>();
+    for (const d of timeSeriesData) {
+      if (!matchesKpiSeries(d.kpi, kpiId) || !d.timestamp || d.value == null) continue;
+      const ts = normalizeTimestamp(d.timestamp, granularity);
+      byTimestamp.set(ts, (byTimestamp.get(ts) || 0) + (Number(d.value) * constantDenominator));
+    }
+
+    return [...byTimestamp.entries()].map(([ts, value]) => ({
+      ts,
+      counter: 'NUM aggregate (from KPI)',
+      value,
+    }));
+  }, [counterTsData.length, constantDenominator, timeSeriesData, kpiId, granularity]);
 
   const chartOption = useMemo(() => {
-    if (counterInfos.length === 0) return null;
-    const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
-    const counterSplitActive = splitActive && counterTsData.some(point => Boolean(point.dimension_key));
-    const apiTimestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
+    if (counterInfos.length === 0 && derivedCounterTsData.length === 0) return null;
+    const effectiveCounterInfos = derivedCounterTsData.length > 0
+      ? [{ name: 'NUM aggregate (from KPI)', tag: 'NUM' as const, source: 'KPI Engine', aggregation: 'DERIVED' }]
+      : counterInfos;
+    const effectiveCounterTsData = derivedCounterTsData.length > 0 ? derivedCounterTsData : counterTsData;
+    const visibleCounters = effectiveCounterInfos.filter(c => !hiddenCounters.has(c.name));
+    const counterSplitActive = splitActive && effectiveCounterTsData.some(point => Boolean(point.dimension_key));
+    const apiTimestamps = [...new Set(effectiveCounterTsData.map(d => d.ts))].sort();
     const timeline = buildTimeline(dateFrom, dateTo, granularity);
     const timestampSet = new Set(timeline);
     for (const ts of apiTimestamps) timestampSet.add(ts);
@@ -670,7 +699,7 @@ const SingleKpiBreakdown: React.FC<{
     let otherDimValues = new Set<string>();
     if (counterSplitActive) {
       const totals = new Map<string, number>();
-      for (const p of counterTsData) {
+      for (const p of effectiveCounterTsData) {
         const dv = p.dimension_key || '—';
         totals.set(dv, (totals.get(dv) || 0) + (p.value || 0));
       }
@@ -732,7 +761,7 @@ const SingleKpiBreakdown: React.FC<{
 
     // Pre-index data by (counter, dimValue) for fast lookup
     const indexed = new Map<string, Map<string, number>>();
-    for (const p of counterTsData) {
+    for (const p of effectiveCounterTsData) {
       const dv = counterSplitActive ? (otherDimValues.has(p.dimension_key || '—') ? '__OTHER__' : (p.dimension_key || '—')) : '__ALL__';
       const key = `${p.counter}||${dv}`;
       if (!indexed.has(key)) indexed.set(key, new Map());
@@ -821,7 +850,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, splitElements, elementColorMap, jalons, dateFrom, dateTo]);
+  }, [counterTsData, derivedCounterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, splitElements, elementColorMap, jalons, dateFrom, dateTo]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -968,7 +997,11 @@ const SingleKpiBreakdown: React.FC<{
             <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">Loading counters...</div>
           ) : chartOption ? (
             <div className="relative">
-              {counterTsData.length === 0 && (
+              {counterTsData.length === 0 && derivedCounterTsData.length > 0 ? (
+                <div className="absolute left-4 top-3 z-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-medium text-sky-800 shadow-sm">
+                  Raw counter detail unavailable; showing NUM aggregate derived from KPI.
+                </div>
+              ) : counterTsData.length === 0 && (
                 <div className="absolute left-4 top-3 z-10 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-800 shadow-sm">
                   Empty raw counter series for this period and filters.
                 </div>
