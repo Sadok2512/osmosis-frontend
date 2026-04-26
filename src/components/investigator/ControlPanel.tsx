@@ -1458,15 +1458,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-green-600 px-2.5 py-1 rounded-md bg-green-500/10 border border-green-500/15">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-              <span className="text-[9px] font-bold uppercase tracking-wider">Live</span>
-            </div>
-            <button onClick={onToggleAIPanel}
-              className={cn('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all',
-                showAIPanel ? 'bg-cyan-600 text-white shadow-md' : 'bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border border-cyan-500/20')}>
-              <Sparkles className="w-3.5 h-3.5" />
-              TRACE AI
+            <button
+              onClick={() => window.open('/investigator/export', '_blank', 'noopener,noreferrer')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
+              title="Ouvrir l'Investigator en plein écran (sans sidebar) dans un nouvel onglet"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              EXPORT
             </button>
           </div>
         </div>
