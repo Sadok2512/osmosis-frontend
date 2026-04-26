@@ -330,7 +330,7 @@ export function buildPivotTable(
     const time = getTimeValue(item);
     const kpiName = getKpiName(item);
     const value = getKpiValue(item);
-    if (!time || !kpiName || value == null) continue;
+    if (!time || !kpiName) continue;
 
     const splitInfo = getSplitValues(item, activeSlot);
     const rowValues: Record<string, string | number | null> = {};
