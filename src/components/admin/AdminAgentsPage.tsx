@@ -18,6 +18,30 @@ import { Badge } from '@/components/ui/badge';
 interface Agent { id: string; name: string; description: string; is_active: boolean; base_prompt: string; model_config_id: string | null; created_at: string; }
 interface LLMConfig { id: string; provider: string; model_name: string; system_prompt_prefix: string; }
 interface Module { id: string; name: string; is_active: boolean; }
+interface AgentSkill { id: string; agent_id: string; name: string; description: string | null; skill_type: string; is_active: boolean; created_at: string; updated_at: string; }
+
+function parseSkillMetadata(content: string, filename: string) {
+  const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*\n?/);
+  const metadata: Record<string, string> = {};
+  if (match) {
+    for (const line of match[1].split(/\r?\n/)) {
+      const item = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+      if (item) metadata[item[1]] = item[2].replace(/^['"]|['"]$/g, '').trim();
+    }
+  }
+  const body = match ? content.slice(match[0].length) : content;
+  const heading = body.split(/\r?\n/).find(line => line.startsWith('# '))?.slice(2).trim();
+  const name = metadata.name || heading || filename.replace(/\.[^.]+$/, '');
+  const description = metadata.description || body.split(/\r?\n/).find(line => line.trim() && !line.startsWith('#'))?.trim() || '';
+  return { name, description };
+}
+
+function skillIdFromName(name: string) {
+  let id = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!id) id = 'UPLOADED_SKILL';
+  if (/^[0-9]/.test(id)) id = `SKILL_${id}`;
+  return id.slice(0, 60);
+}
 
 export default function AdminAgentsPage({ currentUser }: { currentUser: AdminUser }) {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -152,10 +176,13 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
   const [savingPrompt, setSavingPrompt] = useState(false);
   const [runs, setRuns] = useState<any[]>([]);
   const [docs, setDocs] = useState<any[]>([]);
+  const [skills, setSkills] = useState<AgentSkill[]>([]);
   const [agentModules, setAgentModules] = useState<string[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const skillInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadingSkill, setUploadingSkill] = useState(false);
 
   useEffect(() => {
     setPrompt(agent.base_prompt);
@@ -163,10 +190,12 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
     Promise.all([
       supabase.from('agent_runs').select('*').eq('agent_id', agent.id).order('started_at', { ascending: false }).limit(50),
       supabase.from('admin_documents').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }),
+      supabase.from('agent_skills').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false }),
       supabase.from('agent_modules').select('module_id').eq('agent_id', agent.id),
-    ]).then(([r, d, m]) => {
+    ]).then(([r, d, s, m]) => {
       setRuns((r.data || []) as any);
       setDocs((d.data || []) as any);
+      setSkills((s.data || []) as any);
       setAgentModules((m.data || []).map((x: any) => x.module_id));
     });
   }, [agent.id]);
@@ -215,6 +244,75 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
     setDocs((data || []) as any);
   };
 
+  const refreshSkills = async () => {
+    const { data } = await supabase.from('agent_skills').select('*').eq('agent_id', agent.id).order('created_at', { ascending: false });
+    setSkills((data || []) as any);
+  };
+
+  const handleSkillUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.name !== 'SKILL.md' && !file.name.endsWith('.md')) {
+      toast({ title: 'Invalid file', description: 'Upload a SKILL.md file.', variant: 'destructive' });
+      return;
+    }
+
+    setUploadingSkill(true);
+    try {
+      const content = await file.text();
+      const metadata = parseSkillMetadata(content, file.name);
+      const skillId = skillIdFromName(metadata.name);
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      const res = await fetch('/api/v1/skills/import', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || payload.detail || `HTTP ${res.status}`);
+      if (Array.isArray(payload.errors) && payload.errors.length > 0) {
+        throw new Error(payload.errors.join('; '));
+      }
+
+      const existing = await supabase
+        .from('agent_skills')
+        .select('id')
+        .eq('agent_id', agent.id)
+        .eq('name', skillId)
+        .maybeSingle();
+      const record = {
+        agent_id: agent.id,
+        name: skillId,
+        description: metadata.description,
+        skill_type: 'qoe-skill',
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
+      const { error } = existing.data?.id
+        ? await supabase.from('agent_skills').update(record as any).eq('id', existing.data.id)
+        : await supabase.from('agent_skills').insert(record as any);
+      if (error) throw error;
+
+      toast({ title: 'Skill uploaded', description: `${skillId} imported into the skill engine.` });
+      await refreshSkills();
+    } catch (err: any) {
+      toast({ title: 'Skill upload failed', description: err?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setUploadingSkill(false);
+      if (skillInputRef.current) skillInputRef.current.value = '';
+    }
+  };
+
+  const toggleSkill = async (skill: AgentSkill) => {
+    const { error } = await supabase.from('agent_skills').update({ is_active: !skill.is_active, updated_at: new Date().toISOString() } as any).eq('id', skill.id);
+    if (error) {
+      toast({ title: 'Skill update failed', description: error.message, variant: 'destructive' });
+      return;
+    }
+    await refreshSkills();
+  };
+
   const toggleModule = async (moduleId: string) => {
     if (agentModules.includes(moduleId)) {
       await supabase.from('agent_modules').delete().eq('agent_id', agent.id).eq('module_id', moduleId);
@@ -242,6 +340,7 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
         <TabsTrigger value="prompt" className="gap-1"><MessageSquareText className="w-4 h-4" />Prompt</TabsTrigger>
         <TabsTrigger value="settings" className="gap-1"><Settings className="w-4 h-4" />Settings</TabsTrigger>
         <TabsTrigger value="modules" className="gap-1"><Blocks className="w-4 h-4" />Modules</TabsTrigger>
+        <TabsTrigger value="skills" className="gap-1"><Blocks className="w-4 h-4" />Skills</TabsTrigger>
         <TabsTrigger value="documents" className="gap-1"><FileText className="w-4 h-4" />Documents</TabsTrigger>
         <TabsTrigger value="memory" className="gap-1"><Database className="w-4 h-4" />Memory</TabsTrigger>
       </TabsList>
@@ -411,6 +510,54 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
                 {agentModules.includes(m.id) && <Badge>Assigned</Badge>}
               </div>
             ))}
+          </div>
+        )}
+      </TabsContent>
+
+      {/* Skills Tab */}
+      <TabsContent value="skills" className="mt-4">
+        {isAdmin && (
+          <div className="mb-4">
+            <input ref={skillInputRef} type="file" className="hidden" onChange={handleSkillUpload} accept=".md" />
+            <Button onClick={() => skillInputRef.current?.click()} disabled={uploadingSkill}>
+              {uploadingSkill ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+              Upload SKILL.md
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1">Installs the skill under the server skill root and registers it for this agent.</p>
+          </div>
+        )}
+        {skills.length === 0 ? (
+          <p className="text-muted-foreground text-center py-6">No skills installed for this agent.</p>
+        ) : (
+          <div className="rounded-lg border border-border bg-card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {skills.map(skill => (
+                  <TableRow key={skill.id}>
+                    <TableCell className="font-medium">{skill.name}</TableCell>
+                    <TableCell className="text-muted-foreground max-w-md truncate">{skill.description || '—'}</TableCell>
+                    <TableCell>{skill.skill_type}</TableCell>
+                    <TableCell>
+                      <Badge variant={skill.is_active ? 'default' : 'secondary'}>{skill.is_active ? 'Active' : 'Inactive'}</Badge>
+                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        <Switch checked={skill.is_active} onCheckedChange={() => toggleSkill(skill)} />
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
       </TabsContent>
