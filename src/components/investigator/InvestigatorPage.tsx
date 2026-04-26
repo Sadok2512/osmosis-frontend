@@ -1153,10 +1153,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             const allTabs = [
               { key: 'table_data' as const, icon: Table2, label: 'Table Data', color: '#14746C' },
               { key: 'breakdown' as const, icon: PieChart, label: 'KPI Breakdown', color: '#14746C' },
-              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: '#F59E0B' },
-              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: '#EF4444' },
+              { key: 'top_worst' as const, icon: AlertTriangle, label: 'Top Worst Cells', color: '#14746C' },
+              { key: 'alarms' as const, icon: Bell, label: 'Alarms', color: '#14746C' },
               // Neighbors moved to Network Explorer
-              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#F59E0B' },
+              { key: 'cm_history' as const, icon: Settings2, label: 'CM History', color: '#14746C' },
             ];
             // All tabs stay visible (clean design). Disabled ones are dimmed
             // and their content area shows a placeholder instead of data.
