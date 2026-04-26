@@ -148,6 +148,7 @@ export async function fetchCounterTimeSeriesFallback(
     }
 
     const executeRequest = async (requestBody: any, forcedSplitField?: string) => {
+      logBackendRequest('Counter Timeseries (fallback)', 'POST', url, requestBody);
       const res = await fetchWithTimeout(url, {
         method: 'POST',
         headers: getApiHeaders(),
