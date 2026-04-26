@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ArrowRightLeft, Search, ArrowUpRight, ArrowDownLeft, Radio, MapPin, RotateCcw, Waypoints, ArrowUpDown, ChevronUp, ChevronDown } from 'lucide-react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
 
 interface NeighborRelation {
@@ -78,7 +78,9 @@ const NeighborsSection: React.FC<Props> = ({ filters }) => {
         for (const id of lookupIds) {
           for (const dir of ['out', 'in'] as const) {
             if (controller.signal.aborted) break;
-            const res = await fetch(getApiUrl(`neighbors/${encodeURIComponent(id)}?direction=${dir}&limit=100`), {
+            const neighborsUrl = getApiUrl(`neighbors/${encodeURIComponent(id)}?direction=${dir}&limit=100`);
+            logBackendRequest('Neighbors', 'GET', neighborsUrl);
+            const res = await fetch(neighborsUrl, {
               headers: getApiHeaders(), signal: controller.signal,
             });
             if (!res.ok) continue;

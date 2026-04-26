@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Bell, Search, Clock, MapPin, Radio, RotateCcw, ArrowUpDown, ChevronUp, ChevronDown, ShieldAlert } from 'lucide-react';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
 
 interface Alarm {
@@ -76,7 +76,9 @@ const AlarmsSection: React.FC<Props> = ({ filters, startDate, endDate }) => {
         params.set('limit', '200');
         const siteFilter = filters.Site || filters.SITE || [];
         if (siteFilter.length > 0) params.set('site', siteFilter[0]);
-        const res = await fetch(getApiUrl(`alarms/nokia?${params.toString()}`), {
+        const alarmsUrl = getApiUrl(`alarms/nokia?${params.toString()}`);
+        logBackendRequest('Alarms', 'GET', alarmsUrl);
+        const res = await fetch(alarmsUrl, {
           headers: getApiHeaders(), signal: controller.signal,
         });
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);

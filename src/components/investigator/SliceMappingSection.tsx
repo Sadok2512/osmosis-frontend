@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { vendorBadge, vendorHex } from '@/constants/brandColors';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { Layers, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -41,7 +41,9 @@ const SliceMappingSection: React.FC = () => {
   const [filterRat, setFilterRat] = useState('');
 
   useEffect(() => {
-    fetch(getApiUrl('pm/slice-mapping'), { headers: getApiHeaders() })
+    const sliceUrl = getApiUrl('pm/slice-mapping');
+    logBackendRequest('Slice Mapping', 'GET', sliceUrl);
+    fetch(sliceUrl, { headers: getApiHeaders() })
       .then(r => r.ok ? r.json() : [])
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { generateTimeSlots, mergeTimeSlots } from '@/lib/timeSlots';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import { fetchExplain } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { formatAxisLabel } from './timeUtils';
 import { Granularity } from './types';
@@ -92,7 +92,9 @@ const BreakdownChart: React.FC<BreakdownChartProps> = ({
       }
     }
 
-    fetch(getApiUrl('pm/counters/timeseries'), {
+    const breakdownUrl = getApiUrl('pm/counters/timeseries');
+    logBackendRequest('KPI Breakdown (counters)', 'POST', breakdownUrl, body);
+    fetch(breakdownUrl, {
       method: 'POST',
       headers: getApiHeaders(),
       body: JSON.stringify(body),
