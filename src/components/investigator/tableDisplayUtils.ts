@@ -1,6 +1,9 @@
 import type { DataPoint, GraphSlot } from './types';
 import { buildTimeline } from './timeUtils';
 
+type DimensionBag = Record<string, string | number | null | undefined>;
+type DimensionEntry = { key?: string; name?: string; value?: string };
+
 export type RuntimeDataPoint = DataPoint & {
   _slotId?: string;
   time?: string;
@@ -17,9 +20,9 @@ export type RuntimeDataPoint = DataPoint & {
   dimensionName?: string;
   dimension_name?: string;
   dimName?: string;
-  dimension?: any;
-  dimensions?: any;
-  dims?: Array<{ key?: string; name?: string; value?: string }>;
+  dimension?: DimensionBag;
+  dimensions?: DimensionBag | DimensionEntry[];
+  dims?: DimensionEntry[];
   labels?: Record<string, string>;
   tags?: Record<string, string>;
   kpiName?: string;
@@ -161,6 +164,11 @@ function detectPrimarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot 
   if (activeSlot?.splitBy && !SPLIT_NONE.has(activeSlot.splitBy.toUpperCase())) {
     return normalizeDimensionLabel(activeSlot.splitBy);
   }
+  const configuredPerKpiSplit = Object.values(activeSlot?.config?.splitByPerKpi || {})
+    .find((split) => split && !SPLIT_NONE.has(String(split).toUpperCase()));
+  if (configuredPerKpiSplit) {
+    return normalizeDimensionLabel(configuredPerKpiSplit);
+  }
 
   const firstDimension = getFirstDimensionEntries(item)[0];
   const directLabel =
@@ -176,6 +184,11 @@ function detectPrimarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot 
 function detectSecondarySplitLabel(item: RuntimeDataPoint, activeSlot?: GraphSlot | null): string | null {
   if (activeSlot?.splitBy2 && !SPLIT_NONE.has(activeSlot.splitBy2.toUpperCase())) {
     return normalizeDimensionLabel(activeSlot.splitBy2);
+  }
+  const configuredPerKpiSplit = Object.values(activeSlot?.config?.splitByPerKpi2 || {})
+    .find((split) => split && !SPLIT_NONE.has(String(split).toUpperCase()));
+  if (configuredPerKpiSplit) {
+    return normalizeDimensionLabel(configuredPerKpiSplit);
   }
 
   const dimensions = getFirstDimensionEntries(item);

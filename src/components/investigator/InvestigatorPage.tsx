@@ -176,6 +176,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [applyVersion, setApplyVersion] = React.useState(0);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedCounterCatalog, setSelectedCounterCatalog] = React.useState<any[]>([]);
+  const [appliedBreakdownSnapshots, setAppliedBreakdownSnapshots] = React.useState<Record<string, TabContextSnapshot>>({});
 
   const mergeCounterCatalog = useCallback((current: any[], incoming: any[]) => {
     const byName = new Map<string, any>();
@@ -611,6 +612,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const otherData = currentTsData.filter((d: any) => d._slotId != null && (d._slotId !== targetSlot.id || d._isCounter));
       const nextTsData = [...otherData, ...taggedData];
       setTsData(nextTsData);
+      setAppliedBreakdownSnapshots(prev => ({
+        ...prev,
+        [targetSlot.id]: buildSnapshot(targetSlot, state),
+      }));
       setTableDataRefreshBySlot(prev => ({ ...prev, [targetSlot.id]: (prev[targetSlot.id] || 0) + 1 }));
       setAnalysisTab('table_data');
       setTableDataSlotId(targetSlot.id);
@@ -1416,20 +1421,21 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                 // 4. Render breakdown for the active slot's KPIs only.
                 //    `key` forces a fresh mount when the active graph changes,
                 //    so internal state (formula cache, fetched series) is reset.
+                const breakdownSnapshot = appliedBreakdownSnapshots[activeSlot.id] || activeSnapshot;
                 return (
                   <section>
                     <KPIBreakdown
                       key={activeSlot.id}
-                      selectedKpis={activeSlot.kpiIds}
+                      selectedKpis={breakdownSnapshot?.kpiIds || activeSlot.kpiIds}
                       layout={state.graphLayout}
-                      dateFrom={activeSnapshot?.startDate || activeSlot.startDate || state.startDate}
-                      dateTo={activeSnapshot?.endDate || activeSlot.endDate || state.endDate}
-                      granularity={(activeSnapshot?.granularity as any) || activeSlot.granularity || state.granularity}
-                      filters={Object.entries(activeSlot.filters || {})
+                      dateFrom={breakdownSnapshot?.startDate || activeSlot.startDate || state.startDate}
+                      dateTo={breakdownSnapshot?.endDate || activeSlot.endDate || state.endDate}
+                      granularity={(breakdownSnapshot?.granularity as Granularity) || activeSlot.granularity || state.granularity}
+                      filters={Object.entries(breakdownSnapshot?.filters || activeSlot.filters || {})
                         .filter(([,v]) => v.length > 0)
                         .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                      splitBy={undefined}
-                      splitByPerKpi={undefined}
+                      splitBy={breakdownSnapshot?.splitBy || undefined}
+                      splitByPerKpi={activeSlot.config?.splitByPerKpi || undefined}
                       timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
                       jalons={state.jalons}
                     />

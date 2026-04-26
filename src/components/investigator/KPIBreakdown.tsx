@@ -28,6 +28,20 @@ interface Props {
   jalons?: Jalon[];
 }
 
+interface ExplainCounterRecord {
+  name?: unknown;
+  counter_name?: unknown;
+  counter_id?: unknown;
+  counter?: unknown;
+  tag?: unknown;
+  role?: unknown;
+  description?: unknown;
+  unit?: unknown;
+  source?: unknown;
+  vendor?: unknown;
+  aggregation?: unknown;
+}
+
 interface KpiExplain {
   kpi_key: string;
   display_name: string;
@@ -37,7 +51,7 @@ interface KpiExplain {
   formula_type: string;
   numerator: string;
   denominator: string;
-  counters?: string[];
+  counters?: Array<string | ExplainCounterRecord>;
   techno: string;
   vendor: string;
 }
@@ -57,6 +71,14 @@ interface CounterTsPoint {
   value: number;
   ne?: string;
   dimension_key?: string;
+}
+
+interface CounterSeriesPoint {
+  timestamp?: string;
+  kpi?: string;
+  value?: number | null;
+  splitValue?: string;
+  networkElement?: string;
 }
 
 const NUM_COLORS = ['#22c55e', '#16a34a', '#4ade80', '#86efac', '#15803d'];
@@ -100,14 +122,92 @@ function jalonMarkLine(timestamps: string[], jalons: Jalon[], granularity: Granu
 }
 const PM_DIM_TYPES = new Set(['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL']);
 
+const cleanCounterName = (value: unknown): string => {
+  const name = String(value || '').trim();
+  if (!name) return '';
+  return name.split('@')[0].trim();
+};
+
 const extractCounters = (formula: string): string[] => {
   if (!formula) return [];
-  const matches = formula.match(/`([^`]+)`/g) || [];
-  return [...new Set(matches.map(m => m.replace(/`/g, '').trim()).filter(Boolean))];
+  const counters = new Set<string>();
+  const quotedPattern = /[`{]([A-Za-z0-9_]+)(?:@[^`}]*)?[`}]|\b(pm[A-Za-z][A-Za-z0-9_]+)\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = quotedPattern.exec(formula)) !== null) {
+    const name = cleanCounterName(match[1] || match[2]);
+    if (name) counters.add(name);
+  }
+  return [...counters];
 };
 
 const matchesKpiSeries = (seriesKpi: string, kpiId: string): boolean =>
   seriesKpi === kpiId || seriesKpi.startsWith(`${kpiId}@`);
+
+const textValue = (value: unknown): string => typeof value === 'string' ? value : '';
+
+const normalizeExplainCounters = (explain: KpiExplain): CounterInfo[] => {
+  const rawCounters = Array.isArray(explain.counters) ? explain.counters : [];
+  const normalized = rawCounters.map((raw): CounterInfo | null => {
+    if (typeof raw === 'string') {
+      const name = cleanCounterName(raw);
+      return name ? { name, tag: 'NUM', source: explain.vendor, aggregation: 'SUM' } : null;
+    }
+    if (!raw || typeof raw !== 'object') return null;
+    const name = cleanCounterName(
+      raw.name ||
+      raw.counter_name ||
+      raw.counter_id ||
+      raw.counter
+    );
+    if (!name) return null;
+    const rawTag = String(raw.tag || raw.role || '').toUpperCase();
+    const tag: 'NUM' | 'DEN' = rawTag === 'DEN' || rawTag === 'DENOMINATOR' ? 'DEN' : 'NUM';
+    return {
+      name,
+      tag,
+      description: textValue(raw.description),
+      unit: textValue(raw.unit),
+      source: textValue(raw.source) || textValue(raw.vendor) || explain.vendor,
+      aggregation: textValue(raw.aggregation) || 'SUM',
+    };
+  }).filter((counter): counter is CounterInfo => Boolean(counter));
+
+  return normalized.filter((counter, index, arr) =>
+    arr.findIndex((item) => item.name === counter.name && item.tag === counter.tag) === index
+  );
+};
+
+const splitFieldFor = (splitBy?: string): string | undefined => {
+  const normalized = (splitBy || '').replace('PM_DIM:', '').toUpperCase();
+  if (normalized === 'CELL') return 'cell_name';
+  if (normalized === 'SITE') return 'site_name';
+  return undefined;
+};
+
+const splitRequestValue = (splitBy?: string): string | undefined => {
+  if (!splitBy || splitBy === 'None') return undefined;
+  return splitFieldFor(splitBy) ? splitBy : splitBy.startsWith('PM_DIM:') ? splitBy : `PM_DIM:${splitBy}`;
+};
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? value as Record<string, unknown> : {};
+
+const normalizeKpiExplain = (payload: unknown, kpiId: string): KpiExplain => {
+  const data = asRecord(payload);
+  return {
+    kpi_key: textValue(data.kpi_key) || kpiId,
+    display_name: textValue(data.display_name) || kpiId,
+    description: textValue(data.description),
+    category: textValue(data.category),
+    unit: textValue(data.unit),
+    formula_type: textValue(data.formula_type) || 'ratio',
+    numerator: textValue(data.numerator) || textValue(data.formula_num) || textValue(data.formula),
+    denominator: textValue(data.denominator) || textValue(data.formula_den),
+    counters: Array.isArray(data.counters) ? data.counters as Array<string | ExplainCounterRecord> : [],
+    techno: textValue(data.techno),
+    vendor: textValue(data.vendor),
+  };
+};
 
 /* ──────────────────── Sub-components ──────────────────── */
 
@@ -357,32 +457,27 @@ const SingleKpiBreakdown: React.FC<{
       try {
         const res = await fetch(getApiUrl(`pm/kpi/explain/${encodeURIComponent(kpiId)}`), { headers: getApiHeaders() });
         if (res.ok) {
-          const data = await res.json();
-          if (!cancelled && data && !data.error && data.numerator) {
-            setExplain({
-              kpi_key: data.kpi_key,
-              display_name: data.display_name,
-              description: data.description || '',
-              category: data.category || '',
-              unit: data.unit || '',
-              formula_type: data.formula_type || 'ratio',
-              numerator: data.numerator,
-              denominator: data.denominator,
-              counters: Array.isArray(data.counters) ? data.counters : [],
-              techno: data.techno || '',
-              vendor: data.vendor || '',
-            });
+          const data: unknown = await res.json();
+          const normalized = normalizeKpiExplain(data, kpiId);
+          if (!cancelled && !asRecord(data).error && (normalized.numerator || normalized.counters.length > 0)) {
+            setExplain(normalized);
             return;
           }
         }
         // Fallback
-        const fallback: any = await fetchExplain(kpiId);
-        if (!cancelled) setExplain(fallback);
+        const fallback: unknown = await fetchExplain(kpiId);
+        if (!cancelled) {
+          setExplain(normalizeKpiExplain(fallback, kpiId));
+        }
       } catch {
         try {
-          const fallback: any = await fetchExplain(kpiId);
-          if (!cancelled) setExplain(fallback);
-        } catch {}
+          const fallback: unknown = await fetchExplain(kpiId);
+          if (!cancelled) {
+            setExplain(normalizeKpiExplain(fallback, kpiId));
+          }
+        } catch {
+          if (!cancelled) setExplain(null);
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -391,10 +486,18 @@ const SingleKpiBreakdown: React.FC<{
   // Extract counter infos from explain
   useEffect(() => {
     if (!explain) { setCounterInfos([]); return; }
+    const explainedCounters = normalizeExplainCounters(explain);
+    if (explainedCounters.length > 0) {
+      setCounterInfos(explainedCounters);
+      setHiddenCounters(new Set());
+      return;
+    }
     const formulaNumCounters = extractCounters(explain.numerator);
     const formulaDenCounters = extractCounters(explain.denominator);
     const formulaCounters = [...new Set([...formulaNumCounters, ...formulaDenCounters])];
-    const fallbackCounters = Array.isArray(explain.counters) ? explain.counters.filter(Boolean) : [];
+    const fallbackCounters = Array.isArray(explain.counters)
+      ? explain.counters.map(cleanCounterName).filter(Boolean)
+      : [];
     const resolvedCounters = formulaCounters.length > 0 ? formulaCounters : fallbackCounters;
 
     const numSource = formulaNumCounters.length > 0 ? formulaNumCounters : resolvedCounters;
@@ -462,15 +565,15 @@ const SingleKpiBreakdown: React.FC<{
     if (names.length === 0) { setCounterTsData([]); return; }
     setLoading(true);
     const ctrl = new AbortController();
-    fetchCounterTimeSeriesFallback(names, dateFrom, dateTo, granularity, undefined, filters)
+    fetchCounterTimeSeriesFallback(names, dateFrom, dateTo, granularity, splitRequestValue(splitBy), filters, splitFieldFor(splitBy))
       .then(({ data }) => {
         if (ctrl.signal.aborted) return;
-        const norm: CounterTsPoint[] = data.map((point: any) => ({
-          ts: point.timestamp,
-          counter: point.kpi,
+        const norm: CounterTsPoint[] = (data as CounterSeriesPoint[]).map((point) => ({
+          ts: point.timestamp || '',
+          counter: point.kpi || '',
           value: point.value ?? 0,
           dimension_key: point.splitValue || point.networkElement,
-        }));
+        })).filter(point => point.ts && point.counter);
         setCounterTsData(norm);
         setLoading(false);
       })
@@ -480,7 +583,7 @@ const SingleKpiBreakdown: React.FC<{
         setLoading(false);
       });
     return () => ctrl.abort();
-  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters)]);
+  }, [counterInfos.map(c => c.name).join(','), dateFrom, dateTo, granularity, JSON.stringify(filters), splitBy]);
 
   const toggleCounter = useCallback((name: string) => {
     setHiddenCounters(prev => {
@@ -621,7 +724,7 @@ const SingleKpiBreakdown: React.FC<{
       legend: {
         show: true, bottom: 4, icon: 'roundRect',
         itemWidth: 18, itemHeight: 4, itemGap: 16,
-        type: 'scroll' as any, pageIconSize: 10,
+        type: 'scroll', pageIconSize: 10,
         textStyle: { fontSize: 10, fontWeight: 600, color: '#4b5563' },
         tooltip: { show: true },
       },
@@ -712,7 +815,7 @@ const SingleKpiBreakdown: React.FC<{
       backgroundColor: 'transparent',
       grid: { top: 40, right: 50, bottom: 60, left: 70, containLabel: false },
       legend: {
-        show: true, bottom: 4, icon: 'roundRect', type: 'plain' as any,
+        show: true, bottom: 4, icon: 'roundRect', type: 'plain',
         itemWidth: 18, itemHeight: 4, itemGap: 14,
         textStyle: { fontSize: 10, fontWeight: 600, color: '#4b5563' },
       },
@@ -845,8 +948,11 @@ const KPIBreakdown: React.FC<Props> = ({
   const uniqueKpiIds = useMemo(() => [...new Set(selectedKpis.filter(Boolean))], [selectedKpis]);
   const [activeKpiTab, setActiveKpiTab] = useState(uniqueKpiIds[0] || '');
 
-  // Breakdown stays aggregated on the slot perimeter, regardless of graph split state.
-  const getEffectiveSplit = useCallback((_kpiId: string) => undefined, []);
+  const getEffectiveSplit = useCallback((kpiId: string) => {
+    const perKpi = splitByPerKpi?.[kpiId];
+    if (perKpi && perKpi !== 'None') return perKpi;
+    return splitBy && splitBy !== 'None' ? splitBy : undefined;
+  }, [splitBy, splitByPerKpi]);
 
   // Sync active tab when KPI list changes
   useEffect(() => {
