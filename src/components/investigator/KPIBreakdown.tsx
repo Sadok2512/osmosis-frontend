@@ -231,7 +231,9 @@ const FormulaPanel: React.FC<{
   onToggleElement?: (el: string) => void;
   onSelectAllElements?: () => void;
   onDeselectAllElements?: () => void;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements }) => {
+  elementColorMap?: Map<string, string>;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements, elementColorMap }) => {
+
   if (!explain) {
     return (
       <div className="rounded-xl border border-border/40 bg-card p-6 flex items-center justify-center">
