@@ -65,6 +65,13 @@ export function logBackendRequest(
   } catch {
     // ignore logging failures
   }
+  // Also push to the in-app live log panel.
+  try {
+    // Lazy import to avoid circular deps at module init.
+    import('./backendRequestLog').then(m => m.pushBackendRequestEntry(widgetName, method, url));
+  } catch {
+    // ignore
+  }
 }
 
 /** Agent API key from env */
