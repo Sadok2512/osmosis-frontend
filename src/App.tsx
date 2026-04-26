@@ -14,6 +14,7 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const UserLogin = lazy(() => import("./pages/UserLogin"));
 const InvestigatorDrilldown = lazy(() => import("./pages/InvestigatorDrilldown"));
+const InvestigatorExport = lazy(() => import("./pages/InvestigatorExport"));
 const PrecisionArchitect = lazy(() => import("./pages/PrecisionArchitect"));
 
 // Single, app-wide QueryClient. We persist its cache to localStorage so chart
