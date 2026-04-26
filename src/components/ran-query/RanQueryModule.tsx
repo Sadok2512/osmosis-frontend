@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { vendorBadge, techBadge, VENDOR_HSL, TECH_HSL } from '@/constants/brandColors';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
+import { buildTimeline } from '@/components/investigator/timeUtils';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
@@ -78,7 +79,7 @@ interface ReportResultRow {
   vendor: string;
   technology: string;
   timestamp: string;
-  value: number;
+  value: number | null;
   unit: string;
   site_name?: string;
   cell_name?: string;
@@ -363,6 +364,46 @@ function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: st
     split_by_2: null,
     kpi_level: aggList.includes('cell') ? 'CELL' : 'SITE',
   };
+}
+
+function buildEmptyReportRows(report: RanReport): ReportResultRow[] {
+  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
+  const timestamps = buildTimeline(date_from, date_to, report.timeConfig.granularity);
+  if (timestamps.length === 0) return [];
+
+  const vendors = report.vendor.split(',').map(v => v.trim()).filter(Boolean);
+  const technologies = report.technologies.length > 0 ? report.technologies : ['4G'];
+  const sites = report.sites && report.sites.length > 0 ? report.sites : [undefined];
+  const dors = report.dors && report.dors.length > 0 ? report.dors : [undefined];
+  const clusters = report.clusters && report.clusters.length > 0 ? report.clusters : [undefined];
+
+  const rows: ReportResultRow[] = [];
+  for (const vendor of vendors) {
+    for (const technology of technologies) {
+      for (const timestamp of timestamps) {
+        for (const site of sites) {
+          for (const dor of dors) {
+            for (const cluster of clusters) {
+              for (const kpi of report.kpis) {
+                rows.push({
+                  kpi,
+                  vendor,
+                  technology,
+                  timestamp,
+                  value: null,
+                  unit: '',
+                  site_name: site,
+                  cluster,
+                  dor,
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return rows;
 }
 
 const MAX_CONCURRENT = 4;
@@ -882,6 +923,10 @@ const RanQueryModule: React.FC = () => {
       const ts = row.timestamp;
       if (!tsMap.has(ts)) tsMap.set(ts, {});
       const bucket = tsMap.get(ts)!;
+      if (row.value == null) {
+        kpiSet.add(row.kpi);
+        continue;
+      }
       if (!bucket[row.kpi]) bucket[row.kpi] = { sum: 0, count: 0 };
       bucket[row.kpi].sum += row.value;
       bucket[row.kpi].count += 1;
@@ -965,7 +1010,9 @@ const RanQueryModule: React.FC = () => {
       techSet.add(tech);
       let entry = map.get(site);
       if (!entry) { entry = {}; map.set(site, entry); }
-      entry[tech] = (entry[tech] ?? 0) + (Number(r.value) || 0);
+      if (r.value != null) {
+        entry[tech] = (entry[tech] ?? 0) + Number(r.value);
+      }
     }
     const techs = [...techSet].sort();
     const colTotals: Record<string, number> = {};
@@ -1126,14 +1173,16 @@ const RanQueryModule: React.FC = () => {
       if (!report) throw new Error('Report not found');
       const { rows, errors } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
+      const placeholderRows = rows.length === 0 ? buildEmptyReportRows(report) : [];
+      const effectiveRows = rows.length > 0 ? rows : placeholderRows;
       const hasData = rows.length > 0;
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
         return {
           ...r,
-          status: (hasData ? 'Completed' : 'Failed') as ReportStatus,
-          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'error',
-          results: rows,
+          status: 'Completed' as ReportStatus,
+          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'warning',
+          results: effectiveRows,
           errorMessage: rows.length === 0 ? (errorMsg || `No data returned. PM data available: 2026-04-14 to 2026-04-18. Your range: ${report.timeConfig.timeMode === 'absolute' ? report.timeConfig.start + ' → ' + report.timeConfig.end : 'Last ' + (report.timeConfig as any).value + ' ' + (report.timeConfig as any).unit}`) : errorMsg,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
