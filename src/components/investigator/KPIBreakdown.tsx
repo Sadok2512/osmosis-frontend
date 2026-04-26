@@ -76,6 +76,10 @@ interface CounterTsPoint {
 interface CounterSeriesPoint {
   timestamp?: string;
   kpi?: string;
+  counter?: string;
+  counter_id?: string;
+  counter_name?: string;
+  kpi_key?: string;
   value?: number | null;
   splitValue?: string;
   networkElement?: string;
@@ -570,7 +574,7 @@ const SingleKpiBreakdown: React.FC<{
         if (ctrl.signal.aborted) return;
         const norm: CounterTsPoint[] = (data as CounterSeriesPoint[]).map((point) => ({
           ts: point.timestamp || '',
-          counter: point.kpi || '',
+          counter: cleanCounterName(point.kpi || point.counter_id || point.counter_name || point.counter || point.kpi_key),
           value: point.value ?? 0,
           dimension_key: point.splitValue || point.networkElement,
         })).filter(point => point.ts && point.counter);
@@ -767,26 +771,26 @@ const SingleKpiBreakdown: React.FC<{
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
 
-  /* ─── KPI Timeseries by Cell chart (uses timeSeriesData from KPI Engine) ─── */
+  /* ─── KPI Timeseries chart (uses applied KPI data from the active graph) ─── */
   const kpiSplitChart = useMemo(() => {
-    if (!splitActive || !timeSeriesData || timeSeriesData.length === 0) return null;
+    if (!timeSeriesData || timeSeriesData.length === 0) return null;
 
     // Filter data for this KPI
     const kpiData = timeSeriesData.filter(d => matchesKpiSeries(d.kpi, kpiId));
     if (kpiData.length === 0) return null;
 
-    // Group by splitValue (cell name)
+    // Group by active split value when present, otherwise keep the KPI aggregate visible.
     const cellMap = new Map<string, Map<string, number>>();
     const timestamps = new Set<string>();
     for (const d of kpiData) {
-      const cell = d.splitValue || d.networkElement || 'Aggregated';
+      const cell = splitActive ? (d.splitValue || d.networkElement || 'Aggregated') : kpiId;
       if (selectedElements && !selectedElements.has(cell)) continue; // filter by selected elements
       timestamps.add(d.timestamp);
       if (!cellMap.has(cell)) cellMap.set(cell, new Map());
       cellMap.get(cell)!.set(d.timestamp, d.value);
     }
 
-    if (cellMap.size <= 1 && cellMap.has('Aggregated')) return null; // No real split
+    if (cellMap.size === 0) return null;
 
     const apiTimestamps = [...timestamps].sort();
     const timeline = buildTimeline(dateFrom, dateTo, granularity);
@@ -863,13 +867,13 @@ const SingleKpiBreakdown: React.FC<{
         onDeselectAllElements={deselectAllElements}
       />
 
-      {/* KPI Timeseries by Cell */}
+      {/* KPI Timeseries */}
       {kpiSplitChart && (
         <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
           <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-primary" />
             <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-              KPI by {splitBy || 'Cell'}
+              {splitActive ? `KPI by ${splitBy || 'split'}` : 'KPI Timeseries'}
             </span>
             <span className="text-[10px] text-muted-foreground ml-1">
               {kpiId}
