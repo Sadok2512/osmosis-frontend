@@ -214,10 +214,23 @@ function parseKpiList(text: string): string[] {
   );
 }
 
-function formatDateTime(value: string | null): string {
+function formatDateTime(value: string | null, granularity?: Granularity | string): string {
   if (!value) return '—';
+  const normalized = value.trim();
+  if (!normalized) return '—';
+  if ((granularity === '1d' || granularity === '1w') && /^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    const [year, month, day] = normalized.split('-');
+    return `${day}/${month}/${year}`;
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
+  if (granularity === '1d' || granularity === '1w') {
+    return new Intl.DateTimeFormat('fr-FR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  }
   return new Intl.DateTimeFormat('fr-FR', {
     year: 'numeric',
     month: '2-digit',
@@ -2103,7 +2116,7 @@ const RanQueryModule: React.FC = () => {
                           <tr key={idx} className="hover:bg-primary/5 transition-colors">
                             {pivotData.dimCols.map(d => (
                               <td key={d.key} className="px-3 py-2 text-foreground whitespace-nowrap">
-                                {d.key === '_timestamp' ? formatDateTime(row[d.key]) :
+                                {d.key === '_timestamp' ? formatDateTime(row[d.key], selectedReport.timeConfig.granularity) :
                                  d.key === '_vendor' ? <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', vendorBadge(row[d.key]).bg, vendorBadge(row[d.key]).text, vendorBadge(row[d.key]).border)}>{row[d.key]}</span> :
                                  d.key === '_technology' ? <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium', techBadge(row[d.key]).bg, techBadge(row[d.key]).text, techBadge(row[d.key]).border)}>{row[d.key]}</span> :
                                  <span className="text-muted-foreground truncate max-w-[150px] block" title={row[d.key]}>{row[d.key] || '—'}</span>}
