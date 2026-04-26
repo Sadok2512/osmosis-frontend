@@ -887,6 +887,7 @@ interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
   investigatorState: InvestigationState;
+  applyVersion?: number;
   layout: 1 | 2 | 3 | 4;
   jalons: Jalon[];
   onChangeSlotKpi: (slotId: string, kpiId: string) => void;
@@ -916,7 +917,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   link.click();
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
@@ -937,11 +938,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
     id: slot.id,
     counterIds: slot.counterIds || [],
     splitByPerKpi: slot.config?.splitByPerKpi || {},
-    filters: slot.filters || {},
-    startDate: slot.startDate || '',
-    endDate: slot.endDate || '',
-    granularity: slot.granularity || investigatorState.granularity || '',
-  })).join('|'), [graphSlots, investigatorState.granularity]);
+  })).join('|'), [graphSlots]);
 
   useEffect(() => {
     fetchKpiDefinitions().then(k => { if (k.length > 0) setAllKpis(k); }).catch(() => {});
@@ -964,6 +961,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
   // Fetch counter timeseries for all slots that have counterIds
   useEffect(() => {
+    if (applyVersion === 0) return;
     const slotsWithCounters = graphSlots.filter(s => s.counterIds && s.counterIds.length > 0);
     if (slotsWithCounters.length === 0) return;
 
@@ -1059,10 +1057,9 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
     });
 
     return () => controller.abort();
-  }, [slotsCounterKey, investigatorState.startDate, investigatorState.endDate, investigatorState.splitBy, investigatorState.filters, investigatorState.kpiLevel, investigatorState.profileQci, investigatorState.profileArp, investigatorState.neighborType]);
-  // Note: investigatorState.granularity removed from deps — each slot has its own
-  // granularity tracked via slotsCounterKey. Changing global granularity only affects
-  // slots that don't have a per-slot override.
+  }, [applyVersion, slotsCounterKey]);
+  // Counter fetches are intentionally gated by explicit Apply actions.
+  // Editing dates / granularity / filters must not issue backend requests until confirmed.
 
   // Commit render params when KPI data arrives from parent (handleApply)
   useEffect(() => {

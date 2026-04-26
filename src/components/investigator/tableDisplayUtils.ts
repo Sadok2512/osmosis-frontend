@@ -414,7 +414,7 @@ export function buildPivotTable(
 
   const rows = Array.from(rowsByKey.values())
     .sort((a, b) => {
-      const timeDiff = String(b.rawTime).localeCompare(String(a.rawTime));
+      const timeDiff = String(a.rawTime).localeCompare(String(b.rawTime));
       if (timeDiff !== 0) return timeDiff;
 
       const left = columns

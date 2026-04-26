@@ -173,6 +173,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [applyError, setApplyError] = React.useState<string | null>(null);
+  const [applyVersion, setApplyVersion] = React.useState(0);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [selectedCounterCatalog, setSelectedCounterCatalog] = React.useState<any[]>([]);
 
@@ -565,6 +566,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       setIsApplying(true);
       try {
         const pointCount = await fetchSelectedCounterSeries({ throwOnError: true });
+        setApplyVersion(v => v + 1);
         if (pointCount === 0) {
           const topo = (fetchCounterSeriesForSlot as any)._lastTopologyCells;
           if (topo === 0) {
@@ -607,18 +609,23 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       const current = useInvestigatorWorkspace.getState().getInstance(instanceId);
       const currentTsData = current?.tsData ?? tsData;
       const otherData = currentTsData.filter((d: any) => d._slotId != null && (d._slotId !== targetSlot.id || d._isCounter));
-      setTsData([...otherData, ...taggedData]);
+      const nextTsData = [...otherData, ...taggedData];
+      setTsData(nextTsData);
       setTableDataRefreshBySlot(prev => ({ ...prev, [targetSlot.id]: (prev[targetSlot.id] || 0) + 1 }));
       setAnalysisTab('table_data');
       setTableDataSlotId(targetSlot.id);
       setHasLoadedOnce(true);
+      setApplyVersion(v => v + 1);
 
       if (taggedData.length === 0 && counterPointCount === 0) {
-        const topo = (fetchCounterSeriesForSlot as any)._lastTopologyCells;
-        if (topo === 0) {
-          setApplyError(`Aucune cellule ne correspond aux filtres pour « ${targetSlot.name} » (Vendor / Plaque / Techno incohérents). Ajustez le périmètre.`);
-        } else {
-          setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
+        const hasDataInOtherSlots = otherData.some((d: any) => d?._slotId && d._slotId !== targetSlot.id);
+        if (!hasDataInOtherSlots && nextTsData.length === 0) {
+          const topo = (fetchCounterSeriesForSlot as any)._lastTopologyCells;
+          if (topo === 0) {
+            setApplyError(`Aucune cellule ne correspond aux filtres pour « ${targetSlot.name} » (Vendor / Plaque / Techno incohérents). Ajustez le périmètre.`);
+          } else {
+            setApplyError(`Aucune donnée trouvée pour « ${targetSlot.name} ». Vérifiez la période et les filtres.`);
+          }
         }
       }
 
@@ -890,6 +897,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           graphSlots={state.graphSlots}
           data={tsData}
           investigatorState={state}
+          applyVersion={applyVersion}
           layout={state.graphLayout}
           onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
             ...prev,
