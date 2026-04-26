@@ -34,15 +34,7 @@ export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
 
 const Index: React.FC = () => {
-  // ─── Embed mode (sidebar-less) — used by EXPORT button ───
-  // URL pattern: /?embed=investigator → opens the chosen module full-screen
-  // without the left sidebar (clean view for screenshots / sharing).
-  const embedTab = typeof window !== 'undefined'
-    ? (new URLSearchParams(window.location.search).get('embed') as AppTab | null)
-    : null;
-  const isEmbed = Boolean(embedTab);
-
-  const [activeTab, setActiveTab] = useState<AppTab>(embedTab ?? 'dashboard_overview');
+  const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
