@@ -34,24 +34,22 @@ export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
 
 const Index: React.FC = () => {
-  // ─── Embed mode (sidebar-less, used by EXPORT button) ───
-  // URL pattern: /?embed=investigator → opens Investigator full-screen.
+  // ─── Embed mode (sidebar-less) — used by EXPORT button ───
+  // URL pattern: /?embed=investigator → opens the chosen module full-screen
+  // without the left sidebar (clean view for screenshots / sharing).
   const embedTab = typeof window !== 'undefined'
     ? (new URLSearchParams(window.location.search).get('embed') as AppTab | null)
     : null;
   const isEmbed = Boolean(embedTab);
 
-  // Defer activating the embed tab to a microtask after mount so all
-  // persisted Zustand stores have hydrated first — otherwise mounting a
-  // heavy module (Investigator) concurrently with hydration triggers an
-  // infinite "forceStoreRerender" loop and the page renders blank.
-  const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
-  useEffect(() => {
-    if (embedTab) {
-      const id = window.setTimeout(() => setActiveTab(embedTab), 0);
-      return () => window.clearTimeout(id);
-    }
-  }, [embedTab]);
+  const [activeTab, setActiveTab] = useState<AppTab>(embedTab ?? 'dashboard_overview');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
+  const [accentColor, setAccentColor] = useState<AccentColor>('default');
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
+  const [expandedSiteId, setExpandedSiteId] = useState<string | null>(null);
+  const [sites, setSites] = useState<SiteSummary[]>([]);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [sidebarTheme, setSidebarTheme] = useState<SidebarTheme>('dark');
