@@ -321,7 +321,7 @@ const FormulaPanel: React.FC<{
           </button>
           {splitElements.map((el, idx) => {
             const isSelected = selectedElements.has(el);
-            const color = SPLIT_COLORS[idx % SPLIT_COLORS.length];
+            const color = elementColorMap?.get(el) || SPLIT_COLORS[idx % SPLIT_COLORS.length];
             return (
               <button
                 key={el}
