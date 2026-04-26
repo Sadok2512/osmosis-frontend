@@ -324,6 +324,7 @@ export function buildPivotTable(
   const filterColumns = buildFilterColumns(filterContext);
   let shouldShowSplitColumn = false;
   const splitColumnLabels = new Set<string>();
+  const observedSplitValues = new Set<string>();
 
   for (const item of tsData) {
     const time = getTimeValue(item);
@@ -355,6 +356,7 @@ export function buildPivotTable(
       rowValues.splitValue = splitDisplay;
       keyParts.push(splitDisplay);
       splitParts.forEach((part) => splitColumnLabels.add(part.label));
+      observedSplitValues.add(splitDisplay);
       shouldShowSplitColumn = true;
     } else {
       rowValues.splitValue = null;
@@ -403,24 +405,37 @@ export function buildPivotTable(
   const timeGranularity = activeSlot?.granularity || timeContext?.granularity || '1d';
   const timeline = timeStart && timeEnd ? buildTimeline(timeStart, timeEnd, timeGranularity) : [];
 
-  if (timeline.length > 0 && !columns.some((column) => column.key === 'splitValue')) {
-    const existingTimes = new Set(Array.from(rowsByKey.values()).map((row) => row.rawTime));
+  if (timeline.length > 0) {
+    const splitValues = columns.some((column) => column.key === 'splitValue')
+      ? Array.from(observedSplitValues)
+      : [null];
+
     for (const time of timeline) {
-      if (existingTimes.has(time)) continue;
-      const values: Record<string, string | number | null> = {};
-      filterColumns.forEach((filterCol) => {
-        values[filterCol.key] = filterCol.value;
-      });
-      if (columns.some((column) => column.key === 'splitValue')) values.splitValue = '—';
-      kpiColumns.forEach((kpi) => {
-        values[`kpi:${kpi}`] = null;
-      });
-      rowsByKey.set(`${time}__placeholder`, {
-        time: formatInvestigatorTime(time),
-        rawTime: time,
-        values,
-        kpiValues: Object.fromEntries(kpiColumns.map((kpi) => [kpi, null])),
-      });
+      for (const splitValue of splitValues) {
+        const values: Record<string, string | number | null> = {};
+        const keyParts = [time];
+        filterColumns.forEach((filterCol) => {
+          values[filterCol.key] = filterCol.value;
+          keyParts.push(filterCol.value);
+        });
+        if (splitValue) {
+          values.splitValue = splitValue;
+          keyParts.push(splitValue);
+        }
+
+        const rowKey = keyParts.join('__');
+        if (rowsByKey.has(rowKey)) continue;
+
+        kpiColumns.forEach((kpi) => {
+          values[`kpi:${kpi}`] = null;
+        });
+        rowsByKey.set(`${rowKey}__placeholder`, {
+          time: formatInvestigatorTime(time),
+          rawTime: time,
+          values,
+          kpiValues: Object.fromEntries(kpiColumns.map((kpi) => [kpi, null])),
+        });
+      }
     }
   }
 
