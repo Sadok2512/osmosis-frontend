@@ -705,16 +705,6 @@ const SingleKpiBreakdown: React.FC<{
       });
     } else {
 
-        if (otherDimValues.size > 0) {
-          specs.push({
-            counter,
-            isOther: true,
-            color: '#94a3b8',
-            label: `[${counter.tag}] ${counter.name} · other (${otherDimValues.size})`,
-          });
-        }
-      });
-    } else {
       visibleCounters.forEach(counter => {
         const isNum = counter.tag === 'NUM';
         const tagCounters = isNum ? numCounterNames : denCounterNames;
