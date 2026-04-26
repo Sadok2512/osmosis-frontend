@@ -403,7 +403,7 @@ export function buildPivotTable(
   const timeGranularity = activeSlot?.granularity || timeContext?.granularity || '1d';
   const timeline = timeStart && timeEnd ? buildTimeline(timeStart, timeEnd, timeGranularity) : [];
 
-  if (timeline.length > 0) {
+  if (timeline.length > 0 && !columns.some((column) => column.key === 'splitValue')) {
     const existingTimes = new Set(Array.from(rowsByKey.values()).map((row) => row.rawTime));
     for (const time of timeline) {
       if (existingTimes.has(time)) continue;
