@@ -254,14 +254,9 @@ function buildFilterColumns(filterContext?: Record<string, string[]>) {
     }));
 }
 
-function buildFilterDisplay(filterColumns: Array<{ key: string; label: string; value: string }>): string | null {
-  if (filterColumns.length === 0) return null;
-  return filterColumns.map((filterCol) => `${filterCol.label}=${filterCol.value}`).join(' | ');
-}
-
-function buildSplitDisplay(parts: Array<{ label: string; value: string }>): string | null {
+function buildSplitDisplay(parts: Array<{ label: string; value: string }>, includeLabels: boolean = false): string | null {
   if (parts.length === 0) return null;
-  return parts.map((part) => `${part.label}=${part.value}`).join(' | ');
+  return parts.map((part) => includeLabels ? `${part.label}=${part.value}` : part.value).join(' | ');
 }
 
 function getSplitValues(item: RuntimeDataPoint, activeSlot?: GraphSlot | null) {
@@ -314,8 +309,8 @@ export function buildPivotTable(
   const rowsByKey = new Map<string, PivotTableRow>();
   const kpiSet = new Set<string>();
   const filterColumns = buildFilterColumns(filterContext);
-  const filterDisplay = buildFilterDisplay(filterColumns);
   let shouldShowSplitColumn = false;
+  const splitColumnLabels = new Set<string>();
 
   for (const item of tsData) {
     const time = getTimeValue(item);
@@ -327,9 +322,11 @@ export function buildPivotTable(
     const rowValues: Record<string, string | number | null> = {};
     const keyParts = [time];
 
-    if (filterDisplay) {
-      rowValues.filterValue = filterDisplay;
-      keyParts.push(filterDisplay);
+    if (filterColumns.length > 0) {
+      filterColumns.forEach((filterCol) => {
+        rowValues[filterCol.key] = filterCol.value;
+        keyParts.push(filterCol.value);
+      });
     }
 
     const splitParts: Array<{ label: string; value: string }> = [];
@@ -344,14 +341,11 @@ export function buildPivotTable(
       const splitDisplay = buildSplitDisplay(splitParts)!;
       rowValues.splitValue = splitDisplay;
       keyParts.push(splitDisplay);
+      splitParts.forEach((part) => splitColumnLabels.add(part.label));
+      shouldShowSplitColumn = true;
     } else {
-      const dimensionLabel = getFallbackDimensionLabel(item, activeSlot);
-      const dimensionValue = getFallbackDimensionValue(item);
-      rowValues.splitValue = buildSplitDisplay([{ label: dimensionLabel, value: dimensionValue }]) || '—';
-      keyParts.push(String(rowValues.splitValue));
+      rowValues.splitValue = null;
     }
-
-    shouldShowSplitColumn = true;
     kpiSet.add(kpiName);
 
     const rowKey = keyParts.join('__');
@@ -380,9 +374,12 @@ export function buildPivotTable(
   }
 
   const columns: TableColumn[] = [{ key: 'time', label: 'TIME', kind: 'time' }];
-  if (filterDisplay) columns.push({ key: 'filterValue', label: 'FILTER', kind: 'filter' });
-  if (shouldShowSplitColumn || hasTimelineContext(activeSlot, timeContext)) {
-    columns.push({ key: 'splitValue', label: 'SPLIT', kind: 'split' });
+  filterColumns.forEach((filterCol) => {
+    columns.push({ key: filterCol.key, label: filterCol.label, kind: 'filter' });
+  });
+  if (shouldShowSplitColumn) {
+    const splitHeaderLabel = splitColumnLabels.size === 1 ? Array.from(splitColumnLabels)[0] : 'SPLIT';
+    columns.push({ key: 'splitValue', label: splitHeaderLabel, kind: 'split' });
   }
   kpiColumns.forEach((kpi) => {
     columns.push({ key: `kpi:${kpi}`, label: kpi, kind: 'kpi' });
@@ -398,7 +395,9 @@ export function buildPivotTable(
     for (const time of timeline) {
       if (existingTimes.has(time)) continue;
       const values: Record<string, string | number | null> = {};
-      if (filterDisplay) values.filterValue = filterDisplay;
+      filterColumns.forEach((filterCol) => {
+        values[filterCol.key] = filterCol.value;
+      });
       if (columns.some((column) => column.key === 'splitValue')) values.splitValue = '—';
       kpiColumns.forEach((kpi) => {
         values[`kpi:${kpi}`] = null;
@@ -433,10 +432,4 @@ export function buildPivotTable(
     rows,
     kpiColumns,
   };
-}
-
-function hasTimelineContext(activeSlot?: GraphSlot | null, timeContext?: TableTimeContext): boolean {
-  const timeStart = (activeSlot?.startDate && activeSlot.startDate.trim()) || (timeContext?.startDate || '').trim();
-  const timeEnd = (activeSlot?.endDate && activeSlot.endDate.trim()) || (timeContext?.endDate || '').trim();
-  return Boolean(timeStart && timeEnd);
 }
