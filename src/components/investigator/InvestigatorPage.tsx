@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorWorkspace, type InvestigatorInstance } from '@/stores/investigatorWorkspaceStore';
-import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
 import type { SavedInvestigator } from '@/services/investigatorService';
 import { toast } from 'sonner';
 
@@ -498,7 +498,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       body.dimension_filter = dimensionFilterValues.length === 1 ? dimensionFilterValues[0] : dimensionFilterValues;
     }
 
-    const response = await fetch(getApiUrl('pm/counters/timeseries'), {
+    const ctsUrl = getApiUrl('pm/counters/timeseries');
+    logBackendRequest('Counter Timeseries (InvestigatorPage)', 'POST', ctsUrl, body);
+    const response = await fetch(ctsUrl, {
       method: 'POST',
       headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
