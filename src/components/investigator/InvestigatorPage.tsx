@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useInvestigatorWorkspace, type InvestigatorInstance } from '@/stores/investigatorWorkspaceStore';
-import { getApiUrl, getApiHeaders, logBackendRequest } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchWithTimeout, logBackendRequest } from '@/lib/apiConfig';
 import type { SavedInvestigator } from '@/services/investigatorService';
 import { toast } from 'sonner';
 
@@ -500,11 +500,11 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
 
     const ctsUrl = getApiUrl('pm/counters/timeseries');
     logBackendRequest('Counter Timeseries (InvestigatorPage)', 'POST', ctsUrl, body);
-    const response = await fetch(ctsUrl, {
+    const response = await fetchWithTimeout(ctsUrl, {
       method: 'POST',
       headers: { ...getApiHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-    });
+    }, 45_000);
 
     if (!response.ok) {
       if (options?.throwOnError) {
@@ -1402,60 +1402,62 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             </div>
 
             {/* KPI Breakdown — strictly tied to the currently active graph slot */}
-            <div style={{ display: analysisTab === 'breakdown' ? undefined : 'none' }}>
-              {(() => {
-                // 1. No active graph selected
-                if (!activeSlot) {
+            {analysisTab === 'breakdown' && (
+              <div>
+                {(() => {
+                  // 1. No active graph selected
+                  if (!activeSlot) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                        <span>Aucun graphe sélectionné.</span>
+                        <span className="text-[10px] opacity-70">Sélectionnez un graphe pour voir son KPI Breakdown.</span>
+                      </div>
+                    );
+                  }
+                  // 2. Section disabled on the active graph
+                  const isEnabled = (activeSlot.config || DEFAULT_GRAPH_CONFIG).showBreakdown;
+                  if (!isEnabled) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
+                        <span>« KPI Breakdown » est désactivé pour ce graphe.</span>
+                        <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
+                      </div>
+                    );
+                  }
+                  // 3. No KPI on the active graph
+                  if (!activeSlot.kpiIds || activeSlot.kpiIds.length === 0) {
+                    return (
+                      <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">
+                        Aucun KPI sélectionné sur ce graphe.
+                      </div>
+                    );
+                  }
+                  // 4. Render breakdown for the active slot's KPIs only.
+                  //    `key` forces a fresh mount when the active graph changes,
+                  //    so internal state (formula cache, fetched series) is reset.
+                  const breakdownSnapshot = appliedBreakdownSnapshots[activeSlot.id] || activeSnapshot;
                   return (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
-                      <span>Aucun graphe sélectionné.</span>
-                      <span className="text-[10px] opacity-70">Sélectionnez un graphe pour voir son KPI Breakdown.</span>
-                    </div>
+                    <section>
+                      <KPIBreakdown
+                        key={activeSlot.id}
+                        selectedKpis={breakdownSnapshot?.kpiIds || activeSlot.kpiIds}
+                        layout={state.graphLayout}
+                        dateFrom={breakdownSnapshot?.startDate || activeSlot.startDate || state.startDate}
+                        dateTo={breakdownSnapshot?.endDate || activeSlot.endDate || state.endDate}
+                        granularity={(breakdownSnapshot?.granularity as Granularity) || activeSlot.granularity || state.granularity}
+                        filters={Object.entries(breakdownSnapshot?.filters || activeSlot.filters || {})
+                          .filter(([,v]) => v.length > 0)
+                          .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
+                        splitBy={breakdownSnapshot?.splitBy || undefined}
+                        splitByPerKpi={activeSlot.config?.splitByPerKpi || undefined}
+                        timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
+                        jalons={state.jalons}
+                      />
+                    </section>
                   );
-                }
-                // 2. Section disabled on the active graph
-                const isEnabled = (activeSlot.config || DEFAULT_GRAPH_CONFIG).showBreakdown;
-                if (!isEnabled) {
-                  return (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-[11px] gap-1">
-                      <span>« KPI Breakdown » est désactivé pour ce graphe.</span>
-                      <span className="text-[10px] opacity-70">Activez-le dans les réglages du graphe (icône ⚙️) pour voir les données.</span>
-                    </div>
-                  );
-                }
-                // 3. No KPI on the active graph
-                if (!activeSlot.kpiIds || activeSlot.kpiIds.length === 0) {
-                  return (
-                    <div className="flex items-center justify-center py-12 text-muted-foreground text-[11px]">
-                      Aucun KPI sélectionné sur ce graphe.
-                    </div>
-                  );
-                }
-                // 4. Render breakdown for the active slot's KPIs only.
-                //    `key` forces a fresh mount when the active graph changes,
-                //    so internal state (formula cache, fetched series) is reset.
-                const breakdownSnapshot = appliedBreakdownSnapshots[activeSlot.id] || activeSnapshot;
-                return (
-                  <section>
-                    <KPIBreakdown
-                      key={activeSlot.id}
-                      selectedKpis={breakdownSnapshot?.kpiIds || activeSlot.kpiIds}
-                      layout={state.graphLayout}
-                      dateFrom={breakdownSnapshot?.startDate || activeSlot.startDate || state.startDate}
-                      dateTo={breakdownSnapshot?.endDate || activeSlot.endDate || state.endDate}
-                      granularity={(breakdownSnapshot?.granularity as Granularity) || activeSlot.granularity || state.granularity}
-                      filters={Object.entries(breakdownSnapshot?.filters || activeSlot.filters || {})
-                        .filter(([,v]) => v.length > 0)
-                        .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
-                      splitBy={breakdownSnapshot?.splitBy || undefined}
-                      splitByPerKpi={activeSlot.config?.splitByPerKpi || undefined}
-                      timeSeriesData={tsData.filter((d: any) => d._slotId === activeSlot.id)}
-                      jalons={state.jalons}
-                    />
-                  </section>
-                );
-              })()}
-            </div>
+                })()}
+              </div>
+            )}
 
             {/* Top Worst — bound strictly to the ACTIVE graph */}
             {analysisTab === 'top_worst' && (() => {

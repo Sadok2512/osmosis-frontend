@@ -494,10 +494,11 @@ export async function fetchTimeSeriesForSlot(
     return series;
   };
 
-  const kpiSeries = [
-    ...(await runKpiEngineQuery(unsplitKpiIds, null, null)),
-    ...(await runKpiEngineQuery(splitKpiEntries, effectiveSplitBy, engineSplitBy2)),
-  ];
+  const [unsplitSeries, splitSeries] = await Promise.all([
+    runKpiEngineQuery(unsplitKpiIds, null, null),
+    runKpiEngineQuery(splitKpiEntries, effectiveSplitBy, engineSplitBy2),
+  ]);
+  const kpiSeries = [...unsplitSeries, ...splitSeries];
 
   const kpiResults: DataPoint[] = kpiSeries.map((s: any) => {
     const isSplitSeries = activeSplitKpiId != null && s.kpi_key === activeSplitKpiId;
