@@ -92,6 +92,17 @@ function isSectionEnabled(slot: GraphSlot | null | undefined, flag: keyof GraphC
 const InvestigatorWorkspace: React.FC = () => {
   const { instances, activeInstanceId, addNewTab, closeTab, setActiveTab, renameTab, duplicateTab, loadIntoNewTab } = useInvestigatorWorkspace();
 
+  React.useEffect(() => {
+    if (instances.length === 0) {
+      addNewTab();
+      return;
+    }
+
+    if (!activeInstanceId || !instances.some(inst => inst.instanceId === activeInstanceId)) {
+      setActiveTab(instances[0].instanceId);
+    }
+  }, [instances, activeInstanceId, addNewTab, setActiveTab]);
+
   const handleCloseTab = (id: string) => {
     const inst = instances.find(i => i.instanceId === id);
     if (inst?.hasUnsavedChanges) {
