@@ -690,10 +690,21 @@ const SingleKpiBreakdown: React.FC<{
           specs.push({
             counter,
             dimValue: dv,
-            color: SPLIT_COLORS[dvIdx % SPLIT_COLORS.length],
+            color: elementColorMap.get(dv) || SPLIT_COLORS[dvIdx % SPLIT_COLORS.length],
             label: `[${counter.tag}] ${counter.name} · ${dv}`,
           });
         });
+        if (otherDimValues.size > 0) {
+          specs.push({
+            counter,
+            isOther: true,
+            color: '#94a3b8',
+            label: `[${counter.tag}] ${counter.name} · other (${otherDimValues.size})`,
+          });
+        }
+      });
+    } else {
+
         if (otherDimValues.size > 0) {
           specs.push({
             counter,
