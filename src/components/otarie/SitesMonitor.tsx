@@ -6695,6 +6695,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
     return ['ALL', ...Array.from(bandes).sort()];
   }, [sites]);
+  const effectiveSidebarBande = useMemo(() => {
+    if (localBande !== 'ALL') return localBande;
+    if (dashboardActive && activeDashboardFilters?.bande?.length === 1) {
+      return activeDashboardFilters.bande[0];
+    }
+    return 'ALL';
+  }, [localBande, dashboardActive, activeDashboardFilters]);
 
   // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
   const MAX_RENDER_SITES = 5000;
@@ -11853,7 +11860,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Bande</span>
-                    <select value={localBande} onChange={(e) => setLocalBande(e.target.value)}
+                    <select value={effectiveSidebarBande} onChange={(e) => setLocalBande(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
                       {uniqueBandes.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
@@ -13701,7 +13708,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               });
               return { sites2G: s2g.size, sites3G: s3g.size, sites4G: s4g.size, sites5G: s5g.size, cells2G: c2g, cells3G: c3g, cells4G: c4g, cells5G: c5g, bandMap2G: bm2g, bandMap3G: bm3g, bandMap4G: bm4g, bandMap5G: bm5g, vendorMap: vm };
             })();
-            const displayStats: TopoNetworkStats = hasFastStats
+            const hasScopedSidebarFilters =
+              localVendor !== 'ALL' ||
+              localDor !== 'ALL' ||
+              localPlaque !== 'ALL' ||
+              localBande !== 'ALL' ||
+              localZoneArcep !== 'ALL' ||
+              localTechno !== 'ALL' ||
+              !!(dashboardActive && activeDashboardFilters && Object.values(activeDashboardFilters).some(values => Array.isArray(values) && values.length > 0));
+            const displayStats: TopoNetworkStats = hasFastStats && !hasScopedSidebarFilters
               ? {
                   ...ns!,
                   sites4G: ns!.sites4G > 0 ? ns!.sites4G : computedStats.sites4G,
