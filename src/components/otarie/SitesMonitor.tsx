@@ -5597,12 +5597,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     })();
   }, []);
-  const MAP_KPIS = catalogKpis.length > 0 ? catalogKpis : [
-    { id: 'EUTRAN_Cell_Availability_Wo_BLU', label: 'Cell Availability', unit: '%', category: 'RF', techno: '4G', vendor: 'Nokia' },
-    { id: 'CELL_UNPLAN_UNAVAIL_Time', label: 'Cell Unplanned Unavailability', unit: 's', category: 'RF', techno: '4G', vendor: 'Nokia' },
-    { id: 'CSSR_END_USER_w_CN%', label: 'CSSR End User', unit: '%', category: 'RF', techno: '4G', vendor: 'Ericsson' },
-    { id: 'Test_Cell_Availability', label: 'Cell Availability', unit: '%', category: 'RF', techno: '5G', vendor: 'Nokia' },
-  ];
+  const MAP_KPIS = useMemo(() => (
+    catalogKpis.length > 0 ? catalogKpis : [
+      { id: 'EUTRAN_Cell_Availability_Wo_BLU', label: 'Cell Availability', unit: '%', category: 'RF', techno: '4G', vendor: 'Nokia' },
+      { id: 'CELL_UNPLAN_UNAVAIL_Time', label: 'Cell Unplanned Unavailability', unit: 's', category: 'RF', techno: '4G', vendor: 'Nokia' },
+      { id: 'CSSR_END_USER_w_CN%', label: 'CSSR End User', unit: '%', category: 'RF', techno: '4G', vendor: 'Ericsson' },
+      { id: 'Test_Cell_Availability', label: 'Cell Availability', unit: '%', category: 'RF', techno: '5G', vendor: 'Nokia' },
+    ]
+  ), [catalogKpis]);
 
   const getDefaultMapKpi = useCallback((kpis: typeof MAP_KPIS, techno = kpiTechnoFilter) => {
     const preferred = [
@@ -5667,13 +5669,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setKpiLoading(true);
 
     // Store the KPI vendor so the renderer can auto-hide non-matching vendor sites
-    setKpiOverlayVendor(kpiVendor || null);
+    const nextVendor = kpiVendor || null;
+    setKpiOverlayVendor(prev => prev === nextVendor ? prev : nextVendor);
 
     fetchKpiCellValues(mapKpi, filters)
       .then(data => {
         if (!cancelled) {
           setKpiValues(data);
-          setHiddenKpiLevels(new Set());
+          setHiddenKpiLevels(prev => prev.size === 0 ? prev : new Set());
           setKpiDataIssue(data.size === 0 ? `No usable KPI values returned for ${mapKpi}${kpiVendor ? ` (${kpiVendor})` : ''} on ${kpiDateFrom} to ${kpiDateTo}.` : null);
           console.log(`[KPI] Loaded ${data.size} values for ${mapKpi} (cached or fresh)`);
         }
@@ -5688,7 +5691,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       .finally(() => { if (!cancelled) setKpiLoading(false); });
 
     return () => { cancelled = true; };
-  }, [catalogKpis, mapKpi, sectorColorMode, localVendor, kpiAnalysisLevel, localBande, localDor, localPlaque, localZoneArcep, activeViewConditions, dashboardActive, activeDashboardFilters, kpiDateFrom, kpiDateTo]);
+  }, [MAP_KPIS, mapKpi, sectorColorMode, localVendor, kpiTechnoFilter, kpiAnalysisLevel, kpiDateFrom, kpiDateTo]);
 
   const getCellKpiValue = (cell: any, parentSiteName?: string): number => {
     const cellName = cell.cell_id || cell.cell_name || '';
