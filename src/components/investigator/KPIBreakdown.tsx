@@ -589,6 +589,16 @@ const SingleKpiBreakdown: React.FC<{
   const selectAllElements = useCallback(() => setSelectedElements(new Set(splitElements)), [splitElements]);
   const deselectAllElements = useCallback(() => setSelectedElements(new Set()), []);
 
+  /** Single source of truth: element → color, indexed by splitElements order. */
+  const elementColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    splitElements.forEach((el, idx) => {
+      map.set(el, SPLIT_COLORS[idx % SPLIT_COLORS.length]);
+    });
+    return map;
+  }, [splitElements]);
+
+
   // Fetch counter timeseries
   useEffect(() => {
     const names = counterInfos.map(c => c.name);
