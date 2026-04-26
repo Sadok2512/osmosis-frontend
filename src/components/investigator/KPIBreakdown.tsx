@@ -609,7 +609,7 @@ const SingleKpiBreakdown: React.FC<{
   const denCounterNames = useMemo(() => counterInfos.filter(c => c.tag === 'DEN').map(c => c.name), [counterInfos]);
 
   const chartOption = useMemo(() => {
-    if (counterTsData.length === 0) return null;
+    if (counterInfos.length === 0) return null;
     const visibleCounters = counterInfos.filter(c => !hiddenCounters.has(c.name));
     const apiTimestamps = [...new Set(counterTsData.map(d => d.ts))].sort();
     const timeline = buildTimeline(dateFrom, dateTo, granularity);
@@ -631,6 +631,12 @@ const SingleKpiBreakdown: React.FC<{
       // Filter by selectedElements if set
       topDimValues = selectedElements ? allDimValues.filter(dv => selectedElements.has(dv)) : allDimValues;
       otherDimValues = new Set(sorted.slice(SPLIT_TOP_N).map(([k]) => k));
+      if (topDimValues.length === 0 && selectedElements && selectedElements.size > 0) {
+        topDimValues = [...selectedElements].slice(0, SPLIT_TOP_N);
+      }
+      if (topDimValues.length === 0 && splitElements.length > 0) {
+        topDimValues = splitElements.slice(0, SPLIT_TOP_N);
+      }
     }
 
     type SeriesSpec = {
@@ -766,7 +772,7 @@ const SingleKpiBreakdown: React.FC<{
       ],
       series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(timestamps, jalons, granularity) } : s),
     };
-  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, jalons, dateFrom, dateTo]);
+  }, [counterTsData, counterInfos, hiddenCounters, hoveredCounter, granularity, numCounterNames, denCounterNames, splitActive, selectedElements, splitElements, jalons, dateFrom, dateTo]);
 
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
@@ -909,17 +915,22 @@ const SingleKpiBreakdown: React.FC<{
           {loading ? (
             <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">Loading counters...</div>
           ) : chartOption ? (
-            <ReactECharts option={chartOption} notMerge style={{ height: 340 }} />
+            <div className="relative">
+              {counterTsData.length === 0 && (
+                <div className="absolute left-4 top-3 z-10 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[10px] font-medium text-amber-800 shadow-sm">
+                  Empty raw counter series for this period and filters.
+                </div>
+              )}
+              <ReactECharts option={chartOption} notMerge style={{ height: 340 }} />
+            </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-[260px] text-muted-foreground gap-2">
               <Layers className="w-10 h-10 opacity-20" />
               <span className="text-sm font-medium">
-                {counterInfos.length === 0 ? 'No counters defined for this KPI' : 'No counter data available'}
+                No counters defined for this KPI
               </span>
               <span className="text-[10px]">
-                {counterInfos.length === 0
-                  ? 'The KPI formula did not expose any counters in the explain response.'
-                  : 'No counter timeseries was returned for the selected period and filters.'}
+                The KPI formula did not expose any counters in the explain response.
               </span>
             </div>
           )}
