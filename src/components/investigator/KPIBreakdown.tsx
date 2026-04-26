@@ -844,6 +844,7 @@ const SingleKpiBreakdown: React.FC<{
 
     const series = cells.map((cell, idx) => {
       const tsMap = cellMap.get(cell)!;
+      const color = elementColorMap.get(cell) || SPLIT_COLORS[idx % SPLIT_COLORS.length];
       return {
         name: cell,
         type: 'line' as const,
@@ -851,8 +852,9 @@ const SingleKpiBreakdown: React.FC<{
         connectNulls: true,
         data: sortedTs.map(ts => tsMap.has(ts) ? tsMap.get(ts)! : null),
         symbol: 'none',
-        lineStyle: { width: 2.5, color: SPLIT_COLORS[idx % SPLIT_COLORS.length] },
-        itemStyle: { color: SPLIT_COLORS[idx % SPLIT_COLORS.length] },
+        lineStyle: { width: 2.5, color },
+        itemStyle: { color },
+
         emphasis: { focus: 'series' as const, lineStyle: { width: 4 } },
       };
     });
