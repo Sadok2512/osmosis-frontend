@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useInvestigatorWorkspace } from "@/stores/investigatorWorkspaceStore";
 
 
 const Index = lazy(() => import("./pages/Index"));
@@ -29,11 +30,12 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
     try {
       if (window.location.pathname.startsWith("/investigator")) {
         window.localStorage.removeItem("investigator-workspace-v1");
+        useInvestigatorWorkspace.getState().resetWorkspace();
       }
     } catch {
       // ignore storage failures
     }
-    window.location.reload();
+    this.setState({ hasError: false });
   };
 
   render() {
@@ -44,14 +46,14 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: bo
         <div className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-sm">
           <h1 className="text-sm font-bold">Application failed to open</h1>
           <p className="mt-2 text-xs text-muted-foreground">
-            A local browser state or cached route failed during rendering. Reload to recover the page.
+            A local browser state or cached route failed during rendering. Reset local state and retry without navigation.
           </p>
           <button
             type="button"
             onClick={this.recover}
             className="mt-4 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
           >
-            Reload
+            Reset
           </button>
         </div>
       </div>

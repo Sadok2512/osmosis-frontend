@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { InvestigationState, DataPoint, WorstElement } from '@/components/investigator/types';
+import { DEFAULT_GRAPH_CONFIG } from '@/components/investigator/types';
+import type { InvestigationState, DataPoint, WorstElement, GraphSlot, Granularity } from '@/components/investigator/types';
 
 /* ── Default dates ── */
 function defaultDateRange(): { startDate: string; endDate: string } {
@@ -74,18 +75,73 @@ function createFreshInstance(name = 'Untitled Investigator'): InvestigatorInstan
   };
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(item => typeof item === 'string');
+}
+
+function normalizeFilters(filters: unknown): Record<string, string[]> {
+  if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return {};
+
+  return Object.fromEntries(
+    Object.entries(filters as Record<string, unknown>)
+      .filter(([key, value]) => typeof key === 'string' && isStringArray(value))
+      .map(([key, value]) => [key, value]),
+  );
+}
+
+function normalizeGraphSlot(slot: unknown, index: number, stateDates: { startDate: string; endDate: string; granularity: Granularity }): GraphSlot | null {
+  if (!slot || typeof slot !== 'object' || Array.isArray(slot)) return null;
+
+  const raw = slot as Partial<GraphSlot>;
+  const id = typeof raw.id === 'string' && raw.id.trim() ? raw.id : `slot-recovered-${Date.now()}-${index}`;
+  const kpiIds = isStringArray(raw.kpiIds) ? raw.kpiIds : typeof raw.kpiId === 'string' ? [raw.kpiId] : [];
+  const counterIds = isStringArray(raw.counterIds) ? raw.counterIds : undefined;
+  const widgetType = raw.widgetType === 'histogram' || raw.widgetType === 'table' || raw.widgetType === 'timeseries'
+    ? raw.widgetType
+    : 'timeseries';
+
+  return {
+    id,
+    kpiIds,
+    ...(counterIds ? { counterIds } : {}),
+    name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : `Recovered ${index + 1}`,
+    widgetType,
+    config: {
+      ...DEFAULT_GRAPH_CONFIG,
+      ...(raw.config && typeof raw.config === 'object' ? raw.config : {}),
+    },
+    filters: normalizeFilters(raw.filters),
+    startDate: typeof raw.startDate === 'string' && raw.startDate.trim() ? raw.startDate : stateDates.startDate,
+    endDate: typeof raw.endDate === 'string' && raw.endDate.trim() ? raw.endDate : stateDates.endDate,
+    granularity: raw.granularity || stateDates.granularity,
+    splitBy: typeof raw.splitBy === 'string' && raw.splitBy.trim() ? raw.splitBy : 'None',
+    ...(typeof raw.splitBy2 === 'string' && raw.splitBy2.trim() ? { splitBy2: raw.splitBy2 } : {}),
+  };
+}
+
 function normalizeInvestigationState(state?: Partial<InvestigationState> | null): InvestigationState {
   const dates = defaultDateRange();
+  const startDate = typeof state?.startDate === 'string' && state.startDate.trim() ? state.startDate : dates.startDate;
+  const endDate = typeof state?.endDate === 'string' && state.endDate.trim() ? state.endDate : dates.endDate;
+  const granularity = state?.granularity || INITIAL_STATE.granularity;
+  const graphSlots = Array.isArray(state?.graphSlots)
+    ? state.graphSlots
+        .map((slot, index) => normalizeGraphSlot(slot, index, { startDate, endDate, granularity }))
+        .filter((slot): slot is GraphSlot => Boolean(slot))
+    : [];
+
   return {
     ...INITIAL_STATE,
     ...dates,
     ...(state || {}),
-    selectedKpis: Array.isArray(state?.selectedKpis) ? state.selectedKpis : [],
-    graphSlots: Array.isArray(state?.graphSlots) ? state.graphSlots : [],
-    filters: state?.filters && typeof state.filters === 'object' ? state.filters : {},
+    startDate,
+    endDate,
+    selectedKpis: isStringArray(state?.selectedKpis) ? state.selectedKpis : [],
+    graphSlots,
+    filters: normalizeFilters(state?.filters),
     jalons: Array.isArray(state?.jalons) ? state.jalons : [],
-    granularity: state?.granularity || INITIAL_STATE.granularity,
-    splitBy: state?.splitBy || INITIAL_STATE.splitBy,
+    granularity,
+    splitBy: typeof state?.splitBy === 'string' && state.splitBy.trim() ? state.splitBy : INITIAL_STATE.splitBy,
     kpiLevel: state?.kpiLevel || INITIAL_STATE.kpiLevel,
   };
 }
@@ -139,6 +195,9 @@ interface InvestigatorWorkspaceStore {
 
   // Duplicate
   duplicateTab: (instanceId: string) => string;
+
+  // Recovery
+  resetWorkspace: () => void;
 }
 
 export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
@@ -259,6 +318,11 @@ export const useInvestigatorWorkspace = create<InvestigatorWorkspaceStore>()(
             activeInstanceId: dup.instanceId,
           }));
           return dup.instanceId;
+        },
+
+        resetWorkspace: () => {
+          const fresh = createFreshInstance();
+          set({ instances: [fresh], activeInstanceId: fresh.instanceId });
         },
       };
     },

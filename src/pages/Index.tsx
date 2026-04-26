@@ -29,9 +29,52 @@ const PrecisionArchitectPage = lazy(() => import('./PrecisionArchitect'));
 
 import { Filters, KPIType, SiteSummary, AppTab } from '../types';
 import { fetchSites } from '../services/mockData';
+import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
 
 export type SidebarTheme = 'dark' | 'grey' | 'light';
 export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
+
+class InvestigatorTabBoundary extends React.Component<
+  { children: React.ReactNode; onReset: () => void },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: unknown) {
+    console.error('[InvestigatorTab] render failed', error);
+  }
+
+  private reset = () => {
+    this.props.onReset();
+    this.setState({ hasError: false });
+  };
+
+  render() {
+    if (!this.state.hasError) return this.props.children;
+
+    return (
+      <div className="h-full w-full flex items-center justify-center bg-background p-6 text-foreground">
+        <div className="max-w-md rounded-lg border border-border bg-card p-5 shadow-sm">
+          <h1 className="text-sm font-bold">Investigator failed to open</h1>
+          <p className="mt-2 text-xs text-muted-foreground">
+            The local Investigator workspace was reset. Retry without leaving this page.
+          </p>
+          <button
+            type="button"
+            onClick={this.reset}
+            className="mt-4 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
+          >
+            Retry Investigator
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
 
 const Index: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AppTab>('dashboard_overview');
@@ -46,6 +89,7 @@ const Index: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedCellIds, setHighlightedCellIds] = useState<string[]>([]);
   const [aiInitialPrompt, setAiInitialPrompt] = useState<string | undefined>();
+  const [investigatorResetKey, setInvestigatorResetKey] = useState(0);
   const [enabledModules, setEnabledModules] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem('osmosis_enabled_modules');
     if (saved) return JSON.parse(saved);
@@ -126,6 +170,15 @@ const Index: React.FC = () => {
   }, [sites, siteSearch, filters]);
 
   const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : '';
+  const resetInvestigatorWorkspace = () => {
+    try {
+      localStorage.removeItem('investigator-workspace-v1');
+    } catch {
+      // ignore storage failures
+    }
+    useInvestigatorWorkspace.getState().resetWorkspace();
+    setInvestigatorResetKey(v => v + 1);
+  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -173,7 +226,11 @@ const Index: React.FC = () => {
       case 'sentinel':
         return <SentinelPage theme={theme} />;
       case 'investigator':
-        return <InvestigatorPage />;
+        return (
+          <InvestigatorTabBoundary onReset={resetInvestigatorWorkspace}>
+            <InvestigatorPage key={investigatorResetKey} />
+          </InvestigatorTabBoundary>
+        );
       case 'ran_query':
         return <RanQueryModule />;
       case 'topology':

@@ -20,18 +20,20 @@ class InvestigatorRouteBoundary extends React.Component<
     console.error('[InvestigatorRoute] render failed', error);
     try {
       window.localStorage.removeItem('investigator-workspace-v1');
+      useInvestigatorWorkspace.getState().resetWorkspace();
     } catch {
       // ignore storage failures
     }
   }
 
-  private reload = () => {
+  private reset = () => {
     try {
       window.localStorage.removeItem('investigator-workspace-v1');
+      useInvestigatorWorkspace.getState().resetWorkspace();
     } catch {
       // ignore storage failures
     }
-    window.location.reload();
+    this.setState({ hasError: false });
   };
 
   render() {
@@ -42,14 +44,14 @@ class InvestigatorRouteBoundary extends React.Component<
         <div className="max-w-md rounded-lg border border-border bg-card p-5 shadow-sm">
           <h1 className="text-sm font-bold">Investigator failed to open</h1>
           <p className="mt-2 text-xs text-muted-foreground">
-            The local Investigator workspace was reset. Reload to open a clean workspace.
+            The local Investigator workspace was reset. Retry to open a clean workspace.
           </p>
           <button
             type="button"
-            onClick={this.reload}
+            onClick={this.reset}
             className="mt-4 rounded-md bg-primary px-3 py-2 text-xs font-bold text-primary-foreground"
           >
-            Reload Investigator
+            Retry Investigator
           </button>
         </div>
       </div>

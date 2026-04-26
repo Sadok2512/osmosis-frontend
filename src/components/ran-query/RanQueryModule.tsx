@@ -25,7 +25,6 @@ import { cn } from '@/lib/utils';
 import { vendorBadge, techBadge, VENDOR_HSL, TECH_HSL } from '@/constants/brandColors';
 import KpiSelectorModal from '@/components/kpi-monitor/KpiSelectorModal';
 import CounterSelectorModal from '@/components/investigator/CounterSelectorModal';
-import { buildTimeline } from '@/components/investigator/timeUtils';
 import { fetchKpiCatalogFromDB } from '@/components/kpi-monitor/kpiCatalog';
 import type { KpiCatalogEntry } from '@/components/kpi-monitor/types';
 import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
@@ -379,44 +378,10 @@ function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: st
   };
 }
 
-function buildEmptyReportRows(report: RanReport): ReportResultRow[] {
-  const { date_from, date_to } = resolveTimeRange(report.timeConfig);
-  const timestamps = buildTimeline(date_from, date_to, report.timeConfig.granularity);
-  if (timestamps.length === 0) return [];
-
-  const vendors = report.vendor.split(',').map(v => v.trim()).filter(Boolean);
-  const technologies = report.technologies.length > 0 ? report.technologies : ['4G'];
-  const sites = report.sites && report.sites.length > 0 ? report.sites : [undefined];
-  const dors = report.dors && report.dors.length > 0 ? report.dors : [undefined];
-  const clusters = report.clusters && report.clusters.length > 0 ? report.clusters : [undefined];
-
-  const rows: ReportResultRow[] = [];
-  for (const vendor of vendors) {
-    for (const technology of technologies) {
-      for (const timestamp of timestamps) {
-        for (const site of sites) {
-          for (const dor of dors) {
-            for (const cluster of clusters) {
-              for (const kpi of report.kpis) {
-                rows.push({
-                  kpi,
-                  vendor,
-                  technology,
-                  timestamp,
-                  value: null,
-                  unit: '',
-                  site_name: site,
-                  cluster,
-                  dor,
-                });
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  return rows;
+function parseMetricValue(value: unknown): number | null {
+  if (value == null || value === '') return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
 }
 
 const MAX_CONCURRENT = 4;
@@ -470,15 +435,15 @@ async function executeReportApi(
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       for (const pt of rows) {
         for (const kpiCode of kpiKeys) {
-          const rawValue = pt?.[kpiCode];
-          if (rawValue == null || rawValue === '') continue;
+          const value = parseMetricValue(pt?.[kpiCode]);
+          if (value == null) continue;
           const unit = kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '';
           batchResults.push({
             kpi: kpiCode,
             vendor,
             technology: pt.techno || pt.technology || report.technologies[0] || '4G',
             timestamp: pt.ts || pt.timestamp || pt.date || payload.date_from,
-            value: Number(rawValue ?? 0),
+            value,
             unit,
             site_name: pt.site_name || pt.site,
             cell_name: pt.cell_name || pt.cell || pt.ne_name || pt.network_element,
@@ -530,16 +495,20 @@ async function executeReportApi(
         else if (data?.meta?.total_series === 0) errors.push(`Counters (${vendor}): no series returned (topology_cells=${data.meta.topology_cells ?? '?'})`);
         return [];
       }
-      return series.map((pt: any) => ({
-        kpi: pt.counter_id || pt.counter_name || counterKeys[0],
-        vendor,
-        technology: pt.techno || report.technologies[0] || '4G',
-        timestamp: pt.ts || pt.timestamp || base.date_from as string,
-        value: Number(pt.value ?? 0),
-        unit: 'count',
-        site_name: pt.site_name,
-        cell_name: pt.cell_name,
-      }));
+      return series.flatMap((pt: any) => {
+        const value = parseMetricValue(pt.value);
+        if (value == null) return [];
+        return [{
+          kpi: pt.counter_id || pt.counter_name || counterKeys[0],
+          vendor,
+          technology: pt.techno || report.technologies[0] || '4G',
+          timestamp: pt.ts || pt.timestamp || base.date_from as string,
+          value,
+          unit: 'count',
+          site_name: pt.site_name,
+          cell_name: pt.cell_name,
+        }];
+      });
     } catch (err: any) {
       const msg = err?.name === 'AbortError' ? 'timeout' : (err?.message || 'unknown error');
       errors.push(`Counters (${vendor}): ${msg}`);
@@ -1186,16 +1155,14 @@ const RanQueryModule: React.FC = () => {
       if (!report) throw new Error('Report not found');
       const { rows, errors } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
-      const placeholderRows = rows.length === 0 ? buildEmptyReportRows(report) : [];
-      const effectiveRows = rows.length > 0 ? rows : placeholderRows;
       const hasData = rows.length > 0;
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
         return {
           ...r,
-          status: 'Completed' as ReportStatus,
-          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'warning',
-          results: effectiveRows,
+          status: (hasData ? 'Completed' : 'Failed') as ReportStatus,
+          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'error',
+          results: rows,
           errorMessage: rows.length === 0 ? (errorMsg || `No data returned. PM data available: 2026-04-14 to 2026-04-18. Your range: ${report.timeConfig.timeMode === 'absolute' ? report.timeConfig.start + ' → ' + report.timeConfig.end : 'Last ' + (report.timeConfig as any).value + ' ' + (report.timeConfig as any).unit}`) : errorMsg,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

@@ -69,6 +69,7 @@ async function fetchCounterTimeseries(counterNames: string[], dateFrom: string, 
 }
 
 const DIMENSIONAL_TYPES = ['CELL_PMQAP', 'CELL_NEIGHBOR', 'CELL_CA_REL'];
+const EMPTY_FILTER_VALUES: string[] = [];
 
 interface Props {
   dateFrom: string;
@@ -88,8 +89,8 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 const CounterGraphSection: React.FC<Props> = ({ dateFrom, dateTo }) => {
   const globalGran = useInvestigatorStore(s => normalizeGranularity(s.state.granularity));
-  const perimeterVendor = useInvestigatorStore(s => s.state.filters?.['Vendor'] || []);
-  const perimeterTechno = useInvestigatorStore(s => s.state.filters?.['Technology'] || []);
+  const perimeterVendor = useInvestigatorStore(s => s.state.filters?.['Vendor'] || EMPTY_FILTER_VALUES);
+  const perimeterTechno = useInvestigatorStore(s => s.state.filters?.['Technology'] || EMPTY_FILTER_VALUES);
   const [catalog, setCatalog] = React.useState<CounterDef[]>([]);
   const [selectedCounters, setSelectedCounters] = React.useState<CounterDef[]>([]);
   const [tsData, setTsData] = React.useState<CounterPoint[]>([]);

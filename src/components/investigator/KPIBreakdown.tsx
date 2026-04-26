@@ -470,6 +470,7 @@ const SingleKpiBreakdown: React.FC<{
   const [counterInfos, setCounterInfos] = useState<CounterInfo[]>([]);
   const [counterTsData, setCounterTsData] = useState<CounterTsPoint[]>([]);
   const [loading, setLoading] = useState(false);
+  const [counterFallbackUnfiltered, setCounterFallbackUnfiltered] = useState(false);
   const [hoveredCounter, setHoveredCounter] = useState<string | null>(null);
   const [hiddenCounters, setHiddenCounters] = useState<Set<string>>(new Set());
   const [selectedElements, setSelectedElements] = useState<Set<string> | null>(null); // null = all selected
@@ -620,24 +621,45 @@ const SingleKpiBreakdown: React.FC<{
   // Fetch counter timeseries
   useEffect(() => {
     const names = counterInfos.map(c => c.name);
-    if (names.length === 0) { setCounterTsData([]); return; }
+    if (names.length === 0) {
+      setCounterTsData([]);
+      setCounterFallbackUnfiltered(false);
+      return;
+    }
     setLoading(true);
     const ctrl = new AbortController();
+    const normalizeCounterPoints = (data: CounterSeriesPoint[]): CounterTsPoint[] =>
+      data.map((point) => ({
+        ts: point.timestamp || '',
+        counter: cleanCounterName(point.kpi || point.counter_id || point.counter_name || point.counter || point.kpi_key),
+        value: point.value ?? 0,
+        dimension_key: point.splitValue || point.networkElement,
+      })).filter(point => point.ts && point.counter);
+
     fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, undefined, filters, undefined)
-      .then(({ data }) => {
+      .then(async ({ data, isUnfiltered }) => {
         if (ctrl.signal.aborted) return;
-        const norm: CounterTsPoint[] = (data as CounterSeriesPoint[]).map((point) => ({
-          ts: point.timestamp || '',
-          counter: cleanCounterName(point.kpi || point.counter_id || point.counter_name || point.counter || point.kpi_key),
-          value: point.value ?? 0,
-          dimension_key: point.splitValue || point.networkElement,
-        })).filter(point => point.ts && point.counter);
+        let norm = normalizeCounterPoints(data as CounterSeriesPoint[]);
+        let usedUnfiltered = isUnfiltered;
+
+        if (norm.length === 0 && filters.some(filter => filter.values?.length > 0)) {
+          const retry = await fetchCounterTimeSeriesFallback(names, counterFetchRange.from, counterFetchRange.to, granularity, undefined, [], undefined);
+          if (ctrl.signal.aborted) return;
+          const retryNorm = normalizeCounterPoints(retry.data as CounterSeriesPoint[]);
+          if (retryNorm.length > 0) {
+            norm = retryNorm;
+            usedUnfiltered = true;
+          }
+        }
+
         setCounterTsData(norm);
+        setCounterFallbackUnfiltered(usedUnfiltered);
         setLoading(false);
       })
       .catch(() => {
         if (ctrl.signal.aborted) return;
         setCounterTsData([]);
+        setCounterFallbackUnfiltered(false);
         setLoading(false);
       });
     return () => ctrl.abort();
@@ -855,86 +877,6 @@ const SingleKpiBreakdown: React.FC<{
   const numInfos = counterInfos.filter(c => c.tag === 'NUM');
   const denInfos = counterInfos.filter(c => c.tag === 'DEN');
 
-  /* ─── KPI Timeseries chart (uses applied KPI data from the active graph) ─── */
-  const kpiSplitChart = useMemo(() => {
-    if (!timeSeriesData || timeSeriesData.length === 0) return null;
-
-    // Filter data for this KPI
-    const kpiData = timeSeriesData.filter(d => matchesKpiSeries(d.kpi, kpiId));
-    if (kpiData.length === 0) return null;
-
-    // Group by active split value when present, otherwise keep the KPI aggregate visible.
-    const cellMap = new Map<string, Map<string, number>>();
-    const timestamps = new Set<string>();
-    for (const d of kpiData) {
-      const cell = splitActive ? (d.splitValue || d.networkElement || 'Aggregated') : kpiId;
-      if (selectedElements && !selectedElements.has(cell)) continue; // filter by selected elements
-      timestamps.add(d.timestamp);
-      if (!cellMap.has(cell)) cellMap.set(cell, new Map());
-      cellMap.get(cell)!.set(d.timestamp, d.value);
-    }
-
-    if (cellMap.size === 0) return null;
-
-    const apiTimestamps = [...timestamps].sort();
-    const timeline = buildTimeline(dateFrom, dateTo, granularity);
-    const timelineSet = new Set(timeline);
-    for (const ts of apiTimestamps) timelineSet.add(ts);
-    const sortedTs = [...timelineSet].sort();
-    const cells = [...cellMap.keys()].sort();
-
-    const series = cells.map((cell, idx) => {
-      const tsMap = cellMap.get(cell)!;
-      const color = elementColorMap.get(cell) || SPLIT_COLORS[idx % SPLIT_COLORS.length];
-      return {
-        name: cell,
-        type: 'line' as const,
-        smooth: true,
-        connectNulls: true,
-        data: sortedTs.map(ts => tsMap.has(ts) ? tsMap.get(ts)! : null),
-        symbol: 'none',
-        lineStyle: { width: 2.5, color },
-        itemStyle: { color },
-
-        emphasis: { focus: 'series' as const, lineStyle: { width: 4 } },
-      };
-    });
-
-    return {
-      animation: false,
-      backgroundColor: 'transparent',
-      grid: { top: 40, right: 50, bottom: 60, left: 70, containLabel: false },
-      legend: {
-        show: true, bottom: 4, icon: 'roundRect', type: 'plain',
-        itemWidth: 18, itemHeight: 4, itemGap: 14,
-        textStyle: { fontSize: 10, fontWeight: 600, color: '#4b5563' },
-      },
-      tooltip: {
-        trigger: 'axis' as const,
-        backgroundColor: 'rgba(15,23,42,0.96)',
-        borderColor: 'rgba(255,255,255,0.06)',
-        borderRadius: 10,
-        padding: [10, 14],
-        textStyle: { color: '#f1f5f9', fontSize: 11, fontWeight: 500 },
-        axisPointer: { type: 'line' as const, lineStyle: { color: 'rgba(99,102,241,0.25)', width: 1, type: 'dashed' as const } },
-      },
-      xAxis: {
-        type: 'category' as const,
-        data: sortedTs,
-        axisLabel: { formatter: (v: string) => formatAxisLabel(v, granularity), fontSize: 10, color: '#6b7280', margin: 14 },
-        axisLine: { lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-        axisTick: { show: true, length: 3, lineStyle: { color: 'rgba(0,0,0,0.08)' } },
-      },
-      yAxis: {
-        type: 'value' as const,
-        axisLabel: { fontSize: 9, color: '#6366f1', formatter: (v: number) => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v >= 100 ? String(Math.round(v)) : v.toFixed(2) },
-        splitLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.08)', type: 'dashed' as const } },
-        axisLine: { show: true, lineStyle: { color: 'rgba(99,102,241,0.3)' } },
-      },
-      series: series.map((s, i) => i === 0 ? { ...s, markLine: jalonMarkLine(sortedTs, jalons, granularity) } : s),
-    };
-  }, [splitActive, timeSeriesData, kpiId, granularity, selectedElements, elementColorMap, jalons, dateFrom, dateTo]);
-
   return (
     <div className="space-y-4">
       <FormulaPanel
@@ -953,24 +895,6 @@ const SingleKpiBreakdown: React.FC<{
         onDeselectAllElements={deselectAllElements}
         elementColorMap={elementColorMap}
       />
-
-      {/* KPI Timeseries */}
-      {kpiSplitChart && (
-        <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
-              {splitActive ? `KPI by ${splitBy || 'split'}` : 'KPI Timeseries'}
-            </span>
-            <span className="text-[10px] text-muted-foreground ml-1">
-              {kpiId}
-            </span>
-          </div>
-          <div className="p-4" style={{ backgroundColor: '#ffffff' }}>
-            <ReactECharts option={kpiSplitChart} notMerge style={{ height: 300 }} />
-          </div>
-        </div>
-      )}
 
       <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between">
@@ -997,6 +921,11 @@ const SingleKpiBreakdown: React.FC<{
             <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">Loading counters...</div>
           ) : chartOption ? (
             <div className="relative">
+              {counterFallbackUnfiltered && counterTsData.length > 0 && (
+                <div className="absolute left-4 top-3 z-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-medium text-sky-800 shadow-sm">
+                  No filtered counter rows matched; showing aggregate raw counters.
+                </div>
+              )}
               {counterTsData.length === 0 && derivedCounterTsData.length > 0 ? (
                 <div className="absolute left-4 top-3 z-10 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-medium text-sky-800 shadow-sm">
                   Raw counter detail unavailable; showing NUM aggregate derived from KPI.
@@ -1073,24 +1002,25 @@ const KPIBreakdown: React.FC<Props> = ({
 
   return (
     <div className="space-y-3">
-      {/* KPI Tabs */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin p-1 bg-muted/30 rounded-xl border border-border/30">
-        {uniqueKpiIds.map(kpiId => (
-          <button
-            key={kpiId}
-            onClick={() => setActiveKpiTab(kpiId)}
-            className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap shrink-0',
-              activeKpiTab === kpiId
-                ? 'bg-card text-foreground shadow-sm border border-border/50'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-            )}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            {kpiId}
-          </button>
-        ))}
-      </div>
+      {uniqueKpiIds.length > 1 && (
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin p-1 bg-muted/30 rounded-xl border border-border/30">
+          {uniqueKpiIds.map(kpiId => (
+            <button
+              key={kpiId}
+              onClick={() => setActiveKpiTab(kpiId)}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-bold transition-all whitespace-nowrap shrink-0',
+                activeKpiTab === kpiId
+                  ? 'bg-card text-foreground shadow-sm border border-border/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+              )}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              {kpiId}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Active KPI content */}
       {activeKpiTab && uniqueKpiIds.includes(activeKpiTab) && (
