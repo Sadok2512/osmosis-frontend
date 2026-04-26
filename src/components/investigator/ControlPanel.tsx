@@ -1459,7 +1459,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => window.open('/investigator/export', '_blank', 'noopener,noreferrer')}
+              onClick={() => {
+                const url = `${window.location.origin}/?embed=investigator`;
+                window.open(url, '_blank', 'noopener,noreferrer');
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20"
               title="Ouvrir l'Investigator en plein écran (sans sidebar) dans un nouvel onglet"
             >
