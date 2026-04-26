@@ -279,6 +279,10 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
                     }
 
                     const displayValue = String(row.values[column.key] ?? '—');
+                    // Active = la valeur split de la cellule est présente dans les filtres actifs (Cell/Site/Plaque/...)
+                    const isActive = !!filterContext && Object.values(filterContext).some((arr) =>
+                      Array.isArray(arr) && arr.includes(displayValue)
+                    );
                     return (
                       <td
                         key={column.key}
@@ -297,6 +301,15 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
                           <span className={cn('font-semibold tracking-tight', TABLE_ACCENT_TEXT_CLASS)}>
                             {displayValue}
                           </span>
+                          {isActive && (
+                            <span
+                              className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black tracking-wider uppercase bg-emerald-500/15 text-emerald-700 border border-emerald-500/30"
+                              title="Élément filtré actif"
+                            >
+                              <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                              Actif
+                            </span>
+                          )}
                         </span>
                       </td>
                     );
