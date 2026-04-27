@@ -109,24 +109,31 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     axisMapRef.current = axisMap;
   }, [axisMap]);
 
-  // Load favorites from DB on open
+  // Load favorites from DB on open transition (false → true). Initialise from
+  // the latest props at that moment, but DO NOT depend on selectedKeys / axis
+  // refs — they are recreated on every parent render and would otherwise reset
+  // local state on each tick (and re-fire loadFavorites endlessly).
+  const selectedKeysRef = React.useRef(selectedKeys);
+  selectedKeysRef.current = selectedKeys;
+  const extAxisRef = React.useRef(extAxisAssignments);
+  extAxisRef.current = extAxisAssignments;
+
   React.useEffect(() => {
-    if (open) {
-      setSelected(new Set(selectedKeys));
-      setActiveCategory(null);
-      setSearch('');
-      setFilterVendor('');
-      setFilterTechno('');
-      setFilterNormalized('');
-      setFilterLevel('');
-      setFilterDimension('');
-      setShowFavOnly(false);
-      const nextAxisMap = extAxisAssignments || {};
-      axisMapRef.current = nextAxisMap;
-      setAxisMap(nextAxisMap);
-      loadFavoritesDB('kpi').then(favs => setFavorites(favs));
-    }
-  }, [open, selectedKeys, extAxisAssignments]);
+    if (!open) return;
+    setSelected(new Set(selectedKeysRef.current));
+    setActiveCategory(null);
+    setSearch('');
+    setFilterVendor('');
+    setFilterTechno('');
+    setFilterNormalized('');
+    setFilterLevel('');
+    setFilterDimension('');
+    setShowFavOnly(false);
+    const nextAxisMap = extAxisRef.current || {};
+    axisMapRef.current = nextAxisMap;
+    setAxisMap(nextAxisMap);
+    loadFavoritesDB('kpi').then(favs => setFavorites(favs));
+  }, [open]);
 
   const toggleAxis = useCallback((key: string) => {
     setAxisMap(prev => {

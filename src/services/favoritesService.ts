@@ -74,13 +74,16 @@ function writeLocal(kind: FavoriteKind, favs: string[]) {
   } catch { /* ignore */ }
 }
 
-/** Load favorites — from DB (unioned across legacy modules) if logged in, else localStorage. */
+/** UUID v4-ish guard — Supabase user_kpi_favorites.user_id is uuid; non-uuid sessions (e.g. legacy numeric admin IDs) must skip the DB call. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Load favorites — from DB (unioned across legacy modules) if logged in with a uuid id, else localStorage. */
 export async function loadFavorites(kindOrModule: FavoriteKind | string = 'kpi'): Promise<string[]> {
   const kind = resolveKind(kindOrModule);
   const local = readLocal(kind);
 
   const session = getStoredSession();
-  if (!session?.id) {
+  if (!session?.id || !UUID_RE.test(String(session.id))) {
     // Persist the union of v2 + legacy keys so subsequent loads are warm and
     // the migration sticks even before the user logs in.
     writeLocal(kind, local);
@@ -120,7 +123,7 @@ export async function saveFavorites(
   writeLocal(kind, favs);
 
   const session = getStoredSession();
-  if (!session?.id) return;
+  if (!session?.id || !UUID_RE.test(String(session.id))) return;
 
   const { error: delError } = await supabase
     .from('user_kpi_favorites')
