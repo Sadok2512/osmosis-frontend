@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   MoreHorizontal, FolderOpen, Copy, Trash2, Plus, Clock,
-  FlaskConical, Check, Loader2,
+  FlaskConical, Check, Loader2, Download, FileJson, FileSpreadsheet, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
