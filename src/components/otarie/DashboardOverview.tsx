@@ -87,6 +87,8 @@ interface DashboardTypeStyle {
   badgeText: string;
   cardAccent: string;      // left border color
   hoverBg: string;         // subtle tinted hover
+  ring: string;            // soft border / glow ring around card
+  gradient: string;        // soft top gradient overlay
   label: string;
   icon: React.ReactNode;
 }
