@@ -83,11 +83,13 @@ function isStringArray(value: unknown): value is string[] {
 function normalizeFilters(filters: unknown): Record<string, string[]> {
   if (!filters || typeof filters !== 'object' || Array.isArray(filters)) return {};
 
-  return Object.fromEntries(
-    Object.entries(filters as Record<string, unknown>)
-      .filter(([key, value]) => typeof key === 'string' && isStringArray(value))
-      .map(([key, value]) => [key, value]),
-  );
+  const result: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(filters as Record<string, unknown>)) {
+    if (typeof key === 'string' && isStringArray(value)) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 function normalizeAdvancedTimeFrame(value: unknown): AdvancedTimeFrameConfig {
