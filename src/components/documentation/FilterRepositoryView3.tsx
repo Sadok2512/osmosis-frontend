@@ -70,6 +70,7 @@ const FilterRepositoryView3: React.FC = () => {
   const [editFilter, setEditFilter] = useState<NetworkFilter | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const currentUser = useMemo(() => {
     try { return localStorage.getItem('osmosis_username') || 'system'; } catch { return 'system'; }
