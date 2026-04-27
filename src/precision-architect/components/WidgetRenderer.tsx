@@ -13,6 +13,7 @@ import PADividerWidget from './PADividerWidget';
 import { useTimeseriesQuery, TimeseriesRequest, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { selectToolbarSnapshot, usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
+import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
 interface Props {
   widget: DynWidget;
@@ -516,6 +517,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
   const gFrom = globalSnap?.from ?? global.from;
   const gTo = globalSnap?.to ?? global.to;
   const gGrain = globalSnap?.grain ?? global.grain;
+  const gAdvancedTimeFrame = globalSnap?.advancedTimeFrame ?? global.advancedTimeFrame;
   const gTechnos = globalSnap?.technos ?? global.technos;
   const gFilters = globalSnap?.filters ?? global.filters;
 
@@ -527,6 +529,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       from: inheritsTime ? gFrom : cfg.data.timeRange.from,
       to: inheritsTime ? gTo : cfg.data.timeRange.to,
       granularity: inheritsTime ? gGrain : cfg.data.granularity,
+      advancedTimeFrame: inheritsTime ? gAdvancedTimeFrame : { mode: 'NONE' as const },
       technos: inheritsScope ? gTechnos : cfg.data.technos,
       filters: inheritsScope ? gFilters : cfg.data.filters,
     };
@@ -589,6 +592,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
       })),
       split_by: effectiveSplitBy,
       top_n: 10,
+      advancedTimeFrame: buildAdvancedTimeFramePayload(eff.advancedTimeFrame),
       _rev: effectiveAppliedRev,
     } as TimeseriesRequest & { _rev: number };
   }, [
@@ -600,6 +604,7 @@ function ChartWidgetBody({ widget: w }: { widget: DynWidget }) {
     gFrom,
     gTo,
     gGrain,
+    gAdvancedTimeFrame,
     gTechnos,
     gFilters,
     effectiveAppliedRev,

@@ -5,6 +5,7 @@ import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { fetchSummary, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { toBackendDimension } from '../lib/monitorDimensions';
 import { listReferencePeriods, resolveReferencePeriodRange } from '../lib/referencePeriods';
+import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
 interface Props {
   widget: DynWidget;
@@ -33,9 +34,10 @@ export default function PAStatWidget({ widget }: Props) {
   const snap = global.applied;
   const gTechnos = snap?.technos ?? global.technos;
   const gFilters = snap?.filters ?? global.filters;
+  const gAdvancedTimeFrame = snap?.advancedTimeFrame ?? global.advancedTimeFrame;
   // Stable signature of the frozen snapshot — recomputed only at Apply time.
   const appliedSig = snap
-    ? `${snap.from}|${snap.to}|${snap.grain}|${snap.technos.join(',')}|${snap.filters.map(f => `${f.dimension}=${f.value}`).join(';')}`
+    ? `${snap.from}|${snap.to}|${snap.grain}|${JSON.stringify(snap.advancedTimeFrame)}|${snap.technos.join(',')}|${snap.filters.map(f => `${f.dimension}=${f.value}`).join(';')}`
     : '';
 
   // Fetch KPI value from backend — aggregate over full period
@@ -72,6 +74,7 @@ export default function PAStatWidget({ widget }: Props) {
           date_to: range.to,
           filters,
           kpi_keys: [cfg.kpiKey!],
+          advancedTimeFrame: buildAdvancedTimeFramePayload(gAdvancedTimeFrame),
         });
       })
       .then(summary => {

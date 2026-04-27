@@ -7,6 +7,7 @@ import { fetchTable, TableRequest, TableResponse, TableRow, MonitorFilter, useKp
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { getApiHeaders, getApiUrl } from '@/lib/apiConfig';
 import { toBackendDimension, toBackendGranularity } from '../lib/monitorDimensions';
+import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
 interface Props {
   height?: number | string;
@@ -54,6 +55,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
   const gTechnos = globalSnap?.technos ?? global.technos;
   const gFilters = globalSnap?.filters ?? global.filters;
   const gGrain = globalSnap?.grain ?? global.grain;
+  const gAdvancedTimeFrame = globalSnap?.advancedTimeFrame ?? global.advancedTimeFrame;
 
   // Perimeter filter is required. When the widget inherits from the report
   // (no override), we look at the global toolbar filters; otherwise we look at
@@ -79,6 +81,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       // Périmètre techno: toujours hérité de la barre globale du rapport.
       technos: gTechnos,
       filters: effectiveFilters,
+      advancedTimeFrame: inheritsTime ? gAdvancedTimeFrame : { mode: 'NONE' as const },
     };
 
     // Normalize dimensions to backend keys (Techno → RAT, Constructeur → Vendor, …)
@@ -146,6 +149,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
       split_by: effectiveSplitBy,
       // top_n intentionally omitted — backend returns full result set, no client-imposed cap.
       granularity: toBackendGranularity((inheritsTime ? gGrain : cfg.data.granularity) || '1d'),
+      advancedTimeFrame: buildAdvancedTimeFramePayload(eff.advancedTimeFrame),
       columns: resolvedColumns,
       _rev: effectiveAppliedRev,
     } as TableRequest & { _rev: number; granularity: string; columns: TableColumn[]; split_by: string | null };
@@ -162,6 +166,7 @@ const PATableWidget: React.FC<Props> = ({ height = 360, widget: w }) => {
     validKpiKeys,
     inheritsTime,
     gGrain,
+    gAdvancedTimeFrame,
   ]);
 
 
@@ -514,6 +519,7 @@ async function fetchCounterTable(req: TableRequest & { counter_names: string[]; 
     date_from: req.date_from,
     date_to: req.date_to,
     granularity: req.granularity,
+    advancedTimeFrame: req.advancedTimeFrame,
   };
 
   applyCounterFilters(body, req.filters);

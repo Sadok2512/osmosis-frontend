@@ -63,6 +63,22 @@ export type TechnoId = '2g' | '3g' | '4g' | '5g';
 export type PeriodPreset = '1j' | '3j' | '7j' | '14j' | '30j' | 'custom';
 export type GrainOption = '5min' | '15min' | '30min' | '1h' | '1d';
 
+export type AdvancedTimeFrameMode = 'NONE' | 'BUSY_HOURS' | 'CUSTOM_HOURS';
+
+export interface AdvancedTimeFrameConfig {
+  id?: string;
+  profileName?: string;
+  mode: AdvancedTimeFrameMode;
+  startHour?: string;
+  endHour?: string;
+  excludeWeekends?: boolean;
+}
+
+export interface AdvancedTimeFrameProfile extends AdvancedTimeFrameConfig {
+  id: string;
+  profileName: string;
+}
+
 export interface ChartFilterChip {
   id: string;
   dimension: string;
