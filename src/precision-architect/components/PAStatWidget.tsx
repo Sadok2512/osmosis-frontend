@@ -4,7 +4,6 @@ import { DynWidget, DEFAULT_STAT_CONFIG } from '../types';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { fetchSummary, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { toBackendDimension } from '../lib/monitorDimensions';
-import { listReferencePeriods, resolveReferencePeriodRange } from '../lib/referencePeriods';
 import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
 interface Props {
@@ -38,9 +37,25 @@ export default function PAStatWidget({ widget }: Props) {
   // but NOT this snapshot, so the widget will not refetch until the user
   // explicitly clicks "Apply to Dashboard" or "Apply to Widget".
   const snap = global.applied;
+  const gFrom = snap?.from ?? global.from;
+  const gTo = snap?.to ?? global.to;
   const gTechnos = snap?.technos ?? global.technos;
   const gFilters = snap?.filters ?? global.filters;
   const gAdvancedTimeFrame = snap?.advancedTimeFrame ?? global.advancedTimeFrame;
+
+  // Per-widget overrides (Chart-shape config). When the Stat widget is set
+  // to "override" (inheritFromDashboard=false), use its own time/filters/
+  // technos. Otherwise inherit the global frozen snapshot — same rule as
+  // Graph widgets, so Stat values match the parent KPI graph 1:1.
+  const widgetCfg = widget.appliedConfig ?? widget.config;
+  const inheritsTime = widgetCfg?.data?.timeRange?.inherit !== false
+                       && widgetCfg?.data?.inheritFromDashboard !== false;
+  const inheritsScope = widgetCfg?.data?.inheritFromDashboard !== false;
+  const effFrom = inheritsTime ? gFrom : (widgetCfg?.data?.timeRange?.from ?? gFrom);
+  const effTo = inheritsTime ? gTo : (widgetCfg?.data?.timeRange?.to ?? gTo);
+  const effFilters = inheritsScope ? gFilters : (widgetCfg?.data?.filters ?? gFilters);
+  const effTechnos = inheritsScope ? gTechnos : (widgetCfg?.data?.technos ?? gTechnos);
+
   // Stable signature of the frozen snapshot — recomputed only at Apply time.
   const appliedSig = snap
     ? `${snap.from}|${snap.to}|${snap.grain}|${JSON.stringify(snap.advancedTimeFrame)}|${snap.technos.join(',')}|${snap.filters.map(f => `${f.dimension}=${f.value}`).join(';')}`
@@ -51,9 +66,9 @@ export default function PAStatWidget({ widget }: Props) {
     if (!hasKpi || !hasBeenApplied) return;
     let cancelled = false;
 
-    // Build filters
+    // Build filters from effective filters (per-widget override OR global snapshot).
     const byDim = new Map<string, string[]>();
-    gFilters.forEach(f => {
+    effFilters.forEach(f => {
       const dim = toBackendDimension(f.dimension);
       const arr = byDim.get(dim) ?? [];
       if (!arr.includes(f.value)) arr.push(f.value);
@@ -63,26 +78,22 @@ export default function PAStatWidget({ widget }: Props) {
       dimension, op: 'IN' as const, values,
     }));
     const ALL_TECHS = new Set(['2g', '3g', '4g', '5g']);
-    const selected = (gTechnos || []).map(t => t.toLowerCase());
+    const selected = (effTechnos || []).map(t => t.toLowerCase());
     const allSelected = selected.length >= 4 && selected.every(t => ALL_TECHS.has(t));
     if (selected.length > 0 && !allSelected) {
       filters.push({ dimension: toBackendDimension('Techno'), op: 'IN', values: selected.map(t => t.toUpperCase()) });
     }
 
     setLoading(true);
-    listReferencePeriods()
-      .then(periods => {
-        const selected = periods.find(p => p.id === cfg.referencePeriodId) || periods.find(p => p.isDefault) || periods[0];
-        const range = resolveReferencePeriodRange(selected);
-        if (!cancelled) setPeriodLabel(range.label);
-        return fetchSummary({
-          date_from: range.from,
-          date_to: range.to,
-          filters,
-          kpi_keys: [effectiveKpiKey!],
-          advancedTimeFrame: buildAdvancedTimeFramePayload(gAdvancedTimeFrame),
-        });
-      })
+    setPeriodLabel(`${effFrom?.split('T')[0] ?? ''} → ${effTo?.split('T')[0] ?? ''}`);
+
+    fetchSummary({
+      date_from: effFrom,
+      date_to: effTo,
+      filters,
+      kpi_keys: [effectiveKpiKey!],
+      advancedTimeFrame: buildAdvancedTimeFramePayload(gAdvancedTimeFrame),
+    })
       .then(summary => {
         if (cancelled) return;
         const item = (summary || []).find(s => s.kpi_key === effectiveKpiKey) || summary?.[0];
@@ -101,7 +112,7 @@ export default function PAStatWidget({ widget }: Props) {
     // otherwise editing the toolbar would trigger a refetch before Apply.
     // appliedSig changes only when the user clicks Apply (snapshot bumped).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasKpi, hasBeenApplied, effectiveKpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev, appliedSig]);
+  }, [hasKpi, hasBeenApplied, effectiveKpiKey, widgetRev, global.appliedRev, appliedSig, effFrom, effTo]);
 
   // Display value: backend-computed only (no manual mock fallback)
   const displayValue = hasKpi && computedValue != null
