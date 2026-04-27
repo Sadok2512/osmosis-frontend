@@ -80,7 +80,12 @@ export async function loadFavorites(kindOrModule: FavoriteKind | string = 'kpi')
   const local = readLocal(kind);
 
   const session = getStoredSession();
-  if (!session?.id) return local;
+  if (!session?.id) {
+    // Persist the union of v2 + legacy keys so subsequent loads are warm and
+    // the migration sticks even before the user logs in.
+    writeLocal(kind, local);
+    return local;
+  }
 
   // DB: read every module that resolves to this kind so legacy rows still surface.
   const modulesForKind: string[] = kind === 'counter'

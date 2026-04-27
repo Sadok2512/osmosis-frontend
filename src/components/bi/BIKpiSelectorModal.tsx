@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Search, Check, RotateCcw, ChevronRight, Loader2 } from 'lucide-react';
+import { X, Search, Check, RotateCcw, ChevronRight, Loader2, Star } from 'lucide-react';
 import { BI_KPI_CATEGORIES, BIKpiDefinition } from './biTypes';
 import { fetchBIKpiCatalog, getCachedBIKpiCatalog } from './biCatalogService';
+import { useKpiFavorites } from '@/hooks/useKpiFavorites';
 
 const CATEGORY_COLORS: Record<string, string> = {
   Volume: 'hsl(210, 80%, 55%)',
@@ -31,6 +32,8 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
   const [catalog, setCatalog] = useState<BIKpiDefinition[]>(() => getCachedBIKpiCatalog());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showFavOnly, setShowFavOnly] = useState(false);
+  const { favorites, toggle: toggleFavorite, isFavorite } = useKpiFavorites('kpi');
 
   useEffect(() => {
     if (!open) return;
@@ -75,6 +78,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
   const filteredItems = useMemo(() => {
     let items = scopedCatalog;
     if (activeCategory) items = items.filter(k => k.category === activeCategory);
+    if (showFavOnly) items = items.filter(k => isFavorite(k.key));
     if (search) {
       const q = search.toLowerCase();
       items = items.filter(k =>
@@ -84,7 +88,7 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
       );
     }
     return items;
-  }, [activeCategory, scopedCatalog, search]);
+  }, [activeCategory, scopedCatalog, search, showFavOnly, isFavorite]);
 
   const toggle = (key: string) => {
     if (single) {
@@ -183,9 +187,9 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
 
           {/* Right: KPI list */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Search */}
-            <div className="px-3 py-2 border-b border-border">
-              <div className="relative">
+            {/* Search + favorites filter */}
+            <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={search}
@@ -194,6 +198,19 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
                   className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-border bg-background text-xs outline-none focus:ring-1 focus:ring-primary/30 transition-all"
                 />
               </div>
+              <button
+                type="button"
+                onClick={() => setShowFavOnly(v => !v)}
+                title={showFavOnly ? 'Show all KPIs' : 'Show favorites only'}
+                className={`shrink-0 inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[10px] font-semibold transition-colors ${
+                  showFavOnly
+                    ? 'bg-amber-100 border-amber-300 text-amber-900'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <Star className={`w-3 h-3 ${showFavOnly ? 'fill-amber-500 text-amber-500' : ''}`} />
+                {favorites.length}
+              </button>
             </div>
 
             {/* Items */}
@@ -203,11 +220,12 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
               ) : (
                 filteredItems.map(k => {
                   const isSelected = selected.has(k.key);
+                  const fav = isFavorite(k.key);
                   return (
-                    <button
+                    <div
                       key={k.key}
                       onClick={() => toggle(k.key)}
-                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all mb-0.5 ${
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all mb-0.5 cursor-pointer ${
                         isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'
                       }`}
                     >
@@ -221,11 +239,19 @@ const BIKpiSelectorModal: React.FC<Props> = ({ open, onClose, selectedKeys, onCo
                         <p className="text-xs font-medium text-foreground truncate">{k.display_name}</p>
                         <p className="text-[9px] text-muted-foreground truncate">{k.key}</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); void toggleFavorite(k.key); }}
+                        title={fav ? 'Remove from favorites' : 'Add to favorites'}
+                        className="shrink-0 p-1 rounded hover:bg-muted"
+                      >
+                        <Star className={`w-3.5 h-3.5 ${fav ? 'fill-amber-500 text-amber-500' : 'text-muted-foreground'}`} />
+                      </button>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{k.unit || '–'}</span>
                         <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground">{k.category}</span>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}

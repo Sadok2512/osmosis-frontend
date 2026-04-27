@@ -88,14 +88,14 @@ const CounterSelectorModal: React.FC<CounterSelectorModalProps> = ({ open, onClo
       setFilterVendor('');
       setFilterTechno('');
       setShowFavOnly(false);
-      loadFavoritesDB('counter-monitor').then(favs => setFavorites(favs));
+      loadFavoritesDB('counter').then(favs => setFavorites(favs));
     }
   }, [open, selectedIds]);
 
   const toggleFavorite = useCallback((id: string) => {
     setFavorites(prev => {
       const next = prev.includes(id) ? prev.filter(k => k !== id) : [...prev, id];
-      saveFavoritesDB(next, 'counter-monitor');
+      saveFavoritesDB(next, 'counter');
       return next;
     });
   }, []);

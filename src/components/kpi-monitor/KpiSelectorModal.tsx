@@ -124,7 +124,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       const nextAxisMap = extAxisAssignments || {};
       axisMapRef.current = nextAxisMap;
       setAxisMap(nextAxisMap);
-      loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
+      loadFavoritesDB('kpi').then(favs => setFavorites(favs));
     }
   }, [open, selectedKeys, extAxisAssignments]);
 
@@ -141,7 +141,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
       const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      saveFavoritesDB(next, 'kpi-monitor');
+      saveFavoritesDB(next, 'kpi');
       return next;
     });
   }, []);

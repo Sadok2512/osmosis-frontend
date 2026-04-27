@@ -191,7 +191,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     setFilterDimType('');
     setFilterVendor('');
     setFilterTechno('');
-    loadFavoritesDB('pm-counters').then(favs => setFavorites(favs));
+    loadFavoritesDB('counter').then(favs => setFavorites(favs));
   }, [open]);
 
   // Sync perimeter → active filters whenever the perimeter changes
@@ -235,7 +235,7 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
       const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      saveFavoritesDB(next, 'pm-counters');
+      saveFavoritesDB(next, 'counter');
       return next;
     });
   }, []);
