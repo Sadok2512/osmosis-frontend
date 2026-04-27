@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { DynWidget, DEFAULT_STAT_CONFIG } from '../types';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import { fetchSummary, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import {
+  fetchTimeseries,
+  MonitorFilter,
+  TimeseriesSelection,
+  useKpiCatalog,
+} from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { toBackendDimension } from '../lib/monitorDimensions';
 import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
@@ -31,6 +36,16 @@ export default function PAStatWidget({ widget }: Props) {
   const hasKpi = !!effectiveKpiKey;
   const widgetRev = widget.appliedRev ?? 0;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
+
+  // KPI metadata: drives aggregation strategy (avg for ratio/%, sum for volume).
+  const { data: kpiCatalog } = useKpiCatalog();
+  const kpiMeta = (kpiCatalog || []).find(k => k.kpi_key === effectiveKpiKey);
+  const aggMode: 'avg' | 'sum' =
+    kpiMeta?.formula_type === 'volume' ? 'sum' : 'avg';
+
+  // Distinguish "endpoint missing/error" from "no data for period" so the
+  // UX can hint the user about the right next step.
+  const [errorKind, setErrorKind] = useState<null | 'no_data' | 'unavailable'>(null);
 
   // Read the FROZEN snapshot taken at the last global Apply click.
   // Editing the toolbar (date, period, filters) updates the live store
@@ -85,26 +100,51 @@ export default function PAStatWidget({ widget }: Props) {
     }
 
     setLoading(true);
+    setErrorKind(null);
     setPeriodLabel(`${effFrom?.split('T')[0] ?? ''} → ${effTo?.split('T')[0] ?? ''}`);
 
-    fetchSummary({
+    // Backend `/monitor/query/summary` is NOT deployed (returns 404 via proxy).
+    // We hit the working `/monitor/query/timeseries` endpoint at `day` grain
+    // and aggregate client-side: avg for ratios/%, sum for volumes.
+    const selections: TimeseriesSelection[] = [{ kpi_key: effectiveKpiKey! }];
+    fetchTimeseries({
       date_from: effFrom,
       date_to: effTo,
+      granularity: 'day',
       filters,
-      kpi_keys: [effectiveKpiKey!],
+      selections,
+      split_by: null,
+      top_n: 1,
       advancedTimeFrame: buildAdvancedTimeFramePayload(gAdvancedTimeFrame),
     })
-      .then(summary => {
+      .then(resp => {
         if (cancelled) return;
-        const item = (summary || []).find(s => s.kpi_key === effectiveKpiKey) || summary?.[0];
-        const value = item?.value;
-        if (value == null || !Number.isFinite(value)) {
+        // Proxy fallback contract: { unavailable: true, ... }
+        if ((resp as any)?.unavailable) {
           setComputedValue(null);
+          setErrorKind('unavailable');
           return;
         }
-        setComputedValue(value);
+        const points = Array.isArray(resp?.series) ? resp.series : [];
+        const values = points
+          .map(p => Number(p.value))
+          .filter(v => Number.isFinite(v));
+        if (values.length === 0) {
+          setComputedValue(null);
+          setErrorKind('no_data');
+          return;
+        }
+        const aggregated = aggMode === 'sum'
+          ? values.reduce((a, b) => a + b, 0)
+          : values.reduce((a, b) => a + b, 0) / values.length;
+        setComputedValue(aggregated);
       })
-      .catch(() => { if (!cancelled) setComputedValue(null); })
+      .catch(() => {
+        if (!cancelled) {
+          setComputedValue(null);
+          setErrorKind('unavailable');
+        }
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
@@ -112,7 +152,7 @@ export default function PAStatWidget({ widget }: Props) {
     // otherwise editing the toolbar would trigger a refetch before Apply.
     // appliedSig changes only when the user clicks Apply (snapshot bumped).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasKpi, hasBeenApplied, effectiveKpiKey, widgetRev, global.appliedRev, appliedSig, effFrom, effTo]);
+  }, [hasKpi, hasBeenApplied, effectiveKpiKey, widgetRev, global.appliedRev, appliedSig, effFrom, effTo, aggMode]);
 
   // Display value: backend-computed only (no manual mock fallback)
   const displayValue = hasKpi && computedValue != null
@@ -167,7 +207,10 @@ export default function PAStatWidget({ widget }: Props) {
           Pick a KPI in settings to load a backend value
         </span>
       )}
-      {hasKpi && computedValue == null && !loading && hasBeenApplied && (
+      {hasKpi && computedValue == null && !loading && hasBeenApplied && errorKind === 'unavailable' && (
+        <span className="text-[9px] text-destructive/80 mt-2">Backend unavailable</span>
+      )}
+      {hasKpi && computedValue == null && !loading && hasBeenApplied && errorKind !== 'unavailable' && (
         <span className="text-[9px] text-on-surface-variant/50 mt-2">No data for this period</span>
       )}
       {hasKpi && !hasBeenApplied && !loading && (
