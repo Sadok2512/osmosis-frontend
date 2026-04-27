@@ -202,61 +202,92 @@ const FilterRepositoryView3: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-background">
-      {/* ── SUB-HEADER (matches Network Explorer breadcrumb pattern) ── */}
+      {/* ── TOP HEADER : org + search + filters + view toggle ── */}
       <div className="shrink-0 px-8 pt-5 pb-4 bg-background border-b border-border">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Network className="w-5 h-5 text-primary" />
+        <div className="flex items-center gap-4 mb-4">
+          {/* Org block */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-orange-100 dark:bg-orange-500/15 flex items-center justify-center">
+              <Building2 className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-black tracking-tight text-foreground truncate">
-                  Network References / filter3
-                </h2>
-                {activeFilterCount > 0 && (
-                  <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-black uppercase tracking-wider text-primary">
-                    {activeFilterCount} active
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Reusable RAN scope filters for dashboards, investigations and KPI reports.
-              </p>
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Organization</div>
+              <div className="text-sm font-black text-foreground leading-tight">Orange France</div>
             </div>
+          </div>
+
+          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
+
+          {/* Breadcrumb title */}
+          <div className="min-w-0 hidden md:block">
+            <div className="flex items-center gap-2">
+              <Network className="w-4 h-4 text-primary" />
+              <h2 className="text-sm font-black tracking-tight text-foreground truncate">
+                Network References <span className="text-muted-foreground/60 font-bold">/</span> Filters
+              </h2>
+              {activeFilterCount > 0 && (
+                <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-black uppercase tracking-wider text-primary">
+                  {activeFilterCount} active
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Reusable RAN scope filters · dashboards & investigations</p>
+          </div>
+
+          {/* Search */}
+          <div className="relative flex-1 max-w-xl ml-auto">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search filters by name, owner, region or vendor…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-10 w-full rounded-full border border-border bg-muted/40 pl-10 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-background transition-colors"
+            />
+          </div>
+
+          {/* View toggle */}
+          <div className="inline-flex h-10 items-center rounded-full border border-border bg-background p-1 shrink-0">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`h-8 px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 transition-all ${
+                viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title="Grid"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" /> Grid
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`h-8 px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 transition-all ${
+                viewMode === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+              title="List"
+            >
+              <ListIcon className="w-3.5 h-3.5" /> List
+            </button>
           </div>
 
           <button
             onClick={() => setShowCreate(true)}
-            className="h-9 px-5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all flex items-center gap-2 shrink-0"
+            className="h-10 px-4 text-xs font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md transition-all flex items-center gap-2 shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" /> Create filter3
+            <Plus className="w-3.5 h-3.5" /> New filter
           </button>
         </div>
 
-        {/* ── Stat cards (Network Explorer style) ── */}
+        {/* ── Pastel stat cards ── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <StatCard icon={<FolderOpen className="w-4 h-4 text-muted-foreground" />} label="Total filter3" value={stats.total} tone="muted" />
-          <StatCard icon={<Globe className="w-4 h-4 text-emerald-600" />} label="Public" value={stats.public} tone="emerald" />
-          <StatCard icon={<Lock className="w-4 h-4 text-amber-600" />} label="Private" value={stats.private} tone="amber" />
-          <StatCard icon={<CheckCircle2 className="w-4 h-4 text-sky-600" />} label="Active" value={stats.active} tone="sky" />
+          <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total filters" value={stats.total} tone="slate" />
+          <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} tone="emerald" />
+          <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} tone="amber" />
+          <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} tone="sky" />
         </div>
       </div>
 
       {/* ── Filter chips bar ── */}
-      <div className="shrink-0 px-8 py-3 bg-card/50 border-b border-border">
+      <div className="shrink-0 px-8 py-3 bg-background/60 border-b border-border">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-[260px] flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search filter3 by name, owner, region or vendor"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="h-9 w-full rounded-full border border-border bg-muted/40 pl-9 pr-4 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-background transition-colors"
-            />
-          </div>
-
           <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
           <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
           <ChipGroup
@@ -275,14 +306,14 @@ const FilterRepositoryView3: React.FC = () => {
           />
           <ChipGroup label="Owner" options={['All', 'Me']} value={ownerFilter} onChange={v => setOwnerFilter(v as any)} />
 
-          <div className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-muted-foreground">
+          <div className="ml-auto inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-3 text-[11px] font-bold text-muted-foreground">
             <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
             {filtered.length.toLocaleString('fr-FR')} shown
           </div>
           {activeFilterCount > 0 && (
             <button
               onClick={resetFilters}
-              className="inline-flex h-9 items-center gap-2 rounded-xl border border-border bg-background px-3 text-xs font-bold text-foreground hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-colors"
+              className="inline-flex h-9 items-center gap-2 rounded-full border border-border bg-background px-3 text-[11px] font-bold text-foreground hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-colors"
             >
               <RotateCcw className="w-3.5 h-3.5" /> Reset
             </button>
@@ -291,42 +322,81 @@ const FilterRepositoryView3: React.FC = () => {
       </div>
 
       {/* ── Body ── */}
-      <div className="flex-1 m-6 mt-4 rounded-2xl bg-card border border-border shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-8 py-6">
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground py-24">
             <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <span className="text-xs font-semibold">Loading Network References / filter3…</span>
+            <span className="text-xs font-semibold">Loading filters…</span>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-16">
+          <div className="flex flex-col items-center justify-center text-muted-foreground py-24">
             <div className="mb-4 rounded-2xl bg-muted p-5">
               <FilterIcon className="w-10 h-10 opacity-40" />
             </div>
-            <p className="text-base font-bold text-foreground">No filter3 matches this view</p>
-            <p className="text-xs mt-1 opacity-70">Adjust criteria or create a reusable Network References / filter3 entry.</p>
+            <p className="text-base font-bold text-foreground">No filter matches this view</p>
+            <p className="text-xs mt-1 opacity-70">Adjust criteria or create a new reusable filter.</p>
             <button
               onClick={() => setShowCreate(true)}
-              className="mt-5 h-9 px-5 rounded-xl bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
+              className="mt-5 h-9 px-5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
-              <Plus className="w-4 h-4" /> Create filter3
+              <Plus className="w-4 h-4" /> Create filter
             </button>
           </div>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {paginated.map(filter => {
+                const techs = inferTech(filter);
+                const vendor = inferVendor(filter);
+                const region = inferRegion(filter);
+                const isPublic = filter.visibility === 'public';
+                const tint = pickTint(filter.id);
+                return (
+                  <FilterCard
+                    key={filter.id}
+                    filter={filter}
+                    techs={techs}
+                    vendor={vendor}
+                    region={region}
+                    isPublic={isPublic}
+                    tint={tint}
+                    fmtDate={fmtDate}
+                    onOpen={() => setSelectedFilter(filter)}
+                    onMore={() => setActionMenuId(actionMenuId === filter.id ? null : filter.id)}
+                    actionsOpen={actionMenuId === filter.id}
+                    closeActions={() => setActionMenuId(null)}
+                    onEdit={() => { if (filter.permission !== 'locked') { setEditFilter(filter); setActionMenuId(null); } }}
+                    onDuplicate={() => handleDuplicate(filter)}
+                    onDelete={() => handleDelete(filter)}
+                    onRecalc={async () => {
+                      setActionMenuId(null);
+                      try {
+                        const r = await countFilterMatching(filter.id);
+                        toast.success(`${r.cells.toLocaleString('fr-FR')} cells, ${r.sites.toLocaleString('fr-FR')} sites`);
+                        loadFilters();
+                      } catch { toast.error('Erreur lors du calcul'); }
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            <Pagination page={page} totalPages={totalPages} setPage={setPage} count={filtered.length} perPage={ITEMS_PER_PAGE} />
+          </>
+        ) : (
+          <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
             <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-border bg-muted/30">
-              {['filter3', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
+              {['Filter', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
                 <span key={h} className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{h}</span>
               ))}
             </div>
-
-            <div className="flex-1 overflow-y-auto divide-y divide-border">
+            <div className="divide-y divide-border">
               {paginated.map(filter => {
                 const techs = inferTech(filter);
                 const vendor = inferVendor(filter);
                 const region = inferRegion(filter);
                 const vendorParts = vendor.split(', ');
                 const isPublic = filter.visibility === 'public';
-
                 return (
                   <div
                     key={filter.id}
@@ -348,19 +418,16 @@ const FilterRepositoryView3: React.FC = () => {
                         <p className="text-[11px] text-muted-foreground truncate mt-1 ml-10">{filter.description}</p>
                       )}
                     </div>
-
                     <div className="text-xs tabular-nums">
                       {(filter as any).site_count != null
                         ? <span className="font-bold text-foreground">{((filter as any).site_count).toLocaleString('fr-FR')}</span>
                         : <span className="text-muted-foreground/50">—</span>}
                     </div>
-
                     <div className="text-xs tabular-nums">
                       {filter.matching_objects != null
                         ? <span className="font-bold text-foreground">{filter.matching_objects.toLocaleString('fr-FR')}</span>
                         : <span className="text-muted-foreground/50">—</span>}
                     </div>
-
                     <div className="flex items-center gap-1 flex-wrap">
                       {techs.map(t => {
                         const badge = TECH_BADGE[t];
@@ -371,7 +438,6 @@ const FilterRepositoryView3: React.FC = () => {
                         );
                       })}
                     </div>
-
                     <div className="flex flex-col min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0">
                         {vendorParts.map(v => (
@@ -380,7 +446,6 @@ const FilterRepositoryView3: React.FC = () => {
                       </div>
                       <span className="text-[10px] text-muted-foreground truncate">{region}</span>
                     </div>
-
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                         isPublic ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
@@ -396,36 +461,32 @@ const FilterRepositoryView3: React.FC = () => {
                         {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
                       </span>
                     </div>
-
                     <div className="flex items-center gap-1.5 min-w-0">
                       <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center shrink-0">
                         <Users className="w-3 h-3 text-muted-foreground" />
                       </div>
                       <span className="text-xs text-muted-foreground font-medium truncate">{filter.created_by}</span>
                     </div>
-
                     <span className="text-xs text-muted-foreground tabular-nums">{fmtDate(filter.updated_at || filter.created_at)}</span>
-
                     <div className="relative flex justify-end gap-1">
                       <button
                         onClick={e => { e.stopPropagation(); setSelectedFilter(filter); }}
-                        className="p-1.5 rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground transition-all"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
                         title="Open"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button
                         onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === filter.id ? null : filter.id); }}
-                        className="p-1.5 rounded-lg border border-transparent text-muted-foreground hover:border-border hover:bg-background hover:text-foreground transition-all"
+                        className="p-1.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
                         title="More actions"
                       >
                         <MoreVertical className="w-4 h-4" />
                       </button>
-
                       {actionMenuId === filter.id && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1.5">
                             <ActionItem icon={<Eye className="w-3.5 h-3.5" />} label="Open" onClick={() => { setSelectedFilter(filter); setActionMenuId(null); }} />
                             <ActionItem
                               icon={<Pencil className="w-3.5 h-3.5" />}
@@ -457,27 +518,8 @@ const FilterRepositoryView3: React.FC = () => {
                 );
               })}
             </div>
-
-            <div className="shrink-0 px-5 py-3 border-t border-border flex items-center justify-between bg-muted/20">
-              <span className="text-[11px] text-muted-foreground">
-                Showing {Math.min(filtered.length, (page - 1) * ITEMS_PER_PAGE + 1)}-{Math.min(filtered.length, page * ITEMS_PER_PAGE)} of {filtered.length} filters
-              </span>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
-                  <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map(p => (
-                  <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
-                    page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
-                  }`}>{p}</button>
-                ))}
-                {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">…</span>}
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-          </>
+            <Pagination page={page} totalPages={totalPages} setPage={setPage} count={filtered.length} perPage={ITEMS_PER_PAGE} />
+          </div>
         )}
       </div>
 
