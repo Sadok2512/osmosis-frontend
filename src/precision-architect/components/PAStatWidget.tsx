@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { DynWidget, DEFAULT_STAT_CONFIG } from '../types';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
-import { fetchSummary, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import {
+  fetchTimeseries,
+  MonitorFilter,
+  TimeseriesSelection,
+  useKpiCatalog,
+} from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { toBackendDimension } from '../lib/monitorDimensions';
 import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
