@@ -6,6 +6,7 @@ import type {
   GrainOption,
   ChartFilterChip,
   ChartJalon,
+  AdvancedTimeFrameConfig,
 } from '../types';
 
 /**
@@ -21,6 +22,7 @@ export interface PAGlobalToolbarState {
   to: string;
   preset: PeriodPreset;
   grain: GrainOption;
+  advancedTimeFrame: AdvancedTimeFrameConfig;
   filters: ChartFilterChip[];
   /** Global jalons applied to every chart in the dashboard. */
   jalons: ChartJalon[];
@@ -37,6 +39,7 @@ export interface PAGlobalToolbarState {
     to: string;
     preset: PeriodPreset;
     grain: GrainOption;
+    advancedTimeFrame: AdvancedTimeFrameConfig;
     filters: ChartFilterChip[];
   } | null;
 }
@@ -47,6 +50,7 @@ interface PAGlobalToolbarStore extends PAGlobalToolbarState {
   setRange: (from: string, to: string, preset?: PeriodPreset) => void;
   setPreset: (p: PeriodPreset) => void;
   setGrain: (g: GrainOption) => void;
+  setAdvancedTimeFrame: (tf: AdvancedTimeFrameConfig) => void;
   setFilters: (f: ChartFilterChip[]) => void;
   setJalons: (j: ChartJalon[]) => void;
   apply: () => void;
@@ -55,6 +59,18 @@ interface PAGlobalToolbarStore extends PAGlobalToolbarState {
 const today = new Date();
 const threeDaysAgo = new Date(today.getTime() - 3 * 86400000);
 const fmt = (d: Date) => d.toISOString().slice(0, 16);
+const normalizeAdvancedTimeFrame = (value?: AdvancedTimeFrameConfig | null): AdvancedTimeFrameConfig => {
+  if (!value || value.mode === 'NONE') {
+    return value?.excludeWeekends ? { mode: 'NONE', excludeWeekends: true } : { mode: 'NONE' };
+  }
+  return {
+    ...value,
+    mode: value.mode,
+    startHour: value.startHour || (value.mode === 'BUSY_HOURS' ? '08:00' : ''),
+    endHour: value.endHour || (value.mode === 'BUSY_HOURS' ? '20:00' : ''),
+    excludeWeekends: !!value.excludeWeekends,
+  };
+};
 
 export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
   persist(
@@ -65,6 +81,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       to: fmt(today),
       preset: '3j',
       grain: '1d',
+      advancedTimeFrame: { mode: 'NONE' },
       filters: [],
       jalons: [],
       appliedRev: 0,
@@ -75,6 +92,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
       setRange: (from, to, preset = 'custom') => set({ from, to, preset }),
       setPreset: (preset) => set({ preset }),
       setGrain: (grain) => set({ grain }),
+      setAdvancedTimeFrame: (advancedTimeFrame) => set({ advancedTimeFrame: normalizeAdvancedTimeFrame(advancedTimeFrame) }),
       setFilters: (filters) => set({ filters }),
       setJalons: (jalons) => set({ jalons }),
       apply: () =>
@@ -103,6 +121,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
               to: s.to,
               preset: s.preset,
               grain: s.grain,
+              advancedTimeFrame: normalizeAdvancedTimeFrame(s.advancedTimeFrame),
               filters: mergedFilters,
             },
           };
@@ -119,6 +138,7 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
         to: s.to,
         preset: s.preset,
         grain: s.grain,
+        advancedTimeFrame: normalizeAdvancedTimeFrame(s.advancedTimeFrame),
         filters: s.filters,
         jalons: s.jalons,
         applied: s.applied,
@@ -133,6 +153,7 @@ export function selectToolbarSnapshot(s: PAGlobalToolbarState) {
   const snap = s.applied;
   const baseFilters = snap?.filters ?? s.filters;
   const vendors = snap?.vendors ?? s.vendors;
+  const advancedTimeFrame = normalizeAdvancedTimeFrame(snap?.advancedTimeFrame ?? s.advancedTimeFrame);
   // Inject one synthetic Vendor chip per selected vendor so downstream
   // widget logic that consumes `filters` automatically applies the
   // toolbar vendor selection.
@@ -156,6 +177,7 @@ export function selectToolbarSnapshot(s: PAGlobalToolbarState) {
       inherit: true,
     },
     granularity: snap?.grain ?? s.grain,
+    advancedTimeFrame,
     filters,
     appliedRev: s.appliedRev,
   };

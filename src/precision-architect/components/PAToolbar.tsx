@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2, Plus, X, Edit2 } from 'lucide-react';
+import { Filter, Clock, Flag, ChevronDown, Check, Globe, Loader2, Plus, X, Edit2, Save, Trash2 } from 'lucide-react';
 import { useIsFetching } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -10,7 +10,7 @@ import DateRangePopover from './DateRangePopover';
 import PAFilterChips from './PAFilterChips';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
 import { usePAReportStore } from '../stores/paReportStore';
-import type { TechnoId, PeriodPreset, GrainOption, DynWidget, ChartJalon } from '../types';
+import type { TechnoId, PeriodPreset, GrainOption, DynWidget, ChartJalon, AdvancedTimeFrameConfig, AdvancedTimeFrameMode, AdvancedTimeFrameProfile } from '../types';
 
 const TECHS: { id: TechnoId; label: string; bg: string; text: string }[] = [
   { id: '2g', label: '2G', bg: 'bg-violet-500', text: 'text-white' },
@@ -45,6 +45,68 @@ const GRAINS: { id: GrainOption; label: string }[] = [
 ];
 
 const FALLBACK_DIMENSIONS = ['Cluster', 'DOR', 'DR', 'Vendor', 'Bande', 'Technology', 'Site', 'Cell', 'PCI', 'ECI', 'Zone ARCEP'];
+const ADVANCED_TIMEFRAME_STORAGE_KEY = 'osmosis_pa_advanced_timeframe_profiles_v1';
+const NONE_TIMEFRAME: AdvancedTimeFrameConfig = { mode: 'NONE' };
+
+const normalizeTimeFrame = (tf?: AdvancedTimeFrameConfig | null): AdvancedTimeFrameConfig => {
+  if (!tf || tf.mode === 'NONE') {
+    return tf?.excludeWeekends ? { mode: 'NONE', excludeWeekends: true } : NONE_TIMEFRAME;
+  }
+  return {
+    ...tf,
+    startHour: tf.startHour || (tf.mode === 'BUSY_HOURS' ? '08:00' : ''),
+    endHour: tf.endHour || (tf.mode === 'BUSY_HOURS' ? '20:00' : ''),
+    excludeWeekends: !!tf.excludeWeekends,
+  };
+};
+
+const describeTimeFrame = (tf?: AdvancedTimeFrameConfig | null) => {
+  const normalized = normalizeTimeFrame(tf);
+  if (normalized.mode === 'NONE') {
+    return normalized.excludeWeekends ? 'Advanced TimeFrame: None, Weekends excluded' : 'Advanced TimeFrame: None';
+  }
+  const name = normalized.profileName || (normalized.mode === 'BUSY_HOURS' ? 'Busy Hours' : 'Custom Hours');
+  return `Advanced TimeFrame: ${name} ${normalized.startHour}-${normalized.endHour}${normalized.excludeWeekends ? ', Weekends excluded' : ''}`;
+};
+
+const isAdvancedActive = (tf?: AdvancedTimeFrameConfig | null) => {
+  const normalized = normalizeTimeFrame(tf);
+  return normalized.mode !== 'NONE' || !!normalized.excludeWeekends;
+};
+
+const loadTimeFrameProfiles = (): AdvancedTimeFrameProfile[] => {
+  try {
+    const raw = localStorage.getItem(ADVANCED_TIMEFRAME_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((p): p is AdvancedTimeFrameProfile => !!p?.id && !!p?.profileName && p.mode !== 'NONE')
+      .map(p => normalizeTimeFrame(p) as AdvancedTimeFrameProfile);
+  } catch {
+    return [];
+  }
+};
+
+const persistTimeFrameProfiles = (profiles: AdvancedTimeFrameProfile[]) => {
+  localStorage.setItem(ADVANCED_TIMEFRAME_STORAGE_KEY, JSON.stringify(profiles));
+};
+
+const validateTimeFrame = (tf: AdvancedTimeFrameConfig, profiles: AdvancedTimeFrameProfile[], editingId?: string | null): string | null => {
+  const normalized = normalizeTimeFrame(tf);
+  const name = (normalized.profileName || '').trim();
+  if (!name && normalized.mode !== 'NONE') return 'Profile name is required.';
+  if (name && profiles.some(p => p.profileName.toLowerCase() === name.toLowerCase() && p.id !== editingId)) {
+    return 'Profile name must be unique.';
+  }
+  if (normalized.mode !== 'NONE') {
+    if (!normalized.startHour || !normalized.endHour) return 'Start hour and end hour are required.';
+    if (!/^\d{2}:\d{2}$/.test(normalized.startHour) || !/^\d{2}:\d{2}$/.test(normalized.endHour)) {
+      return 'Hours must use 24h HH:mm format.';
+    }
+    if (normalized.endHour <= normalized.startHour) return 'End hour must be after start hour.';
+  }
+  return null;
+};
 
 interface Props {
   /** Optional callback fired AFTER the global Apply has been recorded. */
@@ -72,9 +134,19 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
   // Global report-level state — single source of truth for all widgets that inherit.
   const {
-    technos, vendors, from, to, preset, grain, filters,
-    setTechnos, setVendors, setRange, setPreset, setGrain, setFilters, apply,
+    technos, vendors, from, to, preset, grain, advancedTimeFrame, filters,
+    setTechnos, setVendors, setRange, setPreset, setGrain, setAdvancedTimeFrame, setFilters, apply,
   } = usePAGlobalToolbar();
+  const activeTimeFrame = normalizeTimeFrame(advancedTimeFrame);
+  const [timeFrameProfiles, setTimeFrameProfiles] = useState<AdvancedTimeFrameProfile[]>(() => loadTimeFrameProfiles());
+  const [timeFrameDraft, setTimeFrameDraft] = useState<AdvancedTimeFrameConfig>(() => activeTimeFrame);
+  const [timeFrameEditingId, setTimeFrameEditingId] = useState<string | null>(activeTimeFrame.id || null);
+  const [timeFrameError, setTimeFrameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setTimeFrameDraft(activeTimeFrame);
+    setTimeFrameEditingId(activeTimeFrame.id || null);
+  }, [activeTimeFrame.id, activeTimeFrame.mode, activeTimeFrame.startHour, activeTimeFrame.endHour, activeTimeFrame.excludeWeekends, activeTimeFrame.profileName]);
 
   const toggleTechno = (id: TechnoId) =>
     setTechnos(technos.includes(id) ? technos.filter(t => t !== id) : [...technos, id]);
@@ -90,6 +162,67 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
       setRange(fromD.toISOString().slice(0, 16), toD.toISOString().slice(0, 16), p);
     } else {
       setPreset(p);
+    }
+  };
+
+  const updateTimeFrameDraft = (patch: Partial<AdvancedTimeFrameConfig>) => {
+    setTimeFrameError(null);
+    setTimeFrameDraft(prev => {
+      const next = normalizeTimeFrame({ ...prev, ...patch } as AdvancedTimeFrameConfig);
+      if (patch.mode === 'BUSY_HOURS') return { ...next, startHour: next.startHour || '08:00', endHour: next.endHour || '20:00' };
+      if (patch.mode === 'NONE') return { mode: 'NONE', excludeWeekends: !!next.excludeWeekends };
+      return next;
+    });
+  };
+
+  const applyTimeFrameDraft = () => {
+    const normalized = normalizeTimeFrame(timeFrameDraft);
+    const error = validateTimeFrame(normalized, timeFrameProfiles, timeFrameEditingId);
+    if (error && normalized.mode !== 'NONE') {
+      setTimeFrameError(error);
+      return;
+    }
+    setAdvancedTimeFrame(normalized);
+  };
+
+  const saveTimeFrameProfile = () => {
+    const normalized = normalizeTimeFrame(timeFrameDraft);
+    const error = validateTimeFrame(normalized, timeFrameProfiles, timeFrameEditingId);
+    if (error) {
+      setTimeFrameError(error);
+      return;
+    }
+    if (normalized.mode === 'NONE') {
+      setTimeFrameError('None is a system option and cannot be saved.');
+      return;
+    }
+    const id = timeFrameEditingId || normalized.id || `pa-tf-${Date.now()}`;
+    const profile = { ...normalized, id, profileName: (normalized.profileName || '').trim() } as AdvancedTimeFrameProfile;
+    const nextProfiles = timeFrameProfiles.some(p => p.id === id)
+      ? timeFrameProfiles.map(p => p.id === id ? profile : p)
+      : [...timeFrameProfiles, profile];
+    setTimeFrameProfiles(nextProfiles);
+    persistTimeFrameProfiles(nextProfiles);
+    setTimeFrameEditingId(id);
+    setAdvancedTimeFrame(profile);
+    setTimeFrameError(null);
+  };
+
+  const selectTimeFrameProfile = (profile: AdvancedTimeFrameProfile) => {
+    setTimeFrameDraft(profile);
+    setTimeFrameEditingId(profile.id);
+    setAdvancedTimeFrame(profile);
+    setTimeFrameError(null);
+  };
+
+  const deleteTimeFrameProfile = (id: string) => {
+    const nextProfiles = timeFrameProfiles.filter(p => p.id !== id);
+    setTimeFrameProfiles(nextProfiles);
+    persistTimeFrameProfiles(nextProfiles);
+    if (activeTimeFrame.id === id || timeFrameEditingId === id) {
+      setAdvancedTimeFrame(NONE_TIMEFRAME);
+      setTimeFrameDraft(NONE_TIMEFRAME);
+      setTimeFrameEditingId(null);
     }
   };
 
@@ -271,6 +404,200 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
                 {g.label}
               </button>
             ))}
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              title={describeTimeFrame(activeTimeFrame)}
+              className={cn(
+                'flex items-center gap-2 h-9 px-3 rounded-full bg-white border text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors max-w-[360px]',
+                isAdvancedActive(activeTimeFrame)
+                  ? 'border-cyan-300 text-cyan-700 hover:bg-cyan-50'
+                  : 'border-outline-variant/30 text-on-surface hover:border-primary hover:text-primary'
+              )}
+            >
+              <Clock className={cn('w-3.5 h-3.5', isAdvancedActive(activeTimeFrame) ? 'text-cyan-600' : 'text-on-surface-variant')} />
+              <span className="text-on-surface-variant uppercase tracking-wide text-[11px]">Advanced TimeFrame</span>
+              <span className="font-black truncate max-w-[160px]">
+                {activeTimeFrame.mode === 'NONE'
+                  ? (activeTimeFrame.excludeWeekends ? 'None · weekdays' : 'None')
+                  : `${activeTimeFrame.profileName || (activeTimeFrame.mode === 'BUSY_HOURS' ? 'Busy Hours' : 'Custom')} ${activeTimeFrame.startHour}-${activeTimeFrame.endHour}`}
+              </span>
+              {isAdvancedActive(activeTimeFrame) && (
+                <button
+                  type="button"
+                  aria-label="Clear Advanced TimeFrame"
+                  className="w-5 h-5 rounded-full bg-cyan-100 text-cyan-700 hover:bg-cyan-200 inline-flex items-center justify-center"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setAdvancedTimeFrame(NONE_TIMEFRAME);
+                    setTimeFrameDraft(NONE_TIMEFRAME);
+                    setTimeFrameEditingId(null);
+                    setTimeFrameError(null);
+                  }}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+              <ChevronDown className="w-3 h-3 text-on-surface-variant" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent className="w-96 p-3 max-h-[520px] overflow-y-auto" align="start">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Advanced TimeFrame</div>
+                <div className="text-xs font-semibold text-on-surface mt-0.5">{describeTimeFrame(activeTimeFrame)}</div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[10px]"
+                onClick={() => {
+                  setAdvancedTimeFrame(NONE_TIMEFRAME);
+                  setTimeFrameDraft(NONE_TIMEFRAME);
+                  setTimeFrameEditingId(null);
+                  setTimeFrameError(null);
+                }}
+              >
+                <X className="w-3 h-3 mr-1" /> Clear
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Saved profiles</label>
+                <div className="mt-1.5 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTimeFrameDraft(NONE_TIMEFRAME);
+                      setTimeFrameEditingId(null);
+                      setAdvancedTimeFrame(NONE_TIMEFRAME);
+                      setTimeFrameError(null);
+                    }}
+                    className={cn(
+                      'w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                      activeTimeFrame.mode === 'NONE' && !activeTimeFrame.excludeWeekends
+                        ? 'bg-cyan-50 text-cyan-700'
+                        : 'text-on-surface hover:bg-surface-container-low'
+                    )}
+                  >
+                    <span>None</span>
+                    <span className="text-[9px] uppercase text-muted-foreground">system</span>
+                  </button>
+                  {timeFrameProfiles.map(profile => (
+                    <div key={profile.id} className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => selectTimeFrameProfile(profile)}
+                        className={cn(
+                          'flex-1 text-left px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors',
+                          activeTimeFrame.id === profile.id
+                            ? 'bg-cyan-50 text-cyan-700'
+                            : 'text-on-surface hover:bg-surface-container-low'
+                        )}
+                      >
+                        <span className="block truncate">{profile.profileName}</span>
+                        <span className="block text-[9px] text-muted-foreground">
+                          {profile.mode === 'BUSY_HOURS' ? 'Busy Hours' : 'Custom Hours'} {profile.startHour}-{profile.endHour}
+                          {profile.excludeWeekends ? ' · weekdays' : ''}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="w-7 h-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center"
+                        onClick={() => deleteTimeFrameProfile(profile.id)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-outline-variant/20" />
+
+              <div className="grid grid-cols-3 gap-1">
+                {(['NONE', 'BUSY_HOURS', 'CUSTOM_HOURS'] as AdvancedTimeFrameMode[]).map(mode => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => updateTimeFrameDraft({ mode, profileName: mode === 'NONE' ? undefined : timeFrameDraft.profileName })}
+                    className={cn(
+                      'h-8 rounded-md border text-[10px] font-black uppercase tracking-wide transition-colors',
+                      timeFrameDraft.mode === mode
+                        ? 'border-cyan-300 bg-cyan-50 text-cyan-700'
+                        : 'border-outline-variant/30 text-muted-foreground hover:bg-surface-container-low'
+                    )}
+                  >
+                    {mode === 'BUSY_HOURS' ? 'Busy' : mode === 'CUSTOM_HOURS' ? 'Custom' : 'None'}
+                  </button>
+                ))}
+              </div>
+
+              {timeFrameDraft.mode !== 'NONE' && (
+                <>
+                  <div>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Profile name</label>
+                    <input
+                      value={timeFrameDraft.profileName || ''}
+                      onChange={(e) => updateTimeFrameDraft({ profileName: e.target.value })}
+                      className="mt-1 w-full h-8 px-2 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold outline-none focus:border-cyan-400"
+                      placeholder="Business Hours"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Start hour</label>
+                      <input
+                        type="time"
+                        value={timeFrameDraft.startHour || ''}
+                        onChange={(e) => updateTimeFrameDraft({ startHour: e.target.value })}
+                        className="mt-1 w-full h-8 px-2 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold outline-none focus:border-cyan-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">End hour</label>
+                      <input
+                        type="time"
+                        value={timeFrameDraft.endHour || ''}
+                        onChange={(e) => updateTimeFrameDraft({ endHour: e.target.value })}
+                        className="mt-1 w-full h-8 px-2 rounded-md border border-outline-variant/30 bg-white text-xs font-semibold outline-none focus:border-cyan-400"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <label className="flex items-center gap-2 px-2 py-1.5 rounded-md border border-outline-variant/20 bg-surface-container-low/40">
+                <input
+                  type="checkbox"
+                  checked={!!timeFrameDraft.excludeWeekends}
+                  onChange={(e) => updateTimeFrameDraft({ excludeWeekends: e.target.checked })}
+                  className="w-3.5 h-3.5 accent-cyan-600"
+                />
+                <span className="text-xs font-semibold text-on-surface">Exclude weekends</span>
+              </label>
+
+              {timeFrameError && (
+                <div className="px-2 py-1.5 rounded-md bg-destructive/10 text-destructive text-[11px] font-semibold">
+                  {timeFrameError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={applyTimeFrameDraft}>
+                  <Check className="w-3.5 h-3.5 mr-1" /> Apply
+                </Button>
+                <Button type="button" size="sm" className="h-8 text-xs bg-cyan-600 hover:bg-cyan-700" onClick={saveTimeFrameProfile}>
+                  <Save className="w-3.5 h-3.5 mr-1" /> Save profile
+                </Button>
+              </div>
+            </div>
           </PopoverContent>
         </Popover>
 

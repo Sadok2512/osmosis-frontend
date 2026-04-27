@@ -60,6 +60,13 @@ export interface TimeseriesRequest {
   selections: TimeseriesSelection[];
   split_by: string | null;
   top_n: number;
+  advancedTimeFrame?: {
+    mode: 'NONE' | 'BUSY_HOURS' | 'CUSTOM_HOURS';
+    startHour?: string;
+    endHour?: string;
+    excludeWeekends?: boolean;
+    profileName?: string;
+  };
 }
 
 export interface TimeseriesPoint {
@@ -83,6 +90,7 @@ export interface TableRequest {
   top_n?: number;
   page?: number;
   page_size?: number;
+  advancedTimeFrame?: TimeseriesRequest['advancedTimeFrame'];
 }
 
 export interface TableRow {
@@ -105,6 +113,7 @@ export interface SummaryRequest {
   date_to: string;
   filters: MonitorFilter[];
   kpi_keys: string[];
+  advancedTimeFrame?: TimeseriesRequest['advancedTimeFrame'];
 }
 
 export interface SummaryItem {
