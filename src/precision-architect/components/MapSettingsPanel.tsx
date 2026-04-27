@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, ChevronDown, ChevronRight, Check,
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { subscribeMapSitesCache, getMapSitesDistinct } from './PAMapWidget';
 import { ensureFilterLoaded, getFilterValues, dimToKey, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
+import { useKpiCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import {
   DynWidget,
   MapWidgetConfig,
@@ -247,6 +248,11 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
                     ]}
                   />
                 </Field>
+
+                <KpiSelectorField
+                  cfg={cfg}
+                  update={update}
+                />
 
                 <ToggleRow
                   label="Show sectors / beams"
@@ -733,5 +739,81 @@ function MapDimensionChip({ label, values, selected, onApply, onRemove }: {
         <X className="w-3 h-3" />
       </button>
     </div>
+  );
+}
+
+function KpiSelectorField({
+  cfg,
+  update,
+}: {
+  cfg: MapWidgetConfig;
+  update: (patch: Partial<MapWidgetConfig>) => void;
+}) {
+  const { data: kpiCatalog } = useKpiCatalog();
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    const q = (search || cfg.kpiKey || '').toLowerCase();
+    return (kpiCatalog || []).filter(
+      (k) => !q || k.kpi_key.toLowerCase().includes(q) || (k.display_name || '').toLowerCase().includes(q),
+    ).slice(0, 30);
+  }, [kpiCatalog, search, cfg.kpiKey]);
+
+  const select = (k: { kpi_key: string; display_name?: string; unit?: string }) => {
+    update({
+      kpiKey: k.kpi_key,
+      kpiDisplayName: k.display_name || k.kpi_key,
+      kpiUnit: k.unit || '',
+    });
+    setSearch('');
+  };
+
+  return (
+    <Field label="KPI driving the colour scale">
+      <div className="space-y-1">
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            value={search || cfg.kpiKey || ''}
+            placeholder="Search a KPI (e.g. ERAB_SR)..."
+            onChange={(e) => setSearch(e.target.value)}
+            onFocus={() => setSearch(cfg.kpiKey || '')}
+            className="flex-1 px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-mono focus:outline-none focus:border-primary"
+          />
+          {cfg.kpiKey && (
+            <button
+              type="button"
+              onClick={() => update({ kpiKey: '', kpiDisplayName: '', kpiUnit: '' })}
+              className="text-[10px] font-bold text-on-surface-variant hover:text-error transition-colors px-2"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {cfg.kpiDisplayName && (
+          <p className="text-[10px] text-on-surface-variant/70">
+            Selected: <span className="font-bold text-on-surface">{cfg.kpiDisplayName}</span>
+            {cfg.kpiUnit && <span className="ml-1 opacity-60">({cfg.kpiUnit})</span>}
+          </p>
+        )}
+        {search && filtered.length > 0 && (
+          <div className="max-h-40 overflow-y-auto rounded-lg border border-outline-variant/20 bg-white shadow-lg">
+            {filtered.map((k) => (
+              <button
+                key={k.kpi_key}
+                type="button"
+                onClick={() => select(k)}
+                className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-primary/5 transition-colors"
+              >
+                <span className="font-bold">{k.display_name || k.kpi_key}</span>
+                {k.unit && <span className="ml-1 text-on-surface-variant/50">({k.unit})</span>}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-[10px] text-on-surface-variant/50">
+          Sites are coloured by this KPI's score against the thresholds in the Appearance tab.
+        </p>
+      </div>
+    </Field>
   );
 }

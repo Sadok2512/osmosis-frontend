@@ -520,18 +520,24 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
           <div className={`text-[9px] font-black uppercase tracking-widest ${isDark ? 'text-slate-400' : 'text-on-surface-variant/60'} mb-1`}>
             {cfg.displayMode === 'sites' ? 'Sites' : 'Cells'} · {filteredSites.length}
           </div>
+          {cfg.kpiKey && (
+            <div className={`text-[10px] font-bold mb-1 ${isDark ? 'text-slate-100' : 'text-on-surface'}`}>
+              {cfg.kpiDisplayName || cfg.kpiKey}
+              {cfg.kpiUnit && <span className="ml-1 opacity-60 font-normal">({cfg.kpiUnit})</span>}
+            </div>
+          )}
           <div className={`flex items-center gap-3 text-[10px] font-bold ${isDark ? 'text-slate-200' : ''}`}>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full" style={{ background: cfg.optimalColor || DEFAULT_STATUS_COLORS.optimal }} />
-              Optimal · ≥{cfg.warningThreshold ?? 80}
+              Optimal · ≥{cfg.warningThreshold ?? 80}{cfg.kpiUnit || ''}
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full" style={{ background: cfg.warningColor || DEFAULT_STATUS_COLORS.warning }} />
-              Warning · {cfg.criticalThreshold ?? 60}–{cfg.warningThreshold ?? 80}
+              Warning · {cfg.criticalThreshold ?? 60}–{cfg.warningThreshold ?? 80}{cfg.kpiUnit || ''}
             </span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full" style={{ background: cfg.criticalColor || DEFAULT_STATUS_COLORS.critical }} />
-              Critical · &lt;{cfg.criticalThreshold ?? 60}
+              Critical · &lt;{cfg.criticalThreshold ?? 60}{cfg.kpiUnit || ''}
             </span>
           </div>
         </div>

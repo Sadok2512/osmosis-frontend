@@ -306,6 +306,12 @@ export interface MapWidgetConfig {
   warningColor?: string;
   /** Color used for "critical" markers when KPI overlay is on. */
   criticalColor?: string;
+  /** KPI key driving the per-site intensity / color. Empty = legacy mock score. */
+  kpiKey?: string;
+  /** Display name of the selected KPI (cached for the legend label). */
+  kpiDisplayName?: string;
+  /** Unit of the selected KPI (cached for the legend label). */
+  kpiUnit?: string;
 }
 
 export const DEFAULT_MAP_CONFIG: MapWidgetConfig = {
