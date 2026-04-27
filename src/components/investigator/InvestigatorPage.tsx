@@ -860,6 +860,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             onIdChange={(id) => setCurrentInvestigatorId(id)}
             hasUnsavedChanges={inst?.hasUnsavedChanges ?? false}
             onMarkSaved={() => setHasUnsavedChanges(false)}
+            onExportSession={handleExportSession}
+            onExportData={handleExportData}
+            onExportPDF={handleExportPDF}
           />
         </div>
 
