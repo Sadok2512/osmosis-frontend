@@ -39,6 +39,9 @@ interface Props {
   onIdChange: (id: string) => void;
   hasUnsavedChanges: boolean;
   onMarkSaved: () => void;
+  onExportSession?: () => void;
+  onExportData?: () => void;
+  onExportPDF?: () => void;
 }
 
 const InvestigatorSaveLoadBar: React.FC<Props> = ({
