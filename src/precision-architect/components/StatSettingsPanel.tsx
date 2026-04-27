@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Type as TypeIcon, Palette, Database } from 'lucide-react';
+import { X, Type as TypeIcon, Palette, Database, Plus, Trash2 } from 'lucide-react';
 import {
   DynWidget,
   StatWidgetConfig,
   StatTheme,
+  StatKpiItem,
   DEFAULT_STAT_CONFIG,
 } from '../types';
 import { cn } from '@/lib/utils';
@@ -39,11 +40,11 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
   }, []);
 
   const filteredKpis = useMemo(() => {
-    const q = (kpiSearch || cfg.kpiKey || '').toLowerCase();
+    const q = (kpiSearch || '').toLowerCase();
     return (kpiCatalog || []).filter(k =>
       !q || k.kpi_key.toLowerCase().includes(q) || (k.display_name || '').toLowerCase().includes(q)
     ).slice(0, 30);
-  }, [kpiCatalog, kpiSearch, cfg.kpiKey]);
+  }, [kpiCatalog, kpiSearch]);
 
   const update = (patch: Partial<StatWidgetConfig>) => {
     onChange({ statConfig: { ...cfg, ...patch } });
@@ -154,49 +155,138 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
           <div className="max-w-3xl mx-auto space-y-6">
             {tab === 'content' && (
               <>
-                <Section icon={<Database className="w-4 h-4" />} title="KPI Source (optional)">
-                  <Field label="KPI Key">
-                    <div className="space-y-1">
-                      <input
-                        type="text"
-                        value={cfg.kpiKey || ''}
-                        onChange={(e) => { update({ kpiKey: e.target.value }); setKpiSearch(e.target.value); }}
-                        onFocus={() => setKpiSearch(cfg.kpiKey || '')}
-                        placeholder="Search KPI (e.g. DL_VOLUME)..."
-                        className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-mono focus:outline-none focus:border-primary"
-                      />
-                      {kpiSearch && filteredKpis.length > 0 && (
-                        <div className="max-h-36 overflow-y-auto rounded-lg border border-outline-variant/20 bg-white shadow-lg">
-                          {filteredKpis.map(k => (
-                            <button
-                              key={k.kpi_key}
-                              onClick={() => {
-                                update({ kpiKey: k.kpi_key, label: k.display_name || k.kpi_key, unit: k.unit || cfg.unit });
-                                setKpiSearch('');
-                              }}
-                              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-primary/5 transition-colors"
-                            >
-                              <span className="font-bold">{k.display_name || k.kpi_key}</span>
-                              {k.unit && <span className="ml-1 text-on-surface-variant/50">({k.unit})</span>}
-                            </button>
-                          ))}
+                <Section icon={<Database className="w-4 h-4" />} title="KPI Sources">
+                  {/* Resolve current list (migrate legacy single key into items array on first edit). */}
+                  {(() => {
+                    const items: StatKpiItem[] = (cfg.kpis && cfg.kpis.length > 0)
+                      ? cfg.kpis
+                      : (cfg.kpiKey ? [{ kpiKey: cfg.kpiKey, label: cfg.label, unit: cfg.unit }] : []);
+
+                    const setItems = (next: StatKpiItem[]) => {
+                      // Mirror first item back to legacy fields so existing renderers stay in sync.
+                      update({
+                        kpis: next,
+                        kpiKey: next[0]?.kpiKey || '',
+                      });
+                    };
+                    const addItem = (k: StatKpiItem) => setItems([...items, k]);
+                    const removeAt = (idx: number) => setItems(items.filter((_, i) => i !== idx));
+                    const patchAt = (idx: number, patch: Partial<StatKpiItem>) =>
+                      setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
+
+                    return (
+                      <>
+                        {/* Existing KPI rows */}
+                        <div className="space-y-2">
+                          {items.map((item, idx) => {
+                            const meta = (kpiCatalog || []).find(k => k.kpi_key === item.kpiKey);
+                            return (
+                              <div
+                                key={`${item.kpiKey}-${idx}`}
+                                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-outline-variant/20 bg-surface-container-low/40"
+                              >
+                                <span className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant w-6">
+                                  #{idx + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-bold truncate">
+                                    {item.label || meta?.display_name || item.kpiKey}
+                                  </div>
+                                  <div className="text-[10px] font-mono text-on-surface-variant/60 truncate">
+                                    {item.kpiKey}{(item.unit || meta?.unit) && ` · ${item.unit || meta?.unit}`}
+                                  </div>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={item.label ?? ''}
+                                  onChange={(e) => patchAt(idx, { label: e.target.value })}
+                                  placeholder="Label override"
+                                  className="w-32 px-2 py-1 rounded border border-outline-variant/30 text-[11px] focus:outline-none focus:border-primary"
+                                />
+                                <input
+                                  type="text"
+                                  value={item.unit ?? ''}
+                                  onChange={(e) => patchAt(idx, { unit: e.target.value })}
+                                  placeholder="Unit"
+                                  className="w-16 px-2 py-1 rounded border border-outline-variant/30 text-[11px] focus:outline-none focus:border-primary"
+                                />
+                                <input
+                                  type="color"
+                                  value={item.accentColor || '#00685f'}
+                                  onChange={(e) => patchAt(idx, { accentColor: e.target.value })}
+                                  className="w-7 h-7 rounded border border-outline-variant/30 cursor-pointer bg-transparent"
+                                  title="Accent color"
+                                />
+                                <button
+                                  onClick={() => removeAt(idx)}
+                                  className="p-1.5 rounded hover:bg-error/10 text-on-surface-variant hover:text-error transition-colors"
+                                  aria-label="Remove KPI"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                          {items.length === 0 && (
+                            <p className="text-[11px] text-on-surface-variant/60 italic">
+                              No KPI selected yet. Search and add one below.
+                            </p>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </Field>
-                  <Field label="Aggregation">
-                    <SegmentControl
-                      value={cfg.aggregation || 'avg'}
-                      options={[
-                        { value: 'avg', label: 'Avg' },
-                        { value: 'sum', label: 'Sum' },
-                        { value: 'min', label: 'Min' },
-                        { value: 'max', label: 'Max' },
-                        { value: 'last', label: 'Last' },
-                      ]}
-                      onChange={(v) => update({ aggregation: v as any })}
-                    />
-                  </Field>
+
+                        {/* Add new KPI */}
+                        <Field label={`Add KPI ${items.length > 0 ? `(${items.length} selected)` : ''}`}>
+                          <div className="space-y-1">
+                            <input
+                              type="text"
+                              value={kpiSearch}
+                              onChange={(e) => setKpiSearch(e.target.value)}
+                              placeholder="Search KPI to add (e.g. DL_VOLUME)..."
+                              className="w-full px-3 py-2 rounded-lg border border-outline-variant/30 text-sm font-mono focus:outline-none focus:border-primary"
+                            />
+                            {kpiSearch && filteredKpis.length > 0 && (
+                              <div className="max-h-44 overflow-y-auto rounded-lg border border-outline-variant/20 bg-white shadow-lg">
+                                {filteredKpis.map(k => {
+                                  const already = items.some(it => it.kpiKey === k.kpi_key);
+                                  return (
+                                    <button
+                                      key={k.kpi_key}
+                                      disabled={already}
+                                      onClick={() => {
+                                        addItem({
+                                          kpiKey: k.kpi_key,
+                                          label: k.display_name || k.kpi_key,
+                                          unit: k.unit || '',
+                                        });
+                                        setKpiSearch('');
+                                      }}
+                                      className={cn(
+                                        'w-full text-left px-3 py-1.5 text-[11px] flex items-center justify-between transition-colors',
+                                        already
+                                          ? 'opacity-40 cursor-not-allowed'
+                                          : 'hover:bg-primary/5'
+                                      )}
+                                    >
+                                      <span>
+                                        <span className="font-bold">{k.display_name || k.kpi_key}</span>
+                                        {k.unit && <span className="ml-1 text-on-surface-variant/50">({k.unit})</span>}
+                                      </span>
+                                      {already ? (
+                                        <span className="text-[9px] uppercase font-bold text-on-surface-variant/60">Added</span>
+                                      ) : (
+                                        <Plus className="w-3 h-3 text-primary" />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </Field>
+                      </>
+                    );
+                  })()}
+
                   <Field label="Reference Period">
                     <select
                       value={cfg.referencePeriodId || referencePeriods.find(p => p.isDefault)?.id || referencePeriods[0]?.id || 'last_7_days'}
@@ -208,14 +298,9 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
                       ))}
                     </select>
                     <p className="mt-1 text-[10px] text-on-surface-variant/60">
-                      KPI widgets are period-based aggregates over the selected reference period.
+                      All KPIs in this card share the same period (period-based aggregate, no time buckets).
                     </p>
                   </Field>
-                  {cfg.kpiKey && (
-                    <p className="text-[10px] text-on-surface-variant/60">
-                      Value computed from backend over the full period. No time buckets.
-                    </p>
-                  )}
                 </Section>
 
                 <Section icon={<TypeIcon className="w-4 h-4" />} title="Content">

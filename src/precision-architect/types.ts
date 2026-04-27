@@ -195,12 +195,25 @@ export interface HeroWidgetConfig {
   eyebrow?: string;
 }
 
+export interface StatKpiItem {
+  /** KPI key from catalog. */
+  kpiKey: string;
+  /** Display label override (defaults to KPI display_name). */
+  label?: string;
+  /** Unit override (defaults to KPI unit). */
+  unit?: string;
+  /** Optional per-item accent (hex). Empty = inherits widget accent. */
+  accentColor?: string;
+}
+
 export interface StatWidgetConfig {
   label: string;
   value: string;
   unit: string;
-  /** KPI key to fetch from backend. When set, value is computed automatically. */
+  /** Legacy single-KPI key. Kept for backward compatibility; new widgets use `kpis`. */
   kpiKey?: string;
+  /** Multi-KPI list. When length > 1, the card renders a responsive grid. */
+  kpis?: StatKpiItem[];
   /** Backend-defined reusable reference period used for period-based KPI aggregation. */
   referencePeriodId?: string;
   /** Aggregation function: avg, sum, min, max, last */
