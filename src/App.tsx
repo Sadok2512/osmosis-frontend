@@ -135,7 +135,7 @@ const App = () => (
               <Route path="/login" element={<UserLogin />} />
               <Route path="/" element={<Index />} />
               <Route path="/investigator" element={<InvestigatorDrilldown />} />
-              <Route path="/precision-architect" element={<PrecisionArchitect />} />
+              <Route path="/precision-architect" element={<Navigate to="/?tab=precision_architect" replace />} />
               <Route path="/admin/login" element={<AdminLogin />} />
               <Route path="/admin" element={<AdminPanel />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
