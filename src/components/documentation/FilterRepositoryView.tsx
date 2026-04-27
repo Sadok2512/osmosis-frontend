@@ -221,110 +221,114 @@ const FilterRepositoryView: React.FC = () => {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(16,185,129,0.16),transparent_34%),linear-gradient(135deg,hsl(var(--background)),hsl(var(--muted))/0.34)]">
-      <div className="shrink-0 px-6 pt-5 pb-4">
-        <div className="rounded-[28px] border border-border/50 bg-card/85 shadow-sm backdrop-blur-xl overflow-hidden">
-          <div className="px-5 py-5 border-b border-emerald-900/20 bg-gradient-to-r from-emerald-950 via-emerald-900 to-teal-800 text-white">
-            <div className="flex items-start justify-between gap-4">
+    <div className="h-full flex flex-col overflow-hidden bg-slate-50">
+      <div className="shrink-0 border-b border-slate-200 bg-white">
+        <div className="px-6 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                <Network className="h-5 w-5" />
+              </div>
               <div className="min-w-0">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200/20 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-100">
-                  <Network className="h-3.5 w-3.5" />
-                  Network References
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="truncate text-xl font-black tracking-tight text-slate-950">Network References / filter2</h2>
+                  {activeFilterCount > 0 && (
+                    <span className="inline-flex h-6 items-center rounded-full bg-emerald-50 px-2.5 text-[10px] font-black uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-100">
+                      {activeFilterCount} active
+                    </span>
+                  )}
                 </div>
-                <h2 className="mt-3 text-2xl font-black tracking-tight">Filters repository</h2>
-                <p className="mt-1 max-w-2xl text-sm text-slate-300">
-                  Create, audit and reuse topology filters for RAN scopes, dashboards and investigations.
+                <p className="text-xs font-medium text-slate-500">
+                  Reusable RAN scope filters for dashboards, investigations and KPI reports.
                 </p>
               </div>
-              <button
-                onClick={() => setShowCreate(true)}
-                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-emerald-400 px-4 py-2.5 text-xs font-black text-emerald-950 shadow-lg shadow-emerald-950/30 transition-all hover:-translate-y-0.5 hover:bg-emerald-300"
-              >
-                <Plus className="h-4 w-4" /> Create filter
-              </button>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total filters" value={stats.total} accent="primary" />
-              <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} accent="emerald" />
-              <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} accent="amber" />
-              <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} accent="sky" />
-            </div>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-emerald-600 px-4 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+            >
+              <Plus className="h-4 w-4" /> Create filter2
+            </button>
           </div>
 
-          <div className="space-y-3 px-5 py-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="relative min-w-[260px] flex-1">
-                <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
-                <input
-                  type="text"
-                  placeholder="Search by name, owner, region or vendor"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="h-11 w-full rounded-2xl border border-border/60 bg-background/80 pl-10 pr-4 text-sm shadow-inner outline-none transition focus:border-emerald-500/60 focus:ring-4 focus:ring-emerald-500/10"
-                />
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-2xl border border-border/50 bg-muted/30 px-3 py-2 text-xs font-bold text-muted-foreground">
-                <SlidersHorizontal className="h-4 w-4" />
-                {filtered.length.toLocaleString('fr-FR')} shown
-                <span className="h-4 w-px bg-border" />
-                {activeFilterCount} active filters
-              </div>
-              {activeFilterCount > 0 && (
-                <button
-                  onClick={resetFilters}
-                  className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-background px-3 py-2 text-xs font-bold text-foreground transition hover:bg-muted"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" /> Reset
-                </button>
-              )}
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatCard icon={<FolderOpen className="w-4 h-4" />} label="Total filter2" value={stats.total} accent="primary" />
+            <StatCard icon={<Globe className="w-4 h-4" />} label="Public" value={stats.public} accent="emerald" />
+            <StatCard icon={<Lock className="w-4 h-4" />} label="Private" value={stats.private} accent="amber" />
+            <StatCard icon={<CheckCircle2 className="w-4 h-4" />} label="Active" value={stats.active} accent="sky" />
+          </div>
+        </div>
+
+        <div className="border-t border-slate-200 bg-slate-50/70 px-6 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[260px] flex-1">
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search filter2 by name, owner, region or vendor"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+              />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
-              <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
-              <ChipGroup
-                label="Visibility"
-                options={['All', 'public', 'private']}
-                value={visibilityFilter}
-                onChange={v => setVisibilityFilter(v as any)}
-                renderOption={o => o === 'public' ? 'Public' : o === 'private' ? 'Private' : 'All'}
-              />
-              <ChipGroup
-                label="Status"
-                options={['All', 'draft', 'active', 'archived']}
-                value={statusFilter}
-                onChange={v => setStatusFilter(v as any)}
-                renderOption={o => o === 'All' ? 'All' : o.charAt(0).toUpperCase() + o.slice(1)}
-              />
-              <ChipGroup label="Owner" options={['All', 'Me']} value={ownerFilter} onChange={v => setOwnerFilter(v as any)} />
+            <ChipGroup label="Tech" options={allTechs} value={techFilter} onChange={setTechFilter} />
+            <ChipGroup label="Vendor" options={allVendors} value={vendorFilter} onChange={setVendorFilter} />
+            <ChipGroup
+              label="Visibility"
+              options={['All', 'public', 'private']}
+              value={visibilityFilter}
+              onChange={v => setVisibilityFilter(v as any)}
+              renderOption={o => o === 'public' ? 'Public' : o === 'private' ? 'Private' : 'All'}
+            />
+            <ChipGroup
+              label="Status"
+              options={['All', 'draft', 'active', 'archived']}
+              value={statusFilter}
+              onChange={v => setStatusFilter(v as any)}
+              renderOption={o => o === 'All' ? 'All' : o.charAt(0).toUpperCase() + o.slice(1)}
+            />
+            <ChipGroup label="Owner" options={['All', 'Me']} value={ownerFilter} onChange={v => setOwnerFilter(v as any)} />
+
+            <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-600 shadow-sm">
+              <SlidersHorizontal className="h-4 w-4 text-emerald-600" />
+              {filtered.length.toLocaleString('fr-FR')} shown
             </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={resetFilters}
+                className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Reset
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 mx-6 mb-4 rounded-[24px] bg-card/95 backdrop-blur-sm border border-border/50 shadow-sm flex flex-col overflow-hidden">
+      <div className="flex-1 m-6 mt-4 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col overflow-hidden">
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
-            <span className="text-xs font-semibold">Loading network filters...</span>
+            <span className="text-xs font-semibold">Loading Network References / filter2...</span>
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground py-16">
             <div className="mb-4 rounded-3xl bg-muted/50 p-5">
               <FilterIcon className="w-10 h-10 opacity-40" />
             </div>
-            <p className="text-base font-bold text-foreground">No filters match this view</p>
-            <p className="text-xs mt-1 opacity-70">Adjust the search criteria or create a new reusable network filter.</p>
-            <button onClick={() => setShowCreate(true)} className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-700 text-white text-xs font-bold hover:bg-emerald-800 transition-colors">
-              <Plus className="w-4 h-4" /> Create filter
+            <p className="text-base font-bold text-foreground">No filter2 matches this view</p>
+            <p className="text-xs mt-1 opacity-70">Adjust criteria or create a reusable Network References / filter2 entry.</p>
+            <button onClick={() => setShowCreate(true)} className="mt-5 flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition-colors">
+              <Plus className="w-4 h-4" /> Create filter2
             </button>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-border/50 bg-muted/35">
-              {['Filter', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
-                <span key={h} className="text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground/70">{h}</span>
+            <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-slate-200 bg-slate-50">
+              {['filter2', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
+                <span key={h} className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{h}</span>
               ))}
             </div>
 
@@ -525,15 +529,15 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, accent }) => {
   const accents = {
-    primary: 'bg-white/10 text-emerald-100 border-white/10',
-    emerald: 'bg-emerald-400/15 text-emerald-100 border-emerald-300/20',
-    amber: 'bg-amber-400/15 text-amber-100 border-amber-300/20',
-    sky: 'bg-teal-400/15 text-teal-100 border-teal-300/20',
+    primary: 'bg-slate-50 text-slate-900 border-slate-200',
+    emerald: 'bg-emerald-50 text-emerald-900 border-emerald-100',
+    amber: 'bg-amber-50 text-amber-900 border-amber-100',
+    sky: 'bg-sky-50 text-sky-900 border-sky-100',
   };
   return (
-    <div className={`rounded-2xl border p-3 shadow-sm backdrop-blur-sm ${accents[accent]}`}>
+    <div className={`rounded-xl border p-3 shadow-sm ${accents[accent]}`}>
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+        <div className="w-9 h-9 rounded-lg bg-white/70 flex items-center justify-center">
           {icon}
         </div>
         <div className="min-w-0">
