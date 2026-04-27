@@ -37,6 +37,16 @@ export default function PAStatWidget({ widget }: Props) {
   const widgetRev = widget.appliedRev ?? 0;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
 
+  // KPI metadata: drives aggregation strategy (avg for ratio/%, sum for volume).
+  const { data: kpiCatalog } = useKpiCatalog();
+  const kpiMeta = (kpiCatalog || []).find(k => k.kpi_key === effectiveKpiKey);
+  const aggMode: 'avg' | 'sum' =
+    kpiMeta?.formula_type === 'volume' ? 'sum' : 'avg';
+
+  // Distinguish "endpoint missing/error" from "no data for period" so the
+  // UX can hint the user about the right next step.
+  const [errorKind, setErrorKind] = useState<null | 'no_data' | 'unavailable'>(null);
+
   // Read the FROZEN snapshot taken at the last global Apply click.
   // Editing the toolbar (date, period, filters) updates the live store
   // but NOT this snapshot, so the widget will not refetch until the user
