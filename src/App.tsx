@@ -39,11 +39,18 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, AppErrorState>
     this.setState({ info: info?.componentStack });
   }
 
-  private recover = () => {
+  private recover = async () => {
     try {
       for (const key of APP_LOCAL_STORAGE_KEYS) {
         try { window.localStorage.removeItem(key); } catch { /* ignore */ }
       }
+      try { window.sessionStorage.clear(); } catch { /* ignore */ }
+      try {
+        if ("caches" in window) {
+          const cacheNames = await window.caches.keys();
+          await Promise.all(cacheNames.map(name => window.caches.delete(name)));
+        }
+      } catch { /* ignore */ }
       // Clear any *zustand* persist keys we may have missed (suffix-based heuristic).
       try {
         for (let i = window.localStorage.length - 1; i >= 0; i--) {
@@ -58,7 +65,7 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, AppErrorState>
     } catch {
       // ignore storage failures
     }
-    this.setState({ hasError: false, error: undefined, info: undefined });
+    window.location.replace(`/?_reload=${Date.now()}`);
   };
 
   render() {
