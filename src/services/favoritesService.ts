@@ -123,7 +123,7 @@ export async function saveFavorites(
   writeLocal(kind, favs);
 
   const session = getStoredSession();
-  if (!session?.id) return;
+  if (!session?.id || !UUID_RE.test(String(session.id))) return;
 
   const { error: delError } = await supabase
     .from('user_kpi_favorites')
