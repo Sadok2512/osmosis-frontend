@@ -51,17 +51,63 @@ export const EMPTY_FILTERS: ParameterHubFilters = {
   bande: [],
 };
 
-async function dumpGet<T>(path: string): Promise<T> {
+async function dumpGet<T>(path: string, opts?: { timeoutMs?: number; maxRetries?: number }): Promise<T> {
   const url = getApiUrl(`dump/${path}`);
-  const res = await fetchVpsWithRetry(url, { headers: getApiHeaders() }, { maxRetries: 3 });
+  const res = await fetchVpsWithRetry(
+    url,
+    { headers: getApiHeaders() },
+    { maxRetries: opts?.maxRetries ?? 3, timeoutMs: opts?.timeoutMs ?? 30_000 },
+  );
   if (!res.ok) throw new Error(`Dump API ${res.status}: ${await res.text()}`);
   return res.json();
 }
 
 /** Distinct parameter names for the selector.
- *  NB: limit kept ≤2000 — backend gateway times out (~25s) for higher caps. */
-export async function fetchAvailableParameters(): Promise<string[]> {
-  return dumpGet<string[]>('params/distinct?column=parameter_raw&limit=2000');
+ *  Backend has ~8700 distinct parameters and does NOT support offset/page on
+ *  this endpoint, so we fetch the full catalog in one call (≈30–45s cold,
+ *  much faster warm) and cache it for the rest of the session. */
+const PARAMS_CACHE_KEY = 'osmosis.paramHub.distinctParams.v2';
+const PARAMS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+let _paramsMemCache: string[] | null = null;
+let _paramsInflight: Promise<string[]> | null = null;
+
+export async function fetchAvailableParameters(force = false): Promise<string[]> {
+  if (!force && _paramsMemCache && _paramsMemCache.length > 0) return _paramsMemCache;
+
+  // sessionStorage warm cache (survives soft reloads within a tab)
+  if (!force && typeof sessionStorage !== 'undefined') {
+    try {
+      const raw = sessionStorage.getItem(PARAMS_CACHE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { ts: number; data: string[] };
+        if (parsed?.data?.length && Date.now() - parsed.ts < PARAMS_CACHE_TTL_MS) {
+          _paramsMemCache = parsed.data;
+          return _paramsMemCache;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (_paramsInflight) return _paramsInflight;
+
+  _paramsInflight = (async () => {
+    // limit=10000 safely covers the current ~8700 distinct parameters.
+    // Long timeout because the cold ClickHouse query can take ~40s.
+    const list = await dumpGet<string[]>(
+      'params/distinct?column=parameter_raw&limit=10000',
+      { timeoutMs: 60_000, maxRetries: 2 },
+    );
+    const sorted = Array.isArray(list) ? [...list].sort((a, b) => a.localeCompare(b)) : [];
+    _paramsMemCache = sorted;
+    if (typeof sessionStorage !== 'undefined') {
+      try {
+        sessionStorage.setItem(PARAMS_CACHE_KEY, JSON.stringify({ ts: Date.now(), data: sorted }));
+      } catch { /* quota — ignore */ }
+    }
+    return sorted;
+  })().finally(() => { _paramsInflight = null; });
+
+  return _paramsInflight;
 }
 
 /** Distinct values for a dimension column. */
