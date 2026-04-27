@@ -58,9 +58,10 @@ async function dumpGet<T>(path: string): Promise<T> {
   return res.json();
 }
 
-/** Distinct parameter names for the selector. */
+/** Distinct parameter names for the selector.
+ *  NB: limit kept ≤2000 — backend gateway times out (~25s) for higher caps. */
 export async function fetchAvailableParameters(): Promise<string[]> {
-  return dumpGet<string[]>('params/distinct?column=parameter_raw&limit=20000');
+  return dumpGet<string[]>('params/distinct?column=parameter_raw&limit=2000');
 }
 
 /** Distinct values for a dimension column. */
