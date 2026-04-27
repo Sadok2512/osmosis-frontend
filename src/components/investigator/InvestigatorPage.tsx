@@ -31,6 +31,7 @@ import { useInvestigatorWorkspace, type InvestigatorInstance } from '@/stores/in
 import { getApiUrl, getApiHeaders, fetchWithTimeout, logBackendRequest } from '@/lib/apiConfig';
 import type { SavedInvestigator } from '@/services/investigatorService';
 import { toast } from 'sonner';
+import { exportSessionJSON, exportDataZip, exportVisualPDF } from './investigatorExport';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
@@ -820,8 +821,23 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     ws.addNewTab();
   }, []);
 
+  // ═══ Export handlers (Session JSON / Data CSV ZIP / Visual PDF) ═══
+  const graphSectionRef = useRef<HTMLElement | null>(null);
+  const exportName = inst?.name || 'Untitled';
+  const handleExportSession = useCallback(() => {
+    exportSessionJSON(exportName, handleGetContext());
+  }, [exportName, handleGetContext]);
+  const handleExportData = useCallback(() => {
+    exportDataZip(exportName, graphSectionRef.current);
+  }, [exportName]);
+  const handleExportPDF = useCallback(() => {
+    exportVisualPDF(exportName, graphSectionRef.current);
+  }, [exportName]);
+
   const renderGraphSection = () => (
-    <section className={cn(
+    <section
+      ref={graphSectionRef}
+      className={cn(
       'space-y-5',
       isGraphFullscreen && 'fixed inset-0 z-[100] bg-white p-4 md:p-6 overflow-auto'
     )}>
@@ -844,6 +860,9 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             onIdChange={(id) => setCurrentInvestigatorId(id)}
             hasUnsavedChanges={inst?.hasUnsavedChanges ?? false}
             onMarkSaved={() => setHasUnsavedChanges(false)}
+            onExportSession={handleExportSession}
+            onExportData={handleExportData}
+            onExportPDF={handleExportPDF}
           />
         </div>
 
