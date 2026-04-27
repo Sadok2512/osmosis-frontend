@@ -328,7 +328,7 @@ const FilterRepositoryView: React.FC = () => {
           <>
             <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-slate-200 bg-slate-50">
               {['filter2', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
-                <span key={h} className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">{h}</span>
+                <span key={h} className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">{h}</span>
               ))}
             </div>
 

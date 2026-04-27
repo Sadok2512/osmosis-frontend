@@ -155,7 +155,7 @@ function useDebounce<T>(value: T, delayMs: number): T {
 /* ── Sub-components ── */
 const InfoItem: React.FC<{ label: string; value: string | React.ReactNode; mono?: boolean }> = ({ label, value, mono }) => (
   <div className="py-1.5">
-    <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{label}</span>
+    <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">{label}</span>
     <p className={`mt-0.5 text-[13px] text-foreground leading-snug ${mono ? 'font-mono text-xs' : ''}`}>{value || '—'}</p>
   </div>
 );
@@ -430,7 +430,7 @@ const KpiCatalogView: React.FC = () => {
             {/* Header */}
             <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_60px] px-5 py-3 border-b border-border/20 bg-muted/20">
               {['NOM', 'TECHNOLOGY', 'CATEGORY', 'VENDOR', 'UNIT', 'STATUS', 'ACTIONS'].map(h => (
-                <span key={h} className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{h}</span>
+                <span key={h} className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">{h}</span>
               ))}
             </div>
 
@@ -537,7 +537,7 @@ const KpiCatalogView: React.FC = () => {
         <div className="rounded-2xl bg-primary p-5 text-primary-foreground shadow-md shadow-primary/20">
           <div className="flex items-center gap-2 mb-2">
             <BookOpen className="w-4 h-4 opacity-80" />
-            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">CATALOG</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] opacity-80">CATALOG</span>
           </div>
           <p className="text-3xl font-black">{kpis.length}</p>
           <p className="text-[11px] opacity-70 mt-0.5">Total KPIs in repository</p>
@@ -545,7 +545,7 @@ const KpiCatalogView: React.FC = () => {
 
         {/* Tech distribution */}
         <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">Distribution par technologie</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground mb-3">Distribution par technologie</p>
           <div className="space-y-2">
             {Object.entries(techDistribution).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([tech, count]) => {
               const pct = kpis.length > 0 ? Math.round((count / kpis.length) * 100) : 0;
@@ -565,7 +565,7 @@ const KpiCatalogView: React.FC = () => {
 
         {/* Top categories */}
         <div className="rounded-2xl bg-white/90 backdrop-blur-sm border border-border/20 p-5 shadow-sm">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-3">TOP CATEGORIES</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground mb-3">TOP CATEGORIES</p>
           <div className="space-y-1.5">
             {Object.entries(categoryDistribution).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([cat, count]) => (
               <div key={cat} className="flex items-center justify-between">
@@ -605,7 +605,7 @@ const KpiCatalogView: React.FC = () => {
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
               {/* General */}
               <div>
-                <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.14em] text-foreground mb-2 flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-primary" /> General Information
                 </h4>
                 <div className="h-px bg-border mb-3" />
@@ -624,7 +624,7 @@ const KpiCatalogView: React.FC = () => {
 
               {/* Formula */}
               <div>
-                <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.14em] text-foreground mb-2 flex items-center gap-2">
                   <Sigma className="w-4 h-4 text-primary" /> Calculation Formula
                 </h4>
                 <div className="h-px bg-border mb-3" />
@@ -642,26 +642,26 @@ const KpiCatalogView: React.FC = () => {
               {/* Thresholds */}
               {hasThresholds && (
                 <div>
-                  <h4 className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-foreground mb-2 flex items-center gap-2">
+                  <h4 className="text-[11px] font-black uppercase tracking-[0.14em] text-foreground mb-2 flex items-center gap-2">
                     <Gauge className="w-4 h-4 text-primary" /> Thresholds
                   </h4>
                   <div className="h-px bg-border mb-3" />
                   <div className="grid grid-cols-3 gap-3">
                     {selectedKpi.thresholds.green != null && (
                       <div className="px-3 py-2.5 rounded-xl bg-green-500/10 border border-green-500/20 text-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-green-600">Green</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-green-600">Green</span>
                         <p className="text-sm font-bold text-green-700 mt-0.5">{selectedKpi.thresholds.green}{selectedKpi.unit === '%' ? '%' : ''}</p>
                       </div>
                     )}
                     {selectedKpi.thresholds.orange != null && (
                       <div className="px-3 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600">Orange</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-orange-600">Orange</span>
                         <p className="text-sm font-bold text-orange-700 mt-0.5">{selectedKpi.thresholds.orange}{selectedKpi.unit === '%' ? '%' : ''}</p>
                       </div>
                     )}
                     {selectedKpi.thresholds.red != null && (
                       <div className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-center">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-red-600">Red</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.14em] text-red-600">Red</span>
                         <p className="text-sm font-bold text-red-700 mt-0.5">{selectedKpi.thresholds.red}{selectedKpi.unit === '%' ? '%' : ''}</p>
                       </div>
                     )}
@@ -673,11 +673,11 @@ const KpiCatalogView: React.FC = () => {
               <div className="pt-3 border-t border-border">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Updated</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">Updated</span>
                     <p className="text-xs text-foreground mt-0.5">{selectedKpi.last_updated}</p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">Owner</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground/70">Owner</span>
                     <p className="text-xs text-foreground mt-0.5">{selectedKpi.created_by}</p>
                   </div>
                 </div>

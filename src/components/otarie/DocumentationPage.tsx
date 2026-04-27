@@ -171,9 +171,9 @@ const DocumentationPage: React.FC = () => {
                 <BookOpen className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">OSMOSIS Catalogue Officiel</p>
-                <h1 className="text-2xl font-black tracking-tight text-foreground">Network References</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">{kpiCatalog.length} KPIs • Backend Synchronized</p>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS Catalogue Officiel</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">Network References</h1>
+                <p className="mt-2 text-sm text-muted-foreground">{kpiCatalog.length} KPIs • Backend Synchronized</p>
               </div>
             </div>
             <div className="flex items-center gap-3 mt-2">
