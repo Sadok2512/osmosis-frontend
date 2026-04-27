@@ -543,31 +543,225 @@ const FilterRepositoryView3: React.FC = () => {
   );
 };
 
+/* ─────────── Soft pastel tint system (SaaS palette) ─────────── */
+type Tint = {
+  name: 'sky' | 'emerald' | 'violet' | 'amber' | 'pink';
+  card: string;       // border + soft bg + glow
+  badge: string;      // pill badge bg/text
+  icon: string;       // icon tile bg
+  iconText: string;   // icon color
+  ring: string;       // hover ring
+};
+const TINTS: Tint[] = [
+  { name: 'sky',     card: 'border-sky-200/70 dark:border-sky-500/20 bg-gradient-to-br from-sky-50/70 to-card dark:from-sky-500/5',           badge: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300',                icon: 'bg-sky-100 dark:bg-sky-500/15',         iconText: 'text-sky-600 dark:text-sky-300',         ring: 'hover:ring-sky-300/60 dark:hover:ring-sky-500/40' },
+  { name: 'emerald', card: 'border-emerald-200/70 dark:border-emerald-500/20 bg-gradient-to-br from-emerald-50/70 to-card dark:from-emerald-500/5', badge: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300', icon: 'bg-emerald-100 dark:bg-emerald-500/15', iconText: 'text-emerald-600 dark:text-emerald-300', ring: 'hover:ring-emerald-300/60 dark:hover:ring-emerald-500/40' },
+  { name: 'violet',  card: 'border-violet-200/70 dark:border-violet-500/20 bg-gradient-to-br from-violet-50/70 to-card dark:from-violet-500/5',  badge: 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300',  icon: 'bg-violet-100 dark:bg-violet-500/15',  iconText: 'text-violet-600 dark:text-violet-300',  ring: 'hover:ring-violet-300/60 dark:hover:ring-violet-500/40' },
+  { name: 'amber',   card: 'border-amber-200/70 dark:border-amber-500/20 bg-gradient-to-br from-amber-50/70 to-card dark:from-amber-500/5',     badge: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',     icon: 'bg-amber-100 dark:bg-amber-500/15',    iconText: 'text-amber-600 dark:text-amber-300',    ring: 'hover:ring-amber-300/60 dark:hover:ring-amber-500/40' },
+  { name: 'pink',    card: 'border-pink-200/70 dark:border-pink-500/20 bg-gradient-to-br from-pink-50/70 to-card dark:from-pink-500/5',         badge: 'bg-pink-100 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300',          icon: 'bg-pink-100 dark:bg-pink-500/15',      iconText: 'text-pink-600 dark:text-pink-300',      ring: 'hover:ring-pink-300/60 dark:hover:ring-pink-500/40' },
+];
+function pickTint(id: string): Tint {
+  let h = 0; for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return TINTS[h % TINTS.length];
+}
+
 /* ─────────── Sub-components ─────────── */
 interface StatCardProps {
   icon: React.ReactNode;
   label: string;
   value: number;
-  tone: 'muted' | 'emerald' | 'amber' | 'sky';
+  tone: 'slate' | 'emerald' | 'amber' | 'sky';
 }
 
 const StatCard: React.FC<StatCardProps> = ({ icon, label, value, tone }) => {
   const tones = {
-    muted: { card: 'bg-card', iconBg: 'bg-muted', label: 'text-muted-foreground' },
-    emerald: { card: 'bg-emerald-500/5 border-border', iconBg: 'bg-emerald-500/10', label: 'text-emerald-700' },
-    amber: { card: 'bg-amber-500/5 border-border', iconBg: 'bg-amber-500/10', label: 'text-amber-700' },
-    sky: { card: 'bg-sky-500/5 border-border', iconBg: 'bg-sky-500/10', label: 'text-sky-700' },
+    slate:   { card: 'bg-slate-50 dark:bg-slate-500/5 border-slate-200/70 dark:border-slate-500/20',       iconBg: 'bg-slate-100 dark:bg-slate-500/15 text-slate-600 dark:text-slate-300',       label: 'text-slate-600 dark:text-slate-400' },
+    emerald: { card: 'bg-emerald-50 dark:bg-emerald-500/5 border-emerald-200/70 dark:border-emerald-500/20', iconBg: 'bg-emerald-100 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-300', label: 'text-emerald-700 dark:text-emerald-400' },
+    amber:   { card: 'bg-amber-50 dark:bg-amber-500/5 border-amber-200/70 dark:border-amber-500/20',       iconBg: 'bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-300',       label: 'text-amber-700 dark:text-amber-400' },
+    sky:     { card: 'bg-sky-50 dark:bg-sky-500/5 border-sky-200/70 dark:border-sky-500/20',               iconBg: 'bg-sky-100 dark:bg-sky-500/15 text-sky-600 dark:text-sky-300',               label: 'text-sky-700 dark:text-sky-400' },
   }[tone];
   return (
-    <div className={`rounded-xl border border-border p-3 flex items-center gap-3 ${tones.card}`}>
-      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${tones.iconBg}`}>{icon}</div>
+    <div className={`rounded-2xl border p-3.5 flex items-center gap-3 shadow-sm ${tones.card}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tones.iconBg}`}>{icon}</div>
       <div className="min-w-0">
         <div className={`text-[10px] font-bold uppercase tracking-wider ${tones.label}`}>{label}</div>
-        <div className="text-lg font-black text-foreground leading-tight tabular-nums">{value}</div>
+        <div className="text-xl font-black text-foreground leading-tight tabular-nums">{value}</div>
       </div>
     </div>
   );
 };
+
+/* ─────────── Soft pastel filter card ─────────── */
+interface FilterCardProps {
+  filter: NetworkFilter;
+  techs: string[];
+  vendor: string;
+  region: string;
+  isPublic: boolean;
+  tint: Tint;
+  fmtDate: (iso: string) => string;
+  onOpen: () => void;
+  onMore: () => void;
+  actionsOpen: boolean;
+  closeActions: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+  onRecalc: () => void;
+}
+
+const FilterCard: React.FC<FilterCardProps> = ({
+  filter, techs, vendor, region, isPublic, tint, fmtDate,
+  onOpen, onMore, actionsOpen, closeActions, onEdit, onDuplicate, onDelete, onRecalc,
+}) => {
+  return (
+    <div
+      onClick={onOpen}
+      className={`group relative rounded-2xl border ${tint.card} p-4 shadow-sm cursor-pointer transition-all hover:shadow-lg hover:-translate-y-0.5 ring-1 ring-transparent ${tint.ring} hover:ring-2`}
+    >
+      {/* Top row: icon + name + more */}
+      <div className="flex items-start gap-3 mb-3">
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${tint.icon} shrink-0`}>
+          <ShieldCheck className={`w-5 h-5 ${tint.iconText}`} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-sm font-black text-foreground truncate leading-tight">{filter.name}</h3>
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            {filter.description || 'No description'}
+          </p>
+        </div>
+        <div className="relative shrink-0">
+          <button
+            onClick={e => { e.stopPropagation(); onMore(); }}
+            className="p-1.5 rounded-lg text-muted-foreground hover:bg-background hover:text-foreground transition-all opacity-60 group-hover:opacity-100"
+            title="More actions"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
+          {actionsOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); closeActions(); }} />
+              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1.5" onClick={e => e.stopPropagation()}>
+                <ActionItem icon={<Eye className="w-3.5 h-3.5" />} label="Open" onClick={() => { onOpen(); closeActions(); }} />
+                <ActionItem
+                  icon={<Pencil className="w-3.5 h-3.5" />}
+                  label="Edit"
+                  disabled={filter.permission === 'locked'}
+                  onClick={onEdit}
+                />
+                <ActionItem icon={<Copy className="w-3.5 h-3.5" />} label="Duplicate" onClick={onDuplicate} />
+                <ActionItem icon={<BarChart3 className="w-3.5 h-3.5" />} label="Recalculate scope" onClick={onRecalc} />
+                <ActionItem icon={<Star className="w-3.5 h-3.5" />} label="Favorite" onClick={closeActions} />
+                <div className="border-t border-border my-1" />
+                <ActionItem icon={<Trash2 className="w-3.5 h-3.5" />} label="Delete" tone="destructive" onClick={onDelete} />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Date + owner */}
+      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mb-3">
+        <span className="inline-flex items-center gap-1">
+          <Calendar className="w-3 h-3" />
+          {fmtDate(filter.updated_at || filter.created_at)}
+        </span>
+        <span className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+        <span className="inline-flex items-center gap-1.5 min-w-0">
+          <span className="w-4 h-4 rounded-full bg-muted flex items-center justify-center shrink-0">
+            <Users className="w-2.5 h-2.5 text-muted-foreground" />
+          </span>
+          <span className="truncate font-medium">{filter.created_by}</span>
+        </span>
+      </div>
+
+      {/* Inline metrics */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border/60 px-2.5 py-1.5">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Sites</div>
+          <div className="text-sm font-black text-foreground tabular-nums">
+            {(filter as any).site_count != null ? ((filter as any).site_count as number).toLocaleString('fr-FR') : '—'}
+          </div>
+        </div>
+        <div className="rounded-xl bg-background/60 backdrop-blur-sm border border-border/60 px-2.5 py-1.5">
+          <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Cells</div>
+          <div className="text-sm font-black text-foreground tabular-nums">
+            {filter.matching_objects != null ? filter.matching_objects.toLocaleString('fr-FR') : '—'}
+          </div>
+        </div>
+      </div>
+
+      {/* Tech + vendor + region row */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-3">
+        {techs.map(t => {
+          const badge = TECH_BADGE[t];
+          return badge ? (
+            <span key={t} className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
+          ) : (
+            <span key={t} className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-muted text-muted-foreground">All</span>
+          );
+        })}
+        {vendor !== 'All' && (
+          <span className="px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-muted text-foreground/80">{vendor}</span>
+        )}
+        {region !== 'All' && (
+          <span className="text-[10px] text-muted-foreground truncate">· {region}</span>
+        )}
+      </div>
+
+      {/* Tinted pill badges (Map / Private) */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${tint.badge}`}>
+          <MapIcon className="w-2.5 h-2.5" /> Map
+        </span>
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+          isPublic ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+                  : 'bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300'
+        }`}>
+          {isPublic ? <Globe className="w-2.5 h-2.5" /> : <Lock className="w-2.5 h-2.5" />}
+          {isPublic ? 'Public' : 'Private'}
+        </span>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+          filter.status === 'active' ? 'bg-primary/10 text-primary' :
+          filter.status === 'draft' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300' :
+          'bg-muted text-muted-foreground'
+        }`}>
+          {filter.status.charAt(0).toUpperCase() + filter.status.slice(1)}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+/* ─────────── Pagination ─────────── */
+interface PaginationProps {
+  page: number;
+  totalPages: number;
+  setPage: (n: number) => void;
+  count: number;
+  perPage: number;
+}
+const Pagination: React.FC<PaginationProps> = ({ page, totalPages, setPage, count, perPage }) => (
+  <div className="mt-6 flex items-center justify-between">
+    <span className="text-[11px] text-muted-foreground">
+      Showing {Math.min(count, (page - 1) * perPage + 1)}-{Math.min(count, page * perPage)} of {count} filters
+    </span>
+    <div className="flex items-center gap-1">
+      <button onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+        <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+      </button>
+      {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 5).map(p => (
+        <button key={p} onClick={() => setPage(p)} className={`w-7 h-7 rounded-lg text-xs font-bold transition-all ${
+          page === p ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted'
+        }`}>{p}</button>
+      ))}
+      {totalPages > 5 && <span className="text-xs text-muted-foreground px-1">…</span>}
+      <button onClick={() => setPage(Math.min(totalPages, page + 1))} disabled={page === totalPages} className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-30 transition-colors">
+        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+      </button>
+    </div>
+  </div>
+);
+
 
 interface ChipGroupProps {
   label: string;
