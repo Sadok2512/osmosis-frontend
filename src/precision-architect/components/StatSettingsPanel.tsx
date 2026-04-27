@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Type as TypeIcon, Palette, Database } from 'lucide-react';
+import { X, Type as TypeIcon, Palette, Database, Plus, Trash2 } from 'lucide-react';
 import {
   DynWidget,
   StatWidgetConfig,
   StatTheme,
+  StatKpiItem,
   DEFAULT_STAT_CONFIG,
 } from '../types';
 import { cn } from '@/lib/utils';
