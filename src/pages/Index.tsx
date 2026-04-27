@@ -122,6 +122,20 @@ const Index: React.FC = () => {
     localStorage.setItem('osmosis_enabled_modules', JSON.stringify(enabledModules));
   }, [enabledModules]);
 
+  // Honour ?tab=<id> deep-link (e.g. redirect from /precision-architect)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab') as AppTab | null;
+      if (tab) {
+        setActiveTab(tab);
+        const url = new URL(window.location.href);
+        url.searchParams.delete('tab');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch { /* noop */ }
+  }, []);
+
   const accentStyles: Record<AccentColor, Record<string, string>> = {
     default: {},
     orange: { '--primary': '25 95% 53%', '--accent': '25 95% 53%', '--ring': '25 95% 53%', '--sidebar-primary': '25 95% 53%', '--sidebar-ring': '25 95% 53%' },
