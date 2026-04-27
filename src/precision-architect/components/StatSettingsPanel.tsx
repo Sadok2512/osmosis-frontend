@@ -40,11 +40,11 @@ export default function StatSettingsPanel({ widget, onChange, onClose }: Props) 
   }, []);
 
   const filteredKpis = useMemo(() => {
-    const q = (kpiSearch || cfg.kpiKey || '').toLowerCase();
+    const q = (kpiSearch || '').toLowerCase();
     return (kpiCatalog || []).filter(k =>
       !q || k.kpi_key.toLowerCase().includes(q) || (k.display_name || '').toLowerCase().includes(q)
     ).slice(0, 30);
-  }, [kpiCatalog, kpiSearch, cfg.kpiKey]);
+  }, [kpiCatalog, kpiSearch]);
 
   const update = (patch: Partial<StatWidgetConfig>) => {
     onChange({ statConfig: { ...cfg, ...patch } });
