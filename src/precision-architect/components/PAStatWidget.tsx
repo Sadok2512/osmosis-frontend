@@ -15,6 +15,16 @@ interface Props {
   widget: DynWidget;
 }
 
+function normalizeBackendDateTime(value?: string | null): string {
+  const raw = String(value ?? '').trim();
+  if (!raw) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T00:00:00`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(raw)) return raw.slice(0, 19);
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString().slice(0, 19);
+}
+
 /**
  * KPI Stat Card: fetches one backend summary value for the selected Reference Period.
  * No granularity is sent for STAT/KPI widgets.
@@ -101,15 +111,17 @@ export default function PAStatWidget({ widget }: Props) {
 
     setLoading(true);
     setErrorKind(null);
-    setPeriodLabel(`${effFrom?.split('T')[0] ?? ''} → ${effTo?.split('T')[0] ?? ''}`);
+    const dateFrom = normalizeBackendDateTime(effFrom);
+    const dateTo = normalizeBackendDateTime(effTo);
+    setPeriodLabel(`${dateFrom.split('T')[0] ?? ''} → ${dateTo.split('T')[0] ?? ''}`);
 
     // Backend `/monitor/query/summary` is NOT deployed (returns 404 via proxy).
     // We hit the working `/monitor/query/timeseries` endpoint at `day` grain
     // and aggregate client-side: avg for ratios/%, sum for volumes.
     const selections: TimeseriesSelection[] = [{ kpi_key: effectiveKpiKey! }];
     fetchTimeseries({
-      date_from: effFrom,
-      date_to: effTo,
+      date_from: dateFrom,
+      date_to: dateTo,
       granularity: 'day',
       filters,
       selections,
@@ -121,6 +133,11 @@ export default function PAStatWidget({ widget }: Props) {
         if (cancelled) return;
         // Proxy fallback contract: { unavailable: true, ... }
         if ((resp as any)?.unavailable) {
+          setComputedValue(null);
+          setErrorKind('unavailable');
+          return;
+        }
+        if ((resp as any)?.error) {
           setComputedValue(null);
           setErrorKind('unavailable');
           return;
