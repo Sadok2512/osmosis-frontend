@@ -340,6 +340,23 @@ function buildFilterPayload(report: RanReport) {
   return { vendors, base };
 }
 
+/** KPI columns to render in the pivot/CSV.
+ *
+ * Starts with the user's selected KPIs (`report.kpis`) so KPIs without data
+ * still appear as empty columns. Any extra KPIs that *did* return data but
+ * weren't in the original selection are appended at the end. */
+export function resolvePivotKpiColumns(
+  report: { kpis?: string[]; results: { kpi: string }[] },
+): string[] {
+  const requested = Array.isArray(report.kpis) ? report.kpis : [];
+  const seen = new Set<string>(requested);
+  const out = [...requested];
+  for (const r of report.results) {
+    if (!seen.has(r.kpi)) { seen.add(r.kpi); out.push(r.kpi); }
+  }
+  return out;
+}
+
 export function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
   const { date_from, date_to } = resolveTimeRange(report.timeConfig);
   const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
@@ -578,14 +595,7 @@ function downloadCsv(report: RanReport) {
   if (aggLevels.includes('site')) dimHeaders.push('Site');
   if (aggLevels.includes('band')) dimHeaders.push('Band');
   if (aggLevels.includes('cell')) dimHeaders.push('Cell');
-  // KPI columns reflect the user's selection so empty KPIs still appear
-  // as empty columns in the CSV export.
-  const requested = Array.isArray(report.kpis) ? report.kpis : [];
-  const seenK = new Set<string>(requested);
-  const kpis = [...requested];
-  for (const r of report.results) {
-    if (!seenK.has(r.kpi)) { seenK.add(r.kpi); kpis.push(r.kpi); }
-  }
+  const kpis = resolvePivotKpiColumns(report);
   const header = [...dimHeaders, ...kpis];
   // Pivot rows
   const rowMap = new Map<string, Record<string, any>>();
@@ -989,15 +999,7 @@ const RanQueryModule: React.FC = () => {
     if (aggLevels.includes('site')) dimCols.push({ key: '_site', label: 'Site' });
     if (aggLevels.includes('band')) dimCols.push({ key: '_band', label: 'Band' });
     if (aggLevels.includes('cell')) dimCols.push({ key: '_cell', label: 'Cell' });
-    // KPI columns reflect what the user *requested* (selectedReport.kpis),
-    // not just what came back with data — so empty KPIs render as empty columns
-    // instead of vanishing from the table.
-    const requested = Array.isArray(selectedReport.kpis) ? selectedReport.kpis : [];
-    const seen = new Set<string>(requested);
-    const kpis = [...requested];
-    for (const r of selectedReport.results) {
-      if (!seen.has(r.kpi)) { seen.add(r.kpi); kpis.push(r.kpi); }
-    }
+    const kpis = resolvePivotKpiColumns(selectedReport);
     // Build pivot rows: group by dimension key → accumulate KPI values
     const rowMap = new Map<string, Record<string, any>>();
     for (const r of selectedReport.results) {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildMonitorQueryPayload, type RanReport } from './RanQueryModule';
+import { buildMonitorQueryPayload, resolvePivotKpiColumns, type RanReport } from './RanQueryModule';
 
 const baseReport = (overrides: Partial<RanReport> = {}): RanReport => ({
   id: 'r1',
@@ -57,5 +57,45 @@ describe('buildMonitorQueryPayload — multi-dim aggregation', () => {
     expect(payload.split_by).toBeNull();
     expect(payload.split_by_list).toEqual(['CELL']);
     expect(payload.kpi_level).toBe('CELL');
+  });
+});
+
+describe('resolvePivotKpiColumns — render all selected KPIs', () => {
+  it('returns user-selected KPIs even when results are empty', () => {
+    const report = { kpis: ['K1', 'K2', 'K3'], results: [] };
+    expect(resolvePivotKpiColumns(report)).toEqual(['K1', 'K2', 'K3']);
+  });
+
+  it('keeps the user-selected order even when only one KPI returned data', () => {
+    const report = {
+      kpis: ['DL_VOL', 'ERAB_SR', 'CSSR', 'HOSR'],
+      results: [
+        { kpi: 'DL_VOL' },
+        { kpi: 'DL_VOL' },
+      ],
+    };
+    expect(resolvePivotKpiColumns(report)).toEqual(['DL_VOL', 'ERAB_SR', 'CSSR', 'HOSR']);
+  });
+
+  it('appends KPIs in results that were not in the original selection', () => {
+    // Edge case: backend returned data for an aliased/extra KPI
+    const report = {
+      kpis: ['K1'],
+      results: [{ kpi: 'K1' }, { kpi: 'K_EXTRA' }],
+    };
+    expect(resolvePivotKpiColumns(report)).toEqual(['K1', 'K_EXTRA']);
+  });
+
+  it('deduplicates within results and against the selection', () => {
+    const report = {
+      kpis: ['K1', 'K2'],
+      results: [{ kpi: 'K1' }, { kpi: 'K1' }, { kpi: 'K3' }, { kpi: 'K3' }],
+    };
+    expect(resolvePivotKpiColumns(report)).toEqual(['K1', 'K2', 'K3']);
+  });
+
+  it('handles missing kpis array', () => {
+    const report = { results: [{ kpi: 'K_RESULT' }] };
+    expect(resolvePivotKpiColumns(report)).toEqual(['K_RESULT']);
   });
 });
