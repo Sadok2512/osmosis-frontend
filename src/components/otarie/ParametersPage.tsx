@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Check, Loader2, MapPin, ChevronDown, X, Sliders } from 'lucide-react';
+import { Search, Check, Loader2, MapPin, ChevronDown, X, Sliders, Network, Database, Globe, Palette } from 'lucide-react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -204,6 +204,54 @@ const ParametersPage: React.FC = () => {
               <MapPin className="w-4 h-4" />
               Parameters Map
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── SUB-HEADER (breadcrumb + stat cards, aligned to References) ── */}
+      <div className="shrink-0 px-8 pt-5 pb-4 bg-background border-b border-border">
+        <div className="flex items-start gap-3 mb-4">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Network className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black tracking-tight text-foreground">
+              Network Explorer / Parameters Map
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Geo-visualization of RAN parameters across sites and cells, color-coded by value.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center"><Database className="w-4 h-4 text-muted-foreground" /></div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Parameters</div>
+              <div className="text-lg font-black text-foreground leading-tight">{availableParams.length}</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-emerald-500/5 p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center"><MapPin className="w-4 h-4 text-emerald-600" /></div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Points loaded</div>
+              <div className="text-lg font-black text-foreground leading-tight">{points.length}</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-amber-500/5 p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center"><Palette className="w-4 h-4 text-amber-600" /></div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Unique values</div>
+              <div className="text-lg font-black text-foreground leading-tight">{uniqueValues.length}</div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-sky-500/5 p-3 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-500/10 flex items-center justify-center"><Globe className="w-4 h-4 text-sky-600" /></div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Active param</div>
+              <div className="text-sm font-bold text-foreground leading-tight truncate max-w-[160px]">{confirmedParam || '—'}</div>
+            </div>
           </div>
         </div>
       </div>
