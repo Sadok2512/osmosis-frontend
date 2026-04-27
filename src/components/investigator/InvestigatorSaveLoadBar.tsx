@@ -300,6 +300,32 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
               <FolderOpen className="w-3.5 h-3.5" />
               Load Investigator
             </DropdownMenuItem>
+            {(onExportSession || onExportData || onExportPDF) && (
+              <>
+                <DropdownMenuSeparator />
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1.5">
+                  <Download className="w-3 h-3" /> Export
+                </div>
+                {onExportSession && (
+                  <DropdownMenuItem onClick={onExportSession} className="gap-2 text-xs font-medium">
+                    <FileJson className="w-3.5 h-3.5" />
+                    Session (.json)
+                  </DropdownMenuItem>
+                )}
+                {onExportData && (
+                  <DropdownMenuItem onClick={onExportData} className="gap-2 text-xs font-medium">
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    Data (.zip CSV)
+                  </DropdownMenuItem>
+                )}
+                {onExportPDF && (
+                  <DropdownMenuItem onClick={onExportPDF} className="gap-2 text-xs font-medium">
+                    <FileText className="w-3.5 h-3.5" />
+                    Visual report (.pdf)
+                  </DropdownMenuItem>
+                )}
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
