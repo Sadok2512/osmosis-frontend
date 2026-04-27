@@ -76,6 +76,7 @@ function buildSnapshot(slot: GraphSlot, globalState: any): TabContextSnapshot {
     granularity: slot.granularity || globalState.granularity,
     kpiLevel: globalState.kpiLevel,
     splitBy: slot.splitBy !== 'None' ? slot.splitBy : globalState.splitBy !== 'None' ? globalState.splitBy : null,
+    advancedTimeFrame: globalState.advancedTimeFrame || { mode: 'NONE' },
   };
 }
 
@@ -160,6 +161,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
     startDate: '', endDate: '', granularity: '1d' as const, filters: {}, topLimit: 10,
     sortBy: null, graphLayout: 2 as const, activeGraphTab: 'TimeSeries' as const, jalons: [], showJalons: true,
     kpiLevel: 'CELL' as const, profileQci: null, profileArp: null, neighborType: null,
+    advancedTimeFrame: { mode: 'NONE' as const },
   };
   const tsData = inst?.tsData ?? [];
   const activeSlotId = inst?.activeSlotId ?? null;
@@ -429,6 +431,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           filters: Object.entries(state.filters)
             .filter(([, vals]) => vals.length > 0)
             .map(([dimension, values]) => ({ dimension: dimension.toUpperCase(), values })),
+          advancedTimeFrame: state.advancedTimeFrame || { mode: 'NONE' as const },
         };
 
     const splitPerKpi = slot?.config?.splitByPerKpi || {};
@@ -447,6 +450,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
       granularity: normalizeGranularity(ctx.granularity),
+      advancedTimeFrame: ctx.advancedTimeFrame || state.advancedTimeFrame || { mode: 'NONE' },
     };
 
     if (counterSplitVal && counterSplitVal !== 'None') {
@@ -692,7 +696,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
       if (siteFromState && !allFilters.some(f => f.dimension.toUpperCase() === 'SITE')) {
         allFilters.push({ dimension: 'SITE', op: 'IN', values: [siteFromState] });
       }
-      const byDOR = await fetchWorstCellsDirect(kpiIds, state.topLimit, dateFrom, dateTo, allFilters, kpiMetaMap);
+      const byDOR = await fetchWorstCellsDirect(kpiIds, state.topLimit, dateFrom, dateTo, allFilters, kpiMetaMap, state.advancedTimeFrame);
 
       const allCells = Object.values(byDOR).flat();
       const cellNames = allCells.map(c => c.name).filter(Boolean);

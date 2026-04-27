@@ -690,7 +690,14 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
     const dateTo = state.endDate?.split('T')[0] || today;
-    const body: any = { counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity: normalizeGranularity(state.granularity), split_by_dimension: false };
+    const body: any = {
+      counter_names: counterNames,
+      date_from: dateFrom,
+      date_to: dateTo,
+      granularity: normalizeGranularity(state.granularity),
+      split_by_dimension: false,
+      advancedTimeFrame: state.advancedTimeFrame || { mode: 'NONE' },
+    };
     if (siteName) body.site_name = siteName;
     const ctsUrl = getApiUrl('pm/counters/timeseries');
     logBackendRequest('Counter Timeseries (KPIGraphs)', 'POST', ctsUrl, body);
@@ -993,6 +1000,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         profileQci: investigatorState.profileQci,
         profileArp: investigatorState.profileArp,
         neighborType: investigatorState.neighborType,
+        advancedTimeFrame: investigatorState.advancedTimeFrame,
       });
 
       // Check if any counter in this slot has a split configured
@@ -1006,6 +1014,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         date_to: slotContext.dateTo,
         granularity: slotContext.granularity,
         split_by_dimension: hasSplit,
+        advancedTimeFrame: slotContext.advancedTimeFrame || { mode: 'NONE' },
       };
 
       for (const filter of slotContext.filters) {
@@ -1089,6 +1098,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           splitBy: investigatorState.splitBy,
           filters: investigatorState.filters,
           kpiLevel: investigatorState.kpiLevel,
+          advancedTimeFrame: investigatorState.advancedTimeFrame,
         });
         committedParamsRef.current[slot.id] = {
           startDate: ctx.dateFrom,
