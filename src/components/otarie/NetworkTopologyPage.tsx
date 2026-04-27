@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Search, RefreshCw, Trash2, PlayCircle, FolderOpen, Radio, Info, X,
+  Search, RefreshCw, Trash2, PlayCircle, FolderOpen, Radio, Info, X, Filter, Check,
   Loader2, CheckCircle2, AlertCircle, Database, Layers, Map, Globe,
   Boxes, Upload, Signal, Wifi, Settings, ChevronRight, ChevronDown, Eye,
-  MapPin, Building2, BarChart3, Check,
+  MapPin, Building2, BarChart3,
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -148,6 +149,9 @@ const prettyLabel = (k: string): string =>
 
 const joinFilterValues = (values: string[]): string =>
   values.map(v => v.trim()).filter(Boolean).join(',');
+
+const networkFilterCount = (...groups: string[][]): number =>
+  groups.reduce((total, group) => total + group.length, 0);
 
 const vendorColor = (v?: string | null): string => {
   const vu = (v || '').toUpperCase();
@@ -345,6 +349,15 @@ const NetworkTopologyPage: React.FC = () => {
   const searchTimer = useRef<number | null>(null);
   const searchRequestRef = useRef(0);
   const searchSitesRef = useRef<(() => Promise<void>) | null>(null);
+  const siteFilterCount = networkFilterCount(vendorFilter, technoFilter, plaqueFilter, dorFilter);
+  const hasSiteFilters = siteFilterCount > 0 || !!query.trim();
+  const clearSiteFilters = () => {
+    setQuery('');
+    setVendorFilter([]);
+    setTechnoFilter([]);
+    setPlaqueFilter([]);
+    setDorFilter([]);
+  };
 
   const searchSites = useCallback(async () => {
     const requestId = ++searchRequestRef.current;
@@ -541,6 +554,11 @@ const NetworkTopologyPage: React.FC = () => {
   const [mapSidebarParams, setMapSidebarParams] = useState<SiteParam[]>([]);
   const [mapParamSearch, setMapParamSearch] = useState('');
   const [mapSidebarCells, setMapSidebarCells] = useState<{ cell_name: string; band?: string; techno?: string }[]>([]);
+  const mapFilterCount = networkFilterCount(mapVendor, mapTechno);
+  const clearMapFilters = () => {
+    setMapVendor([]);
+    setMapTechno([]);
+  };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getL = (): any => (window as any).L;
@@ -940,7 +958,11 @@ const NetworkTopologyPage: React.FC = () => {
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
                 <div ref={mapCallbackRef} className="w-full h-full bg-card" />
                 {/* Map overlay filters */}
-                <div className="absolute top-3 left-14 z-[1000] flex gap-2 items-start">
+                <div className="absolute top-3 left-14 z-[1000] flex flex-wrap items-center gap-2 rounded-full border border-outline-variant/30 bg-white/95 px-2.5 py-2 shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Filtres</span>
+                  </div>
                   <MultiFilterSelect
                     label="Vendors"
                     value={mapVendor}
@@ -955,7 +977,17 @@ const NetworkTopologyPage: React.FC = () => {
                     options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])}
                     compact
                   />
-                  <span className="text-xs bg-card px-2 py-1 rounded border border-border">
+                  {mapFilterCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearMapFilters}
+                      className="h-7 w-7 rounded-full bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 inline-flex items-center justify-center transition-colors"
+                      title="Clear map filters"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <span className="h-7 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-black text-emerald-700">
                     {mapSiteCount.toLocaleString()} sites
                   </span>
                 </div>
@@ -1154,35 +1186,72 @@ const NetworkTopologyPage: React.FC = () => {
               onChange={e => { if (e.target.files?.[0]) uploadFile(e.target.files[0]); e.target.value = ''; }} />
 
             {/* Sites search + table */}
-            <Card className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Radio className="w-5 h-5 text-cyan-500" />
-                  <h2 className="text-sm font-bold uppercase tracking-wide">Sites</h2>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {sitesLoading ? 'Loading...' : `${sites.length} sites${query ? ' matching' : ''}`}
-                </span>
-              </div>
-
-              <div className="flex gap-2 items-end mb-4 flex-wrap">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">Search Site</label>
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Type site name..." className="pl-9" />
+            <Card className="overflow-hidden border-outline-variant/20 bg-white shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant/10 px-5 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
+                    <Radio className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-sm font-black uppercase tracking-wide text-on-surface">Network Explorer</h2>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Preference filters</p>
                   </div>
                 </div>
-                <MultiFilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
-                <MultiFilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
-                <MultiFilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
-                <MultiFilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
-                <Button variant="outline" size="sm" onClick={searchSites} disabled={sitesLoading}>
-                  <RefreshCw className={`w-4 h-4 mr-1 ${sitesLoading ? 'animate-spin' : ''}`} /> Refresh
-                </Button>
+                <div className="flex items-center gap-2">
+                  {hasSiteFilters && (
+                    <span className="hidden sm:inline-flex h-7 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 text-[10px] font-black uppercase tracking-widest text-cyan-700">
+                      <Filter className="w-3 h-3" />
+                      {siteFilterCount + (query.trim() ? 1 : 0)} active
+                    </span>
+                  )}
+                  <span className="h-7 inline-flex items-center rounded-full bg-slate-100 px-2.5 text-[11px] font-black text-slate-700">
+                    {sitesLoading ? 'Loading...' : `${sites.length} sites`}
+                  </span>
+                </div>
               </div>
 
-              <div className="border rounded-lg overflow-hidden max-h-[420px] overflow-y-auto">
+              <div className="border-b border-outline-variant/10 bg-white px-5 py-3">
+                <div className="flex flex-wrap items-center gap-2 gap-y-2">
+                  <div className="relative min-w-[220px] flex-1 max-w-sm">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+                    <Input
+                      value={query}
+                      onChange={e => setQuery(e.target.value)}
+                      placeholder="Search site..."
+                      className="h-9 rounded-full border-outline-variant/30 bg-white pl-9 pr-3 text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-cyan-500/20"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">
+                    <Filter className="w-3.5 h-3.5" />
+                    <span>Filtres</span>
+                  </div>
+                  <MultiFilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
+                  <MultiFilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
+                  <MultiFilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
+                  <MultiFilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
+                  {hasSiteFilters && (
+                    <button
+                      type="button"
+                      onClick={clearSiteFilters}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-outline-variant/30 bg-white px-3 text-[11px] font-black text-on-surface-variant shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Clear
+                    </button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={searchSites}
+                    disabled={sitesLoading}
+                    className="h-9 rounded-full border-outline-variant/30 bg-white px-3 text-[11px] font-black shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 mr-1 ${sitesLoading ? 'animate-spin' : ''}`} /> Refresh
+                  </Button>
+                </div>
+              </div>
+
+              <div className="max-h-[420px] overflow-y-auto">
                 <Table>
                   <TableHeader className="sticky top-0 bg-card z-10">
                     <TableRow>
@@ -1771,45 +1840,64 @@ const MultiFilterSelect: React.FC<{
   };
 
   const summary = value.length === 0
-    ? 'All'
-    : value.length <= 2
-      ? value.join(', ')
-      : `${value.slice(0, 2).join(', ')} +${value.length - 2}`;
+    ? 'Tous'
+    : value.length === 1
+      ? value[0]
+      : `${value.length} sélectionnés`;
 
   return (
-    <div className={compact ? 'w-[150px]' : 'w-[150px]'}>
-      <label className={compact ? 'sr-only' : 'text-[10px] uppercase font-bold text-muted-foreground mb-1 block'}>{label}</label>
+    <div className={compact ? 'w-[150px]' : 'w-auto'}>
+      <label className="sr-only">{label}</label>
       <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setSearch(''); }}>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className={`${compact ? 'h-7' : 'h-10'} w-full px-2 rounded-md border border-input bg-background text-left text-xs flex items-center gap-2 hover:bg-accent/40 transition-colors`}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border bg-white text-left text-[11px] font-bold shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all',
+              compact ? 'h-7 px-2.5' : 'h-9 px-3',
+              value.length > 0
+                ? 'border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100'
+                : 'border-outline-variant/30 text-on-surface hover:border-primary hover:text-primary'
+            )}
             title={value.length ? value.join(', ') : `All ${label}`}
           >
-            <span className="truncate flex-1">{compact && value.length === 0 ? `All ${label}` : summary}</span>
+            <span className="text-on-surface-variant uppercase tracking-wide font-black">{label}</span>
+            <span className={cn('truncate', compact ? 'max-w-[70px]' : 'max-w-[120px]')}>{summary}</span>
             {value.length > 0 && (
-              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+              <span className="ml-0.5 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-md bg-cyan-100 px-1.5 text-[10px] font-black text-cyan-700">
                 {value.length}
               </span>
             )}
             <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
           </button>
         </PopoverTrigger>
-        <PopoverContent align="start" className="w-64 p-0 z-[1100]">
-          <div className="flex items-center border-b border-border px-2.5">
-            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Search ${label.toLowerCase()}...`}
-              className="h-8 w-full bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground"
-              autoFocus
-            />
+        <PopoverContent align="start" className="w-[280px] rounded-xl border border-border/60 bg-card p-0 shadow-xl z-[1100]" sideOffset={6}>
+          <div className="px-4 pt-3 pb-2 border-b border-border/40">
+            <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-2">
+              Sélectionner — {label}
+            </div>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/50" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Rechercher..."
+                className="w-full rounded-lg border border-border/50 bg-muted/20 py-2 pl-8 pr-3 text-xs outline-none transition-all placeholder:text-muted-foreground/40 focus:border-primary/40 focus:ring-2 focus:ring-primary/30"
+                autoFocus
+              />
+            </div>
           </div>
-          <div className="flex items-center justify-between border-b border-border px-2 py-1">
+
+          {value.length > 0 && (
+            <div className="px-4 py-1.5 text-[10px] font-semibold text-primary border-b border-border/20">
+              {value.length} sélectionné{value.length > 1 ? 's' : ''}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between border-b border-border/30 bg-muted/20 px-4 py-2">
             <button
               type="button"
-              className="text-[11px] font-semibold text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+              className="text-[10px] font-bold text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
               disabled={visibleOptions.length === 0}
               onClick={() => onChange(Array.from(new Set([...value, ...visibleOptions])))}
             >
@@ -1817,15 +1905,16 @@ const MultiFilterSelect: React.FC<{
             </button>
             <button
               type="button"
-              className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+              className="text-[10px] font-bold text-muted-foreground hover:text-foreground"
               onClick={() => onChange([])}
             >
-              Clear
+              Reset
             </button>
           </div>
-          <div className="max-h-64 overflow-auto p-1">
+
+          <div className="max-h-[260px] overflow-y-auto py-1">
             {visibleOptions.length === 0 ? (
-              <div className="py-4 text-center text-xs text-muted-foreground">No values</div>
+              <div className="px-4 py-6 text-center text-[10px] text-muted-foreground">Aucune valeur</div>
             ) : visibleOptions.map(item => {
               const checked = value.includes(item);
               return (
@@ -1833,12 +1922,20 @@ const MultiFilterSelect: React.FC<{
                   key={item}
                   type="button"
                   onClick={() => toggle(item)}
-                  className="w-full rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent flex items-center gap-2"
+                  className={cn(
+                    'w-full px-4 py-2.5 text-left text-xs font-medium transition-all flex items-center gap-3 hover:bg-muted/40',
+                    checked ? 'text-primary' : 'text-foreground'
+                  )}
                 >
-                  <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${checked ? 'bg-primary border-primary' : 'border-input'}`}>
-                    {checked && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                  <span className={cn(
+                    'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                    checked
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border/60 bg-background'
+                  )}>
+                    {checked && <Check className="w-3 h-3" />}
                   </span>
-                  <span className="truncate">{item}</span>
+                  <span className={cn('flex-1 truncate', checked && 'font-bold')}>{item}</span>
                 </button>
               );
             })}
