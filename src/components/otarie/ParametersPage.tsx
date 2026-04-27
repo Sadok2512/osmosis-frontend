@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Check, Loader2, MapPin, ChevronDown, X, Sliders } from 'lucide-react';
+import { Search, Check, Loader2, MapPin, ChevronDown, X, Sliders, Network, Database, Globe, Palette } from 'lucide-react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
