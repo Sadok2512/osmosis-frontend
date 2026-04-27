@@ -8,7 +8,6 @@ import {
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 const KpiCatalogView = lazy(() => import('@/components/documentation/KpiCatalogView'));
-const FilterRepositoryView = lazy(() => import('@/components/documentation/FilterRepositoryView'));
 const FilterRepositoryView3 = lazy(() => import('@/components/documentation/FilterRepositoryView3'));
 const QosNetworkView = lazy(() => import('@/components/documentation/QosNetworkView'));
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
