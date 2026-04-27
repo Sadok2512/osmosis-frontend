@@ -350,7 +350,6 @@ const NetworkTopologyPage: React.FC = () => {
   const searchRequestRef = useRef(0);
   const searchSitesRef = useRef<(() => Promise<void>) | null>(null);
   const siteFilterCount = networkFilterCount(vendorFilter, technoFilter, plaqueFilter, dorFilter);
-  const hasSiteFilters = siteFilterCount > 0 || !!query.trim();
   const clearSiteFilters = () => {
     setQuery('');
     setVendorFilter([]);
@@ -957,40 +956,28 @@ const NetworkTopologyPage: React.FC = () => {
               {/* Map */}
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
                 <div ref={mapCallbackRef} className="w-full h-full bg-card" />
-                {/* Map overlay filters */}
-                <div className="absolute top-3 left-14 z-[1000] flex flex-wrap items-center gap-2 rounded-full border border-outline-variant/30 bg-white/95 px-2.5 py-2 shadow-[0_10px_30px_rgba(15,23,42,0.12)] backdrop-blur">
-                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">
-                    <Filter className="w-3.5 h-3.5" />
-                    <span>Filtres</span>
-                  </div>
-                  <MultiFilterSelect
-                    label="Vendors"
-                    value={mapVendor}
-                    onChange={setMapVendor}
-                    options={filterValues.constructeur || filterValues.vendor || []}
-                    compact
-                  />
-                  <MultiFilterSelect
-                    label="Techno"
-                    value={mapTechno}
-                    onChange={setMapTechno}
-                    options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])}
-                    compact
-                  />
-                  {mapFilterCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={clearMapFilters}
-                      className="h-7 w-7 rounded-full bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 inline-flex items-center justify-center transition-colors"
-                      title="Clear map filters"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <span className="h-7 inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[11px] font-black text-emerald-700">
-                    {mapSiteCount.toLocaleString()} sites
-                  </span>
-                </div>
+                <Filter2
+                  variant="overlay"
+                  title="Filter2"
+                  subtitle="Live map"
+                  filters={[
+                    {
+                      label: 'Vendors',
+                      value: mapVendor,
+                      onChange: setMapVendor,
+                      options: filterValues.constructeur || filterValues.vendor || [],
+                    },
+                    {
+                      label: 'Techno',
+                      value: mapTechno,
+                      onChange: setMapTechno,
+                      options: (filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G']),
+                    },
+                  ]}
+                  activeCount={mapFilterCount}
+                  resultLabel={`${mapSiteCount.toLocaleString()} sites`}
+                  onClear={clearMapFilters}
+                />
               </div>
 
               {/* Sidebar */}
@@ -1187,69 +1174,45 @@ const NetworkTopologyPage: React.FC = () => {
 
             {/* Sites search + table */}
             <Card className="overflow-hidden border-outline-variant/20 bg-white shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-outline-variant/10 px-5 py-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-cyan-50 text-cyan-600 border border-cyan-100">
-                    <Radio className="w-4 h-4" />
-                  </span>
-                  <div>
-                    <h2 className="text-sm font-black uppercase tracking-wide text-on-surface">Network Explorer</h2>
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Preference filters</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {hasSiteFilters && (
-                    <span className="hidden sm:inline-flex h-7 items-center gap-1.5 rounded-full border border-cyan-200 bg-cyan-50 px-2.5 text-[10px] font-black uppercase tracking-widest text-cyan-700">
-                      <Filter className="w-3 h-3" />
-                      {siteFilterCount + (query.trim() ? 1 : 0)} active
-                    </span>
-                  )}
-                  <span className="h-7 inline-flex items-center rounded-full bg-slate-100 px-2.5 text-[11px] font-black text-slate-700">
-                    {sitesLoading ? 'Loading...' : `${sites.length} sites`}
-                  </span>
-                </div>
-              </div>
-
-              <div className="border-b border-outline-variant/10 bg-white px-5 py-3">
-                <div className="flex flex-wrap items-center gap-2 gap-y-2">
-                  <div className="relative min-w-[220px] flex-1 max-w-sm">
-                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" />
-                    <Input
-                      value={query}
-                      onChange={e => setQuery(e.target.value)}
-                      placeholder="Search site..."
-                      className="h-9 rounded-full border-outline-variant/30 bg-white pl-9 pr-3 text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-cyan-500/20"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 px-1">
-                    <Filter className="w-3.5 h-3.5" />
-                    <span>Filtres</span>
-                  </div>
-                  <MultiFilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
-                  <MultiFilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
-                  <MultiFilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
-                  <MultiFilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
-                  {hasSiteFilters && (
-                    <button
-                      type="button"
-                      onClick={clearSiteFilters}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-full border border-outline-variant/30 bg-white px-3 text-[11px] font-black text-on-surface-variant shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      Clear
-                    </button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={searchSites}
-                    disabled={sitesLoading}
-                    className="h-9 rounded-full border-outline-variant/30 bg-white px-3 text-[11px] font-black shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 mr-1 ${sitesLoading ? 'animate-spin' : ''}`} /> Refresh
-                  </Button>
-                </div>
-              </div>
+              <Filter2
+                variant="panel"
+                title="Filter2"
+                subtitle="Network preference filters"
+                query={query}
+                onQueryChange={setQuery}
+                queryPlaceholder="Search site..."
+                filters={[
+                  {
+                    label: 'Vendor',
+                    value: vendorFilter,
+                    onChange: setVendorFilter,
+                    options: filterValues.vendor || filterValues.constructeur || [],
+                  },
+                  {
+                    label: 'Techno',
+                    value: technoFilter,
+                    onChange: setTechnoFilter,
+                    options: (filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G']),
+                  },
+                  {
+                    label: 'Plaque',
+                    value: plaqueFilter,
+                    onChange: setPlaqueFilter,
+                    options: filterValues.plaque || filterValues.cluster || [],
+                  },
+                  {
+                    label: 'DOR',
+                    value: dorFilter,
+                    onChange: setDorFilter,
+                    options: filterValues.dor || [],
+                  },
+                ]}
+                activeCount={siteFilterCount + (query.trim() ? 1 : 0)}
+                resultLabel={sitesLoading ? 'Loading...' : `${sites.length} sites`}
+                loading={sitesLoading}
+                onClear={clearSiteFilters}
+                onRefresh={searchSites}
+              />
 
               <div className="max-h-[420px] overflow-y-auto">
                 <Table>
@@ -1813,6 +1776,144 @@ const StatCard = React.forwardRef<
   </Card>
 ));
 StatCard.displayName = 'StatCard';
+
+/* ────────────────────── Filter2 ────────────────────── */
+
+type Filter2Item = {
+  label: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: string[];
+};
+
+const Filter2: React.FC<{
+  title: string;
+  subtitle: string;
+  filters: Filter2Item[];
+  activeCount: number;
+  resultLabel: string;
+  variant?: 'panel' | 'overlay';
+  query?: string;
+  onQueryChange?: (value: string) => void;
+  queryPlaceholder?: string;
+  loading?: boolean;
+  onClear?: () => void;
+  onRefresh?: () => void;
+}> = ({
+  title,
+  subtitle,
+  filters,
+  activeCount,
+  resultLabel,
+  variant = 'panel',
+  query,
+  onQueryChange,
+  queryPlaceholder = 'Search...',
+  loading = false,
+  onClear,
+  onRefresh,
+}) => {
+  const hasQuery = typeof query === 'string' && !!query.trim();
+  const hasActiveFilters = activeCount > 0;
+  const isOverlay = variant === 'overlay';
+
+  return (
+    <div
+      className={cn(
+        isOverlay
+          ? 'absolute left-14 top-3 z-[1000] max-w-[calc(100%-5rem)] rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-[0_16px_40px_rgba(15,23,42,0.16)] backdrop-blur'
+          : 'border-b border-outline-variant/10 bg-white'
+      )}
+    >
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-2',
+          isOverlay ? 'gap-y-2' : 'border-b border-outline-variant/10 px-5 py-3'
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-2 pr-1">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-emerald-100 bg-emerald-50 text-emerald-600">
+            <Filter className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-black uppercase tracking-wide text-on-surface">{title}</h2>
+            <p className="truncate text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {hasActiveFilters && (
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 text-[10px] font-black uppercase tracking-widest text-emerald-700">
+              <Check className="h-3 w-3" />
+              {activeCount} active
+            </span>
+          )}
+          <span className="inline-flex h-7 items-center rounded-full bg-slate-100 px-2.5 text-[11px] font-black text-slate-700">
+            {resultLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className={cn('flex flex-wrap items-center gap-2 gap-y-2', isOverlay ? 'pt-2' : 'px-5 py-3')}>
+        {typeof query === 'string' && onQueryChange && (
+          <div className="relative min-w-[220px] flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-on-surface-variant" />
+            <Input
+              value={query}
+              onChange={e => onQueryChange(e.target.value)}
+              placeholder={queryPlaceholder}
+              className="h-9 rounded-full border-outline-variant/30 bg-white pl-9 pr-3 text-xs font-semibold shadow-[0_1px_2px_rgba(0,0,0,0.04)] focus-visible:ring-emerald-500/20"
+            />
+          </div>
+        )}
+
+        <div className="flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+          <Settings className="h-3.5 w-3.5" />
+          <span>Network preference</span>
+        </div>
+
+        {filters.map(filter => (
+          <MultiFilterSelect
+            key={filter.label}
+            label={filter.label}
+            value={filter.value}
+            onChange={filter.onChange}
+            options={filter.options}
+            compact={isOverlay}
+          />
+        ))}
+
+        {(hasActiveFilters || hasQuery) && onClear && (
+          <button
+            type="button"
+            onClick={onClear}
+            className={cn(
+              'inline-flex items-center justify-center gap-1.5 rounded-full border border-outline-variant/30 bg-white text-[11px] font-black text-on-surface-variant shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600',
+              isOverlay ? 'h-8 w-8 px-0' : 'h-9 px-3'
+            )}
+            title="Clear Filter2"
+          >
+            <X className="h-3.5 w-3.5" />
+            {!isOverlay && <span>Clear</span>}
+          </button>
+        )}
+
+        {onRefresh && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            className="h-9 rounded-full border-outline-variant/30 bg-white px-3 text-[11px] font-black shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+          >
+            <RefreshCw className={cn('mr-1 h-3.5 w-3.5', loading && 'animate-spin')} />
+            Refresh
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 /* ────────────────────── MultiFilterSelect ────────────────────── */
 
