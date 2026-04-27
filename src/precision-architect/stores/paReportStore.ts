@@ -354,6 +354,21 @@ export const usePAReportStore = create<PAReportState>()(
         }
         return next;
       },
+      // Reset every widget's Apply state (appliedRev, appliedConfig) on
+      // rehydration so that a fresh page load NEVER triggers a backend fetch
+      // before the user clicks Appliquer. The user's edits to widget configs
+      // and report layout still persist — only the Apply gate is reset.
+      onRehydrateStorage: () => (state) => {
+        if (!state || !Array.isArray(state.pages)) return;
+        for (const page of state.pages) {
+          if (!Array.isArray(page.widgets)) continue;
+          for (const widget of page.widgets) {
+            if (!widget || typeof widget !== 'object') continue;
+            widget.appliedRev = 0;
+            widget.appliedConfig = undefined;
+          }
+        }
+      },
     },
   ),
 );

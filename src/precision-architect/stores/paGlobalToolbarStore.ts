@@ -130,7 +130,9 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
     {
       name: 'pa-global-toolbar',
       storage: createJSONStorage(() => localStorage),
-      // Persist user selections so filters/period/grain survive reloads
+      // Persist user selections (filters/period/grain) so they survive reloads,
+      // BUT NOT the Apply state — fresh page loads must wait for an explicit
+      // Apply click before any widget fetches data.
       partialize: (s) => ({
         technos: s.technos,
         vendors: s.vendors,
@@ -141,8 +143,9 @@ export const usePAGlobalToolbar = create<PAGlobalToolbarStore>()(
         advancedTimeFrame: normalizeAdvancedTimeFrame(s.advancedTimeFrame),
         filters: s.filters,
         jalons: s.jalons,
-        applied: s.applied,
-        appliedRev: s.appliedRev,
+        // Intentionally NOT persisting `applied` and `appliedRev` — they reset
+        // to null/0 on reload so widgets stay in "not applied" state until the
+        // user clicks Appliquer.
       }),
     }
   )
