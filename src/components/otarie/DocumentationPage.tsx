@@ -226,7 +226,13 @@ const DocumentationPage: React.FC = () => {
 
       <div className="flex-1 overflow-hidden">
         {activeTab === 'filters' ? (
-          <FilterRepositoryView />
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <FilterRepositoryView />
+          </Suspense>
+        ) : activeTab === 'filter3' ? (
+          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
+            <FilterRepositoryView3 />
+          </Suspense>
         ) : activeTab === 'qos_network' ? (
           <QosNetworkView />
         ) : activeTab === 'kpi_reference2' ? (
