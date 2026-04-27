@@ -726,7 +726,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
 const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [dashboards, setDashboards] = useState<EnhancedDashboard[]>([]);
   const [sharePopoverId, setSharePopoverId] = useState<string | null>(null);
   const [editModalId, setEditModalId] = useState<string | null>(null);
