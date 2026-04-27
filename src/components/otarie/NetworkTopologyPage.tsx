@@ -12,9 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -147,6 +145,9 @@ const fmt = (n: number | undefined | null): string =>
 
 const prettyLabel = (k: string): string =>
   k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+const joinFilterValues = (values: string[]): string =>
+  values.map(v => v.trim()).filter(Boolean).join(',');
 
 const vendorColor = (v?: string | null): string => {
   const vu = (v || '').toUpperCase();
@@ -334,10 +335,10 @@ const NetworkTopologyPage: React.FC = () => {
 
   /* ══════════════════ SITES SEARCH ══════════════════ */
   const [query, setQuery] = useState('');
-  const [vendorFilter, setVendorFilter] = useState<string>('all');
-  const [technoFilter, setTechnoFilter] = useState<string>('all');
-  const [plaqueFilter, setPlaqueFilter] = useState<string>('all');
-  const [dorFilter, setDorFilter] = useState<string>('all');
+  const [vendorFilter, setVendorFilter] = useState<string[]>([]);
+  const [technoFilter, setTechnoFilter] = useState<string[]>([]);
+  const [plaqueFilter, setPlaqueFilter] = useState<string[]>([]);
+  const [dorFilter, setDorFilter] = useState<string[]>([]);
   const [sites, setSites] = useState<SiteRow[]>([]);
   const [sitesLoading, setSitesLoading] = useState(false);
   const [sitesError, setSitesError] = useState<string | null>(null);
@@ -352,10 +353,10 @@ const NetworkTopologyPage: React.FC = () => {
     try {
       const params = new URLSearchParams({ limit: SITE_SEARCH_LIMIT });
       if (query.trim()) params.set('search', query.trim());
-      if (vendorFilter !== 'all') params.set('vendor', vendorFilter);
-      if (technoFilter !== 'all') params.set('techno', technoFilter);
-      if (plaqueFilter !== 'all') params.set('plaque', plaqueFilter);
-      if (dorFilter !== 'all') params.set('dor', dorFilter);
+      if (vendorFilter.length) params.set('vendor', joinFilterValues(vendorFilter));
+      if (technoFilter.length) params.set('techno', joinFilterValues(technoFilter));
+      if (plaqueFilter.length) params.set('plaque', joinFilterValues(plaqueFilter));
+      if (dorFilter.length) params.set('dor', joinFilterValues(dorFilter));
       const d = await fetchJson<SiteRow[] | { sites?: SiteRow[]; rows?: SiteRow[] }>(`topo/sites?${params}`);
       if (requestId !== searchRequestRef.current) return;
       const rows = Array.isArray(d) ? d : (d.sites || d.rows || []);
@@ -533,8 +534,8 @@ const NetworkTopologyPage: React.FC = () => {
   const highlightLayerRef = useRef<any>(null);
   const allSitesRef = useRef<MapSite[]>([]);
   const mapInitializing = useRef(false);
-  const [mapVendor, setMapVendor] = useState<string>('');
-  const [mapTechno, setMapTechno] = useState<string>('');
+  const [mapVendor, setMapVendor] = useState<string[]>([]);
+  const [mapTechno, setMapTechno] = useState<string[]>([]);
   const [mapSiteCount, setMapSiteCount] = useState(0);
   const [mapSidebar, setMapSidebar] = useState<MapSite | null>(null);
   const [mapSidebarParams, setMapSidebarParams] = useState<SiteParam[]>([]);
@@ -673,14 +674,14 @@ const NetworkTopologyPage: React.FC = () => {
   };
 
   // Mutable ref for loadSites so callback ref can call latest version
-  const loadSitesRef = useRef<(v: string, t: string) => void>();
-  loadSitesRef.current = async (vend: string, tech: string) => {
+  const loadSitesRef = useRef<(v: string[], t: string[]) => void>();
+  loadSitesRef.current = async (vend: string[], tech: string[]) => {
     if (!mapRef.current || !markersRef.current) return;
     const L = getL();
     if (!L) return;
     const qp = new URLSearchParams({ limit: '5000' });
-    if (vend) qp.set('vendor', vend);
-    if (tech) qp.set('techno', tech);
+    if (vend.length) qp.set('vendor', joinFilterValues(vend));
+    if (tech.length) qp.set('techno', joinFilterValues(tech));
     try {
       const sites = await fetchJson<MapSite[]>(`topo/map-sites?${qp}`);
       allSitesRef.current = sites;
@@ -787,7 +788,7 @@ const NetworkTopologyPage: React.FC = () => {
       markersRef.current = markers;
 
       // Load sites immediately
-      if (loadSitesRef.current) loadSitesRef.current('', '');
+      if (loadSitesRef.current) loadSitesRef.current([], []);
     })();
   }, []);
 
@@ -939,26 +940,21 @@ const NetworkTopologyPage: React.FC = () => {
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
                 <div ref={mapCallbackRef} className="w-full h-full bg-card" />
                 {/* Map overlay filters */}
-                <div className="absolute top-3 left-14 z-[1000] flex gap-2">
-                  <select
+                <div className="absolute top-3 left-14 z-[1000] flex gap-2 items-start">
+                  <MultiFilterSelect
+                    label="Vendors"
                     value={mapVendor}
-                    onChange={e => setMapVendor(e.target.value)}
-                    className="h-7 text-[11px] px-2 bg-card border border-border rounded"
-                  >
-                    <option value="">All Vendors</option>
-                    {(filterValues.constructeur || []).map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                  <select
+                    onChange={setMapVendor}
+                    options={filterValues.constructeur || filterValues.vendor || []}
+                    compact
+                  />
+                  <MultiFilterSelect
+                    label="Techno"
                     value={mapTechno}
-                    onChange={e => setMapTechno(e.target.value)}
-                    className="h-7 text-[11px] px-2 bg-card border border-border rounded"
-                  >
-                    <option value="">All</option>
-                    <option value="2G">2G</option>
-                    <option value="3G">3G</option>
-                    <option value="4G">4G</option>
-                    <option value="5G">5G</option>
-                  </select>
+                    onChange={setMapTechno}
+                    options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])}
+                    compact
+                  />
                   <span className="text-xs bg-card px-2 py-1 rounded border border-border">
                     {mapSiteCount.toLocaleString()} sites
                   </span>
@@ -1177,10 +1173,10 @@ const NetworkTopologyPage: React.FC = () => {
                     <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Type site name..." className="pl-9" />
                   </div>
                 </div>
-                <FilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
-                <FilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
-                <FilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
-                <FilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
+                <MultiFilterSelect label="Vendor" value={vendorFilter} onChange={setVendorFilter} options={filterValues.vendor || filterValues.constructeur || []} />
+                <MultiFilterSelect label="Techno" value={technoFilter} onChange={setTechnoFilter} options={(filterValues.rat && filterValues.rat.length ? filterValues.rat : ['2G', '3G', '4G', '5G'])} />
+                <MultiFilterSelect label="Plaque" value={plaqueFilter} onChange={setPlaqueFilter} options={filterValues.plaque || filterValues.cluster || []} />
+                <MultiFilterSelect label="DOR" value={dorFilter} onChange={setDorFilter} options={filterValues.dor || []} />
                 <Button variant="outline" size="sm" onClick={searchSites} disabled={sitesLoading}>
                   <RefreshCw className={`w-4 h-4 mr-1 ${sitesLoading ? 'animate-spin' : ''}`} /> Refresh
                 </Button>
@@ -1749,19 +1745,108 @@ const StatCard = React.forwardRef<
 ));
 StatCard.displayName = 'StatCard';
 
-/* ────────────────────── FilterSelect ────────────────────── */
+/* ────────────────────── MultiFilterSelect ────────────────────── */
 
-const FilterSelect: React.FC<{ label: string; value: string; onChange: (v: string) => void; options: string[] }> = ({ label, value, onChange, options }) => (
-  <div className="w-[140px]">
-    <label className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block">{label}</label>
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger><SelectValue /></SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All</SelectItem>
-        {options.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
-      </SelectContent>
-    </Select>
-  </div>
-);
+const MultiFilterSelect: React.FC<{
+  label: string;
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: string[];
+  compact?: boolean;
+}> = ({ label, value, onChange, options, compact = false }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const normalizedOptions = useMemo(
+    () => Array.from(new Set((options || []).filter(Boolean))).sort(),
+    [options]
+  );
+  const visibleOptions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return normalizedOptions;
+    return normalizedOptions.filter(v => v.toLowerCase().includes(q));
+  }, [normalizedOptions, search]);
+
+  const toggle = (item: string) => {
+    onChange(value.includes(item) ? value.filter(v => v !== item) : [...value, item]);
+  };
+
+  const summary = value.length === 0
+    ? 'All'
+    : value.length <= 2
+      ? value.join(', ')
+      : `${value.slice(0, 2).join(', ')} +${value.length - 2}`;
+
+  return (
+    <div className={compact ? 'w-[150px]' : 'w-[150px]'}>
+      <label className={compact ? 'sr-only' : 'text-[10px] uppercase font-bold text-muted-foreground mb-1 block'}>{label}</label>
+      <Popover open={open} onOpenChange={(next) => { setOpen(next); if (!next) setSearch(''); }}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`${compact ? 'h-7' : 'h-10'} w-full px-2 rounded-md border border-input bg-background text-left text-xs flex items-center gap-2 hover:bg-accent/40 transition-colors`}
+            title={value.length ? value.join(', ') : `All ${label}`}
+          >
+            <span className="truncate flex-1">{compact && value.length === 0 ? `All ${label}` : summary}</span>
+            {value.length > 0 && (
+              <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                {value.length}
+              </span>
+            )}
+            <ChevronDown className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-64 p-0 z-[1100]">
+          <div className="flex items-center border-b border-border px-2.5">
+            <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}...`}
+              className="h-8 w-full bg-transparent px-2 text-xs outline-none placeholder:text-muted-foreground"
+              autoFocus
+            />
+          </div>
+          <div className="flex items-center justify-between border-b border-border px-2 py-1">
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+              disabled={visibleOptions.length === 0}
+              onClick={() => onChange(Array.from(new Set([...value, ...visibleOptions])))}
+            >
+              Select visible
+            </button>
+            <button
+              type="button"
+              className="text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+              onClick={() => onChange([])}
+            >
+              Clear
+            </button>
+          </div>
+          <div className="max-h-64 overflow-auto p-1">
+            {visibleOptions.length === 0 ? (
+              <div className="py-4 text-center text-xs text-muted-foreground">No values</div>
+            ) : visibleOptions.map(item => {
+              const checked = value.includes(item);
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => toggle(item)}
+                  className="w-full rounded-sm px-2 py-1.5 text-left text-xs hover:bg-accent flex items-center gap-2"
+                >
+                  <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${checked ? 'bg-primary border-primary' : 'border-input'}`}>
+                    {checked && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                  </span>
+                  <span className="truncate">{item}</span>
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+};
 
 export default NetworkTopologyPage;
