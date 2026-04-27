@@ -34,6 +34,7 @@ const INITIAL_STATE: InvestigationState = {
   profileQci: null,
   profileArp: null,
   neighborType: null,
+  advancedTimeFrame: { mode: 'NONE' },
 };
 
 /* ── Store interface ── */

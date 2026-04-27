@@ -84,7 +84,7 @@ const TopWorstTabContent: React.FC<Props> = ({ instanceId, tabId: _tabId, contex
 
     (async () => {
       try {
-        const byDOR = await fetchWorstCellsDirect(effectiveKpiIds, limit, dateFrom, dateTo, filters, kpiMetaMap);
+        const byDOR = await fetchWorstCellsDirect(effectiveKpiIds, limit, dateFrom, dateTo, filters, kpiMetaMap, ctx?.advancedTimeFrame || sourceState?.advancedTimeFrame);
         if (cancelled) return;
 
         const allCells = Object.values(byDOR).flat();

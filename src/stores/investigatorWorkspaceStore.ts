@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DEFAULT_GRAPH_CONFIG } from '@/components/investigator/types';
-import type { InvestigationState, DataPoint, WorstElement, GraphSlot, Granularity } from '@/components/investigator/types';
+import type { AdvancedTimeFrameConfig, InvestigationState, DataPoint, WorstElement, GraphSlot, Granularity } from '@/components/investigator/types';
 
 /* ── Default dates ── */
 function defaultDateRange(): { startDate: string; endDate: string } {
@@ -31,6 +31,7 @@ const INITIAL_STATE: InvestigationState = {
   profileQci: null,
   profileArp: null,
   neighborType: null,
+  advancedTimeFrame: { mode: 'NONE' },
 };
 
 export type SaveStatus = 'idle' | 'saved' | 'saving' | 'unsaved';
@@ -89,6 +90,22 @@ function normalizeFilters(filters: unknown): Record<string, string[]> {
   );
 }
 
+function normalizeAdvancedTimeFrame(value: unknown): AdvancedTimeFrameConfig {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { mode: 'NONE' };
+  const raw = value as Partial<AdvancedTimeFrameConfig>;
+  const mode = raw.mode === 'BUSY_HOURS' || raw.mode === 'CUSTOM_HOURS' ? raw.mode : 'NONE';
+  if (mode === 'NONE') {
+    return raw.excludeWeekends ? { mode: 'NONE', excludeWeekends: true } : { mode: 'NONE' };
+  }
+  return {
+    mode,
+    profileName: typeof raw.profileName === 'string' ? raw.profileName : undefined,
+    startHour: typeof raw.startHour === 'string' ? raw.startHour : undefined,
+    endHour: typeof raw.endHour === 'string' ? raw.endHour : undefined,
+    excludeWeekends: Boolean(raw.excludeWeekends),
+  };
+}
+
 function normalizeGraphSlot(slot: unknown, index: number, stateDates: { startDate: string; endDate: string; granularity: Granularity }): GraphSlot | null {
   if (!slot || typeof slot !== 'object' || Array.isArray(slot)) return null;
 
@@ -143,6 +160,7 @@ function normalizeInvestigationState(state?: Partial<InvestigationState> | null)
     granularity,
     splitBy: typeof state?.splitBy === 'string' && state.splitBy.trim() ? state.splitBy : INITIAL_STATE.splitBy,
     kpiLevel: state?.kpiLevel || INITIAL_STATE.kpiLevel,
+    advancedTimeFrame: normalizeAdvancedTimeFrame(state?.advancedTimeFrame),
   };
 }
 

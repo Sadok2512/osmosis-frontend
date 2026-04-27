@@ -1,5 +1,19 @@
 export type Dimension = 'Cell' | 'Site' | 'DOR' | 'DR' | 'Plaque' | 'Zone ARCEP';
 export type Granularity = '15min' | '1h' | '1d' | '1w';
+export type AdvancedTimeFrameMode = 'NONE' | 'BUSY_HOURS' | 'CUSTOM_HOURS';
+
+export interface AdvancedTimeFrameConfig {
+  mode: AdvancedTimeFrameMode;
+  profileName?: string;
+  startHour?: string;
+  endHour?: string;
+  excludeWeekends?: boolean;
+}
+
+export interface AdvancedTimeFrameProfile extends AdvancedTimeFrameConfig {
+  id: string;
+  profileName: string;
+}
 
 export function normalizeGranularity(g: string): Granularity {
   switch (g) {
@@ -137,6 +151,7 @@ export interface InvestigationState {
   profileQci?: number | null;
   profileArp?: number | null;
   neighborType?: string | null;  // 'X2' | 'HO_LTE' | 'HO_UTRAN'
+  advancedTimeFrame?: AdvancedTimeFrameConfig;
 }
 
 export interface DataPoint {

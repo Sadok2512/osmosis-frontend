@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import type { AdvancedTimeFrameConfig } from './types';
 
 /** Snapshot of the graph context at the time the tab was created */
 export interface TabContextSnapshot {
@@ -12,6 +13,7 @@ export interface TabContextSnapshot {
   granularity: string;
   kpiLevel: string;
   splitBy?: string | null;
+  advancedTimeFrame?: AdvancedTimeFrameConfig;
 }
 
 export interface AnalysisTabInstance {

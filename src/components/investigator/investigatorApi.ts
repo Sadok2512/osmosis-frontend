@@ -1,7 +1,7 @@
 // ── Investigator API — KPI data from KPI Engine :8001, counters from Parser :8000, AI from Agent :1000 ──
 
 import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, isLocalMode, fetchWithTimeout, fetchVpsWithRetry, AGENT_API_KEY, logBackendRequest } from '@/lib/apiConfig';
-import { DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
+import { AdvancedTimeFrameConfig, DataPoint, WorstElement, KpiDefinition, GraphSlot, Granularity, normalizeGranularity } from './types';
 import { worstFirstComparator, getKpiSeverity } from '@/utils/telecomHelpers';
 
 /* ── Conditional logger: silent in production ── */
@@ -19,6 +19,19 @@ function stableKpiColor(key: string): string {
   let hash = 0;
   for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
   return KPI_PALETTE[Math.abs(hash) % KPI_PALETTE.length];
+}
+
+function buildAdvancedTimeFramePayload(value?: AdvancedTimeFrameConfig | null) {
+  if (!value || value.mode === 'NONE') {
+    return value?.excludeWeekends ? { mode: 'NONE', excludeWeekends: true } : { mode: 'NONE' };
+  }
+  return {
+    mode: value.mode,
+    startHour: value.startHour,
+    endHour: value.endHour,
+    excludeWeekends: Boolean(value.excludeWeekends),
+    ...(value.profileName ? { profileName: value.profileName } : {}),
+  };
 }
 
 // ── Fetch KPI catalog from KPI Engine :8001 ──
@@ -88,6 +101,7 @@ export async function fetchCounterTimeSeriesFallback(
   splitBy?: string,
   filters?: { dimension: string; values: string[] }[],
   splitByField?: string,
+  advancedTimeFrame?: AdvancedTimeFrameConfig,
 ): Promise<{ data: DataPoint[]; isUnfiltered: boolean }> {
   const normalizeRawSeries = (rawSeries: any[], fallbackSplitField?: string): DataPoint[] =>
     rawSeries.map((s: any) => ({
@@ -107,6 +121,7 @@ export async function fetchCounterTimeSeriesFallback(
       date_from: dateFrom,
       date_to: dateTo,
       granularity,
+      advancedTimeFrame: buildAdvancedTimeFramePayload(advancedTimeFrame),
     };
 
     const splitByPmDim = splitBy?.startsWith('PM_DIM:');
@@ -202,7 +217,13 @@ export async function fetchCounterTimeSeriesFallback(
         const fallbackRes = await fetchWithTimeout(url, {
           method: 'POST',
           headers: getApiHeaders(),
-          body: JSON.stringify({ counter_names: counterNames, date_from: dateFrom, date_to: dateTo, granularity }),
+          body: JSON.stringify({
+            counter_names: counterNames,
+            date_from: dateFrom,
+            date_to: dateTo,
+            granularity,
+            advancedTimeFrame: buildAdvancedTimeFramePayload(advancedTimeFrame),
+          }),
         });
         if (!fallbackRes.ok) return { data: [], isUnfiltered: true };
         const fallbackData = await fallbackRes.json();
@@ -244,6 +265,7 @@ interface SlotRequestContext {
   profileQci?: number | null;
   profileArp?: number | null;
   neighborType?: string | null;
+  advancedTimeFrame?: AdvancedTimeFrameConfig;
 }
 
 interface KpiEngineQueryGroup {
@@ -266,6 +288,7 @@ export function resolveSlotContext(
     profileQci?: number | null;
     profileArp?: number | null;
     neighborType?: string | null;
+    advancedTimeFrame?: AdvancedTimeFrameConfig;
   },
 ): SlotRequestContext {
   // Slot-level overrides (use slot values if non-empty, otherwise global)
@@ -354,6 +377,7 @@ export function resolveSlotContext(
     profileQci: globalState.profileQci,
     profileArp: globalState.profileArp,
     neighborType: globalState.neighborType,
+    advancedTimeFrame: globalState.advancedTimeFrame || { mode: 'NONE' },
   };
 }
 
@@ -395,6 +419,7 @@ export async function fetchTimeSeriesForSlot(
     const fallback = await fetchCounterTimeSeriesFallback(
       rawCounterIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
+      ctx.advancedTimeFrame,
     );
     const allData = fallback.data;
     if (neFromFilters) allData.forEach(d => { if (!d.networkElement) d.networkElement = neFromFilters; });
@@ -451,6 +476,7 @@ export async function fetchTimeSeriesForSlot(
       split_by: splitBy,
       split_by_2: splitBy2,
       kpi_level: ctx.kpiLevel || 'CELL',
+      advancedTimeFrame: buildAdvancedTimeFramePayload(ctx.advancedTimeFrame),
     };
     if (hasSplit) {
       body.top_n = needsWideSplitLimit ? 500 : 100;
@@ -531,6 +557,7 @@ export async function fetchTimeSeriesForSlot(
     const fallback = await fetchCounterTimeSeriesFallback(
       fallbackIds, ctx.dateFrom, ctx.dateTo, ctx.granularity,
       ctx.splitBy, ctx.filters, computeSplitByField,
+      ctx.advancedTimeFrame,
     );
     log('[Pipeline] Counter Fallback END:', {
       duration: `${Date.now() - fallbackStart}ms`,
@@ -562,6 +589,7 @@ export async function fetchTimeSeriesData(
     kpiIds, dateFrom, dateTo, granularity,
     splitBy, filters: filters || [], kpiLevel: kpiLevel || 'CELL',
     profileQci, profileArp, neighborType,
+    advancedTimeFrame: { mode: 'NONE' },
   });
   return result.data;
 }
@@ -575,6 +603,7 @@ export async function fetchWorstElements(
   dateTo: string = defaultDateTo(),
   filters?: { dimension: string; op: string; values: string[] }[],
   kpiMetas?: Map<string, KpiDefinition>,
+  advancedTimeFrame?: AdvancedTimeFrameConfig,
 ): Promise<WorstElement[]> {
   if (!kpiIds.length) return [];
 
@@ -585,6 +614,7 @@ export async function fetchWorstElements(
     filters: filters || [],
     kpi_keys: kpiIds,
     split_by: 'CELL',
+    advancedTimeFrame: buildAdvancedTimeFramePayload(advancedTimeFrame),
     top_n: limit,
     page: 1,
     page_size: limit * kpiIds.length,
@@ -658,6 +688,7 @@ export async function fetchWorstByDOR(
   dateTo: string = defaultDateTo(),
   filters?: { dimension: string; op: string; values: string[] }[],
   kpiMetas?: Map<string, KpiDefinition>,
+  advancedTimeFrame?: AdvancedTimeFrameConfig,
 ): Promise<Record<string, WorstElement[]>> {
   if (!kpiIds.length) return {};
 
@@ -669,6 +700,7 @@ export async function fetchWorstByDOR(
     filters: filters || [],
     kpi_keys: kpiIds,
     split_by: 'CELL',
+    advancedTimeFrame: buildAdvancedTimeFramePayload(advancedTimeFrame),
     top_n: limit * 20, // Fetch more rows to group by DOR client-side
     page: 1,
     page_size: limit * kpiIds.length * 20,
@@ -738,7 +770,7 @@ export async function fetchWorstByDOR(
 
       // If we got no DOR grouping from the backend, return as 'ALL'
       if (Object.keys(byDOR).length === 0) {
-        const all = await fetchWorstElements(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas);
+        const all = await fetchWorstElements(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas, advancedTimeFrame);
         return { 'ALL': all };
       }
 
@@ -749,7 +781,7 @@ export async function fetchWorstByDOR(
   }
 
   // Fallback: single non-DOR query
-  const all = await fetchWorstElements(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas);
+  const all = await fetchWorstElements(kpiIds, limit, dateFrom, dateTo, filters, kpiMetas, advancedTimeFrame);
   return { 'ALL': all };
 }
 
@@ -761,6 +793,7 @@ export async function fetchWorstCellsDirect(
   dateTo: string,
   filters?: { dimension: string; op?: string; values: string[] }[],
   kpiMetas?: Map<string, KpiDefinition>,
+  advancedTimeFrame?: AdvancedTimeFrameConfig,
 ): Promise<Record<string, WorstElement[]>> {
   if (!kpiIds.length) return {};
 
@@ -779,6 +812,7 @@ export async function fetchWorstCellsDirect(
     date_from: dateFrom,
     date_to: dateTo,
     limit,
+    advancedTimeFrame: buildAdvancedTimeFramePayload(advancedTimeFrame),
   };
   if (siteName) body.site_name = siteName;
 
@@ -838,7 +872,7 @@ export async function fetchWorstCellsDirect(
     return Object.keys(byDOR).length ? byDOR : { 'ALL': elements };
   } catch (e) {
     warn('[fetchWorstCellsDirect] Failed, falling back to KPI Engine:', e);
-    return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters.map(f => ({ ...f, op: f.op || 'IN' })), kpiMetas);
+    return fetchWorstByDOR(kpiIds, limit, dateFrom, dateTo, filters.map(f => ({ ...f, op: f.op || 'IN' })), kpiMetas, advancedTimeFrame);
   }
 }
 
