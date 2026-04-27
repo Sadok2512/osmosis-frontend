@@ -8,7 +8,6 @@ import {
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
 const KpiCatalogView = lazy(() => import('@/components/documentation/KpiCatalogView'));
-const FilterRepositoryView = lazy(() => import('@/components/documentation/FilterRepositoryView'));
 const FilterRepositoryView3 = lazy(() => import('@/components/documentation/FilterRepositoryView3'));
 const QosNetworkView = lazy(() => import('@/components/documentation/QosNetworkView'));
 const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
@@ -120,7 +119,7 @@ const dimSections: DimSection[] = [
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
 const DocumentationPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DocTab>('filters');
+  const [activeTab, setActiveTab] = useState<DocTab>('filter3');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
 
@@ -155,8 +154,7 @@ const DocumentationPage: React.FC = () => {
   const kpiGroups = useMemo(() => [...new Set(kpiCatalog.map(k => k.category))].sort(), [kpiCatalog]);
 
   const tabs: { id: DocTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'filters', label: 'filter2', icon: <Filter className="w-4 h-4" /> },
-    { id: 'filter3', label: 'filter3', icon: <Filter className="w-4 h-4" /> },
+    { id: 'filter3', label: 'Filters', icon: <Filter className="w-4 h-4" /> },
     { id: 'qos_network', label: 'QoS Network', icon: <Layers className="w-4 h-4" /> },
     { id: 'kpi_reference2', label: 'KPI Reference', icon: <BookOpen className="w-4 h-4" /> },
     { id: 'topo', label: 'Topologie', icon: <Globe className="w-4 h-4" /> },
@@ -225,11 +223,7 @@ const DocumentationPage: React.FC = () => {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'filters' ? (
-          <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
-            <FilterRepositoryView />
-          </Suspense>
-        ) : activeTab === 'filter3' ? (
+        {activeTab === 'filter3' ? (
           <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}>
             <FilterRepositoryView3 />
           </Suspense>
