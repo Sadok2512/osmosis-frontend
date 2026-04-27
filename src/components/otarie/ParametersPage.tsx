@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, Check, Loader2, MapPin, ChevronDown, X } from 'lucide-react';
+import { Search, Check, Loader2, MapPin, ChevronDown, X, Sliders } from 'lucide-react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -112,83 +112,99 @@ const ParametersPage: React.FC = () => {
   }, [points]);
 
   return (
-    <div className="flex flex-col h-full bg-background">
-      {/* ── Header bar ── */}
-      <div className="shrink-0 border-b border-border bg-card/80 backdrop-blur-sm px-6 py-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-primary" />
-            <h1 className="text-lg font-bold text-foreground tracking-tight">Parameters Map</h1>
-          </div>
-
-          {/* ── Searchable single-select dropdown ── */}
-          <div ref={dropdownRef} className="relative min-w-[280px]">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-input bg-background hover:bg-accent/50 transition-colors"
-            >
-              <Search className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span className={`flex-1 text-left truncate ${selectedParam ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                {selectedParam || 'Sélectionner un paramètre...'}
-              </span>
-              {selectedParam && (
-                <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedParam(null); }} />
-              )}
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {dropdownOpen && (
-              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl max-h-[320px] flex flex-col">
-                <div className="p-2 border-b border-border">
-                  <input
-                    autoFocus
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Rechercher..."
-                    className="w-full px-2.5 py-1.5 text-sm rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-                <div className="flex-1 overflow-y-auto p-1">
-                  {paramsLoading ? (
-                    <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
-                  ) : filteredParams.length === 0 ? (
-                    <div className="py-4 text-center text-sm text-muted-foreground">Aucun paramètre trouvé</div>
-                  ) : filteredParams.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => { setSelectedParam(p); setDropdownOpen(false); setSearch(''); }}
-                      className={`w-full flex items-center gap-2 px-2.5 py-2 text-sm rounded-md transition-colors ${
-                        selectedParam === p ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-accent'
-                      }`}
-                    >
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                        selectedParam === p ? 'border-primary bg-primary' : 'border-input'
-                      }`}>
-                        {selectedParam === p && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
-                      </div>
-                      <span className="truncate">{p}</span>
-                    </button>
-                  ))}
-                </div>
+    <div className="flex flex-col h-full bg-background overflow-hidden">
+      {/* ── HEADER (aligned to Network References) ── */}
+      <div className="shrink-0 border-b border-border bg-card">
+        <div className="px-8 pt-6 pb-0">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+                <Sliders className="w-7 h-7 text-primary" />
               </div>
-            )}
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS · Network Explorer</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">Network Explorer</h1>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {availableParams.length} parameters{confirmedParam ? ` • ${points.length} points loaded` : ''}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 mt-2">
+              {/* ── Searchable single-select dropdown (pill-styled) ── */}
+              <div ref={dropdownRef} className="relative min-w-[280px]">
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="w-full h-9 flex items-center gap-2 pl-3.5 pr-3 rounded-full border border-border bg-muted/40 hover:bg-background text-xs transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className={`flex-1 text-left truncate ${selectedParam ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                    {selectedParam || 'Sélectionner un paramètre...'}
+                  </span>
+                  {selectedParam && (
+                    <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground cursor-pointer" onClick={(e) => { e.stopPropagation(); setSelectedParam(null); }} />
+                  )}
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {dropdownOpen && (
+                  <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl max-h-[320px] flex flex-col">
+                    <div className="p-2 border-b border-border">
+                      <input
+                        autoFocus
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Rechercher..."
+                        className="w-full px-2.5 py-1.5 text-sm rounded-md border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-1">
+                      {paramsLoading ? (
+                        <div className="flex items-center justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+                      ) : filteredParams.length === 0 ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">Aucun paramètre trouvé</div>
+                      ) : filteredParams.map(p => (
+                        <button
+                          key={p}
+                          onClick={() => { setSelectedParam(p); setDropdownOpen(false); setSearch(''); }}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 text-sm rounded-md transition-colors ${
+                            selectedParam === p ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-accent'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                            selectedParam === p ? 'border-primary bg-primary' : 'border-input'
+                          }`}>
+                            {selectedParam === p && <Check className="w-2.5 h-2.5 text-primary-foreground" />}
+                          </div>
+                          <span className="truncate">{p}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Confirm button (rounded-xl, aligned w/ References) ── */}
+              <button
+                onClick={handleConfirm}
+                disabled={!selectedParam || loading}
+                className="h-9 px-5 text-xs font-bold rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+              >
+                {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Confirm
+              </button>
+            </div>
           </div>
 
-          {/* ── Confirm button ── */}
-          <button
-            onClick={handleConfirm}
-            disabled={!selectedParam || loading}
-            className="px-5 py-2 text-sm font-semibold rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-          >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-            Confirm
-          </button>
-
-          {confirmedParam && (
-            <span className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{confirmedParam}</span> — {points.length} points
-            </span>
-          )}
+          {/* ── Tab strip (matches References shell) ── */}
+          <div className="flex gap-1 mt-6">
+            <button
+              className="flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-bold transition-all border-b-2 bg-background border-primary text-primary"
+            >
+              <MapPin className="w-4 h-4" />
+              Parameters Map
+            </button>
+          </div>
         </div>
       </div>
 
