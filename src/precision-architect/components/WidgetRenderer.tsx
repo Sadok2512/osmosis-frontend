@@ -360,7 +360,7 @@ function MapWidgetBody({ widget: w }: { widget: DynWidget }) {
       </div>
       <div className="flex-1 min-h-0">
         {hasBeenApplied && mapCfg ? (
-          <PAMapWidget key={renderKey} height="100%" config={mapCfg} />
+          <PAMapWidget key={renderKey} height="100%" config={mapCfg} widget={w} />
         ) : (
           <div className="h-full w-full flex items-center justify-center bg-muted/20 rounded-lg border border-dashed border-outline-variant/40">
             <div className="text-center px-4">

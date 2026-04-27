@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapWidgetConfig, DEFAULT_MAP_CONFIG } from '../types';
+import { MapWidgetConfig, DEFAULT_MAP_CONFIG, DynWidget } from '../types';
 import { fetchTopoSites } from '@/services/topoService';
 import type { SiteSummary } from '@/types';
+import { fetchTable, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { toBackendDimension } from '../lib/monitorDimensions';
+import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
 interface MapSite {
   name: string;
@@ -62,6 +66,9 @@ function siteSummaryToMapSite(s: SiteSummary, warnTh = 80, critTh = 60): MapSite
 interface Props {
   height?: number | string;
   config?: MapWidgetConfig;
+  /** When provided, the widget gates the per-site KPI fetch behind the
+   *  per-widget Apply (widget.appliedRev) in addition to the global one. */
+  widget?: DynWidget;
 }
 
 const TILE_PROVIDERS = {
@@ -151,7 +158,7 @@ async function loadMapSites(): Promise<MapSite[]> {
   return inflight;
 }
 
-const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
+const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
   const cfg = config ?? DEFAULT_MAP_CONFIG;
   const isDark = cfg.theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -162,6 +169,82 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
 
   const [sites, setSites] = useState<MapSite[]>(() => cachedMapSites ?? []);
   const [loading, setLoading] = useState<boolean>(!cachedMapSites);
+  /** Map of site_name → KPI value, populated when cfg.kpiKey is set and the
+   *  widget has been Apply'd. Empty map = no KPI overlay (use legacy mock). */
+  const [kpiBySite, setKpiBySite] = useState<Map<string, number>>(() => new Map());
+
+  // ─── Per-site KPI fetch (Apply-gated, inherits date from global toolbar) ───
+  const liveFrom = usePAGlobalToolbar((s) => s.from);
+  const liveTo = usePAGlobalToolbar((s) => s.to);
+  const liveAdvTF = usePAGlobalToolbar((s) => s.advancedTimeFrame);
+  const applied = usePAGlobalToolbar((s) => s.applied);
+  const globalAppliedRev = usePAGlobalToolbar((s) => s.appliedRev);
+  const widgetAppliedRev = widget?.appliedRev ?? 0;
+  const hasBeenApplied = widgetAppliedRev > 0 || globalAppliedRev > 0;
+  const kpiFetchKey = useMemo(() => {
+    const src = applied
+      ? { from: applied.from, to: applied.to, adv: applied.advancedTimeFrame }
+      : { from: liveFrom, to: liveTo, adv: liveAdvTF };
+    return JSON.stringify({
+      k: cfg.kpiKey ?? '',
+      f: cfg.filters.filter(f => f.values.length > 0).map(f => `${f.dimension}:${f.values.join(',')}`).sort(),
+      ...src,
+    });
+  }, [cfg.kpiKey, cfg.filters, applied, liveFrom, liveTo, liveAdvTF]);
+
+  useEffect(() => {
+    if (!cfg.kpiKey || !hasBeenApplied) {
+      setKpiBySite(new Map());
+      return;
+    }
+    let cancelled = false;
+    const src = applied
+      ? { from: applied.from, to: applied.to, adv: applied.advancedTimeFrame }
+      : { from: liveFrom, to: liveTo, adv: liveAdvTF };
+
+    // Build filters from per-widget Map filter chips. Period and advanced
+    // timeframe always come from the global toolbar's frozen snapshot so the
+    // map stays in sync with the rest of the dashboard.
+    const filters: MonitorFilter[] = cfg.filters
+      .filter(f => f.values.length > 0)
+      .map(f => ({
+        dimension: toBackendDimension(f.dimension),
+        op: 'IN' as const,
+        values: f.values,
+      }));
+
+    fetchTable({
+      date_from: src.from,
+      date_to: src.to,
+      filters,
+      kpi_keys: [cfg.kpiKey],
+      // top_n + page_size widened to cover all sites; backend caps as needed.
+      top_n: 5000,
+      page_size: 5000,
+      advancedTimeFrame: buildAdvancedTimeFramePayload(src.adv),
+      // No granularity → one row per site over the full period.
+      ...({ split_by: 'SITE' } as any),
+    } as any)
+      .then(resp => {
+        if (cancelled) return;
+        const next = new Map<string, number>();
+        for (const r of resp?.rows ?? []) {
+          const name = (r as any).split_value || (r as any).site_name;
+          const raw = (r as any).avg ?? (r as any).value ?? (r as any).kpi_value;
+          if (typeof name === 'string' && typeof raw === 'number' && Number.isFinite(raw)) {
+            next.set(name, raw);
+          }
+        }
+        setKpiBySite(next);
+      })
+      .catch((err) => {
+        console.warn('[PAMap] KPI per-site fetch failed', err);
+        if (!cancelled) setKpiBySite(new Map());
+      });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasBeenApplied, kpiFetchKey]);
 
   // ─── Load sites: if filters are set, fetch filtered from backend; else use cache ───
   const hasActiveFilters = cfg.filters.some(f => f.values.length > 0);
@@ -344,9 +427,10 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
     const critTh = cfg.criticalThreshold ?? 60;
 
     filteredSites.forEach((s) => {
-      // Recompute status against the (possibly updated) thresholds so threshold
-      // edits in the settings panel re-color markers immediately.
-      const intensity = s.intensity;
+      // Per-site KPI value overrides the legacy mock intensity when a KPI
+      // is selected and the backend returned a value for this site.
+      const liveValue = kpiBySite.get(s.name);
+      const intensity = liveValue != null ? liveValue : s.intensity;
       const status: MapSite['status'] =
         intensity < critTh ? 'critical' : intensity < warnTh ? 'warning' : 'optimal';
       const color = cfg.kpiOverlay ? colorFor(status, cfg) : (cfg.defaultColor || '#10b981');
@@ -408,7 +492,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config }) => {
         map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
       }
     }
-  }, [filteredSites, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
+  }, [filteredSites, kpiBySite, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
 
   // ─── Render inter-site lines (sample backbone overlay) ───
   useEffect(() => {
