@@ -90,7 +90,7 @@ interface ReportResultRow {
 
 type AggregationLevel = string;
 
-interface RanReport {
+export interface RanReport {
   id: string;
   name: string;
   vendor: string;
@@ -340,10 +340,9 @@ function buildFilterPayload(report: RanReport) {
   return { vendors, base };
 }
 
-function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
+export function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
   const { date_from, date_to } = resolveTimeRange(report.timeConfig);
   const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
-  const primaryAgg = aggList.find(a => a !== 'cell') || null;
   const splitMap: Record<string, string> = {
     cell: 'CELL',
     site: 'SITE',
@@ -355,6 +354,12 @@ function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: st
     arcep: 'ZONE_ARCEP',
     plaque: 'PLAQUE',
   };
+  // Map every aggregation chip to its backend dim, preserving user order.
+  const splitByList = aggList
+    .map(a => splitMap[a] || a.toUpperCase())
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+  // Back-compat: split_by stays as the first non-CELL dim (CELL alone = legacy no-split).
+  const primaryAgg = aggList.find(a => a !== 'cell') || null;
   const filters: Array<{ dimension: string; op: 'IN'; values: string[] }> = [
     { dimension: 'VENDOR', op: 'IN', values: [vendor] },
   ];
@@ -374,6 +379,7 @@ function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: st
     selections: kpiKeys.map((kpi) => ({ kpi_key: kpi })),
     filters,
     split_by: primaryAgg ? (splitMap[primaryAgg] || primaryAgg.toUpperCase()) : null,
+    split_by_list: splitByList,
     split_by_2: null,
     kpi_level: aggList.includes('cell') ? 'CELL' : 'SITE',
     page: 1,
@@ -457,6 +463,9 @@ async function executeReportApi(
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
       const primaryAgg = aggList.find(a => a !== 'cell') || null;
+      // Multi-dim backend now returns named columns (site_name, cell_name, plaque, …)
+      // directly. Fallback chain (split_value-based) only kicks in for the legacy
+      // single-dim path where the requested dim isn't echoed under its named key.
       for (const pt of rows) {
         const rowKpis = pt?.kpi_key ? [String(pt.kpi_key)] : kpiKeys;
         for (const kpiCode of rowKpis) {
@@ -474,10 +483,10 @@ async function executeReportApi(
             unit,
             site_name: pt.site_name || pt.site || (primaryAgg === 'site' ? splitValue : undefined),
             cell_name: pt.cell_name || pt.cell || pt.ne_name || pt.network_element,
-            cluster: pt.cluster || (primaryAgg === 'cluster' ? splitValue : undefined),
-            plaque: pt.plaque || (primaryAgg === 'plaque' ? splitValue : undefined),
-            dor: pt.dor || pt.DOR || (primaryAgg === 'dor' || primaryAgg === 'dr' || primaryAgg === 'region' ? splitValue : undefined),
-            band: pt.band || pt.source_band || (primaryAgg === 'band' ? splitValue : undefined),
+            cluster:   pt.cluster || (primaryAgg === 'cluster' ? splitValue : undefined),
+            plaque:    pt.plaque  || (primaryAgg === 'plaque'  ? splitValue : undefined),
+            dor:       pt.dor || pt.DOR || (primaryAgg === 'dor' || primaryAgg === 'dr' || primaryAgg === 'region' ? splitValue : undefined),
+            band:      pt.band || pt.source_band || (primaryAgg === 'band' ? splitValue : undefined),
           });
         }
       }
@@ -564,6 +573,7 @@ function downloadCsv(report: RanReport) {
   const aggLevels = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
   const dimHeaders: string[] = ['Timestamp', 'Vendor', 'Technology'];
   if (aggLevels.includes('cluster')) dimHeaders.push('Cluster');
+  if (aggLevels.includes('plaque')) dimHeaders.push('Plaque');
   if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimHeaders.push('DOR');
   if (aggLevels.includes('site')) dimHeaders.push('Site');
   if (aggLevels.includes('band')) dimHeaders.push('Band');
@@ -576,7 +586,8 @@ function downloadCsv(report: RanReport) {
   const rowMap = new Map<string, Record<string, any>>();
   for (const r of report.results) {
     const dims = [r.timestamp, r.vendor, r.technology];
-    if (aggLevels.includes('cluster')) dims.push(r.cluster || r.plaque || '');
+    if (aggLevels.includes('cluster')) dims.push(r.cluster || '');
+    if (aggLevels.includes('plaque')) dims.push(r.plaque || '');
     if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dims.push(r.dor || '');
     if (aggLevels.includes('site')) dims.push(r.site_name || '');
     if (aggLevels.includes('band')) dims.push(r.band || '');
@@ -968,6 +979,7 @@ const RanQueryModule: React.FC = () => {
     dimCols.push({ key: '_vendor', label: 'Vendor' });
     dimCols.push({ key: '_technology', label: 'Techno' });
     if (aggLevels.includes('cluster')) dimCols.push({ key: '_cluster', label: 'Cluster' });
+    if (aggLevels.includes('plaque')) dimCols.push({ key: '_plaque', label: 'Plaque' });
     if (aggLevels.includes('dor') || aggLevels.includes('dr') || aggLevels.includes('region')) dimCols.push({ key: '_dor', label: 'DOR' });
     if (aggLevels.includes('site')) dimCols.push({ key: '_site', label: 'Site' });
     if (aggLevels.includes('band')) dimCols.push({ key: '_band', label: 'Band' });
@@ -983,7 +995,8 @@ const RanQueryModule: React.FC = () => {
         _timestamp: r.timestamp,
         _vendor: r.vendor,
         _technology: r.technology,
-        _cluster: r.cluster || r.plaque || '',
+        _cluster: r.cluster || '',
+        _plaque: r.plaque || '',
         _dor: r.dor || '',
         _site: r.site_name || '',
         _band: r.band || '',
