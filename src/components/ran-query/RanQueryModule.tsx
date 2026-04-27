@@ -985,8 +985,11 @@ const RanQueryModule: React.FC = () => {
 
   // Pagination for results table
   // Build pivot table: rows = unique (timestamp, vendor, techno, agg1, agg2, ...), cols = KPIs
+  // Headers are derived from the user's *selection* (aggregations + report.kpis)
+  // even when results are empty — so an executed-but-failed report still
+  // shows the table the user expected, with empty cells.
   const pivotData = useMemo(() => {
-    if (!selectedReport || selectedReport.results.length === 0) return { rows: [], kpis: [], dimCols: [] };
+    if (!selectedReport) return { rows: [], kpis: [], dimCols: [] };
     const aggLevels = selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell']);
     // Determine which dimension columns to show
     const dimCols: { key: string; label: string }[] = [];
@@ -2125,7 +2128,7 @@ const RanQueryModule: React.FC = () => {
             </SectionCard>
 
             <SectionCard title="Report Results" description="Each report keeps its own independent dataset.">
-              {selectedReport.results.length === 0 ? (
+              {selectedReport.results.length === 0 && !selectedReport.lastRunAt ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                   <CalendarClock className="h-10 w-10 text-primary/40" />
                   <div>
@@ -2164,7 +2167,16 @@ const RanQueryModule: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border/30 bg-card">
-                        {paginatedPivot.map((row, idx) => (
+                        {paginatedPivot.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={pivotData.dimCols.length + pivotData.kpis.length}
+                              className="px-3 py-8 text-center text-xs text-muted-foreground"
+                            >
+                              No data returned. The selected KPI columns are still listed so you can see exactly what was queried.
+                            </td>
+                          </tr>
+                        ) : paginatedPivot.map((row, idx) => (
                           <tr key={idx} className="hover:bg-primary/5 transition-colors">
                             {pivotData.dimCols.map(d => (
                               <td key={d.key} className="px-3 py-2 text-foreground whitespace-nowrap">
