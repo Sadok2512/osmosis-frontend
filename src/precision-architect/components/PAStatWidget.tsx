@@ -23,7 +23,13 @@ export default function PAStatWidget({ widget }: Props) {
   const [loading, setLoading] = useState(false);
   const [periodLabel, setPeriodLabel] = useState<string>('');
 
-  const hasKpi = !!cfg.kpiKey;
+  // KPI key sourced from the Chart-shaped widget.config (set by EditorView
+  // when the Stat widget is created). Falls back to legacy statConfig.kpiKey
+  // for widgets saved before the migration.
+  const chartCfgKpi = widget.appliedConfig?.metrics?.[0]?.kpiKey
+    ?? widget.config?.metrics?.[0]?.kpiKey;
+  const effectiveKpiKey = chartCfgKpi || cfg.kpiKey;
+  const hasKpi = !!effectiveKpiKey;
   const widgetRev = widget.appliedRev ?? 0;
   const hasBeenApplied = widgetRev > 0 || global.appliedRev > 0;
 
@@ -73,13 +79,13 @@ export default function PAStatWidget({ widget }: Props) {
           date_from: range.from,
           date_to: range.to,
           filters,
-          kpi_keys: [cfg.kpiKey!],
+          kpi_keys: [effectiveKpiKey!],
           advancedTimeFrame: buildAdvancedTimeFramePayload(gAdvancedTimeFrame),
         });
       })
       .then(summary => {
         if (cancelled) return;
-        const item = (summary || []).find(s => s.kpi_key === cfg.kpiKey) || summary?.[0];
+        const item = (summary || []).find(s => s.kpi_key === effectiveKpiKey) || summary?.[0];
         const value = item?.value;
         if (value == null || !Number.isFinite(value)) {
           setComputedValue(null);
@@ -95,7 +101,7 @@ export default function PAStatWidget({ widget }: Props) {
     // otherwise editing the toolbar would trigger a refetch before Apply.
     // appliedSig changes only when the user clicks Apply (snapshot bumped).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasKpi, hasBeenApplied, cfg.kpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev, appliedSig]);
+  }, [hasKpi, hasBeenApplied, effectiveKpiKey, cfg.referencePeriodId, widgetRev, global.appliedRev, appliedSig]);
 
   // Display value: backend-computed only (no manual mock fallback)
   const displayValue = hasKpi && computedValue != null
@@ -133,7 +139,7 @@ export default function PAStatWidget({ widget }: Props) {
         className="text-[10px] font-black uppercase tracking-[0.25em] mb-3 opacity-70"
         style={{ color: cfg.theme === 'dark' ? accent : undefined }}
       >
-        {cfg.label || cfg.kpiKey || 'Select a KPI'}
+        {cfg.label || effectiveKpiKey || 'Select a KPI'}
       </span>
 
       <div className="flex items-baseline gap-2">

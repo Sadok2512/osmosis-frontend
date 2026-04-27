@@ -48,7 +48,6 @@ import ReportHeader from './ReportHeader';
 import ChartSettingsPanel from './ChartSettingsPanel';
 import TableSettingsPanel from './TableSettingsPanel';
 import PremiumWidgetSettingsPanel from './PremiumWidgetSettingsPanel';
-import StatSettingsPanel from './StatSettingsPanel';
 
 import MapSettingsPanel from './MapSettingsPanel';
 import { usePAReportStore } from '../stores/paReportStore';
@@ -773,10 +772,14 @@ export default function EditorView({
             );
           }
 
-          // STAT (KPI Card) uses its dedicated settings panel backed by statConfig.
+          // STAT (KPI Card) reuses ChartSettingsPanel with isStat=true so the
+          // settings UI matches Graph (KPI selector + filters + period +
+          // advancedTimeFrame) minus granularity. Visual fields (theme,
+          // accent, showPulse, label/value/unit) live in widget.statConfig
+          // and are surfaced inside ChartSettingsPanel's appearance tab.
           if (w.kind === 'stat') {
             return (
-              <StatSettingsPanel
+              <ChartSettingsPanel
                 widget={w}
                 onChange={(patch) => updateWidgets(ws => ws.map(x => x.id === w.id ? { ...x, ...patch } : x))}
                 onClose={() => setActiveWidget(null)}
