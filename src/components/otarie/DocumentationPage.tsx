@@ -15,7 +15,7 @@ const TopologiePage = lazy(() => import('@/components/otarie/TopologiePage'));
 const NetworkTopologyPage = lazy(() => import('@/components/otarie/NetworkTopologyPage'));
 const KpiReferenceWorkspace2 = lazy(() => import('@/components/kpi-monitor/KpiReferenceWorkspace2'));
 
-type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'kpi_reference2' | 'filters' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
+type DocTab = 'topo' | 'kpi' | 'kpi_reference' | 'kpi_reference2' | 'filters' | 'filter3' | 'dimensions' | 'qos_network' | 'parameters_hub' | 'alarms' | 'cm_history' | 'topology';
 
 /* ─────────── TOPO DATA ─────────── */
 const topoFields = [
