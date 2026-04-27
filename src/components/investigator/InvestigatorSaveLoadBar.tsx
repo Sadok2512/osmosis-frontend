@@ -54,6 +54,9 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
   onIdChange,
   hasUnsavedChanges,
   onMarkSaved,
+  onExportSession,
+  onExportData,
+  onExportPDF,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(investigatorName);
