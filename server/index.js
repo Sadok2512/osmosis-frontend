@@ -3968,6 +3968,38 @@ function safeCol(kpiKey) {
   return `"${kpiKey}"`;
 }
 
+// ── KPI Engine forwarder ──
+// In local dev the kpi-engine FastAPI service (:8001) is the canonical
+// implementation for /monitor/* and supports the full multi-dim contract
+// (split_by_list, topo enrichment, real CH/PG queries). Forward there
+// instead of using the legacy qoe_metric stubs below. Set
+// SKIP_KPI_FORWARD=1 to fall back to the stubs.
+const KPI_ENGINE_URL = process.env.KPI_ENGINE_URL || 'http://localhost:8001';
+const SKIP_KPI_FORWARD = process.env.SKIP_KPI_FORWARD === '1';
+if (!SKIP_KPI_FORWARD) {
+  app.all(/^\/api\/monitor\/.*/, async (req, res) => {
+    const target = `${KPI_ENGINE_URL}${req.originalUrl.replace(/^\/api/, '')}`;
+    try {
+      const init = {
+        method: req.method,
+        headers: { 'Content-Type': 'application/json' },
+      };
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        init.body = JSON.stringify(req.body ?? {});
+      }
+      const upstream = await fetch(target, init);
+      const text = await upstream.text();
+      res.status(upstream.status);
+      const ct = upstream.headers.get('content-type');
+      if (ct) res.set('content-type', ct);
+      res.send(text);
+    } catch (err) {
+      console.error(`[kpi-engine forward] ${req.method} ${target}: ${err.message}`);
+      res.status(502).json({ error: `kpi-engine unreachable at ${target}: ${err.message}` });
+    }
+  });
+}
+
 // ── 1. KPI Catalog ──
 app.get('/api/monitor/catalog/kpis', (_req, res) => {
   res.json(KPI_MONITOR_CATALOG);
