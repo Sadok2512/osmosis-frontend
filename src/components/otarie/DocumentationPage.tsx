@@ -119,7 +119,7 @@ const dimSections: DimSection[] = [
 
 /* ═══════════════════ MAIN COMPONENT ═══════════════════ */
 const DocumentationPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<DocTab>('filters');
+  const [activeTab, setActiveTab] = useState<DocTab>('filter3');
   const [search, setSearch] = useState('');
   const [groupFilter, setGroupFilter] = useState('ALL');
 
