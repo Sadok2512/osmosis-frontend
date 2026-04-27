@@ -207,7 +207,10 @@ export default function PAStatWidget({ widget }: Props) {
           Pick a KPI in settings to load a backend value
         </span>
       )}
-      {hasKpi && computedValue == null && !loading && hasBeenApplied && (
+      {hasKpi && computedValue == null && !loading && hasBeenApplied && errorKind === 'unavailable' && (
+        <span className="text-[9px] text-destructive/80 mt-2">Backend unavailable</span>
+      )}
+      {hasKpi && computedValue == null && !loading && hasBeenApplied && errorKind !== 'unavailable' && (
         <span className="text-[9px] text-on-surface-variant/50 mt-2">No data for this period</span>
       )}
       {hasKpi && !hasBeenApplied && !loading && (
