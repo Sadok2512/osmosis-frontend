@@ -453,21 +453,27 @@ function DataTab({
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
-  const toolbar = usePAGlobalToolbar((s) => s.applied ? {
-    technos: s.applied.technos,
-    from: s.applied.from,
-    to: s.applied.to,
-    preset: s.applied.preset,
-    grain: s.applied.grain,
-    filters: s.applied.filters,
-  } : {
-    technos: s.technos,
-    from: s.from,
-    to: s.to,
-    preset: s.preset,
-    grain: s.grain,
-    filters: s.filters,
-  });
+
+  // IMPORTANT: zustand's useSyncExternalStore loops infinitely if the selector
+  // returns a fresh object each call ("Maximum update depth exceeded" when
+  // clicking Override on a Stat widget — same flaw exists for Chart widgets
+  // but only manifests once the Time & Filters tab is opened). Use primitive
+  // selectors instead.
+  const liveTechnos = usePAGlobalToolbar((s) => s.technos);
+  const liveFrom    = usePAGlobalToolbar((s) => s.from);
+  const liveTo      = usePAGlobalToolbar((s) => s.to);
+  const livePreset  = usePAGlobalToolbar((s) => s.preset);
+  const liveGrain   = usePAGlobalToolbar((s) => s.grain);
+  const liveFilters = usePAGlobalToolbar((s) => s.filters);
+  const applied     = usePAGlobalToolbar((s) => s.applied);
+  const toolbar = useMemo(() => ({
+    technos: applied?.technos ?? liveTechnos,
+    from:    applied?.from    ?? liveFrom,
+    to:      applied?.to      ?? liveTo,
+    preset:  applied?.preset  ?? livePreset,
+    grain:   applied?.grain   ?? liveGrain,
+    filters: applied?.filters ?? liveFilters,
+  }), [applied, liveTechnos, liveFrom, liveTo, livePreset, liveGrain, liveFilters]);
 
   const enableOverride = () => {
     patchData({
