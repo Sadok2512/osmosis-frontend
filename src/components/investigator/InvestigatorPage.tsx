@@ -31,6 +31,7 @@ import { useInvestigatorWorkspace, type InvestigatorInstance } from '@/stores/in
 import { getApiUrl, getApiHeaders, fetchWithTimeout, logBackendRequest } from '@/lib/apiConfig';
 import type { SavedInvestigator } from '@/services/investigatorService';
 import { toast } from 'sonner';
+import { exportSessionJSON, exportDataZip, exportVisualPDF } from './investigatorExport';
 
 
 const WIDGET_NAMES: Record<WidgetType, string> = {
