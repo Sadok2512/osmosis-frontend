@@ -131,11 +131,15 @@ Deno.serve(async (req) => {
 
     // Agent streams can take minutes (multi-round tool calls) — use generous timeout
     const isAgentPost = req.method === 'POST' && service === 'agent';
+    // Heavy distinct catalogue queries (e.g. dump/params/distinct returning ~9k rows
+    // from cold ClickHouse) regularly take 35-50s. Give them a longer per-attempt
+    // window so the request completes instead of returning the empty-fallback.
+    const isHeavyDistinct = /\/dump\/params\/distinct/.test(path);
     // Edge function hard idle limit is ~150s. Keep total wall-clock well under it
     // so we always have time to return a fallback response.
     const startedAt = Date.now();
-    const TOTAL_BUDGET_MS = isAgentPost ? 290_000 : 130_000; // 130s total for non-agent
-    const PER_ATTEMPT_MS = isAgentPost ? 290_000 : 40_000;   // 40s per attempt
+    const TOTAL_BUDGET_MS = isAgentPost ? 290_000 : (isHeavyDistinct ? 140_000 : 130_000);
+    const PER_ATTEMPT_MS  = isAgentPost ? 290_000 : (isHeavyDistinct ? 70_000  : 40_000);
     const remainingBudget = () => Math.max(0, TOTAL_BUDGET_MS - (Date.now() - startedAt));
 
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
