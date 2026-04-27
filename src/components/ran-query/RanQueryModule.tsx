@@ -1211,6 +1211,36 @@ const RanQueryModule: React.FC = () => {
       const { rows, errors } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
       const hasData = rows.length > 0;
+
+      // When the query returns no rows, ask the backend for the actual PM data
+      // window so the user knows what range *would* have data — instead of the
+      // old hardcoded date range that lied about availability.
+      let emptyMsg: string | undefined;
+      if (!hasData) {
+        const requestedRange = report.timeConfig.timeMode === 'absolute'
+          ? `${report.timeConfig.start} → ${report.timeConfig.end}`
+          : `Last ${(report.timeConfig as any).value} ${(report.timeConfig as any).unit}`;
+        let availability = '';
+        try {
+          const vendor = report.vendor.split(',')[0]?.trim();
+          const techno = report.technologies[0];
+          if (vendor && techno) {
+            const qs = new URLSearchParams({ vendor, techno }).toString();
+            const res = await fetch(getApiUrl(`monitor/data-range?${qs}`), { headers: getApiHeaders() });
+            if (res.ok) {
+              const range = await res.json();
+              if (range?.from && range?.to) {
+                const fmt = (s: string) => s.slice(0, 10);
+                availability = ` PM data available: ${fmt(range.from)} to ${fmt(range.to)} (${range.total ?? '?'} rows).`;
+              } else if (range?.total === 0) {
+                availability = ' No PM data found for this vendor/technology.';
+              }
+            }
+          }
+        } catch (_) { /* fall through to message without availability */ }
+        emptyMsg = `No data returned for ${report.vendor} / ${report.technologies.join(', ')}.${availability} Your range: ${requestedRange}.`;
+      }
+
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
         return {
@@ -1218,7 +1248,7 @@ const RanQueryModule: React.FC = () => {
           status: (hasData ? 'Completed' : 'Failed') as ReportStatus,
           health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'error',
           results: rows,
-          errorMessage: rows.length === 0 ? (errorMsg || `No data returned. PM data available: 2026-04-14 to 2026-04-18. Your range: ${report.timeConfig.timeMode === 'absolute' ? report.timeConfig.start + ' → ' + report.timeConfig.end : 'Last ' + (report.timeConfig as any).value + ' ' + (report.timeConfig as any).unit}`) : errorMsg,
+          errorMessage: !hasData ? (errorMsg || emptyMsg) : errorMsg,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
