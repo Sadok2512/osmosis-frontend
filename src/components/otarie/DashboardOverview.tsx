@@ -87,6 +87,8 @@ interface DashboardTypeStyle {
   badgeText: string;
   cardAccent: string;      // left border color
   hoverBg: string;         // subtle tinted hover
+  ring: string;            // soft border / glow ring around card
+  gradient: string;        // soft top gradient overlay
   label: string;
   icon: React.ReactNode;
 }
@@ -100,6 +102,8 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-sky-600',
     cardAccent: 'border-l-sky-400',
     hoverBg: 'hover:bg-sky-50/40 dark:hover:bg-sky-950/10',
+    ring: 'hover:ring-sky-200/70 dark:hover:ring-sky-900/40 hover:border-sky-200/80 dark:hover:border-sky-900/40',
+    gradient: 'from-sky-50/60 dark:from-sky-950/10',
     label: 'Map',
     icon: <MapIcon className="w-4 h-4" />,
   },
@@ -111,6 +115,8 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-violet-600',
     cardAccent: 'border-l-violet-400',
     hoverBg: 'hover:bg-violet-50/40 dark:hover:bg-violet-950/10',
+    ring: 'hover:ring-violet-200/70 dark:hover:ring-violet-900/40 hover:border-violet-200/80 dark:hover:border-violet-900/40',
+    gradient: 'from-violet-50/60 dark:from-violet-950/10',
     label: 'QOE',
     icon: <BarChart2 className="w-4 h-4" />,
   },
@@ -122,6 +128,8 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-emerald-600',
     cardAccent: 'border-l-emerald-400',
     hoverBg: 'hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10',
+    ring: 'hover:ring-emerald-200/70 dark:hover:ring-emerald-900/40 hover:border-emerald-200/80 dark:hover:border-emerald-900/40',
+    gradient: 'from-emerald-50/60 dark:from-emerald-950/10',
     label: 'KPI',
     icon: <BarChart2 className="w-4 h-4" />,
   },
@@ -133,6 +141,8 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-rose-600',
     cardAccent: 'border-l-rose-400',
     hoverBg: 'hover:bg-rose-50/40 dark:hover:bg-rose-950/10',
+    ring: 'hover:ring-rose-200/70 dark:hover:ring-rose-900/40 hover:border-rose-200/80 dark:hover:border-rose-900/40',
+    gradient: 'from-rose-50/60 dark:from-rose-950/10',
     label: 'FM',
     icon: <BarChart2 className="w-4 h-4" />,
   },
@@ -144,6 +154,8 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-amber-600',
     cardAccent: 'border-l-amber-400',
     hoverBg: 'hover:bg-amber-50/40 dark:hover:bg-amber-950/10',
+    ring: 'hover:ring-amber-200/70 dark:hover:ring-amber-900/40 hover:border-amber-200/80 dark:hover:border-amber-900/40',
+    gradient: 'from-amber-50/60 dark:from-amber-950/10',
     label: 'CM',
     icon: <BarChart2 className="w-4 h-4" />,
   },
@@ -155,17 +167,21 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     badgeText: 'text-teal-600',
     cardAccent: 'border-l-teal-400',
     hoverBg: 'hover:bg-teal-50/40 dark:hover:bg-teal-950/10',
+    ring: 'hover:ring-teal-200/70 dark:hover:ring-teal-900/40 hover:border-teal-200/80 dark:hover:border-teal-900/40',
+    gradient: 'from-teal-50/60 dark:from-teal-950/10',
     label: 'PM',
     icon: <BarChart2 className="w-4 h-4" />,
   },
   precision_architect: {
-    iconBg: 'bg-primary/10',
-    iconBgHover: 'group-hover:bg-primary/20',
-    iconColor: 'text-primary',
-    badgeBg: 'bg-primary/10',
-    badgeText: 'text-primary',
-    cardAccent: 'border-l-primary',
-    hoverBg: 'hover:bg-primary/5',
+    iconBg: 'bg-pink-500/10',
+    iconBgHover: 'group-hover:bg-pink-500/20',
+    iconColor: 'text-pink-600',
+    badgeBg: 'bg-pink-500/10',
+    badgeText: 'text-pink-600',
+    cardAccent: 'border-l-pink-400',
+    hoverBg: 'hover:bg-pink-50/40 dark:hover:bg-pink-950/10',
+    ring: 'hover:ring-pink-200/70 dark:hover:ring-pink-900/40 hover:border-pink-200/80 dark:hover:border-pink-900/40',
+    gradient: 'from-pink-50/60 dark:from-pink-950/10',
     label: 'Precision Architect',
     icon: <Wand2 className="w-4 h-4" />,
   },
@@ -179,6 +195,8 @@ const FALLBACK_STYLE: DashboardTypeStyle = {
   badgeText: 'text-muted-foreground',
   cardAccent: 'border-l-border',
   hoverBg: 'hover:bg-muted/30',
+  ring: 'hover:ring-border hover:border-border',
+  gradient: 'from-muted/30',
   label: 'Other',
   icon: <BarChart2 className="w-4 h-4" />,
 };
@@ -708,7 +726,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
 const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({ setActiveTab }) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [dashboards, setDashboards] = useState<EnhancedDashboard[]>([]);
   const [sharePopoverId, setSharePopoverId] = useState<string | null>(null);
   const [editModalId, setEditModalId] = useState<string | null>(null);
@@ -1045,59 +1063,79 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             )}
           </div>
         ) : viewMode === 'grid' ? (
-          /* ── Grid View ── */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map(db => (
-              <div key={db.id}
-                onClick={() => openDashboard(db.id)}
-                className={`group cursor-pointer bg-card border border-border border-l-[3px] ${getDashboardTypeStyle(db.dashboardType).cardAccent} rounded-2xl p-5 hover:shadow-lg transition-all ${getDashboardTypeStyle(db.dashboardType).hoverBg}`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className={`w-10 h-10 rounded-xl ${getDashboardTypeStyle(db.dashboardType).iconBg} ${getDashboardTypeStyle(db.dashboardType).iconBgHover} flex items-center justify-center transition-colors`}>
-                    {React.cloneElement(getDashboardTypeStyle(db.dashboardType).icon as React.ReactElement, { className: `w-[18px] h-[18px] ${getDashboardTypeStyle(db.dashboardType).iconColor}` })}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <TypeBadge type={db.dashboardType} />
-                    <VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} />
+          /* ── Grid View – soft pastel SaaS cards ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {filtered.map(db => {
+              const s = getDashboardTypeStyle(db.dashboardType);
+              return (
+                <div key={db.id}
+                  onClick={() => openDashboard(db.id)}
+                  className={`group relative cursor-pointer overflow-hidden bg-card border border-border/70 rounded-2xl p-5 shadow-[0_1px_2px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_28px_-12px_rgba(0,0,0,0.18)] hover:-translate-y-[2px] ring-1 ring-transparent ${s.ring} transition-all duration-200 ease-out`}>
+                  {/* Soft tinted gradient overlay */}
+                  <div className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${s.gradient} to-transparent opacity-70`} />
+                  {/* Tinted accent bar */}
+                  <div className={`pointer-events-none absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full ${s.iconBg.replace('/10','/40')}`} />
+
+                  <div className="relative">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className={`w-11 h-11 rounded-2xl ${s.iconBg} ${s.iconBgHover} flex items-center justify-center transition-all duration-200 group-hover:scale-105`}>
+                        {React.cloneElement(s.icon as React.ReactElement, { className: `w-[18px] h-[18px] ${s.iconColor}` })}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <TypeBadge type={db.dashboardType} />
+                        <VisibilityBadge visibility={db.visibility} sharedWith={db.sharedWith} />
+                      </div>
+                    </div>
+
+                    <h3 className="text-[15px] font-semibold text-foreground mb-1 truncate tracking-tight">{db.name}</h3>
+                    {db.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 mb-3">{db.description}</p>
+                    )}
+
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mb-3">
+                      <Clock className="w-3 h-3 shrink-0" />
+                      <span className="tabular-nums">{new Date(db.updatedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      <span className="opacity-40">•</span>
+                      <div className="inline-flex items-center gap-1 min-w-0">
+                        <div className={`w-4 h-4 rounded-full ${s.iconBg} flex items-center justify-center shrink-0`}>
+                          <User className={`w-2.5 h-2.5 ${s.iconColor}`} />
+                        </div>
+                        <span className="truncate font-medium text-foreground/80">{db.ownerUsername}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-border/40">
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip><TooltipTrigger asChild>
+                            <button onClick={(e) => { e.stopPropagation(); openDashboard(db.id); }}
+                              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger><TooltipContent><p className="text-xs">Voir</p></TooltipContent></Tooltip>
+
+                          <Tooltip><TooltipTrigger asChild>
+                            <button onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
+                              className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          </TooltipTrigger><TooltipContent><p className="text-xs">Modifier</p></TooltipContent></Tooltip>
+                        </TooltipProvider>
+                      </div>
+
+                      <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                        <KebabMenu
+                          onDuplicate={() => duplicateDashboard(db.id)}
+                          onShare={() => setSharePopoverId(db.id)}
+                          onExport={() => exportDashboard(db)}
+                          onDelete={() => setDeleteModalId(db.id)}
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <h3 className="text-sm font-semibold text-foreground mb-1 truncate">{db.name}</h3>
-
-                <div className="text-xs text-muted-foreground flex items-center gap-1 mb-3">
-                  <Clock className="w-3 h-3 shrink-0" />
-                  {new Date(db.updatedAt).toLocaleDateString('fr-FR')} • {db.ownerUsername}
-                </div>
-
-                <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip><TooltipTrigger asChild>
-                        <button onClick={(e) => { e.stopPropagation(); openDashboard(db.id); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                      </TooltipTrigger><TooltipContent><p className="text-xs">Voir</p></TooltipContent></Tooltip>
-
-                      <Tooltip><TooltipTrigger asChild>
-                        <button onClick={(e) => { e.stopPropagation(); setEditModalId(db.id); }}
-                          className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                      </TooltipTrigger><TooltipContent><p className="text-xs">Modifier</p></TooltipContent></Tooltip>
-                    </TooltipProvider>
-                  </div>
-
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    <KebabMenu
-                      onDuplicate={() => duplicateDashboard(db.id)}
-                      onShare={() => setSharePopoverId(db.id)}
-                      onExport={() => exportDashboard(db)}
-                      onDelete={() => setDeleteModalId(db.id)}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           /* ── List View – Modern SaaS rows ── */
