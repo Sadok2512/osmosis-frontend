@@ -2,9 +2,9 @@
  * API URL helper — routes through VPS proxy edge function (HTTPS→HTTP relay).
  *
  * VPS Services:
- *   OSMOSIS Parser  → http://151.242.147.49:8000
- *   KPI Engine     → http://151.242.147.49:8001
- *   Agent Layer    → http://151.242.147.49:1000
+ *   OSMOSIS Parser  → http://185.248.33.125:8000
+ *   KPI Engine     → http://185.248.33.125:8001
+ *   Agent Layer    → http://185.248.33.125:1000
  *
  * All calls go through the vps-proxy edge function to avoid mixed-content blocking.
  */
@@ -17,7 +17,7 @@ const isOnAppDomain = typeof window !== 'undefined' && (
   window.location.hostname === 'app.qoebit.net' ||
   window.location.hostname === 'app.osmosis.net' ||
   window.location.hostname === VPS_HOST ||
-  window.location.hostname === '151.242.147.49'
+  window.location.hostname === '185.248.33.125'
 );
 
 // Cloudflare Tunnel endpoints (legacy — separate domains per service)

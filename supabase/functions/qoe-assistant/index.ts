@@ -548,7 +548,7 @@ function extractSiteName(query: string): string | null {
   return null;
 }
 
-const VPS_HOST = '151.242.147.49';
+const VPS_HOST = '185.248.33.125';
 const VPS_PARSER_PORT = 8000;
 
 async function fetchVpsTopo(path: string): Promise<any[]> {

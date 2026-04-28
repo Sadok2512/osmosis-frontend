@@ -10,7 +10,7 @@ const corsHeaders = {
 // Cloudflare Tunnel (permanent, HTTPS)
 const CF_PARSER = 'https://api.qoebit.net';
 const CF_KPI = 'https://kpi.qoebit.net';
-const VPS_HOST = '151.242.147.49';
+const VPS_HOST = '185.248.33.125';
 
 const SERVICE_URLS: Record<string, string[]> = {
   parser: [CF_PARSER, `http://${VPS_HOST}:8000`],
