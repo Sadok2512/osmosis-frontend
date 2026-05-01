@@ -989,6 +989,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             ...prev,
             graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, textContent: content } : s),
           }))}
+          onSetSlotTextStyle={(slotId, style) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, textStyle: style } : s),
+          }))}
           onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
           onDuplicateSlot={(slotId) => setState(prev => {
             const source = prev.graphSlots.find(s => s.id === slotId);
