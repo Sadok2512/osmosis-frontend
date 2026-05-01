@@ -13,6 +13,7 @@ import {
   Flame, Navigation, Bookmark, BookmarkPlus, ZoomIn
 } from 'lucide-react';
 import { REF_DOR_TREE, REF_TECHNO_BANDE } from '../../config/filterDimensions';
+import { useLayerVisibility } from '@/hooks/useLayerVisibility';
 
 // ── Tile layers ──
 const TILE_URLS: Record<string, { url: string; attribution: string }> = {
@@ -88,6 +89,17 @@ const MapSync: React.FC<{ onChange: (c: [number, number], z: number) => void }> 
   return null;
 };
 
+// ── Lift the Leaflet map instance up to the parent so the
+//    useLayerVisibility hook can subscribe to zoom events.
+const MapInstanceCapture: React.FC<{ onMap: (map: L.Map | null) => void }> = ({ onMap }) => {
+  const map = useMap();
+  useEffect(() => {
+    onMap(map);
+    return () => onMap(null);
+  }, [map, onMap]);
+  return null;
+};
+
 // ── Heatmap layer (uses leaflet.heat if available) ──
 const HeatmapLayer: React.FC<{ points: [number, number, number][]; visible: boolean }> = ({ points, visible }) => {
   const map = useMap();
@@ -144,6 +156,19 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [showSectors, setShowSectors] = useState(false);
   const [selectedSite, setSelectedSite] = useState<SiteSummary | null>(null);
   const [mapZoom, setMapZoom] = useState(config.zoom || 6);
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+
+  // Hysteresis-driven layer visibility — keeps sites and cells from
+  // flickering when the user lingers on the zoom boundary. Bands match
+  // the spec: sites in 8..10, cells in 10..12.
+  const { visible: layerVisible } = useLayerVisibility({
+    map: mapInstance,
+    thresholds: {
+      sites: { showAt: 10, hideAt: 8 },
+      cells: { showAt: 12, hideAt: 10 },
+    },
+    zoomEvent: 'zoomend',
+  });
 
   // Connect to KPI Monitor store for filters
   const globalFilter = useGlobalFilterStore();
@@ -320,12 +345,14 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
           <MapContainer center={config.center} zoom={config.zoom} style={{ height: '100%', width: '100%' }} zoomControl={false}>
             <TileLayer key={config.mapLayer} url={TILE_URLS[config.mapLayer].url} attribution={TILE_URLS[config.mapLayer].attribution} />
             <MapSync onChange={handleMapSync} />
+            <MapInstanceCapture onMap={setMapInstance} />
 
             {/* Heatmap overlay */}
             <HeatmapLayer points={heatmapPoints} visible={showHeatmap} />
 
-            {/* Site markers */}
-            {shouldRenderSites && (
+            {/* Site markers — gated by hysteresis so they don't flicker
+                between zoom 9 and 10. Filters / count cap still apply. */}
+            {shouldRenderSites && layerVisible.sites && (
               <MarkerClusterGroup chunkedLoading iconCreateFunction={createClusterIcon} maxClusterRadius={50} showCoverageOnHover={false} zoomToBoundsOnClick>
                 {filtered.map(site => {
                   const color = getSiteColor(site);
@@ -355,8 +382,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               </MarkerClusterGroup>
             )}
 
-            {/* Cell sectors at high zoom */}
-            {showSectors && mapZoom >= 14 && filtered.map(site =>
+            {/* Cell sectors — was gated `mapZoom >= 14` (binary, flickered
+                at the boundary). Now uses hysteresis (showAt=12, hideAt=10). */}
+            {showSectors && layerVisible.cells && filtered.map(site =>
               site.cells.map((cell, ci) => (
                 <CellSector
                   key={`${site.site_id}-${ci}`}
