@@ -362,6 +362,14 @@ function ColumnsTab({
   const [kpiPickerOpen, setKpiPickerOpen] = useState(false);
   const [counterPickerOpen, setCounterPickerOpen] = useState(false);
 
+  // Perimeter from the global toolbar (applied snapshot wins, live fallback) —
+  // drives the perimeter-aware filtering in CounterSelectorModal.
+  const liveTechnos = usePAGlobalToolbar((s) => s.technos);
+  const liveVendors = usePAGlobalToolbar((s) => s.vendors);
+  const applied = usePAGlobalToolbar((s) => s.applied);
+  const perimeterTechnos = applied?.technos ?? liveTechnos ?? [];
+  const perimeterVendors = applied?.vendors ?? liveVendors ?? [];
+
   const selectedKeys = useMemo(() => columns.map(c => c.kpiKey), [columns]);
   const counterKeys = useMemo(() => new Set(counterCatalog.map((c: any) => c.counter_name)), [counterCatalog]);
   const selectedKpiKeys = useMemo(() => selectedKeys.filter(k => !counterKeys.has(k)), [selectedKeys, counterKeys]);
@@ -423,6 +431,8 @@ function ColumnsTab({
           if (toAdd.length > 0) addCountersFromKeys(toAdd);
           setCounterPickerOpen(false);
         }}
+        perimeterVendor={perimeterVendors.length === 1 ? perimeterVendors[0] : perimeterVendors}
+        perimeterTechno={perimeterTechnos.length === 1 ? perimeterTechnos[0] : perimeterTechnos}
       />
 
       <div className="space-y-2">
