@@ -8718,7 +8718,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
             const isTagged = isSiteTagged(site.site_id);
             const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
-            return !showMini;
+            if (!showMini) return true;
+            // If mini-sectors WOULD render but no valid azimuth exists, the mini branch returns null.
+            // Fall back to circle rendering so the site is still visible at zoom >= 12.
+            const azimuths = getValidSectorAzimuths({ ...site, cells: renderSiteCells });
+            return azimuths.length === 0;
           });
 
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
