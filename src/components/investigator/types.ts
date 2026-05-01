@@ -119,6 +119,15 @@ export interface GraphSlot {
   splitBy2?: SplitOption;
   /** For 'text' widget type: editable text content (markdown/plain). */
   textContent?: string;
+  /** For 'text' widget type: visual styling. */
+  textStyle?: {
+    fontSize?: number;
+    fontWeight?: 'normal' | 'semibold' | 'bold';
+    fontStyle?: 'normal' | 'italic';
+    textAlign?: 'left' | 'center' | 'right';
+    color?: string;
+    bgColor?: string;
+  };
 }
 
 export type JalonVisibility = 'all' | 'personal' | 'team';
