@@ -354,7 +354,10 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
             <MapInstanceCapture onMap={setMapInstance} />
 
             {/* Heatmap overlay */}
-            <HeatmapLayer points={heatmapPoints} visible={showHeatmap} />
+            {/* Heatmap follows the same visibility gate as the markers
+                — otherwise toggling 🔥 at high zoom and zooming back out
+                left blobs visible at zoom 8 even though sites were hidden. */}
+            <HeatmapLayer points={heatmapPoints} visible={showHeatmap && layerVisible.sites} />
 
             {/* Site markers — gated by hysteresis so they don't flicker
                 between zoom 9 and 10. Filters / count cap still apply. */}
