@@ -11,7 +11,7 @@ import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './i
 import type { KpiDefinition } from './types';
 import { buildPivotTable, formatInvestigatorValue, sanitizeTableData, TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS } from './tableDisplayUtils';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type } from 'lucide-react';
 import BreakdownChart from './BreakdownChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
