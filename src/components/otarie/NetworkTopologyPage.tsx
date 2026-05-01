@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { cn } from '@/lib/utils';
+import { LayerVisibility, throttle } from '@/lib/layerVisibility';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -795,16 +796,41 @@ const NetworkTopologyPage: React.FC = () => {
       if (!mapContainerRef.current) { mapInitializing.current = false; return; }
 
       // Init map on the actual DOM node
-      const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 6);
+      const map = L.map(mapContainerRef.current).setView([46.6, 2.5], 7);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CARTO', maxZoom: 19,
       }).addTo(map);
       const markers = L.markerClusterGroup({ maxClusterRadius: 40, spiderfyOnMaxZoom: true });
-      map.addLayer(markers);
+      // NOTE: deliberately NOT adding `markers` to the map yet — the
+      // hysteresis controller below decides when to attach/detach it
+      // based on the zoom level. This is what hides the cluster bubbles
+      // at low zoom (z<=9) where they used to clutter France-wide view.
       mapRef.current = map;
       markersRef.current = markers;
 
-      // Load sites immediately
+      // ── Hysteresis-driven visibility (sites only, cells handled
+      //    elsewhere). Same spec as BIMapWidget:
+      //      sites: showAt=11, hideAt=9   band ]9, 11[
+      const vis = new LayerVisibility<'sites'>(
+        { sites: { showAt: 11, hideAt: 9 } },
+        map.getZoom(),
+      );
+      const applyVisibility = (layerVisible: boolean) => {
+        if (!markersRef.current) return;
+        const isOnMap = map.hasLayer(markersRef.current);
+        if (layerVisible && !isOnMap) markersRef.current.addTo(map);
+        else if (!layerVisible && isOnMap) map.removeLayer(markersRef.current);
+      };
+      // Initial sync at default zoom (6 → sites hidden, no cluster bubbles).
+      applyVisibility(vis.isVisible('sites'));
+      const onZoomEnd = throttle(() => {
+        const changes = vis.update(map.getZoom());
+        for (const c of changes) if (c.layer === 'sites') applyVisibility(c.visible);
+      }, 80);
+      map.on('zoomend', onZoomEnd);
+
+      // Load sites immediately so the data is in RAM by the time the
+      // user crosses zoom 11 — avoids a backend roundtrip mid-zoom.
       if (loadSitesRef.current) loadSitesRef.current([], []);
     })();
   }, []);
