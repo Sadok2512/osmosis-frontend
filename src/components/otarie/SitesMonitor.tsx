@@ -8511,7 +8511,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
-            const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
+            const densityScale = renderSites.length > 2000 ? 0.55 : renderSites.length > 1000 ? 0.65 : renderSites.length > 500 ? 0.75 : renderSites.length > 250 ? 0.85 : 1;
             const indoorRadius = viewport.zoom >= 10
               ? (isHovered || isSelectedSite ? 7 : 5)
               : viewport.zoom >= 8
