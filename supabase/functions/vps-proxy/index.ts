@@ -7,15 +7,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-key, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-// Cloudflare Tunnel (permanent, HTTPS)
+// Cloudflare Tunnel fallback; direct VPS is preferred because the tunnel can
+// return Cloudflare 530 while the VPS services themselves are healthy.
 const CF_PARSER = 'https://api.qoebit.net';
 const CF_KPI = 'https://kpi.qoebit.net';
 const VPS_HOST = '185.248.33.125';
 
 const SERVICE_URLS: Record<string, string[]> = {
-  parser: [CF_PARSER, `http://${VPS_HOST}:8000`],
-  agent:  [CF_PARSER, `http://${VPS_HOST}:8000`],
-  kpi:    [CF_KPI, `http://${VPS_HOST}:8001`],
+  parser: [`http://${VPS_HOST}:8000`, CF_PARSER],
+  agent:  [`http://${VPS_HOST}:8000`, CF_PARSER],
+  kpi:    [`http://${VPS_HOST}:8001`, CF_KPI],
 };
 
 // Legacy compat
@@ -87,7 +88,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build target URL — try Cloudflare tunnel first, then direct IP
+    // Build target URL — try direct VPS first, then Cloudflare tunnel fallback
     const urls = SERVICE_URLS[service] || [`http://${VPS_HOST}:${port}`];
     const extraParams = new URLSearchParams();
     for (const [key, value] of url.searchParams.entries()) {
@@ -153,7 +154,7 @@ Deno.serve(async (req) => {
       });
     };
 
-    // Retry transient failures (network errors, 502/503/504) with exponential backoff
+    // Retry transient failures (network errors, Cloudflare 52x/530, 502/503/504) with exponential backoff
     const MAX_ATTEMPTS = isAgentPost ? 1 : 2; // 2 attempts max to stay under 150s
     let upstreamRes: Response | undefined;
     let lastErr: unknown;
@@ -167,7 +168,7 @@ Deno.serve(async (req) => {
       const u = buildUrl(baseUrl).toString();
       try {
         const res = await tryFetch(u);
-        if (res.status === 502 || res.status === 503 || res.status === 504) {
+        if (res.status === 502 || res.status === 503 || res.status === 504 || (res.status >= 520 && res.status <= 530)) {
           console.warn(`[vps-proxy] Upstream ${res.status} on attempt ${attempt + 1}/${MAX_ATTEMPTS} (${u})`);
           await res.body?.cancel().catch(() => {});
           if (attempt < MAX_ATTEMPTS - 1 && remainingBudget() > 5_000) {
