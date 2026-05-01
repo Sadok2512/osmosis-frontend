@@ -6,6 +6,7 @@ import { fetchTopoSites } from '@/services/topoService';
 import type { SiteSummary } from '@/types';
 import { fetchTable, MonitorFilter } from '@/components/kpi-monitor/api/kpiMonitorApi';
 import { usePAGlobalToolbar } from '../stores/paGlobalToolbarStore';
+import { useDensityLOD } from '@/hooks/useDensityLOD';
 import { toBackendDimension } from '../lib/monitorDimensions';
 import { buildAdvancedTimeFramePayload } from '../lib/advancedTimeFrame';
 
@@ -172,6 +173,10 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
   /** Map of site_name → KPI value, populated when cfg.kpiKey is set and the
    *  widget has been Apply'd. Empty map = no KPI overlay (use legacy mock). */
   const [kpiBySite, setKpiBySite] = useState<Map<string, number>>(() => new Map());
+  // Map instance held in state so useDensityLOD can attach its listeners
+  // once the map is initialised (mapRef.current alone doesn't trigger an
+  // effect when set imperatively).
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   // ─── Per-site KPI fetch (Apply-gated, inherits date from global toolbar) ───
   const liveFrom = usePAGlobalToolbar((s) => s.from);
@@ -378,6 +383,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
     });
 
     mapRef.current = map;
+    setMapInstance(map);
     markersLayerRef.current = L.layerGroup().addTo(map);
     linesLayerRef.current = L.layerGroup().addTo(map);
 
@@ -386,11 +392,22 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
     return () => {
       map.remove();
       mapRef.current = null;
+      setMapInstance(null);
       tileLayerRef.current = null;
       markersLayerRef.current = null;
       linesLayerRef.current = null;
     };
   }, []);
+
+  // Density-driven LOD: when the visible viewport contains > 600 sites we
+  // drop sectors and shrink dots; we switch back to the full cell view once
+  // the operator zooms in to fewer than 400 visible sites (hysteresis around
+  // the operator-anchored 500 sites threshold).
+  const { mode: lodMode, visibleItems: visibleSites } = useDensityLOD({
+    map: mapInstance,
+    items: filteredSites,
+    getLatLng: (s) => (s.lat != null && s.lon != null ? [s.lat, s.lon] : null),
+  });
 
   // ─── Update tile layer when theme/mapType changes ───
   useEffect(() => {
@@ -426,7 +443,12 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
     const warnTh = cfg.warningThreshold ?? 80;
     const critTh = cfg.criticalThreshold ?? 60;
 
-    filteredSites.forEach((s) => {
+    // In 'site' LOD mode we render compact dots and skip sectors regardless of
+    // cfg.showSectors — keeps the frame budget tight on dense city zooms.
+    const isSiteLOD = lodMode === 'site';
+    const drawSectors = cfg.showSectors && !isSiteLOD;
+
+    visibleSites.forEach((s) => {
       // Per-site KPI value overrides the legacy mock intensity when a KPI
       // is selected and the backend returned a value for this site.
       const liveValue = kpiBySite.get(s.name);
@@ -434,7 +456,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
       const status: MapSite['status'] =
         intensity < critTh ? 'critical' : intensity < warnTh ? 'warning' : 'optimal';
       const color = cfg.kpiOverlay ? colorFor(status, cfg) : (cfg.defaultColor || '#10b981');
-      const radius = cfg.displayMode === 'cells' ? 4 : 6;
+      const radius = isSiteLOD ? 3 : (cfg.displayMode === 'cells' ? 4 : 6);
 
       const marker = L.circleMarker([s.lat, s.lon], {
         radius,
@@ -453,7 +475,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
         { direction: 'top', offset: [0, -8], opacity: 0.95 },
       );
 
-      if (cfg.showLabels && cfg.displayMode === 'sites' && filteredSites.length < 200) {
+      if (cfg.showLabels && cfg.displayMode === 'sites' && !isSiteLOD && visibleSites.length < 200) {
         // Only show permanent labels for small result sets to avoid label overlap.
         marker.bindTooltip(s.name, {
           permanent: true,
@@ -466,7 +488,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
 
       layer.addLayer(marker);
 
-      if (cfg.showSectors) {
+      if (drawSectors) {
         [0, 120, 240].forEach((angle) => {
           const r = 0.06;
           const rad = (angle * Math.PI) / 180;
@@ -492,7 +514,7 @@ const PAMapWidget: React.FC<Props> = ({ height = 360, config, widget }) => {
         map.fitBounds(bounds, { padding: [24, 24], maxZoom: 11 });
       }
     }
-  }, [filteredSites, kpiBySite, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
+  }, [visibleSites, lodMode, kpiBySite, cfg.kpiOverlay, cfg.defaultColor, cfg.displayMode, cfg.showLabels, cfg.showSectors, cfg.warningThreshold, cfg.criticalThreshold, cfg.optimalColor, cfg.warningColor, cfg.criticalColor]);
 
   // ─── Render inter-site lines (sample backbone overlay) ───
   useEffect(() => {
