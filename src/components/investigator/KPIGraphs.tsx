@@ -29,8 +29,6 @@ import {
   paShortenLabel,
 } from './paChartStyle';
 
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type } from 'lucide-react';
-
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
   { value: 'table', label: 'Table', icon: Hash, color: 'text-amber-500' },
