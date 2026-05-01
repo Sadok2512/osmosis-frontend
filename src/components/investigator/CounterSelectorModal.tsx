@@ -41,13 +41,17 @@ interface Props {
   perimeterTechno?: string | string[];
 }
 
-async function fetchFilterOptions(vendor?: string): Promise<FilterOptions> {
+async function fetchFilterOptions(vendor?: string, techno?: string | string[]): Promise<FilterOptions> {
   try {
-    const params = vendor ? `?vendor=${encodeURIComponent(vendor)}` : '';
+    const qs = new URLSearchParams();
+    if (vendor) qs.set('vendor', vendor);
+    const technoArr = Array.isArray(techno) ? techno : techno ? [techno] : [];
+    for (const t of technoArr) if (t) qs.append('techno', t);
+    const params = qs.toString() ? `?${qs.toString()}` : '';
     const res = await fetch(getApiUrl(`pm/counters/filter-options${params}`), { headers: getApiHeaders() });
-    if (!res.ok) return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [] };
+    if (!res.ok) return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [], dimension_types: [] };
     return res.json();
-  } catch { return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [] }; }
+  } catch { return { vendors: ['Ericsson', 'Huawei', 'Nokia'], families: [], technos: [], object_types: [], dimension_types: [] }; }
 }
 
 async function fetchFilteredCatalog(vendor?: string, techno?: string): Promise<CounterDef[]> {
@@ -212,9 +216,12 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
     setActiveFamily(null);
     const apiVendor = effectiveVendor || undefined;
     const apiTechno = effectiveTechno || undefined;
+    // Pass the active perimeter technos so the backend hides dimension_types
+    // that don't apply (e.g. RNC_ID outside 3G, 5QI/SLICE outside 5G).
+    const apiTechnos = Array.from(activeTechnos);
     Promise.all([
       fetchFilteredCatalog(apiVendor, apiTechno),
-      fetchFilterOptions(apiVendor),
+      fetchFilterOptions(apiVendor, apiTechnos.length > 0 ? apiTechnos : apiTechno),
     ]).then(([data, opts]) => {
       let items = Array.isArray(data) ? data : [];
       // Always apply client-side vendor/techno filter for strict consistency
@@ -227,7 +234,13 @@ const CounterSelectorModal: React.FC<Props> = ({ open, onClose, catalog: initial
         items = items.filter(c => technoSet.has((c.techno || '').toLowerCase()));
       }
       setCatalog(items);
-      setFilterOptions(prev => ({ ...prev, families: opts?.families || [], technos: opts?.technos || [], vendors: opts?.vendors || prev.vendors }));
+      setFilterOptions(prev => ({
+        ...prev,
+        families: opts?.families || [],
+        technos: opts?.technos || [],
+        vendors: opts?.vendors || prev.vendors,
+        dimension_types: opts?.dimension_types || [],
+      }));
       setIsLoading(false);
     });
   }, [open, effectiveVendor, effectiveTechno, Array.from(activeVendors).sort().join(','), Array.from(activeTechnos).sort().join(',')]);
