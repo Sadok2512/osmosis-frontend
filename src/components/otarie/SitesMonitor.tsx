@@ -6748,6 +6748,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const MAX_RENDER_SITES = 5000;
 
   const visibleSites = useMemo(() => {
+    // Hide all sites at low zoom (≤ 9) to avoid clutter on national-scale views.
+    // Tagged sites remain visible via the separate taggedSitesInView path.
+    if (viewport.zoom < 10) return [];
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
@@ -6774,7 +6777,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
+  }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
   const taggedSitesInView = useMemo(() => {
     return taggedSites.filter(s => {
