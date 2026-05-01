@@ -6038,6 +6038,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // unfiltered global set (e.g. Nantes 224 sites replaced by 10 000 sites).
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (dashboardActive) return;
+    // Block bbox fetch at low zoom — France-wide loads (6000+ sites) are wasteful.
+    // User must zoom to >= 10 to trigger viewport-based site loading.
+    if (v.zoom < 10) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
