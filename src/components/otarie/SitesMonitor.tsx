@@ -12001,17 +12001,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {!dashboardActive && !loading && !isSearchActive && searchModeSites.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Filter size={18} className="text-primary" />
-                    </div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
-                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
-                      Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
-                    </p>
-                  </div>
-                ) : searchLoading ? (
+                {searchLoading ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>
