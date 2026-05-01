@@ -4810,20 +4810,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
   // dashboardIdRef is used inside callbacks so we always read latest activeDashboardId
   const activeDashboardIdRef = useRef<string | null>(null);
+  // Fallback scope used when no dashboard is active (so tagging still works
+  // from the sites inventory without forcing a dashboard selection).
+  const taggedScopeId = useCallback(
+    () => activeDashboardIdRef.current || '__global__',
+    [],
+  );
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
-    persistTaggedSitesScoped(next, activeDashboardIdRef.current);
-  }, []);
+    persistTaggedSitesScoped(next, taggedScopeId());
+  }, [taggedScopeId]);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
-    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
-      persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+      persistTaggedSitesScoped(next, taggedScopeId());
       return next;
     });
-  }, []);
+  }, [taggedScopeId]);
 
   // ── Custom Map Points (scoped per dashboard) ──
   const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>([]);
@@ -6020,8 +6025,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     const dbId = dashboardActive ? activeDashboardId : null;
     activeDashboardIdRef.current = dbId;
+    const taggedScope = dbId || '__global__';
     setCustomPoints(loadCustomPoints(dbId));
-    setTaggedSites(loadTaggedSitesScoped(dbId));
+    setTaggedSites(loadTaggedSitesScoped(taggedScope));
     setTaggedLinks(loadTaggedLinks(dbId));
     setTaggedPolygons(loadTaggedPolygons(dbId));
     // Reset transient interaction states
