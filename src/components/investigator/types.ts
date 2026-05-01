@@ -117,6 +117,8 @@ export interface GraphSlot {
   granularity: Granularity;
   splitBy: SplitOption;
   splitBy2?: SplitOption;
+  /** For 'text' widget type: editable text content (markdown/plain). */
+  textContent?: string;
 }
 
 export type JalonVisibility = 'all' | 'personal' | 'team';
