@@ -1125,6 +1125,46 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const wType = slot.widgetType || 'timeseries';
         const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
 
+        // Text widget — full row, editable text acting as a separator/heading
+        if (wType === 'text') {
+          const content = slot.textContent ?? '';
+          return (
+            <div
+              key={slot.id}
+              onClick={() => onSlotClick?.(slot.id)}
+              className={cn(
+                'col-span-full rounded-xl border bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/60 px-5 py-3 group relative cursor-pointer transition-all duration-200 flex items-center gap-3',
+                isActive
+                  ? 'border-emerald-300 ring-2 ring-emerald-200/50'
+                  : 'border-emerald-100 hover:border-emerald-200'
+              )}
+            >
+              <Type className="w-4 h-4 text-emerald-500 shrink-0" />
+              <textarea
+                value={content}
+                placeholder="Saisir un texte / titre de section…"
+                onChange={(e) => onSetSlotText?.(slot.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                rows={1}
+                className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 placeholder:font-normal leading-relaxed"
+                style={{ minHeight: '1.5rem' }}
+                onInput={(e) => {
+                  const ta = e.currentTarget;
+                  ta.style.height = 'auto';
+                  ta.style.height = ta.scrollHeight + 'px';
+                }}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                title="Supprimer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        }
+
         // Empty slot — no KPI or counter assigned yet
         if (isEmpty) {
           return (
