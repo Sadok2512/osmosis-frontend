@@ -11,7 +11,7 @@ import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './i
 import type { KpiDefinition } from './types';
 import { buildPivotTable, formatInvestigatorValue, sanitizeTableData, TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS } from './tableDisplayUtils';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Paintbrush } from 'lucide-react';
 import BreakdownChart from './BreakdownChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
@@ -902,6 +902,171 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
 };
 
 
+const TEXT_COLORS = ['#0f172a', '#475569', '#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4', '#ffffff'];
+const BG_COLORS = ['', '#ffffff', '#f8fafc', '#fef2f2', '#fff7ed', '#fefce8', '#f0fdf4', '#eff6ff', '#f5f3ff', '#fdf2f8', '#ecfeff', '#0f172a'];
+
+const InvestigatorTextWidget: React.FC<{
+  slot: GraphSlot;
+  isActive: boolean;
+  onClick: () => void;
+  onChangeText: (content: string) => void;
+  onChangeStyle: (style: NonNullable<GraphSlot['textStyle']>) => void;
+  onRemove: () => void;
+}> = ({ slot, isActive, onClick, onChangeText, onChangeStyle, onRemove }) => {
+  const [showTextColors, setShowTextColors] = useState(false);
+  const [showBgColors, setShowBgColors] = useState(false);
+  const style = slot.textStyle || {};
+  const fontSize = style.fontSize ?? 16;
+  const fontWeight = style.fontWeight ?? 'semibold';
+  const fontStyle = style.fontStyle ?? 'normal';
+  const textAlign = style.textAlign ?? 'left';
+  const color = style.color ?? '';
+  const bgColor = style.bgColor ?? '';
+  const update = (patch: Partial<NonNullable<GraphSlot['textStyle']>>) => onChangeStyle({ ...style, ...patch });
+
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        'col-span-full rounded-xl border px-4 py-2.5 group relative cursor-pointer transition-all duration-200 flex items-start gap-2',
+        isActive ? 'border-emerald-300 ring-2 ring-emerald-200/50' : 'border-slate-200 hover:border-slate-300'
+      )}
+      style={bgColor ? { backgroundColor: bgColor } : { background: 'linear-gradient(to right, rgba(236,253,245,0.4), white, rgba(236,253,245,0.4))' }}
+    >
+      <Type className="w-4 h-4 text-emerald-500 shrink-0 mt-1.5" />
+      <textarea
+        value={slot.textContent ?? ''}
+        placeholder="Saisir un texte / titre de section…"
+        onChange={(e) => onChangeText(e.target.value)}
+        onClick={(e) => e.stopPropagation()}
+        rows={1}
+        className="flex-1 bg-transparent border-none outline-none resize-none placeholder:text-muted-foreground/60 placeholder:font-normal leading-relaxed py-1"
+        style={{
+          fontSize,
+          fontWeight: fontWeight === 'bold' ? 700 : fontWeight === 'semibold' ? 600 : 400,
+          fontStyle,
+          textAlign,
+          color: color || undefined,
+          minHeight: '1.75rem',
+        }}
+        onInput={(e) => {
+          const ta = e.currentTarget;
+          ta.style.height = 'auto';
+          ta.style.height = ta.scrollHeight + 'px';
+        }}
+      />
+      {/* Toolbar */}
+      <div
+        className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity bg-white/95 backdrop-blur rounded-lg border border-border/60 px-1 py-0.5 shrink-0 shadow-sm"
+        onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => update({ fontWeight: fontWeight === 'bold' ? 'normal' : 'bold' })}
+          className={cn('p-1 rounded hover:bg-muted transition-colors', fontWeight === 'bold' ? 'text-primary' : 'text-muted-foreground')}
+          title="Gras"
+        >
+          <Bold className="w-3 h-3" />
+        </button>
+        <button
+          onClick={() => update({ fontStyle: fontStyle === 'italic' ? 'normal' : 'italic' })}
+          className={cn('p-1 rounded hover:bg-muted transition-colors', fontStyle === 'italic' ? 'text-primary' : 'text-muted-foreground')}
+          title="Italique"
+        >
+          <Italic className="w-3 h-3" />
+        </button>
+        <div className="w-px h-3 bg-border mx-0.5" />
+        {(['left', 'center', 'right'] as const).map((align) => {
+          const Icon = align === 'left' ? AlignLeft : align === 'center' ? AlignCenter : AlignRight;
+          return (
+            <button
+              key={align}
+              onClick={() => update({ textAlign: align })}
+              className={cn('p-1 rounded hover:bg-muted transition-colors', textAlign === align ? 'text-primary' : 'text-muted-foreground')}
+              title={`Aligner ${align}`}
+            >
+              <Icon className="w-3 h-3" />
+            </button>
+          );
+        })}
+        <div className="w-px h-3 bg-border mx-0.5" />
+        <select
+          value={fontSize}
+          onChange={(e) => update({ fontSize: Number(e.target.value) })}
+          className="bg-muted border border-border rounded px-1 py-0.5 text-[10px] text-foreground w-12 outline-none"
+          title="Taille"
+        >
+          {[10, 12, 14, 16, 18, 20, 24, 28, 32, 40, 48].map((s) => (
+            <option key={s} value={s}>{s}px</option>
+          ))}
+        </select>
+        {/* Text color */}
+        <div className="relative">
+          <button
+            onClick={() => { setShowTextColors((v) => !v); setShowBgColors(false); }}
+            className="w-5 h-5 rounded-full border-2 border-border shadow-sm hover:shadow-md transition-shadow ml-0.5"
+            style={{ backgroundColor: color || '#0f172a' }}
+            title="Couleur du texte"
+          />
+          {showTextColors && (
+            <div className="absolute top-7 right-0 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl p-2.5 z-[9999]" onMouseLeave={() => setShowTextColors(false)}>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">Texte</span>
+              <div className="flex gap-1.5 flex-wrap max-w-[140px]">
+                {TEXT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { update({ color: c }); setShowTextColors(false); }}
+                    className={cn('w-5 h-5 rounded-full border transition-all hover:scale-125', color === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/40')}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Background color */}
+        <div className="relative">
+          <button
+            onClick={() => { setShowBgColors((v) => !v); setShowTextColors(false); }}
+            className="w-5 h-5 rounded-full border-2 border-dashed border-border hover:shadow-md transition-shadow flex items-center justify-center"
+            style={{ backgroundColor: bgColor || undefined }}
+            title="Couleur de fond"
+          >
+            {!bgColor && <Paintbrush className="w-2.5 h-2.5 text-muted-foreground" />}
+          </button>
+          {showBgColors && (
+            <div className="absolute top-7 right-0 bg-popover/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl p-2.5 z-[9999]" onMouseLeave={() => setShowBgColors(false)}>
+              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-medium mb-1.5 block">Fond</span>
+              <div className="flex flex-wrap gap-1.5 max-w-[140px]">
+                {BG_COLORS.map((c, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { update({ bgColor: c }); setShowBgColors(false); }}
+                    className={cn('w-5 h-5 rounded-full border transition-all hover:scale-125', bgColor === c ? 'ring-2 ring-primary ring-offset-1' : 'border-border/40')}
+                    style={{
+                      backgroundColor: c || 'transparent',
+                      backgroundImage: !c ? 'linear-gradient(135deg, hsl(var(--muted)) 50%, hsl(var(--destructive)/0.3) 50%)' : undefined,
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="w-px h-3 bg-border mx-0.5" />
+        <button
+          onClick={onRemove}
+          className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+          title="Supprimer"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
 interface Props {
   graphSlots: GraphSlot[];
   data: DataPoint[];
@@ -917,6 +1082,7 @@ interface Props {
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onSetSlotText?: (slotId: string, content: string) => void;
+  onSetSlotTextStyle?: (slotId: string, style: NonNullable<GraphSlot['textStyle']>) => void;
   onOpenKpiSelector: (slotId: string) => void;
   onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
@@ -939,7 +1105,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   document.body.removeChild(link);
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onSetSlotTextStyle, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
@@ -1127,41 +1293,16 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
         // Text widget — full row, editable text acting as a separator/heading
         if (wType === 'text') {
-          const content = slot.textContent ?? '';
           return (
-            <div
+            <InvestigatorTextWidget
               key={slot.id}
+              slot={slot}
+              isActive={isActive}
               onClick={() => onSlotClick?.(slot.id)}
-              className={cn(
-                'col-span-full rounded-xl border bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/60 px-5 py-3 group relative cursor-pointer transition-all duration-200 flex items-center gap-3',
-                isActive
-                  ? 'border-emerald-300 ring-2 ring-emerald-200/50'
-                  : 'border-emerald-100 hover:border-emerald-200'
-              )}
-            >
-              <Type className="w-4 h-4 text-emerald-500 shrink-0" />
-              <textarea
-                value={content}
-                placeholder="Saisir un texte / titre de section…"
-                onChange={(e) => onSetSlotText?.(slot.id, e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                rows={1}
-                className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 placeholder:font-normal leading-relaxed"
-                style={{ minHeight: '1.5rem' }}
-                onInput={(e) => {
-                  const ta = e.currentTarget;
-                  ta.style.height = 'auto';
-                  ta.style.height = ta.scrollHeight + 'px';
-                }}
-              />
-              <button
-                onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
-                className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                title="Supprimer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+              onChangeText={(content) => onSetSlotText?.(slot.id, content)}
+              onChangeStyle={(s) => onSetSlotTextStyle?.(slot.id, s)}
+              onRemove={() => onRemoveSlot(slot.id)}
+            />
           );
         }
 
