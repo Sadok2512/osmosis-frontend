@@ -4100,6 +4100,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  // ── Resizable left panel width (persisted) ──
+  const PANEL_WIDTH_MIN = 360;
+  const PANEL_WIDTH_MAX = 720;
+  const PANEL_WIDTH_DEFAULT = 480;
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return PANEL_WIDTH_DEFAULT;
+    const stored = Number(window.localStorage.getItem('sitesMonitor.panelWidth'));
+    if (!Number.isFinite(stored) || stored <= 0) return PANEL_WIDTH_DEFAULT;
+    return Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, stored));
+  });
+  const [isResizingPanel, setIsResizingPanel] = useState(false);
+  useEffect(() => {
+    if (!isResizingPanel) return;
+    const onMove = (e: MouseEvent) => {
+      const maxAllowed = Math.min(PANEL_WIDTH_MAX, Math.floor(window.innerWidth * 0.6));
+      const next = Math.min(maxAllowed, Math.max(PANEL_WIDTH_MIN, e.clientX));
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      setIsResizingPanel(false);
+      try { window.localStorage.setItem('sitesMonitor.panelWidth', String(panelWidth)); } catch {}
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingPanel, panelWidth]);
+  // Effective width used everywhere: 56px when collapsed, panelWidth otherwise
+  const effectivePanelWidth = panelCollapsed ? 56 : panelWidth;
   const [showAllSites, setShowAllSites] = useState(false);
   // ── Dynamic backend filters ──
   const {
@@ -9501,7 +9536,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Coverage RSRP panel — shown when coverage view is active */}
         {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || !!coverageGrid) && (
-          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (effectivePanelWidth) + 16 }}>
             <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
               <BatchCoveragePanel
                 sites={renderSites}
@@ -9679,7 +9714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
           style={{
-            left: (panelCollapsed ? 56 : 400) + 16,
+            left: (effectivePanelWidth) + 16,
             right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(22px)',
@@ -10077,7 +10112,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && showParamLegend && (
-            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 96, bottom: 24, minWidth: 240 }}>
+            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (effectivePanelWidth) + 16 + 96, bottom: 24, minWidth: 240 }}>
               {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -10151,7 +10186,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Tool usage hint */}
       {activeMapTool && (
-        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
           <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
@@ -10163,7 +10198,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating status bar — minimal GIS style, centered on map */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-6 py-3 flex items-center gap-2">
           {paramMode ? (
             <>
@@ -10308,9 +10343,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+          left: `calc(${effectivePanelWidth}px + (100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
           transform: 'translateX(-50%)',
-          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
+          maxWidth: `min(1060px, calc(100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
           width: '100%',
         }}
       >
@@ -11214,7 +11249,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16, bottom: 24 }}>
+        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (effectivePanelWidth) + 16, bottom: 24 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
@@ -11553,9 +11588,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ══ LEFT PANEL — Inventory Index ══ */}
       {viewMode === 'map' && (
-        <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
-          panelCollapsed ? 'w-14' : 'w-[400px]'
-        }`}>
+        <div
+          className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto ${isResizingPanel ? '' : 'transition-[width] duration-300 ease-in-out'}`}
+          style={{ width: panelCollapsed ? 56 : panelWidth }}
+        >
+          {/* Resize handle (only when expanded) */}
+          {!panelCollapsed && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              onMouseDown={(e) => { e.preventDefault(); setIsResizingPanel(true); }}
+              onDoubleClick={() => {
+                setPanelWidth(PANEL_WIDTH_DEFAULT);
+                try { window.localStorage.setItem('sitesMonitor.panelWidth', String(PANEL_WIDTH_DEFAULT)); } catch {}
+              }}
+              className={`absolute top-0 bottom-0 -right-1 w-2 z-[1001] cursor-col-resize group flex items-center justify-center ${isResizingPanel ? 'bg-primary/30' : 'hover:bg-primary/20'}`}
+              title="Drag to resize • Double-click to reset"
+            >
+              <div className={`h-12 w-[3px] rounded-full transition-colors ${isResizingPanel ? 'bg-primary' : 'bg-border group-hover:bg-primary/60'}`} />
+            </div>
+          )}
           {/* Collapsed state */}
           {panelCollapsed ? (
             <div className="h-full bg-card border-r border-border flex flex-col items-center py-4 gap-3">
