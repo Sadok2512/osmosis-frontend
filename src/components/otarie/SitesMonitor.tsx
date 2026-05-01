@@ -6025,8 +6025,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     const dbId = dashboardActive ? activeDashboardId : null;
     activeDashboardIdRef.current = dbId;
+    const taggedScope = dbId || '__global__';
     setCustomPoints(loadCustomPoints(dbId));
-    setTaggedSites(loadTaggedSitesScoped(dbId));
+    setTaggedSites(loadTaggedSitesScoped(taggedScope));
     setTaggedLinks(loadTaggedLinks(dbId));
     setTaggedPolygons(loadTaggedPolygons(dbId));
     // Reset transient interaction states
