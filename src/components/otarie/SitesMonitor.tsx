@@ -4100,41 +4100,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
-  // ── Resizable left panel width (persisted) ──
-  const PANEL_WIDTH_MIN = 360;
-  const PANEL_WIDTH_MAX = 720;
-  const PANEL_WIDTH_DEFAULT = 480;
-  const [panelWidth, setPanelWidth] = useState<number>(() => {
-    if (typeof window === 'undefined') return PANEL_WIDTH_DEFAULT;
-    const stored = Number(window.localStorage.getItem('sitesMonitor.panelWidth'));
-    if (!Number.isFinite(stored) || stored <= 0) return PANEL_WIDTH_DEFAULT;
-    return Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, stored));
-  });
-  const [isResizingPanel, setIsResizingPanel] = useState(false);
-  useEffect(() => {
-    if (!isResizingPanel) return;
-    const onMove = (e: MouseEvent) => {
-      const maxAllowed = Math.min(PANEL_WIDTH_MAX, Math.floor(window.innerWidth * 0.6));
-      const next = Math.min(maxAllowed, Math.max(PANEL_WIDTH_MIN, e.clientX));
-      setPanelWidth(next);
-    };
-    const onUp = () => {
-      setIsResizingPanel(false);
-      try { window.localStorage.setItem('sitesMonitor.panelWidth', String(panelWidth)); } catch {}
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [isResizingPanel, panelWidth]);
-  // Effective width used everywhere: 56px when collapsed, panelWidth otherwise
-  const effectivePanelWidth = panelCollapsed ? 56 : panelWidth;
   const [showAllSites, setShowAllSites] = useState(false);
   // ── Dynamic backend filters ──
   const {
@@ -4810,25 +4775,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [taggedDisplayMode, setTaggedDisplayMode] = useState<'all' | 'tagged-only'>('all');
   // dashboardIdRef is used inside callbacks so we always read latest activeDashboardId
   const activeDashboardIdRef = useRef<string | null>(null);
-  // Fallback scope used when no dashboard is active (so tagging still works
-  // from the sites inventory without forcing a dashboard selection).
-  const taggedScopeId = useCallback(
-    () => activeDashboardIdRef.current || '__global__',
-    [],
-  );
   const persistTaggedSites = useCallback((next: SiteSummary[]) => {
     setTaggedSites(next);
-    persistTaggedSitesScoped(next, taggedScopeId());
-  }, [taggedScopeId]);
+    persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+  }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
+    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
-      persistTaggedSitesScoped(next, taggedScopeId());
+      persistTaggedSitesScoped(next, activeDashboardIdRef.current);
       return next;
     });
-  }, [taggedScopeId]);
+  }, []);
 
   // ── Custom Map Points (scoped per dashboard) ──
   const [customPoints, setCustomPoints] = useState<CustomMapPoint[]>([]);
@@ -5966,8 +5926,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      // Always fetch site summaries only — cells are loaded on demand per site
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal);
+      // Always fetch site summaries only — cells are loaded on demand per site.
+      // Pass zoom so the service caps the server-side fetch at what the map can
+      // actually render (avoids pulling 4000 sites to display 1000).
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, viewport.zoom);
 
       if (controller.signal.aborted) return;
 
@@ -6025,9 +5987,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     const dbId = dashboardActive ? activeDashboardId : null;
     activeDashboardIdRef.current = dbId;
-    const taggedScope = dbId || '__global__';
     setCustomPoints(loadCustomPoints(dbId));
-    setTaggedSites(loadTaggedSitesScoped(taggedScope));
+    setTaggedSites(loadTaggedSitesScoped(dbId));
     setTaggedLinks(loadTaggedLinks(dbId));
     setTaggedPolygons(loadTaggedPolygons(dbId));
     // Reset transient interaction states
@@ -6044,9 +6005,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // unfiltered global set (e.g. Nantes 224 sites replaced by 10 000 sites).
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (dashboardActive) return;
-    // Block bbox fetch at low zoom — France-wide loads (6000+ sites) are wasteful.
-    // User must zoom to >= 10 to trigger viewport-based site loading.
-    if (v.zoom < 10) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
@@ -6754,9 +6712,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const MAX_RENDER_SITES = 5000;
 
   const visibleSites = useMemo(() => {
-    // Hide all sites at low zoom (≤ 9) to avoid clutter on national-scale views.
-    // Tagged sites remain visible via the separate taggedSitesInView path.
-    if (viewport.zoom < 10) return [];
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
@@ -6783,7 +6738,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return sampled;
     }
     return candidates;
-  }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
+  }, [mapFilteredSites, viewport.bounds, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
   const taggedSitesInView = useMemo(() => {
     return taggedSites.filter(s => {
@@ -7017,41 +6972,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const DELAY_MS = 350;
           const queue = [...unresolvedAfterBulk];
 
-          // Throttle progressive flushes to limit re-renders (was: every batch → up to ~300 re-renders).
-          // Flush at most every FLUSH_EVERY_MS, plus a final flush after the loop.
-          const FLUSH_EVERY_MS = 1500;
-          let lastFlush = 0;
-          let pendingChanges = false;
-
-          const flushProgress = () => {
-            if (!pendingChanges) return;
-            pendingChanges = false;
-            setSites(prev => {
-              let changed = false;
-              const next = prev.map(s => {
-                if (s.cells.length > 0) return s;
-                const cells = resolveSiteCells(s);
-                if (!cells || cells.length === 0) return s;
-                changed = true;
-                return { ...s, cells };
-              });
-              return changed ? next : prev;
-            });
-            setTaggedSites(prev => {
-              let changed = false;
-              const next = prev.map(s => {
-                if (s.cells.length > 0) return s;
-                const cells = resolveSiteCells(s);
-                if (!cells || cells.length === 0) return s;
-                changed = true;
-                return { ...s, cells };
-              });
-              if (!changed) return prev;
-              persistTaggedSitesScoped(next, activeDashboardIdRef.current);
-              return next;
-            });
-          };
-
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
             const batchResults = await Promise.all(
@@ -7074,24 +6994,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (cells.length > 0) {
                 registerCells(site.site_id, cells);
                 registerCells(site.site_name, cells);
-                pendingChanges = true;
               }
             }
 
-            // Throttled progressive flush — only refresh state every FLUSH_EVERY_MS
-            const now = Date.now();
-            if (now - lastFlush >= FLUSH_EVERY_MS) {
-              flushProgress();
-              lastFlush = now;
-            }
+            // Progressive update: merge cells found so far into sites state
+            setSites(prev => prev.map(s => {
+              if (s.cells.length > 0) return s;
+              const cells = resolveSiteCells(s);
+              return cells && cells.length > 0 ? { ...s, cells } : s;
+            }));
+            setTaggedSites(prev => {
+              let changed = false;
+              const next = prev.map(s => {
+                if (s.cells.length > 0) return s;
+                const cells = resolveSiteCells(s);
+                if (!cells || cells.length === 0) return s;
+                changed = true;
+                return { ...s, cells };
+              });
+              if (!changed) return prev;
+              persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+              return next;
+            });
 
             if (queue.length > 0) {
               await new Promise(resolve => setTimeout(resolve, DELAY_MS));
             }
           }
-
-          // Final flush to make sure everything resolved is rendered
-          flushProgress();
         }
 
         // Final fallback: synthesize approximate sectors only for sites still unresolved.
@@ -7589,11 +7518,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    // No dashboard active: load the current viewport automatically.
-    // Dashboard active: dashboard-scoped loader owns the site set.
-    if (!dashboardActive) {
-      handleViewportForFetch(v);
-    }
+    // Don't fetch sites without an active dashboard
+    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -7603,7 +7529,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, handleViewportForFetch, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
@@ -7891,7 +7817,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoomSnap={1}
         zoomDelta={1}
         closePopupOnClick={true}
-        preferCanvas={true}
       >
         <MapVisibilitySync active={isVisible} />
         <TopoFranceViewportReset
@@ -8511,7 +8436,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
-            const densityScale = renderSites.length > 2000 ? 0.55 : renderSites.length > 1000 ? 0.65 : renderSites.length > 500 ? 0.75 : renderSites.length > 250 ? 0.85 : 1;
+            const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
             const indoorRadius = viewport.zoom >= 10
               ? (isHovered || isSelectedSite ? 7 : 5)
               : viewport.zoom >= 8
@@ -8709,7 +8634,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           // Density-adaptive sizing: reduce in dense regions
-          const densityScale = renderSites.length > 2000 ? 0.55 : renderSites.length > 1000 ? 0.65 : renderSites.length > 500 ? 0.75 : renderSites.length > 250 ? 0.85 : 1;
+          const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
           const baseRadius = viewport.zoom >= 10
             ? (isHovered || isSelectedSite ? 7 : 5)
             : viewport.zoom >= 8
@@ -8734,11 +8659,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
             const isTagged = isSiteTagged(site.site_id);
             const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
-            if (!showMini) return true;
-            // If mini-sectors WOULD render but no valid azimuth exists, the mini branch returns null.
-            // Fall back to circle rendering so the site is still visible at zoom >= 12.
-            const azimuths = getValidSectorAzimuths({ ...site, cells: renderSiteCells });
-            return azimuths.length === 0;
+            return !showMini;
           });
 
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
@@ -9556,7 +9477,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Coverage RSRP panel — shown when coverage view is active */}
         {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || !!coverageGrid) && (
-          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (effectivePanelWidth) + 16 }}>
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
             <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
               <BatchCoveragePanel
                 sites={renderSites}
@@ -9734,7 +9655,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
           style={{
-            left: (effectivePanelWidth) + 16,
+            left: (panelCollapsed ? 56 : 400) + 16,
             right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(22px)',
@@ -10132,7 +10053,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && showParamLegend && (
-            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (effectivePanelWidth) + 16 + 96, bottom: 24, minWidth: 240 }}>
+            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 96, bottom: 24, minWidth: 240 }}>
               {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -10206,7 +10127,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Tool usage hint */}
       {activeMapTool && (
-        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
           <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
@@ -10218,7 +10139,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating status bar — minimal GIS style, centered on map */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-6 py-3 flex items-center gap-2">
           {paramMode ? (
             <>
@@ -10363,9 +10284,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: `calc(${effectivePanelWidth}px + (100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
           transform: 'translateX(-50%)',
-          maxWidth: `min(1060px, calc(100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
+          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
           width: '100%',
         }}
       >
@@ -11269,7 +11190,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (effectivePanelWidth) + 16, bottom: 24 }}>
+        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16, bottom: 24 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
@@ -11608,27 +11529,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ══ LEFT PANEL — Inventory Index ══ */}
       {viewMode === 'map' && (
-        <div
-          className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto ${isResizingPanel ? '' : 'transition-[width] duration-300 ease-in-out'}`}
-          style={{ width: panelCollapsed ? 56 : panelWidth }}
-        >
-          {/* Resize handle (only when expanded) */}
-          {!panelCollapsed && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize sidebar"
-              onMouseDown={(e) => { e.preventDefault(); setIsResizingPanel(true); }}
-              onDoubleClick={() => {
-                setPanelWidth(PANEL_WIDTH_DEFAULT);
-                try { window.localStorage.setItem('sitesMonitor.panelWidth', String(PANEL_WIDTH_DEFAULT)); } catch {}
-              }}
-              className={`absolute top-0 bottom-0 -right-1 w-2 z-[1001] cursor-col-resize group flex items-center justify-center ${isResizingPanel ? 'bg-primary/30' : 'hover:bg-primary/20'}`}
-              title="Drag to resize • Double-click to reset"
-            >
-              <div className={`h-12 w-[3px] rounded-full transition-colors ${isResizingPanel ? 'bg-primary' : 'bg-border group-hover:bg-primary/60'}`} />
-            </div>
-          )}
+        <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
+          panelCollapsed ? 'w-14' : 'w-[400px]'
+        }`}>
           {/* Collapsed state */}
           {panelCollapsed ? (
             <div className="h-full bg-card border-r border-border flex flex-col items-center py-4 gap-3">
@@ -12008,7 +11911,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Site List (sites tab) ── */}
               {inventoryTab === 'sites' && (
               <div className="flex-1 overflow-y-auto px-4 pb-4">
-                {searchLoading ? (
+                {!dashboardActive && !loading && !isSearchActive && searchModeSites.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <Filter size={18} className="text-primary" />
+                    </div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider">No Dashboard</span>
+                    <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed px-4">
+                      Sélectionnez ou créez un dashboard dans l'onglet Dashboard pour charger les sites.
+                    </p>
+                  </div>
+                ) : searchLoading ? (
                   <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                     <RefreshCw size={20} className="mb-3 animate-spin text-primary" />
                     <span className="text-[11px] font-bold uppercase tracking-wider">Recherche...</span>

@@ -763,19 +763,33 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  * Fetch aggregated sites by viewport bbox from the server.
  * Returns lightweight SiteSummary[] (no cells array).
  */
+/** Pick a server-side fetch cap that matches what the map can actually
+ *  render at the current zoom. Pulling 4000 sites just to throw 75 %
+ *  away in the viewport-culling + MAX_RENDER_SITES sampling step is
+ *  pure network waste. Caller passes zoom; we shrink the cap when
+ *  zoomed-out and only return to the full 8000 at street level. */
+export function bboxLimitForZoom(zoom?: number): number {
+  if (zoom == null || isNaN(zoom)) return 2000;
+  if (zoom < 10) return 500;
+  if (zoom < 13) return 2000;
+  return 8000;
+}
+
 export async function fetchSitesByBbox(
   bbox: BboxQuery,
   filters?: BboxFilters,
   signal?: AbortSignal,
+  zoom?: number,
 ): Promise<{ sites: SiteSummary[]; total: number }> {
   const key = bboxCacheKey(bbox, filters);
   if (bboxCache && bboxCache.key === key) {
     return { sites: bboxCache.sites, total: bboxCache.total };
   }
 
+  const limit = bboxLimitForZoom(zoom);
   try {
     const [resp, qoeData] = await Promise.all([
-      topoApi.listSitesByBbox(bbox, filters, 8000, signal),
+      topoApi.listSitesByBbox(bbox, filters, limit, signal),
       getQoeMapData(),
     ]);
 
