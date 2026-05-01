@@ -38,6 +38,7 @@ const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Timeseries',
   histogram: 'Histogram',
   table: 'Table',
+  text: 'Texte',
 };
 
 type SlotTemporalTemplate = Pick<InvestigationState, 'startDate' | 'endDate' | 'granularity'>;
