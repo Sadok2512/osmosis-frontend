@@ -1,5 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  Sparkles, Layout, Globe, Sliders, Radar, ShieldCheck, Radio,
+  Search, BarChart2, BookOpen, Database, Wand2, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
 import type { InvestigationState, Granularity } from '@/components/investigator/types';
 import { normalizeGranularity } from '@/components/investigator/types';
@@ -211,16 +215,89 @@ const InvestigatorDrilldown: React.FC = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
-      <InvestigatorRouteBoundary>
-        <React.Suspense fallback={
-          <div className="flex h-screen items-center justify-center">
-            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+    <div className="h-screen w-screen flex bg-background text-foreground overflow-hidden">
+      <DrilldownSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <InvestigatorRouteBoundary>
+          <React.Suspense fallback={
+            <div className="flex h-full items-center justify-center">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+            </div>
+          }>
+            <InvestigatorWorkspace />
+          </React.Suspense>
+        </InvestigatorRouteBoundary>
+      </div>
+    </div>
+  );
+};
+
+const DRILL_NAV: { id: string; label: string; icon: React.ReactNode }[] = [
+  { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
+  { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
+  { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
+  { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
+  { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
+  { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
+  { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
+  { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
+  { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
+  { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
+  { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
+  { id: 'precision_architect', label: 'Precision Architect', icon: <Wand2 className="w-5 h-5" /> },
+];
+
+const DrilldownSidebar: React.FC = () => {
+  const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
+  const activeId = 'investigator';
+
+  const go = (id: string) => {
+    if (id === 'investigator') return; // already here
+    navigate(`/?tab=${id}`);
+  };
+
+  return (
+    <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${collapsed ? 'w-[70px]' : 'w-[240px]'}`}>
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-10 w-6 h-6 border rounded-full flex items-center justify-center shadow-md transition-all z-50 bg-sidebar border-sidebar-border text-sidebar-foreground hover:text-sidebar-primary"
+      >
+        {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+      </button>
+
+      <div className={`p-6 pb-4 flex items-center ${collapsed ? 'justify-center px-0' : 'gap-3'}`}>
+        <div className="w-10 h-10 bg-sidebar-accent rounded-xl flex items-center justify-center shrink-0 border border-sidebar-border">
+          <Radio className="text-sidebar-primary w-5 h-5" />
+        </div>
+        {!collapsed && (
+          <div className="overflow-hidden">
+            <h1 className="text-lg font-bold tracking-tight text-sidebar-accent-foreground">OSMOSIS</h1>
+            <p className="text-[11px] text-sidebar-primary font-medium">Investigator</p>
           </div>
-        }>
-          <InvestigatorWorkspace />
-        </React.Suspense>
-      </InvestigatorRouteBoundary>
+        )}
+      </div>
+
+      <div className={`flex-1 overflow-y-auto ${collapsed ? 'px-2' : 'px-3'} pb-6 pt-2 space-y-1 scrollbar-hide`}>
+        {DRILL_NAV.map((item) => {
+          const isActive = item.id === activeId;
+          return (
+            <button
+              key={item.id}
+              onClick={() => go(item.id)}
+              className={`w-full flex items-center rounded-xl transition-all text-left group relative ${collapsed ? 'justify-center p-3 h-12' : 'gap-3 px-3 py-2.5 h-12'} ${
+                isActive
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
+              }`}
+              title={collapsed ? item.label : undefined}
+            >
+              <span className={isActive ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
+              {!collapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 };
