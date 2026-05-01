@@ -6970,6 +6970,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const DELAY_MS = 350;
           const queue = [...unresolvedAfterBulk];
 
+          // Throttle progressive flushes to limit re-renders (was: every batch → up to ~300 re-renders).
+          // Flush at most every FLUSH_EVERY_MS, plus a final flush after the loop.
+          const FLUSH_EVERY_MS = 1500;
+          let lastFlush = 0;
+          let pendingChanges = false;
+
+          const flushProgress = () => {
+            if (!pendingChanges) return;
+            pendingChanges = false;
+            setSites(prev => {
+              let changed = false;
+              const next = prev.map(s => {
+                if (s.cells.length > 0) return s;
+                const cells = resolveSiteCells(s);
+                if (!cells || cells.length === 0) return s;
+                changed = true;
+                return { ...s, cells };
+              });
+              return changed ? next : prev;
+            });
+            setTaggedSites(prev => {
+              let changed = false;
+              const next = prev.map(s => {
+                if (s.cells.length > 0) return s;
+                const cells = resolveSiteCells(s);
+                if (!cells || cells.length === 0) return s;
+                changed = true;
+                return { ...s, cells };
+              });
+              if (!changed) return prev;
+              persistTaggedSitesScoped(next, activeDashboardIdRef.current);
+              return next;
+            });
+          };
+
           while (queue.length > 0) {
             const batch = queue.splice(0, CONCURRENCY);
             const batchResults = await Promise.all(
@@ -6992,33 +7027,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (cells.length > 0) {
                 registerCells(site.site_id, cells);
                 registerCells(site.site_name, cells);
+                pendingChanges = true;
               }
             }
 
-            // Progressive update: merge cells found so far into sites state
-            setSites(prev => prev.map(s => {
-              if (s.cells.length > 0) return s;
-              const cells = resolveSiteCells(s);
-              return cells && cells.length > 0 ? { ...s, cells } : s;
-            }));
-            setTaggedSites(prev => {
-              let changed = false;
-              const next = prev.map(s => {
-                if (s.cells.length > 0) return s;
-                const cells = resolveSiteCells(s);
-                if (!cells || cells.length === 0) return s;
-                changed = true;
-                return { ...s, cells };
-              });
-              if (!changed) return prev;
-              persistTaggedSitesScoped(next, activeDashboardIdRef.current);
-              return next;
-            });
+            // Throttled progressive flush — only refresh state every FLUSH_EVERY_MS
+            const now = Date.now();
+            if (now - lastFlush >= FLUSH_EVERY_MS) {
+              flushProgress();
+              lastFlush = now;
+            }
 
             if (queue.length > 0) {
               await new Promise(resolve => setTimeout(resolve, DELAY_MS));
             }
           }
+
+          // Final flush to make sure everything resolved is rendered
+          flushProgress();
         }
 
         // Final fallback: synthesize approximate sectors only for sites still unresolved.
