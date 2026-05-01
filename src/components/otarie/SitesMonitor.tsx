@@ -4100,6 +4100,41 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [showFilters, setShowFilters] = useState(false);
   const [panelMinimized, setPanelMinimized] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
+  // ── Resizable left panel width (persisted) ──
+  const PANEL_WIDTH_MIN = 360;
+  const PANEL_WIDTH_MAX = 720;
+  const PANEL_WIDTH_DEFAULT = 480;
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return PANEL_WIDTH_DEFAULT;
+    const stored = Number(window.localStorage.getItem('sitesMonitor.panelWidth'));
+    if (!Number.isFinite(stored) || stored <= 0) return PANEL_WIDTH_DEFAULT;
+    return Math.min(PANEL_WIDTH_MAX, Math.max(PANEL_WIDTH_MIN, stored));
+  });
+  const [isResizingPanel, setIsResizingPanel] = useState(false);
+  useEffect(() => {
+    if (!isResizingPanel) return;
+    const onMove = (e: MouseEvent) => {
+      const maxAllowed = Math.min(PANEL_WIDTH_MAX, Math.floor(window.innerWidth * 0.6));
+      const next = Math.min(maxAllowed, Math.max(PANEL_WIDTH_MIN, e.clientX));
+      setPanelWidth(next);
+    };
+    const onUp = () => {
+      setIsResizingPanel(false);
+      try { window.localStorage.setItem('sitesMonitor.panelWidth', String(panelWidth)); } catch {}
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizingPanel, panelWidth]);
+  // Effective width used everywhere: 56px when collapsed, panelWidth otherwise
+  const effectivePanelWidth = panelCollapsed ? 56 : panelWidth;
   const [showAllSites, setShowAllSites] = useState(false);
   // ── Dynamic backend filters ──
   const {
