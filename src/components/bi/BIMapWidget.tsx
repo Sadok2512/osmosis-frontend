@@ -155,7 +155,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showSectors, setShowSectors] = useState(false);
   const [selectedSite, setSelectedSite] = useState<SiteSummary | null>(null);
-  const [mapZoom, setMapZoom] = useState(config.zoom || 6);
+  const [mapZoom, setMapZoom] = useState(config.zoom || 7);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   // Hysteresis-driven layer visibility — keeps sites and cells from

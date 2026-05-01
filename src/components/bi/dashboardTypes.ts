@@ -38,7 +38,7 @@ export function createDefaultMapWidget(id: string): MapWidgetConfig {
     bandeFilter: 'ALL',
     mapLayer: 'light',
     center: [46.6, 2.5],
-    zoom: 6,
+    zoom: 7,
     showSiteNames: false,
     showMetricValues: true,
   };
