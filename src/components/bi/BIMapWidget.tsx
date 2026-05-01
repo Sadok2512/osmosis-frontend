@@ -159,12 +159,13 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
 
   // Hysteresis-driven layer visibility — keeps sites and cells from
-  // flickering when the user lingers on the zoom boundary. Bands match
-  // the spec: sites in 8..10, cells in 10..12.
+  // flickering when the user lingers on the zoom boundary.
+  //   sites in band 9..11  (lazy-loaded at showAt below)
+  //   cells in band 10..12
   const { visible: layerVisible } = useLayerVisibility({
     map: mapInstance,
     thresholds: {
-      sites: { showAt: 10, hideAt: 8 },
+      sites: { showAt: 11, hideAt: 9  },
       cells: { showAt: 12, hideAt: 10 },
     },
     zoomEvent: 'zoomend',
@@ -182,14 +183,16 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
 
   const hasActiveFilter = config.vendorFilter !== 'ALL' || config.dorFilter !== 'ALL' || config.plaqueFilter !== 'ALL' || config.zoneArcepFilter !== 'ALL' || config.bandeFilter !== 'ALL';
 
+  // Lazy load: only fetch when (a) the user activates a filter, or
+  // (b) the zoom crosses the sites visibility threshold (11).
+  // No mount-time fetch — at default zoom 7, no backend roundtrip.
   useEffect(() => {
     if (hasActiveFilter && !sitesLoaded && !loading) handleLoadSites();
   }, [hasActiveFilter, sitesLoaded, loading, handleLoadSites]);
 
-  // Auto-load on mount if no sites
   useEffect(() => {
-    if (!sitesLoaded && !loading) handleLoadSites();
-  }, []); // eslint-disable-line
+    if (mapZoom >= 11 && !sitesLoaded && !loading) handleLoadSites();
+  }, [mapZoom, sitesLoaded, loading, handleLoadSites]);
 
   const availablePlaques = useMemo(() => getAvailablePlaques(config.dorFilter, config.vendorFilter), [config.dorFilter, config.vendorFilter]);
   const availableBandes = useMemo(() => getAvailableBandes(config.technoFilter), [config.technoFilter]);
