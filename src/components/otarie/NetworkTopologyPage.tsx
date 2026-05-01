@@ -550,6 +550,16 @@ const NetworkTopologyPage: React.FC = () => {
   const [mapVendor, setMapVendor] = useState<string[]>([]);
   const [mapTechno, setMapTechno] = useState<string[]>([]);
   const [mapSiteCount, setMapSiteCount] = useState(0);
+  // Display cap — only render markers when site count <= maxSites, unless
+  // the user clicks "Force display" to bypass. Persisted across reloads.
+  const [maxSites, setMaxSites] = useState<number>(() => {
+    const v = parseInt(localStorage.getItem('liveMap.maxSites') || '1000', 10);
+    return Number.isFinite(v) && v > 0 ? v : 1000;
+  });
+  const [forceDisplay, setForceDisplay] = useState(false);
+  // Hysteresis decision lifted to React state so a separate effect can
+  // combine it with the count cap before deciding attach/detach.
+  const [sitesHysteresisVisible, setSitesHysteresisVisible] = useState(false);
   const [mapSidebar, setMapSidebar] = useState<MapSite | null>(null);
   const [mapSidebarParams, setMapSidebarParams] = useState<SiteParam[]>([]);
   const [mapParamSearch, setMapParamSearch] = useState('');
@@ -809,23 +819,19 @@ const NetworkTopologyPage: React.FC = () => {
       markersRef.current = markers;
 
       // ── Hysteresis-driven visibility (sites only, cells handled
-      //    elsewhere). Same spec as BIMapWidget:
+      //    elsewhere). Pushes the boolean to React state so a separate
+      //    effect can AND it with the count cap.
       //      sites: showAt=11, hideAt=9   band ]9, 11[
       const vis = new LayerVisibility<'sites'>(
         { sites: { showAt: 11, hideAt: 9 } },
         map.getZoom(),
       );
-      const applyVisibility = (layerVisible: boolean) => {
-        if (!markersRef.current) return;
-        const isOnMap = map.hasLayer(markersRef.current);
-        if (layerVisible && !isOnMap) markersRef.current.addTo(map);
-        else if (!layerVisible && isOnMap) map.removeLayer(markersRef.current);
-      };
-      // Initial sync at default zoom (6 → sites hidden, no cluster bubbles).
-      applyVisibility(vis.isVisible('sites'));
+      setSitesHysteresisVisible(vis.isVisible('sites'));
       const onZoomEnd = throttle(() => {
         const changes = vis.update(map.getZoom());
-        for (const c of changes) if (c.layer === 'sites') applyVisibility(c.visible);
+        for (const c of changes) {
+          if (c.layer === 'sites') setSitesHysteresisVisible(c.visible);
+        }
       }, 80);
       map.on('zoomend', onZoomEnd);
 
@@ -841,6 +847,28 @@ const NetworkTopologyPage: React.FC = () => {
       loadSitesRef.current(mapVendor, mapTechno);
     }
   }, [mapVendor, mapTechno]);
+
+  // Combine hysteresis + count cap to decide whether to attach the
+  // markerClusterGroup to the map. Re-runs on every state change.
+  useEffect(() => {
+    const map = mapRef.current;
+    const markers = markersRef.current;
+    if (!map || !markers) return;
+    const withinCap = forceDisplay || mapSiteCount <= maxSites;
+    const shouldAttach = sitesHysteresisVisible && withinCap;
+    const isAttached = map.hasLayer(markers);
+    if (shouldAttach && !isAttached) markers.addTo(map);
+    else if (!shouldAttach && isAttached) map.removeLayer(markers);
+  }, [sitesHysteresisVisible, mapSiteCount, maxSites, forceDisplay]);
+
+  // Persist maxSites preference across reloads.
+  useEffect(() => {
+    localStorage.setItem('liveMap.maxSites', String(maxSites));
+  }, [maxSites]);
+
+  // Reset force-display whenever the user re-applies a filter so the
+  // override doesn't leak across different result sets.
+  useEffect(() => { setForceDisplay(false); }, [mapVendor, mapTechno]);
 
   // Invalidate size when switching back to livemap tab
   useEffect(() => {
@@ -982,6 +1010,41 @@ const NetworkTopologyPage: React.FC = () => {
               {/* Map */}
               <div className="flex-1 relative border rounded-l-lg overflow-hidden">
                 <div ref={mapCallbackRef} className="w-full h-full bg-card" />
+
+                {/* Display cap controls (top-right corner) */}
+                <div className="absolute top-3 right-3 z-[1000] bg-card/95 backdrop-blur-md border border-border/40 rounded-xl px-3 py-2 shadow-lg flex items-center gap-2">
+                  <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Max sites</label>
+                  <input
+                    type="number"
+                    min={100}
+                    max={50000}
+                    step={100}
+                    value={maxSites}
+                    onChange={(e) => {
+                      const v = parseInt(e.target.value, 10);
+                      if (Number.isFinite(v) && v > 0) setMaxSites(v);
+                    }}
+                    className="w-20 text-[11px] font-mono bg-background border border-border rounded px-2 py-1"
+                  />
+                </div>
+
+                {/* Cap-exceeded overlay */}
+                {sitesHysteresisVisible && mapSiteCount > maxSites && !forceDisplay && (
+                  <div className="absolute top-16 right-3 z-[1000] bg-card/95 backdrop-blur-md border border-destructive/30 rounded-xl px-4 py-3 shadow-lg max-w-[260px]">
+                    <p className="text-[11px] text-foreground font-semibold mb-1">
+                      {mapSiteCount.toLocaleString()} sites &gt; {maxSites.toLocaleString()} max
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed mb-2">
+                      Affinez les filtres ou augmentez la limite ci-dessus.
+                    </p>
+                    <button
+                      onClick={() => setForceDisplay(true)}
+                      className="text-[10px] font-semibold text-primary hover:underline"
+                    >
+                      Forcer l'affichage
+                    </button>
+                  </div>
+                )}
                 <Filter2
                   variant="overlay"
                   title="Filter2"
