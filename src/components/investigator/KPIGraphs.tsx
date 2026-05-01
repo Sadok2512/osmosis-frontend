@@ -916,6 +916,7 @@ interface Props {
   onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
+  onSetSlotText?: (slotId: string, content: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
   onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
