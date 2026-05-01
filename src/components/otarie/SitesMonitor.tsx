@@ -8709,7 +8709,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }
 
           // Density-adaptive sizing: reduce in dense regions
-          const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
+          const densityScale = renderSites.length > 2000 ? 0.55 : renderSites.length > 1000 ? 0.65 : renderSites.length > 500 ? 0.75 : renderSites.length > 250 ? 0.85 : 1;
           const baseRadius = viewport.zoom >= 10
             ? (isHovered || isSelectedSite ? 7 : 5)
             : viewport.zoom >= 8
