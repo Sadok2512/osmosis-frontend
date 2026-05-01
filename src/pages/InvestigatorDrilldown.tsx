@@ -1,5 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import {
+  Sparkles, Layout, Globe, Sliders, Radar, ShieldCheck, Radio,
+  Search, BarChart2, BookOpen, Database, Wand2, ChevronLeft, ChevronRight,
+} from 'lucide-react';
 import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
 import type { InvestigationState, Granularity } from '@/components/investigator/types';
 import { normalizeGranularity } from '@/components/investigator/types';
