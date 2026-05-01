@@ -150,7 +150,7 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
   const [sites, setSites] = useState<SiteSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [sitesLoaded, setSitesLoaded] = useState(false);
-  const [forceDisplay, setForceDisplay] = useState(false);
+  // (forceDisplay state removed — site count cap was lifted, every loaded site is rendered)
   const [showConfig, setShowConfig] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showSectors, setShowSectors] = useState(false);
@@ -211,7 +211,10 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
     });
   }, [sites, config, globalFilter.globalFilters]);
 
-  const shouldRenderSites = sitesLoaded && (hasActiveFilter || filtered.length <= 2000 || forceDisplay);
+  // Cap removed — render every loaded site regardless of filter / count.
+  // Zoom hysteresis (layerVisible.sites) and Leaflet's MarkerClusterGroup
+  // are the only guards left.
+  const shouldRenderSites = sitesLoaded;
   const metricLabel = MAP_METRICS.find(m => m.id === config.metric)?.label || config.metric;
   const getSiteValue = (s: SiteSummary): number => (s as any)[config.metric] ?? s.qoe_score_avg;
   const getSiteColor = (site: SiteSummary): string => {
@@ -479,16 +482,9 @@ const BIMapWidget: React.FC<Props> = ({ config, onChange, onDelete }) => {
               </div>
             )}
 
-            {/* Too many sites overlay */}
-            {sitesLoaded && !shouldRenderSites && (
-              <div className="absolute top-14 left-3 z-[1000] bg-card/95 backdrop-blur-md border border-destructive/30 rounded-xl px-4 py-3 shadow-lg max-w-[220px]">
-                <p className="text-[11px] text-foreground font-semibold mb-1">{filtered.length} sites</p>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Affinez les filtres pour moins de 2000 sites.
-                </p>
-                <button onClick={() => setForceDisplay(true)} className="mt-2 text-[10px] font-semibold text-primary hover:underline">Forcer l'affichage</button>
-              </div>
-            )}
+            {/* "Too many sites" overlay removed — the 2000-site cap that
+                triggered it is gone. Clustering at any zoom level keeps
+                rendering reasonable. */}
           </MapContainer>
         )}
       </div>
