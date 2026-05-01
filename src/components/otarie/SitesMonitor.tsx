@@ -9536,7 +9536,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         {/* Coverage RSRP panel — shown when coverage view is active */}
         {!paramMode && !paramPanelOpen && (activeViewType === 'coverage' || !!coverageGrid) && (
-          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (panelCollapsed ? 56 : 400) + 16 }}>
+          <div className="absolute z-[1001] pointer-events-auto" style={{ bottom: 80, left: (effectivePanelWidth) + 16 }}>
             <div className="rounded-2xl border border-border/60 shadow-xl p-3" style={{ background: 'hsl(var(--card) / 0.92)', backdropFilter: 'blur(20px)', minWidth: 260 }}>
               <BatchCoveragePanel
                 sites={renderSites}
@@ -9714,7 +9714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <div
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
           style={{
-            left: (panelCollapsed ? 56 : 400) + 16,
+            left: (effectivePanelWidth) + 16,
             right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(22px)',
@@ -10112,7 +10112,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         <>
           {/* Value legend */}
           {paramUniqueValues.length > 0 && showParamLegend && (
-            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (panelCollapsed ? 56 : 400) + 16 + 96, bottom: 24, minWidth: 240 }}>
+            <div className="absolute z-[1000] pointer-events-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl max-h-[320px] overflow-hidden transition-all duration-300 flex flex-col" style={{ left: (effectivePanelWidth) + 16 + 96, bottom: 24, minWidth: 240 }}>
               {/* Prominent param header */}
               <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-border/40 bg-gradient-to-r from-primary/10 to-transparent">
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -10186,7 +10186,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Tool usage hint */}
       {activeMapTool && (
-        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
           <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
@@ -10198,7 +10198,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating status bar — minimal GIS style, centered on map */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${effectivePanelWidth}px + (100% - ${effectivePanelWidth}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-6 py-3 flex items-center gap-2">
           {paramMode ? (
             <>
@@ -10343,9 +10343,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
+          left: `calc(${effectivePanelWidth}px + (100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
           transform: 'translateX(-50%)',
-          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
+          maxWidth: `min(1060px, calc(100vw - ${(effectivePanelWidth) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
           width: '100%',
         }}
       >
@@ -11249,7 +11249,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
-        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16, bottom: 24 }}>
+        <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (effectivePanelWidth) + 16, bottom: 24 }}>
           {/* Display mode: Sites / Points / Heatmap */}
           <div className="flex flex-col bg-card/95 backdrop-blur-sm border border-border rounded-full shadow-lg overflow-hidden">
             {([
