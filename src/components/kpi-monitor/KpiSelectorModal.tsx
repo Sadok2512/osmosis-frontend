@@ -109,31 +109,24 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     axisMapRef.current = axisMap;
   }, [axisMap]);
 
-  // Load favorites from DB on open transition (false → true). Initialise from
-  // the latest props at that moment, but DO NOT depend on selectedKeys / axis
-  // refs — they are recreated on every parent render and would otherwise reset
-  // local state on each tick (and re-fire loadFavorites endlessly).
-  const selectedKeysRef = React.useRef(selectedKeys);
-  selectedKeysRef.current = selectedKeys;
-  const extAxisRef = React.useRef(extAxisAssignments);
-  extAxisRef.current = extAxisAssignments;
-
+  // Load favorites from DB on open
   React.useEffect(() => {
-    if (!open) return;
-    setSelected(new Set(selectedKeysRef.current));
-    setActiveCategory(null);
-    setSearch('');
-    setFilterVendor('');
-    setFilterTechno('');
-    setFilterNormalized('');
-    setFilterLevel('');
-    setFilterDimension('');
-    setShowFavOnly(false);
-    const nextAxisMap = extAxisRef.current || {};
-    axisMapRef.current = nextAxisMap;
-    setAxisMap(nextAxisMap);
-    loadFavoritesDB('kpi').then(favs => setFavorites(favs));
-  }, [open]);
+    if (open) {
+      setSelected(new Set(selectedKeys));
+      setActiveCategory(null);
+      setSearch('');
+      setFilterVendor('');
+      setFilterTechno('');
+      setFilterNormalized('');
+      setFilterLevel('');
+      setFilterDimension('');
+      setShowFavOnly(false);
+      const nextAxisMap = extAxisAssignments || {};
+      axisMapRef.current = nextAxisMap;
+      setAxisMap(nextAxisMap);
+      loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
+    }
+  }, [open, selectedKeys, extAxisAssignments]);
 
   const toggleAxis = useCallback((key: string) => {
     setAxisMap(prev => {
@@ -148,7 +141,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const toggleFavorite = useCallback((key: string) => {
     setFavorites(prev => {
       const next = prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key];
-      saveFavoritesDB(next, 'kpi');
+      saveFavoritesDB(next, 'kpi-monitor');
       return next;
     });
   }, []);
@@ -164,37 +157,53 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     return Array.from(byKey.values());
   }, [catalog]);
 
-  // Extract unique filter values from catalog
+  // Extract filter values, cascading through every OTHER active filter
+  // (faceted search: each dropdown only shows values that survive the
+  // current selection on the other filters, so selecting 4G hides
+  // BCCH/RNC from Level/Dimension instead of leaving stale 2G/3G entries).
   const filterOptions = useMemo(() => {
-    const vendors = new Map<string, number>();
-    const technos = new Map<string, number>();
-    const levels = new Map<string, number>();
-    const dimensions = new Map<string, number>();
+    const filterExcept = (skip: string) => {
+      let items = uniqueCatalog;
+      if (showFavOnly) items = items.filter(k => favorites.includes(k.kpi_key));
+      if (filterVendor    && skip !== 'vendor')    items = items.filter(k => k.vendor === filterVendor);
+      if (filterTechno    && skip !== 'techno')    items = items.filter(k => k.techno === filterTechno);
+      if (filterNormalized === 'normalized'      && skip !== 'normalized') items = items.filter(k => k.is_normalized);
+      if (filterNormalized === 'vendor-specific' && skip !== 'normalized') items = items.filter(k => !k.is_normalized);
+      if (filterLevel     && skip !== 'level')     items = items.filter(k => k.supported_levels?.includes(filterLevel));
+      if (filterDimension && skip !== 'dimension') items = items.filter(k => (k as any).dimension_type === filterDimension);
+      return items;
+    };
 
-    for (const k of uniqueCatalog) {
-      if (k.vendor) vendors.set(k.vendor, (vendors.get(k.vendor) || 0) + 1);
-      if (k.techno) technos.set(k.techno, (technos.get(k.techno) || 0) + 1);
-      if (k.supported_levels) {
-        for (const l of k.supported_levels) {
-          if (l.trim()) levels.set(l.trim(), (levels.get(l.trim()) || 0) + 1);
+    const tally = <K extends string | undefined>(items: any[], pick: (k: any) => K | K[] | null | undefined) => {
+      const m = new Map<string, number>();
+      for (const k of items) {
+        const v = pick(k);
+        const list = Array.isArray(v) ? v : v ? [v] : [];
+        for (const x of list) {
+          const t = String(x || '').trim();
+          if (t) m.set(t, (m.get(t) || 0) + 1);
         }
       }
-      const dt = (k as any).dimension_type;
-      if (dt) dimensions.set(dt, (dimensions.get(dt) || 0) + 1);
-    }
+      return m;
+    };
 
-    const normalizedCount = uniqueCatalog.filter(k => k.is_normalized).length;
-    const vendorSpecificCount = uniqueCatalog.filter(k => !k.is_normalized).length;
+    const vendors    = tally(filterExcept('vendor'),    k => k.vendor);
+    const technos    = tally(filterExcept('techno'),    k => k.techno);
+    const levels     = tally(filterExcept('level'),     k => k.supported_levels);
+    const dimensions = tally(filterExcept('dimension'), k => (k as any).dimension_type);
+    const normItems  = filterExcept('normalized');
+    const normalizedCount     = normItems.filter(k => k.is_normalized).length;
+    const vendorSpecificCount = normItems.filter(k => !k.is_normalized).length;
 
     return {
-      vendors: Array.from(vendors.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
-      technos: Array.from(technos.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
-      levels: Array.from(levels.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
+      vendors:    Array.from(vendors.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
+      technos:    Array.from(technos.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
+      levels:     Array.from(levels.entries()).sort((a, b) => a[0].localeCompare(b[0])).map(([v, c]) => ({ value: v, label: v, count: c })),
       dimensions,
       normalizedCount,
       vendorSpecificCount,
     };
-  }, [uniqueCatalog]);
+  }, [uniqueCatalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, showFavOnly, favorites]);
 
   const activeFilterCount = [filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension].filter(Boolean).length;
 
