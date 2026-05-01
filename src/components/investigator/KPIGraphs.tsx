@@ -917,6 +917,7 @@ interface Props {
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
   onSetSlotText?: (slotId: string, content: string) => void;
+  onSetSlotTextStyle?: (slotId: string, style: NonNullable<GraphSlot['textStyle']>) => void;
   onOpenKpiSelector: (slotId: string) => void;
   onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
