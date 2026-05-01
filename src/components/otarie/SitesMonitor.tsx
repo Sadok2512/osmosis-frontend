@@ -11588,9 +11588,27 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ══ LEFT PANEL — Inventory Index ══ */}
       {viewMode === 'map' && (
-        <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
-          panelCollapsed ? 'w-14' : 'w-[400px]'
-        }`}>
+        <div
+          className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto ${isResizingPanel ? '' : 'transition-[width] duration-300 ease-in-out'}`}
+          style={{ width: panelCollapsed ? 56 : panelWidth }}
+        >
+          {/* Resize handle (only when expanded) */}
+          {!panelCollapsed && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize sidebar"
+              onMouseDown={(e) => { e.preventDefault(); setIsResizingPanel(true); }}
+              onDoubleClick={() => {
+                setPanelWidth(PANEL_WIDTH_DEFAULT);
+                try { window.localStorage.setItem('sitesMonitor.panelWidth', String(PANEL_WIDTH_DEFAULT)); } catch {}
+              }}
+              className={`absolute top-0 bottom-0 -right-1 w-2 z-[1001] cursor-col-resize group flex items-center justify-center ${isResizingPanel ? 'bg-primary/30' : 'hover:bg-primary/20'}`}
+              title="Drag to resize • Double-click to reset"
+            >
+              <div className={`h-12 w-[3px] rounded-full transition-colors ${isResizingPanel ? 'bg-primary' : 'bg-border group-hover:bg-primary/60'}`} />
+            </div>
+          )}
           {/* Collapsed state */}
           {panelCollapsed ? (
             <div className="h-full bg-card border-r border-border flex flex-col items-center py-4 gap-3">
