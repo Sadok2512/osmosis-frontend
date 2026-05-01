@@ -7891,6 +7891,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         zoomSnap={1}
         zoomDelta={1}
         closePopupOnClick={true}
+        preferCanvas={true}
       >
         <MapVisibilitySync active={isVisible} />
         <TopoFranceViewportReset
