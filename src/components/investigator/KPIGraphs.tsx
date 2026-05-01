@@ -11,7 +11,7 @@ import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './i
 import type { KpiDefinition } from './types';
 import { buildPivotTable, formatInvestigatorValue, sanitizeTableData, TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS } from './tableDisplayUtils';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type } from 'lucide-react';
 import BreakdownChart from './BreakdownChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
@@ -32,6 +32,7 @@ import {
 const WIDGET_TYPES: { value: WidgetType; label: string; icon: React.ElementType; color: string }[] = [
   { value: 'timeseries', label: 'Timeseries', icon: TrendingUp, color: 'text-blue-500' },
   { value: 'table', label: 'Table', icon: Hash, color: 'text-amber-500' },
+  { value: 'text', label: 'Texte (séparateur)', icon: Type, color: 'text-emerald-500' },
 ];
 
 const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd }) => {
@@ -915,6 +916,7 @@ interface Props {
   onAddEmptySlot: (widgetType?: import('./types').WidgetType) => void;
   onUpdateSlotConfig: (slotId: string, config: Partial<GraphConfig>) => void;
   onRenameSlot: (slotId: string, name: string) => void;
+  onSetSlotText?: (slotId: string, content: string) => void;
   onOpenKpiSelector: (slotId: string) => void;
   onDuplicateSlot?: (slotId: string) => void;
   activeSlotId?: string | null;
@@ -937,7 +939,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   document.body.removeChild(link);
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
@@ -1122,6 +1124,46 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const isActive = activeSlotId === slot.id;
         const wType = slot.widgetType || 'timeseries';
         const wtDef = WIDGET_TYPES.find(w => w.value === wType) || WIDGET_TYPES[0];
+
+        // Text widget — full row, editable text acting as a separator/heading
+        if (wType === 'text') {
+          const content = slot.textContent ?? '';
+          return (
+            <div
+              key={slot.id}
+              onClick={() => onSlotClick?.(slot.id)}
+              className={cn(
+                'col-span-full rounded-xl border bg-gradient-to-r from-emerald-50/60 via-white to-emerald-50/60 px-5 py-3 group relative cursor-pointer transition-all duration-200 flex items-center gap-3',
+                isActive
+                  ? 'border-emerald-300 ring-2 ring-emerald-200/50'
+                  : 'border-emerald-100 hover:border-emerald-200'
+              )}
+            >
+              <Type className="w-4 h-4 text-emerald-500 shrink-0" />
+              <textarea
+                value={content}
+                placeholder="Saisir un texte / titre de section…"
+                onChange={(e) => onSetSlotText?.(slot.id, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                rows={1}
+                className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-semibold text-foreground placeholder:text-muted-foreground/60 placeholder:font-normal leading-relaxed"
+                style={{ minHeight: '1.5rem' }}
+                onInput={(e) => {
+                  const ta = e.currentTarget;
+                  ta.style.height = 'auto';
+                  ta.style.height = ta.scrollHeight + 'px';
+                }}
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }}
+                className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                title="Supprimer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        }
 
         // Empty slot — no KPI or counter assigned yet
         if (isEmpty) {

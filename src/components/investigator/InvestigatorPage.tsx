@@ -38,6 +38,7 @@ const WIDGET_NAMES: Record<WidgetType, string> = {
   timeseries: 'Timeseries',
   histogram: 'Histogram',
   table: 'Table',
+  text: 'Texte',
 };
 
 type SlotTemporalTemplate = Pick<InvestigationState, 'startDate' | 'endDate' | 'granularity'>;
@@ -984,6 +985,10 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, name } : s),
           }))}
           onUpdateSlotConfig={handleUpdateSlotConfig}
+          onSetSlotText={(slotId, content) => setState(prev => ({
+            ...prev,
+            graphSlots: prev.graphSlots.map(s => s.id === slotId ? { ...s, textContent: content } : s),
+          }))}
           onOpenKpiSelector={(slotId) => setKpiSelectorSlot(slotId)}
           onDuplicateSlot={(slotId) => setState(prev => {
             const source = prev.graphSlots.find(s => s.id === slotId);

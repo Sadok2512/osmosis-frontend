@@ -28,7 +28,7 @@ export type SplitOption = string;  // Dynamic from backend: 'None' | 'SITE' | 'C
 export type KpiLevel = 'CELL' | 'PROFILE' | 'NEIGHBOR';
 
 export type ChartType = 'line' | 'line_straight' | 'line_points' | 'area' | 'bar' | 'stacked_bar' | 'scatter';
-export type WidgetType = 'timeseries' | 'histogram' | 'table';
+export type WidgetType = 'timeseries' | 'histogram' | 'table' | 'text';
 
 export interface YAxisConfig {
   mode: 'auto' | 'manual';
@@ -117,6 +117,8 @@ export interface GraphSlot {
   granularity: Granularity;
   splitBy: SplitOption;
   splitBy2?: SplitOption;
+  /** For 'text' widget type: editable text content (markdown/plain). */
+  textContent?: string;
 }
 
 export type JalonVisibility = 'all' | 'personal' | 'team';
