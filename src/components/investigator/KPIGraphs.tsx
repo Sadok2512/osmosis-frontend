@@ -939,7 +939,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   document.body.removeChild(link);
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
