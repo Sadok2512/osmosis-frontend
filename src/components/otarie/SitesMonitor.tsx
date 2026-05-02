@@ -3766,7 +3766,9 @@ const SiteParametersTab: React.FC<{ siteName?: string | null }> = ({ siteName })
             }}
             placeholder="Tapez puis sélectionnez un paramètre..."
             className="w-full pl-8 pr-3 py-2 text-xs rounded-lg border border-input bg-background outline-none focus:ring-1 focus:ring-ring"
-          />
+                  noDashboardMode={noDashboardMode}
+                  onToggleNoDashboardMode={() => setNoDashboardMode(v => !v)}
+                />
 
           {/* Suggestion dropdown */}
           {showSuggestions && search.trim() && (
