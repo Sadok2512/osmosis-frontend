@@ -13273,6 +13273,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
                   }}
                   catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: k.techno || 'all', threshold_warning: null, threshold_critical: null }))}
+                  noDashboardMode={noDashboardMode}
+                  onToggleNoDashboardMode={() => setNoDashboardMode(v => !v)}
                 />
                </div>
               </>
