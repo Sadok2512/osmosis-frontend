@@ -104,6 +104,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterNormalized, setFilterNormalized] = useState('');
   const [filterLevel, setFilterLevel] = useState('');
   const [filterDimension, setFilterDimension] = useState('');
+  // View mode: when true, group catalog rows that share kpi_code_normalized
+  // into a single selectable entry covering every vendor variant.
+  const [groupMode, setGroupMode] = useState(false);
 
   React.useEffect(() => {
     axisMapRef.current = axisMap;
@@ -231,6 +234,43 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     return items;
   }, [uniqueCatalog, filterVendor, filterTechno, filterNormalized, filterLevel, filterDimension, activeCategory, search, showFavOnly, favorites]);
 
+  // When groupMode is on, collapse rows that share kpi_code_normalized
+  // into a single virtual entry. Each virtual entry exposes _variants
+  // so the selection / rendering layer can fan out to the underlying
+  // vendor-specific kpi_keys without touching upstream consumers.
+  const displayCatalog = useMemo(() => {
+    if (!groupMode) return filteredCatalog;
+    const groups = new Map<string, KpiCatalogEntry[]>();
+    const standalone: KpiCatalogEntry[] = [];
+    for (const k of filteredCatalog) {
+      const norm = ((k as any).kpi_code_normalized || '').trim();
+      if (!norm) { standalone.push(k); continue; }
+      if (!groups.has(norm)) groups.set(norm, []);
+      groups.get(norm)!.push(k);
+    }
+    const merged: any[] = [];
+    for (const [norm, variants] of groups.entries()) {
+      const head = variants[0];
+      const vendors = Array.from(new Set(variants.map(v => v.vendor).filter(Boolean)));
+      const technos = Array.from(new Set(variants.map(v => v.techno).filter(Boolean)));
+      merged.push({
+        ...head,
+        kpi_key: norm,
+        display_name: norm,
+        description: variants.length > 1
+          ? `${variants.length} vendor variants — ${vendors.join(', ')}`
+          : (head.description || ''),
+        vendor: vendors.length === 1 ? vendors[0] : vendors.join('+'),
+        techno: technos.length === 1 ? technos[0] : technos[0] || '',
+        is_normalized: true,
+        _variants: variants,
+        _variant_keys: variants.map(v => v.kpi_key),
+      });
+    }
+    // Single-vendor / unnormalized rows keep their original identity.
+    return [...merged.sort((a, b) => a.display_name.localeCompare(b.display_name)), ...standalone];
+  }, [filteredCatalog, groupMode]);
+
   // Categories computed from filtered catalog
   const tabCategories = useMemo(() => {
     let items = uniqueCatalog;
@@ -252,11 +292,13 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
   const totalFiltered = Array.from(tabCategories.values()).reduce((a, b) => a + b, 0);
 
-  const toggle = (key: string) => {
+  const toggle = (key: string, variantKeys?: string[]) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      const keys = variantKeys && variantKeys.length ? variantKeys : [key];
+      const allOn = keys.every(k => next.has(k));
+      if (allOn) keys.forEach(k => next.delete(k));
+      else       keys.forEach(k => next.add(k));
       return next;
     });
   };
@@ -439,9 +481,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
           {/* Right: KPI list */}
           <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Search */}
-            <div className="px-3 py-2 border-b border-border">
-              <div className="relative">
+            {/* Search + group-by-normalized toggle */}
+            <div className="px-3 py-2 border-b border-border flex items-center gap-2">
+              <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <input
                   value={search}
@@ -451,11 +493,23 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                   autoFocus
                 />
               </div>
+              <button
+                onClick={() => setGroupMode(g => !g)}
+                className={cn(
+                  'shrink-0 px-2 py-1 rounded-lg border text-[10px] font-semibold transition-all',
+                  groupMode
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500'
+                    : 'bg-background border-border text-muted-foreground hover:bg-muted'
+                )}
+                title="Group rows that share kpi_code_normalized into a single multivendor entry"
+              >
+                🔗 {groupMode ? 'Grouped' : 'Group by normalized'}
+              </button>
             </div>
 
             {/* KPI items */}
             <div className="flex-1 overflow-y-auto px-3 py-1">
-              {filteredCatalog.length === 0 ? (
+              {displayCatalog.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-32 gap-2">
                   <span className="text-xs text-muted-foreground">Aucun résultat</span>
                   {(activeFilterCount > 0 || showFavOnly) && (
@@ -464,15 +518,19 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                 </div>
               ) : (
                 <>
-                  {filteredCatalog.length > 200 && !search && (
+                  {displayCatalog.length > 200 && !search && (
                     <div className="flex items-center justify-center py-3 mb-1 rounded-lg bg-muted/30 border border-border/30">
                       <p className="text-[10px] text-muted-foreground">
-                        {filteredCatalog.length} KPIs — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie/vendor
+                        {displayCatalog.length} {groupMode ? 'groups' : 'KPIs'} — <span className="font-semibold text-foreground">tapez pour rechercher</span> ou filtrez par catégorie/vendor
                       </p>
                     </div>
                   )}
-                  {(filteredCatalog.length > 200 && !search ? filteredCatalog.slice(0, 200) : filteredCatalog).map(k => {
-                    const isSelected = selected.has(k.kpi_key);
+                  {(displayCatalog.length > 200 && !search ? displayCatalog.slice(0, 200) : displayCatalog).map((k: any) => {
+                    const variantKeys: string[] | undefined = k._variant_keys;
+                    const isGroup = !!(variantKeys && variantKeys.length > 1);
+                    const isSelected = isGroup
+                      ? variantKeys!.every(vk => selected.has(vk))
+                      : selected.has(k.kpi_key);
                     const isFav = favorites.includes(k.kpi_key);
                     return (
                       <div
@@ -493,7 +551,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
                         {/* Select checkbox + info */}
                         <button
-                          onClick={() => toggle(k.kpi_key)}
+                          onClick={() => toggle(k.kpi_key, variantKeys)}
                           className="flex-1 flex items-center gap-2.5 text-left min-w-0"
                         >
                           <div className={cn(
@@ -504,12 +562,18 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 min-w-0">
+                              {isGroup && <span className="text-[10px]" title="Multivendor group">🔗</span>}
                               <p className="text-[11px] font-medium text-foreground truncate">{k.display_name}</p>
                               <span
-                                className="text-[8px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold shrink-0 border border-primary/20"
-                                title={`KPI Code: ${k.kpi_key}`}
+                                className={cn(
+                                  'text-[8px] px-1.5 py-0.5 rounded font-mono font-bold shrink-0 border',
+                                  isGroup
+                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                    : 'bg-primary/10 text-primary border-primary/20'
+                                )}
+                                title={isGroup ? `Group: covers ${variantKeys!.length} kpi_codes` : `KPI Code: ${k.kpi_key}`}
                               >
-                                {k.kpi_key}
+                                {isGroup ? `${variantKeys!.length}× variants` : k.kpi_key}
                               </span>
                             </div>
                             {k.description && (
