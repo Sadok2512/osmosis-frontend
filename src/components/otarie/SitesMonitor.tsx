@@ -2979,7 +2979,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
           </div>
           <div className="pt-2 border-t border-border/50">
             <button
-              onClick={() => setNoDashboardMode(v => !v)}
+              onClick={() => onToggleNoDashboardMode?.()}
               className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors ${
                 noDashboardMode
                   ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/40 hover:bg-emerald-500/20'
