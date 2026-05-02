@@ -2265,6 +2265,8 @@ interface DashboardInventoryTabProps {
   resolveKpiLabel?: (id: string) => string;
   overlayVersion?: number;
   catalogKpisForModal?: { key: string; label: string; famille?: string; techno?: string; threshold_warning?: number | null; threshold_critical?: number | null }[];
+  noDashboardMode?: boolean;
+  onToggleNoDashboardMode?: () => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
