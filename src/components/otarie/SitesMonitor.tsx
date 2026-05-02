@@ -2265,6 +2265,8 @@ interface DashboardInventoryTabProps {
   resolveKpiLabel?: (id: string) => string;
   overlayVersion?: number;
   catalogKpisForModal?: { key: string; label: string; famille?: string; techno?: string; threshold_warning?: number | null; threshold_critical?: number | null }[];
+  noDashboardMode?: boolean;
+  onToggleNoDashboardMode?: () => void;
 }
 
 const AUTO_FILTER_DASHBOARD_NAME = /^Filtre \d{2}\/\d{2}\/\d{4}$/;
@@ -2276,7 +2278,7 @@ const dedupeAutoFilterDashboards = (items: any[]) => {
   });
 };
 
-const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal }) => {
+const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyView, onDashboardActiveChange, beamVisibility: beamVis, onBeamVisChange, onSaveDashboard, onLoadDashboard, isSaving, backendFilterDefs, activeDashboardId, onActiveDashboardIdChange, activeViewId, onActiveViewIdChange, kpiOverlays, onRemoveKpiOverlay, onActivateKpiOverlay, activeKpiOverlayId, resolveKpiLabel, overlayVersion, catalogKpisForModal, noDashboardMode, onToggleNoDashboardMode }) => {
   const [dashboards, setDashboards] = useState<any[]>([]);
   const [ldg, setLdg] = useState(true);
   const [mapViews, setMapViews] = useState<any[]>([]);
@@ -2961,7 +2963,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               }
             </p>
           </div>
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center flex-wrap">
             <button
               onClick={() => { setShowCreateDash(true); }}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
@@ -2974,6 +2976,24 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             >
               <FolderOpen size={12} /> Charger
             </button>
+          </div>
+          <div className="pt-2 border-t border-border/50">
+            <button
+              onClick={() => onToggleNoDashboardMode?.()}
+              className={`w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                noDashboardMode
+                  ? 'bg-emerald-500/15 text-emerald-600 border border-emerald-500/40 hover:bg-emerald-500/20'
+                  : 'border border-border text-muted-foreground hover:bg-muted hover:text-foreground'
+              }`}
+              title="Affiche tous les sites sans nécessiter un dashboard actif"
+            >
+              <Globe size={12} /> {noDashboardMode ? 'Mode sans dashboard : ON' : 'Activer mode sans dashboard'}
+            </button>
+            <p className="text-[9px] text-muted-foreground/70 mt-1.5 text-center px-2">
+              {noDashboardMode
+                ? 'Tous les sites sont affichés sur la carte.'
+                : 'Affiche tous les sites du réseau sans dashboard.'}
+            </p>
           </div>
         </div>
       ) : (
@@ -5059,6 +5079,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // ── Active Dashboard selector ──
   const [dashboardActive, setDashboardActive] = useState(false);
+  // No-dashboard mode: load all sites without requiring an active dashboard
+  const [noDashboardMode, setNoDashboardMode] = useState<boolean>(() => {
+    try { return localStorage.getItem('osmosis_no_dashboard_mode') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('osmosis_no_dashboard_mode', noDashboardMode ? '1' : '0'); } catch {}
+  }, [noDashboardMode]);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
@@ -6141,6 +6168,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // No-dashboard mode: load ALL sites (no dashboard filter)
+      if (noDashboardMode) {
+        let cancelledNoDash = false;
+        setLoading(true);
+        setBboxLoading(true);
+        (async () => {
+          try {
+            const allSites = await fetchDashboardSites(null, undefined, (batch) => {
+              if (!cancelledNoDash && batch.length > 0) {
+                setSites(batch);
+                setBboxTotal(batch.length);
+                setLoading(false);
+                setDashboardFitKey(k => k + 1);
+              }
+            });
+            if (cancelledNoDash) return;
+            const finalSites = allSites || [];
+            if (finalSites.length > 0) {
+              setSites(finalSites);
+              setBboxTotal(finalSites.length);
+            }
+          } catch (err) {
+            console.warn('[SitesMonitor] no-dashboard mode load failed', err);
+          } finally {
+            if (!cancelledNoDash) {
+              setLoading(false);
+              setBboxLoading(false);
+            }
+          }
+        })();
+        return () => { cancelledNoDash = true; };
+      }
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
@@ -6239,7 +6298,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick, noDashboardMode]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
@@ -13214,6 +13273,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     }
                   }}
                   catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: k.techno || 'all', threshold_warning: null, threshold_critical: null }))}
+                  noDashboardMode={noDashboardMode}
+                  onToggleNoDashboardMode={() => setNoDashboardMode(v => !v)}
                 />
                </div>
               </>
