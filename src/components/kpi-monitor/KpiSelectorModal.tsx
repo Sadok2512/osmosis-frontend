@@ -107,6 +107,9 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   // View mode: when true, group catalog rows that share kpi_code_normalized
   // into a single selectable entry covering every vendor variant.
   const [groupMode, setGroupMode] = useState(false);
+  // When grouped, limit visible groups to those with >=2 vendor variants
+  // so the operator sees only truly multivendor canonical names.
+  const [multivendorOnly, setMultivendorOnly] = useState(true);
 
   React.useEffect(() => {
     axisMapRef.current = axisMap;
@@ -253,6 +256,7 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       const head = variants[0];
       const vendors = Array.from(new Set(variants.map(v => v.vendor).filter(Boolean)));
       const technos = Array.from(new Set(variants.map(v => v.techno).filter(Boolean)));
+      if (multivendorOnly && vendors.length < 2) continue;
       merged.push({
         ...head,
         kpi_key: norm,
@@ -267,9 +271,12 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
         _variant_keys: variants.map(v => v.kpi_key),
       });
     }
-    // Single-vendor / unnormalized rows keep their original identity.
-    return [...merged.sort((a, b) => a.display_name.localeCompare(b.display_name)), ...standalone];
-  }, [filteredCatalog, groupMode]);
+    // When multivendorOnly is on, single-vendor and unnormalized rows are
+    // hidden so the user only sees the canonical groups that truly cover
+    // multiple vendors. Otherwise standalone rows keep their identity.
+    const tail = multivendorOnly ? [] : standalone;
+    return [...merged.sort((a, b) => a.display_name.localeCompare(b.display_name)), ...tail];
+  }, [filteredCatalog, groupMode, multivendorOnly]);
 
   // Categories computed from filtered catalog
   const tabCategories = useMemo(() => {
@@ -505,6 +512,20 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
               >
                 🔗 {groupMode ? 'Grouped' : 'Group by normalized'}
               </button>
+              {groupMode && (
+                <label
+                  className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-background text-[10px] font-medium text-muted-foreground cursor-pointer hover:bg-muted"
+                  title="Hide groups that cover only one vendor"
+                >
+                  <input
+                    type="checkbox"
+                    checked={multivendorOnly}
+                    onChange={e => setMultivendorOnly(e.target.checked)}
+                    className="w-3 h-3"
+                  />
+                  <span>Multivendor only</span>
+                </label>
+              )}
             </div>
 
             {/* KPI items */}
