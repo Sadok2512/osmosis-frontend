@@ -1,22 +1,14 @@
 /**
  * Centralized filter-value cache for the Investigator page.
  * Preloads all standard + PM dimensions once and serves from memory.
- * Falls back to VPS topo data when PM backend lacks certain dimensions.
+ * Values come exclusively from backend endpoints — no static fallbacks,
+ * no topo overlay. If backend is unreachable, dropdowns are empty.
  */
-import { getApiUrl, getApiHeaders, getVpsProxyUrl, getVpsProxyHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
+import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
-const STANDARD_DIMS = ['CELL', 'SITE', 'VENDOR', 'RAT', 'BAND', 'DOR', 'CLUSTER', 'ARCEP'];
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
-
-/** Dimensions that can be enriched from VPS topo distinct values (only lightweight endpoints) */
-const TOPO_ENRICHABLE: Record<string, string> = {
-  SITE: 'site_name',
-  DOR: 'dor',
-  VENDOR: 'constructeur',
-  ARCEP: 'zone_arcep',
-};
 
 const cache = new Map<string, CacheEntry>();
 const inFlight = new Map<string, Promise<void>>();
@@ -34,60 +26,6 @@ export function getFilterValues(key: string): CacheEntry {
   return cache.get(key) || { values: [], labels: {}, loading: false, loaded: false };
 }
 
-const STATIC_FALLBACKS: Record<string, string[]> = {
-  VENDOR: ['Ericsson', 'Huawei', 'Nokia', 'Samsung', 'ZTE'],
-  RAT: ['2G', '3G', '4G', '5G'],
-  BAND: ['700', '800', '1800', '2100', '2600', '3500'],
-  DOR: ['UPR Sud-Ouest', 'UPR Ile-De-France', 'UPR Nord-Est', 'UPR Ouest', 'UPR Sud-Est', 'UPR Maghreb'],
-  CLUSTER: ['BORDEAUX', 'TOULOUSE', 'PERPIGNAN', 'BAYONNE', 'ANGOULEME', 'TARBES', 'LILLE', 'REIMS', 'STRASBOURG', 'BREST', 'NANTES', 'RENNES', 'CAEN', 'LYON_CENTRE', 'GRENOBLE', 'NICE_CANNES', 'TUNIS', 'FEMTO'],
-};
-
-/** Try to enrich a dimension with values from VPS topo data */
-async function enrichFromTopo(dim: string, existing: string[]): Promise<string[]> {
-  const topoCol = TOPO_ENRICHABLE[dim];
-  if (!topoCol) return existing;
-  try {
-    let topoValues: string[] = [];
-
-    // For SITE, use /topo/sites which reliably returns site_name
-    if (dim === 'SITE') {
-      const url = getVpsProxyUrl('parser', '/api/v1/topo/sites', { limit: '50000' });
-      const res = await fetch(url, { headers: getVpsProxyHeaders() });
-      if (!res.ok) return existing;
-      const data = await res.json();
-      const sites: any[] = Array.isArray(data) ? data : (data?.sites || []);
-      const nameSet = new Set<string>();
-      for (const s of sites) {
-        const name = s.site_name || s.nom_site;
-        if (typeof name === 'string' && name && !nameSet.has(name)) {
-          nameSet.add(name);
-          topoValues.push(name);
-        }
-      }
-    } else {
-      const url = getVpsProxyUrl('parser', '/api/v1/topo/distinct', { field: topoCol });
-      const res = await fetch(url, { headers: getVpsProxyHeaders() });
-      if (!res.ok) return existing;
-      const data = await res.json();
-      topoValues = Array.isArray(data) ? data.filter((v: any) => typeof v === 'string' && v) : [];
-    }
-
-    if (topoValues.length === 0) return existing;
-    // Merge: add topo values not already present
-    const existingSet = new Set(existing.map(v => v.toUpperCase()));
-    const merged = [...existing];
-    for (const v of topoValues) {
-      if (!existingSet.has(v.toUpperCase())) {
-        merged.push(v);
-        existingSet.add(v.toUpperCase());
-      }
-    }
-    return merged.sort();
-  } catch {
-    return existing;
-  }
-}
-
 async function fetchStandard(dim: string) {
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
   cache.set(dim, entry);
@@ -96,34 +34,19 @@ async function fetchStandard(dim: string) {
     const res = await fetchVpsWithRetry(getApiUrl(`monitor/filters/values?dimension=${dim}`), { headers: getApiHeaders() });
     if (!res.ok) throw new Error(`${res.status}`);
     const d = await res.json();
-    if (d.values?.length) { entry.values = d.values; entry.loading = false; entry.loaded = true; cache.set(dim, { ...entry }); notify(); }
+    if (d.values?.length) entry.values = d.values;
     else throw new Error('empty');
   } catch {
     try {
       const res2 = await fetchVpsWithRetry(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
       const d2 = await res2.json();
-      if (d2.values?.length) { entry.values = d2.values; entry.loading = false; entry.loaded = true; cache.set(dim, { ...entry }); notify(); }
+      if (d2.values?.length) entry.values = d2.values;
     } catch {}
-  }
-  // Fallback to static values when backend is unreachable
-  if (!entry.values.length && STATIC_FALLBACKS[dim]?.length) {
-    entry.values = STATIC_FALLBACKS[dim];
   }
   entry.loading = false;
   entry.loaded = true;
   cache.set(dim, { ...entry });
   notify();
-
-  // Enrich with topo data in background (adds sites/plaques from VPS that PM doesn't know)
-  if (TOPO_ENRICHABLE[dim]) {
-    enrichFromTopo(dim, entry.values).then(merged => {
-      if (merged.length > entry.values.length) {
-        entry.values = merged;
-        cache.set(dim, { ...entry });
-        notify();
-      }
-    });
-  }
 }
 
 async function fetchPm(dim: string) {
