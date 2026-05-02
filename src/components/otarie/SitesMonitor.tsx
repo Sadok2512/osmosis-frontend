@@ -6148,6 +6148,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
+      // No-dashboard mode: load ALL sites (no dashboard filter)
+      if (noDashboardMode) {
+        let cancelledNoDash = false;
+        setLoading(true);
+        setBboxLoading(true);
+        (async () => {
+          try {
+            const allSites = await fetchDashboardSites(null, undefined, (batch) => {
+              if (!cancelledNoDash && batch.length > 0) {
+                setSites(batch);
+                setBboxTotal(batch.length);
+                setLoading(false);
+                setDashboardFitKey(k => k + 1);
+              }
+            });
+            if (cancelledNoDash) return;
+            const finalSites = allSites || [];
+            if (finalSites.length > 0) {
+              setSites(finalSites);
+              setBboxTotal(finalSites.length);
+            }
+          } catch (err) {
+            console.warn('[SitesMonitor] no-dashboard mode load failed', err);
+          } finally {
+            if (!cancelledNoDash) {
+              setLoading(false);
+              setBboxLoading(false);
+            }
+          }
+        })();
+        return () => { cancelledNoDash = true; };
+      }
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
