@@ -767,12 +767,22 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  *  render at the current zoom. Pulling 4000 sites just to throw 75 %
  *  away in the viewport-culling + MAX_RENDER_SITES sampling step is
  *  pure network waste. Caller passes zoom; we shrink the cap when
- *  zoomed-out and only return to the full 8000 at street level. */
+ *  zoomed-out and only return to the full quota at street level.
+ *
+ *  Limits raised on 2026-05-03 — at zoom 11-12 (city overview), Paris,
+ *  Lyon and Lille routinely have >2000 sites in the visible bbox, so
+ *  the previous cap was silently truncating the result. Caps are now
+ *  set to "comfortable headroom" rather than "minimum sufficient":
+ *    - zoom < 10 (national/regional): 1000 — coarse markers anyway
+ *    - zoom 10-12 (metro/city):       5000 — covers Île-de-France in
+ *                                            one bbox without truncation
+ *    - zoom 13+ (street):             10000 — every site in view
+ */
 export function bboxLimitForZoom(zoom?: number): number {
-  if (zoom == null || isNaN(zoom)) return 2000;
-  if (zoom < 10) return 500;
-  if (zoom < 13) return 2000;
-  return 8000;
+  if (zoom == null || isNaN(zoom)) return 5000;
+  if (zoom < 10) return 1000;
+  if (zoom < 13) return 5000;
+  return 10000;
 }
 
 export async function fetchSitesByBbox(
