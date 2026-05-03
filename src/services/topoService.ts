@@ -636,8 +636,19 @@ async function fetchFromCloud(): Promise<TopoRow[]> {
 let cachedLocalSites: SiteSummary[] | null = null;
 
 // ── Legacy full-load (kept as fallback for inventory/detail views) ──
+// Short-circuit: when the VPS recently failed, skip the long retry chain
+// (40s timeout × 2 attempts × 2 endpoints) and return empty immediately so
+// the "Chargement des sites…" banner doesn't linger for ~80s.
+let lastTopoFailureAt = 0;
+const TOPO_FAILURE_COOLDOWN_MS = 60_000;
+
 export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (cachedLocalSites) return cachedLocalSites;
+
+  if (Date.now() - lastTopoFailureAt < TOPO_FAILURE_COOLDOWN_MS) {
+    console.warn('[TopoService] VPS recently down — short-circuit, returning [] (cooldown active)');
+    return [];
+  }
 
   let baseSites: SiteSummary[] | null = null;
 
