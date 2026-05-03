@@ -6797,16 +6797,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
   const MAX_RENDER_SITES = 5000;
   const MAX_CELL_RESOLUTION_SITES = 250;
-  // Hide markers below this zoom: at France-level (zoom 6-8) individual
-  // site dots are visual noise and load nothing useful. Mirrors the
-  // hideAt=9 hysteresis used by BIMapWidget so the two stacks stay in
-  // sync (INC-2026-05-03: sites stayed rendered at zoom 8/7/6 because
-  // visibleSites had no zoom guard at all).
-  const MIN_ZOOM_FOR_SITE_MARKERS = 9;
-
   const visibleSites = useMemo(() => {
-    if (viewport.zoom < MIN_ZOOM_FOR_SITE_MARKERS) return [];
-
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
