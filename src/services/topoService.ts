@@ -668,6 +668,12 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
             site_name: s.nom_site,
             code_nidt: s.code_nidt,
             nom_site: s.nom_site,
+            // The downstream pipeline (visibleSites filter, density,
+            // sectors, marker rendering) reads s.coordinates[0]/[1].
+            // Without this tuple the bbox fallback returns 37k+ sites
+            // that ALL get dropped at the visibleSites step (INC-2026-05-03,
+            // observed via [FILTER-CHAIN] log: sites=37474, visibleSites=0).
+            coordinates: [s.lat, s.lng] as [number, number],
             latitude: s.lat,
             longitude: s.lng,
             lat: s.lat,
@@ -678,6 +684,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
             cluster: (s as any).cluster ?? null,
             zone_arcep: s.zone_arcep ?? null,
             constructeur: s.vendor ?? null,
+            vendor: s.vendor ?? null,
             cell_count: s.nb_cells ?? 0,
             cells: [],
             technos: parseBackendList((s as any).technos ?? s.techno),
