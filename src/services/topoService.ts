@@ -652,8 +652,8 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
 
   let baseSites: SiteSummary[] | null = null;
 
-  // 1) Try local Express/VPS server (capped at 50k to avoid OOM)
-  const LEGACY_CAP = 50000;
+  // 1) Try local Express/VPS server (capped at 5k for faster response)
+  const LEGACY_CAP = 5000;
   try {
     const json = await topoApi.listFull(LEGACY_CAP);
     const rows: TopoRow[] = json.rows ?? [];
@@ -671,7 +671,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
   if (!baseSites || baseSites.length === 0) {
     try {
       const fullWorld = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
-      const resp = await topoApi.listSitesByBbox(fullWorld, undefined, 50000);
+      const resp = await topoApi.listSitesByBbox(fullWorld, undefined, 5000);
       if (!(resp as any)?.unavailable && Array.isArray(resp?.sites) && resp.sites.length > 0) {
         baseSites = resp.sites
           .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
