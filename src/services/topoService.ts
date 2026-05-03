@@ -779,8 +779,8 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  *    - zoom 13+ (street):             10000 — every site in view
  */
 export function bboxLimitForZoom(_zoom?: number): number {
-   // Cap removed on user request — return a single high ceiling for all zoom levels.
-   return 50000;
+   // Fixed cap at 5000 sites regardless of zoom level.
+   return 5000;
  }
 
 export async function fetchSitesByBbox(
