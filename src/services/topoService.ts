@@ -600,10 +600,11 @@ function filterSitesByBboxFilters(sites: SiteSummary[], filters?: BboxFilters): 
 }
 
 function getEmbeddedDashboardSites(
-  siteFilters: DashboardSiteFilters | null,
-  search?: string,
+  _siteFilters: DashboardSiteFilters | null,
+  _search?: string,
 ): SiteSummary[] {
-  return filterDashboardSitesLocally(buildSitesFromLocalTopo(), siteFilters, search);
+  // Embedded fallback disabled — return empty so map shows VPS data only
+  return [];
 }
 
 // Fetch all rows from Cloud topo table (paginated to bypass 1000-row limit)
