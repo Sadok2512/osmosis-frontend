@@ -4804,7 +4804,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
-    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
