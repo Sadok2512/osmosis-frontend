@@ -6783,6 +6783,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
   const MAX_RENDER_SITES = 5000;
+  const MAX_CELL_RESOLUTION_SITES = 250;
 
   const visibleSites = useMemo(() => {
     let candidates = mapFilteredSites;
@@ -6992,7 +6993,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       const da = Math.abs(a.coordinates[0] - center.lat) + Math.abs(a.coordinates[1] - center.lng);
       const db = Math.abs(b.coordinates[0] - center.lat) + Math.abs(b.coordinates[1] - center.lng);
       return da - db;
-    });
+    }).slice(0, MAX_CELL_RESOLUTION_SITES);
 
     if (cellLoadDebounceRef.current) clearTimeout(cellLoadDebounceRef.current);
     cellLoadDebounceRef.current = setTimeout(async () => {
@@ -7852,18 +7853,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // Unified loading message — single banner below toolbar
   const loadingMessage = useMemo(() => {
-    const isCellPhase = (cellsCacheLoading || cellsLoadingCount > 0) && viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    const isCellPhase = cellsLoadingCount > 0 && viewport.zoom >= SITES_TO_CELLS_ZOOM;
     if (isCellPhase) {
-      return cellsLoadingCount > 0
-        ? `Chargement cellules • ${cellsLoadingCount} site${cellsLoadingCount > 1 ? 's' : ''} en cours`
-        : `Téléchargement cellules • ${cellsCacheLoadedCount.toLocaleString('fr-FR')} chargées`;
+      return `Chargement cellules • ${cellsLoadingCount} site${cellsLoadingCount > 1 ? 's' : ''} en cours`;
     }
     if (loading || bboxLoading) {
       if (bboxLoading && bboxTotal > 0) return `Chargement sites (${bboxTotal})…`;
       return sites.length > 0 ? `Chargement… ${sites.length.toLocaleString()} sites` : 'Chargement des sites…';
     }
     return null;
-  }, [loading, bboxLoading, bboxTotal, sites.length, cellsCacheLoading, cellsLoadingCount, cellsCacheLoadedCount, viewport.zoom]);
+  }, [loading, bboxLoading, bboxTotal, sites.length, cellsLoadingCount, viewport.zoom]);
 
   // Detail loading is now handled inline — no full-screen takeover
 
