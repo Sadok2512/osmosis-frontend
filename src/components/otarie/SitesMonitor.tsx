@@ -6837,6 +6837,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
+  // [DIAG] filter-chain trace — logs once per length change to identify which filter rejects sites at mount
+  useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.log('[FILTER-CHAIN]', {
+      sites: sites.length,
+      filteredSites: filteredSites.length,
+      mapFilteredSites: mapFilteredSites.length,
+      visibleSites: visibleSites.length,
+      enabledTechnos: [...enabledTechnos],
+      mapTechnoFilter,
+      isBandFilterActive,
+      dashboardActive,
+      activeDashboardFilters,
+      localTechno,
+      localBande,
+      localVendor,
+      localDor,
+      localPlaque,
+      viewportZoom: viewport.zoom,
+      hasViewportBounds: !!viewport.bounds,
+    });
+  }, [sites.length, filteredSites.length, mapFilteredSites.length, visibleSites.length]);
+
   const taggedSitesInView = useMemo(() => {
     return taggedSites.filter(s => {
       const lat = s.coordinates?.[0];
