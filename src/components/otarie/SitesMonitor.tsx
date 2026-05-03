@@ -806,8 +806,9 @@ const FlyToSite = ({
     if (!coords || !isFinite(coords[0]) || !isFinite(coords[1])) return;
 
     const currentZoom = map.getZoom();
-    // Keep current zoom if already at sector-level; only bump to see sectors if too far out
-    const targetZoom = currentZoom < 10 ? 11 : currentZoom;
+    // Always ensure a close zoom so sectors/markers are visible after fly
+    const MIN_SITE_ZOOM = 15;
+    const targetZoom = Math.max(currentZoom, MIN_SITE_ZOOM);
     const currentCenter = map.getCenter();
     const dist = map.distance(currentCenter, coords);
 
