@@ -5082,13 +5082,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // No-dashboard mode: load all sites without requiring an active dashboard
   const [noDashboardMode, setNoDashboardMode] = useState<boolean>(() => {
     try {
-      const v = localStorage.getItem('osmosis_no_dashboard_mode');
-      // Default ON when not yet set
+      // v2 key — ignore legacy '0' from previous sessions so default stays ON
+      const v = localStorage.getItem('osmosis_no_dashboard_mode_v2');
       return v === null ? true : v === '1';
     } catch { return true; }
   });
   useEffect(() => {
-    try { localStorage.setItem('osmosis_no_dashboard_mode', noDashboardMode ? '1' : '0'); } catch {}
+    try { localStorage.setItem('osmosis_no_dashboard_mode_v2', noDashboardMode ? '1' : '0'); } catch {}
   }, [noDashboardMode]);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
