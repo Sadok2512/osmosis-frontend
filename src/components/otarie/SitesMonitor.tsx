@@ -6172,8 +6172,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
-      // No-dashboard mode: load ALL sites (no dashboard filter)
+      // No-dashboard mode: load ALL sites only at sufficient zoom to avoid overload
+      const NO_DASH_MIN_ZOOM = 9;
       if (noDashboardMode) {
+        if (viewport.zoom < NO_DASH_MIN_ZOOM) {
+          // Too zoomed out — clear sites & show nothing to keep the map light
+          setSites([]);
+          setBboxTotal(0);
+          setBboxLoading(false);
+          setLoading(false);
+          return;
+        }
         let cancelledNoDash = false;
         setLoading(true);
         setBboxLoading(true);
@@ -6302,7 +6311,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick, noDashboardMode]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick, noDashboardMode, viewport.zoom >= 9]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
