@@ -6798,22 +6798,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const MAX_RENDER_SITES = 5000;
   const MAX_CELL_RESOLUTION_SITES = 250;
 
-  // ─── Min-zoom gate ────────────────────────────────────────────────
-  // Hide individual site markers at France-level (zoom < 9). Below this
-  // threshold the dots are visual noise and clutter.
-  //
-  // OWNERSHIP NOTE (2026-05-03 contract with Lovable agent):
-  //   Viewport/bbox/zoom-gates = Claude territory.
-  //   This guard has been removed twice by Lovable without coordination
-  //   (commits c2bf3484 "Corrigé filtrage sites zom 9", and earlier).
-  //   If you (Lovable) want to remove or change this threshold, OPEN A PR
-  //   instead of pushing direct to main. The user explicitly asked for
-  //   sites hidden below zoom 9 — see SitesMonitor render history.
-  const MIN_ZOOM_FOR_SITE_MARKERS = 9;
-
   const visibleSites = useMemo(() => {
-    if (viewport.zoom < MIN_ZOOM_FOR_SITE_MARKERS) return [];
-
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
