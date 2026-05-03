@@ -712,6 +712,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
   // 2b) Embedded fallback disabled — show only real VPS data
   if (!baseSites || baseSites.length === 0) {
     console.warn('[TopoService] No VPS data available — embedded fallback disabled by user request');
+    lastTopoFailureAt = Date.now();
     baseSites = [];
   }
 
