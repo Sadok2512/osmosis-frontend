@@ -6005,16 +6005,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, []);
 
-  // Clear sites & cells only when leaving a dashboard-backed context and no search is active.
+  // Clear sites & cells only when leaving a dashboard-backed context and no search/no-dashboard load is active.
   useEffect(() => {
-    if (!dashboardActive && !isSearchActive) {
+    if (!dashboardActive && !noDashboardMode && !isSearchActive) {
       if (abortRef.current) abortRef.current.abort();
       setSites([]);
       setBboxTotal(0);
       setBboxLoading(false);
       setLoading(false);
     }
-  }, [dashboardActive, isSearchActive]);
+  }, [dashboardActive, noDashboardMode, isSearchActive]);
 
   // Purge legacy global artifact storage once (pre dashboard-scoping)
   useEffect(() => { purgeLegacyArtifacts(); }, []);
