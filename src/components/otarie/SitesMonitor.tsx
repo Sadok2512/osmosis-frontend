@@ -5092,6 +5092,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     try { localStorage.setItem('osmosis_no_dashboard_mode_v2', noDashboardMode ? '1' : '0'); } catch {}
   }, [noDashboardMode]);
+
+  useEffect(() => {
+    if (noDashboardMode && !dashboardActive && inventoryTab === 'dashboard') {
+      setInventoryTab('sites');
+    }
+  }, [noDashboardMode, dashboardActive, inventoryTab]);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
@@ -6174,17 +6180,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
-      // No-dashboard mode: load ALL sites only at sufficient zoom to avoid overload
-      const NO_DASH_MIN_ZOOM = 9;
+      // No-dashboard mode: load all site summaries so the left inventory is always populated.
+      // Map rendering remains protected by viewport culling and MAX_RENDER_SITES.
       if (noDashboardMode) {
-        if (viewport.zoom < NO_DASH_MIN_ZOOM) {
-          // Too zoomed out — clear sites & show nothing to keep the map light
-          setSites([]);
-          setBboxTotal(0);
-          setBboxLoading(false);
-          setLoading(false);
-          return;
-        }
         let cancelledNoDash = false;
         setLoading(true);
         setBboxLoading(true);
@@ -6313,7 +6311,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       cancelled = true;
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick, noDashboardMode, viewport.zoom >= 9]);
+  }, [dashboardActive, activeDashboardFilters, activeSiteScope, dashboardRefreshTick, noDashboardMode]);
 
   // Re-fetch when viewport changes (debounced via MapViewportTracker)
   const prevViewportRef = useRef<ViewportState>({ bounds: null, zoom: 6 });
