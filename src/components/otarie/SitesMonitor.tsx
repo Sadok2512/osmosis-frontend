@@ -926,7 +926,9 @@ const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
 const TAGGED_POLYGONS_KEY = 'osmosis_tagged_polygons';
 
 function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
-  if (!dashboardId) return null;
+  // When no dashboard is active (non-dashboard mode), fall back to a global scope
+  // so tagging / custom points / polygons still persist.
+  if (!dashboardId) return `${base}__global`;
   return `${base}__db_${dashboardId}`;
 }
 
@@ -4802,7 +4804,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
   const isSiteTagged = useCallback((siteId: string) => taggedSites.some(s => s.site_id === siteId), [taggedSites]);
   const toggleTagSite = useCallback((site: SiteSummary) => {
-    if (!activeDashboardIdRef.current) return; // no dashboard → no creation
     setTaggedSites(prev => {
       const exists = prev.some(s => s.site_id === site.site_id);
       const next = exists ? prev.filter(s => s.site_id !== site.site_id) : [...prev, site];
