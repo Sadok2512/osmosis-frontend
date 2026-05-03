@@ -926,7 +926,9 @@ const TAGGED_SITES_KEY = 'osmosis_tagged_sites';
 const TAGGED_POLYGONS_KEY = 'osmosis_tagged_polygons';
 
 function scopedStorageKey(base: string, dashboardId?: string | null): string | null {
-  if (!dashboardId) return null;
+  // When no dashboard is active (non-dashboard mode), fall back to a global scope
+  // so tagging / custom points / polygons still persist.
+  if (!dashboardId) return `${base}__global`;
   return `${base}__db_${dashboardId}`;
 }
 
