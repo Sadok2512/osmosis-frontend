@@ -655,7 +655,42 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     console.warn('[TopoService] VPS/LOCAL fetch failed, falling back to embedded data', err);
   }
 
-  // 2) VPS/local may return rows without coordinates; ensure we still have usable sites
+  // 2a) If /topo/cells failed, try /topo/sites bbox endpoint (often works when /topo/cells times out)
+  if (!baseSites || baseSites.length === 0) {
+    try {
+      const fullWorld = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
+      const resp = await topoApi.listSitesByBbox(fullWorld, undefined, 50000);
+      if (!(resp as any)?.unavailable && Array.isArray(resp?.sites) && resp.sites.length > 0) {
+        baseSites = resp.sites
+          .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+          .map(s => ({
+            site_id: s.code_nidt,
+            site_name: s.nom_site,
+            code_nidt: s.code_nidt,
+            nom_site: s.nom_site,
+            latitude: s.lat,
+            longitude: s.lng,
+            lat: s.lat,
+            lng: s.lng,
+            region: s.region ?? null,
+            dor: s.dor ?? null,
+            plaque: s.plaque ?? null,
+            cluster: (s as any).cluster ?? null,
+            zone_arcep: s.zone_arcep ?? null,
+            constructeur: s.vendor ?? null,
+            cell_count: s.nb_cells ?? 0,
+            cells: [],
+            technos: parseBackendList((s as any).technos ?? s.techno),
+            bandes: parseBackendList((s as any).bandes ?? s.bande),
+          })) as any;
+        console.log(`[TopoService] BBOX-SITES: Built ${baseSites.length} sites from /topo/sites`);
+      }
+    } catch (err) {
+      console.warn('[TopoService] /topo/sites bbox fallback failed', err);
+    }
+  }
+
+  // 2b) Last-resort embedded fallback
   if (!baseSites || baseSites.length === 0) {
     baseSites = buildSitesFromLocalTopo();
     console.log(`[TopoService] FALLBACK: Built ${baseSites.length} sites from embedded data`);
