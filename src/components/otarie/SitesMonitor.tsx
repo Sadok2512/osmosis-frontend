@@ -398,9 +398,9 @@ const getZoomAwareRadius = (
   let baseMeters: number;
   if (effectiveZoom <= 9)  baseMeters = 150;
   else if (effectiveZoom <= 10) baseMeters = 200;
-  else if (effectiveZoom <= 11) baseMeters = 280;
-  else if (effectiveZoom <= 12) baseMeters = 350;
-  else baseMeters = 420; // Z13
+  else if (effectiveZoom <= 11) baseMeters = 240;
+  else if (effectiveZoom <= 12) baseMeters = 260;
+  else baseMeters = 280; // Z13 — reduced to avoid overlap in dense urban areas
 
   // Density scaling: ONLY at low zoom (overview mode).
   // At zoom 12+, all sites get the same radius — no per-site variation.
