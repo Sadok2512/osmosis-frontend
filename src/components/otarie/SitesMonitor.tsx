@@ -6188,7 +6188,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setBboxLoading(true);
         (async () => {
           try {
-            const allSites = await fetchDashboardSites(null, undefined, (batch) => {
+            // Try the full-topology loader first (most reliable: 50k cell cap, builds all sites).
+            const { fetchTopoSites } = await import('../../services/topoService');
+            let allSites: SiteSummary[] = [];
+            try {
+              allSites = await fetchTopoSites();
+            } catch (e) {
+              console.warn('[SitesMonitor] fetchTopoSites failed, falling back to dashboard loader', e);
+            }
+            if (!cancelledNoDash && allSites.length > 0) {
+              setSites(allSites);
+              setBboxTotal(allSites.length);
+              setLoading(false);
+              setDashboardFitKey(k => k + 1);
+              return;
+            }
+            // Fallback: dashboard loader with null filters
+            const fallback = await fetchDashboardSites(null, undefined, (batch) => {
               if (!cancelledNoDash && batch.length > 0) {
                 setSites(batch);
                 setBboxTotal(batch.length);
@@ -6197,7 +6213,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }
             });
             if (cancelledNoDash) return;
-            const finalSites = allSites || [];
+            const finalSites = fallback || [];
             if (finalSites.length > 0) {
               setSites(finalSites);
               setBboxTotal(finalSites.length);
