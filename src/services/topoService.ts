@@ -600,10 +600,11 @@ function filterSitesByBboxFilters(sites: SiteSummary[], filters?: BboxFilters): 
 }
 
 function getEmbeddedDashboardSites(
-  siteFilters: DashboardSiteFilters | null,
-  search?: string,
+  _siteFilters: DashboardSiteFilters | null,
+  _search?: string,
 ): SiteSummary[] {
-  return filterDashboardSitesLocally(buildSitesFromLocalTopo(), siteFilters, search);
+  // Embedded fallback disabled — return empty so map shows VPS data only
+  return [];
 }
 
 // Fetch all rows from Cloud topo table (paginated to bypass 1000-row limit)
@@ -697,10 +698,10 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     }
   }
 
-  // 2b) Last-resort embedded fallback
+  // 2b) Embedded fallback disabled — show only real VPS data
   if (!baseSites || baseSites.length === 0) {
-    baseSites = buildSitesFromLocalTopo();
-    console.log(`[TopoService] FALLBACK: Built ${baseSites.length} sites from embedded data`);
+    console.warn('[TopoService] No VPS data available — embedded fallback disabled by user request');
+    baseSites = [];
   }
 
   // 4) Merge live QoE data
