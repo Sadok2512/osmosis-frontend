@@ -5362,21 +5362,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const cleaned = data.filter((d: any) => !autoFilterRegex.test((d.name || '').trim()) && !d.is_archived);
         setDashboardList(cleaned);
 
-        // Restore persisted active dashboard (but only mark it active if it was previously activated)
-        const persistedId = activeDashboardId;
-        if (persistedId && cleaned.some((d: any) => d.id === persistedId)) {
-          const targetDb = cleaned.find((d: any) => d.id === persistedId);
-          if (targetDb) {
-            setDashboardActive(true);
-            const widgets = Array.isArray(targetDb.widgets) ? targetDb.widgets : [];
-            const dashSettings = widgets.find((w: any) => w._type === 'dashboard_settings' || w.type === 'dashboard_settings' || w.dashboard_settings);
-            const scope = dashSettings?.siteScope || dashSettings?.scope || dashSettings?.dashboard_settings?.scope || null;
-            const siteFilters = dashSettings?.siteFilters || dashSettings?.dashboard_settings?.siteFilters || null;
-            setActiveSiteScope(scope);
-            setActiveDashboardFilters(siteFilters);
-          }
-        }
-        // Do NOT auto-activate the first dashboard — user must explicitly click "Activer"
+        // Restore persisted active dashboard ID for selection display, but
+        // do NOT silently re-activate it. Re-activating on mount applied
+        // the dashboard's siteScope + siteFilters without any user signal,
+        // which surfaced as "591 sites" with no visible filter on the
+        // sidebar (INC-2026-05-03 — sites visibly truncated, no
+        // explanation; the dashboard from a previous session was still
+        // restricting the perimeter). Match the comment intent: the ID
+        // gets restored so the dropdown shows the previous selection,
+        // but the user must explicitly click "Activer" to apply it.
+        // (Anything that needs the previous filters in effect must be
+        // recovered from localStorage explicitly, not piggy-backed on
+        // dashboard restoration.)
+        // Do NOT auto-activate the persisted dashboard — user must explicitly click "Activer"
       } catch (err) { console.warn('[SitesMonitor] fetchDashboards failed', err); }
     };
     fetchDashboards();
