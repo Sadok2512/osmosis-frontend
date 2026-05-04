@@ -3015,7 +3015,11 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 <div
                   onClick={() => {
                     if (!isExpanded) {
-                      requestDashboardSwitch(db.id);
+                      // Expand AND activate the dashboard on first click
+                      setExpandedDashboardId(db.id);
+                      if (!isActive) {
+                        activateDashboard(db.id);
+                      }
                     } else {
                       setEditingDashboardId(isEditingDb ? null : db.id);
                     }
