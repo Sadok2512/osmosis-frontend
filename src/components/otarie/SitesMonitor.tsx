@@ -6180,9 +6180,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       searchAbortRef.current = ctrl;
 
       try {
+        const inferSiteFromCellRef = (cellRef: string): { siteName: string; siteId: string } | null => {
+          const raw = String(cellRef || '').trim();
+          if (!raw) return null;
+          const parts = raw.split('_').filter(Boolean);
+          if (parts.length < 2) return null;
+          const techTokenIdx = parts.findIndex(part => /^(LTE|UMTS|WCDMA|NR|GSM|5G|4G|3G|2G)$/i.test(part));
+          const cutIdx = techTokenIdx >= 1 ? techTokenIdx : Math.max(1, parts.length - 3);
+          const siteStem = parts.slice(0, cutIdx).join('_').trim();
+          if (!siteStem) return null;
+          return { siteName: siteStem, siteId: siteStem };
+        };
+
         const toSiteSummary = (s: any): SiteSummary | null => {
-          const siteName = s.site_name || s.nom_site || s.code_nidt || s.site_id || '';
-          const siteId = s.code_nidt || s.site_id || siteName;
+          const inferredFromCell = inferSiteFromCellRef(s.nom_cellule || s.cell_name || s.cell_id || '');
+          const siteName = s.site_name || s.nom_site || s.code_nidt || s.site_id || inferredFromCell?.siteName || '';
+          const siteId = s.code_nidt || s.site_id || inferredFromCell?.siteId || siteName;
           const lat = Number(s.latitude ?? s.lat ?? s.latitude_site);
           const lng = Number(s.longitude ?? s.lng ?? s.longitude_site);
           if (!siteName || !siteId || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
