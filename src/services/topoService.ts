@@ -806,7 +806,7 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
 }
 
 // Simple bbox+filters cache
-let bboxCache: { key: string; sites: SiteSummary[]; total: number } | null = null;
+let bboxCache: { key: string; sites: SiteSummary[]; total: number; loaded: number; truncated: boolean } | null = null;
 
 function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
   const b = `${bbox.minLng.toFixed(4)},${bbox.minLat.toFixed(4)},${bbox.maxLng.toFixed(4)},${bbox.maxLat.toFixed(4)}`;
@@ -819,10 +819,9 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  * Returns lightweight SiteSummary[] (no cells array).
  */
 /** Pick a server-side fetch cap that matches what the map can actually
- *  render at the current zoom. Pulling 4000 sites just to throw 75 %
- *  away in the viewport-culling + MAX_RENDER_SITES sampling step is
- *  pure network waste. Caller passes zoom; we shrink the cap when
- *  zoomed-out and only return to the full quota at street level.
+ *  render at the current zoom. Pulling far more sites than the viewport
+ *  can realistically display still wastes network and browser work, even
+ *  now that overview mode uses clustering instead of silent sampling.
  *
  *  Limits raised on 2026-05-03 — at zoom 11-12 (city overview), Paris,
  *  Lyon and Lille routinely have >2000 sites in the visible bbox, so
@@ -843,10 +842,15 @@ export async function fetchSitesByBbox(
   filters?: BboxFilters,
   signal?: AbortSignal,
   zoom?: number,
-): Promise<{ sites: SiteSummary[]; total: number }> {
+): Promise<{ sites: SiteSummary[]; total: number; loaded: number; truncated: boolean }> {
   const key = bboxCacheKey(bbox, filters);
   if (bboxCache && bboxCache.key === key) {
-    return { sites: bboxCache.sites, total: bboxCache.total };
+    return {
+      sites: bboxCache.sites,
+      total: bboxCache.total,
+      loaded: bboxCache.loaded,
+      truncated: bboxCache.truncated,
+    };
   }
 
   const limit = bboxLimitForZoom(zoom);
@@ -870,16 +874,24 @@ export async function fetchSitesByBbox(
     }
 
     const filteredSites = filterSitesAllTech(sites);
-    bboxCache = { key, sites: filteredSites, total: filteredSites.length };
+    const backendTotal = Math.max(Number(resp.total) || 0, filteredSites.length);
+    const truncated = backendTotal > filteredSites.length;
+    bboxCache = {
+      key,
+      sites: filteredSites,
+      total: backendTotal,
+      loaded: filteredSites.length,
+      truncated,
+    };
     const withQoe = filteredSites.filter(s => qoeData[s.site_name] || qoeData[s.site_id]).length;
     console.log(`[TopoService] BBOX: ${filteredSites.length}/${resp.total} sites (${withQoe} with live QoE)`);
-    return { sites: filteredSites, total: filteredSites.length };
+    return { sites: filteredSites, total: backendTotal, loaded: filteredSites.length, truncated };
   } catch (err: any) {
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
     const allSites = await fetchTopoSites();
     const filteredSites = filterSitesByBboxFilters(allSites, filters);
-    return { sites: filteredSites, total: filteredSites.length };
+    return { sites: filteredSites, total: filteredSites.length, loaded: filteredSites.length, truncated: false };
   }
 }
 

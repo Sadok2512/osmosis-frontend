@@ -5939,6 +5939,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const requestSeqRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bboxTotal, setBboxTotal] = useState<number>(0);
+  const [bboxLoadedCount, setBboxLoadedCount] = useState<number>(0);
+  const [bboxTruncated, setBboxTruncated] = useState(false);
   const [bboxLoading, setBboxLoading] = useState(false);
 
   // Derive current bbox filters from local filter state + backend filter bar
@@ -5991,6 +5993,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       requestSeqRef.current += 1;
       setSites([]);
       setBboxTotal(0);
+      setBboxLoadedCount(0);
+      setBboxTruncated(false);
       setBboxLoading(false);
       setLoading(false);
       return;
@@ -6012,7 +6016,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try {
       // Use the zoom passed to this call (not viewport.zoom captured in closure)
       // so rapid zoom transitions don't request a stale resolution.
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, z);
+      const { sites: newSites, total, loaded, truncated } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, z);
 
       // Drop stale responses (newer request issued) or aborted ones.
       if (controller.signal.aborted) return;
@@ -6043,6 +6047,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return deduped;
       });
       setBboxTotal(total || 0);
+      setBboxLoadedCount(loaded || newSites.length);
+      setBboxTruncated(truncated);
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
       if (controller.signal.aborted) return;
@@ -6071,6 +6077,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       requestSeqRef.current += 1;
       setSites([]);
       setBboxTotal(0);
+      setBboxLoadedCount(0);
+      setBboxTruncated(false);
       setBboxLoading(false);
       setLoading(false);
     }
@@ -6251,7 +6259,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
       // No-dashboard mode: load all site summaries so the left inventory is always populated.
-      // Map rendering remains protected by viewport culling and MAX_RENDER_SITES.
+      // Map rendering remains protected by viewport culling and clustered overview rendering.
       if (noDashboardMode) {
         let cancelledNoDash = false;
         setLoading(true);
@@ -6269,6 +6277,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!cancelledNoDash && allSites.length > 0) {
               setSites(allSites);
               setBboxTotal(allSites.length);
+              setBboxLoadedCount(allSites.length);
+              setBboxTruncated(false);
               setLoading(false);
               setDashboardFitKey(k => k + 1);
               return;
@@ -6278,6 +6288,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               if (!cancelledNoDash && batch.length > 0) {
                 setSites(batch);
                 setBboxTotal(batch.length);
+                setBboxLoadedCount(batch.length);
+                setBboxTruncated(false);
                 setLoading(false);
                 setDashboardFitKey(k => k + 1);
               }
@@ -6287,6 +6299,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (finalSites.length > 0) {
               setSites(finalSites);
               setBboxTotal(finalSites.length);
+              setBboxLoadedCount(finalSites.length);
+              setBboxTruncated(false);
             }
           } catch (err) {
             console.warn('[SitesMonitor] no-dashboard mode load failed', err);
@@ -6302,6 +6316,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       // Don't clear sites if search is active — search results are separate
       setSites([]);
       setBboxTotal(0);
+      setBboxLoadedCount(0);
+      setBboxTruncated(false);
       setBboxLoading(false);
       setLoading(false);
       return;
@@ -6321,6 +6337,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (cachedDashboardSites && cachedDashboardSites.length > 0) {
         setSites(cachedDashboardSites);
         setBboxTotal(cachedDashboardSites.length);
+        setBboxLoadedCount(cachedDashboardSites.length);
+        setBboxTruncated(false);
         setBboxLoading(false);
         setLoading(false);
         setDashboardFitKey(k => k + 1);
@@ -6339,6 +6357,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (!cancelled && batchSites.length > 0) {
               setSites(batchSites);
               setBboxTotal(batchSites.length);
+              setBboxLoadedCount(batchSites.length);
+              setBboxTruncated(false);
               setLoading(false); // map is usable now
               // Trigger fitBounds on first batch load so the map zooms to the sites
               setDashboardFitKey(k => k + 1);
@@ -6354,6 +6374,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (finalSites.length > 0) {
           setSites(finalSites);
           setBboxTotal(finalSites.length);
+          setBboxLoadedCount(finalSites.length);
+          setBboxTruncated(false);
           // Do NOT increment dashboardFitKey here — fitBounds was already triggered
           // on the first batch/cache load. Re-triggering it mid-download causes
           // unwanted zoom changes while the user is navigating.
@@ -6376,12 +6398,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // Only clear if we had no prior data
           setSites(prev => prev.length > 0 ? prev : []);
           setBboxTotal(prev => typeof prev === 'number' && prev > 0 ? prev : 0);
+          setBboxLoadedCount(0);
+          setBboxTruncated(false);
         }
       } catch (err) {
         if (!cancelled) {
           console.warn('[SitesMonitor] dashboard site load failed', err);
           // Don't clear existing sites on error — keep what we have
           setSites(prev => prev.length > 0 ? prev : []);
+          setBboxTruncated(false);
         }
       } finally {
         if (!cancelled) {
@@ -6866,8 +6891,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return 'ALL';
   }, [localBande, dashboardActive, activeDashboardFilters]);
 
-  // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
-  const MAX_RENDER_SITES = 5000;
+  // Sites visible in current viewport (for map rendering).
   const MAX_CELL_RESOLUTION_SITES = 250;
 
   const visibleSites = useMemo(() => {
@@ -6889,15 +6913,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // a site just because its first cell has no KPI data while another cell does).
     if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
       candidates = candidates.filter(siteMatchesKpiLegend);
-    }
-    // If still too many, sample evenly to keep the map responsive
-    if (candidates.length > MAX_RENDER_SITES) {
-      const step = Math.ceil(candidates.length / MAX_RENDER_SITES);
-      const sampled: typeof candidates = [];
-      for (let i = 0; i < candidates.length; i += step) {
-        sampled.push(candidates[i]);
-      }
-      return sampled;
     }
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
@@ -7972,6 +7987,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return null;
   }, [loading, bboxLoading, bboxTotal, sites.length, cellsLoadingCount, viewport.zoom]);
 
+  const bboxNotice = useMemo(() => {
+    if (dashboardActive || bboxLoading || viewport.zoom < MIN_SITE_DISPLAY_ZOOM) return null;
+    if (!bboxTruncated || bboxTotal <= bboxLoadedCount) return null;
+    return `Vue tronquee: ${bboxLoadedCount.toLocaleString()} sites charges sur ${bboxTotal.toLocaleString()} disponibles dans cette zone.`;
+  }, [dashboardActive, bboxLoading, viewport.zoom, bboxTruncated, bboxTotal, bboxLoadedCount]);
+
   // Detail loading is now handled inline — no full-screen takeover
 
   // No early return for siteDetail — rendered as right panel inside the main view
@@ -7984,6 +8005,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-card/95 backdrop-blur-md border border-border shadow-lg">
             <RefreshCw className="w-3.5 h-3.5 text-primary animate-spin" />
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{loadingMessage}</p>
+          </div>
+        </div>
+      )}
+      {bboxNotice && (
+        <div className="absolute top-[116px] left-1/2 -translate-x-1/2 z-[1090] pointer-events-none animate-fade-in">
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-amber-50/95 backdrop-blur-md border border-amber-300 shadow-lg">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+            <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">{bboxNotice}</p>
           </div>
         </div>
       )}
@@ -8607,11 +8636,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isIndoor = (site.site_name || '').toLowerCase().includes('indoor');
           const isTagged = isSiteTagged(site.site_id);
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-          const siteHasRealCells = site.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells
             ? siteDetail.cells
-            : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
-          const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
+            : site.cells;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
@@ -8836,11 +8863,53 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
             const renderSiteCells = shouldUseSiteDetailCells
               ? siteDetail.cells
-              : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+              : site.cells;
             const isTagged = isSiteTagged(site.site_id);
             const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
           });
+
+          const useClusteredOverview = viewport.zoom < SITES_TO_CELLS_ZOOM && circleSites.length > 250;
+
+          const getOverviewSiteColor = (site: SiteSummary) => {
+            const { has2G, has3G, has4G, has5G } = inferSiteTechState(site);
+            const topoColor = has5G ? (bandColors['5G_GROUP'] || '#27AE60') : has4G ? (bandColors['4G_GROUP'] || '#F39C12') : has3G ? (bandColors['3G_GROUP'] || '#3498DB') : has2G ? (bandColors['2G_GROUP'] || '#8E44AD') : (sectorColorMode === 'kpi' ? FADED_COLOR : (bandColors['4G_GROUP'] || '#F39C12'));
+            const kpiColor = sectorColorMode === 'kpi' ? getKpiColor(getSiteKpiValue(site)) : null;
+            return getColorViewFill(site) || kpiColor || topoColor;
+          };
+
+          if (useClusteredOverview) {
+            return (
+              <MarkerClusterGroup
+                chunkedLoading
+                showCoverageOnHover={false}
+                spiderfyOnMaxZoom={false}
+                maxClusterRadius={50}
+                iconCreateFunction={createClusterCustomIcon}
+              >
+                {circleSites.map(site => (
+                  <Marker
+                    key={`clustered_${site.site_id}`}
+                    position={site.coordinates}
+                    icon={createSiteIcon(getOverviewSiteColor(site))}
+                    eventHandlers={{
+                      click: () => handleSiteClick(site),
+                      mouseover: () => setHoveredSiteId(site.site_id),
+                      mouseout: () => setHoveredSiteId(null),
+                    }}
+                  >
+                    <Popup>
+                      <div className="p-1">
+                        <div className="font-bold text-sm">{site.site_name}</div>
+                        <div className="text-xs text-muted-foreground mt-1">{site.site_id} • {site.vendor}</div>
+                        <div className="text-xs mt-0.5">{getSiteDisplayTechs(site).join(' / ') || 'Unknown tech'}</div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))}
+              </MarkerClusterGroup>
+            );
+          }
 
           const densityScale = circleSites.length > 2000 ? 0.7 : circleSites.length > 800 ? 0.8 : circleSites.length > 400 ? 0.9 : 1;
 
@@ -9023,11 +9092,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // LOD filtering: at zoom ≤ 13 hide sites in very dense areas. At zoom 14+ all sites render.
           if (viewport.zoom <= 13 && densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-          const siteHasRealCells = site.cells.length > 0;
           const renderSiteCells = shouldUseSiteDetailCells
             ? siteDetail.cells
-            : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
-          const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
+            : site.cells;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
           // At zoom 12+: uniform sizing (no per-site density/cellCount scaling)
