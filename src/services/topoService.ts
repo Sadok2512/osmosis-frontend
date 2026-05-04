@@ -297,6 +297,9 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.date_mes) ext.date_mes = extra.date_mes;
     if (extra.date_fn8) ext.date_fn8 = extra.date_fn8;
     if (extra.constructeur) ext.constructeur = extra.constructeur;
+    if ((extra as any).vendor) ext.constructeur = (extra as any).vendor;
+    if ((extra as any).dor) ext.dor = (extra as any).dor;
+    if ((extra as any).plaque) ext.plaque = (extra as any).plaque;
     if (extra.plaque) ext.cluster = extra.plaque;
     if (extra.latitude != null) ext.latitude = extra.latitude;
     if (extra.longitude != null) ext.longitude = extra.longitude;

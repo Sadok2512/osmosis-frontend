@@ -6195,8 +6195,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         if (shouldUseFallback) {
           const { data: fallbackRows, error: fallbackError } = await supabase
             .from('topo')
-            .select('nom_site, code_nidt, constructeur, dor, plaque, zone_arcep, latitude, longitude')
-            .or(`nom_site.ilike.%${term}%,code_nidt.ilike.%${term}%`)
+            .select('nom_site, code_nidt, constructeur, dor, plaque, zone_arcep, latitude, longitude, nom_cellule')
+            .or(`nom_site.ilike.%${term}%,code_nidt.ilike.%${term}%,nom_cellule.ilike.%${term}%`)
             .not('latitude', 'is', null)
             .not('longitude', 'is', null)
             .limit(50);
@@ -6227,11 +6227,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           })
           .map((s: any) => {
             const siteName = s.site_name || s.nom_site || s.code_nidt || '';
+            const siteId = s.code_nidt || s.site_id || siteName;
             const lat = Number(s.latitude ?? s.lat);
             const lng = Number(s.longitude ?? s.lng);
             const cellCount = s.cell_count || s.nb_cells || 0;
             return {
-              site_id: siteName,
+              site_id: siteId,
               site_name: siteName,
               vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
               dor: s.dor || '',
@@ -6245,8 +6246,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               zone_arcep: s.zone_arcep || null,
               lte_cells: s.lte_cells || 0,
               nr_cells: s.nr_cells || 0,
+              cluster: s.cluster || s.plaque || null,
             } as SiteSummary;
-          });
+          })
+          .filter((site, index, arr) => arr.findIndex(s => s.site_id === site.site_id) === index);
 
         setSearchModeSites(summaries);
         if (summaries.length > 0) setInventoryTab('tagged');
@@ -6528,7 +6531,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         try {
           const activeCluster = (activeDashboardFilters as any)?.cluster?.length ? (activeDashboardFilters as any).cluster.join(',') : undefined;
           const cells = await fetchSiteCells(selectedSiteId, bboxSite?.site_name || selectedSiteSnapshot?.site_name, activeCluster);
-          const baseSite = bboxSite || {
+          const baseSite = bboxSite || selectedSiteSnapshot || {
             site_id: selectedSiteId,
             site_name: selectedSiteId,
             vendor: 'Unknown',
@@ -14382,6 +14385,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   </h5>
                   <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
                     {[
+                      { icon: <Info size={11} className="text-muted-foreground" />, label: 'Vendor', value: siteDetail.vendor || '—' },
+                      { icon: <Database size={11} className="text-muted-foreground" />, label: 'DOR', value: siteDetail.dor || '—' },
+                      { icon: <Layers size={11} className="text-muted-foreground" />, label: 'Plaque', value: siteDetail.plaque || '—' },
+                      { icon: <LayoutGrid size={11} className="text-muted-foreground" />, label: 'Cluster', value: (siteDetail as any).cluster || siteDetail.plaque || '—' },
                       { icon: <MapPin size={11} className="text-muted-foreground" />, label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
                       { icon: <Signal size={11} className="text-muted-foreground" />, label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
                       { icon: <Globe size={11} className="text-muted-foreground" />, label: 'Zone ARCEP', value: (() => {
