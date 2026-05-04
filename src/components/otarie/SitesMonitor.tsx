@@ -4237,7 +4237,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [mapRendering, setMapRendering] = useState(false);
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
-  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite'>('light');
+  const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite' | 'street'>('light');
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
@@ -4570,6 +4570,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     satellite: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: '&copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+    },
+    street: {
+      url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
   };
 
@@ -11321,6 +11325,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {([
               { key: 'light' as const, label: 'L' },
               { key: 'dark' as const, label: 'D' },
+              { key: 'street' as const, label: 'M' },
               { key: 'satellite' as const, label: 'S' },
             ]).map(({ key, label }) => (
               <button
