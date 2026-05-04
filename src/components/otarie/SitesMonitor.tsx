@@ -5963,16 +5963,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [bboxTruncated, setBboxTruncated] = useState(false);
   const [bboxLoading, setBboxLoading] = useState(false);
 
-  // Derive current bbox filters from local filter state + backend filter bar
+  // Derive current bbox filters from backend scope/search only.
+  // Local sidebar/map filters stay client-side so stale saved settings
+  // never under-load the viewport inventory from the backend.
   const backendQueryStr = backendBuildQueryParams();
   const currentBboxFilters = useMemo((): BboxFilters => {
     const base: BboxFilters = {
-      dor: localDor !== 'ALL' ? localDor : undefined,
-      vendor: localVendor !== 'ALL' ? localVendor : undefined,
-      plaque: localPlaque !== 'ALL' ? localPlaque : undefined,
-      zone_arcep: localZoneArcep !== 'ALL' ? localZoneArcep : undefined,
-      techno: localTechno !== 'ALL' ? localTechno : undefined,
-      bande: localBande !== 'ALL' ? localBande : undefined,
       q: localSearch || undefined,
     };
     // Merge backend filter bar selections (override local if set)
@@ -5997,7 +5993,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (df.plaque?.length && !base.plaque) base.plaque = df.plaque.join(',');
     }
     return base;
-  }, [localDor, localVendor, localPlaque, localZoneArcep, localTechno, localBande, localSearch, backendQueryStr, dashboardActive, activeDashboardFilters]);
+  }, [localSearch, backendQueryStr, dashboardActive, activeDashboardFilters]);
 
   // Core bbox fetch function — ALWAYS site-only mode (never load cells at map level)
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
@@ -7026,6 +7022,44 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
+  const allBandKeys = useMemo(() => Object.keys(DEFAULT_BAND_COLORS), []);
+  const hasClientOnlyMapFilters = useMemo(() => {
+    if (localVendor !== 'ALL' || localDor !== 'ALL' || localPlaque !== 'ALL') return true;
+    if (localBande !== 'ALL' || localZoneArcep !== 'ALL' || localTechno !== 'ALL') return true;
+    if (mapTechnoFilter !== 'ALL') return true;
+    if (enabledTechnos.size !== 4) return true;
+    if (enabledBands.size < allBandKeys.length) return true;
+    if (activeViewFilters.length > 0 || activeViewConditions.length > 0) return true;
+    return false;
+  }, [
+    localVendor,
+    localDor,
+    localPlaque,
+    localBande,
+    localZoneArcep,
+    localTechno,
+    mapTechnoFilter,
+    enabledTechnos,
+    enabledBands,
+    allBandKeys,
+    activeViewFilters,
+    activeViewConditions,
+  ]);
+
+  const resetClientOnlyMapFilters = useCallback(() => {
+    setLocalVendor('ALL');
+    setLocalDor('ALL');
+    setLocalPlaque('ALL');
+    setLocalBande('ALL');
+    setLocalZoneArcep('ALL');
+    setLocalTechno('ALL');
+    setMapTechnoFilter('ALL');
+    setEnabledTechnos(new Set(['2G', '3G', '4G', '5G']));
+    setEnabledBands(new Set(allBandKeys));
+    setActiveViewFilters([]);
+    setActiveViewConditions([]);
+  }, [allBandKeys]);
+
   // [DIAG] filter-chain trace — dev only
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -7038,6 +7072,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       viewportZoom: viewport.zoom,
     });
   }, [sites.length, filteredSites.length, mapFilteredSites.length, visibleSites.length]);
+
+  const filteredMapNotice = useMemo(() => {
+    if (bboxLoading || loading || viewport.zoom < MIN_SITE_DISPLAY_ZOOM) return null;
+    if (!hasClientOnlyMapFilters) return null;
+    if (sites.length === 0 || visibleSites.length >= sites.length) return null;
+    return `Filtres actifs: ${visibleSites.toLocaleString()} sites affiches sur ${sites.length.toLocaleString()} charges dans cette vue.`;
+  }, [bboxLoading, loading, viewport.zoom, hasClientOnlyMapFilters, sites.length, visibleSites.length]);
 
   const taggedSitesInView = useMemo(() => {
     return taggedSites.filter(s => {
@@ -8124,6 +8165,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-amber-50/95 backdrop-blur-md border border-amber-300 shadow-lg">
             <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
             <p className="text-[10px] font-bold text-amber-900 uppercase tracking-wider">{bboxNotice}</p>
+          </div>
+        </div>
+      )}
+      {filteredMapNotice && (
+        <div className="absolute top-[156px] left-1/2 -translate-x-1/2 z-[1090] animate-fade-in">
+          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-sky-50/95 backdrop-blur-md border border-sky-300 shadow-lg">
+            <Filter className="w-3.5 h-3.5 text-sky-700" />
+            <p className="text-[10px] font-bold text-sky-900 uppercase tracking-wider">{filteredMapNotice}</p>
+            <button
+              type="button"
+              onClick={resetClientOnlyMapFilters}
+              className="pointer-events-auto rounded-full border border-sky-400/70 bg-white/90 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-sky-900 hover:bg-white"
+            >
+              Reset filtres
+            </button>
           </div>
         </div>
       )}
