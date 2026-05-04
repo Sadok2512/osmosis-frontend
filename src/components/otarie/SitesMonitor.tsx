@@ -402,9 +402,10 @@ const getZoomAwareRadius = (
   else if (effectiveZoom <= 12) baseMeters = 260;
   else baseMeters = 280; // Z13 — reduced to avoid overlap in dense urban areas
 
-  // Density scaling: ONLY at low zoom (overview mode).
-  // At zoom 12+, all sites get the same radius — no per-site variation.
-  if (zoom < 12) {
+  // Density scaling: ONLY at very low zoom (overview mode, Z<11).
+  // From Z11 upward all sites get the same radius — no per-site variation,
+  // so users don't see "random" beam sizes at navigation zoom levels.
+  if (zoom < 11) {
     const densityScale = 0.35 + 0.65 * Math.max(0, Math.min(1, densityFactor));
     baseMeters *= densityScale;
   }
