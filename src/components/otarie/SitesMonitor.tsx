@@ -4534,16 +4534,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { area, perimeter, fmtArea, fmtPerimeter, sitesInside, cellsInside, siteIdsInside, siteNamesInside };
   }, [polygonClosed, polygonPoints]);
 
-  // ── Auto-tag closed polygon to active dashboard ──
-  // When a polygon is closed AND a dashboard is active, persist it as a
-  // TaggedPolygon so it appears in the left "Tagged" sidebar and survives
-  // dashboard switches. Saving as a reusable cluster (filter) is still
-  // proposed via the existing dialog and remains a separate concern.
+  // ── Auto-tag closed polygon ──
+  // When a polygon is closed, persist it as a TaggedPolygon so it appears in
+  // the left "Tagged" sidebar (Polygones section) and can be renamed / removed
+  // / centered on. Works in dashboard mode AND no-dashboard mode — without
+  // this, a polygon drawn on the map would never be reachable from the
+  // sidebar list and the user could not delete it from there.
+  // Saving as a reusable cluster (filter) is still proposed via the existing
+  // dialog and remains a separate concern.
   const polygonAutoTaggedRef = useRef<string | null>(null);
   const addTaggedPolygonRef = useRef<((p: any) => any) | null>(null);
   useEffect(() => {
     if (!polygonClosed || !polygonStats) return;
-    if (!activeDashboardIdRef.current) return;
     if (!addTaggedPolygonRef.current) return;
     // Fingerprint to avoid re-tagging the same closed polygon on every
     // re-render (e.g. after sites refresh changing polygonStats).
