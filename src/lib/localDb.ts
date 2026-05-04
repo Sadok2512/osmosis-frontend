@@ -800,7 +800,9 @@ export const topoApi = {
     };
 
     try {
-      return normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
+      const sitesResp = normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
+      if ((sitesResp as any)?.unavailable) throw new Error('VPS parser unavailable');
+      return sitesResp;
     } catch {
       const qs = new URLSearchParams({ limit: String(limit) });
       if (filters?.cluster && filters.cluster !== 'ALL') qs.set('cluster', filters.cluster);
@@ -809,7 +811,13 @@ export const topoApi = {
       if (filters?.bande && filters.bande !== 'ALL') qs.set('band', filters.bande);
       if (filters?.q) qs.set('search', filters.q);
 
-      const data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
+      let data: any;
+      try {
+        data = await fetchJsonSignal<any>(parserUrl(`/topo/cells?${qs}`), signal);
+        if (data?.unavailable) throw new Error('VPS parser unavailable');
+      } catch {
+        return localEmbeddedSitesByBbox(bbox, filters, limit);
+      }
       const rows = Array.isArray(data) ? data : (data.rows || data.cells || []);
       const siteMap = new Map<string, BboxSiteDTO>();
       for (const row of rows) {
