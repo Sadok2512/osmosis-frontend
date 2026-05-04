@@ -781,6 +781,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     // instead of the BI Studio so the saved pages/widgets actually load.
     if (target?.dashboardType === 'precision_architect') {
       setActiveTab?.('precision_architect');
+    } else if (target?.dashboardType === 'map') {
+      // Map dashboards live in the Live Monitor Map module.
+      try { localStorage.setItem('osmosis_pending_activate_dashboard_id', id); } catch { /* noop */ }
+      setActiveTab?.('sites');
     } else {
       setActiveTab?.('traffic');
     }
@@ -789,10 +793,22 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   // Click handler for a dashboard row/card.
   // PA dashboards bypass the in-page preview (which can't render PA widgets)
   // and open straight in the Precision Architect module.
+  // Map dashboards also bypass the read-only preview (which can't render the
+  // live Leaflet map) and route straight to Live Monitor Map with an
+  // explicit-activation signal so the user lands on the populated map.
   const openDashboard = (id: string) => {
     const target = dashboards.find((d) => d.id === id);
     if (target?.dashboardType === 'precision_architect') {
       openInEditor(id);
+      return;
+    }
+    if (target?.dashboardType === 'map') {
+      try {
+        // Explicit user signal — SitesMonitor consumes this once on mount
+        // to auto-activate the chosen dashboard (NOT a silent restore).
+        localStorage.setItem('osmosis_pending_activate_dashboard_id', id);
+      } catch { /* noop */ }
+      setActiveTab?.('sites');
       return;
     }
     setSelectedId(id);

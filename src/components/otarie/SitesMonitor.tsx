@@ -2429,6 +2429,26 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   useEffect(() => { fetchAll(); }, []);
 
+  // Consume explicit "open & activate" signal coming from Dashboard Overview
+  // (or any other module that wants to deep-link into an active map dashboard).
+  // The key is set BEFORE the user lands on Sites Monitor, so we activate
+  // exactly once after the dashboards list resolves.
+  useEffect(() => {
+    if (ldg) return;
+    if (!dashboards || dashboards.length === 0) return;
+    let pendingId: string | null = null;
+    try { pendingId = localStorage.getItem('osmosis_pending_activate_dashboard_id'); } catch { pendingId = null; }
+    if (!pendingId) return;
+    const target = dashboards.find(d => d.id === pendingId);
+    try { localStorage.removeItem('osmosis_pending_activate_dashboard_id'); } catch { /* noop */ }
+    if (!target) return;
+    setExpandedDashboardId(target.id);
+    onActiveDashboardIdChange(target.id);
+    onActiveViewIdChange(null);
+    if (onApplyView) onApplyView(getDashboardSettings(target));
+    onDashboardActiveChange?.(true, extractScope(target), extractSiteFilters(target));
+  }, [ldg, dashboards]);
+
   // Re-fetch views when overlay version changes (KPI added/removed)
   useEffect(() => {
     if (overlayVersion === undefined || overlayVersion === 0) return;
