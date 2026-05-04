@@ -6974,10 +6974,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [filteredSites, sectorColorMode, siteMatchesKpiLegend]);
 
   const selectedSiteCoords = useMemo<[number, number] | null>(() => {
+    // Hard gate: no pulsing marker when nothing is actually selected.
+    // siteDetail / selectedSiteSnapshot can linger after a deselection,
+    // so we require an active selectedSiteId before resolving coords.
+    if (!selectedSiteId) return null;
     const candidate =
       (siteDetail?.coordinates?.length === 2 ? siteDetail : null)
       ?? (selectedSiteSnapshot?.coordinates?.length === 2 ? selectedSiteSnapshot : null)
-      ?? (selectedSiteId ? sites.find((site) => site.site_id === selectedSiteId) ?? null : null);
+      ?? (sites.find((site) => site.site_id === selectedSiteId) ?? null);
     const coords = candidate?.coordinates;
     if (!coords || coords.length !== 2) return null;
     const [lat, lng] = coords;
