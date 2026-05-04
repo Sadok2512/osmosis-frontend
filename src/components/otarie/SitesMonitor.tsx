@@ -1201,14 +1201,14 @@ const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; rese
 
   // Always center on France on very first mount, regardless of mode
   useEffect(() => {
+    if (!enabled) return;
     // Multiple attempts to ensure map is centered after full init
     const t1 = setTimeout(() => {
       map.invalidateSize();
       map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
     }, 50);
     return () => { clearTimeout(t1); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled, map]);
 
   useEffect(() => {
     if (!enabled || lastResetKeyRef.current === resetKey) return;
@@ -8186,7 +8186,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
-        zoom={FRANCE_DEFAULT_ZOOM}
+        zoom={noDashboardMode ? MIN_SITE_DISPLAY_ZOOM : FRANCE_DEFAULT_ZOOM}
         minZoom={4}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
@@ -8196,7 +8196,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       >
         <MapVisibilitySync active={isVisible} />
         <TopoFranceViewportReset
-          enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId}
+          enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId && !noDashboardMode}
           resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}-${topoResetCounter}`}
         />
         <CustomZoomControl />
