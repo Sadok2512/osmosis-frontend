@@ -6180,16 +6180,104 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       searchAbortRef.current = ctrl;
 
       try {
-        const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites`, { search: term, limit: '50' }), {
-          headers: getVpsProxyHeaders(),
-          signal: ctrl.signal,
-        });
-        const data = await resp.json();
-        let siteList = Array.isArray(data) ? data : (data.sites || []);
+        const toSiteSummary = (s: any): SiteSummary | null => {
+          const siteName = s.site_name || s.nom_site || s.code_nidt || s.site_id || '';
+          const siteId = s.code_nidt || s.site_id || siteName;
+          const lat = Number(s.latitude ?? s.lat ?? s.latitude_site);
+          const lng = Number(s.longitude ?? s.lng ?? s.longitude_site);
+          if (!siteName || !siteId || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+          const cellCount = s.cell_count || s.nb_cells || s.total_cells || 0;
+          return {
+            site_id: siteId,
+            site_name: siteName,
+            vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
+            dor: s.dor || s.dr || '',
+            plaque: s.plaque || '',
+            department: '',
+            cell_count: Number(cellCount),
+            qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
+            dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
+            coordinates: [lat, lng] as [number, number],
+            cells: [],
+            zone_arcep: s.zone_arcep || null,
+            lte_cells: s.lte_cells || 0,
+            nr_cells: s.nr_cells || 0,
+            cluster: s.cluster || s.plaque || null,
+          };
+        };
+
+        const [sitesResp, cellsResp] = await Promise.all([
+          fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites`, { search: term, limit: '50' }), {
+            headers: getVpsProxyHeaders(),
+            signal: ctrl.signal,
+          }),
+          fetch(getVpsProxyUrl('parser', `/api/v1/topo/cells`, { search: term, limit: '200' }), {
+            headers: getVpsProxyHeaders(),
+            signal: ctrl.signal,
+          }),
+        ]);
+
+        const [sitesData, cellsData] = await Promise.all([
+          sitesResp.json(),
+          cellsResp.json(),
+        ]);
+
+        const directSites = (Array.isArray(sitesData) ? sitesData : (sitesData?.sites || []))
+          .map(toSiteSummary)
+          .filter((site): site is SiteSummary => !!site);
+
+        const cellRows: any[] = Array.isArray(cellsData) ? cellsData : (cellsData?.rows || cellsData?.cells || []);
+        const sitesFromCellsMap = new Map<string, SiteSummary>();
+        for (const row of cellRows) {
+          const summary = toSiteSummary({
+            site_name: row.site_name || row.nom_site,
+            nom_site: row.nom_site,
+            code_nidt: row.code_nidt || row.site_id,
+            site_id: row.site_id || row.code_nidt,
+            constructeur: row.constructeur || row.vendor,
+            vendor: row.vendor,
+            dor: row.dor || row.dr,
+            plaque: row.plaque,
+            cluster: row.cluster,
+            zone_arcep: row.zone_arcep,
+            latitude: row.latitude ?? row.lat,
+            longitude: row.longitude ?? row.lng,
+            cell_count: 1,
+          });
+          if (!summary) continue;
+          const existing = sitesFromCellsMap.get(summary.site_id);
+          if (!existing) {
+            sitesFromCellsMap.set(summary.site_id, summary);
+            continue;
+          }
+          existing.cell_count += 1;
+          if ((!existing.vendor || existing.vendor === 'Unknown') && summary.vendor) existing.vendor = summary.vendor;
+          if (!existing.dor && summary.dor) existing.dor = summary.dor;
+          if (!existing.plaque && summary.plaque) existing.plaque = summary.plaque;
+          if (!(existing as any).zone_arcep && (summary as any).zone_arcep) (existing as any).zone_arcep = (summary as any).zone_arcep;
+          if (!(existing as any).cluster && (summary as any).cluster) (existing as any).cluster = (summary as any).cluster;
+        }
+
+        let siteList: any[] = [...directSites, ...Array.from(sitesFromCellsMap.values())];
+        const dedupedMap = new Map<string, SiteSummary>();
+        for (const site of siteList as SiteSummary[]) {
+          const prev = dedupedMap.get(site.site_id);
+          if (!prev) {
+            dedupedMap.set(site.site_id, site);
+            continue;
+          }
+          prev.cell_count = Math.max(prev.cell_count || 0, site.cell_count || 0);
+          if ((!prev.vendor || prev.vendor === 'Unknown') && site.vendor) prev.vendor = site.vendor;
+          if (!prev.dor && site.dor) prev.dor = site.dor;
+          if (!prev.plaque && site.plaque) prev.plaque = site.plaque;
+          if (!(prev as any).zone_arcep && (site as any).zone_arcep) (prev as any).zone_arcep = (site as any).zone_arcep;
+          if (!(prev as any).cluster && (site as any).cluster) (prev as any).cluster = (site as any).cluster;
+        }
+        const unifiedSites = Array.from(dedupedMap.values());
 
         const shouldUseFallback = !ctrl.signal.aborted && (
-          data?.unavailable === true ||
-          (Array.isArray(siteList) && siteList.length === 0)
+          (sitesData?.unavailable === true && cellsData?.unavailable === true) ||
+          unifiedSites.length === 0
         );
 
         if (shouldUseFallback) {
@@ -6214,41 +6302,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             latitude: row.latitude,
             longitude: row.longitude,
           }));
+        } else {
+          siteList = unifiedSites;
         }
 
         setSearchResults(siteList);
 
         // Convert to SiteSummary for sidebar display
         const summaries: SiteSummary[] = siteList
-          .filter((s: any) => {
-            const lat = Number(s.latitude ?? s.lat);
-            const lng = Number(s.longitude ?? s.lng);
-            return Number.isFinite(lat) && Number.isFinite(lng);
-          })
-          .map((s: any) => {
-            const siteName = s.site_name || s.nom_site || s.code_nidt || '';
-            const siteId = s.code_nidt || s.site_id || siteName;
-            const lat = Number(s.latitude ?? s.lat);
-            const lng = Number(s.longitude ?? s.lng);
-            const cellCount = s.cell_count || s.nb_cells || 0;
-            return {
-              site_id: siteId,
-              site_name: siteName,
-              vendor: s.constructeur || (Array.isArray(s.vendors) ? s.vendors[0] : s.vendor) || 'Unknown',
-              dor: s.dor || '',
-              plaque: s.plaque || '',
-              department: '',
-              cell_count: Number(cellCount),
-              qoe_score_avg: 0, p50_thr_dn_mbps: 0, p50_thr_up_mbps: 0,
-              dms_dl_3: 0, dms_dl_8: 0, dms_dl_30: 0, dms_ul_3: 0,
-              coordinates: [lat, lng] as [number, number],
-              cells: [],
-              zone_arcep: s.zone_arcep || null,
-              lte_cells: s.lte_cells || 0,
-              nr_cells: s.nr_cells || 0,
-              cluster: s.cluster || s.plaque || null,
-            } as SiteSummary;
-          })
+          .map(toSiteSummary)
+          .filter((site): site is SiteSummary => !!site)
           .filter((site, index, arr) => arr.findIndex(s => s.site_id === site.site_id) === index);
 
         setSearchModeSites(summaries);
