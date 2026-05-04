@@ -5120,11 +5120,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     try { localStorage.setItem('osmosis_no_dashboard_mode_v2', noDashboardMode ? '1' : '0'); } catch {}
   }, [noDashboardMode]);
 
+  // Only auto-switch away from Dashboard tab when noDashboardMode is *first* enabled,
+  // not on every render — otherwise the user can't navigate back into the Dashboard tab.
   useEffect(() => {
     if (noDashboardMode && !dashboardActive && inventoryTab === 'dashboard') {
       setInventoryTab('sites');
     }
-  }, [noDashboardMode, dashboardActive, inventoryTab]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noDashboardMode, dashboardActive]);
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
