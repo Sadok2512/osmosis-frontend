@@ -6040,6 +6040,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     };
   }, []);
 
+  // Clear sites & cells only when leaving a dashboard-backed context and no search/no-dashboard load is active.
+  useEffect(() => {
+    if (!dashboardActive && !noDashboardMode && !isSearchActive) {
+      if (abortRef.current) abortRef.current.abort();
+      requestSeqRef.current += 1;
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+    }
+  }, [dashboardActive, noDashboardMode, isSearchActive]);
+
   // Purge legacy global artifact storage once (pre dashboard-scoping)
   useEffect(() => { purgeLegacyArtifacts(); }, []);
 
@@ -6067,9 +6079,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (dashboardActive) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Zoom-gate: under MIN_SITE_DISPLAY_ZOOM, immediately abort + clear, no fetch scheduled.
+    if (typeof v.zoom === 'number' && v.zoom < MIN_SITE_DISPLAY_ZOOM) {
+      if (abortRef.current) abortRef.current.abort();
+      requestSeqRef.current += 1;
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+      return;
+    }
+
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 450);
+    }, SITE_FETCH_DEBOUNCE_MS);
   }, [fetchForViewport, currentBboxFilters, dashboardActive]);
 
   // ── Debounced server-side search (independent of dashboard) ──
