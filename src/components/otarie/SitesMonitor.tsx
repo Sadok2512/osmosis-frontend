@@ -8849,17 +8849,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 return false;
               });
 
-              // Use FIXED per-tech ring scales so the same tech always renders at
-              // the same size across sites, regardless of how many other techs the
-              // site exposes (memory: concentric-tech-rings).
-              // Single-tech sites still get the full radius for visibility.
-              let ringRadius: number;
-              if (siteTechs.length <= 1) {
-                ringRadius = br;
-              } else {
-                const scale = RING_SCALES[tech] ?? 1;
-                ringRadius = Math.max(Math.round(br * scale), 2);
-              }
+              // Outer perimeter must be identical for every site regardless of
+              // tech mix: the OUTERMOST present tech always renders at `br`, and
+              // inner techs scale proportionally to the outermost one.
+              // (memory: concentric-tech-rings + unified marker design.)
+              const outermostTech = siteTechs[0] ?? tech;
+              const outerScale = RING_SCALES[outermostTech] ?? 1;
+              const techScale = RING_SCALES[tech] ?? 1;
+              const relScale = outerScale > 0 ? techScale / outerScale : 1;
+              const ringRadius = Math.max(Math.round(br * relScale), 2);
 
               const fillColor = colorOverride || TECH_COLORS[tech];
               const strokeColor = isSel ? '#fff' : (isHov ? '#fff' : deriveStrokeColor(fillColor));
@@ -8873,7 +8871,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   pathOptions={{
                     color: strokeColor,
                     fillColor,
-                    fillOpacity: siteTechs.length <= 1 ? 0.85 : RING_OPACITY,
+                    fillOpacity: RING_OPACITY,
                     weight: isSel ? 2.5 : (isHov ? 2 : 1),
                   }}
                   eventHandlers={{
