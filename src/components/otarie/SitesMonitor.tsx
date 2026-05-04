@@ -11325,6 +11325,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {([
               { key: 'light' as const, label: 'L' },
               { key: 'dark' as const, label: 'D' },
+              { key: 'street' as const, label: 'M' },
               { key: 'satellite' as const, label: 'S' },
             ]).map(({ key, label }) => (
               <button
