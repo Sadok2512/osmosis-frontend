@@ -14,6 +14,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './apiConfig';
 import { inferBandFromCellName } from '@/services/topoService';
+import topoRaw from '@/data/topoData';
 
 const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
 
@@ -313,6 +314,90 @@ export interface BboxFilters {
   cluster?: string;
   plaque?: string;
   q?: string;
+}
+
+function splitTopoFilter(value?: string): string[] {
+  if (!value || value === 'ALL') return [];
+  return value.split(/[,/;|]+/).map(v => v.trim().toLowerCase()).filter(Boolean);
+}
+
+function normalizeTopoBand(value?: string | null): string {
+  return String(value || '').toLowerCase().replace(/[_\s-]+/g, '').replace(/^lte/, 'l');
+}
+
+function localEmbeddedSitesByBbox(
+  bbox: { minLng: number; minLat: number; maxLng: number; maxLat: number },
+  filters?: BboxFilters,
+  limit = 8000,
+): BboxSitesResponse {
+  const selected = {
+    dor: splitTopoFilter(filters?.dor),
+    vendor: splitTopoFilter(filters?.vendor),
+    plaque: splitTopoFilter(filters?.plaque || filters?.cluster),
+    techno: splitTopoFilter(filters?.techno),
+    bande: splitTopoFilter(filters?.bande).map(normalizeTopoBand),
+    q: String(filters?.q || '').trim().toLowerCase(),
+  };
+  const rowMatches = (row: any) => {
+    const lat = Number(row.lat);
+    const lng = Number(row.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+    if (lat < bbox.minLat || lat > bbox.maxLat || lng < bbox.minLng || lng > bbox.maxLng) return false;
+    const rowDor = String(row.region || '').toLowerCase();
+    const rowVendor = String(row.vendor || '').toLowerCase();
+    const rowPlaque = String(row.plaque || row.cluster || '').toLowerCase();
+    const rowTech = String(row.techno || '').toLowerCase();
+    const rowBand = normalizeTopoBand(row.bande);
+    if (selected.dor.length && !selected.dor.includes(rowDor)) return false;
+    if (selected.vendor.length && !selected.vendor.includes(rowVendor)) return false;
+    if (selected.plaque.length && !selected.plaque.includes(rowPlaque)) return false;
+    if (selected.techno.length && !selected.techno.some(t => rowTech.includes(t) || (t === '4g' && rowTech.includes('lte')) || (t === '5g' && rowTech.includes('nr')))) return false;
+    if (selected.bande.length && !selected.bande.includes(rowBand)) return false;
+    if (selected.q) {
+      const haystack = `${row.siteId} ${row.siteName} ${row.cellName} ${row.plaque} ${row.cluster || ''}`.toLowerCase();
+      if (!haystack.includes(selected.q)) return false;
+    }
+    return true;
+  };
+
+  const grouped = new Map<string, any[]>();
+  topoRaw.filter(rowMatches).forEach((row: any) => {
+    const key = row.siteId || row.siteName;
+    if (!key) return;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(row);
+  });
+
+  const sites = Array.from(grouped.values()).slice(0, limit).map((rows): BboxSiteDTO => {
+    const first = rows[0];
+    const bands = Array.from(new Set(rows.map((r: any) => r.bande).filter(Boolean))).join(', ');
+    const techs = Array.from(new Set(rows.map((r: any) => r.techno).filter(Boolean))).join(', ');
+    const lteCells = rows.filter((r: any) => /4g|lte/i.test(r.techno || r.bande)).length;
+    const nrCells = rows.filter((r: any) => /5g|nr/i.test(r.techno || r.bande)).length;
+    const cells3g = rows.filter((r: any) => /3g|umts|wcdma/i.test(r.techno || r.bande)).length;
+    const cells2g = rows.filter((r: any) => /2g|gsm/i.test(r.techno || r.bande)).length;
+    return {
+      code_nidt: first.siteId,
+      nom_site: first.siteName,
+      lat: rows.reduce((sum: number, r: any) => sum + Number(r.lat), 0) / rows.length,
+      lng: rows.reduce((sum: number, r: any) => sum + Number(r.lng), 0) / rows.length,
+      nb_cells: rows.length,
+      vendor: first.vendor || null,
+      plaque: first.plaque || null,
+      dor: first.region || null,
+      region: first.region || null,
+      zone_arcep: first.zoneArcep || null,
+      techno: techs || null,
+      bande: bands || null,
+      lte_cells: lteCells,
+      nr_cells: nrCells,
+      cells_2g: cells2g,
+      cells_3g: cells3g,
+      cluster: first.cluster || first.plaque || null,
+    };
+  });
+
+  return { sites, total: grouped.size };
 }
 
 function flattenTopoFieldValues(value: unknown): string[] {
