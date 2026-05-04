@@ -9854,9 +9854,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* No-dashboard zoom hint: invite user to zoom in to load sites by viewport */}
       {noDashboardMode && !dashboardActive && !isSearchActive && typeof viewport.zoom === 'number' && viewport.zoom < MIN_SITE_DISPLAY_ZOOM && (
-        <div className="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center">
-          <div className="pointer-events-auto bg-card/95 backdrop-blur border border-border rounded-xl shadow-xl px-5 py-4 max-w-sm text-center">
-            <div className="flex items-center justify-center gap-2 mb-2">
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-[500] flex justify-center select-none">
+          <div className="pointer-events-none bg-card/95 backdrop-blur border border-border rounded-xl shadow-xl px-5 py-3 max-w-sm text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
               <Globe size={16} className="text-primary" />
               <span className="text-sm font-bold text-foreground">Mode sans dashboard</span>
             </div>
