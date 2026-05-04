@@ -96,6 +96,12 @@ Deno.serve(async (req) => {
         extraParams.set(key, value);
       }
     }
+    if (service === 'parser' && path.includes('/topo/sites')) {
+      const requestedLimit = Number(extraParams.get('limit'));
+      if (!Number.isFinite(requestedLimit) || requestedLimit > 5000) {
+        extraParams.set('limit', '5000');
+      }
+    }
     const qs = extraParams.toString();
     const buildUrl = (base: string) => {
       const u = new URL(`${base}${path}`);

@@ -143,6 +143,16 @@ export function getVpsProxyUrl(
     cleanPath = cleanPath.slice(0, qIdx);
   }
 
+  // Protect the VPS topo service from accidental full-inventory reads.
+  // Several older call sites still request limit=50000; normalize them here
+  // so the browser never asks the proxy for more than the agreed 5k sites.
+  if (service === 'parser' && /\/api\/v1\/topo\/sites$|\/topo\/sites$/.test(cleanPath)) {
+    const requestedLimit = Number(mergedExtra.limit);
+    if (!Number.isFinite(requestedLimit) || requestedLimit > 5000) {
+      mergedExtra.limit = '5000';
+    }
+  }
+
   // Direct mode: skip proxy when browser is on VPS or Cloudflare tunnel
   const onDirect = typeof window !== 'undefined' && (
     window.location.hostname === VPS_HOST ||
