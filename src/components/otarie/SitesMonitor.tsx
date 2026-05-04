@@ -5908,9 +5908,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // ── Bbox-based data loading with debounce ──
   // Zoom-gate: no site fetch / no site rendering below this zoom.
-  // Set to 7 (= default France view) so sites display from the initial view.
-  // Raise this if you want to throttle fetches at very low zooms.
-  const MIN_SITE_DISPLAY_ZOOM = 7;
+  // Strict Deep Live Monitor gate: no site fetch / render below zoom 10.
+  const MIN_SITE_DISPLAY_ZOOM = 10;
   const SITE_FETCH_DEBOUNCE_MS = 300;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -7671,8 +7670,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    // Don't fetch sites without an active dashboard
-    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
+    // Outside dashboard/no-dashboard/search contexts, the map must load sites by BBOX.
+    // This is the only path that triggers the zoom-gated Deep Live Monitor fetch.
+    if (!dashboardActive && !noDashboardMode && !isSearchActive) {
+      handleViewportForFetch(v);
+    }
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -7682,7 +7684,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, handleViewportForFetch, dashboardActive, noDashboardMode, isSearchActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
