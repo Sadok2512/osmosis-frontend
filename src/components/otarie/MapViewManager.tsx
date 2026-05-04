@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 export interface MapViewSettings {
   center: [number, number];
   zoom: number;
-  mapLayer: 'light' | 'dark' | 'satellite';
+  mapLayer: 'light' | 'dark' | 'satellite' | 'street';
   mapKpi: string;
   mapTechnoFilter: string;
   enabledBands: string[];
