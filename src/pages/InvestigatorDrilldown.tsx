@@ -244,7 +244,7 @@ const DRILL_NAV: { id: string; label: string; icon: React.ReactNode }[] = [
   { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
   { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
   { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
-  { id: 'precision_architect', label: 'Precision Architect', icon: <Wand2 className="w-5 h-5" /> },
+  { id: 'precision_architect', label: 'Power NetVision', icon: <Wand2 className="w-5 h-5" /> },
 ];
 
 const DrilldownSidebar: React.FC = () => {
