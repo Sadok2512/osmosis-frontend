@@ -135,36 +135,49 @@ const AppSidebar: React.FC<SidebarProps> = ({
         className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-4 scrollbar-hide pb-20 pt-4`}
         style={{ scrollBehavior: 'smooth' }}
       >
-        {visibleGroups.map((group, gIdx) => (
-          <div key={group.label ?? `group-${gIdx}`} className="space-y-1">
-            {!isCollapsed && group.label && (
-              <div className="px-3 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">{group.label}</span>
-              </div>
-            )}
-            {isCollapsed && gIdx > 0 && (
-              <div className="mx-2 my-2 h-px bg-sidebar-border/60" />
-            )}
-            {group.items.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
-                  activeTab === item.id
-                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
-                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-                }`}
-                title={isCollapsed ? item.label : undefined}
-              >
-                {activeTab === item.id && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
-                )}
-                <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
-                {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
-              </button>
-            ))}
-          </div>
-        ))}
+        {visibleGroups.map((group, gIdx) => {
+          const groupKey = group.label ?? `__nogroup_${gIdx}`;
+          const hasActive = group.items.some(i => i.id === activeTab);
+          const isGroupCollapsed = !!group.label && !hasActive && collapsedGroups[group.label];
+          return (
+            <div key={groupKey} className="space-y-1">
+              {!isCollapsed && group.label && (
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label!)}
+                  className="w-full flex items-center justify-between px-3 pb-1 pt-1 group/header hover:text-sidebar-primary transition-colors"
+                >
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 group-hover/header:text-sidebar-primary">{group.label}</span>
+                  <ChevronDown
+                    size={12}
+                    className={`text-sidebar-foreground/50 transition-transform duration-200 ${isGroupCollapsed ? '-rotate-90' : 'rotate-0'}`}
+                  />
+                </button>
+              )}
+              {isCollapsed && gIdx > 0 && (
+                <div className="mx-2 my-2 h-px bg-sidebar-border/60" />
+              )}
+              {!isGroupCollapsed && group.items.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
+                    activeTab === item.id
+                      ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  {activeTab === item.id && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
+                  )}
+                  <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
+                  {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
+                </button>
+              ))}
+            </div>
+          );
+        })}
       </div>
 
       {canScrollRight && (
