@@ -5097,6 +5097,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     _setActiveDashboardId(id);
     // Reset active view when switching dashboard
     setActiveViewId(null);
+    // Reset any lingering site/cell selection so the blue pulse marker
+    // can never survive a dashboard change without an explicit re-pick.
+    setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
+    setFocusMode('global');
+    setFocusCellId(null);
+    setShowRightPanel(false);
     try {
       if (id) localStorage.setItem('osmosis_active_dashboard_id', id);
       else localStorage.removeItem('osmosis_active_dashboard_id');
@@ -5128,6 +5135,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noDashboardMode, dashboardActive]);
+
+  // Whenever dashboard activation toggles, drop any residual selection so the
+  // blue pulse marker never persists across mode changes without a real pick.
+  useEffect(() => {
+    setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
+    setFocusMode('global');
+    setFocusCellId(null);
+  }, [dashboardActive, noDashboardMode]);
+
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
