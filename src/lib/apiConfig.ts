@@ -301,14 +301,28 @@ export function fetchWithTimeout(
   timeoutMs: number = REQUEST_TIMEOUT_MS,
 ): Promise<Response> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(
+    () => controller.abort(new DOMException('Request timed out', 'TimeoutError')),
+    timeoutMs,
+  );
 
   // Merge with existing signal if provided
+  let onExternalAbort: (() => void) | undefined;
   if (init?.signal) {
-    init.signal.addEventListener('abort', () => controller.abort());
+    if (init.signal.aborted) {
+      controller.abort((init.signal as any).reason ?? new DOMException('Aborted', 'AbortError'));
+    } else {
+      onExternalAbort = () => controller.abort((init!.signal as any).reason ?? new DOMException('Aborted', 'AbortError'));
+      init.signal.addEventListener('abort', onExternalAbort, { once: true });
+    }
   }
 
-  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => {
+    clearTimeout(timeoutId);
+    if (onExternalAbort && init?.signal) {
+      init.signal.removeEventListener('abort', onExternalAbort);
+    }
+  });
 }
 
 /**
