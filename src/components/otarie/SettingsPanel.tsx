@@ -30,12 +30,14 @@ const SIDEBAR_THEMES: { id: SidebarTheme; label: string; icon: React.ReactNode; 
   { id: 'dark', label: 'Dark', icon: <Moon className="w-4 h-4" />, preview: 'bg-[hsl(220,50%,12%)]' },
   { id: 'grey', label: 'Grey', icon: <Monitor className="w-4 h-4" />, preview: 'bg-[hsl(220,10%,40%)]' },
   { id: 'light', label: 'Light', icon: <Sun className="w-4 h-4" />, preview: 'bg-[hsl(220,20%,95%)]' },
+  { id: 'newt', label: 'Newt', icon: <Palette className="w-4 h-4" />, preview: 'bg-[#E30613]' },
 ];
 
 const ACCENT_COLORS: { id: AccentColor; label: string; color: string }[] = [
   { id: 'default', label: 'Teal', color: 'bg-[hsl(170,70%,35%)]' },
   { id: 'orange', label: 'Orange', color: 'bg-[hsl(25,95%,53%)]' },
   { id: 'red', label: 'Red', color: 'bg-[hsl(0,72%,51%)]' },
+  { id: 'newt', label: 'Newt', color: 'bg-[#E30613]' },
   { id: 'pink', label: 'Pink', color: 'bg-[hsl(330,81%,60%)]' },
   { id: 'purple', label: 'Purple', color: 'bg-[hsl(262,83%,58%)]' },
   { id: 'indigo', label: 'Indigo', color: 'bg-[hsl(239,84%,67%)]' },
