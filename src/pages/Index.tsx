@@ -31,8 +31,8 @@ import { Filters, KPIType, SiteSummary, AppTab } from '../types';
 import { fetchSites } from '../services/mockData';
 import { useInvestigatorWorkspace } from '@/stores/investigatorWorkspaceStore';
 
-export type SidebarTheme = 'dark' | 'grey' | 'light';
-export type AccentColor = 'default' | 'orange' | 'red' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
+export type SidebarTheme = 'dark' | 'grey' | 'light' | 'newt';
+export type AccentColor = 'default' | 'orange' | 'red' | 'newt' | 'pink' | 'purple' | 'indigo' | 'cyan' | 'emerald' | 'amber';
 
 class InvestigatorTabBoundary extends React.Component<
   { children: React.ReactNode; onReset: () => void },
@@ -140,6 +140,7 @@ const Index: React.FC = () => {
     default: {},
     orange: { '--primary': '25 95% 53%', '--accent': '25 95% 53%', '--ring': '25 95% 53%', '--sidebar-primary': '25 95% 53%', '--sidebar-ring': '25 95% 53%' },
     red: { '--primary': '9 100% 50%', '--accent': '9 100% 50%', '--ring': '9 100% 50%', '--sidebar-primary': '9 100% 50%', '--sidebar-ring': '9 100% 50%' },
+    newt: { '--primary': '356 96% 45%', '--accent': '356 96% 45%', '--ring': '356 96% 45%', '--sidebar-primary': '356 96% 45%', '--sidebar-ring': '356 96% 45%' },
     pink: { '--primary': '330 81% 60%', '--accent': '330 81% 60%', '--ring': '330 81% 60%', '--sidebar-primary': '330 81% 60%', '--sidebar-ring': '330 81% 60%' },
     purple: { '--primary': '262 83% 58%', '--accent': '262 83% 58%', '--ring': '262 83% 58%', '--sidebar-primary': '262 83% 58%', '--sidebar-ring': '262 83% 58%' },
     indigo: { '--primary': '239 84% 67%', '--accent': '239 84% 67%', '--ring': '239 84% 67%', '--sidebar-primary': '239 84% 67%', '--sidebar-ring': '239 84% 67%' },
@@ -183,7 +184,7 @@ const Index: React.FC = () => {
     });
   }, [sites, siteSearch, filters]);
 
-  const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : '';
+  const sidebarClass = sidebarTheme === 'grey' ? 'sidebar-grey' : sidebarTheme === 'light' ? 'sidebar-light' : sidebarTheme === 'newt' ? 'sidebar-newt' : '';
   const resetInvestigatorWorkspace = () => {
     try {
       localStorage.removeItem('investigator-workspace-v1');

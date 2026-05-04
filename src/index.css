@@ -97,6 +97,15 @@ All colors MUST be HSL.
     --sidebar-border: 9 90% 30%;
   }
 
+  .sidebar-newt {
+    /* Newt — #E30613 */
+    --sidebar-background: 356 96% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 356 96% 52%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 356 90% 35%;
+  }
+
   /* Accent color overrides */
   .accent-orange {
     --primary: 25 95% 53%;
@@ -112,6 +121,14 @@ All colors MUST be HSL.
     --ring: 9 100% 50%;
     --sidebar-primary: 9 100% 50%;
     --sidebar-ring: 9 100% 50%;
+  }
+  .accent-newt {
+    /* Newt — #E30613 */
+    --primary: 356 96% 45%;
+    --accent: 356 96% 45%;
+    --ring: 356 96% 45%;
+    --sidebar-primary: 356 96% 45%;
+    --sidebar-ring: 356 96% 45%;
   }
   .accent-pink {
     --primary: 330 81% 60%;
