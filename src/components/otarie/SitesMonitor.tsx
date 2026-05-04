@@ -190,7 +190,7 @@ interface SitesMonitorProps {
 }
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
-const SITES_TO_CELLS_ZOOM = 11;
+const SITES_TO_CELLS_ZOOM = 13;
 const FULL_BEAM_DETAIL_ZOOM = 12;
 const CELLS_TO_SITES_ZOOM = 10;
 
