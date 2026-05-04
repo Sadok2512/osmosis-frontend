@@ -5907,8 +5907,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [mapKpi]);
 
   // ── Bbox-based data loading with debounce ──
+  // Zoom-gate: no site fetch / no site rendering below this zoom.
+  const MIN_SITE_DISPLAY_ZOOM = 10;
+  const SITE_FETCH_DEBOUNCE_MS = 300;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
@@ -5953,9 +5957,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
+    // Always cancel any in-flight request first.
     if (abortRef.current) abortRef.current.abort();
+
+    // Zoom gate: below MIN_SITE_DISPLAY_ZOOM we don't fetch and we clear state.
+    const z = typeof zoom === 'number' ? zoom : viewport.zoom;
+    if (typeof z === 'number' && z < MIN_SITE_DISPLAY_ZOOM) {
+      // bump seq so any in-flight response is ignored
+      requestSeqRef.current += 1;
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
+    const requestId = ++requestSeqRef.current;
 
     const bbox: BboxQuery = {
       minLng: bounds.getWest(),
@@ -5967,12 +5986,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      // Always fetch site summaries only — cells are loaded on demand per site.
-      // Pass zoom so the service caps the server-side fetch at what the map can
-      // actually render (avoids pulling 4000 sites to display 1000).
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, viewport.zoom);
+      // Use the zoom passed to this call (not viewport.zoom captured in closure)
+      // so rapid zoom transitions don't request a stale resolution.
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, z);
 
+      // Drop stale responses (newer request issued) or aborted ones.
       if (controller.signal.aborted) return;
+      if (requestId !== requestSeqRef.current) return;
 
       // Preserve already loaded cells when fresh BBOX results only contain lightweight site summaries
       setSites(prev => {
@@ -5999,20 +6019,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return deduped;
       });
       setBboxTotal(total || 0);
-      setBboxLoading(false);
-      setLoading(false);
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
+      if (controller.signal.aborted) return;
+      if (requestId !== requestSeqRef.current) return;
       console.warn('[SitesMonitor] bbox fetch failed', err);
-      setBboxLoading(false);
-      setLoading(false);
+    } finally {
+      if (requestId === requestSeqRef.current && !controller.signal.aborted) {
+        setBboxLoading(false);
+        setLoading(false);
+      }
     }
+  }, []);
+
+  // Cleanup on unmount: abort any in-flight request.
+  useEffect(() => {
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, []);
 
   // Clear sites & cells only when leaving a dashboard-backed context and no search/no-dashboard load is active.
   useEffect(() => {
     if (!dashboardActive && !noDashboardMode && !isSearchActive) {
       if (abortRef.current) abortRef.current.abort();
+      requestSeqRef.current += 1;
       setSites([]);
       setBboxTotal(0);
       setBboxLoading(false);
@@ -6047,9 +6079,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const handleViewportForFetch = useCallback((v: ViewportState) => {
     if (dashboardActive) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Zoom-gate: under MIN_SITE_DISPLAY_ZOOM, immediately abort + clear, no fetch scheduled.
+    if (typeof v.zoom === 'number' && v.zoom < MIN_SITE_DISPLAY_ZOOM) {
+      if (abortRef.current) abortRef.current.abort();
+      requestSeqRef.current += 1;
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+      return;
+    }
+
     debounceRef.current = setTimeout(() => {
       fetchForViewport(v.bounds, currentBboxFilters, v.zoom);
-    }, 450);
+    }, SITE_FETCH_DEBOUNCE_MS);
   }, [fetchForViewport, currentBboxFilters, dashboardActive]);
 
   // ── Debounced server-side search (independent of dashboard) ──
@@ -6803,6 +6847,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const MAX_CELL_RESOLUTION_SITES = 250;
 
   const visibleSites = useMemo(() => {
+    // Zoom-gate: never render sites under MIN_SITE_DISPLAY_ZOOM (avoids stale cache flashing on dezoom)
+    if (typeof viewport.zoom === 'number' && viewport.zoom < MIN_SITE_DISPLAY_ZOOM) return [];
+
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
@@ -6831,26 +6878,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
-  // [DIAG] filter-chain trace — logs once per length change to identify which filter rejects sites at mount
+  // [DIAG] filter-chain trace — dev only
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     // eslint-disable-next-line no-console
     console.log('[FILTER-CHAIN]', {
       sites: sites.length,
       filteredSites: filteredSites.length,
       mapFilteredSites: mapFilteredSites.length,
       visibleSites: visibleSites.length,
-      enabledTechnos: [...enabledTechnos],
-      mapTechnoFilter,
-      isBandFilterActive,
-      dashboardActive,
-      activeDashboardFilters,
-      localTechno,
-      localBande,
-      localVendor,
-      localDor,
-      localPlaque,
       viewportZoom: viewport.zoom,
-      hasViewportBounds: !!viewport.bounds,
     });
   }, [sites.length, filteredSites.length, mapFilteredSites.length, visibleSites.length]);
 
