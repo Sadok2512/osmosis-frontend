@@ -5097,6 +5097,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     _setActiveDashboardId(id);
     // Reset active view when switching dashboard
     setActiveViewId(null);
+    // Reset any lingering site/cell selection so the blue pulse marker
+    // can never survive a dashboard change without an explicit re-pick.
+    setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
+    setFocusMode('global');
+    setFocusCellId(null);
+    setShowRightPanel(false);
     try {
       if (id) localStorage.setItem('osmosis_active_dashboard_id', id);
       else localStorage.removeItem('osmosis_active_dashboard_id');
