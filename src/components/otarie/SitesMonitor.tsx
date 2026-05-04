@@ -8186,7 +8186,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
-        zoom={FRANCE_DEFAULT_ZOOM}
+        zoom={noDashboardMode ? MIN_SITE_DISPLAY_ZOOM : FRANCE_DEFAULT_ZOOM}
         minZoom={4}
         style={{ height: '100%', width: '100%', position: 'absolute', inset: 0, zIndex: 0 }}
         zoomControl={false}
@@ -8196,7 +8196,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       >
         <MapVisibilitySync active={isVisible} />
         <TopoFranceViewportReset
-          enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId}
+          enabled={sectorColorMode === 'topo' && focusMode === 'global' && !selectedSiteId && !noDashboardMode}
           resetKey={`${sectorColorMode}-${focusMode}-${selectedSiteId ?? 'none'}-${topoResetCounter}`}
         />
         <CustomZoomControl />
