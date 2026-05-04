@@ -781,6 +781,10 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     // instead of the BI Studio so the saved pages/widgets actually load.
     if (target?.dashboardType === 'precision_architect') {
       setActiveTab?.('precision_architect');
+    } else if (target?.dashboardType === 'map') {
+      // Map dashboards live in the Live Monitor Map module.
+      try { localStorage.setItem('osmosis_pending_activate_dashboard_id', id); } catch { /* noop */ }
+      setActiveTab?.('sites');
     } else {
       setActiveTab?.('traffic');
     }
