@@ -38,7 +38,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
       { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
-      { id: 'precision_architect', label: 'Power NetVision', icon: <Wand2 className="w-5 h-5" /> },
+      { id: 'precision_architect', label: 'NetVision', icon: <Wand2 className="w-5 h-5" /> },
     ],
   },
   {
