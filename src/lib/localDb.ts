@@ -127,10 +127,14 @@ async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal):
 export const dashboardsApi = {
   list: async (): Promise<any[]> => {
     const url = parserUrl('/dashboards/');
-    // Retry once on transient cold-boot 503 (edge runtime BOOT_ERROR)
+    // Fast-fail VPS attempt with 6s timeout — Dashboard Overview must render quickly.
+    // Retry once on transient cold-boot 503 (edge runtime BOOT_ERROR), then Supabase fallback.
     for (let attempt = 0; attempt < 2; attempt++) {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
       try {
-        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+        const resp = await fetch(url, { headers: getVpsProxyHeaders(), signal: ctrl.signal });
+        clearTimeout(timer);
         if (resp.status === 503 && attempt === 0) {
           await new Promise((r) => setTimeout(r, 600));
           continue;
@@ -138,13 +142,19 @@ export const dashboardsApi = {
         if (!resp.ok) throw new Error(`${resp.status}`);
         return await resp.json();
       } catch (e) {
+        clearTimeout(timer);
         if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 600));
+          await new Promise((r) => setTimeout(r, 400));
           continue;
         }
-        console.warn('[Dashboards] VPS list failed, trying Supabase fallback', e);
-        const { data } = await supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false });
-        return data || [];
+        console.warn('[Dashboards] VPS list failed/timeout, using Supabase fallback', e);
+        try {
+          const { data } = await supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false });
+          return data || [];
+        } catch (sbErr) {
+          console.warn('[Dashboards] Supabase fallback failed', sbErr);
+          return [];
+        }
       }
     }
     return [];
