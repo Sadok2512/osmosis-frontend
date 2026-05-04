@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { createFilter } from '@/services/filterService';
 import MapViewManager, { MapViewSettings } from './MapViewManager';
+import Map3DOverlay from './Map3DOverlay';
 import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
@@ -4238,6 +4239,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [clusteringUnlocked, setClusteringUnlocked] = useState(false);
   const [mapDisplayMode, setMapDisplayMode] = useState<'sites' | 'points' | 'heatmap'>('sites');
   const [mapLayer, setMapLayer] = useState<'light' | 'dark' | 'satellite' | 'street'>('light');
+  const [show3D, setShow3D] = useState(false);
   const [showSiteLabels, setShowSiteLabels] = useState(false);
   const [mapLabelFields, setMapLabelFields] = useState<Set<string>>(() => new Set(['site_name']));
   const [showBeamSectors, setShowBeamSectors] = useState(true);
@@ -11296,6 +11298,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       })()}
 
 
+      {/* 3D Map Overlay */}
+      {viewMode === 'map' && show3D && (
+        <Map3DOverlay
+          sites={(visibleSites || []).slice(0, 5000).map((s: any) => ({
+            site_id: s.site_id,
+            site_name: s.site_name,
+            coordinates: s.coordinates,
+          }))}
+          center={viewport?.bounds ? [viewport.bounds.getCenter().lat, viewport.bounds.getCenter().lng] : [46.6, 2.2]}
+          zoom={viewport?.zoom || 14}
+          styleVariant={mapLayer === 'satellite' ? 'satellite' : mapLayer === 'dark' ? 'dark' : mapLayer === 'light' ? 'light' : 'street'}
+          onClose={() => setShow3D(false)}
+        />
+      )}
+
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
         <div className="absolute z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-300" style={{ left: (panelCollapsed ? 56 : 400) + 16, bottom: 24 }}>
@@ -11340,6 +11357,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {label}
               </button>
             ))}
+            <button
+              onClick={() => setShow3D(true)}
+              className="w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all text-muted-foreground hover:text-foreground hover:bg-muted border-t border-border"
+              title="Vue 3D"
+            >
+              3D
+            </button>
           </div>
         </div>
       )}
