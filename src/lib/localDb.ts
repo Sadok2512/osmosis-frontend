@@ -66,6 +66,21 @@ function backoffDelay(attempt: number): number {
   return base + Math.floor(Math.random() * 200);
 }
 
+// vps-proxy emits these on stale topo responses served from KV during
+// upstream outages. We thread the signal onto the parsed JSON so callers
+// (topoService) can surface a "stale data" badge without re-reading
+// headers themselves.
+async function parseJsonWithStaleFlag<T>(resp: Response): Promise<T> {
+  const json = await resp.json();
+  if (resp.headers.get('X-Stale-Cache') === 'true' && json && typeof json === 'object' && !Array.isArray(json)) {
+    const ageRaw = resp.headers.get('X-Stale-Age');
+    const ageSec = ageRaw ? parseInt(ageRaw, 10) : NaN;
+    (json as any)._stale_cache = true;
+    if (Number.isFinite(ageSec)) (json as any)._stale_age_seconds = ageSec;
+  }
+  return json as T;
+}
+
 async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise<T> {
   const maxRetries = 4;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -78,7 +93,7 @@ async function fetchJson<T = any>(fetchUrl: string, init?: RequestInit): Promise
         continue;
       }
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      return resp.json();
+      return parseJsonWithStaleFlag<T>(resp);
     } catch (err) {
       const msg = (err as Error).message || '';
       const isTransient = err instanceof TypeError || /\b(502|503|504|BOOT_ERROR)\b/.test(msg);
@@ -106,7 +121,7 @@ async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal):
         continue;
       }
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      return resp.json();
+      return parseJsonWithStaleFlag<T>(resp);
     } catch (err) {
       if (signal?.aborted) throw err;
       const msg = (err as Error).message || '';

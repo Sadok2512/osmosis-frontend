@@ -8,7 +8,6 @@ import { useMapSitesStore } from "@/stores/mapSitesStore";
 import { ActiveFilter, FILTER_DIMENSIONS, resolveAvailableValues } from '@/config/filterDimensions';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap, Polygon, Tooltip, useMapEvents, Marker, Polyline, Circle } from 'react-leaflet';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from 'recharts';
-import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -190,9 +189,12 @@ interface SitesMonitorProps {
 }
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
-const SITES_TO_CELLS_ZOOM = 11;
+const SITES_TO_CELLS_ZOOM = 14;
 const FULL_BEAM_DETAIL_ZOOM = 12;
-const CELLS_TO_SITES_ZOOM = 10;
+const CELLS_TO_SITES_ZOOM = 12;
+// Below this zoom: nothing is rendered. Above it, sites render only if visible count ≤ MAX_VISIBLE_SITES.
+const SITES_VISIBLE_ZOOM = 12;
+const MAX_VISIBLE_SITES = 1000;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
@@ -6179,7 +6181,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
       // No-dashboard mode: load all site summaries so the left inventory is always populated.
-      // Map rendering remains protected by viewport culling and MAX_RENDER_SITES.
+      // Map rendering remains protected by viewport culling and zoom/count gates (SITES_VISIBLE_ZOOM, MAX_VISIBLE_SITES).
       if (noDashboardMode) {
         let cancelledNoDash = false;
         setLoading(true);
@@ -6794,11 +6796,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return 'ALL';
   }, [localBande, dashboardActive, activeDashboardFilters]);
 
-  // Sites visible in current viewport (for map rendering) — with cap to prevent hangs
-  const MAX_RENDER_SITES = 5000;
+  // Sites visible in current viewport (for map rendering) — gated by zoom and count
   const MAX_CELL_RESOLUTION_SITES = 250;
 
   const visibleSites = useMemo(() => {
+    // Zoom gate: never render sites below SITES_VISIBLE_ZOOM
+    if (viewport.zoom < SITES_VISIBLE_ZOOM) return [];
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
@@ -6815,15 +6818,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (sectorColorMode === 'kpi' && hiddenKpiLevels.size > 0) {
       candidates = candidates.filter(siteMatchesKpiLegend);
     }
-    // If still too many, sample evenly to keep the map responsive
-    if (candidates.length > MAX_RENDER_SITES) {
-      const step = Math.ceil(candidates.length / MAX_RENDER_SITES);
-      const sampled: typeof candidates = [];
-      for (let i = 0; i < candidates.length; i += step) {
-        sampled.push(candidates[i]);
-      }
-      return sampled;
-    }
+    // Count gate: if too many sites in viewport, render nothing — user must zoom in further
+    if (candidates.length > MAX_VISIBLE_SITES) return [];
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 

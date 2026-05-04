@@ -26,6 +26,95 @@ const SERVICE_PORTS: Record<string, number> = {
   agent: 8000,
 };
 
+// ── Topology stale-cache ──
+// Survives upstream Postgres outages: GET /api/v1/topo/sites and /topo/cells
+// successful 2xx responses are written to Deno KV; on upstream failure we
+// serve the last good body with X-Stale-Cache + X-Stale-Age headers so the
+// frontend can keep the map populated and show a "stale" badge.
+const TOPO_CACHE_PATHS = new Set([
+  '/api/v1/topo/sites',
+  '/api/v1/topo/cells',
+]);
+const TOPO_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+let _kvPromise: Promise<Deno.Kv | null> | null = null;
+function getKv(): Promise<Deno.Kv | null> {
+  if (!_kvPromise) {
+    _kvPromise = (Deno as any).openKv
+      ? Deno.openKv().catch((e: unknown) => {
+          console.warn('[vps-proxy] Deno KV unavailable:', e instanceof Error ? e.message : e);
+          return null;
+        })
+      : Promise.resolve(null);
+  }
+  return _kvPromise;
+}
+
+function isTopoCacheable(method: string, service: string, path: string): boolean {
+  return method === 'GET' && service === 'parser' && TOPO_CACHE_PATHS.has(path);
+}
+
+function topoCacheKey(path: string, qs: string): Deno.KvKey {
+  return ['topo-cache', path, qs];
+}
+
+interface TopoCacheEntry { body: string; storedAt: number }
+
+async function readTopoCache(path: string, qs: string): Promise<TopoCacheEntry | null> {
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const entry = await kv.get<TopoCacheEntry>(topoCacheKey(path, qs));
+    return entry.value ?? null;
+  } catch (e) {
+    console.warn('[vps-proxy] KV read failed:', e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+async function writeTopoCache(path: string, qs: string, body: string): Promise<void> {
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(
+      topoCacheKey(path, qs),
+      { body, storedAt: Date.now() } as TopoCacheEntry,
+      { expireIn: TOPO_CACHE_TTL_MS },
+    );
+  } catch (e) {
+    console.warn('[vps-proxy] KV write failed:', e instanceof Error ? e.message : e);
+  }
+}
+
+function isWorthCaching(body: string): boolean {
+  if (!body) return false;
+  if (body.includes('"unavailable":true')) return false;
+  try {
+    const json = JSON.parse(body);
+    const sites = Array.isArray(json?.sites) ? json.sites : null;
+    const cells = Array.isArray(json?.cells) ? json.cells : null;
+    // Skip zero-result responses — caching "0 sites" would mask future outages
+    // by replaying empty data as the "last good" snapshot.
+    if (sites && cells) return sites.length > 0 || cells.length > 0;
+    if (sites) return sites.length > 0;
+    if (cells) return cells.length > 0;
+    return true;
+  } catch { return false; }
+}
+
+function staleResponse(entry: TopoCacheEntry): Response {
+  const ageSec = Math.max(0, Math.round((Date.now() - entry.storedAt) / 1000));
+  return new Response(entry.body, {
+    status: 200,
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'application/json',
+      'X-Stale-Cache': 'true',
+      'X-Stale-Age': String(ageSec),
+    },
+  });
+}
+
 function buildSafeFallback(service: string, path: string, message: string) {
   const base = {
     unavailable: true,
@@ -197,6 +286,14 @@ Deno.serve(async (req) => {
       const msg = 'All VPS endpoints unreachable';
       console.error(`[vps-proxy] ${msg}`);
 
+      if (isTopoCacheable(req.method, service, path)) {
+        const cached = await readTopoCache(path, qs);
+        if (cached) {
+          console.warn(`[vps-proxy] Serving stale topo cache for ${path} (age=${Math.round((Date.now() - cached.storedAt) / 1000)}s)`);
+          return staleResponse(cached);
+        }
+      }
+
       const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
         (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-') || path.includes('/dashboards'));
@@ -249,6 +346,15 @@ Deno.serve(async (req) => {
     if (!upstreamRes.ok && (isSafeRead || isSafePost || isSafeWrite)) {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
+
+      if (isTopoCacheable(req.method, service, path)) {
+        const cached = await readTopoCache(path, qs);
+        if (cached) {
+          console.warn(`[vps-proxy] Serving stale topo cache for ${path} (age=${Math.round((Date.now() - cached.storedAt) / 1000)}s)`);
+          return staleResponse(cached);
+        }
+      }
+
       const fallback = (isSafePost || isSafeWrite)
         ? buildSafePostFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
@@ -267,6 +373,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (upstreamRes.ok && isTopoCacheable(req.method, service, path) && isWorthCaching(responseBody)) {
+      // Fire-and-forget; don't slow the response on KV write hiccups.
+      writeTopoCache(path, qs, responseBody).catch(() => {});
+    }
+
     return new Response(responseBody, {
       status: upstreamRes.status,
       headers: {
@@ -281,6 +392,20 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const service = url.searchParams.get('service') || 'kpi';
     const path = url.searchParams.get('path') || '/health';
+    const catchExtra = new URLSearchParams();
+    for (const [k, v] of url.searchParams.entries()) {
+      if (k !== 'service' && k !== 'path') catchExtra.set(k, v);
+    }
+    const catchQs = catchExtra.toString();
+
+    if (isTopoCacheable(req.method, service, path)) {
+      const cached = await readTopoCache(path, catchQs);
+      if (cached) {
+        console.warn(`[vps-proxy] Serving stale topo cache (catch) for ${path} (age=${Math.round((Date.now() - cached.storedAt) / 1000)}s)`);
+        return staleResponse(cached);
+      }
+    }
+
     const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-'));

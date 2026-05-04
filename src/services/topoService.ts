@@ -5,6 +5,44 @@ import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
 import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
+// ── Stale topo signal ──
+// vps-proxy serves the last good /topo/sites or /topo/cells response from
+// Deno KV when upstream is down, tagging the body with `_stale_cache: true`
+// (mirrored from the X-Stale-Cache header by lib/localDb). Components
+// subscribe here to render a "stale data" badge / fire a one-shot toast.
+export interface TopoStaleState {
+  stale: boolean;
+  ageSec: number | null;
+  observedAt: number;
+}
+let _topoStaleState: TopoStaleState = { stale: false, ageSec: null, observedAt: 0 };
+const _topoStaleListeners = new Set<(s: TopoStaleState) => void>();
+
+export function getTopoStaleState(): TopoStaleState {
+  return _topoStaleState;
+}
+
+export function subscribeTopoStale(fn: (s: TopoStaleState) => void): () => void {
+  _topoStaleListeners.add(fn);
+  return () => { _topoStaleListeners.delete(fn); };
+}
+
+function setTopoStaleState(next: TopoStaleState) {
+  _topoStaleState = next;
+  for (const fn of _topoStaleListeners) {
+    try { fn(next); } catch (e) { console.warn('[TopoService] stale listener threw', e); }
+  }
+}
+
+function noteTopoResponse(resp: unknown): void {
+  if (!resp || typeof resp !== 'object') return;
+  const r = resp as Record<string, unknown>;
+  const stale = r._stale_cache === true;
+  if (!stale && !_topoStaleState.stale) return; // no transition
+  const ageSec = typeof r._stale_age_seconds === 'number' ? (r._stale_age_seconds as number) : null;
+  setTopoStaleState({ stale, ageSec, observedAt: Date.now() });
+}
+
 // All supported technologies
 const ALLOWED_TECHNOS = new Set(['2G', '3G', '4G', '5G', 'LTE', 'NR', 'GSM', 'UMTS', 'WCDMA', '2g', '3g', '4g', '5g', 'lte', 'nr', 'gsm', 'umts', 'wcdma']);
 function isAllowedTechno(techno: string | null | undefined): boolean {
@@ -644,6 +682,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
   const LEGACY_CAP = 50000;
   try {
     const json = await topoApi.listFull(LEGACY_CAP);
+    noteTopoResponse(json);
     const rows: TopoRow[] = json.rows ?? [];
     const total: number = json.total ?? rows.length;
     console.log(`[TopoService] LOCAL: received ${rows.length}/${total} cells (cap=${LEGACY_CAP})`);
@@ -660,6 +699,7 @@ export async function fetchTopoSites(): Promise<SiteSummary[]> {
     try {
       const fullWorld = { minLng: -180, minLat: -90, maxLng: 180, maxLat: 90 };
       const resp = await topoApi.listSitesByBbox(fullWorld, undefined, 50000);
+      noteTopoResponse(resp);
       if (!(resp as any)?.unavailable && Array.isArray(resp?.sites) && resp.sites.length > 0) {
         baseSites = resp.sites
           .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lng))
@@ -843,6 +883,8 @@ export async function fetchSitesByBbox(
       getQoeMapData(),
     ]);
 
+    noteTopoResponse(resp);
+
     if ((resp as any)?.unavailable) {
       throw new Error((resp as any).error || 'VPS parser unavailable');
     }
@@ -887,6 +929,7 @@ export async function fetchCellsByBbox(
   if (!sitesFromEndpoint || sitesFromEndpoint.length === 0) {
     try {
       const cellsResp = await topoApi.listCellsByBbox(bbox, filters, 8000, signal);
+      noteTopoResponse(cellsResp);
       if (cellsResp.cells && cellsResp.cells.length > 0) {
         const rows = cellsResp.cells as TopoRow[];
         const builtSites = buildSitesFromRows(rows);
