@@ -8849,15 +8849,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 return false;
               });
 
-              // If single tech, use full radius; otherwise use concentric scale based on position
+              // Use FIXED per-tech ring scales so the same tech always renders at
+              // the same size across sites, regardless of how many other techs the
+              // site exposes (memory: concentric-tech-rings).
+              // Single-tech sites still get the full radius for visibility.
               let ringRadius: number;
               if (siteTechs.length <= 1) {
                 ringRadius = br;
               } else {
-                // Position in the site's tech stack: outermost (lowest) = largest
-                const posIdx = siteTechs.indexOf(tech);
-                const scaleStep = 1.0 / siteTechs.length;
-                const scale = 1.0 - posIdx * scaleStep;
+                const scale = RING_SCALES[tech] ?? 1;
                 ringRadius = Math.max(Math.round(br * scale), 2);
               }
 
