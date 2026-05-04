@@ -75,12 +75,16 @@ const AppSidebar: React.FC<SidebarProps> = ({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
-  const STORAGE_KEY = 'osmosis.sidebar.collapsedGroups';
+  const STORAGE_KEY = 'osmosis.sidebar.collapsedGroups.v2';
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    // Default: all labelled groups collapsed
+    const defaults: Record<string, boolean> = {};
+    navGroups.forEach(g => { if (g.label) defaults[g.label] = true; });
+    return defaults;
   });
   useEffect(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsedGroups)); } catch {}
