@@ -122,6 +122,14 @@ All colors MUST be HSL.
     --sidebar-primary: 9 100% 50%;
     --sidebar-ring: 9 100% 50%;
   }
+  .accent-newt {
+    /* Newt — #E30613 */
+    --primary: 356 96% 45%;
+    --accent: 356 96% 45%;
+    --ring: 356 96% 45%;
+    --sidebar-primary: 356 96% 45%;
+    --sidebar-ring: 356 96% 45%;
+  }
   .accent-pink {
     --primary: 330 81% 60%;
     --accent: 330 81% 60%;
