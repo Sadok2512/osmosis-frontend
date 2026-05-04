@@ -5957,9 +5957,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const fetchForViewport = useCallback(async (bounds: L.LatLngBounds | null, bboxFilters: BboxFilters, zoom?: number) => {
     if (!bounds) return;
 
+    // Always cancel any in-flight request first.
     if (abortRef.current) abortRef.current.abort();
+
+    // Zoom gate: below MIN_SITE_DISPLAY_ZOOM we don't fetch and we clear state.
+    const z = typeof zoom === 'number' ? zoom : viewport.zoom;
+    if (typeof z === 'number' && z < MIN_SITE_DISPLAY_ZOOM) {
+      // bump seq so any in-flight response is ignored
+      requestSeqRef.current += 1;
+      setSites([]);
+      setBboxTotal(0);
+      setBboxLoading(false);
+      setLoading(false);
+      return;
+    }
+
     const controller = new AbortController();
     abortRef.current = controller;
+    const requestId = ++requestSeqRef.current;
 
     const bbox: BboxQuery = {
       minLng: bounds.getWest(),
@@ -5971,12 +5986,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setBboxLoading(true);
 
     try {
-      // Always fetch site summaries only — cells are loaded on demand per site.
-      // Pass zoom so the service caps the server-side fetch at what the map can
-      // actually render (avoids pulling 4000 sites to display 1000).
-      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, viewport.zoom);
+      // Use the zoom passed to this call (not viewport.zoom captured in closure)
+      // so rapid zoom transitions don't request a stale resolution.
+      const { sites: newSites, total } = await fetchSitesByBbox(bbox, bboxFilters, controller.signal, z);
 
+      // Drop stale responses (newer request issued) or aborted ones.
       if (controller.signal.aborted) return;
+      if (requestId !== requestSeqRef.current) return;
 
       // Preserve already loaded cells when fresh BBOX results only contain lightweight site summaries
       setSites(prev => {
@@ -6003,26 +6019,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         return deduped;
       });
       setBboxTotal(total || 0);
-      setBboxLoading(false);
-      setLoading(false);
     } catch (err: any) {
       if (err?.name === 'AbortError') return;
+      if (controller.signal.aborted) return;
+      if (requestId !== requestSeqRef.current) return;
       console.warn('[SitesMonitor] bbox fetch failed', err);
-      setBboxLoading(false);
-      setLoading(false);
+    } finally {
+      if (requestId === requestSeqRef.current && !controller.signal.aborted) {
+        setBboxLoading(false);
+        setLoading(false);
+      }
     }
   }, []);
 
-  // Clear sites & cells only when leaving a dashboard-backed context and no search/no-dashboard load is active.
+  // Cleanup on unmount: abort any in-flight request.
   useEffect(() => {
-    if (!dashboardActive && !noDashboardMode && !isSearchActive) {
+    return () => {
       if (abortRef.current) abortRef.current.abort();
-      setSites([]);
-      setBboxTotal(0);
-      setBboxLoading(false);
-      setLoading(false);
-    }
-  }, [dashboardActive, noDashboardMode, isSearchActive]);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
 
   // Purge legacy global artifact storage once (pre dashboard-scoping)
   useEffect(() => { purgeLegacyArtifacts(); }, []);
