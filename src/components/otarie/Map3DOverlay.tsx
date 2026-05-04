@@ -42,11 +42,26 @@ export default function Map3DOverlay({ sites, center, zoom, styleVariant = 'stre
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    // If we're zoomed-out (whole country) or have no sites in viewport,
+    // default to Paris so 3D buildings (zoom >= 13) are actually visible.
+    let initialCenter: [number, number] = [center[1], center[0]];
+    let initialZoom = zoom;
+    const isWideView = zoom < 12;
+    if (isWideView && sites.length > 0) {
+      initialCenter = [sites[0].coordinates[1], sites[0].coordinates[0]];
+      initialZoom = 16;
+    } else if (isWideView) {
+      initialCenter = [2.3522, 48.8566]; // Paris
+      initialZoom = 16;
+    } else {
+      initialZoom = Math.max(zoom, 15);
+    }
+
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: STYLES[styleVariant] || STYLES.street,
-      center: [center[1], center[0]],
-      zoom: Math.max(zoom, 14),
+      center: initialCenter,
+      zoom: initialZoom,
       pitch: 60,
       bearing: -20,
       antialias: true,
