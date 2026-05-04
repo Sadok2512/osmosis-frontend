@@ -6847,6 +6847,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const MAX_CELL_RESOLUTION_SITES = 250;
 
   const visibleSites = useMemo(() => {
+    // Zoom-gate: never render sites under MIN_SITE_DISPLAY_ZOOM (avoids stale cache flashing on dezoom)
+    if (typeof viewport.zoom === 'number' && viewport.zoom < MIN_SITE_DISPLAY_ZOOM) return [];
+
     let candidates = mapFilteredSites;
     // Viewport culling
     if (viewport.bounds) {
@@ -6875,26 +6878,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
-  // [DIAG] filter-chain trace — logs once per length change to identify which filter rejects sites at mount
+  // [DIAG] filter-chain trace — dev only
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     // eslint-disable-next-line no-console
     console.log('[FILTER-CHAIN]', {
       sites: sites.length,
       filteredSites: filteredSites.length,
       mapFilteredSites: mapFilteredSites.length,
       visibleSites: visibleSites.length,
-      enabledTechnos: [...enabledTechnos],
-      mapTechnoFilter,
-      isBandFilterActive,
-      dashboardActive,
-      activeDashboardFilters,
-      localTechno,
-      localBande,
-      localVendor,
-      localDor,
-      localPlaque,
       viewportZoom: viewport.zoom,
-      hasViewportBounds: !!viewport.bounds,
     });
   }, [sites.length, filteredSites.length, mapFilteredSites.length, visibleSites.length]);
 
