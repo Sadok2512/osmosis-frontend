@@ -6402,60 +6402,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
-      // No-dashboard mode: load all site summaries so the left inventory is always populated.
-      // Map rendering remains protected by viewport culling and clustered overview rendering.
+      // No-dashboard mode: rely on viewport-driven bbox fetch (handleViewportForFetch).
+      // The map will load sites that fall inside the current viewport at any zoom
+      // ≥ MIN_SITE_DISPLAY_ZOOM, removing the previous 5000-cell global cap (≈321 sites).
       if (noDashboardMode) {
-        let cancelledNoDash = false;
-        setLoading(true);
-        setBboxLoading(true);
-        (async () => {
-          try {
-            // Try the full-topology loader first (most reliable: 50k cell cap, builds all sites).
-            const { fetchTopoSites } = await import('../../services/topoService');
-            let allSites: SiteSummary[] = [];
-            try {
-              allSites = await fetchTopoSites();
-            } catch (e) {
-              console.warn('[SitesMonitor] fetchTopoSites failed, falling back to dashboard loader', e);
-            }
-            if (!cancelledNoDash && allSites.length > 0) {
-              setSites(allSites);
-              setBboxTotal(allSites.length);
-              setBboxLoadedCount(allSites.length);
-              setBboxTruncated(false);
-              setLoading(false);
-              setDashboardFitKey(k => k + 1);
-              return;
-            }
-            // Fallback: dashboard loader with null filters
-            const fallback = await fetchDashboardSites(null, undefined, (batch) => {
-              if (!cancelledNoDash && batch.length > 0) {
-                setSites(batch);
-                setBboxTotal(batch.length);
-                setBboxLoadedCount(batch.length);
-                setBboxTruncated(false);
-                setLoading(false);
-                setDashboardFitKey(k => k + 1);
-              }
-            });
-            if (cancelledNoDash) return;
-            const finalSites = fallback || [];
-            if (finalSites.length > 0) {
-              setSites(finalSites);
-              setBboxTotal(finalSites.length);
-              setBboxLoadedCount(finalSites.length);
-              setBboxTruncated(false);
-            }
-          } catch (err) {
-            console.warn('[SitesMonitor] no-dashboard mode load failed', err);
-          } finally {
-            if (!cancelledNoDash) {
-              setLoading(false);
-              setBboxLoading(false);
-            }
-          }
-        })();
-        return () => { cancelledNoDash = true; };
+        // Trigger an initial bbox fetch for the current viewport so the inventory
+        // populates as soon as the user enters no-dashboard mode without waiting
+        // for a pan/zoom event.
+        if (viewport.bounds && typeof viewport.zoom === 'number' && viewport.zoom >= MIN_SITE_DISPLAY_ZOOM) {
+          fetchForViewport(viewport.bounds, currentBboxFilters, viewport.zoom);
+        } else {
+          // Below display-zoom: clear residual data so the map doesn't show stale sites.
+          setSites([]);
+          setBboxTotal(0);
+          setBboxLoadedCount(0);
+          setBboxTruncated(false);
+          setBboxLoading(false);
+          setLoading(false);
+        }
+        return;
       }
       // Don't clear sites if search is active — search results are separate
       setSites([]);
