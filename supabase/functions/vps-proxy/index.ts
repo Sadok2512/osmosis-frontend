@@ -92,6 +92,20 @@ Deno.serve(async (req) => {
       });
     }
 
+    const isSingleSiteCellsLookup = req.method === 'GET'
+      && service === 'parser'
+      && path === '/api/v1/topo/cells'
+      && !!url.searchParams.get('search')
+      && Number(url.searchParams.get('limit') || '0') <= 500;
+
+    if (isSingleSiteCellsLookup) {
+      const fallback = buildSafeFallback(service, path, 'Single-site cell lookup disabled to prevent proxy boot saturation; using RPC/synthetic fallback');
+      return new Response(JSON.stringify(fallback), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const port = SERVICE_PORTS[service];
     if (!port) {
       return new Response(JSON.stringify({ error: `Unknown service: ${service}` }), {
