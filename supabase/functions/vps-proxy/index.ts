@@ -35,6 +35,10 @@ function buildSafeFallback(service: string, path: string, message: string) {
     total: 0,
   };
 
+  if (/\/topo\/site\/[^/]+$/.test(path)) {
+    const siteId = decodeURIComponent(path.split('/').pop() || '');
+    return { ...base, site_id: siteId, site_name: siteId, code_nidt: siteId, cells: [], technos: [], bands: [], vendors: [] };
+  }
   if (path.includes('/topo/sites')) {
     return { ...base, sites: [], cells: [], rows: [] };
   }
@@ -79,6 +83,14 @@ Deno.serve(async (req) => {
     const path = url.searchParams.get('path') || '/health';
 
     console.log(`[vps-proxy] ${req.method} service=${service} path=${path}`);
+
+    if (req.method === 'GET' && service === 'parser' && /\/api\/v1\/topo\/site\/[^/]+$/.test(path)) {
+      const fallback = buildSafeFallback(service, path, 'Site detail endpoint disabled to protect map rendering; using cell/RPC fallback');
+      return new Response(JSON.stringify(fallback), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const port = SERVICE_PORTS[service];
     if (!port) {
