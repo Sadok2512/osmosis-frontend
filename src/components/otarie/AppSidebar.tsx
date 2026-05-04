@@ -153,6 +153,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
           </div>
         ))}
       </div>
+
+      {canScrollRight && (
         <button onClick={() => scrollBy(1)} className="flex items-center justify-center py-1 text-sidebar-foreground/40 hover:text-sidebar-primary transition-colors">
           <ChevronLeft size={16} className="-rotate-90" />
         </button>
