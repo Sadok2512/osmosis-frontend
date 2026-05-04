@@ -6992,20 +6992,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [filteredSites, sectorColorMode, siteMatchesKpiLegend]);
 
   const selectedSiteCoords = useMemo<[number, number] | null>(() => {
-    // Hard gate: no pulsing marker when nothing is actually selected.
-    // siteDetail / selectedSiteSnapshot can linger after a deselection,
-    // so we require an active selectedSiteId before resolving coords.
+    // Hard gate: no pulsing marker unless we are explicitly focused on a site.
+    // Both selectedSiteId AND focusMode === 'site' are required so that
+    // residual state (siteDetail / selectedSiteSnapshot) cannot keep the
+    // blue pulse alive after the user has deselected or returned to global.
     if (!selectedSiteId) return null;
+    if (focusMode !== 'site' && focusMode !== 'cell') return null;
     const candidate =
-      (siteDetail?.coordinates?.length === 2 ? siteDetail : null)
-      ?? (selectedSiteSnapshot?.coordinates?.length === 2 ? selectedSiteSnapshot : null)
+      (siteDetail?.coordinates?.length === 2 && siteDetail.site_id === selectedSiteId ? siteDetail : null)
+      ?? (selectedSiteSnapshot?.coordinates?.length === 2 && selectedSiteSnapshot.site_id === selectedSiteId ? selectedSiteSnapshot : null)
       ?? (sites.find((site) => site.site_id === selectedSiteId) ?? null);
     const coords = candidate?.coordinates;
     if (!coords || coords.length !== 2) return null;
     const [lat, lng] = coords;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return [lat, lng];
-  }, [siteDetail, selectedSiteSnapshot, selectedSiteId, sites]);
+  }, [siteDetail, selectedSiteSnapshot, selectedSiteId, sites, focusMode]);
 
   // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
