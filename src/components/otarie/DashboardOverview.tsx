@@ -182,7 +182,7 @@ const DASHBOARD_TYPE_STYLES: Record<string, DashboardTypeStyle> = {
     hoverBg: 'hover:bg-pink-50/40 dark:hover:bg-pink-950/10',
     ring: 'hover:ring-pink-200/70 dark:hover:ring-pink-900/40 hover:border-pink-200/80 dark:hover:border-pink-900/40',
     gradient: 'from-pink-50/60 dark:from-pink-950/10',
-    label: 'Power NetVision',
+    label: 'NetVision',
     icon: <Wand2 className="w-4 h-4" />,
   },
 };
@@ -682,7 +682,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
             <Wand2 className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-foreground">Rapport Power NetVision</h3>
+            <h3 className="text-base font-semibold text-foreground">Rapport NetVision</h3>
             <p className="text-xs text-muted-foreground">
               {pages.length} page{pages.length > 1 ? 's' : ''} · {totalSections} section{totalSections !== 1 ? 's' : ''} · {totalWidgets} widget{totalWidgets !== 1 ? 's' : ''}
             </p>
@@ -690,7 +690,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
         </div>
 
         <p className="text-sm text-muted-foreground mt-4">
-          L'aperçu interactif des rapports Power NetVision n'est pas disponible ici. Ouvrez le rapport dans son éditeur dédié pour visualiser les pages, sections et widgets.
+          L'aperçu interactif des rapports NetVision n'est pas disponible ici. Ouvrez le rapport dans son éditeur dédié pour visualiser les pages, sections et widgets.
         </p>
 
         {pages.length > 0 && (
@@ -714,7 +714,7 @@ const PrecisionArchitectPreview: React.FC<{ widgets: any[]; onOpen: () => void }
           onClick={onOpen}
           className="mt-6 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5 shadow-sm"
         >
-          <ExternalLink className="w-3.5 h-3.5" /> Ouvrir dans Power NetVision
+          <ExternalLink className="w-3.5 h-3.5" /> Ouvrir dans NetVision
         </button>
       </div>
     </div>

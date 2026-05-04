@@ -54,7 +54,7 @@ const DEFAULT_STEPS: Step[] = [
   },
   {
     id: "open-precision",
-    title: "Ouvrir Power NetVision",
+    title: "Ouvrir NetVision",
     hint: "Naviguer vers /precision-architect.",
   },
   {
