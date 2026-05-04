@@ -800,9 +800,9 @@ export const topoApi = {
     };
 
     try {
-      const sitesResp = normalizeSites(await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal));
-      if ((sitesResp as any)?.unavailable) throw new Error('VPS parser unavailable');
-      return sitesResp;
+      const rawSitesResp = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
+      if (rawSitesResp?.unavailable) throw new Error('VPS parser unavailable');
+      return normalizeSites(rawSitesResp);
     } catch {
       const qs = new URLSearchParams({ limit: String(limit) });
       if (filters?.cluster && filters.cluster !== 'ALL') qs.set('cluster', filters.cluster);
