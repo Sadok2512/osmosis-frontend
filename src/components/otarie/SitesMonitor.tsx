@@ -5135,6 +5135,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noDashboardMode, dashboardActive]);
+
+  // Whenever dashboard activation toggles, drop any residual selection so the
+  // blue pulse marker never persists across mode changes without a real pick.
+  useEffect(() => {
+    setSelectedSiteId(null);
+    setSelectedSiteSnapshot(null);
+    setFocusMode('global');
+    setFocusCellId(null);
+  }, [dashboardActive, noDashboardMode]);
+
   const [activeSiteScope, setActiveSiteScope] = useState<SiteScope | null>(null);
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
