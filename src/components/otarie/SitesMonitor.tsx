@@ -6219,6 +6219,24 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           };
         };
 
+        const resolveSiteByName = async (siteRef: string): Promise<SiteSummary | null> => {
+          const ref = siteRef.trim();
+          if (!ref) return null;
+          const resp = await fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites`, { search: ref, limit: '10' }), {
+            headers: getVpsProxyHeaders(),
+            signal: ctrl.signal,
+          });
+          const data = await resp.json();
+          const rows = Array.isArray(data) ? data : (data?.sites || []);
+          const exact = rows.find((row: any) => {
+            const rowName = String(row.site_name || row.nom_site || row.code_nidt || '').trim().toUpperCase();
+            const rowId = String(row.code_nidt || row.site_id || '').trim().toUpperCase();
+            const wanted = ref.toUpperCase();
+            return rowName === wanted || rowId === wanted;
+          });
+          return toSiteSummary(exact || rows[0]);
+        };
+
         const [sitesResp, cellsResp] = await Promise.all([
           fetch(getVpsProxyUrl('parser', `/api/v1/topo/sites`, { search: term, limit: '50' }), {
             headers: getVpsProxyHeaders(),
@@ -6241,6 +6259,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
         const cellRows: any[] = Array.isArray(cellsData) ? cellsData : (cellsData?.rows || cellsData?.cells || []);
         const sitesFromCellsMap = new Map<string, SiteSummary>();
+        const unresolvedCellSiteRefs = new Set<string>();
         for (const row of cellRows) {
           const summary = toSiteSummary({
             site_name: row.site_name || row.nom_site,
@@ -6256,8 +6275,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             latitude: row.latitude ?? row.lat,
             longitude: row.longitude ?? row.lng,
             cell_count: 1,
+            cell_name: row.cell_name || row.nom_cellule || row.cell_id,
+            nom_cellule: row.nom_cellule || row.cell_name || row.cell_id,
           });
-          if (!summary) continue;
+          if (!summary) {
+            const inferred = inferSiteFromCellRef(row.cell_name || row.nom_cellule || row.cell_id || '');
+            if (inferred?.siteName) unresolvedCellSiteRefs.add(inferred.siteName);
+            continue;
+          }
           const existing = sitesFromCellsMap.get(summary.site_id);
           if (!existing) {
             sitesFromCellsMap.set(summary.site_id, summary);
@@ -6269,6 +6294,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (!existing.plaque && summary.plaque) existing.plaque = summary.plaque;
           if (!(existing as any).zone_arcep && (summary as any).zone_arcep) (existing as any).zone_arcep = (summary as any).zone_arcep;
           if (!(existing as any).cluster && (summary as any).cluster) (existing as any).cluster = (summary as any).cluster;
+        }
+
+        if (!ctrl.signal.aborted && unresolvedCellSiteRefs.size > 0) {
+          const resolvedSites = await Promise.all(
+            Array.from(unresolvedCellSiteRefs).slice(0, 10).map(resolveSiteByName),
+          );
+          for (const resolved of resolvedSites) {
+            if (!resolved) continue;
+            const existing = sitesFromCellsMap.get(resolved.site_id);
+            if (!existing) {
+              sitesFromCellsMap.set(resolved.site_id, resolved);
+              continue;
+            }
+            existing.coordinates = resolved.coordinates;
+            if ((!existing.vendor || existing.vendor === 'Unknown') && resolved.vendor) existing.vendor = resolved.vendor;
+            if (!existing.dor && resolved.dor) existing.dor = resolved.dor;
+            if (!existing.plaque && resolved.plaque) existing.plaque = resolved.plaque;
+            if (!(existing as any).zone_arcep && (resolved as any).zone_arcep) (existing as any).zone_arcep = (resolved as any).zone_arcep;
+            if (!(existing as any).cluster && (resolved as any).cluster) (existing as any).cluster = (resolved as any).cluster;
+          }
         }
 
         let siteList: any[] = [...directSites, ...Array.from(sitesFromCellsMap.values())];
