@@ -80,6 +80,14 @@ All colors MUST be HSL.
     --sidebar-border: 220 15% 85%;
   }
 
+  .sidebar-teal {
+    --sidebar-background: 175 55% 25%;
+    --sidebar-foreground: 175 25% 95%;
+    --sidebar-accent: 175 60% 33%;
+    --sidebar-accent-foreground: 175 25% 98%;
+    --sidebar-border: 175 50% 20%;
+  }
+
   .sidebar-red {
     /* Ferrari Red */
     --sidebar-background: 9 100% 38%;
