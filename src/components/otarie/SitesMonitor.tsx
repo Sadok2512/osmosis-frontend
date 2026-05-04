@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { createFilter } from '@/services/filterService';
 import MapViewManager, { MapViewSettings } from './MapViewManager';
+import Map3DOverlay from './Map3DOverlay';
 import CoverageCanvasOverlay from './CoverageCanvasOverlay';
 import CoverageSimPanel from './CoverageSimPanel';
 import TiltOverlay from './TiltOverlay';
