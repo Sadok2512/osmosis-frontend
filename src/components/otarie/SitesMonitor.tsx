@@ -5908,7 +5908,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // ── Bbox-based data loading with debounce ──
   // Zoom-gate: no site fetch / no site rendering below this zoom.
-  const MIN_SITE_DISPLAY_ZOOM = 10;
+  // Set to 7 (= default France view) so sites display from the initial view.
+  // Raise this if you want to throttle fetches at very low zooms.
+  const MIN_SITE_DISPLAY_ZOOM = 7;
   const SITE_FETCH_DEBOUNCE_MS = 300;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
