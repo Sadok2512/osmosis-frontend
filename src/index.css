@@ -97,6 +97,15 @@ All colors MUST be HSL.
     --sidebar-border: 9 90% 30%;
   }
 
+  .sidebar-newt {
+    /* Newt — #E30613 */
+    --sidebar-background: 356 96% 45%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 356 96% 52%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 356 90% 35%;
+  }
+
   /* Accent color overrides */
   .accent-orange {
     --primary: 25 95% 53%;
