@@ -11342,6 +11342,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {label}
               </button>
             ))}
+            <button
+              onClick={() => setShow3D(true)}
+              className="w-10 h-10 flex items-center justify-center text-xs font-black tracking-wider transition-all text-muted-foreground hover:text-foreground hover:bg-muted border-t border-border"
+              title="Vue 3D"
+            >
+              3D
+            </button>
           </div>
         </div>
       )}
