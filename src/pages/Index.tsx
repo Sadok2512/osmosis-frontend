@@ -139,7 +139,7 @@ const Index: React.FC = () => {
   const accentStyles: Record<AccentColor, Record<string, string>> = {
     default: {},
     orange: { '--primary': '25 95% 53%', '--accent': '25 95% 53%', '--ring': '25 95% 53%', '--sidebar-primary': '25 95% 53%', '--sidebar-ring': '25 95% 53%' },
-    red: { '--primary': '0 72% 51%', '--accent': '0 72% 51%', '--ring': '0 72% 51%', '--sidebar-primary': '0 72% 51%', '--sidebar-ring': '0 72% 51%' },
+    red: { '--primary': '9 100% 50%', '--accent': '9 100% 50%', '--ring': '9 100% 50%', '--sidebar-primary': '9 100% 50%', '--sidebar-ring': '9 100% 50%' },
     pink: { '--primary': '330 81% 60%', '--accent': '330 81% 60%', '--ring': '330 81% 60%', '--sidebar-primary': '330 81% 60%', '--sidebar-ring': '330 81% 60%' },
     purple: { '--primary': '262 83% 58%', '--accent': '262 83% 58%', '--ring': '262 83% 58%', '--sidebar-primary': '262 83% 58%', '--sidebar-ring': '262 83% 58%' },
     indigo: { '--primary': '239 84% 67%', '--accent': '239 84% 67%', '--ring': '239 84% 67%', '--sidebar-primary': '239 84% 67%', '--sidebar-ring': '239 84% 67%' },
