@@ -9852,6 +9852,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
       </MapContainer>
 
+      {/* No-dashboard zoom hint: invite user to zoom in to load sites by viewport */}
+      {noDashboardMode && !dashboardActive && !isSearchActive && typeof viewport.zoom === 'number' && viewport.zoom < MIN_SITE_DISPLAY_ZOOM && (
+        <div className="pointer-events-none absolute inset-0 z-[500] flex items-center justify-center">
+          <div className="pointer-events-auto bg-card/95 backdrop-blur border border-border rounded-xl shadow-xl px-5 py-4 max-w-sm text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <Globe size={16} className="text-primary" />
+              <span className="text-sm font-bold text-foreground">Mode sans dashboard</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Zoomez pour charger les sites du viewport (zoom actuel : <span className="font-semibold text-foreground">{viewport.zoom}</span> · requis : <span className="font-semibold text-foreground">{MIN_SITE_DISPLAY_ZOOM}</span>).
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Coverage simulation overlay kept in right panel only */}
 
       {/* ── Polygon → Cluster save dialog ── */}
