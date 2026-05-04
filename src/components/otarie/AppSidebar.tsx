@@ -75,6 +75,19 @@ const AppSidebar: React.FC<SidebarProps> = ({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
 
+  const STORAGE_KEY = 'osmosis.sidebar.collapsedGroups';
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collapsedGroups)); } catch {}
+  }, [collapsedGroups]);
+  const toggleGroup = (label: string) =>
+    setCollapsedGroups(prev => ({ ...prev, [label]: !prev[label] }));
+
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
