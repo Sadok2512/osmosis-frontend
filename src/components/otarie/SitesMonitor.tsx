@@ -5907,8 +5907,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [mapKpi]);
 
   // ── Bbox-based data loading with debounce ──
+  // Zoom-gate: no site fetch / no site rendering below this zoom.
+  const MIN_SITE_DISPLAY_ZOOM = 10;
+  const SITE_FETCH_DEBOUNCE_MS = 300;
   const mountedRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const requestSeqRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [bboxTotal, setBboxTotal] = useState<number>(0);
   const [bboxLoading, setBboxLoading] = useState(false);
