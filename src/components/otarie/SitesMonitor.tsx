@@ -7823,9 +7823,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    // Outside dashboard/no-dashboard/search contexts, the map must load sites by BBOX.
+    // Outside dashboard/search contexts, the map must load sites by BBOX.
     // This is the only path that triggers the zoom-gated Deep Live Monitor fetch.
-    if (!dashboardActive && !noDashboardMode && !isSearchActive) {
+    if (!dashboardActive && !isSearchActive) {
       handleViewportForFetch(v);
     }
     if (v.zoom >= 8 && !clusteringUnlocked) {
@@ -7837,7 +7837,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, handleViewportForFetch, dashboardActive, noDashboardMode, isSearchActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, handleViewportForFetch, dashboardActive, isSearchActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
