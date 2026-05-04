@@ -1201,14 +1201,14 @@ const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; rese
 
   // Always center on France on very first mount, regardless of mode
   useEffect(() => {
+    if (!enabled) return;
     // Multiple attempts to ensure map is centered after full init
     const t1 = setTimeout(() => {
       map.invalidateSize();
       map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
     }, 50);
     return () => { clearTimeout(t1); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [enabled, map]);
 
   useEffect(() => {
     if (!enabled || lastResetKeyRef.current === resetKey) return;
