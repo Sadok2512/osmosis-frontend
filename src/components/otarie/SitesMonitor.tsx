@@ -8871,7 +8871,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   pathOptions={{
                     color: strokeColor,
                     fillColor,
-                    fillOpacity: siteTechs.length <= 1 ? 0.85 : RING_OPACITY,
+                    fillOpacity: RING_OPACITY,
                     weight: isSel ? 2.5 : (isHov ? 2 : 1),
                   }}
                   eventHandlers={{
