@@ -335,7 +335,7 @@ export default function EditorView({
               <Radio className="w-5 h-5 text-on-primary-container" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-primary leading-tight">Network Manager</h2>
+              <h2 className="text-lg font-black text-primary leading-tight">Netview</h2>
               <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">Global Perimeter</p>
             </div>
           </div>
@@ -467,9 +467,6 @@ export default function EditorView({
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white/80 backdrop-blur-xl sticky top-0 z-[70] flex justify-between items-center w-full px-6 py-3 border-b border-outline-variant/10">
           <div className="flex items-center gap-6">
-            <span className="text-xl font-bold text-primary font-headline tracking-tight">Netview</span>
-            <div className="h-6 w-px bg-outline-variant/30" />
-
             {/* Dashboard switcher */}
             <DashboardSwitcher />
 
