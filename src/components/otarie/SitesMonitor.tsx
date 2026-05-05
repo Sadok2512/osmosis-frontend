@@ -7688,8 +7688,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const prevZoom = viewport.zoom;
     // handleViewportChange already calls setViewport
     handleViewportChange(v);
-    // Don't fetch sites without an active dashboard
-    // (previously this called handleViewportForFetch, loading sites via bbox even with no dashboard)
+    // Re-enable bbox-aware site fetch on pan/zoom in no-dashboard mode.
+    // Previously commented out as "Don't fetch sites without an active dashboard",
+    // but that meant the user only ever saw the initial /topo/cells alphabet-first
+    // 5000 sites — panning to Lyon revealed an empty map because the global
+    // sample didn't include Lyon's alphabet range.
+    // handleViewportForFetch has its own `if (dashboardActive) return` guard
+    // so it's a no-op when the dashboard loader is in charge.
+    handleViewportForFetch(v);
     if (v.zoom >= 8 && !clusteringUnlocked) {
       setClusteringUnlocked(true);
     }
@@ -7699,7 +7705,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       if (renderTimeoutRef.current) clearTimeout(renderTimeoutRef.current);
       renderTimeoutRef.current = setTimeout(() => setMapRendering(false), 600);
     }
-  }, [handleViewportChange, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
+  }, [handleViewportChange, handleViewportForFetch, dashboardActive, viewport.zoom, mapFilteredSites.length, clusteringUnlocked]);
 
   const updateFilter = (key: keyof Filters, value: any) => {
     onFilterChange({ ...filters, [key]: value });
