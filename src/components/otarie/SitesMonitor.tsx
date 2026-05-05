@@ -12330,7 +12330,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
                                                   <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
                                                   <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
                                                 </tr>
                                               );
                                             })}
