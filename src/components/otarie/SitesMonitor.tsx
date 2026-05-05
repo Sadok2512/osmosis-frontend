@@ -12213,8 +12213,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               {/* Sector cards row */}
                               <div className="flex items-stretch gap-2 mb-3">
-                                {sortedSec.map(([sNum, cells]) => {
-                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                {sortedSec.map(([sNum, cells], idx) => {
+                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sNum) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
                                   return (
@@ -12568,8 +12568,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               <div className="flex items-stretch gap-2 mb-3">
-                                {sortedSec.map(([sNum, cells]) => {
-                                  const isSectorExpanded = expandedSectors.has(sNum);
+                                {sortedSec.map(([sNum, cells], idx) => {
+                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sNum) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
                                   return (
