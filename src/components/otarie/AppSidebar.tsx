@@ -115,7 +115,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`} style={{ zoom: 1.5 } as React.CSSProperties}>
+    <div className={`relative h-full flex flex-col z-50 transition-all duration-300 bg-sidebar border-r border-sidebar-border ${isCollapsed ? 'w-[70px]' : 'w-[260px]'}`}>
 
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
