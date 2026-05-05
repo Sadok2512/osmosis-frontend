@@ -7846,6 +7846,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // Ensure inventory panel is open
     setPanelCollapsed(false);
 
+    // ── Search-driven click: tag + force zoom 15 so cells become visible ──
+    // The user just typed a cell or site name in the inventory search bar
+    // (now also matches cells via /topo/sites?search=…). Without this,
+    // clicking the search result kept the map at the current overview zoom
+    // (7-13) and only a dot rendered. Force zoom >= 15 so per-cell sectors
+    // appear, and tag the site so it stays highlighted on subsequent pans.
+    if (isSearchActive && site.coordinates) {
+      const m = (window as any).__siteMonitorMap as L.Map | undefined;
+      if (m) {
+        m.flyTo(site.coordinates, Math.max(m.getZoom(), 15), { duration: 0.8 });
+      }
+      if (!isSiteTagged(site.site_id)) {
+        toggleTagSite(site);
+      }
+    }
+
     // ── Then load all cells asynchronously ──
     let siteWithCells = site;
     if (site.site_id) {
