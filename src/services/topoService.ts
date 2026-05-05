@@ -860,10 +860,24 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  *                                            one bbox without truncation
  *    - zoom 13+ (street):             10000 — every site in view
  */
-export function bboxLimitForZoom(_zoom?: number): number {
-   // Fixed cap at 5000 sites regardless of zoom level.
-   return 5000;
- }
+/**
+ * Zoom-tier for `/topo/sites?bbox=…&limit=…`. Tighter at high zoom because
+ * the bbox naturally shrinks (fewer sites in view). Looser at low zoom so
+ * a national overview isn't silently truncated to alphabetical-first-5000.
+ *
+ * Backend now sorts the truncation by cell_count DESC (see topo.py /sites)
+ * so even when LIMIT bites, the biggest sites always survive — these caps
+ * are about network/render budget, not about "correctness of the visible set".
+ */
+export const SITES_TO_CELLS_ZOOM = 14;
+
+export function bboxLimitForZoom(zoom?: number): number {
+  if (zoom == null) return 5000;
+  if (zoom < 8) return 10000;            // national / regional overview
+  if (zoom <= 13) return 5000;           // metro / city
+  if (zoom <= 16) return 2000;           // sectoriel — cells take over
+  return 500;                            // street level — few sites in view
+}
 
 export async function fetchSitesByBbox(
   bbox: BboxQuery,
@@ -920,7 +934,19 @@ export async function fetchCellsByBbox(
   bbox: BboxQuery,
   filters?: BboxFilters,
   signal?: AbortSignal,
+  zoom?: number,
 ): Promise<SiteSummary[]> {
+  // Safety clamp: cells render as per-sector polygons and only become
+  // visible at zoom >= SITES_TO_CELLS_ZOOM. Calling this at lower zoom
+  // would download up to 8000 cells over a country-sized bbox for nothing
+  // (markers stay as site dots until the user zooms in). Refuse early —
+  // caller should decide site-level rendering at low zoom.
+  if (zoom != null && zoom < SITES_TO_CELLS_ZOOM) {
+    console.log(
+      `[TopoService] fetchCellsByBbox refused at zoom=${zoom} (< ${SITES_TO_CELLS_ZOOM}) — returning []`
+    );
+    return [];
+  }
   // Strategy: go directly to /cells cache merge (fast & reliable).
   // /sites-with-cells endpoint consistently times out on large DOR queries — skip it entirely.
   let sitesFromEndpoint: SiteSummary[] | null = null;

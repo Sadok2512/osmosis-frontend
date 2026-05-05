@@ -7056,8 +7056,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           maxLng: bounds.getEast(),
           maxLat: bounds.getNorth(),
         };
-        // Single bulk call for all cells in current viewport
-        const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters);
+        // Single bulk call for all cells in current viewport.
+        // Pass zoom so the service can refuse the call below SITES_TO_CELLS_ZOOM.
+        const cellSites = await fetchCellsByBbox(bboxQuery, currentBboxFilters, undefined, viewport.zoom);
 
         // Build a lookup by normalized site_id AND site_name (VPS keys are not always consistent)
         const cellMap = new Map<string, any[]>();
