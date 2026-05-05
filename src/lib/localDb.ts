@@ -141,28 +141,17 @@ async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal):
 // ─── Dashboards — stored on VPS PostgreSQL (RAN_OP) ───
 export const dashboardsApi = {
   list: async (): Promise<any[]> => {
-    const url = parserUrl('/dashboards/');
-    // Retry once on transient cold-boot 503 (edge runtime BOOT_ERROR)
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-        if (resp.status === 503 && attempt === 0) {
-          await new Promise((r) => setTimeout(r, 600));
-          continue;
-        }
-        if (!resp.ok) throw new Error(`${resp.status}`);
-        return await resp.json();
-      } catch (e) {
-        if (attempt === 0) {
-          await new Promise((r) => setTimeout(r, 600));
-          continue;
-        }
-        console.warn('[Dashboards] VPS list failed, trying Supabase fallback', e);
-        const { data } = await supabase.from('dashboards').select('*').eq('is_archived', false).order('updated_at', { ascending: false });
-        return data || [];
-      }
+    // Source of truth = Lovable Cloud (Supabase). VPS has no `dashboards` table.
+    const { data, error } = await supabase
+      .from('dashboards')
+      .select('*')
+      .eq('is_archived', false)
+      .order('updated_at', { ascending: false });
+    if (error) {
+      console.warn('[Dashboards] Supabase list failed', error);
+      return [];
     }
-    return [];
+    return data || [];
   },
   upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean; dashboard_type?: string; visibility?: string; owner_username?: string; shared_with?: string[] }) => {
     // VPS parser endpoint frequently returns 500 on large dashboard payloads.
