@@ -639,6 +639,35 @@ export const topoApi = {
       }
     }
 
+    // ── Sites without cells in the /topo/cells sample ─────────────────
+    // /topo/cells is hard-capped server-side (100k rows). When the DB has
+    // 627k+ unique cells, the sample only covers ~15% of cells and the
+    // sites whose alphabet position falls outside that window get NO rows
+    // emitted — they drop off the map entirely (we observed 71 sites
+    // visible instead of 37 474). Fix: emit one synthetic placeholder row
+    // per site that has site_ref_daily coordinates but no cell in the
+    // current sample. This makes the marker appear at low zoom; the real
+    // cells get hydrated separately by fetchCellsByBbox at zoom ≥ 14.
+    for (const [siteName, coords] of siteCoords) {
+      if (cellsBySite.has(siteName)) continue;
+      rows.push({
+        code_nidt: siteName,
+        nom_site: siteName,
+        nom_cellule: `${siteName}_synth`,  // placeholder, no real cell data
+        latitude: coords.lat,
+        longitude: coords.lng,
+        techno: '4g',
+        bande: '',
+        constructeur: null,
+        azimut: 0,
+        hba: 30,
+        plaque: coords.plaque,
+        dor: coords.dor,
+        region: coords.region,
+        tac: null,
+      });
+    }
+
     return { rows, total: cellsData.total ?? rows.length };
   },
 
