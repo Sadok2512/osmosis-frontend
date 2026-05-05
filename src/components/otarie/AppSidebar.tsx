@@ -22,26 +22,58 @@ interface SidebarProps {
   enabledModules: Record<string, boolean>;
 }
 
-const navItems: { id: AppTab; label: string; icon: React.ReactNode }[] = [
-  { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
-  { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
-  { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
-  
-  { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
-  { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
-  { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
-  { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
-  { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
-  { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
-  { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
-  { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
+type NavItem = { id: AppTab; label: string; icon: React.ReactNode };
+type NavGroup = { label: string; items: NavItem[] };
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Intelligence',
+    items: [
+      { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
+      { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
+      { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
+      { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Detection',
+    items: [
+      { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
+      { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Analysis',
+    items: [
+      { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
+      { id: 'precision_architect' as AppTab, label: 'Precision Architect', icon: <Wand2 className="w-5 h-5" /> },
+      { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Reference',
+    items: [
+      { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
+      { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
+    ],
+  },
 ];
+
 
 const AppSidebar: React.FC<SidebarProps> = ({
   filters, setFilters, activeTab, setActiveTab, isCollapsed, setIsCollapsed, theme, setTheme, enabledModules
 }) => {
   const navigate = useNavigate();
-  const visibleNavItems = navItems.filter(item => !enabledModules || enabledModules[item.id] !== false);
+  const visibleGroups = navGroups
+    .map(g => ({ ...g, items: g.items.filter(item => !enabledModules || enabledModules[item.id] !== false) }))
+    .filter(g => g.items.length > 0);
+  const visibleNavItems = visibleGroups.flatMap(g => g.items);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -93,48 +125,36 @@ const AppSidebar: React.FC<SidebarProps> = ({
         className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-6 scrollbar-hide pb-20 pt-4`}
         style={{ scrollBehavior: 'smooth' }}
       >
-        {!isCollapsed && (
-          <div className="px-3">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">Main Modules</span>
-          </div>
-        )}
-
-        <div className="space-y-1">
-          {visibleNavItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
-                activeTab === item.id
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-              }`}
-              title={isCollapsed ? item.label : undefined}
-            >
-              {activeTab === item.id && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
-              )}
-              <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
-              {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
-            </button>
-          ))}
-
-          <button
-            onClick={() => setActiveTab('precision_architect' as AppTab)}
-            className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-14' : 'gap-3 px-3 py-3 h-14'} ${
-              activeTab === 'precision_architect'
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
-            }`}
-            title={isCollapsed ? 'Precision Architect' : undefined}
-          >
-            {activeTab === 'precision_architect' && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
+        {visibleGroups.map((group) => (
+          <div key={group.label} className="space-y-1">
+            {!isCollapsed && (
+              <div className="px-3 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">{group.label}</span>
+              </div>
             )}
-            <span className={activeTab === 'precision_architect' ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}><Wand2 className="w-5 h-5" /></span>
-            {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">Precision Architect</span>}
-          </button>
-        </div>
+            {isCollapsed && (
+              <div className="mx-2 mb-1 h-px bg-sidebar-border/60" />
+            )}
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center rounded-xl transition-all text-left group relative ${isCollapsed ? 'justify-center p-3 h-12' : 'gap-3 px-3 py-2.5 h-12'} ${
+                  activeTab === item.id
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
+                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-white'
+                }`}
+                title={isCollapsed ? item.label : undefined}
+              >
+                {activeTab === item.id && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-8 rounded-r-full bg-sidebar-primary-foreground/60" />
+                )}
+                <span className={activeTab === item.id ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground group-hover:text-sidebar-primary'}>{item.icon}</span>
+                {!isCollapsed && <span className="text-[13px] font-medium tracking-tight">{item.label}</span>}
+              </button>
+            ))}
+          </div>
+        ))}
 
       </div>
 
