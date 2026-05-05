@@ -27,9 +27,8 @@ type NavGroup = { label: string; items: NavItem[] };
 
 const navGroups: NavGroup[] = [
   {
-    label: 'Intelligence',
+    label: 'Overview',
     items: [
-      { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
       { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
     ],
   },
@@ -42,18 +41,24 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Detection',
+    label: 'KPI Analysis',
     items: [
-      { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
+      { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
+      { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
+      { id: 'precision_architect' as AppTab, label: 'Precision Architect', icon: <Wand2 className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'AI / ML',
+    items: [
+      { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
       { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
     ],
   },
   {
-    label: 'Analysis',
+    label: 'Detection',
     items: [
-      { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
-      { id: 'precision_architect' as AppTab, label: 'Precision Architect', icon: <Wand2 className="w-5 h-5" /> },
-      { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
+      { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
     ],
   },
   {
