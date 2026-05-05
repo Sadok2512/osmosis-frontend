@@ -603,7 +603,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
 
         <JalonsPill />
 
-        <div className="ml-auto flex flex-col items-end gap-1">
+        <div className="ml-auto relative">
           <button
             onClick={handleApply}
             disabled={isAnyFetching > 0}
@@ -622,8 +622,8 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
               </>
             )}
           </button>
-          <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest border border-emerald-200">
-            <Globe className="w-3 h-3" /> Dashboard scope
+          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-emerald-700 text-[8px] font-black uppercase tracking-widest border border-emerald-300 shadow-sm whitespace-nowrap pointer-events-none">
+            <Globe className="w-2.5 h-2.5" /> Dashboard scope
           </span>
         </div>
       </div>
