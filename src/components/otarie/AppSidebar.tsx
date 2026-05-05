@@ -4,7 +4,7 @@ import {
   Radio, Settings, Layout, Bell,
   Database, ShieldCheck, BarChart2, ChevronLeft, ChevronRight,
   Sliders, Globe, FileText, BookOpen, Sparkles, Sun, Moon, LineChart, MapPin, LogOut,
-  Search, Wand2, Radar
+  Search, Wand2, Radar, ChevronDown
 } from 'lucide-react';
 import { clearSession } from '@/services/adminAuth';
 import { useNavigate } from 'react-router-dom';
@@ -74,6 +74,19 @@ const AppSidebar: React.FC<SidebarProps> = ({
     .map(g => ({ ...g, items: g.items.filter(item => !enabledModules || enabledModules[item.id] !== false) }))
     .filter(g => g.items.length > 0);
   const visibleNavItems = visibleGroups.flatMap(g => g.items);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(navGroups.map(g => [g.label, true]))
+  );
+  const toggleGroup = (label: string) =>
+    setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
+  // Auto-open the group containing the active tab
+  useEffect(() => {
+    const grp = navGroups.find(g => g.items.some(i => i.id === activeTab));
+    if (grp && !openGroups[grp.label]) {
+      setOpenGroups(prev => ({ ...prev, [grp.label]: true }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -125,17 +138,23 @@ const AppSidebar: React.FC<SidebarProps> = ({
         className={`flex-1 overflow-y-auto ${isCollapsed ? 'px-2' : 'px-3'} space-y-6 scrollbar-hide pb-20 pt-4`}
         style={{ scrollBehavior: 'smooth' }}
       >
-        {visibleGroups.map((group) => (
+        {visibleGroups.map((group) => {
+          const isOpen = isCollapsed ? true : openGroups[group.label] !== false;
+          return (
           <div key={group.label} className="space-y-1">
             {!isCollapsed && (
-              <div className="px-3 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">{group.label}</span>
-              </div>
+              <button
+                onClick={() => toggleGroup(group.label)}
+                className="w-full flex items-center justify-between px-3 pb-1 group"
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/50 group-hover:text-sidebar-primary">{group.label}</span>
+                <ChevronDown size={12} className={`text-sidebar-foreground/40 transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+              </button>
             )}
             {isCollapsed && (
               <div className="mx-2 mb-1 h-px bg-sidebar-border/60" />
             )}
-            {group.items.map((item) => (
+            {isOpen && group.items.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
@@ -154,7 +173,8 @@ const AppSidebar: React.FC<SidebarProps> = ({
               </button>
             ))}
           </div>
-        ))}
+          );
+        })}
 
       </div>
 
