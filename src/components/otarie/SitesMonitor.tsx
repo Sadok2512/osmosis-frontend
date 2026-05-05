@@ -7832,6 +7832,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     // ── Immediately fly to site & select it (don't wait for cells) ──
     setSelectedSiteSnapshot(site);
     setFlyTarget(site.coordinates);
+    // Clear any stale detail from a previous site and show loading state immediately
+    // (prevents the "No site details available" flash that required a second click)
+    setSiteDetail(null);
+    setDetailLoading(true);
     setSelectedSiteId(site.site_id);
     setFocusMode('site');
     setFocusCellId(null);
