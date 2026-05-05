@@ -12,7 +12,7 @@ const SEVERITY_STYLES = {
     icon: <AlertTriangle className="h-4 w-4" />,
   },
   error: {
-    bg: 'bg-red-600/95 text-white',
+    bg: 'bg-red-600/60 text-white backdrop-blur-sm',
     icon: <AlertOctagon className="h-4 w-4" />,
   },
 } as const;
