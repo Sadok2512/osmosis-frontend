@@ -272,10 +272,24 @@ const PAEChart: React.FC<PAEChartProps> = ({
           : undefined;
 
         // Real backend series only — no synthetic fallback.
+        // IMPORTANT: align values to xAxisLabels so missing timestamps render as
+        // null gaps (line breaks / bar absent) instead of being silently skipped.
+        // Without alignment, lines just connect existing points and the holes
+        // visible on bars disappear on lines.
         const backendSeries = seriesByMetric?.[m.id];
-        const seriesData = backendSeries && backendSeries.length > 0
-          ? backendSeries.map(p => p.value)
-          : [];
+        let seriesData: (number | null)[] = [];
+        if (backendSeries && backendSeries.length > 0) {
+          if (xAxisLabels && xAxisLabels.length > 0) {
+            const byTime = new Map<string, number>();
+            backendSeries.forEach(p => byTime.set(p.time, p.value));
+            seriesData = xAxisLabels.map(t => {
+              const v = byTime.get(t);
+              return v === undefined || v === null ? null : v;
+            });
+          } else {
+            seriesData = backendSeries.map(p => p.value);
+          }
+        }
 
         const lineType =
           m.lineStyle === 'dashed' ? 'dashed' as const :
