@@ -32,6 +32,16 @@ import {
   Lock,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
