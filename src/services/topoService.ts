@@ -412,7 +412,14 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       });
     }
 
-    const cells = siteRows.map((r, index) => {
+    // Exclude synthetic placeholder rows (emitted by listFull for sites
+    // missing from the /topo/cells sample) — they carry no real cell
+    // data and would render as a single fake azimut=0 sector. Sites
+    // with no real rows fall back to buildSyntheticRenderCells() in
+    // SitesMonitor for a proper multi-sector display until real cells
+    // arrive via fetchCellsByBbox at zoom >= SITES_TO_CELLS_ZOOM.
+    const cellRows = siteRows.filter(r => !(r as any)._synthetic);
+    const cells = cellRows.map((r, index) => {
       const cellName = r.nom_cellule || r.cell_name || `${siteId}_cell_${index + 1}`;
       let azimut = r.azimut || 0;
       if (!hasRealAzimut && sectorAzimutMap) {

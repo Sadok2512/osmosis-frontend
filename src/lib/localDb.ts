@@ -640,20 +640,26 @@ export const topoApi = {
     }
 
     // ── Sites without cells in the /topo/cells sample ─────────────────
-    // /topo/cells is hard-capped server-side (100k rows). When the DB has
-    // 627k+ unique cells, the sample only covers ~15% of cells and the
-    // sites whose alphabet position falls outside that window get NO rows
-    // emitted — they drop off the map entirely (we observed 71 sites
-    // visible instead of 37 474). Fix: emit one synthetic placeholder row
-    // per site that has site_ref_daily coordinates but no cell in the
-    // current sample. This makes the marker appear at low zoom; the real
-    // cells get hydrated separately by fetchCellsByBbox at zoom ≥ 14.
+    // /topo/cells is hard-capped server-side (50k rows). When the DB has
+    // 627k+ unique cells the sample covers ~8% of cells, so most sites
+    // drop off the map (we observed 71 visible instead of 37 474).
+    // Fix: emit one placeholder row per site that has site_ref_daily
+    // coordinates but no cell in the current sample.
+    //
+    // The `_synthetic: true` flag tells buildSitesFromRows to EXCLUDE
+    // this row from the SiteSummary.cells array — without the flag the
+    // row is treated as a real cell (azimut=0 single sector), which
+    // produced "isolated cones" instead of proper tri-sectoral rendering.
+    // With the flag, cells stays empty → renderer falls back to
+    // buildSyntheticRenderCells() and generates a proper multi-sector
+    // display. Real cells get hydrated separately at zoom >= 14 via
+    // fetchCellsByBbox and replace the synthetic display.
     for (const [siteName, coords] of siteCoords) {
       if (cellsBySite.has(siteName)) continue;
       rows.push({
         code_nidt: siteName,
         nom_site: siteName,
-        nom_cellule: `${siteName}_synth`,  // placeholder, no real cell data
+        nom_cellule: `${siteName}_synth`,
         latitude: coords.lat,
         longitude: coords.lng,
         techno: '4g',
@@ -665,6 +671,7 @@ export const topoApi = {
         dor: coords.dor,
         region: coords.region,
         tac: null,
+        _synthetic: true,  // ← flag: filtered out of .cells in buildSitesFromRows
       });
     }
 
