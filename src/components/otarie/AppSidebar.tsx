@@ -74,6 +74,19 @@ const AppSidebar: React.FC<SidebarProps> = ({
     .map(g => ({ ...g, items: g.items.filter(item => !enabledModules || enabledModules[item.id] !== false) }))
     .filter(g => g.items.length > 0);
   const visibleNavItems = visibleGroups.flatMap(g => g.items);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(navGroups.map(g => [g.label, true]))
+  );
+  const toggleGroup = (label: string) =>
+    setOpenGroups(prev => ({ ...prev, [label]: !prev[label] }));
+  // Auto-open the group containing the active tab
+  useEffect(() => {
+    const grp = navGroups.find(g => g.items.some(i => i.id === activeTab));
+    if (grp && !openGroups[grp.label]) {
+      setOpenGroups(prev => ({ ...prev, [grp.label]: true }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
