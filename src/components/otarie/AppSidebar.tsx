@@ -36,8 +36,14 @@ const navGroups: NavGroup[] = [
     label: 'Monitoring',
     items: [
       { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
-      { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
       { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Network View',
+    items: [
+      { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
+      { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
     ],
   },
   {
@@ -62,9 +68,8 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Reference',
+    label: 'Admin',
     items: [
-      { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
       { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
     ],
   },
