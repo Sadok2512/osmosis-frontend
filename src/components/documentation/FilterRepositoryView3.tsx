@@ -83,7 +83,8 @@ const FilterRepositoryView3: React.FC = () => {
       setFilters(Array.isArray(resp?.filters) ? resp.filters : []);
     } catch (err) {
       console.warn('[FilterCatalog3] Failed to load filters:', err);
-      toast.error('Impossible de charger les filtres');
+      setFilters([]);
+      toast.error('Backend filtres indisponible — réessayez plus tard');
     } finally {
       setLoading(false);
     }
