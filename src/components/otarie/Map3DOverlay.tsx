@@ -106,36 +106,7 @@ export default function Map3DOverlay({ sites, center, zoom, styleVariant = 'stre
         }
       }
 
-      // Add sites as circles
-      const features = sites.map((s) => ({
-        type: 'Feature' as const,
-        properties: { id: s.site_id, name: s.site_name || s.site_id, color: s.color || '#F39C12' },
-        geometry: { type: 'Point' as const, coordinates: [s.coordinates[1], s.coordinates[0]] },
-      }));
-      map.addSource('sites', { type: 'geojson', data: { type: 'FeatureCollection', features } });
-      map.addLayer({
-        id: 'sites-circles',
-        type: 'circle',
-        source: 'sites',
-        paint: {
-          'circle-radius': 7,
-          'circle-color': ['get', 'color'],
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-          'circle-opacity': 0.9,
-        },
-      });
-
-      map.on('click', 'sites-circles', (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        new maplibregl.Popup()
-          .setLngLat((f.geometry as any).coordinates)
-          .setHTML(`<div style="font-weight:600">${(f.properties as any).name}</div>`)
-          .addTo(map);
-      });
-      map.on('mouseenter', 'sites-circles', () => (map.getCanvas().style.cursor = 'pointer'));
-      map.on('mouseleave', 'sites-circles', () => (map.getCanvas().style.cursor = ''));
+      // Sites/cells intentionally hidden in 3D mode — focus on 3D map only
     });
 
     return () => {
