@@ -12137,8 +12137,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         }
                         return true;
                       }).filter((c, i, arr) => {
-                        const k = String(c.cell_id ?? c.cell_name ?? '') + '|' + String(c.techno ?? '') + '|' + String(c.bande ?? '');
-                        return arr.findIndex(x => (String(x.cell_id ?? x.cell_name ?? '') + '|' + String(x.techno ?? '') + '|' + String(x.bande ?? '')) === k) === i;
+                        const k = String(c.cell_id ?? '') + '|' + String(c.techno ?? '') + '|' + String(c.bande ?? '');
+                        return arr.findIndex(x => (String(x.cell_id ?? '') + '|' + String(x.techno ?? '') + '|' + String(x.bande ?? '')) === k) === i;
                       });
                       // Show real filtered cells when resolved; otherwise avoid stale backend totals
                       // if this site should have already loaded cell-level data for the current view.
