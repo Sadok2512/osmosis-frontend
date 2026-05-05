@@ -7044,7 +7044,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   useEffect(() => {
     // Load cells whenever sector rendering or cell-level filtering needs them.
-    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only' || hasTaggedSitesNeedingCells;
+    // Gate the per-site cell fetch by SITES_TO_CELLS_ZOOM. Below that zoom
+    // we only render site dots — fetching cells just to feed the renderer
+    // wastes bandwidth and produces "Site cells (RPC): 0" + "Generating
+    // synthetic sectors" log spam at zoom 12-14. At zoom >= 15 the regular
+    // bbox cell fetch + per-site fallback take over.
+    // Exceptions (tagged sites, KPI mode, band filter, cell-level conditions)
+    // need cells regardless of zoom because the user explicitly chose them.
+    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    const needsCellData = sectorColorMode === 'kpi'
+      || displayMode === 'cells'
+      || mapDisplayMode === 'points'
+      || (mapDisplayMode === 'sites' && showBeamSectors && cellsAllowedAtZoom)
+      || hasCellLevelConditions
+      || isBandFilterActive
+      || taggedDisplayMode === 'tagged-only'
+      || hasTaggedSitesNeedingCells;
     if (!needsCellData) return;
     if (!viewport.bounds) return;
 
@@ -7308,7 +7323,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Re-trigger cell resolution when background cache loads new chunks
   // Direct merge approach: look up cells from cache inline instead of re-running the full fetch cycle
   useEffect(() => {
-    const needsCellData = sectorColorMode === 'kpi' || displayMode === 'cells' || mapDisplayMode === 'points' || (mapDisplayMode === 'sites' && showBeamSectors) || hasCellLevelConditions || isBandFilterActive || taggedDisplayMode === 'tagged-only' || hasTaggedSitesNeedingCells;
+    // Gate the per-site cell fetch by SITES_TO_CELLS_ZOOM. Below that zoom
+    // we only render site dots — fetching cells just to feed the renderer
+    // wastes bandwidth and produces "Site cells (RPC): 0" + "Generating
+    // synthetic sectors" log spam at zoom 12-14. At zoom >= 15 the regular
+    // bbox cell fetch + per-site fallback take over.
+    // Exceptions (tagged sites, KPI mode, band filter, cell-level conditions)
+    // need cells regardless of zoom because the user explicitly chose them.
+    const cellsAllowedAtZoom = viewport.zoom >= SITES_TO_CELLS_ZOOM;
+    const needsCellData = sectorColorMode === 'kpi'
+      || displayMode === 'cells'
+      || mapDisplayMode === 'points'
+      || (mapDisplayMode === 'sites' && showBeamSectors && cellsAllowedAtZoom)
+      || hasCellLevelConditions
+      || isBandFilterActive
+      || taggedDisplayMode === 'tagged-only'
+      || hasTaggedSitesNeedingCells;
     if (!needsCellData) return;
 
     const mapCachedCellsToProperties = (cachedCells: any[]) => cachedCells.map((c: any) => {
