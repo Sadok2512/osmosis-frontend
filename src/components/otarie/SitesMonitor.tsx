@@ -12219,7 +12219,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          if (prev.has(sNum) && prev.size === 1) return new Set();
+                                          if (prev.has(sNum) && prev.size === 1) return prev;
                                           return new Set([sNum]);
                                         });
                                       }}
