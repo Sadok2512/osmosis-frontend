@@ -191,7 +191,10 @@ interface SitesMonitorProps {
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
 const SITES_TO_CELLS_ZOOM = 15;
-const FULL_BEAM_DETAIL_ZOOM = 12;
+// Aligned with SITES_TO_CELLS_ZOOM (15) so per-cell sectors and cells
+// fetch are gated by the same threshold — at zoom 13 the user sees only
+// site dots + labels, no sectors.
+const FULL_BEAM_DETAIL_ZOOM = 15;
 const CELLS_TO_SITES_ZOOM = 12;
 // Below this zoom: nothing is rendered. Above it, sites render only if visible count ≤ MAX_VISIBLE_SITES.
 const SITES_VISIBLE_ZOOM = 12;

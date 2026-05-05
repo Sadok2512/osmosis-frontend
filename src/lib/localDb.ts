@@ -846,12 +846,19 @@ export const topoApi = {
       return fetchJsonSignal<BboxCellsResponse>(localUrl(`topo/sites?${bboxQs}`), signal);
     }
 
-    // VPS strategy: use cached full cells list + merge with bbox sites for coordinates
+    // VPS strategy: server-side bbox on /topo/cells (added 2026-05-05).
+    // Previously this fetched ALL ~50k cells client-side via getCachedCells
+    // and JS-filtered by bbox, which produced multi-second loading at high
+    // zoom on first visit. Now both /sites and /cells are bbox-filtered
+    // server-side and run in parallel.
     try {
-      // 1) Fetch sites in bbox (for coordinates) — this is fast, already filtered server-side
-      const sitesData = await fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal);
+      const [sitesData, cellsData] = await Promise.all([
+        fetchJsonSignal<any>(parserUrl(`/topo/sites?${bboxQs}`), signal),
+        fetchJsonSignal<any>(parserUrl(`/topo/cells?${bboxQs}`), signal),
+      ]);
       const rawSites = Array.isArray(sitesData) ? sitesData : (sitesData?.sites || sitesData?.rows || []);
-      
+      const rawCells = Array.isArray(cellsData) ? cellsData : (cellsData?.rows || cellsData?.cells || []);
+
       const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string; code_nidt: string; cluster: string | null }>();
       for (const s of rawSites) {
         const lat = Number(s.latitude ?? s.lat);
@@ -874,10 +881,7 @@ export const topoApi = {
         return { cells: [], total: 0 };
       }
 
-      // 2) Get all cells from cache (or fetch once)
-      const rawCells = await getCachedCells(filters, signal);
-
-      // 3) Merge: only cells whose site is in the bbox
+      // Group cells by site (cells already bbox-filtered server-side)
       const cellsBySite = new Map<string, any[]>();
       for (const c of rawCells) {
         const siteName = c.site_name || c.nom_site;
