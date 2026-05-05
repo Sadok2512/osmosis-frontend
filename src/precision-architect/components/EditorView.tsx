@@ -975,6 +975,7 @@ export default function EditorView({
 // ----------------------------------------------------------------------------
 function DashboardSwitcher() {
   const [open, setOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const dashboards = usePAReportStore((s) => s.dashboards);
   const activeId = usePAReportStore((s) => s.activeDashboardId);
   const switchDashboard = usePAReportStore((s) => s.switchDashboard);
@@ -990,6 +991,19 @@ function DashboardSwitcher() {
   }, [loadDashboardsFromCloud]);
 
   const active = dashboards.find((d) => d.id === activeId);
+  const pendingDashboard = dashboards.find((d) => d.id === pendingDeleteId);
+
+  const confirmDelete = () => {
+    if (!pendingDeleteId) return;
+    if (dashboards.length <= 1) {
+      toast.error('At least one dashboard must remain.');
+      setPendingDeleteId(null);
+      return;
+    }
+    deleteDashboard(pendingDeleteId);
+    toast.success('Dashboard deleted');
+    setPendingDeleteId(null);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
