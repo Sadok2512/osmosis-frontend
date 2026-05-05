@@ -1595,7 +1595,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   };
 
   return (
-    <div className="sticky top-0 z-30">
+    <div className="sticky top-0 z-30" style={{ zoom: 1.5 }}>
       {/* ═══ LAYER 1: HEADER — Branding ═══ */}
       <div className="bg-card border-b border-border/60">
         <div className="w-[95%] mx-auto px-4 2xl:px-6 h-12 2xl:h-14 flex items-center justify-between">
