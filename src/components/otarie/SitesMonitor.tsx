@@ -190,7 +190,7 @@ interface SitesMonitorProps {
 }
 
 // Zoom hysteresis: avoid oscillating between aggregated sites and cell-level rendering
-const SITES_TO_CELLS_ZOOM = 14;
+const SITES_TO_CELLS_ZOOM = 15;
 const FULL_BEAM_DETAIL_ZOOM = 12;
 const CELLS_TO_SITES_ZOOM = 12;
 // Below this zoom: nothing is rendered. Above it, sites render only if visible count ≤ MAX_VISIBLE_SITES.

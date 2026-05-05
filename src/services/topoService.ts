@@ -876,12 +876,12 @@ function bboxCacheKey(bbox: BboxQuery, filters?: BboxFilters): string {
  * so even when LIMIT bites, the biggest sites always survive — these caps
  * are about network/render budget, not about "correctness of the visible set".
  */
-export const SITES_TO_CELLS_ZOOM = 14;
+export const SITES_TO_CELLS_ZOOM = 15;
 
 export function bboxLimitForZoom(zoom?: number): number {
   if (zoom == null) return 5000;
   if (zoom < 8) return 10000;            // national / regional overview
-  if (zoom <= 13) return 5000;           // metro / city
+  if (zoom <= 14) return 5000;           // metro / city — sites mode
   if (zoom <= 16) return 2000;           // sectoriel — cells take over
   return 500;                            // street level — few sites in view
 }
