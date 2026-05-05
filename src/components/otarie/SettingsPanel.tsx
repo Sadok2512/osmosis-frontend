@@ -286,4 +286,81 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   );
 };
 
+const SEVERITIES: { id: BroadcastSeverity; label: string; color: string }[] = [
+  { id: 'info', label: 'Info', color: 'bg-blue-500' },
+  { id: 'warning', label: 'Warning', color: 'bg-amber-500' },
+  { id: 'error', label: 'Error', color: 'bg-red-600' },
+];
+
+const BroadcastSection: React.FC = () => {
+  const { enabled, message, severity, setEnabled, setMessage, setSeverity } = useBroadcastStore();
+
+  return (
+    <SectionCard
+      title="Message Diffusé"
+      description="Activez pour afficher un message d'erreur / alerte sur toutes les pages. (Bientôt synchronisé avec le backend.)"
+    >
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-4 rounded-2xl border border-border bg-muted/30 p-4">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${enabled ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+              <Megaphone className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[12px] font-black uppercase tracking-wider text-foreground">
+                Diffusion globale {enabled ? 'activée' : 'désactivée'}
+              </p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Le bandeau s'affiche en haut de toutes les pages.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setEnabled(!enabled)}
+            className={`h-6 w-11 rounded-full px-0.5 transition-all ${enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+            aria-pressed={enabled}
+          >
+            <div className={`h-5 w-5 rounded-full bg-white shadow-sm transition-all ${enabled ? 'ml-auto' : ''}`} />
+          </button>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sévérité</label>
+          <div className="mt-2 flex gap-2">
+            {SEVERITIES.map(sev => (
+              <button
+                key={sev.id}
+                onClick={() => setSeverity(sev.id)}
+                className={`flex flex-1 items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all ${
+                  severity === sev.id ? 'border-foreground/40 bg-muted shadow-sm' : 'border-border hover:border-foreground/20'
+                }`}
+              >
+                <span className={`h-3 w-3 rounded-full ${sev.color}`} />
+                {sev.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Message</label>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            rows={3}
+            placeholder="Ex: Maintenance prévue à 18h00 — sauvegardez votre travail."
+            className="mt-2 w-full rounded-xl border border-border bg-background p-3 text-sm text-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+
+        {enabled && message.trim() && (
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] text-muted-foreground">
+            <span className="font-black uppercase tracking-wider text-primary">Aperçu actif</span> — le bandeau est diffusé sur toutes les pages.
+          </div>
+        )}
+      </div>
+    </SectionCard>
+  );
+};
+
 export default SettingsPanel;
