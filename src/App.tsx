@@ -7,6 +7,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useInvestigatorWorkspace } from "@/stores/investigatorWorkspaceStore";
 
 
+import BroadcastBanner from "@/components/otarie/BroadcastBanner";
+
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
@@ -135,6 +137,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <BroadcastBanner />
       <AppErrorBoundary>
         <BrowserRouter>
           <Suspense fallback={<div className="flex h-screen items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-blue-500 border-t-transparent rounded-full" /></div>}>
