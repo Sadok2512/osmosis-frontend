@@ -291,8 +291,11 @@ const PAEChart: React.FC<PAEChartProps> = ({
           // Smoothing is meaningless on step lines and on bars.
           smooth: isStep || isBar ? false : ((m as any).smooth ?? style.smooth),
           showSymbol: false,
-          // Treat null/undefined safely so stacked series don't break on missing slots.
-          connectNulls: seriesType === 'line',
+          // Do NOT bridge null gaps — line and bar must reflect the SAME
+          // underlying data density. Connecting nulls on lines made line
+          // charts look continuous while bars showed real holes, giving
+          // the impression of two different KPIs.
+          connectNulls: false,
           yAxisIndex: m.axis === 'right' && hasRight ? 1 : 0,
           data: seriesData,
           // Bars: keep series adjacent (barGap 0) so they read as a single
