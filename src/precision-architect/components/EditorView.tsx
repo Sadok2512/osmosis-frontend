@@ -1117,11 +1117,7 @@ function DashboardSwitcher() {
                   toast.error('At least one dashboard must remain.');
                   return;
                 }
-                if (window.confirm(`Delete "${active?.name}" ?`)) {
-                  deleteDashboard(activeId);
-                  setOpen(false);
-                  toast.success('Dashboard deleted');
-                }
+                setPendingDeleteId(activeId);
               }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-surface-container-low hover:bg-error/10 text-error text-xs font-bold uppercase tracking-wider transition-colors"
             >
@@ -1131,6 +1127,33 @@ function DashboardSwitcher() {
           </div>
         </div>
       </PopoverContent>
+
+      <AlertDialog open={!!pendingDeleteId} onOpenChange={(o) => { if (!o) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Delete dashboard
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-foreground">
+                "{pendingDashboard?.name ?? ''}"
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Popover>
   );
 }
