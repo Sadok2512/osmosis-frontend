@@ -32,6 +32,16 @@ import {
   Lock,
 } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReactGridLayout, WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
@@ -965,6 +975,7 @@ export default function EditorView({
 // ----------------------------------------------------------------------------
 function DashboardSwitcher() {
   const [open, setOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const dashboards = usePAReportStore((s) => s.dashboards);
   const activeId = usePAReportStore((s) => s.activeDashboardId);
   const switchDashboard = usePAReportStore((s) => s.switchDashboard);
@@ -980,6 +991,19 @@ function DashboardSwitcher() {
   }, [loadDashboardsFromCloud]);
 
   const active = dashboards.find((d) => d.id === activeId);
+  const pendingDashboard = dashboards.find((d) => d.id === pendingDeleteId);
+
+  const confirmDelete = () => {
+    if (!pendingDeleteId) return;
+    if (dashboards.length <= 1) {
+      toast.error('At least one dashboard must remain.');
+      setPendingDeleteId(null);
+      return;
+    }
+    deleteDashboard(pendingDeleteId);
+    toast.success('Dashboard deleted');
+    setPendingDeleteId(null);
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -1053,10 +1077,7 @@ function DashboardSwitcher() {
                       toast.error('At least one dashboard must remain.');
                       return;
                     }
-                    if (window.confirm(`Delete "${d.name}" ?`)) {
-                      deleteDashboard(d.id);
-                      toast.success('Dashboard deleted');
-                    }
+                    setPendingDeleteId(d.id);
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all"
                   title="Delete"
@@ -1096,11 +1117,7 @@ function DashboardSwitcher() {
                   toast.error('At least one dashboard must remain.');
                   return;
                 }
-                if (window.confirm(`Delete "${active?.name}" ?`)) {
-                  deleteDashboard(activeId);
-                  setOpen(false);
-                  toast.success('Dashboard deleted');
-                }
+                setPendingDeleteId(activeId);
               }}
               className="flex items-center justify-center gap-1.5 py-2 rounded-lg bg-surface-container-low hover:bg-error/10 text-error text-xs font-bold uppercase tracking-wider transition-colors"
             >
@@ -1110,6 +1127,33 @@ function DashboardSwitcher() {
           </div>
         </div>
       </PopoverContent>
+
+      <AlertDialog open={!!pendingDeleteId} onOpenChange={(o) => { if (!o) setPendingDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-destructive" />
+              Delete dashboard
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-foreground">
+                "{pendingDashboard?.name ?? ''}"
+              </span>
+              ? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Popover>
   );
 }
