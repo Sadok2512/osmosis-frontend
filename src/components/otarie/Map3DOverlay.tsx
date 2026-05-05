@@ -116,25 +116,7 @@ export default function Map3DOverlay({ sites, center, zoom, styleVariant = 'stre
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Update sites on change
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-    const apply = () => {
-      const src = map.getSource('sites') as maplibregl.GeoJSONSource | undefined;
-      if (!src) return;
-      src.setData({
-        type: 'FeatureCollection',
-        features: sites.map((s) => ({
-          type: 'Feature',
-          properties: { id: s.site_id, name: s.site_name || s.site_id, color: s.color || '#F39C12' },
-          geometry: { type: 'Point', coordinates: [s.coordinates[1], s.coordinates[0]] },
-        })),
-      });
-    };
-    if (map.isStyleLoaded()) apply();
-    else map.once('load', apply);
-  }, [sites]);
+  // Sites layer disabled in 3D mode
 
   return (
     <div className="absolute inset-0 z-[1100]">
