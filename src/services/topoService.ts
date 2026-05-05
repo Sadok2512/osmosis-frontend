@@ -1253,7 +1253,7 @@ function mapSiteDetailPayloadToCells(payload: any): CellProperties[] {
 
   const seen = new Set<string>();
   const uniqueRows = rows.filter((row) => {
-    const cellName = String(row?.cell_name || row?.nom_cellule || row?.cell_id || '').trim();
+    const cellName = String(row?.cell_name || row?.nom_cellule || row?.cell_id || row?.source_cellule || '').trim();
     if (!cellName || seen.has(cellName)) return false;
     seen.add(cellName);
     return true;
