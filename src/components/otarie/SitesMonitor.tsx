@@ -10457,10 +10457,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         className="absolute z-[1000] pointer-events-auto transition-all duration-300"
         style={{
           top: 12,
-          left: `calc(${panelCollapsed ? 56 : 400}px + (100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0)}px) / 2)`,
-          transform: 'translateX(-50%)',
-          maxWidth: `min(1060px, calc(100vw - ${(panelCollapsed ? 56 : 400) + (showRightPanel && !detailFullscreen ? 450 : 0) + 32}px))`,
-          width: '100%',
+          left: `${(panelCollapsed ? 56 : 400) + 16}px`,
+          right: `${(showRightPanel && !detailFullscreen ? 450 : 0) + 16}px`,
         }}
       >
         <div
