@@ -5115,7 +5115,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
   const [dashboardFitKey, setDashboardFitKey] = useState(0);
+  const initialFitDoneRef = useRef(false);
   // activeDashboardId already declared above for tab persistence
+  // Auto-fit map to sites on initial load (no dashboard active) so user lands on the data
+  useEffect(() => {
+    if (initialFitDoneRef.current) return;
+    if (dashboardActive) return;
+    if (!sites.length || sites.length > 2000) return;
+    initialFitDoneRef.current = true;
+    setDashboardFitKey(k => k + 1);
+  }, [sites.length, dashboardActive]);
   // Do not clear the active dashboard on mount: keep current in-app selection while navigating
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
   const [showDashboardDropdown, setShowDashboardDropdown] = useState(false);
@@ -7964,7 +7973,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }}
           onCancel={() => { setZoomAreaOrigin(null); setZoomAreaCurrent(null); }}
         />
-        {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
+        {dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
         {customPoints.filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon) && (pt.lat !== 0 || pt.lon !== 0)).map(pt => (
