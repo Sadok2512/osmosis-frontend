@@ -115,10 +115,18 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
     axisMapRef.current = axisMap;
   }, [axisMap]);
 
-  // Load favorites from DB on open
+  // Snapshot props on open transition only — re-running on every selectedKeys
+  // / extAxisAssignments reference change wipes the user's in-modal selection
+  // and triggers a max-depth update loop when the parent re-renders.
+  const wasOpenRef = useRef(false);
+  const selectedKeysRef = useRef(selectedKeys);
+  const extAxisAssignmentsRef = useRef(extAxisAssignments);
+  selectedKeysRef.current = selectedKeys;
+  extAxisAssignmentsRef.current = extAxisAssignments;
   React.useEffect(() => {
-    if (open) {
-      setSelected(new Set(selectedKeys));
+    if (open && !wasOpenRef.current) {
+      wasOpenRef.current = true;
+      setSelected(new Set(selectedKeysRef.current));
       setActiveCategory(null);
       setSearch('');
       setFilterVendor('');
@@ -127,12 +135,14 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
       setFilterLevel('');
       setFilterDimension('');
       setShowFavOnly(false);
-      const nextAxisMap = extAxisAssignments || {};
+      const nextAxisMap = extAxisAssignmentsRef.current || {};
       axisMapRef.current = nextAxisMap;
       setAxisMap(nextAxisMap);
       loadFavoritesDB('kpi-monitor').then(favs => setFavorites(favs));
+    } else if (!open && wasOpenRef.current) {
+      wasOpenRef.current = false;
     }
-  }, [open, selectedKeys, extAxisAssignments]);
+  }, [open]);
 
   const toggleAxis = useCallback((key: string) => {
     setAxisMap(prev => {
