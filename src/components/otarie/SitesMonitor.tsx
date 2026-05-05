@@ -11298,20 +11298,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       })()}
 
 
-      {/* 3D Map Overlay */}
-      {viewMode === 'map' && show3D && (
-        <Map3DOverlay
-          sites={(visibleSites || []).slice(0, 5000).map((s: any) => ({
-            site_id: s.site_id,
-            site_name: s.site_name,
-            coordinates: s.coordinates,
-          }))}
-          center={viewport?.bounds ? [viewport.bounds.getCenter().lat, viewport.bounds.getCenter().lng] : [46.6, 2.2]}
-          zoom={viewport?.zoom || 14}
-          styleVariant={mapLayer === 'satellite' ? 'satellite' : mapLayer === 'dark' ? 'dark' : mapLayer === 'light' ? 'light' : 'street'}
-          onClose={() => setShow3D(false)}
-        />
-      )}
 
       {/* Floating bottom-left: display mode + layer switcher */}
       {viewMode === 'map' && (
