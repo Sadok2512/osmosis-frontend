@@ -62,12 +62,6 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    label: 'Detection',
-    items: [
-      { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
-    ],
-  },
-  {
     label: 'Admin',
     items: [
       { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
