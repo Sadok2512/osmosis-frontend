@@ -6935,24 +6935,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [filteredSites, sectorColorMode, siteMatchesKpiLegend]);
 
   const selectedSiteCoords = useMemo<[number, number] | null>(() => {
-    // Prefer the coordinates of the site as it is actually rendered on the map
-    // (entry in `sites`) so the pulse halo lands exactly on the marker. The
-    // siteDetail / snapshot may carry slightly different coords (averaged from
-    // cells, stale bbox cache) which caused the halo to appear next to the
-    // marker before snapping back once the detail finished loading.
-    const fromSites = selectedSiteId
-      ? sites.find((site) => site.site_id === selectedSiteId || site.site_name === selectedSiteId) ?? null
-      : null;
-    const candidate =
-      (fromSites?.coordinates?.length === 2 ? fromSites : null)
-      ?? (siteDetail?.coordinates?.length === 2 ? siteDetail : null)
-      ?? (selectedSiteSnapshot?.coordinates?.length === 2 ? selectedSiteSnapshot : null);
-    const coords = candidate?.coordinates;
+    // The pulse halo must be tied to a site that is actually rendered on the
+    // map. If the site disappears (zoom out, filters, dashboard change), the
+    // halo must disappear too — otherwise it floats orphaned over the map.
+    if (!selectedSiteId) return null;
+    const fromSites = sites.find(
+      (site) => site.site_id === selectedSiteId || site.site_name === selectedSiteId
+    );
+    const coords = fromSites?.coordinates;
     if (!coords || coords.length !== 2) return null;
     const [lat, lng] = coords;
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
     return [lat, lng];
-  }, [siteDetail, selectedSiteSnapshot, selectedSiteId, sites]);
+  }, [selectedSiteId, sites]);
 
   // Smart Auto density-adaptive beam rendering (single source of truth):
   // hexbin sites/km² → percentile rank → per-site beamScale + opacityScale.
