@@ -232,19 +232,52 @@ const InvestigatorDrilldown: React.FC = () => {
   );
 };
 
-const DRILL_NAV: { id: string; label: string; icon: React.ReactNode }[] = [
-  { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
-  { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
-  { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
-  { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
-  { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
-  { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
-  { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
-  { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
-  { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
-  { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
-  { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
-  { id: 'precision_architect', label: 'Netview', icon: <Wand2 className="w-5 h-5" /> },
+type DrillItem = { id: string; label: string; icon: React.ReactNode };
+type DrillGroup = { label: string; items: DrillItem[] };
+
+const DRILL_GROUPS: DrillGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { id: 'dashboard_overview', label: 'Dashboard Overview', icon: <Layout className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Monitoring',
+    items: [
+      { id: 'list', label: 'Live Monitor Map', icon: <Globe className="w-5 h-5" /> },
+      { id: 'odcc', label: 'ODCC', icon: <Radar className="w-5 h-5" /> },
+      { id: 'detector', label: 'Detector Console', icon: <ShieldCheck className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Network View',
+    items: [
+      { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
+      { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'KPI Analysis',
+    items: [
+      { id: 'investigator', label: 'Investigator', icon: <Search className="w-5 h-5" /> },
+      { id: 'ran_query', label: 'Rapport Builder', icon: <BarChart2 className="w-5 h-5" /> },
+      { id: 'precision_architect', label: 'Netview', icon: <Wand2 className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'AI / ML',
+    items: [
+      { id: 'ai_assistant', label: 'OSMOSIS', icon: <Sparkles className="w-5 h-5" /> },
+      { id: 'sentinel', label: 'ML Detector', icon: <Radio className="w-5 h-5" /> },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { id: 'backend_admin', label: 'Backend Admin', icon: <Database className="w-5 h-5" /> },
+    ],
+  },
 ];
 
 const DrilldownSidebar: React.FC = () => {
