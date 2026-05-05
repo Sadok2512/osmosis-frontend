@@ -5115,6 +5115,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeDashboardFilters, setActiveDashboardFilters] = useState<DashboardSiteFilters | null>(null);
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
   const [dashboardFitKey, setDashboardFitKey] = useState(0);
+  const initialFitDoneRef = useRef(false);
   // activeDashboardId already declared above for tab persistence
   // Do not clear the active dashboard on mount: keep current in-app selection while navigating
   const [dashboardList, setDashboardList] = useState<{ id: string; name: string; widgets: any }[]>([]);
