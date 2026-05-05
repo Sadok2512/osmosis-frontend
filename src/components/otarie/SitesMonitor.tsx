@@ -7964,8 +7964,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           }}
           onCancel={() => { setZoomAreaOrigin(null); setZoomAreaCurrent(null); }}
         />
-        {dashboardActive && dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
-        {!dashboardActive && sites.length > 0 && sites.length < 500 && dashboardFitKey === 0 && <FitToDashboardSites sites={sites} fitKey={1} />}
+        {dashboardFitKey > 0 && <FitToDashboardSites sites={sites} fitKey={dashboardFitKey} />}
 
         {/* ── Custom Points markers ── */}
         {customPoints.filter(pt => Number.isFinite(pt.lat) && Number.isFinite(pt.lon) && (pt.lat !== 0 || pt.lon !== 0)).map(pt => (
