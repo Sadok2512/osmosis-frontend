@@ -954,6 +954,9 @@ export async function fetchCellsByBbox(
     );
     return [];
   }
+  console.log(
+    `[TopoService] fetchCellsByBbox start zoom=${zoom} bbox=${bbox.minLng.toFixed(3)},${bbox.minLat.toFixed(3)},${bbox.maxLng.toFixed(3)},${bbox.maxLat.toFixed(3)} filters=${filters ? Object.keys(filters).join(',') : 'none'}`
+  );
   // Strategy: go directly to /cells cache merge (fast & reliable).
   // /sites-with-cells endpoint consistently times out on large DOR queries — skip it entirely.
   let sitesFromEndpoint: SiteSummary[] | null = null;

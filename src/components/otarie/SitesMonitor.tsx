@@ -197,8 +197,12 @@ const SITES_TO_CELLS_ZOOM = 15;
 const FULL_BEAM_DETAIL_ZOOM = 15;
 const CELLS_TO_SITES_ZOOM = 12;
 // Below this zoom: nothing is rendered. Above it, sites render only if visible count ≤ MAX_VISIBLE_SITES.
+// MAX_VISIBLE_SITES raised 1000 → 10000 so dense urban viewports at zoom 12-14
+// don't fall off the "render nothing" cliff while bboxLimitForZoom returns up
+// to 5000 sites for the same zoom band. 10k Leaflet markers is comfortable on
+// modern hardware; the LOD filter and density gates further trim the working set.
 const SITES_VISIBLE_ZOOM = 12;
-const MAX_VISIBLE_SITES = 1000;
+const MAX_VISIBLE_SITES = 10000;
 
 // Band-based color mapping — default engineering palette
 const DEFAULT_BAND_COLORS: Record<string, string> = {
@@ -6842,7 +6846,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       candidates = candidates.filter(siteMatchesKpiLegend);
     }
     // Count gate: if too many sites in viewport, render nothing — user must zoom in further
-    if (candidates.length > MAX_VISIBLE_SITES) return [];
+    if (candidates.length > MAX_VISIBLE_SITES) {
+      console.warn(`[SitesMonitor] visibleSites guard tripped: ${candidates.length} > MAX_VISIBLE_SITES=${MAX_VISIBLE_SITES}, rendering nothing`);
+      return [];
+    }
     return candidates;
   }, [mapFilteredSites, viewport.bounds, viewport.zoom, sectorColorMode, hiddenKpiLevels, siteMatchesKpiLegend]);
 
