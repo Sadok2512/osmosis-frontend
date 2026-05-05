@@ -64,7 +64,7 @@ export default function ViewerView({ projectName, onViewModeChange, pages, activ
     <div className="h-screen flex flex-col bg-surface text-on-surface overflow-hidden">
       <header className="bg-white/80 backdrop-blur-xl flex-shrink-0 flex justify-between items-center w-full px-8 py-4 border-b border-outline-variant/10">
         <div className="flex items-center gap-6">
-          <span className="text-xl font-bold text-primary font-headline tracking-tight">Precision Architect</span>
+          <span className="text-xl font-bold text-primary font-headline tracking-tight">Netview</span>
           <div className="h-6 w-px bg-outline-variant/30" />
           <h1 className="font-headline font-bold text-on-surface text-lg">{projectName}</h1>
         </div>
