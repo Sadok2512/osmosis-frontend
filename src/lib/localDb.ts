@@ -141,17 +141,31 @@ async function fetchJsonSignal<T = any>(fetchUrl: string, signal?: AbortSignal):
 // ─── Dashboards — stored on VPS PostgreSQL (RAN_OP) ───
 export const dashboardsApi = {
   list: async (): Promise<any[]> => {
-    // Source of truth = Lovable Cloud (Supabase). VPS has no `dashboards` table.
-    const { data, error } = await supabase
-      .from('dashboards')
-      .select('*')
-      .eq('is_archived', false)
-      .order('updated_at', { ascending: false });
-    if (error) {
-      console.warn('[Dashboards] Supabase list failed', error);
-      return [];
+    // Primary source = VPS parser (RAN_OP). Fall back to Supabase if VPS is unavailable.
+    try {
+      const url = parserUrl('/dashboards/');
+      const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      const items = Array.isArray(json) ? json : (Array.isArray(json?.items) ? json.items : null);
+      if (!items) throw new Error('Unexpected VPS dashboards payload');
+      const filtered = items.filter((d: any) => !d?.is_archived);
+      filtered.sort((a: any, b: any) => String(b?.updated_at || '').localeCompare(String(a?.updated_at || '')));
+      console.log(`[Dashboards] loaded ${filtered.length} from VPS`);
+      return filtered;
+    } catch (e) {
+      console.warn('[Dashboards] VPS list failed, falling back to Supabase', e);
+      const { data, error } = await supabase
+        .from('dashboards')
+        .select('*')
+        .eq('is_archived', false)
+        .order('updated_at', { ascending: false });
+      if (error) {
+        console.warn('[Dashboards] Supabase fallback also failed', error);
+        return [];
+      }
+      return data || [];
     }
-    return data || [];
   },
   upsert: async (dashboard: { id: string; name: string; description?: string; widgets: any; is_shared?: boolean; dashboard_type?: string; visibility?: string; owner_username?: string; shared_with?: string[] }) => {
     // VPS parser endpoint frequently returns 500 on large dashboard payloads.
