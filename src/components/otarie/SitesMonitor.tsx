@@ -12662,14 +12662,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
-                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Hba</th>
+                                              
                                             </tr>
                                           </thead>
                                           <tbody>
                                             {sectorCells.map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
                                               const tilt = (cell as any).tilt as number | null;
-                                              const hba = (cell as any).hba as number | null;
+                                              
                                               return (
                                                 <tr
                                                   key={cell.cell_id}
@@ -12685,7 +12685,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
                                                   <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
                                                   <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{hba != null ? `${hba}m` : '—'}</td>
+                                                  
                                                 </tr>
                                               );
                                             })}
