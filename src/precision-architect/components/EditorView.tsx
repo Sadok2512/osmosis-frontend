@@ -1077,10 +1077,7 @@ function DashboardSwitcher() {
                       toast.error('At least one dashboard must remain.');
                       return;
                     }
-                    if (window.confirm(`Delete "${d.name}" ?`)) {
-                      deleteDashboard(d.id);
-                      toast.success('Dashboard deleted');
-                    }
+                    setPendingDeleteId(d.id);
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 text-error hover:bg-error/10 rounded transition-all"
                   title="Delete"
