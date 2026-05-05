@@ -583,14 +583,45 @@ export const topoApi = {
     const rawCells = Array.isArray(cellsData) ? cellsData : (cellsData.rows || cellsData.cells || []);
     const rawSites = Array.isArray(sitesData?.sites) ? sitesData.sites : (Array.isArray(sitesData) ? sitesData : []);
 
-    // Build coordinate lookup from sites
-    const siteCoords = new Map<string, { lat: number; lng: number; plaque: string; dor: string; region: string }>();
+    // Build coordinate lookup from sites — also carry technos/bandes/cell_count
+    // so the synthetic placeholder rows below propagate enough metadata for
+    // buildSyntheticRenderCells() to produce multi-band sectors at zoom >= 15.
+    // Without these fields, sites missing from the /topo/cells sample render
+    // as plain dots forever (cell_count=0, bandes=[]) and the renderer
+    // returns null per site.
+    const siteCoords = new Map<string, {
+      lat: number; lng: number; plaque: string; dor: string; region: string;
+      bandes?: string[]; technos?: string[]; cell_count?: number;
+    }>();
+    const splitMaybeCsv = (v: any): string[] => {
+      if (!v) return [];
+      const arr = Array.isArray(v) ? v : [v];
+      const out: string[] = [];
+      for (const item of arr) {
+        if (!item) continue;
+        const s = String(item);
+        // VPS frequently joins bands as "LTE800, LTE1800, LTE2100" — split on comma
+        s.split(/[,;]/).forEach(p => { const t = p.trim(); if (t) out.push(t); });
+      }
+      return out;
+    };
     for (const s of rawSites) {
       const lat = Number(s.latitude ?? s.lat);
       const lng = Number(s.longitude ?? s.lng);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
       const name = s.site_name || s.nom_site || s.code_nidt;
-      if (name) siteCoords.set(name, { lat, lng, plaque: s.plaque || '', dor: s.dor || s.region || '', region: s.region || '' });
+      if (!name) continue;
+      const bandes = splitMaybeCsv(s.bandes ?? s.bands ?? s.band);
+      const technos = splitMaybeCsv(s.technos ?? s.techs ?? s.techno);
+      siteCoords.set(name, {
+        lat, lng,
+        plaque: s.plaque || '',
+        dor: s.dor || s.region || '',
+        region: s.region || '',
+        bandes,
+        technos,
+        cell_count: Number(s.cell_count ?? s.nb_cells) || 0,
+      });
     }
 
     // Merge: attach coordinates to each cell, auto-distribute azimuts
@@ -671,6 +702,12 @@ export const topoApi = {
         dor: coords.dor,
         region: coords.region,
         tac: null,
+        // Site-level metadata that buildSitesFromRows propagates onto SiteSummary
+        // even when cells are filtered out — feeds buildSyntheticRenderCells so the
+        // map can render multi-band synthetic sectors at zoom >= 15.
+        bandes: coords.bandes ?? [],
+        technos: coords.technos ?? [],
+        cell_count: coords.cell_count ?? 0,
         _synthetic: true,  // ← flag: filtered out of .cells in buildSitesFromRows
       });
     }

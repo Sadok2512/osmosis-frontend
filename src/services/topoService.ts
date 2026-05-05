@@ -440,6 +440,31 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       ? rawVendor.charAt(0).toUpperCase() + rawVendor.slice(1)
       : 'Unknown';
 
+    // ── Site-level metadata propagation (for synthetic sector rendering) ─
+    // When cells are empty (placeholder-only sites from the listFull
+    // synthetic merge), pull bandes/technos/cell counts from the placeholder
+    // row so buildSyntheticRenderCells() can produce proper multi-band
+    // sectors at zoom >= SITES_TO_CELLS_ZOOM. Without this, sites missing
+    // from the /topo/cells alphabet sample render as plain dots forever
+    // because inferSiteTechState falls through to all-false and the
+    // synthetic generator emits no cells.
+    const placeholderRow = (siteRows as any[]).find(r => r._synthetic) ?? first;
+    const propBandes = Array.isArray(placeholderRow.bandes) ? placeholderRow.bandes : undefined;
+    const propTechnos = Array.isArray(placeholderRow.technos) ? placeholderRow.technos : undefined;
+    const propCellCount = Number(placeholderRow.cell_count) || 0;
+
+    // Derive per-tech cell counts from the bandes list (3 sectors per band)
+    // so inferSiteTechState's fallback path returns the right has2G..has5G.
+    const SECTORS_PER_BAND = 3;
+    const deriveCount = (re: RegExp): number => {
+      if (!propBandes) return 0;
+      return propBandes.filter((b: string) => re.test(b)).length * SECTORS_PER_BAND;
+    };
+    const lte_cells = deriveCount(/^(LTE|L\d|4G)/i);
+    const nr_cells  = deriveCount(/^(NR|N\d|5G)/i);
+    const cells_2g  = deriveCount(/^(GSM|G\d|2G)/i);
+    const cells_3g  = deriveCount(/^(UMTS|U\d|WCDMA|3G)/i);
+
     sites.push({
       site_id: first.code_nidt || siteId,
       site_name: first.nom_site || first.site_name || first.code_nidt || siteId,
@@ -447,7 +472,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       dor: normalizeDorValue(first.dor, first.region),
       cluster: first.plaque || first.cluster || '',
       department: (first.plaque || first.cluster || '').replace('DEPT_', ''),
-      cell_count: cells.length,
+      cell_count: cells.length > 0 ? cells.length : propCellCount,
       qoe_score_avg: cells.length > 0 ? avg(cells.map(c => c.qoe_score_avg)) : 0,
       p50_thr_dn_mbps: cells.length > 0 ? avg(cells.map(c => c.p50_thr_dn_mbps)) : 0,
       p50_thr_up_mbps: cells.length > 0 ? avg(cells.map(c => c.p50_thr_up_mbps)) : 0,
@@ -457,6 +482,12 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
       dms_ul_3: avg(cells.map(c => c.dms_ul_3)),
       coordinates: [avgLat, avgLng] as [number, number],
       cells,
+      bandes: propBandes,
+      technos: propTechnos,
+      lte_cells,
+      nr_cells,
+      cells_2g,
+      cells_3g,
     });
   });
 
