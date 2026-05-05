@@ -54,7 +54,7 @@ const DEFAULT_STEPS: Step[] = [
   },
   {
     id: "open-precision",
-    title: "Ouvrir Precision Architect",
+    title: "Ouvrir Netview",
     hint: "Naviguer vers /precision-architect.",
   },
   {
