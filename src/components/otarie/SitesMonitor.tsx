@@ -12481,6 +12481,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(c.bande)) return false;
                         if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || c.techno === t)) return false;
                         return true;
+                      }).filter((c, i, arr) => {
+                        const k = String(c.cell_id ?? '') + '|' + String(c.techno ?? '') + '|' + String(c.bande ?? '');
+                        return arr.findIndex(x => (String(x.cell_id ?? '') + '|' + String(x.techno ?? '') + '|' + String(x.bande ?? '')) === k) === i;
                       });
                       // Same rule in Tagged: avoid stale backend totals once cell loading was attempted.
                       const displayedCellCount = siteCells.length > 0
