@@ -131,23 +131,61 @@ const DocumentationPage: React.FC = () => {
 
   const loadCatalog = useCallback((forceRefresh = false) => {
     setLoading(true);
-    monitorGet<any[]>('catalog/kpis', forceRefresh)
-      .then(data => {
-        setKpiCatalog(data.map((k: any) => ({
+    const mapVps = (data: any[]): KPIEntry[] => data.map((k: any) => ({
+      kpi_key: k.kpi_key,
+      kpi_code: k.kpi_key,
+      display_name: k.display_name || k.kpi_key,
+      description: k.description || '',
+      category: k.category || 'Other',
+      unit: k.unit || '',
+      formula_type: k.formula_type || 'ratio',
+      vendor: k.vendor || '',
+      techno: k.techno || '',
+      is_normalized: k.is_normalized || false,
+      supported_levels: k.supported_levels || [],
+    }));
+
+    const fallbackFromSupabase = async (): Promise<KPIEntry[]> => {
+      const { data, error } = await supabase.from('kpi_catalog').select('*').limit(5000);
+      if (!error && data && data.length) {
+        return data.map((k: any) => ({
           kpi_key: k.kpi_key,
           kpi_code: k.kpi_key,
           display_name: k.display_name || k.kpi_key,
-          description: k.description || '',
-          category: k.category || 'Other',
+          description: k.definition || '',
+          category: k.famille || 'Other',
           unit: k.unit || '',
-          formula_type: k.formula_type || 'ratio',
-          vendor: k.vendor || '',
+          formula_type: k.value_type || 'ratio',
+          vendor: '',
           techno: k.techno || '',
-          is_normalized: k.is_normalized || false,
-          supported_levels: k.supported_levels || [],
-        })));
+          is_normalized: false,
+          supported_levels: [],
+        }));
+      }
+      // Final fallback: BI static catalog
+      return BI_KPI_CATALOG.map(k => ({
+        kpi_key: k.key,
+        kpi_code: k.key,
+        display_name: k.display_name,
+        description: '',
+        category: k.category,
+        unit: k.unit || '',
+        formula_type: 'ratio',
+        vendor: '',
+        techno: '',
+        is_normalized: false,
+        supported_levels: [],
+      }));
+    };
+
+    monitorGet<any[]>('catalog/kpis', forceRefresh)
+      .then(data => setKpiCatalog(mapVps(data)))
+      .catch(async () => {
+        const fb = await fallbackFromSupabase();
+        setKpiCatalog(fb);
+        if (fb.length === 0) toast.error('Erreur chargement KPI catalog');
+        else toast.message(`Backend indisponible — ${fb.length} KPIs chargés en local`);
       })
-      .catch(() => toast.error('Erreur chargement KPI catalog'))
       .finally(() => setLoading(false));
   }, []);
 
