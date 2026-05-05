@@ -104,6 +104,11 @@ const AppSidebar: React.FC<SidebarProps> = ({
 
   useEffect(() => { checkScroll(); }, [checkScroll, visibleNavItems]);
 
+  // Expose sidebar width as a CSS variable so the global broadcast banner can offset itself.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '70px' : '260px');
+  }, [isCollapsed]);
+
   const scrollBy = (dir: number) => {
     scrollRef.current?.scrollBy({ top: dir * 120, behavior: 'smooth' });
   };
