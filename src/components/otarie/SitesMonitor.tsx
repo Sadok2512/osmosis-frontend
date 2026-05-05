@@ -12315,7 +12315,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             {sectorCells.map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
                                               const tilt = (cell as any).tilt as number | null;
-                                              const hba = (cell as any).hba as number | null;
                                               return (
                                                 <tr
                                                   key={cell.cell_id}
