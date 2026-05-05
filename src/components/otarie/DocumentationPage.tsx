@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { BI_KPI_CATALOG } from '@/components/bi/biTypes';
 const KpiCatalogView = lazy(() => import('@/components/documentation/KpiCatalogView'));
 const FilterRepositoryView3 = lazy(() => import('@/components/documentation/FilterRepositoryView3'));
 const QosNetworkView = lazy(() => import('@/components/documentation/QosNetworkView'));
