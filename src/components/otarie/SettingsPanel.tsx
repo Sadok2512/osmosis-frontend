@@ -14,8 +14,10 @@ import {
   Settings,
   Sun,
   Zap,
+  Megaphone,
 } from 'lucide-react';
 import type { SidebarTheme, AccentColor } from '../../pages/Index';
+import { useBroadcastStore, type BroadcastSeverity } from '@/stores/broadcastStore';
 
 interface SettingsPanelProps {
   sidebarTheme: SidebarTheme;
@@ -239,41 +241,44 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
         )}
 
         {tab === 'system' && (
-          <div className="grid gap-6 xl:grid-cols-3">
-            <SectionCard title="Platform" description="Résumé rapide de la plateforme OSMOSIS.">
-              <div className="space-y-4 text-sm">
-                <div className="rounded-2xl bg-muted/40 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Framework</p>
-                  <p className="mt-2 font-bold text-foreground">React 18 + TypeScript</p>
+          <div className="space-y-6">
+            <BroadcastSection />
+            <div className="grid gap-6 xl:grid-cols-3">
+              <SectionCard title="Platform" description="Résumé rapide de la plateforme OSMOSIS.">
+                <div className="space-y-4 text-sm">
+                  <div className="rounded-2xl bg-muted/40 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Framework</p>
+                    <p className="mt-2 font-bold text-foreground">React 18 + TypeScript</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/40 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Analytics</p>
+                    <p className="mt-2 font-bold text-foreground">Recharts / Telecom dashboards</p>
+                  </div>
                 </div>
-                <div className="rounded-2xl bg-muted/40 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Analytics</p>
-                  <p className="mt-2 font-bold text-foreground">Recharts / Telecom dashboards</p>
-                </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
 
-            <SectionCard title="UI State" description="Configuration actuellement appliquée.">
-              <div className="space-y-4 text-sm">
-                <div className="rounded-2xl bg-muted/40 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sidebar Theme</p>
-                  <p className="mt-2 font-bold text-foreground">{sidebarTheme}</p>
+              <SectionCard title="UI State" description="Configuration actuellement appliquée.">
+                <div className="space-y-4 text-sm">
+                  <div className="rounded-2xl bg-muted/40 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Sidebar Theme</p>
+                    <p className="mt-2 font-bold text-foreground">{sidebarTheme}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/40 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Accent Color</p>
+                    <p className="mt-2 font-bold text-foreground">{accentColor}</p>
+                  </div>
                 </div>
-                <div className="rounded-2xl bg-muted/40 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Accent Color</p>
-                  <p className="mt-2 font-bold text-foreground">{accentColor}</p>
-                </div>
-              </div>
-            </SectionCard>
+              </SectionCard>
 
-            <SectionCard title="KPI Reference 2" description="Nouveau référentiel KPI en frontend, séparé du module KPI Monitor existant.">
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
-                <p className="text-[10px] font-black uppercase tracking-widest text-primary">Frontend only</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">
-                  KPI Reference 2 apporte une vue plus propre, un flux list → open → review → edit, et un workspace inférieur dédié sans casser les fonctionnalités existantes.
-                </p>
-              </div>
-            </SectionCard>
+              <SectionCard title="KPI Reference 2" description="Nouveau référentiel KPI en frontend, séparé du module KPI Monitor existant.">
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Frontend only</p>
+                  <p className="mt-2 text-sm font-semibold text-foreground">
+                    KPI Reference 2 apporte une vue plus propre, un flux list → open → review → edit, et un workspace inférieur dédié sans casser les fonctionnalités existantes.
+                  </p>
+                </div>
+              </SectionCard>
+            </div>
           </div>
         )}
       </div>
