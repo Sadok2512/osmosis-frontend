@@ -12277,7 +12277,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               {(() => {
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
-                                  : sortedSec;
+                                  : sortedSec.slice(0, 1);
                                 const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
                                   sNum,
                                   cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
