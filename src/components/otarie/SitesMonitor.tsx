@@ -14446,13 +14446,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {sortedSectors.map(([sNum, cells]) => (
                         <TabsContent key={sNum} value={String(sNum)} className="mt-2">
                           <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
-                            {/* Table header */}
-                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50">
+                            {/* Table header — BSP is the techno-specific physical
+                                identifier: 2G → BCCH (often blank, no DB column),
+                                3G → SC (psc), 4G/5G → PCI. Tooltip shows the meaning. */}
+                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px_50px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50">
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Cell ID</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tech</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Band</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Az</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tilt</span>
+                              <span
+                                className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center"
+                                title="BSP — Broadcast/Scrambling/Physical: 2G=BCCH, 3G=SC, 4G/5G=PCI"
+                              >BSP</span>
                             </div>
                             {/* Cell rows */}
                             <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto">
@@ -14462,11 +14468,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const cellTechGroup = getCellTechGroup(c.techno);
                                 const techColorMap: Record<string, string> = { '5G': '#27AE60', '4G': '#F39C12', '3G': '#3498DB', '2G': '#8E44AD' };
                                 const cellTechColor = techColorMap[cellTechGroup] || '#94a3b8';
+                                // BSP column — pick the right physical identifier per techno.
+                                const cellAny = c as any;
+                                const pci = cellAny.pci ?? null;
+                                const psc = cellAny.psc ?? null;
+                                const bsp =
+                                  cellTechGroup === '3G' ? (psc != null ? String(psc) : '—') :
+                                  (cellTechGroup === '4G' || cellTechGroup === '5G') ? (pci != null ? String(pci) : '—') :
+                                  '—';
+                                const bspTitle =
+                                  cellTechGroup === '3G' ? `SC (Primary Scrambling Code) — ${bsp}` :
+                                  cellTechGroup === '4G' ? `PCI (Physical Cell ID) — ${bsp}` :
+                                  cellTechGroup === '5G' ? `PCI (Physical Cell ID) — ${bsp}` :
+                                  cellTechGroup === '2G' ? 'BCCH — not stored in this dataset' :
+                                  bsp;
                                 return (
                                   <div
                                     key={c.cell_id}
                                     onClick={() => handleCellClick(c.cell_id)}
-                                    className={`grid grid-cols-[1fr_44px_64px_40px_40px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
+                                    className={`grid grid-cols-[1fr_44px_64px_40px_40px_50px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
                                       isSelected
                                         ? 'bg-primary/10 border-l-2 border-l-primary'
                                         : 'hover:bg-muted/30 border-l-2 border-l-transparent'
@@ -14480,6 +14500,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     <span className="text-[9px] text-muted-foreground text-center font-medium">{c.bande}</span>
                                     <span className="text-[9px] font-semibold text-foreground text-center tabular-nums">{c.azimut ?? '—'}°</span>
                                     <span className="text-[9px] font-semibold text-foreground text-center tabular-nums">{eTilt ?? '—'}°</span>
+                                    <span
+                                      className="text-[9px] font-semibold text-foreground text-center tabular-nums"
+                                      title={bspTitle}
+                                    >{bsp}</span>
                                   </div>
                                 );
                               })}
