@@ -246,7 +246,10 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     return true;
   };
 
+  const [submitting, setSubmitting] = useState(false);
   const handleSubmit = () => {
+    if (submitting) return;
+    setSubmitting(true);
     const topology = topoConditions
       .filter(c => c.values.length > 0)
       .map(c => ({
@@ -254,7 +257,11 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
         operator: c.operator === 'NOT IN' ? 'not_in' : 'in',
         values: c.values,
       }));
-    onSubmit({ name, description, status, visibility, topology, parameters: paramConditions, logic });
+    try {
+      onSubmit({ name, description, status, visibility, topology, parameters: paramConditions, logic });
+    } catch (e) {
+      setSubmitting(false);
+    }
   };
 
   return (
