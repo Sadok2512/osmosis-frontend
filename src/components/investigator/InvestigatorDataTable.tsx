@@ -72,6 +72,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
+
+  const rawForSlot = useMemo(() => {
+    if (!activeSlot) return tsData;
+    const slotKeys = new Set([
+      ...(activeSlot.kpiIds || []),
+      ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+    ]);
+    const tagged = (tsData as any[]).filter((p) => p?._slotId === activeSlot.id);
+    if (tagged.length > 0) return tagged;
+    if (slotKeys.size === 0) return tsData;
+    return (tsData as any[]).filter((p) => {
+      const k = p?.kpi || p?.kpiName || p?.kpi_name || p?.metric;
+      return k && slotKeys.has(String(k));
+    });
+  }, [tsData, activeSlot]);
 
   const tableData = useMemo(
     () => sanitizeTableData(tsData, activeSlot),
@@ -199,14 +215,52 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
             {columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length || 1} dimension{columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length > 1 ? 's' : ''} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <button
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors border border-slate-200/80"
-        >
-          <Download className="w-3.5 h-3.5" />
-          CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowRaw((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors border',
+              showRaw
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 border-slate-200/80',
+            )}
+            title="Afficher les données brutes reçues du backend"
+          >
+            {showRaw ? 'Hide raw' : 'Raw backend'}
+            <span className="ml-1 inline-flex items-center justify-center rounded-full bg-white/20 px-1.5 text-[10px] font-bold">
+              {Array.isArray(rawForSlot) ? rawForSlot.length : 0}
+            </span>
+          </button>
+          <button
+            onClick={exportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors border border-slate-200/80"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </button>
+        </div>
       </div>
+
+      {showRaw && (
+        <div className="border-b border-amber-200 bg-amber-50/40 px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
+              Raw backend payload — {Array.isArray(rawForSlot) ? rawForSlot.length : 0} points
+            </span>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(JSON.stringify(rawForSlot, null, 2));
+              }}
+              className="text-[10px] font-semibold text-amber-700 hover:text-amber-900 underline"
+            >
+              Copier JSON
+            </button>
+          </div>
+          <pre className="text-[10px] font-mono text-slate-700 bg-white border border-amber-200 rounded p-2 overflow-auto max-h-[300px]">
+{JSON.stringify(rawForSlot, null, 2)}
+          </pre>
+        </div>
+      )}
 
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[12px]">
