@@ -12164,14 +12164,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
                         : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
-                      // Group cells by sector
-                      const sectors = new Map<number, typeof siteCells>();
+                      // Group cells by equipment+sector composite key (avoids merging ENB1_E1 with ENB2_E1)
+                      const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
-                        if (!sectors.has(sNum)) sectors.set(sNum, []);
-                        sectors.get(sNum)!.push(c);
+                        const sKey = getSectorKey(c.cell_id);
+                        if (!sectors.has(sKey)) sectors.set(sKey, []);
+                        sectors.get(sKey)!.push(c);
                       });
-                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a.localeCompare(b));
 
                       return (
                         <div
