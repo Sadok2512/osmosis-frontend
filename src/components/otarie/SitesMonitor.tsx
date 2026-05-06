@@ -6778,15 +6778,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // that don't exist in the currently visible scope.
   const availableBandsInScope = useMemo(() => {
     const set = new Set<string>();
+    const technoActive = mapTechnoFilter !== 'OFF';
+    const restrictByTech = mapTechnoFilter !== 'ALL' && technoActive;
+    const restrictByEnabled = mapTechnoFilter === 'ALL' && enabledTechnos.size > 0 && enabledTechnos.size < 4;
     for (const s of filteredSites) {
       if (!s.cells?.length) continue;
       for (const cell of s.cells) {
+        const grp = getCellTechGroup((cell as any).techno);
+        if (restrictByTech && grp !== mapTechnoFilter) continue;
+        if (restrictByEnabled && !enabledTechnos.has(grp as any)) continue;
         const key = normalizeBandKey((cell as any).bande, (cell as any).techno);
         if (key) set.add(key);
       }
     }
     return set;
-  }, [filteredSites]);
+  }, [filteredSites, mapTechnoFilter, enabledTechnos]);
 
   // Dynamic filter options based on actual data
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
