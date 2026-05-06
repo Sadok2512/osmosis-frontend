@@ -155,7 +155,7 @@ const SiteAllParamsPopup: React.FC<{ siteName: string; activeParam: string | nul
   );
 };
 import { fetchSiteDetails } from '../../services/api';
-import { getSectorNumber, groupCellsBySector, getEquipmentPrefix, getSectorKey } from '../../utils/sectorUtils';
+import { getSectorNumber, getEquipmentPrefix } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, getTaggedRadius, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
@@ -178,6 +178,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Slider } from '@/components/ui/slider';
 import { getQoEColor } from '../../constants';
 import { vendorHex } from '@/constants/brandColors';
+
+const getSidebarSectorKey = (cellId: string): string => `S-${getSectorNumber(cellId) || 0}`;
+
+const getSidebarSectorNumber = (sectorKey: string): string => sectorKey.replace(/^S-/, '') || '—';
+
+const getSidebarSectorSortValue = (sectorKey: string): number => {
+  const n = Number(getSidebarSectorNumber(sectorKey));
+  return Number.isFinite(n) ? n : Number.MAX_SAFE_INTEGER;
+};
+
+const getSidebarEquipmentLabel = (cells: CellProperties[]): string => {
+  const equipment = Array.from(new Set(cells.map(c => getEquipmentPrefix(c.cell_id)).filter(Boolean)));
+  return equipment.join(' / ');
+};
 
 interface SitesMonitorProps {
   filters: Filters;
@@ -6488,7 +6502,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const sectorKeys = Array.from(new Set(siteDetail.cells.map(c => getSectorKey(c.cell_id))));
+    const sectorKeys = Array.from(new Set(siteDetail.cells.map(c => getSidebarSectorKey(c.cell_id))));
     if (sectorKeys.length > 0) {
       setExpandedSectors(new Set([sectorKeys[0]]));
     }
@@ -7839,7 +7853,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default (from existing cells)
-    const initialSectorKeys = Array.from(new Set(site.cells.map(c => getSectorKey(c.cell_id))));
+    const initialSectorKeys = Array.from(new Set(site.cells.map(c => getSidebarSectorKey(c.cell_id))));
     setExpandedSectors(new Set(initialSectorKeys.length > 0 ? [initialSectorKeys[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open
@@ -7889,7 +7903,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
           // Update snapshot & sectors after cells loaded
           setSelectedSiteSnapshot(siteWithCells);
-          const sectorKeys = Array.from(new Set(cells.map(c => getSectorKey(c.cell_id))));
+          const sectorKeys = Array.from(new Set(cells.map(c => getSidebarSectorKey(c.cell_id))));
           setExpandedSectors(new Set(sectorKeys.length > 0 ? [sectorKeys[0]] : []));
           // If cells have better coordinates, fly again
           const cellsWithCoords = cells.filter((c: any) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude));
@@ -12167,11 +12181,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       // Group cells by equipment+sector composite key (avoids merging ENB1_E1 with ENB2_E1)
                       const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sKey = getSectorKey(c.cell_id);
+                        const sKey = getSidebarSectorKey(c.cell_id);
                         if (!sectors.has(sKey)) sectors.set(sKey, []);
                         sectors.get(sKey)!.push(c);
                       });
-                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a.localeCompare(b));
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => getSidebarSectorSortValue(a) - getSidebarSectorSortValue(b));
 
                       return (
                         <div
@@ -12232,8 +12246,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
-                                  const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
-                                  const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                  const secPart = getSidebarSectorNumber(sKey);
+                                  const eqLabel = getSidebarEquipmentLabel(cells);
                                   return (
                                     <button
                                       key={sKey}
@@ -12314,8 +12328,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 return (
                                   <div className="space-y-3 animate-fade-in">
                                     {allFiltered.map(({ sKey, cells: sectorCells }) => {
-                                      const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
-                                      const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                      const secPart = getSidebarSectorNumber(sKey);
+                                      const eqLabel = getSidebarEquipmentLabel(sectorCells);
                                       return (
                                       <div key={sKey} className="rounded-xl border border-border overflow-hidden">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
@@ -12515,11 +12529,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
                       const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sKey = getSectorKey(c.cell_id);
+                        const sKey = getSidebarSectorKey(c.cell_id);
                         if (!sectors.has(sKey)) sectors.set(sKey, []);
                         sectors.get(sKey)!.push(c);
                       });
-                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a.localeCompare(b));
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => getSidebarSectorSortValue(a) - getSidebarSectorSortValue(b));
 
                       return (
                         <div
@@ -12595,8 +12609,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
-                                  const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
-                                  const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                  const secPart = getSidebarSectorNumber(sKey);
+                                  const eqLabel = getSidebarEquipmentLabel(cells);
                                   return (
                                     <button
                                       key={sKey}
@@ -12675,8 +12689,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 return (
                                   <div className="space-y-3 animate-fade-in">
                                     {allFiltered.map(({ sKey, cells: sectorCells }) => {
-                                      const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
-                                      const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                      const secPart = getSidebarSectorNumber(sKey);
+                                      const eqLabel = getSidebarEquipmentLabel(sectorCells);
                                       return (
                                       <div key={sKey} className="rounded-xl border border-border overflow-hidden">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
