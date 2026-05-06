@@ -4570,6 +4570,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
+  const [bandPanelMode, setBandPanelMode] = useState<'tech' | 'cell'>('tech');
   const [sectorColorMode, _setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const setSectorColorMode = useCallback((mode: 'topo' | 'kpi') => {
     console.trace(`[MODE CHANGE] sectorColorMode → ${mode}`);
@@ -11521,8 +11522,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
             {showBandPanel && (
               <div className="absolute right-14 bottom-0 bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] z-[500] animate-scale-in">
-                {mapTechnoFilter === 'ALL' ? (
-                  /* ── ALL mode: show only 5G / 4G with group color pickers ── */
+                {/* Mode toggle: Tech vs Cell */}
+                <div className="flex items-center gap-1 px-2 pt-2 pb-1 border-b border-border/50">
+                  <button
+                    onClick={() => setBandPanelMode('tech')}
+                    className={`flex-1 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${
+                      bandPanelMode === 'tech'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                    title="Vue Technologies"
+                  >
+                    Tech
+                  </button>
+                  <button
+                    onClick={() => setBandPanelMode('cell')}
+                    className={`flex-1 px-2 py-1 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${
+                      bandPanelMode === 'cell'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                    title="Vue Cellules / Bandes"
+                  >
+                    Cell
+                  </button>
+                </div>
+                {bandPanelMode === 'tech' ? (
                   <div className="px-4 py-3 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Technologies</span>
