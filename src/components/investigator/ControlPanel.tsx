@@ -241,7 +241,8 @@ const AddFilterDropdown: React.FC<{
   existingKeys: string[];
   onAdd: (dim: string) => void;
   filterDimensions: string[];
-}> = ({ existingKeys, onAdd, filterDimensions }) => {
+  filterCategories?: Record<string, string>;
+}> = ({ existingKeys, onAdd, filterDimensions, filterCategories }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
@@ -253,6 +254,25 @@ const AddFilterDropdown: React.FC<{
         return label.toLowerCase().includes(search.toLowerCase());
       })
     : available;
+
+  // Group by category (from backend dimension_definitions.category). Falls
+  // back to "Other" when the metadata is absent (e.g. probe-fallback path).
+  // Category order mirrors what the operator expects: Geographic /
+  // Identifiers / Radio / Admin / general — derived from the data, not
+  // hardcoded; uses the order of first appearance in `filtered`.
+  const grouped = (() => {
+    const cats: Record<string, string[]> = {};
+    const order: string[] = [];
+    for (const d of filtered) {
+      const cat = filterCategories?.[d] || 'Other';
+      if (!cats[cat]) {
+        cats[cat] = [];
+        order.push(cat);
+      }
+      cats[cat].push(d);
+    }
+    return order.map(cat => ({ category: cat, items: cats[cat] }));
+  })();
 
   const toggle = (dim: string) => {
     setSelected(prev => prev.includes(dim) ? prev.filter(d => d !== dim) : [...prev, dim]);
@@ -297,14 +317,23 @@ const AddFilterDropdown: React.FC<{
           </div>
         )}
 
-        {/* List */}
+        {/* List grouped by category (driven by backend
+            dimension_definitions.category — see osmosis-parser
+            app/api/v1/endpoints/dimensions.py). The operator now sees
+            Geographic / Identifiers / Radio / Admin headers instead of
+            a flat 48-item list. */}
         <div className="max-h-[260px] overflow-y-auto py-1">
           {filtered.length === 0 && (
             <div className="px-4 py-6 text-[10px] text-muted-foreground text-center">
               {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
             </div>
           )}
-          {filtered.map(dim => {
+          {grouped.map(({ category, items }) => (
+            <div key={category}>
+              <div className="px-4 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-muted/20 sticky top-0 z-10">
+                {category}
+              </div>
+              {items.map(dim => {
             const isPm = PM_DIMENSION_TYPES.has(dim);
             const label = isPm ? (PM_DIMENSION_LABELS[dim] || dim) : dim;
             const isChecked = selected.includes(dim);
@@ -333,6 +362,8 @@ const AddFilterDropdown: React.FC<{
               </button>
             );
           })}
+            </div>
+          ))}
         </div>
 
         {/* Footer */}
@@ -960,6 +991,11 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const setSelectedCounters = (counters: any[]) => onSelectedCountersChange?.(counters);
   const [splitOptions, setSplitOptions] = useState<{ key: string; label: string }[]>([]);
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
+  // Map display_name → category, populated from /api/v1/dimensions
+  // (dimension_definitions.category). Drives the section headers in the
+  // AddFilterDropdown so the operator sees Geographic / Identifiers / Radio /
+  // Admin groups instead of a flat 48-item list.
+  const [filterCategories, setFilterCategories] = useState<Record<string, string>>({});
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
@@ -983,13 +1019,23 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         if (splits.length > 0) setSplitOptions(splits);
         else setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
 
-        // Filter dimensions: only filterable
-        const dims = filters
-          .filter((f: any) => f.is_active !== false && f.is_filterable)
-          .map((f: any) => f.display_name);
+        // Filter dimensions: only filterable. Keep category for grouped UI.
+        const filterableEntries = filters
+          .filter((f: any) => f.is_active !== false && f.is_filterable);
+        const dims = filterableEntries.map((f: any) => f.display_name);
+        const cats: Record<string, string> = {};
+        for (const f of filterableEntries) {
+          if (f.display_name && f.category) cats[f.display_name] = f.category;
+        }
         // Always include Cluster (virtual dimension from saved clusters)
-        if (!dims.includes('Cluster')) dims.push('Cluster');
-        if (dims.length > 0) setFilterDimensions(dims);
+        if (!dims.includes('Cluster')) {
+          dims.push('Cluster');
+          cats['Cluster'] = 'Geographic';
+        }
+        if (dims.length > 0) {
+          setFilterDimensions(dims);
+          setFilterCategories(cats);
+        }
       } else {
         throw new Error('empty catalog');
       }
@@ -2095,6 +2141,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               existingKeys={activeFilterDims}
               onAdd={addFilterDimension}
               filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
+              filterCategories={filterCategories}
             />
             {visibleFilterDims.length > 0 && (
               <button
@@ -2761,6 +2808,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     existingKeys={activeFilterDims}
                     onAdd={addFilterDimension}
                     filterDimensions={allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d))}
+                    filterCategories={filterCategories}
                   />
                 )}
               </div>
