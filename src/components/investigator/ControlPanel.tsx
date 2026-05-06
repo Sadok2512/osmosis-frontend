@@ -132,25 +132,68 @@ const PM_DIMENSION_LABELS: Record<string, string> = {
 };
 
 // Filter values fetched from backend — now uses centralized cache
-import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
+import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates, type FilterContext } from '@/stores/investigatorFilterCache';
 
-const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
+/**
+ * Map a UI dimension label to the backend dim code used in cascading
+ * context. Mirrors the legacy dim_map on the server (PLAQUE/SITE/CELL…)
+ * so the WHERE clause resolves on every source.
+ */
+const dimToBackendCode = (dim: string): string => {
+  const m: Record<string, string> = {
+    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', RAT: 'TECHNO',
+    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', Cluster: 'PLAQUE', Cluster_B: 'CLUSTER',
+    constructeur: 'VENDOR', Constructeur: 'VENDOR', techno: 'TECHNO', Techno: 'TECHNO',
+  };
+  return m[dim] || dim.toUpperCase();
+};
+
+/**
+ * Build a stable cascading context from the active filters, excluding `selfDim`.
+ * Empty (no upstream constraints) → returns undefined so the cache key collapses
+ * to the unfiltered baseline.
+ */
+const buildCascadeContext = (active: Record<string, string[]>, selfDim: string): FilterContext | undefined => {
+  const ctx: FilterContext = {};
+  for (const [k, v] of Object.entries(active)) {
+    if (k === selfDim) continue;
+    if (!v || !v.length) continue;
+    const code = dimToBackendCode(k);
+    if (!code || code === dimToBackendCode(selfDim)) continue;
+    ctx[code] = v;
+  }
+  return Object.keys(ctx).length ? ctx : undefined;
+};
+
+const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string> } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
+  // Stable string of the context for dependency tracking
+  const ctxStr = React.useMemo(() => {
+    if (!ctx) return '';
+    return JSON.stringify(
+      Object.fromEntries(
+        Object.entries(ctx)
+          .filter(([_, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0))
+          .sort(([a], [b]) => a.localeCompare(b))
+      )
+    );
+  }, [ctx]);
+
   const [result, setResult] = React.useState<{ values: string[]; labels: Record<string, string> }>(() => {
-    const e = getFilterValues(key);
+    const e = getFilterValues(key, ctx);
     return { values: e.values, labels: e.labels || {} };
   });
 
   React.useEffect(() => {
-    ensureFilterLoaded(key);
+    ensureFilterLoaded(key, ctx);
     const unsub = subscribeCacheUpdates(() => {
-      const entry = getFilterValues(key);
+      const entry = getFilterValues(key, ctx);
       if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     });
-    const entry = getFilterValues(key);
+    const entry = getFilterValues(key, ctx);
     if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     return unsub;
-  }, [key]);
+  }, [key, ctxStr]);
 
   return result;
 };
@@ -421,9 +464,11 @@ const FilterChip: React.FC<{
   siteFilter?: string;
   /** Perimeter-derived allow-set. When provided, backendValues are intersected with it. */
   scopeAllowed?: Set<string> | null;
-}> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter, scopeAllowed }) => {
+  /** Cascading context: upstream filters that should narrow the candidate values. */
+  cascadeContext?: FilterContext;
+}> = ({ dim, values, onToggleValue, onClear, onRemove, siteFilter, scopeAllowed, cascadeContext }) => {
   const [open, setOpen] = useState(false);
-  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
+  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim, cascadeContext);
   const [search, setSearch] = useState('');
   const [pendingValues, setPendingValues] = useState<string[]>([]);
   const [liveSearchResults, setLiveSearchResults] = useState<string[]>([]);
@@ -2160,6 +2205,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                 onClear={() => clearFilterValues(dim)}
                 onRemove={() => removeFilterDimension(dim)}
                 siteFilter={(effectiveFilters['Site'] || [])[0]}
+                cascadeContext={buildCascadeContext(effectiveFilters, dim)}
                 scopeAllowed={
                   dim === 'Site' ? perimeter.siteAllowed
                   : dim === 'Cell' ? perimeter.cellAllowed
@@ -2824,6 +2870,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     onToggleValue={(val) => toggleFilterValue(dim, val)}
                     onClear={() => clearFilterValues(dim)}
                     onRemove={() => removeFilterDimension(dim)}
+                    cascadeContext={buildCascadeContext(effectiveFilters, dim)}
                   />
                 ))}
                 {/* Quick-add buttons for detected PM dims not yet added as filters */}

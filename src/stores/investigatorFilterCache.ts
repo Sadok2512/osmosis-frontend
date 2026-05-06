@@ -8,6 +8,9 @@ import { getApiUrl, getApiHeaders, fetchVpsWithRetry } from '@/lib/apiConfig';
 
 type CacheEntry = { values: string[]; labels: Record<string, string>; loading: boolean; loaded: boolean };
 
+/** Cascading-filter context: { upstreamDim: value | values } */
+export type FilterContext = Record<string, string | string[] | undefined>;
+
 const PM_DIMS = ['PMQAP', 'FLEX', 'NEIGHBOR', 'RANSHARE', 'SLICE', '5QI', 'TRANSPORT', 'CA_REL'];
 
 const cache = new Map<string, CacheEntry>();
@@ -22,30 +25,58 @@ export function subscribe(fn: () => void) {
   return () => { listeners = listeners.filter(l => l !== fn); };
 }
 
-export function getFilterValues(key: string): CacheEntry {
-  return cache.get(key) || { values: [], labels: {}, loading: false, loaded: false };
+/** Build a stable cache-key suffix from a context. Empty context → "" */
+function ctxSuffix(ctx?: FilterContext): string {
+  if (!ctx) return '';
+  const entries = Object.entries(ctx)
+    .filter(([_, v]) => v !== undefined && v !== '' && v !== 'Tous' && !(Array.isArray(v) && v.length === 0))
+    .map(([k, v]) => [k.toUpperCase(), Array.isArray(v) ? [...v].sort().join(',') : String(v)] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
+  if (!entries.length) return '';
+  return '|' + entries.map(([k, v]) => `${k}=${v}`).join('&');
 }
 
-async function fetchStandard(dim: string) {
+function makeKey(dim: string, ctx?: FilterContext): string {
+  return dim + ctxSuffix(ctx);
+}
+
+export function getFilterValues(key: string, ctx?: FilterContext): CacheEntry {
+  return cache.get(makeKey(key, ctx)) || { values: [], labels: {}, loading: false, loaded: false };
+}
+
+async function fetchStandard(dim: string, ctx?: FilterContext) {
+  const cacheKey = makeKey(dim, ctx);
   const entry: CacheEntry = { values: [], labels: {}, loading: true, loaded: false };
-  cache.set(dim, entry);
+  cache.set(cacheKey, entry);
+
+  // Build URL — only include &context= when there are upstream filters
+  const ctxParam = ctx && ctxSuffix(ctx)
+    ? `&context=${encodeURIComponent(JSON.stringify(
+        Object.fromEntries(Object.entries(ctx).filter(([_, v]) =>
+          v !== undefined && v !== '' && v !== 'Tous' && !(Array.isArray(v) && v.length === 0)
+        ))
+      ))}`
+    : '';
 
   try {
-    const res = await fetchVpsWithRetry(getApiUrl(`monitor/filters/values?dimension=${dim}`), { headers: getApiHeaders() });
+    const res = await fetchVpsWithRetry(getApiUrl(`monitor/filters/values?dimension=${dim}${ctxParam}`), { headers: getApiHeaders() });
     if (!res.ok) throw new Error(`${res.status}`);
     const d = await res.json();
     if (d.values?.length) entry.values = d.values;
     else throw new Error('empty');
   } catch {
-    try {
-      const res2 = await fetchVpsWithRetry(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
-      const d2 = await res2.json();
-      if (d2.values?.length) entry.values = d2.values;
-    } catch {}
+    // Fallback path doesn't support context — only used when primary failed entirely.
+    if (!ctxParam) {
+      try {
+        const res2 = await fetchVpsWithRetry(getApiUrl(`pm/counters/filter-values?dimension=${dim}`), { headers: getApiHeaders() });
+        const d2 = await res2.json();
+        if (d2.values?.length) entry.values = d2.values;
+      } catch {}
+    }
   }
   entry.loading = false;
   entry.loaded = true;
-  cache.set(dim, { ...entry });
+  cache.set(cacheKey, { ...entry });
   notify();
 }
 
@@ -98,13 +129,15 @@ async function fetchCluster() {
   notify();
 }
 
-export function ensureFilterLoaded(key: string) {
-  const cacheKey = isPmDimension(key) ? key : dimToKey(key);
+export function ensureFilterLoaded(key: string, ctx?: FilterContext) {
+  const dim = isPmDimension(key) ? key : dimToKey(key);
+  const cacheKey = makeKey(dim, ctx);
   const entry = cache.get(cacheKey);
   if (entry?.loaded || entry?.loading) return;
   if (inFlight.has(cacheKey)) return;
 
-  const loader = (cacheKey === 'CLUSTER' ? fetchCluster() : isPmDimension(cacheKey) ? fetchPm(cacheKey) : fetchStandard(cacheKey))
+  // PM dims and CLUSTER don't support cascading context yet
+  const loader = (dim === 'CLUSTER' ? fetchCluster() : isPmDimension(dim) ? fetchPm(dim) : fetchStandard(dim, ctx))
     .finally(() => {
       inFlight.delete(cacheKey);
     });
@@ -113,11 +146,12 @@ export function ensureFilterLoaded(key: string) {
 }
 
 /** Force reload a specific filter dimension (e.g., after creating a new cluster). */
-export function reloadFilter(key: string) {
-  const cacheKey = isPmDimension(key) ? key : dimToKey(key);
+export function reloadFilter(key: string, ctx?: FilterContext) {
+  const dim = isPmDimension(key) ? key : dimToKey(key);
+  const cacheKey = makeKey(dim, ctx);
   cache.delete(cacheKey);
   inFlight.delete(cacheKey);
-  ensureFilterLoaded(cacheKey);
+  ensureFilterLoaded(key, ctx);
 }
 
 /** Preload all filter dimensions. Safe to call multiple times — only runs once. */
