@@ -2105,7 +2105,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         series = series.map((s: any) => {
           if (!s._isNullSeries) return s;
           const range = s.yAxisIndex === 1 ? autoRight : autoLeft;
-          const baseline = typeof range.min === 'number' ? range.min : 0;
+          const minV = typeof range.min === 'number' ? range.min : 0;
+          const maxV = typeof range.max === 'number' ? range.max : (minV + 1);
+          // Lift baseline ~3% above axis floor so markers are not clipped by the x-axis line
+          const baseline = minV + (maxV - minV) * 0.03;
           return { ...s, data: (s.data || []).map((v: any) => v == null ? null : baseline) };
         });
 
