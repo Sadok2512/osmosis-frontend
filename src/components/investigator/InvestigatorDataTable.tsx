@@ -215,13 +215,30 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
             {columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length || 1} dimension{columns.filter((column) => column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension').length > 1 ? 's' : ''} x {kpiColumns.length} KPI{kpiColumns.length !== 1 ? 's' : ''}
           </span>
         </div>
-        <button
-          onClick={exportCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors border border-slate-200/80"
-        >
-          <Download className="w-3.5 h-3.5" />
-          CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowRaw((v) => !v)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors border',
+              showRaw
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-slate-100 border-slate-200/80',
+            )}
+            title="Afficher les données brutes reçues du backend"
+          >
+            {showRaw ? 'Hide raw' : 'Raw backend'}
+            <span className="ml-1 inline-flex items-center justify-center rounded-full bg-white/20 px-1.5 text-[10px] font-bold">
+              {Array.isArray(rawForSlot) ? rawForSlot.length : 0}
+            </span>
+          </button>
+          <button
+            onClick={exportCsv}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors border border-slate-200/80"
+          >
+            <Download className="w-3.5 h-3.5" />
+            CSV
+          </button>
+        </div>
       </div>
 
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
