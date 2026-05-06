@@ -10,6 +10,10 @@ import { toast } from 'sonner';
 import type { NetworkFilter, FilterVisibility } from './filterTypes';
 import FilterDetailsDrawer from './FilterDetailsDrawer';
 import ClusterBuilderWizard from './ClusterBuilderWizard';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { fetchFilters, createFilter, updateFilter, deleteFilter, duplicateFilter, countFilterMatching } from '@/services/filterService';
 import { reloadFilter } from '@/stores/investigatorFilterCache';
 
