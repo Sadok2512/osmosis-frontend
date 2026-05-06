@@ -38,6 +38,15 @@ export interface MonitorFilterDef {
   searchable: boolean;
   depends_on: string[];
   is_active: boolean;
+  // Category from public.dimension_definitions.category — drives the
+  // section headers in the AddFilterDropdown picker (Geographic /
+  // Identifiers / Radio / Admin). Optional because legacy fallback paths
+  // may not provide it.
+  category?: string;
+  rat?: string;
+  is_filterable?: boolean;
+  is_aggregatable?: boolean;
+  sort_order?: number;
 }
 
 export interface MonitorFilter {
