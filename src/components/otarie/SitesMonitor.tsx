@@ -3002,15 +3002,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             return (
               <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isActive ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : isExpanded ? 'border-primary/30 bg-card' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
-                <div
-                  onClick={() => {
-                    if (!isExpanded) {
-                      requestDashboardSwitch(db.id);
-                    } else {
-                      setEditingDashboardId(isEditingDb ? null : db.id);
-                    }
-                  }}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
+                 <div
+                   onClick={() => {
+                     // Row click only expands/collapses. Configuration panel
+                     // is opened ONLY via the Settings button (see below).
+                     setExpandedDashboardId(isExpanded ? null : db.id);
+                   }}
+                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
                 >
                   <div className="shrink-0 p-0.5">
@@ -3060,17 +3058,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
                   {isExpanded && (
                     <>
-                      {/* Activer button — only if not already active */}
-                      {!isActive && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); activateDashboard(db.id); }}
-                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shrink-0"
-                          title="Activer et afficher les sites"
-                        >
-                          <MapIcon size={10} />
-                          Activer
-                        </button>
-                      )}
+                       {/* Activer / Désactiver toggle */}
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (isActive) {
+                             onActiveDashboardIdChange(null);
+                             onDashboardActiveChange?.(false, null, null);
+                           } else {
+                             activateDashboard(db.id);
+                           }
+                         }}
+                         className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold transition-colors shrink-0 ${isActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                         title={isActive ? 'Désactiver' : 'Activer et afficher les sites'}
+                       >
+                         <MapIcon size={10} />
+                         {isActive ? 'Actif' : 'Activer'}
+                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
