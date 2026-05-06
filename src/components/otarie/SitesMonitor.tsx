@@ -3058,17 +3058,23 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                   </div>
                   {isExpanded && (
                     <>
-                      {/* Activer button — only if not already active */}
-                      {!isActive && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); activateDashboard(db.id); }}
-                          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold text-primary-foreground bg-primary hover:bg-primary/90 transition-colors shrink-0"
-                          title="Activer et afficher les sites"
-                        >
-                          <MapIcon size={10} />
-                          Activer
-                        </button>
-                      )}
+                       {/* Activer / Désactiver toggle */}
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           if (isActive) {
+                             onActiveDashboardIdChange(null);
+                             onDashboardActiveChange?.(false, null, null);
+                           } else {
+                             activateDashboard(db.id);
+                           }
+                         }}
+                         className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-[9px] font-bold transition-colors shrink-0 ${isActive ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+                         title={isActive ? 'Désactiver' : 'Activer et afficher les sites'}
+                       >
+                         <MapIcon size={10} />
+                         {isActive ? 'Actif' : 'Activer'}
+                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditingDashboardId(isEditingDb ? null : db.id); }}
                         className={`p-1.5 rounded-lg transition-colors shrink-0 ${isEditingDb ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
