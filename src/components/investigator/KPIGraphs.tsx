@@ -2123,18 +2123,23 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const maxAlpha = 0.5;
           const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
           const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
+          // Default to true so empty/loading charts still display the grid.
+          const show = cfg.showGrid !== false;
           return {
-            show: cfg.showGrid,
+            show,
             lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
           };
         };
 
         // Build yAxis array (always left; optionally right)
+        // Fallback range for empty/loading charts so grid still renders.
+        const fallbackMin = 0;
+        const fallbackMax = 1;
         const yAxisLeft = {
           type: 'value' as const,
           position: 'left' as const,
-          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
-          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : (autoLeft.min ?? fallbackMin),
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : (autoLeft.max ?? fallbackMax),
           axisLabel: {
             fontSize: 10,
             color: '#a1a1aa',
