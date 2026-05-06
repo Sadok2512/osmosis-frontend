@@ -12355,8 +12355,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
-                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
-                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell State</th>
                                             </tr>
                                           </thead>
                                           <tbody>
@@ -12366,7 +12365,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
                                             })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
-                                              const tilt = (cell as any).tilt as number | null;
+                                              const stateRaw = String((cell as any).etat_cellule ?? (cell as any).etat_fonctionnement ?? (cell as any).oper_state ?? '').trim();
+                                              const stateUp = stateRaw.toUpperCase();
+                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES)/.test(stateUp);
+                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|HS|FAULT|SUSPEND|OFF)/.test(stateUp);
+                                              const stateColor = isOk ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isKo ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-muted/40 text-muted-foreground';
                                               return (
                                                 <tr
                                                   key={cell.cell_id}
@@ -12380,8 +12383,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                     </span>
                                                   </td>
                                                   <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
+                                                  <td className="px-2 py-2 text-center">
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${stateColor}`} title={stateRaw || 'unknown'}>
+                                                      {stateRaw || '—'}
+                                                    </span>
+                                                  </td>
                                                 </tr>
                                               );
                                             })}
@@ -12722,9 +12728,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               <th className="px-3 py-1.5 text-left font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tech</th>
                                               <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Band</th>
-                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Az°</th>
-                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Tilt°</th>
-                                              
+                                              <th className="px-2 py-1.5 text-center font-bold text-muted-foreground uppercase tracking-wider text-[9px]">Cell State</th>
+
                                             </tr>
                                           </thead>
                                           <tbody>
@@ -12734,8 +12739,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
                                             })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
-                                              const tilt = (cell as any).tilt as number | null;
-                                              
+                                              const stateRaw = String((cell as any).etat_cellule ?? (cell as any).etat_fonctionnement ?? (cell as any).oper_state ?? '').trim();
+                                              const stateUp = stateRaw.toUpperCase();
+                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES)/.test(stateUp);
+                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|HS|FAULT|SUSPEND|OFF)/.test(stateUp);
+                                              const stateColor = isOk ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isKo ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-muted/40 text-muted-foreground';
+
                                               return (
                                                 <tr
                                                   key={cell.cell_id}
@@ -12749,9 +12758,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                     </span>
                                                   </td>
                                                   <td className="px-2 py-2 text-center font-semibold text-muted-foreground">{cell.bande || '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{cell.azimut != null ? `${cell.azimut}°` : '—'}</td>
-                                                  <td className="px-2 py-2 text-center font-mono">{tilt != null ? `${tilt}°` : '—'}</td>
-                                                  
+                                                  <td className="px-2 py-2 text-center">
+                                                    <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${stateColor}`} title={stateRaw || 'unknown'}>
+                                                      {stateRaw || '—'}
+                                                    </span>
+                                                  </td>
+
                                                 </tr>
                                               );
                                             })}
