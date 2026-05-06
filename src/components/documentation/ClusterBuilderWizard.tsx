@@ -687,7 +687,8 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
             {step === STEPS.length - 1 && (
               <button
                 onClick={() => { setStatus('draft'); handleSubmit(); }}
-                className="px-4 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                disabled={submitting}
+                className="px-4 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-40"
               >
                 Save as Draft
               </button>
@@ -704,10 +705,10 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!name.trim()}
+                disabled={!name.trim() || submitting}
                 className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
-                <Check className="w-4 h-4" /> {editMode ? 'Update Cluster' : 'Save Cluster'}
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {editMode ? 'Update Cluster' : 'Save Cluster'}
               </button>
             )}
           </div>
