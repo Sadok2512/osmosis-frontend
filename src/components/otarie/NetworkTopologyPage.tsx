@@ -258,9 +258,20 @@ const NetworkTopologyPage: React.FC = () => {
     return () => { if (pollRef.current) { window.clearInterval(pollRef.current); pollRef.current = null; } };
   }, [importing, loadStats]);
 
-  const loadFilters = useCallback(async () => {
+  // Cascade-aware loader: when called with current selections, /topo/filters
+  // returns each dim's values restricted by the OTHER active filters.
+  // E.g. picking VENDOR=Nokia narrows the PLAQUE dropdown to Nokia-bearing
+  // plaques; adding PLAQUE narrows further. Backend was extended in
+  // osmosis_backend commit 5e7478a (May 2026).
+  const loadFilters = useCallback(async (ctx?: { vendor?: string[]; techno?: string[]; plaque?: string[]; dor?: string[] }) => {
+    const qs = new URLSearchParams();
+    if (ctx?.vendor?.length) qs.set('vendor', ctx.vendor.join(','));
+    if (ctx?.techno?.length) qs.set('rat',    ctx.techno.join(','));   // techno → rat (backend name)
+    if (ctx?.plaque?.length) qs.set('cluster',ctx.plaque.join(','));   // plaque → cluster (backend alias)
+    if (ctx?.dor?.length)    qs.set('dor',    ctx.dor.join(','));
+    const path = qs.toString() ? `topo/filters?${qs}` : 'topo/filters';
     try {
-      const d = await fetchJson<{ filters: FilterOption[] }>('topo/filters');
+      const d = await fetchJson<{ filters: FilterOption[] }>(path);
       setFilters(d.filters || []);
     } catch {
       setFilters([]);
@@ -358,6 +369,23 @@ const NetworkTopologyPage: React.FC = () => {
     setPlaqueFilter([]);
     setDorFilter([]);
   };
+
+  // Cascade refetch: any time the user changes one of the four filters,
+  // refetch /topo/filters with the OTHER three as context so each
+  // dropdown is restricted to compatible values. Backend self-excludes
+  // each dim, so a checked filter still appears in its own dropdown.
+  useEffect(() => {
+    if (siteFilterCount === 0) {
+      loadFilters();
+      return;
+    }
+    loadFilters({
+      vendor: vendorFilter,
+      techno: technoFilter,
+      plaque: plaqueFilter,
+      dor:    dorFilter,
+    });
+  }, [vendorFilter, technoFilter, plaqueFilter, dorFilter, siteFilterCount, loadFilters]);
 
   const searchSites = useCallback(async () => {
     const requestId = ++searchRequestRef.current;
