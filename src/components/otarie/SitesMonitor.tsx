@@ -155,7 +155,7 @@ const SiteAllParamsPopup: React.FC<{ siteName: string; activeParam: string | nul
   );
 };
 import { fetchSiteDetails } from '../../services/api';
-import { getSectorNumber, groupCellsBySector } from '../../utils/sectorUtils';
+import { getSectorNumber, groupCellsBySector, getEquipmentPrefix, getSectorKey } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, getTaggedRadius, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
@@ -4744,7 +4744,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
-  const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
   const [hiddenTechs, setHiddenTechs] = useState<Set<string>>(new Set());
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm' | 'neighbors'>('kpi');
 
@@ -6488,10 +6488,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
-    if (sectorNums.size > 0) {
-      const first = Math.min(...sectorNums);
-      setExpandedSectors(new Set([first]));
+    const sectorKeys = Array.from(new Set(siteDetail.cells.map(c => getSectorKey(c.cell_id))));
+    if (sectorKeys.length > 0) {
+      setExpandedSectors(new Set([sectorKeys[0]]));
     }
   }, [focusMode, selectedSiteId, siteDetail, expandedSectors.size]);
 
@@ -7840,8 +7839,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default (from existing cells)
-    const initialSectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
-    setExpandedSectors(new Set(initialSectorNums.length > 0 ? [initialSectorNums[0]] : []));
+    const initialSectorKeys = Array.from(new Set(site.cells.map(c => getSectorKey(c.cell_id))));
+    setExpandedSectors(new Set(initialSectorKeys.length > 0 ? [initialSectorKeys[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open
     setPanelCollapsed(false);
@@ -7890,8 +7889,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
           // Update snapshot & sectors after cells loaded
           setSelectedSiteSnapshot(siteWithCells);
-          const sectorNums = Array.from(new Set(cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
-          setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
+          const sectorKeys = Array.from(new Set(cells.map(c => getSectorKey(c.cell_id))));
+          setExpandedSectors(new Set(sectorKeys.length > 0 ? [sectorKeys[0]] : []));
           // If cells have better coordinates, fly again
           const cellsWithCoords = cells.filter((c: any) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude));
           if (cellsWithCoords.length > 0) {
@@ -12165,14 +12164,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
                         : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
-                      // Group cells by sector
-                      const sectors = new Map<number, typeof siteCells>();
+                      // Group cells by equipment+sector composite key (avoids merging ENB1_E1 with ENB2_E1)
+                      const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
-                        if (!sectors.has(sNum)) sectors.set(sNum, []);
-                        sectors.get(sNum)!.push(c);
+                        const sKey = getSectorKey(c.cell_id);
+                        if (!sectors.has(sKey)) sectors.set(sKey, []);
+                        sectors.get(sKey)!.push(c);
                       });
-                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a.localeCompare(b));
 
                       return (
                         <div
@@ -12229,18 +12228,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               {/* Sector cards row */}
                               <div className="flex items-stretch gap-2 mb-3">
-                                {sortedSec.map(([sNum, cells], idx) => {
-                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sNum) : idx === 0;
+                                {sortedSec.map(([sKey, cells], idx) => {
+                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                  const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
                                   return (
                                     <button
-                                      key={sNum}
+                                      key={sKey}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          if (prev.has(sNum) && prev.size === 1) return prev;
-                                          return new Set([sNum]);
+                                          if (prev.has(sKey) && prev.size === 1) return prev;
+                                          return new Set([sKey]);
                                         });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
@@ -12263,7 +12264,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           );
                                         })()}
                                       </div>
-                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      {eqLabel && <span className={`text-[8px] font-bold mb-0.5 ${isSectorExpanded ? 'text-primary-foreground/80' : 'text-muted-foreground/70'}`}>{eqLabel}</span>}
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{secPart}</span>
                                       <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
                                   );
@@ -12298,8 +12300,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
                                   : sortedSec.slice(0, 1);
-                                const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
-                                  sNum,
+                                const allFiltered = visibleSectorEntries.map(([sKey, cells]) => ({
+                                  sKey,
                                   cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
                                 })).filter(g => g.cells.length > 0);
                                 if (!allFiltered.length) {
@@ -12311,10 +12313,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 }
                                 return (
                                   <div className="space-y-3 animate-fade-in">
-                                    {allFiltered.map(({ sNum, cells: sectorCells }) => (
-                                      <div key={sNum} className="rounded-xl border border-border overflow-hidden">
+                                    {allFiltered.map(({ sKey, cells: sectorCells }) => {
+                                      const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                      const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                      return (
+                                      <div key={sKey} className="rounded-xl border border-border overflow-hidden">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
-                                          <span className="text-[11px] font-black text-primary">S{sNum}</span>
+                                          {eqLabel && <span className="text-[9px] font-bold text-muted-foreground uppercase">{eqLabel}</span>}
+                                          <span className="text-[11px] font-black text-primary">S{secPart}</span>
                                           <span className="text-[9px] font-semibold text-muted-foreground">{sectorCells.length} cellule{sectorCells.length > 1 ? 's' : ''}</span>
                                         </div>
                                         <table className="w-full text-[11px]">
@@ -12352,7 +12358,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           </tbody>
                                         </table>
                                       </div>
-                                    ))}
+                                    );
+                                    })}
                                   </div>
                                 );
                               })()}
@@ -12506,13 +12513,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
                         : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
-                      const sectors = new Map<number, typeof siteCells>();
+                      const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
-                        const sNum = getSectorNumber(c.cell_id);
-                        if (!sectors.has(sNum)) sectors.set(sNum, []);
-                        sectors.get(sNum)!.push(c);
+                        const sKey = getSectorKey(c.cell_id);
+                        if (!sectors.has(sKey)) sectors.set(sKey, []);
+                        sectors.get(sKey)!.push(c);
                       });
-                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a - b);
+                      const sortedSec = Array.from(sectors.entries()).sort(([a], [b]) => a.localeCompare(b));
 
                       return (
                         <div
@@ -12584,18 +12591,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           {isExpanded && (
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               <div className="flex items-stretch gap-2 mb-3">
-                                {sortedSec.map(([sNum, cells], idx) => {
-                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sNum) : idx === 0;
+                                {sortedSec.map(([sKey, cells], idx) => {
+                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                  const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
                                   return (
                                     <button
-                                      key={sNum}
+                                      key={sKey}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          if (prev.has(sNum) && prev.size === 1) return prev;
-                                          return new Set([sNum]);
+                                          if (prev.has(sKey) && prev.size === 1) return prev;
+                                          return new Set([sKey]);
                                         });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
@@ -12618,7 +12627,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           );
                                         })()}
                                       </div>
-                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      {eqLabel && <span className={`text-[8px] font-bold mb-0.5 ${isSectorExpanded ? 'text-primary-foreground/80' : 'text-muted-foreground/70'}`}>{eqLabel}</span>}
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{secPart}</span>
                                       <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
                                   );
@@ -12651,8 +12661,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
                                   : sortedSec.slice(0, 1);
-                                const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
-                                  sNum,
+                                const allFiltered = visibleSectorEntries.map(([sKey, cells]) => ({
+                                  sKey,
                                   cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
                                 })).filter(g => g.cells.length > 0);
                                 if (!allFiltered.length) {
@@ -12664,10 +12674,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 }
                                 return (
                                   <div className="space-y-3 animate-fade-in">
-                                    {allFiltered.map(({ sNum, cells: sectorCells }) => (
-                                      <div key={sNum} className="rounded-xl border border-border overflow-hidden">
+                                    {allFiltered.map(({ sKey, cells: sectorCells }) => {
+                                      const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                      const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                      return (
+                                      <div key={sKey} className="rounded-xl border border-border overflow-hidden">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
-                                          <span className="text-[11px] font-black text-primary">S{sNum}</span>
+                                          {eqLabel && <span className="text-[9px] font-bold text-muted-foreground uppercase">{eqLabel}</span>}
+                                          <span className="text-[11px] font-black text-primary">S{secPart}</span>
                                           <span className="text-[9px] font-semibold text-muted-foreground">{sectorCells.length} cellule{sectorCells.length > 1 ? 's' : ''}</span>
                                         </div>
                                         <table className="w-full text-[11px]">
@@ -12708,7 +12722,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           </tbody>
                                         </table>
                                       </div>
-                                    ))}
+                                    );
+                                    })}
                                   </div>
                                 );
                               })()}

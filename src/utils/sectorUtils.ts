@@ -33,6 +33,21 @@ export const getSectorNumber = (cellId: string): number => {
   return isNaN(n) ? 0 : n;
 };
 
+/** Extract equipment prefix from cell id (e.g. ENB1, ENB2, GNB1, BTS14331, RNC131).
+ * Returns empty string if none detected, so single-equipment sites still group by sector only.
+ */
+export const getEquipmentPrefix = (cellId: string): string => {
+  const m = cellId.match(/_(ENB\d+|GNB\d+|BTS\d+|RNC\d+|NB\d+|RBS\d+|BSC\d+)_/i);
+  return m ? m[1].toUpperCase() : '';
+};
+
+/** Composite sector key: equipment + sector number. Disambiguates ENB1_E1 from ENB2_E1. */
+export const getSectorKey = (cellId: string): string => {
+  const eq = getEquipmentPrefix(cellId);
+  const sn = getSectorNumber(cellId);
+  return eq ? `${eq}-${sn}` : `S-${sn}`;
+};
+
 export interface SectorGroup {
   sectorNumber: number;
   cells: CellProperties[];
