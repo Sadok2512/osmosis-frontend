@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2, Globe, Lock, Layers, Sliders, FileCheck2, Eye } from 'lucide-react';
 import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { ParameterCondition, FilterVisibility } from './filterTypes';
-import { loadFilterCache, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
+import { loadFilterCache, loadContextFilters, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
 import { countMatching, searchParameters, getParameterValues, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
@@ -38,6 +38,9 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   const [step, setStep] = useState(0);
   const [paramOptions, setParamOptions] = useState<string[]>(PARAMETER_OPTIONS);
   const [filtersReady, setFiltersReady] = useState(false);
+  // Bumped whenever a context fetch resolves so memos depending on the
+  // contextual cache re-run and dropdowns reflect the narrowed values.
+  const [ctxTick, setCtxTick] = useState(0);
 
   useEffect(() => { fetchParameterOptions().then(setParamOptions); }, []);
   useEffect(() => { loadFilterCache().then(() => setFiltersReady(true)).catch(() => setFiltersReady(true)); }, []);
@@ -80,6 +83,20 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
       })),
   [topoConditions]);
 
+  // Trigger the contextual fetch every time activeFilters changes — without
+  // this the picker only ever sees the unfiltered base cache. When the
+  // fetch resolves, bump ctxTick so memos using getValuesForField re-run.
+  useEffect(() => {
+    if (!filtersReady) return;
+    if (activeFilters.length === 0) return;
+    const ready = loadContextFilters(activeFilters);
+    if (!ready) {
+      // Pending fetch — re-render shortly after it resolves.
+      const t = setTimeout(() => setCtxTick(n => n + 1), 600);
+      return () => clearTimeout(t);
+    }
+  }, [activeFilters, filtersReady]);
+
   const getValuesForField = useCallback((field: string): string[] => {
     const dim = TOPOLOGY_DIMENSIONS.find(d => d.key === field);
     if (dim?.bulkSupport) return []; // free-form fields like cells/sites/PCI
@@ -87,7 +104,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     const dynamic = resolveAvailableValues(dimKey, activeFilters.filter(a => a.dimension !== dimKey));
     return dynamic.length > 0 ? dynamic : (dim?.options || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, filtersReady]);
+  }, [activeFilters, filtersReady, ctxTick]);
 
   // ── Live scope counting ──
   const [matchingCount, setMatchingCount] = useState<MatchingCount | null>(null);
