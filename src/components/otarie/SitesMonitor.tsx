@@ -4744,7 +4744,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // Focus mode: 'global' | 'site' | 'cell'
   const [focusMode, setFocusMode] = useState<'global' | 'site' | 'cell'>('global');
   const [focusCellId, setFocusCellId] = useState<string | null>(null);
-  const [expandedSectors, setExpandedSectors] = useState<Set<number>>(new Set());
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
   const [hiddenTechs, setHiddenTechs] = useState<Set<string>>(new Set());
   const [cellDetailTab, setCellDetailTab] = useState<'kpi' | 'topo' | 'sim' | 'config' | 'alarms' | 'cm' | 'neighbors'>('kpi');
 
