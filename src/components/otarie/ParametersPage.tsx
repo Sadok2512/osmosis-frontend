@@ -113,7 +113,7 @@ const ParametersPage: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* ── HEADER (aligned to Network References) ── */}
+      {/* ── HEADER (aligned to Cluster Builder) ── */}
       <div className="shrink-0 border-b border-border bg-card">
         <div className="px-8 pt-6 pb-0">
           <div className="flex items-start justify-between gap-6">

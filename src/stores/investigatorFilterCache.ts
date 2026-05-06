@@ -133,7 +133,7 @@ export function dimToKey(dimension: string): string {
   const map: Record<string, string> = {
     Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'RAT',
     Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'CLUSTER', Cluster: 'CLUSTER', 'Zone ARCEP': 'ARCEP',
-    BCluster: 'CLUSTER', bcluster: 'CLUSTER', BCLUSTER: 'CLUSTER',
+    Cluster_B: 'CLUSTER', bcluster: 'CLUSTER', CLUSTER_B: 'CLUSTER',
     // backward compat
     constructeur: 'VENDOR', Constructeur: 'VENDOR',
     techno: 'RAT', Techno: 'RAT', TECHNO: 'RAT',

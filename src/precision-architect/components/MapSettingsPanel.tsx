@@ -35,7 +35,7 @@ const FILTER_DIMENSIONS: { key: string; label: string; sample: string[] }[] = [
   { key: 'TECHNO', label: 'Techno', sample: [] },
   { key: 'SITE', label: 'Site', sample: [] },
   { key: 'CELL', label: 'Cell', sample: [] },
-  { key: 'BCLUSTER', label: 'BCluster', sample: [] },
+  { key: 'CLUSTER_B', label: 'Cluster_B', sample: [] },
   { key: 'ARCEP', label: 'Zone ARCEP', sample: [] },
 ];
 
@@ -50,7 +50,7 @@ export default function MapSettingsPanel({ widget, onChange, onClose }: Props) {
   const [, setCacheTick] = useState(0);
   useEffect(() => {
     // Preload common filter dimensions
-    ['PLAQUE', 'DOR', 'VENDOR', 'BANDE', 'TECHNO', 'BCLUSTER', 'ARCEP'].forEach(d => {
+    ['PLAQUE', 'DOR', 'VENDOR', 'BANDE', 'TECHNO', 'CLUSTER_B', 'ARCEP'].forEach(d => {
       try { ensureFilterLoaded(d); } catch {}
     });
     const unsub = subscribeCacheUpdates(() => setCacheTick(t => t + 1));

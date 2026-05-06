@@ -43,7 +43,7 @@ const navGroups: NavGroup[] = [
     label: 'Network View',
     items: [
       { id: 'parameters', label: 'Network Explorer', icon: <Sliders className="w-5 h-5" /> },
-      { id: 'docs', label: 'Network References', icon: <BookOpen className="w-5 h-5" /> },
+      { id: 'docs', label: 'Cluster Builder', icon: <BookOpen className="w-5 h-5" /> },
     ],
   },
   {

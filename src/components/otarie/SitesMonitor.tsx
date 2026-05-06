@@ -7010,7 +7010,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     [activeViewConditions],
   );
 
-  // Clear cell cache and re-prefetch when filters change (e.g. BCluster adds band filter)
+  // Clear cell cache and re-prefetch when filters change (e.g. Cluster_B adds band filter)
   const prevBboxFiltersCacheRef = useRef<string>('');
   useEffect(() => {
     const filterKey = JSON.stringify(currentBboxFilters);

@@ -128,7 +128,7 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           .filter(f => (f as any).is_active !== false)
           .map(f => f.display_name || f.dimension_key);
     const filtered = base.filter(d => !SCOPE_DIMENSIONS.has(d));
-    if (!filtered.includes('BCluster')) filtered.push('BCluster');
+    if (!filtered.includes('Cluster_B')) filtered.push('Cluster_B');
     return filtered;
   }, [filterCatalog]);
 

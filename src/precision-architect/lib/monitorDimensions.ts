@@ -53,8 +53,8 @@ const UI_TO_BACKEND: Record<string, string> = {
   ARCEP: 'ZONE_ARCEP',
   'Zone ARCEP': 'ZONE_ARCEP',
   ZONE_ARCEP: 'ZONE_ARCEP',
-  BCluster: 'CLUSTER',
-  BCLUSTER: 'CLUSTER',
+  Cluster_B: 'CLUSTER',
+  CLUSTER_B: 'CLUSTER',
 };
 
 function normalizeDimensionAlias(value: string): string {

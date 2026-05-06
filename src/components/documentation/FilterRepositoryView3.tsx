@@ -224,7 +224,7 @@ const FilterRepositoryView3: React.FC = () => {
             <div className="flex items-center gap-2">
               <Network className="w-4 h-4 text-primary" />
               <h2 className="text-sm font-black tracking-tight text-foreground truncate">
-                Network References <span className="text-muted-foreground/60 font-bold">/</span> Filters
+                Cluster Builder <span className="text-muted-foreground/60 font-bold">/</span> Filters
               </h2>
               {activeFilterCount > 0 && (
                 <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-black uppercase tracking-wider text-primary">

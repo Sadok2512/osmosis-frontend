@@ -235,8 +235,10 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     if (s === 0) return name.trim().length > 0;
     if (s === 1) return topoCount > 0 && (countError || matchingCount == null || matchingCount.cells > 0);
     if (s === 2) {
-      // Parameters step is optional, but if any condition exists, require successful Validate
-      if (paramConditions.length === 0) return true;
+      // Step 3 (Parameters) is MANDATORY — at least one parameter
+      // condition must be added AND validated successfully (cells > 0).
+      // Was optional pre-2026-05-06; user reported the bypass as a bug.
+      if (paramConditions.length === 0) return false;
       return paramValidation.status === 'ok' && paramValidation.cells > 0;
     }
     return true;

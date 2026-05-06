@@ -212,7 +212,7 @@ const DocumentationPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS Catalogue Officiel</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">Network References</h1>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">Cluster Builder</h1>
                 <p className="mt-2 text-sm text-muted-foreground">{kpiCatalog.length} KPIs • Backend Synchronized</p>
               </div>
             </div>

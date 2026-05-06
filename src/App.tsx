@@ -11,8 +11,12 @@ import BroadcastBanner from "@/components/otarie/BroadcastBanner";
 
 const Index = lazy(() => import("./pages/Index"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin"));
-const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+// AdminLogin / AdminPanel imports removed 2026-05-06: backend admin
+// (user mgmt + LLM config) is now handled by the Jinja /admin/* panel
+// on osmosis-parser :8000. The spa-proxy on :3000 redirects /admin/*
+// requests there. Files src/pages/AdminLogin.tsx, src/pages/AdminPanel.tsx,
+// src/components/otarie/BackendAdmin.tsx are kept on disk as dead code
+// for Lovable to clean up in a future PR (project_lovable_split_contract).
 const UserLogin = lazy(() => import("./pages/UserLogin"));
 const InvestigatorDrilldown = lazy(() => import("./pages/InvestigatorDrilldown"));
 const PrecisionArchitect = lazy(() => import("./pages/PrecisionArchitect"));
@@ -146,8 +150,9 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/investigator" element={<InvestigatorDrilldown />} />
               <Route path="/precision-architect" element={<Navigate to="/?tab=precision_architect" replace />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin" element={<AdminPanel />} />
+              {/* /admin/* routes removed 2026-05-06 — handled by Jinja
+                  panel on :8000 (user mgmt + LLM config). The spa-proxy
+                  redirects browser hits at :3000/admin/* there. */}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
