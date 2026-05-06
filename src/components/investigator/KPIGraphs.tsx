@@ -2053,8 +2053,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const assignedAxis = hasRightAxis
             ? (effectiveYAxisAssignments[seriesKpiId] === 1 ? 1 : (s.yAxisIndex != null ? s.yAxisIndex : 0))
             : 0;
-          const nullSeries = buildNullPointSeries(s, s.data || [], assignedAxis);
-          return nullSeries ? [s, nullSeries] : [s];
+          return [s];
         });
 
         // ── Auto Y-axis calculation ──
