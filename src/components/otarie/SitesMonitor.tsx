@@ -12661,8 +12661,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 const visibleSectorEntries = expandedSectors.size > 0
                                   ? sortedSec.filter(([s]) => expandedSectors.has(s))
                                   : sortedSec.slice(0, 1);
-                                const allFiltered = visibleSectorEntries.map(([sNum, cells]) => ({
-                                  sNum,
+                                const allFiltered = visibleSectorEntries.map(([sKey, cells]) => ({
+                                  sKey,
                                   cells: cells.filter(c => !hiddenTechs.has(getCellTechGroup(c.techno) || '4G')),
                                 })).filter(g => g.cells.length > 0);
                                 if (!allFiltered.length) {
@@ -12674,10 +12674,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 }
                                 return (
                                   <div className="space-y-3 animate-fade-in">
-                                    {allFiltered.map(({ sNum, cells: sectorCells }) => (
-                                      <div key={sNum} className="rounded-xl border border-border overflow-hidden">
+                                    {allFiltered.map(({ sKey, cells: sectorCells }) => {
+                                      const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                      const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
+                                      return (
+                                      <div key={sKey} className="rounded-xl border border-border overflow-hidden">
                                         <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/60 border-b border-border">
-                                          <span className="text-[11px] font-black text-primary">S{sNum}</span>
+                                          {eqLabel && <span className="text-[9px] font-bold text-muted-foreground uppercase">{eqLabel}</span>}
+                                          <span className="text-[11px] font-black text-primary">S{secPart}</span>
                                           <span className="text-[9px] font-semibold text-muted-foreground">{sectorCells.length} cellule{sectorCells.length > 1 ? 's' : ''}</span>
                                         </div>
                                         <table className="w-full text-[11px]">
