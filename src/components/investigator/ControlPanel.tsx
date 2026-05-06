@@ -49,8 +49,8 @@ interface Props {
   onActivateTab?: (tab: string | null) => void;
 }
 
-const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Cluster', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
-const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology', 'Cluster'];
+const SPLITS_FALLBACK: SplitOption[] = ['None', 'Site', 'Cell', 'Cluster_B', 'DOR', 'Vendor', 'Technology', 'Band', 'Zone ARCEP'];
+const FILTER_DIMS_FALLBACK = ['Site', 'Cell', 'Vendor', 'Technology', 'Cluster_B'];
 const PERIODS = [
   { label: '24h', days: 1 },
   { label: '7j', days: 7 },
@@ -1014,8 +1014,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const splits = filters
           .filter((f: any) => f.is_active !== false && f.is_aggregatable)
           .map((f: any) => ({ key: f.dimension_key, label: f.display_name }));
-        // Always include Cluster as a split option
-        if (!splits.find(s => s.key === 'CLUSTER')) splits.push({ key: 'CLUSTER', label: 'Cluster' });
+        // Always include Cluster_B as a split option (user's saved cluster).
+        // Removed the legacy 'CLUSTER' virtual dimension — it duplicated
+        // PLAQUE confusingly. Cluster_B = explicit named selection.
+        if (!splits.find(s => s.key === 'CLUSTER_B')) splits.push({ key: 'CLUSTER_B', label: 'Cluster_B' });
         if (splits.length > 0) setSplitOptions(splits);
         else setSplitOptions(SPLITS_FALLBACK.filter(s => s !== 'None').map(s => ({ key: s, label: s })));
 
@@ -1027,10 +1029,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         for (const f of filterableEntries) {
           if (f.display_name && f.category) cats[f.display_name] = f.category;
         }
-        // Always include Cluster (virtual dimension from saved clusters)
-        if (!dims.includes('Cluster')) {
-          dims.push('Cluster');
-          cats['Cluster'] = 'Geographic';
+        // Always include Cluster_B (the user's saved/customized cluster
+        // from network_filters). The legacy "Cluster" virtual dimension was
+        // removed because it duplicated PLAQUE semantically while pointing
+        // at a different data source — operator confusion. Cluster_B is
+        // unambiguous: a named selection of cells the user created.
+        if (!dims.includes('Cluster_B')) {
+          dims.push('Cluster_B');
+          cats['Cluster_B'] = 'Operations';
         }
         if (dims.length > 0) {
           setFilterDimensions(dims);
@@ -1049,7 +1055,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         { key: 'Technology', param: 'TECHNO' },
         { key: 'Band', param: 'BAND' },
         { key: 'DOR', param: 'DOR' },
-        { key: 'Cluster', param: 'CLUSTER' },
+        { key: 'Cluster_B', param: 'CLUSTER_B' },
         { key: 'Zone ARCEP', param: 'ARCEP' },
       ];
       Promise.allSettled(
@@ -1062,8 +1068,9 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         const available = results
           .filter(r => r.status === 'fulfilled' && (r as any).value.hasData)
           .map(r => (r as any).value.key as string);
-        // Cluster is always available (resolved from saved clusters, not PM)
-        if (!available.includes('Cluster')) available.push('Cluster');
+        // Cluster_B is always available (resolved from saved network_filters,
+        // not PM). The legacy 'Cluster' virtual dim was removed.
+        if (!available.includes('Cluster_B')) available.push('Cluster_B');
         if (available.length > 0) setFilterDimensions(available);
       });
     });
