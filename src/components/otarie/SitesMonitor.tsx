@@ -3002,15 +3002,13 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
             return (
               <div key={db.id} className={`group rounded-xl border overflow-hidden transition-all ${isActive ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/[0.03]' : isExpanded ? 'border-primary/30 bg-card' : 'border-border bg-card hover:border-primary/20'}`}>
                 {/* Dashboard row */}
-                <div
-                  onClick={() => {
-                    if (!isExpanded) {
-                      requestDashboardSwitch(db.id);
-                    } else {
-                      setEditingDashboardId(isEditingDb ? null : db.id);
-                    }
-                  }}
-                  className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
+                 <div
+                   onClick={() => {
+                     // Row click only expands/collapses. Configuration panel
+                     // is opened ONLY via the Settings button (see below).
+                     setExpandedDashboardId(isExpanded ? null : db.id);
+                   }}
+                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
                 >
                   <div className="shrink-0 p-0.5">
