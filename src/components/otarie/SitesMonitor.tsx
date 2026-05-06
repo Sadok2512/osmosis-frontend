@@ -9493,10 +9493,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       mouseout: () => setHoveredSiteId(null),
                     }}
                   >
-                    <Tooltip direction="top" offset={[0, -8]} permanent={false} className="sector-tooltip">
+                    <Tooltip direction="top" offset={[0, -8]} permanent={false} sticky className="sector-tooltip">
                       <div className="px-3 py-2 min-w-[150px]">
-                        <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{site.site_name}</div>
-                        <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_id}</div>
+                        <div className="text-[11px] font-black uppercase tracking-wider" style={{ color: fillColor }}>{cell.cell_id}</div>
+                        <div className="text-[9px] opacity-60 font-mono mt-0.5">{site.site_name} · {site.site_id}</div>
                         <div className="mt-1.5 space-y-0.5 text-[10px]">
                           <div className="flex justify-between"><span className="opacity-50">Techno</span><span className="font-bold">{cell.techno}</span></div>
                           <div className="flex justify-between"><span className="opacity-50">Band</span><span className="font-bold">{cell.bande}</span></div>
