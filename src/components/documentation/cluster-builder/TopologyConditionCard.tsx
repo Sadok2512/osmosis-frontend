@@ -17,7 +17,10 @@ export interface TopologyConditionState {
 
 interface TopologyConditionCardProps {
   condition: TopologyConditionState;
-  fieldOptions: { key: string; label: string }[];
+  /** Each option may carry a category — when present the field <select>
+   *  groups options by template section (Common / RF Parameters / 4G /
+   *  5G / 3G / 2G / Operations) using native <optgroup>. */
+  fieldOptions: { key: string; label: string; category?: string }[];
   /** Returns the available values for the chosen field (cascade-aware). */
   getValuesForField: (field: string) => string[];
   /** Optional async search hook for very large dimensions. */
@@ -45,6 +48,20 @@ const TopologyConditionCard: React.FC<TopologyConditionCardProps> = ({
   const set = (patch: Partial<TopologyConditionState>) =>
     onChange({ ...condition, ...patch });
 
+  // Group by category in stable first-appearance order. When no
+  // category metadata is present, render the flat list as before.
+  const grouped = (() => {
+    if (!fieldOptions.some(o => o.category)) return null;
+    const cats: Record<string, typeof fieldOptions> = {};
+    const order: string[] = [];
+    for (const o of fieldOptions) {
+      const cat = o.category || 'Other';
+      if (!cats[cat]) { cats[cat] = []; order.push(cat); }
+      cats[cat].push(o);
+    }
+    return order.map(cat => ({ category: cat, items: cats[cat] }));
+  })();
+
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-sm">
       {/* Top row: field / operator / remove */}
@@ -56,9 +73,19 @@ const TopologyConditionCard: React.FC<TopologyConditionCardProps> = ({
             onChange={e => set({ field: e.target.value, values: [] })}
             className="w-full mt-1 h-9 px-2.5 rounded-lg border border-border bg-background text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
-            {fieldOptions.map(f => (
-              <option key={f.key} value={f.key}>{f.label}</option>
-            ))}
+            {grouped ? (
+              grouped.map(({ category, items }) => (
+                <optgroup key={category} label={category}>
+                  {items.map(f => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </optgroup>
+              ))
+            ) : (
+              fieldOptions.map(f => (
+                <option key={f.key} value={f.key}>{f.label}</option>
+              ))
+            )}
           </select>
         </div>
         <div className="w-28 shrink-0">

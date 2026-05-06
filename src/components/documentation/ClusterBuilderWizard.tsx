@@ -3,6 +3,8 @@ import { X, ChevronRight, ChevronLeft, Check, Plus, Trash2, AlertCircle, Loader2
 import { TOPOLOGY_DIMENSIONS, PARAMETER_OPTIONS, OPERATOR_OPTIONS, fetchParameterOptions } from './filterTypes';
 import type { ParameterCondition, FilterVisibility } from './filterTypes';
 import { loadFilterCache, loadContextFilters, resolveAvailableValues, type ActiveFilter } from '@/config/filterDimensions';
+import { useFilterCatalog } from '@/components/kpi-monitor/api/kpiMonitorApi';
+import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates, type FilterContext } from '@/stores/investigatorFilterCache';
 import { countMatching, searchParameters, getParameterValues, type MatchingCount } from '@/services/filterService';
 import TopologyConditionCard, { type TopologyConditionState, type InputMode } from './cluster-builder/TopologyConditionCard';
 import ScopeSummaryBar from './cluster-builder/ScopeSummaryBar';
@@ -23,15 +25,32 @@ const STEPS = [
   { id: 'review', label: 'Review', icon: <Eye className="w-3 h-3" /> },
 ];
 
-const FIELD_OPTIONS = TOPOLOGY_DIMENSIONS.map(d => ({ key: d.key, label: d.label }));
+// Static fallback when the backend filter catalog is unreachable.
+const STATIC_FIELD_OPTIONS = TOPOLOGY_DIMENSIONS.map(d => ({ key: d.key, label: d.label, category: 'Common' as string | undefined }));
 
-// Map wizard dimension keys to filterDimensions keys
+// Map legacy wizard dimension keys to topo/filters dim keys (used by
+// resolveAvailableValues + the old TOPOLOGY_DIMENSIONS).
 const WIZARD_TO_DIM: Record<string, string> = {
   vendor: 'vendor',
   dor: 'dor',
   cluster: 'cluster',
   plaque: 'cluster',
   band: 'bande',
+};
+
+// Map wizard dimension keys (display_name from catalog OR legacy key)
+// to the backend code accepted by /monitor/filters/values for the
+// cascading WHERE clauses. Mirrors investigator/ControlPanel.tsx and PA.
+const dimToBackendCode = (dim: string): string => {
+  const m: Record<string, string> = {
+    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', RAT: 'TECHNO',
+    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', Cluster: 'PLAQUE', Cluster_B: 'CLUSTER',
+    constructeur: 'VENDOR', Constructeur: 'VENDOR', techno: 'TECHNO', Techno: 'TECHNO',
+    // legacy lowercase keys from TOPOLOGY_DIMENSIONS
+    vendor: 'VENDOR', dor: 'DOR', cluster: 'PLAQUE', plaque: 'PLAQUE', band: 'BAND',
+    sites: 'SITE', cells: 'CELL',
+  };
+  return m[dim] || dim.toUpperCase();
 };
 
 const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, onClose, initialData, editMode }) => {
@@ -42,8 +61,19 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   // contextual cache re-run and dropdowns reflect the narrowed values.
   const [ctxTick, setCtxTick] = useState(0);
 
+  // Backend filter catalog (47+ template dimensions with category + rat)
+  // — same source as Investigator and Precision Architect.
+  const { data: filterCatalog } = useFilterCatalog();
+
   useEffect(() => { fetchParameterOptions().then(setParamOptions); }, []);
   useEffect(() => { loadFilterCache().then(() => setFiltersReady(true)).catch(() => setFiltersReady(true)); }, []);
+
+  // Subscribe to investigatorFilterCache notifications so the value lists
+  // refresh when ensureFilterLoaded resolves.
+  useEffect(() => {
+    const unsub = subscribeCacheUpdates(() => setCtxTick(n => n + 1));
+    return unsub;
+  }, []);
 
   // ── Step 1: General ──
   const [name, setName] = useState(initialData?.name || '');
@@ -97,14 +127,70 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     }
   }, [activeFilters, filtersReady]);
 
+  // Build fieldOptions from the backend filter catalog (display_name +
+  // category + rat for ~47 dims). When the catalog is unreachable, fall
+  // back to the legacy 9-item TOPOLOGY_DIMENSIONS so the wizard still
+  // works offline.
+  const fieldOptions = useMemo<{ key: string; label: string; category?: string }[]>(() => {
+    if (!filterCatalog || filterCatalog.length === 0) return STATIC_FIELD_OPTIONS;
+    const fromCatalog = filterCatalog
+      .filter((f: any) => f.is_active !== false && f.is_filterable !== false)
+      .map((f: any) => ({
+        key: f.display_name || f.dimension_key,
+        label: f.display_name || f.dimension_key,
+        category: f.category || 'Common',
+      }));
+    // Deduplicate by key, keep first occurrence.
+    const seen = new Set<string>();
+    const out: { key: string; label: string; category?: string }[] = [];
+    for (const opt of fromCatalog) {
+      if (seen.has(opt.key)) continue;
+      seen.add(opt.key);
+      out.push(opt);
+    }
+    return out;
+  }, [filterCatalog]);
+
+  // Build the cascading context for the chip's own dim — i.e. the
+  // selections from every OTHER active condition. Used for both topo
+  // dims (resolveAvailableValues fallback) and template dims
+  // (investigatorFilterCache).
+  const buildCtx = useCallback((selfField: string): FilterContext | undefined => {
+    const ctx: FilterContext = {};
+    const selfCode = dimToBackendCode(selfField);
+    for (const cond of topoConditions) {
+      if (cond.field === selfField) continue;
+      const code = dimToBackendCode(cond.field);
+      if (!code || code === selfCode) continue;
+      if (!cond.values || cond.values.length === 0) continue;
+      ctx[code] = cond.values;
+    }
+    return Object.keys(ctx).length ? ctx : undefined;
+  }, [topoConditions]);
+
   const getValuesForField = useCallback((field: string): string[] => {
-    const dim = TOPOLOGY_DIMENSIONS.find(d => d.key === field);
-    if (dim?.bulkSupport) return []; // free-form fields like cells/sites/PCI
+    // Free-form fields (sites/cells/PCI/ECI/NCI) — bulk paste/csv only,
+    // no enumerable list.
+    const legacyDim = TOPOLOGY_DIMENSIONS.find(d => d.key === field);
+    if (legacyDim?.bulkSupport) return [];
+
+    // First: try the Investigator filter cache (covers all 47 template
+    // dims via /monitor/filters/values + cascading via context).
+    const ctx = buildCtx(field);
+    const code = dimToBackendCode(field);
+    const cacheKey = isPmDimension(code) ? code : dimToKey(code);
+    const entry = getFilterValues(cacheKey, ctx);
+    if (entry.values.length > 0) return entry.values;
+    // Trigger load if not yet fetched — subscribe handler will rerender.
+    ensureFilterLoaded(cacheKey, ctx);
+
+    // Fallback: legacy topo/filters cache (DOR/Cluster/Vendor/Bande/RAT/
+    // Zone ARCEP/Cluster_B). Apply self-exclusion.
     const dimKey = WIZARD_TO_DIM[field] || field;
     const dynamic = resolveAvailableValues(dimKey, activeFilters.filter(a => a.dimension !== dimKey));
-    return dynamic.length > 0 ? dynamic : (dim?.options || []);
+    return dynamic.length > 0 ? dynamic : (legacyDim?.options || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFilters, filtersReady, ctxTick]);
+  }, [activeFilters, filtersReady, ctxTick, buildCtx]);
 
   // ── Live scope counting ──
   const [matchingCount, setMatchingCount] = useState<MatchingCount | null>(null);
@@ -141,7 +227,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
   const addCondition = () => {
     setTopoConditions(prev => [...prev, {
       id: `tc-${Date.now()}`,
-      field: FIELD_OPTIONS[0].key,
+      field: fieldOptions[0]?.key || STATIC_FIELD_OPTIONS[0].key,
       operator: 'IN',
       inputMode: 'search',
       values: [],
@@ -411,7 +497,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                 <TopologyConditionCard
                   key={cond.id}
                   condition={cond}
-                  fieldOptions={FIELD_OPTIONS}
+                  fieldOptions={fieldOptions}
                   getValuesForField={getValuesForField}
                   onChange={next => updateCondition(cond.id, next)}
                   onRemove={() => removeCondition(cond.id)}
