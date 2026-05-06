@@ -2322,7 +2322,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             // Build average markLine for this series if showAverage is enabled
             const avgMarkLine = cfg.showAverage ? (() => {
               const nums = (s.data as (number | null | undefined)[]).filter((v): v is number => v != null && typeof v === 'number' && isFinite(v));
-              if (nums.length === 0) return undefined;
+              if (nums.length === 0 || s._isNullSeries) return undefined;
               const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
               return {
                 yAxis: avg,
@@ -2333,7 +2333,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
             // Build threshold markLines (warning + critical) for this series
             const thresholdMarkLines: any[] = [];
-            if (cfg.showThresholds) {
+            if (cfg.showThresholds && !s._isNullSeries) {
               const def = getDef(seriesKpiId);
               if (def?.thresholds) {
                 if (def.thresholds.warning != null) {
