@@ -1590,6 +1590,30 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const hasSinglePoint = (vals: (number | null)[]) =>
           vals.filter(v => v != null && !Number.isNaN(v as number)).length <= 1;
 
+        const buildNullPointSeries = (baseSeries: any, values: (number | null)[], axisIndex = 0) => {
+          const nullIndexes = values.reduce<number[]>((acc, v, idx) => {
+            if (v == null || Number.isNaN(v as number)) acc.push(idx);
+            return acc;
+          }, []);
+          if (nullIndexes.length === 0) return null;
+          return {
+            name: `${baseSeries.name} · NULL`,
+            _kpiId: baseSeries._kpiId,
+            _isNullSeries: true,
+            _nullCount: nullIndexes.length,
+            _baseSeriesName: baseSeries.name,
+            type: 'scatter' as const,
+            data: values.map((v, idx) => (v == null || Number.isNaN(v as number)) ? 0 : null),
+            symbol: 'emptyCircle' as const,
+            symbolSize: 7,
+            itemStyle: { color: PH_COLORS.nullPointBorder, borderColor: PH_COLORS.nullPoint, borderWidth: 2 },
+            emphasis: { scale: 1.4 },
+            yAxisIndex: axisIndex,
+            z: 10,
+            tooltip: { show: true },
+          };
+        };
+
         let series: any[];
 
         if (hasSplitData) {
@@ -2010,14 +2034,25 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // Only show right axis when KPIs are explicitly assigned to it,
         // or when we have BOTH KPI series and counter series (different scales)
         const hasExplicitRight = Object.values(effectiveYAxisAssignments).includes(1);
-        const hasKpiSeries = series.some((s: any) => !s._isCounter);
+        const hasKpiSeries = series.some((s: any) => !s._isCounter && !s._isNullSeries);
         const hasRightAxis = hasExplicitRight || (!!hasCounterSeries && hasKpiSeries);
+
+        const baseSeries = series;
+        series = baseSeries.flatMap((s: any) => {
+          const seriesKpiId = s._kpiId || kpiIds[0];
+          const assignedAxis = hasRightAxis
+            ? (effectiveYAxisAssignments[seriesKpiId] === 1 ? 1 : (s.yAxisIndex != null ? s.yAxisIndex : 0))
+            : 0;
+          const nullSeries = buildNullPointSeries(s, s.data || [], assignedAxis);
+          return nullSeries ? [s, nullSeries] : [s];
+        });
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
           const vals: number[] = [];
 
           seriesArr.forEach((s) => {
+            if (s._isNullSeries) return;
             // Explicit axis on the series itself (used by counters)
             if (s.yAxisIndex != null) {
               if (s.yAxisIndex !== axisIdx) return;
@@ -2056,6 +2091,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
         const autoLeft = computeAutoRange(series, 0);
         const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
+
+        series = series.map((s: any) => {
+          if (!s._isNullSeries) return s;
+          const range = s.yAxisIndex === 1 ? autoRight : autoLeft;
+          const baseline = typeof range.min === 'number' ? range.min : 0;
+          return { ...s, data: (s.data || []).map((v: any) => v == null ? null : baseline) };
+        });
 
         // Determine which axis owns the grid: prefer left, fall back to right
         // when no series live on the left (otherwise grid lines disappear when
@@ -2188,6 +2230,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           ],
           legend: {
             show: true,
+            data: series.filter((s: any) => !s._isNullSeries).map((s: any) => s.name),
             bottom: LEGEND_BOTTOM_PAD,
             left: 12,
             right: 12,
@@ -2235,6 +2278,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               let splitCount = 0;
               let splitUnit = '';
               for (const p of items) {
+                if ((p as any).seriesName?.endsWith(' · NULL')) {
+                  rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:8px;height:8px;border-radius:999px;border:2px solid ${PH_COLORS.nullPoint};background:${PH_COLORS.nullPointBorder};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${(p as any).seriesName.replace(' · NULL', '')}</span><b style="color:${PH_COLORS.nullPoint}">NULL</b></div>`);
+                  continue;
+                }
                 const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
                 const unit = matchedDef?.unit || '';
                 const val = p.value != null ? p.value.toFixed(2) : '—';
@@ -2276,7 +2323,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             // Build average markLine for this series if showAverage is enabled
             const avgMarkLine = cfg.showAverage ? (() => {
               const nums = (s.data as (number | null | undefined)[]).filter((v): v is number => v != null && typeof v === 'number' && isFinite(v));
-              if (nums.length === 0) return undefined;
+              if (nums.length === 0 || s._isNullSeries) return undefined;
               const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
               return {
                 yAxis: avg,
@@ -2287,7 +2334,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
 
             // Build threshold markLines (warning + critical) for this series
             const thresholdMarkLines: any[] = [];
-            if (cfg.showThresholds) {
+            if (cfg.showThresholds && !s._isNullSeries) {
               const def = getDef(seriesKpiId);
               if (def?.thresholds) {
                 if (def.thresholds.warning != null) {
@@ -2322,12 +2369,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             const resolvedAxisIdx = hasRightAxis
               ? (userAssigned != null ? userAssigned : (s.yAxisIndex != null ? s.yAxisIndex : 0))
               : 0;
+            const isNullSeries = !!s._isNullSeries;
 
             return {
               ...s,
               yAxisIndex: resolvedAxisIdx,
-              lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
-              emphasis: {
+              legendHoverLink: !isNullSeries,
+              lineStyle: isNullSeries ? s.lineStyle : { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
+              emphasis: isNullSeries ? s.emphasis : {
                 focus: 'series' as const,
                 blurScope: 'coordinateSystem' as const,
                 lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
