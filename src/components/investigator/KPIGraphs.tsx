@@ -2092,6 +2092,13 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const autoLeft = computeAutoRange(series, 0);
         const autoRight = hasRightAxis ? computeAutoRange(series, 1) : { min: undefined, max: undefined };
 
+        series = series.map((s: any) => {
+          if (!s._isNullSeries) return s;
+          const range = s.yAxisIndex === 1 ? autoRight : autoLeft;
+          const baseline = typeof range.min === 'number' ? range.min : 0;
+          return { ...s, data: (s.data || []).map((v: any) => v == null ? null : baseline) };
+        });
+
         // Determine which axis owns the grid: prefer left, fall back to right
         // when no series live on the left (otherwise grid lines disappear when
         // the user moves every KPI to the right axis).
