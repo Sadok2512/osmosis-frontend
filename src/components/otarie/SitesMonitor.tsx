@@ -1173,12 +1173,26 @@ const FitHighlightBounds = ({ coords: _coords }: { coords: [number, number][] })
   return null;
 };
 
-const FitToDashboardSites = React.forwardRef<HTMLDivElement, { sites: SiteSummary[]; fitKey: number }>(function FitToDashboardSites(
-  _props,
-  _ref,
-) {
+const FitToDashboardSites: React.FC<{ sites: SiteSummary[]; fitKey: number }> = ({ sites, fitKey }) => {
+  const map = useMap();
+  const lastFitRef = useRef<number>(0);
+  useEffect(() => {
+    if (fitKey === 0 || fitKey === lastFitRef.current) return;
+    if (!sites || sites.length === 0) return;
+    const coords = sites
+      .map(s => s.coordinates)
+      .filter((c): c is [number, number] => Array.isArray(c) && c.length === 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
+    if (coords.length === 0) return;
+    lastFitRef.current = fitKey;
+    if (coords.length === 1) {
+      map.flyTo(coords[0] as [number, number], Math.max(map.getZoom(), 13), { duration: 0.8 });
+      return;
+    }
+    const bounds = L.latLngBounds(coords.map(c => [c[0], c[1]] as [number, number]));
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14, animate: true, duration: 0.8 });
+  }, [sites, fitKey, map]);
   return null;
-});
+};
 
 const TopoFranceViewportReset = ({ enabled: _enabled, resetKey: _resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
