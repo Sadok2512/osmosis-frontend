@@ -429,8 +429,42 @@ const NetworkTopologyPage: React.FC = () => {
     setSiteCmChanges([]);
     setSiteParams([]);
     try {
-      const s = await fetchJson<SiteDetail>(`topo/site/${encodeURIComponent(siteName)}`);
+      const raw = await fetchJson<Partial<SiteDetail> & Record<string, unknown>>(`topo/site/${encodeURIComponent(siteName)}`);
       if (requestId !== detailRequestRef.current) return;
+      // Defensive normalisation — some proxy paths drop top-level fields and
+      // returned only { site_name }, which made the panel show
+      // "Cells undefined / Technologies — / Cells (0)" while the backend
+      // actually had cell_count: 24, technos: [2G,3G,4G], vendors, bands.
+      // Fill missing aggregates from the cells array so the UI degrades
+      // gracefully instead of looking broken.
+      const cells = Array.isArray(raw.cells) ? (raw.cells as Record<string, unknown>[]) : [];
+      const derive = (key: string) => Array.from(new Set(
+        cells.map(c => String((c as any)[key] || '').trim()).filter(Boolean)
+      )).sort();
+      const s: SiteDetail = {
+        site_name: (raw.site_name as string) || siteName,
+        cell_count: (raw.cell_count as number) ?? cells.length ?? 0,
+        technos: Array.isArray(raw.technos) && (raw.technos as string[]).length
+          ? (raw.technos as string[])
+          : derive('techno'),
+        vendors: Array.isArray(raw.vendors) && (raw.vendors as string[]).length
+          ? (raw.vendors as string[])
+          : derive('vendor'),
+        bands: Array.isArray(raw.bands) && (raw.bands as string[]).length
+          ? (raw.bands as string[])
+          : derive('band'),
+        latitude: raw.latitude as number | null | undefined,
+        longitude: raw.longitude as number | null | undefined,
+        plaque: raw.plaque as string | null | undefined,
+        region: raw.region as string | null | undefined,
+        zone_arcep: raw.zone_arcep as string | null | undefined,
+        code_nidt: raw.code_nidt as string | null | undefined,
+        classe: raw.classe as string | null | undefined,
+        couverture: raw.couverture as string | null | undefined,
+        vendor: raw.vendor as string | null | undefined,
+        hw: raw.hw as SiteDetail['hw'],
+        cells,
+      };
       setSiteDetail(s);
       setTimeout(() => {
         document.getElementById('topo-site-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
