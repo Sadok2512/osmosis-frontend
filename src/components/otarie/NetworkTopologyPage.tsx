@@ -429,7 +429,10 @@ const NetworkTopologyPage: React.FC = () => {
     setSiteCmChanges([]);
     setSiteParams([]);
     try {
+      const apiUrl = getApiUrl(`topo/site/${encodeURIComponent(siteName)}`);
+      console.log('[NetworkTopology] viewSite fetching:', apiUrl);
       const raw = await fetchJson<Partial<SiteDetail> & Record<string, unknown>>(`topo/site/${encodeURIComponent(siteName)}`);
+      console.log('[NetworkTopology] viewSite raw response keys:', Object.keys(raw || {}), 'cell_count:', (raw as any)?.cell_count, 'cells.length:', Array.isArray((raw as any)?.cells) ? (raw as any).cells.length : 'not-array');
       if (requestId !== detailRequestRef.current) return;
       // Defensive normalisation — some proxy paths drop top-level fields and
       // returned only { site_name }, which made the panel show
