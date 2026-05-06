@@ -14207,18 +14207,50 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // Site detail panel: show ALL cells of the site, independent of the
             // map-level toolbar filter (mapTechnoFilter / enabledTechnos /
             // localTechno / localBande). Those filters control what's DRAWN on
-            // the map; the detail panel is a faithful inventory of the site's
-            // cells so the user can see all 2G/3G/4G/5G when clicking a multi-
-            // tech site even if they had previously toggled the map to "4G only".
-            // Site detail panel is an exhaustive view of the site — it
-            // shows every cell regardless of the dashboard's persisted
-            // filter (bande/techno/zone_arcep/dor). Previously the panel
-            // hid 9/21 cells on a 4G+5G dashboard filter for a 2G/3G/4G/5G
-            // colocated site, which was misleading: operators expected the
-            // detail card to mirror reality, not the dashboard scope.
-            // The dashboard list/map still respects the filter; only this
-            // detail view ignores it.
-            const filteredCells = siteDetail.cells;
+            // Site detail panel cells: respect the dashboard scope when
+            // a dashboard is active. Without a dashboard, show all cells.
+            // Reason: when an operator builds a "lille_L800" dashboard
+            // (bande=L1800), clicking a site should mirror that scope —
+            // the user expects only L800 cells, not the full inventory.
+            // Filters applied at cell level: bande, techno, zone_arcep.
+            // (dor/vendor/plaque/cluster are site-level, already filtered
+            // upstream via /topo/sites.)
+            const filteredCells = (() => {
+              const all = siteDetail.cells;
+              if (!dashboardActive || !activeDashboardFilters) return all;
+              const df = activeDashboardFilters;
+              const dashBands = df.bande && df.bande.length > 0
+                ? new Set(df.bande.flatMap(b => {
+                    const u = String(b).trim().toUpperCase();
+                    const n = normalizeBandKey(u) || u;
+                    return [u, n];
+                  }))
+                : null;
+              const dashTechs = df.techno && df.techno.length > 0
+                ? new Set(df.techno.map(t => String(t).trim().toUpperCase()))
+                : null;
+              const dashZones = df.zone_arcep && df.zone_arcep.length > 0
+                ? new Set(df.zone_arcep.map(z => String(z).trim().toUpperCase()))
+                : null;
+              if (!dashBands && !dashTechs && !dashZones) return all;
+              return all.filter(c => {
+                if (dashBands) {
+                  const raw = String(c.bande || '').trim().toUpperCase();
+                  const norm = normalizeBandKey(c.bande || '', c.techno) || raw;
+                  if (!raw || (!dashBands.has(raw) && !dashBands.has(norm))) return false;
+                }
+                if (dashTechs) {
+                  const tg = String(getCellTechGroup(c.techno) || '').toUpperCase();
+                  const tr = String(c.techno || '').trim().toUpperCase();
+                  if (!dashTechs.has(tg) && !dashTechs.has(tr)) return false;
+                }
+                if (dashZones) {
+                  const z = String((c as any).zone_arcep || '').trim().toUpperCase();
+                  if (!z || !dashZones.has(z)) return false;
+                }
+                return true;
+              });
+            })();
             // Group cells by sector number
             const sectorMap = new Map<number, typeof siteDetail.cells>();
             filteredCells.forEach(cell => {
