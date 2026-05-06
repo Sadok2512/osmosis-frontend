@@ -1590,6 +1590,30 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         const hasSinglePoint = (vals: (number | null)[]) =>
           vals.filter(v => v != null && !Number.isNaN(v as number)).length <= 1;
 
+        const buildNullPointSeries = (baseSeries: any, values: (number | null)[], axisIndex = 0) => {
+          const nullIndexes = values.reduce<number[]>((acc, v, idx) => {
+            if (v == null || Number.isNaN(v as number)) acc.push(idx);
+            return acc;
+          }, []);
+          if (nullIndexes.length === 0) return null;
+          return {
+            name: `${baseSeries.name} · NULL`,
+            _kpiId: baseSeries._kpiId,
+            _isNullSeries: true,
+            _nullCount: nullIndexes.length,
+            _baseSeriesName: baseSeries.name,
+            type: 'scatter' as const,
+            data: values.map((v, idx) => (v == null || Number.isNaN(v as number)) ? 0 : null),
+            symbol: 'emptyCircle' as const,
+            symbolSize: 7,
+            itemStyle: { color: PH_COLORS.nullPointBorder, borderColor: PH_COLORS.nullPoint, borderWidth: 2 },
+            emphasis: { scale: 1.4 },
+            yAxisIndex: axisIndex,
+            z: 10,
+            tooltip: { show: true },
+          };
+        };
+
         let series: any[];
 
         if (hasSplitData) {
