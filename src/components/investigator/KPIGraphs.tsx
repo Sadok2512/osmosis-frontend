@@ -2034,14 +2034,25 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         // Only show right axis when KPIs are explicitly assigned to it,
         // or when we have BOTH KPI series and counter series (different scales)
         const hasExplicitRight = Object.values(effectiveYAxisAssignments).includes(1);
-        const hasKpiSeries = series.some((s: any) => !s._isCounter);
+        const hasKpiSeries = series.some((s: any) => !s._isCounter && !s._isNullSeries);
         const hasRightAxis = hasExplicitRight || (!!hasCounterSeries && hasKpiSeries);
+
+        const baseSeries = series;
+        series = baseSeries.flatMap((s: any) => {
+          const seriesKpiId = s._kpiId || kpiIds[0];
+          const assignedAxis = hasRightAxis
+            ? (effectiveYAxisAssignments[seriesKpiId] === 1 ? 1 : (s.yAxisIndex != null ? s.yAxisIndex : 0))
+            : 0;
+          const nullSeries = buildNullPointSeries(s, s.data || [], assignedAxis);
+          return nullSeries ? [s, nullSeries] : [s];
+        });
 
         // ── Auto Y-axis calculation ──
         const computeAutoRange = (seriesArr: any[], axisIdx: number) => {
           const vals: number[] = [];
 
           seriesArr.forEach((s) => {
+            if (s._isNullSeries) return;
             // Explicit axis on the series itself (used by counters)
             if (s.yAxisIndex != null) {
               if (s.yAxisIndex !== axisIdx) return;
