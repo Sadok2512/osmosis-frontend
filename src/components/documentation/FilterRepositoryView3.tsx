@@ -191,15 +191,25 @@ const FilterRepositoryView3: React.FC = () => {
     } catch { toast.error('Erreur lors de la duplication'); }
   };
 
-  const handleDelete = async (filter: NetworkFilter) => {
-    if (!confirm(`Supprimer le cluster "${filter.name}" ?`)) return;
+  const handleDelete = (filter: NetworkFilter) => {
+    setActionMenuId(null);
+    setDeleteTarget(filter);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await deleteFilter(filter.id);
-      if (selectedFilter?.id === filter.id) setSelectedFilter(null);
-      toast.success('Cluster supprimé');
-      setActionMenuId(null);
+      await deleteFilter(deleteTarget.id);
+      if (selectedFilter?.id === deleteTarget.id) setSelectedFilter(null);
+      toast.success(`Cluster "${deleteTarget.name}" supprimé`);
+      setDeleteTarget(null);
       loadFilters();
-    } catch { toast.error('Erreur lors de la suppression'); }
+    } catch {
+      toast.error('Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const fmtDate = (iso: string) => {
