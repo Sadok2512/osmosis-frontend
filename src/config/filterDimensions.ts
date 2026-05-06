@@ -173,12 +173,17 @@ export function normalizeValue(s: string | null | undefined): string | null {
 const _contextCache = new Map<string, Record<string, string[]>>();
 const _contextPending = new Map<string, Promise<void>>();
 
+// Dimensions the backend /topo/filters endpoint uses to narrow candidates.
+// Anything else (free-form site/cell ID, custom search) is excluded from
+// the context key so the cache hit-rate stays high.
+const _CASCADE_DIMS = new Set(['dor', 'vendor', 'cluster', 'plaque', 'rat', 'bande', 'zone_arcep', 'cluster_b']);
+
 function buildContextKey(activeFilters: ActiveFilter[]): string {
   const relevant = activeFilters
-    .filter(f => f.values.length > 0 && ['dor', 'vendor', 'rat', 'bande'].includes(f.dimension))
+    .filter(f => f.values.length > 0 && _CASCADE_DIMS.has(f.dimension))
     .sort((a, b) => a.dimension.localeCompare(b.dimension));
   if (relevant.length === 0) return '';
-  return relevant.map(f => `${f.dimension}=${f.values.join(',')}`).join('&');
+  return relevant.map(f => `${f.dimension}=${encodeURIComponent(f.values.join(','))}`).join('&');
 }
 
 /**
