@@ -137,6 +137,9 @@ export function dimToKey(dimension: string): string {
     // backward compat
     constructeur: 'VENDOR', Constructeur: 'VENDOR',
     techno: 'RAT', Techno: 'RAT', TECHNO: 'RAT',
+    // SITE aliases (backend may surface SITENAME / SITE_NAME / NIDT in dimension catalog)
+    SITENAME: 'SITE', SITE_NAME: 'SITE', site_name: 'SITE', sitename: 'SITE', NIDT: 'SITE',
+    CELLNAME: 'CELL', CELL_NAME: 'CELL', cell_name: 'CELL',
   };
   return map[dimension] || dimension;
 }
