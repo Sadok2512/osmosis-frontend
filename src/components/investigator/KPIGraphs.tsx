@@ -2132,11 +2132,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         };
 
         // Build yAxis array (always left; optionally right)
+        // Fallback range for empty/loading charts so grid still renders.
+        const fallbackMin = 0;
+        const fallbackMax = 1;
         const yAxisLeft = {
           type: 'value' as const,
           position: 'left' as const,
-          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : autoLeft.min,
-          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : autoLeft.max,
+          min: cfg.yAxis?.mode === 'manual' && cfg.yAxis.min != null ? cfg.yAxis.min : (autoLeft.min ?? fallbackMin),
+          max: cfg.yAxis?.mode === 'manual' && cfg.yAxis.max != null ? cfg.yAxis.max : (autoLeft.max ?? fallbackMax),
           axisLabel: {
             fontSize: 10,
             color: '#a1a1aa',
