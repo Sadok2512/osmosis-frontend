@@ -21,10 +21,12 @@ import type {
   TopologyConfig,
   TopologySchemaResponse,
   SectionGroup,
+  FilterTreeResponse,
 } from '@/types/topologyConfig';
 
-const CONFIG_QUERY_KEY = ['topology', 'config'] as const;
-const SCHEMA_QUERY_KEY = ['topology', 'schema'] as const;
+const CONFIG_QUERY_KEY      = ['topology', 'config'] as const;
+const SCHEMA_QUERY_KEY      = ['topology', 'schema'] as const;
+const FILTER_TREE_QUERY_KEY = ['topology', 'filter-tree'] as const;
 
 async function fetchTopologyConfig(): Promise<TopologyConfig> {
   const url = getApiUrl('config/');
@@ -44,6 +46,15 @@ async function fetchTopologySchema(): Promise<TopologySchemaResponse> {
   return (await resp.json()) as TopologySchemaResponse;
 }
 
+async function fetchFilterTree(): Promise<FilterTreeResponse> {
+  const url = getApiUrl('config/filter-tree');
+  const resp = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!resp.ok) {
+    throw new Error(`Filter tree fetch failed: HTTP ${resp.status}`);
+  }
+  return (await resp.json()) as FilterTreeResponse;
+}
+
 export function useTopologyConfig(): UseQueryResult<TopologyConfig> {
   return useQuery({
     queryKey: CONFIG_QUERY_KEY,
@@ -59,6 +70,34 @@ export function useTopologySchema(): UseQueryResult<TopologySchemaResponse> {
   return useQuery({
     queryKey: SCHEMA_QUERY_KEY,
     queryFn: fetchTopologySchema,
+    staleTime: Infinity,
+    gcTime: Infinity,
+    refetchOnWindowFocus: false,
+    retry: 2,
+  });
+}
+
+/**
+ * useFilterTree() — drop-in replacement for the legacy hardcoded
+ * FILTER_DIMENSIONS list in src/config/filterDimensions.ts.
+ *
+ * Returns the schema groups in the YAML's display order, each with its
+ * color, label and field list. Filter pickers can now do:
+ *
+ *   const { data: tree } = useFilterTree();
+ *   tree?.groups.map(g => (
+ *     <Section title={g.label} color={g.color}>
+ *       {g.fields.map(f => <FilterChip key={f.key} {...f} />)}
+ *     </Section>
+ *   ));
+ *
+ * Adding a new section / field is a YAML or template Excel edit — the
+ * picker reflects it on next page load. No frontend constants file.
+ */
+export function useFilterTree(): UseQueryResult<FilterTreeResponse> {
+  return useQuery({
+    queryKey: FILTER_TREE_QUERY_KEY,
+    queryFn: fetchFilterTree,
     staleTime: Infinity,
     gcTime: Infinity,
     refetchOnWindowFocus: false,

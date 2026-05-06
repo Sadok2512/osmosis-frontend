@@ -125,3 +125,29 @@ export interface TopologySchemaResponse {
   template_sheet: string;
   fields: FieldSpec[];
 }
+
+// /api/v1/config/filter-tree response — schema GROUPED by section, ready
+// for the FilterBar / picker UI (drop-in replacement for the legacy
+// hardcoded FILTER_DIMENSIONS array).
+export interface FilterTreeField {
+  key: string;
+  label: string;
+  tier: string;
+  column_letter: string;
+}
+
+export interface FilterTreeGroup {
+  id: string;
+  label: string;
+  color: string;
+  always_visible: boolean;
+  techno_filter: string | null;
+  fields: FilterTreeField[];
+}
+
+export interface FilterTreeResponse {
+  template_path: string;
+  template_sheet: string;
+  groups: FilterTreeGroup[];
+  tiers: Record<string, { label: string; severity: string; color: string }>;
+}
