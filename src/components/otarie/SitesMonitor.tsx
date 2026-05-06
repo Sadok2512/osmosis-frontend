@@ -1188,13 +1188,12 @@ const FitToDashboardSites: React.FC<{ sites: SiteSummary[]; fitKey: number }> = 
       map.flyTo(coords[0] as [number, number], 12, { duration: 0.8 });
       return;
     }
-    const bounds = L.latLngBounds(coords.map(c => [c[0], c[1]] as [number, number]));
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 12, animate: true, duration: 0.8 });
-    // Force exact zoom 12 after fit
-    setTimeout(() => {
-      const center = bounds.getCenter();
-      map.setView(center, 12, { animate: true });
-    }, 850);
+    // Compute median center to avoid outlier sites pulling the view away
+    const lats = coords.map(c => c[0]).sort((a, b) => a - b);
+    const lngs = coords.map(c => c[1]).sort((a, b) => a - b);
+    const medLat = lats[Math.floor(lats.length / 2)];
+    const medLng = lngs[Math.floor(lngs.length / 2)];
+    map.setView([medLat, medLng], 12, { animate: true });
   }, [sites, fitKey, map]);
   return null;
 };
