@@ -12228,18 +12228,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="px-4 pb-4 pt-1 animate-fade-in">
                               {/* Sector cards row */}
                               <div className="flex items-stretch gap-2 mb-3">
-                                {sortedSec.map(([sNum, cells], idx) => {
-                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sNum) : idx === 0;
+                                {sortedSec.map(([sKey, cells], idx) => {
+                                  const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
                                   const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
                                   const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                  const [eqPart, secPart] = sKey.includes('-') ? sKey.split('-') : ['', sKey];
+                                  const eqLabel = eqPart && eqPart !== 'S' ? eqPart : '';
                                   return (
                                     <button
-                                      key={sNum}
+                                      key={sKey}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setExpandedSectors(prev => {
-                                          if (prev.has(sNum) && prev.size === 1) return prev;
-                                          return new Set([sNum]);
+                                          if (prev.has(sKey) && prev.size === 1) return prev;
+                                          return new Set([sKey]);
                                         });
                                       }}
                                       className={`flex flex-col items-center justify-center px-5 py-3 rounded-2xl text-[11px] font-bold transition-all min-w-[85px] ${
@@ -12262,7 +12264,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           );
                                         })()}
                                       </div>
-                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{sNum}</span>
+                                      {eqLabel && <span className={`text-[8px] font-bold mb-0.5 ${isSectorExpanded ? 'text-primary-foreground/80' : 'text-muted-foreground/70'}`}>{eqLabel}</span>}
+                                      <span className={`text-[14px] font-black ${isSectorExpanded ? 'text-primary-foreground' : 'text-foreground'}`}>S{secPart}</span>
                                       <span className={`text-[9px] mt-0.5 font-semibold ${isSectorExpanded ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{cells.length} cell{cells.length > 1 ? 's' : ''}</span>
                                     </button>
                                   );
