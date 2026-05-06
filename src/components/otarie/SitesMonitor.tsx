@@ -6279,6 +6279,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
 
     let cancelled = false;
+    let firstBatchFitDone = false;
 
     const loadDashboardScopedSites = async () => {
       // Merge scope into filters if filters are empty
@@ -6311,8 +6312,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               setSites(batchSites);
               setBboxTotal(batchSites.length);
               setLoading(false); // map is usable now
-              // Trigger fitBounds on first batch load so the map zooms to the sites
-              setDashboardFitKey(k => k + 1);
+              // Trigger fitBounds ONLY on first batch — subsequent batches must
+              // not re-fit, otherwise the zoom drifts (e.g. 9 → 8) as the
+              // bounding box expands while the user is already viewing the map.
+              if (!firstBatchFitDone) {
+                firstBatchFitDone = true;
+                setDashboardFitKey(k => k + 1);
+              }
             }
           },
         );
