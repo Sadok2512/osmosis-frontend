@@ -12261,15 +12261,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all bg-muted text-muted-foreground">
                               <MapPin size={18} />
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 pr-2">
                               <h4 className="text-[13px] font-extrabold text-foreground tracking-tight uppercase truncate">{site.site_name}</h4>
-                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5">
-                                <span className="font-mono">{site.site_id}</span>
-                                <span>•</span>
-                                <span className="uppercase font-semibold">{site.vendor}</span>
+                              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mt-0.5 min-w-0">
+                                <span className="font-mono truncate max-w-[60%]">{site.site_id}</span>
+                                <span className="shrink-0">•</span>
+                                <span className="uppercase font-semibold truncate shrink-0">{site.vendor}</span>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
+                            <div className="text-right shrink-0 flex flex-col items-end gap-1 ml-1">
                               {sectorColorMode !== 'topo' && (() => {
                                 const siteKpiVal = kpiValues.get(`site:${site.site_name}`) ?? kpiValues.get(`site:${site.site_id}`) ?? (site as any)[mapKpi] ?? site.qoe_score_avg ?? NaN;
                                 if (isNaN(siteKpiVal)) return null;
@@ -12281,9 +12281,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 </div>
                                 );
                               })()}
-                              <div className="text-[9px] font-semibold text-muted-foreground uppercase mt-1">{displayedCellCount} cells</div>
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-muted/60 text-[9px] font-bold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                                {displayedCellCount} cells
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1 shrink-0 ml-1">
                               <button
                                 onClick={(e) => { e.stopPropagation(); toggleTagSite(site); }}
                                 className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${isSiteTagged(site.site_id) ? 'text-yellow-400' : 'text-muted-foreground/40 hover:text-yellow-400'}`}
