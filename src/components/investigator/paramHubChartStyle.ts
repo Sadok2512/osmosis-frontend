@@ -28,6 +28,8 @@ export const PH_COLORS = {
   labelStrong: '#0f172a',
   labelMuted: '#6B7280',
   labelSubtle: '#9ca3af',
+  nullPoint: '#dc2626',
+  nullPointBorder: '#ffffff',
   tooltipBg: 'rgba(15,23,42,0.95)',
   tooltipBorder: 'rgba(255,255,255,0.08)',
   tooltipText: '#f8fafc',
