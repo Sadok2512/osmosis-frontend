@@ -242,12 +242,31 @@ const AddFilterDropdown: React.FC<{
   onAdd: (dim: string) => void;
   filterDimensions: string[];
   filterCategories?: Record<string, string>;
-}> = ({ existingKeys, onAdd, filterDimensions, filterCategories }) => {
+  filterRats?: Record<string, string>;
+  activeTechnos?: string[];
+}> = ({ existingKeys, onAdd, filterDimensions, filterCategories, filterRats, activeTechnos }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
 
-  const available = filterDimensions.filter(d => !existingKeys.includes(d));
+  // Hide tech-specific dimensions when user has not selected the matching
+  // techno. e.g., if activeTechnos=['4G'], the 3G/UMTS dimensions (RNCID,
+  // UTRAN-CI, …) and 5G/NR dimensions (NCI, PCI NR, …) are hidden. ALL
+  // and unspecified rats stay visible. If the operator hasn't picked a
+  // techno yet, every dimension is visible (operator decides).
+  const technoSet = new Set((activeTechnos ?? []).map(t => t.toUpperCase()));
+  const technoActive = technoSet.size > 0;
+
+  const matchTechno = (d: string): boolean => {
+    if (!technoActive) return true;
+    const rat = filterRats?.[d];
+    if (!rat || rat === 'ALL') return true;
+    return technoSet.has(rat.toUpperCase());
+  };
+
+  const available = filterDimensions
+    .filter(d => !existingKeys.includes(d))
+    .filter(matchTechno);
   const filtered = search
     ? available.filter(d => {
         const label = PM_DIMENSION_TYPES.has(d) ? (PM_DIMENSION_LABELS[d] || d) : d;
@@ -993,9 +1012,13 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
   const [filterDimensions, setFilterDimensions] = useState<string[]>(FILTER_DIMS_FALLBACK);
   // Map display_name → category, populated from /api/v1/dimensions
   // (dimension_definitions.category). Drives the section headers in the
-  // AddFilterDropdown so the operator sees Geographic / Identifiers / Radio /
-  // Admin groups instead of a flat 48-item list.
+  // AddFilterDropdown so the operator sees template-section groups instead
+  // of a flat list.
   const [filterCategories, setFilterCategories] = useState<Record<string, string>>({});
+  // Map display_name → rat (4G / 5G / 3G / 2G / ALL). Drives techno-aware
+  // hiding in the picker: if the user did not select a given techno,
+  // dimensions whose rat is technology-specific are hidden. ALL stays.
+  const [filterRats, setFilterRats] = useState<Record<string, string>>({});
   const [kpisWithData, setKpisWithData] = useState<Set<string> | null>(null);
   const [pmDimValues, setPmDimValues] = useState<{ value: string; label: string }[]>([]);
   const [pmDimLoading, setPmDimLoading] = useState(false);
@@ -1026,8 +1049,10 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           .filter((f: any) => f.is_active !== false && f.is_filterable);
         const dims = filterableEntries.map((f: any) => f.display_name);
         const cats: Record<string, string> = {};
+        const rats: Record<string, string> = {};
         for (const f of filterableEntries) {
           if (f.display_name && f.category) cats[f.display_name] = f.category;
+          if (f.display_name && f.rat) rats[f.display_name] = f.rat;
         }
         // Always include Cluster_B (the user's saved/customized cluster
         // from network_filters). The legacy "Cluster" virtual dimension was
@@ -1041,6 +1066,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
         if (dims.length > 0) {
           setFilterDimensions(dims);
           setFilterCategories(cats);
+          setFilterRats(rats);
         }
       } else {
         throw new Error('empty catalog');
@@ -2149,6 +2175,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
               onAdd={addFilterDimension}
               filterDimensions={allFilterDimensions.filter(d => !PM_DIMENSION_TYPES.has(d) && !SCOPE_DIMENSIONS.has(d))}
               filterCategories={filterCategories}
+              filterRats={filterRats}
+              activeTechnos={effectiveFilters['Technology'] || effectiveFilters['TECHNO'] || []}
             />
             {visibleFilterDims.length > 0 && (
               <button
@@ -2816,6 +2844,8 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
                     onAdd={addFilterDimension}
                     filterDimensions={allFilterDimensions.filter(d => PM_DIMENSION_TYPES.has(d))}
                     filterCategories={filterCategories}
+                    filterRats={filterRats}
+                    activeTechnos={effectiveFilters['Technology'] || effectiveFilters['TECHNO'] || []}
                   />
                 )}
               </div>
