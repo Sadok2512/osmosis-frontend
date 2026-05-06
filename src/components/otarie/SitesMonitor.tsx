@@ -2078,7 +2078,7 @@ const ProgressiveFilterBuilder: React.FC<{
           </button>
 
           {pickerOpen && (
-            <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+            <div className="absolute top-full left-0 right-0 mt-1 z-[200] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
               {availableDims.length > 4 && (
                 <div className="px-2.5 pt-2 pb-1">
                   <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
@@ -2190,7 +2190,7 @@ const CreateFilterDropdown: React.FC<{
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-card rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 z-[200] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
           {values.length > 5 && (
             <div className="px-2.5 pt-2 pb-1">
               <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
