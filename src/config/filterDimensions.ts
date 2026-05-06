@@ -71,6 +71,12 @@ export const FILTER_DIMENSIONS: DimensionDef[] = [
   { key: 'dr', label: 'DR', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'vendor', label: 'Vendor', type: 'enum', multi: true, depends_on: ['dor'] },
   { key: 'cluster', label: 'Cluster', type: 'enum', multi: true, depends_on: ['dor', 'vendor'] },
+  // cluster_b = user-saved clusters from network_filters table. Separate
+  // from `cluster` (plaques) so the Investigator / NetView filter builders
+  // expose them as their own dropdown. Backend /topo/sites?cluster= accepts
+  // both forms — DIM_TO_QS on the consumer side maps cluster_b → cluster.
+  // Added 2026-05-06.
+  { key: 'cluster_b', label: 'Cluster_B', type: 'enum', multi: true, depends_on: [], value_source: 'backend' },
   { key: 'site', label: 'Site', type: 'enum', multi: true, depends_on: ['plaque'], value_source: 'backend' },
   { key: 'cell', label: 'Cellule', type: 'enum', multi: true, depends_on: ['site'], value_source: 'backend' },
   { key: 'zone_arcep', label: 'Zone ARCEP', type: 'enum', multi: true, depends_on: [] },
@@ -240,6 +246,12 @@ export function resolveAvailableValues(
           Object.values(byDor).flat()
         ))
       ).sort();
+
+    case 'cluster_b':
+      // Pure backend-driven: list of saved clusters from network_filters.
+      // No static fallback — empty list when the cache hasn't loaded yet
+      // or the user has no saved clusters.
+      return backendVals ?? [];
 
     case 'zone_arcep':
       return backendVals ?? [];

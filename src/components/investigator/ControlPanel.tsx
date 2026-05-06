@@ -2805,7 +2805,7 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
             }
             const hasAxisConfig = Object.keys(axisAssign).length > 0;
             if (selectorOpen === 'new') {
-              const newId = `slot-${Date.now()}`;
+              const newId = `slot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
               setState(prev => {
                 const nextIndex = prev.graphSlots.length + 1;
                 const newSlot: GraphSlot = {

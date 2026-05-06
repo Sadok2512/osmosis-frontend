@@ -50,7 +50,7 @@ const createSlot = (
   initialFilters: Record<string, string[]> = {},
   temporalTemplate?: Partial<SlotTemporalTemplate>,
 ): GraphSlot => ({
-  id: `slot-${Date.now()}-${index}`,
+  id: `slot-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
   kpiIds,
   name: `${WIDGET_NAMES[widgetType]} ${index}`,
   widgetType,
@@ -256,6 +256,29 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
   const [tableDataSlotId, setTableDataSlotId] = React.useState<string | null>(null);
   const [tableDataRefreshBySlot, setTableDataRefreshBySlot] = React.useState<Record<string, number>>({});
   const [kpiSelectorSlot, setKpiSelectorSlot] = React.useState<string | null>(null);
+
+  // Dedupe slot IDs that collided due to legacy `slot-${Date.now()}` generator.
+  // Two slots sharing an ID caused per-slot updates and data tagging to fan out
+  // across both graphs, so the user saw "changes apply to another graph".
+  useEffect(() => {
+    const seen = new Set<string>();
+    const collides = state.graphSlots.some((s) => {
+      if (seen.has(s.id)) return true;
+      seen.add(s.id);
+      return false;
+    });
+    if (!collides) return;
+    setState((prev) => {
+      const seenIds = new Set<string>();
+      const graphSlots = prev.graphSlots.map((slot) => {
+        if (!seenIds.has(slot.id)) { seenIds.add(slot.id); return slot; }
+        const newId = `slot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-fix`;
+        seenIds.add(newId);
+        return { ...slot, id: newId };
+      });
+      return { ...prev, graphSlots };
+    });
+  }, [state.graphSlots, setState]);
 
   useEffect(() => {
     const needsBackfill = state.graphSlots.some(
@@ -999,7 +1022,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
             if (!source) return prev;
             const dup = {
               ...source,
-              id: `slot-${Date.now()}-dup`,
+              id: `slot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-dup`,
               name: `${source.name} (copie)`,
               config: source.config
                 ? {

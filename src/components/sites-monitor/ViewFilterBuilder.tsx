@@ -35,6 +35,8 @@ export const VIEW_FILTER_DIMENSIONS: FilterDimDef[] = [
   { key: 'constructeur', label: 'Vendor', icon: '🏭', type: 'enum' },
   { key: 'dor', label: 'DOR', icon: '🏢', type: 'enum' },
   { key: 'plaque', label: 'Plaque', icon: '🗺️', type: 'enum' },
+  // cluster_b = user-saved clusters (network_filters). Added 2026-05-06.
+  { key: 'cluster_b', label: 'Cluster_B', icon: '🧩', type: 'enum', dynamic: true },
   { key: 'zone_arcep', label: 'Zone ARCEP', icon: '📋', type: 'enum' },
   { key: 'region', label: 'Région', icon: '📍', type: 'text' },
   { key: 'code_nidt', label: 'Code NIDT', icon: '🆔', type: 'text' },
@@ -461,10 +463,14 @@ export function conditionsToSiteFilters(conditions: ViewFilterCondition[]): Reco
       filters[`manual_${cond.dimension}`] = cond.values[0];
       filters[`manual_${cond.dimension}_op`] = cond.operator;
     } else {
-      // Store as array filter
-      filters[cond.dimension] = cond.values;
+      // cluster_b (saved clusters) and cluster (plaques) share the same
+      // backend QS param `cluster=` — merge values so downstream consumers
+      // that read filters.cluster pick both up.
+      const targetKey = cond.dimension === 'cluster_b' ? 'cluster' : cond.dimension;
+      const existing = Array.isArray(filters[targetKey]) ? filters[targetKey] : [];
+      filters[targetKey] = Array.from(new Set([...existing, ...cond.values]));
       if (cond.operator === 'NOT_IN') {
-        filters[`${cond.dimension}_op`] = 'NOT_IN';
+        filters[`${targetKey}_op`] = 'NOT_IN';
       }
     }
   }

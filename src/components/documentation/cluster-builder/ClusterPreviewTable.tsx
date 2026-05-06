@@ -76,6 +76,7 @@ const DIM_TO_QS: Record<string, string> = {
   vendor: 'vendor',
   dor: 'dor',
   cluster: 'cluster',
+  cluster_b: 'cluster',
   plaque: 'cluster',
   band: 'bande',
   rat: 'rat',

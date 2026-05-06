@@ -358,9 +358,14 @@ export function resolveSlotContext(
 
   // Filters are isolated per slot; global filters are only a template for slot creation.
   const mergedFilters: Record<string, string[]> = { ...(slot.filters || {}) };
+  // cluster_b (saved clusters from network_filters) shares the backend
+  // CLUSTER dimension — alias it before forwarding.
   const activeFilters = Object.entries(mergedFilters)
     .filter(([, vals]) => vals.length > 0)
-    .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }));
+    .map(([dim, vals]) => ({
+      dimension: (dim === 'cluster_b' ? 'cluster' : dim).toUpperCase(),
+      values: vals,
+    }));
 
   log('[resolveSlotContext]', { kpis: slot.kpiIds, splitBy: splitValue, splitBy2: splitValue2, filters: activeFilters });
 
