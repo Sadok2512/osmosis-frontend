@@ -12178,7 +12178,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const displayedCellCount = siteCells.length > 0
                         ? siteCells.length
                         : ((site.cells?.length || 0) === 0 && cellLoadAttemptedRef.current.has(site.site_id) ? 0 : Number(site.cell_count || 0));
-                      // Group cells by equipment+sector composite key (avoids merging ENB1_E1 with ENB2_E1)
+                      // Group sidebar cards by sector number only: one S1 / S2 / S3 card, with all cells inside.
                       const sectors = new Map<string, typeof siteCells>();
                       siteCells.forEach(c => {
                         const sKey = getSidebarSectorKey(c.cell_id);
