@@ -7839,8 +7839,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setFocusMode('site');
     setFocusCellId(null);
     // Auto-expand only the first sector by default (from existing cells)
-    const initialSectorNums = Array.from(new Set(site.cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
-    setExpandedSectors(new Set(initialSectorNums.length > 0 ? [initialSectorNums[0]] : []));
+    const initialSectorKeys = Array.from(new Set(site.cells.map(c => getSectorKey(c.cell_id))));
+    setExpandedSectors(new Set(initialSectorKeys.length > 0 ? [initialSectorKeys[0]] : []));
     setShowRightPanel(true);
     // Ensure inventory panel is open
     setPanelCollapsed(false);
