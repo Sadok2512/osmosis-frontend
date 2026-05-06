@@ -1185,11 +1185,16 @@ const FitToDashboardSites: React.FC<{ sites: SiteSummary[]; fitKey: number }> = 
     if (coords.length === 0) return;
     lastFitRef.current = fitKey;
     if (coords.length === 1) {
-      map.flyTo(coords[0] as [number, number], Math.max(map.getZoom(), 13), { duration: 0.8 });
+      map.flyTo(coords[0] as [number, number], 12, { duration: 0.8 });
       return;
     }
     const bounds = L.latLngBounds(coords.map(c => [c[0], c[1]] as [number, number]));
-    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14, animate: true, duration: 0.8 });
+    map.fitBounds(bounds, { padding: [60, 60], maxZoom: 12, animate: true, duration: 0.8 });
+    // Force exact zoom 12 after fit
+    setTimeout(() => {
+      const center = bounds.getCenter();
+      map.setView(center, 12, { animate: true });
+    }, 850);
   }, [sites, fitKey, map]);
   return null;
 };
