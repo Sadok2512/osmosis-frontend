@@ -14973,7 +14973,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <tbody>
                               {filtered.map((n, i) => (
                                 <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
-                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
+                                  <td title={`${n.targetCellId}${n.targetSiteName ? ' — ' + n.targetSiteName : ''}`} className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
                                     <div className="flex items-center gap-1.5">
                                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[n.relationType] }} />
                                       {n.targetCellId}
