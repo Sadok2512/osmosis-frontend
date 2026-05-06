@@ -207,33 +207,11 @@ const FilterRepositoryView3: React.FC = () => {
       <div className="shrink-0 px-8 pt-5 pb-4 bg-background border-b border-border">
         <div className="flex items-center gap-4 mb-4">
           {/* Org block */}
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="w-11 h-11 rounded-2xl bg-orange-100 dark:bg-orange-500/15 flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-orange-600 dark:text-orange-400" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Organization</div>
-              <div className="text-sm font-black text-foreground leading-tight">Orange France</div>
-            </div>
-          </div>
-
-          <div className="h-8 w-px bg-border mx-1 hidden md:block" />
-
-          {/* Breadcrumb title */}
-          <div className="min-w-0 hidden md:block">
-            <div className="flex items-center gap-2">
-              <Network className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-black tracking-tight text-foreground truncate">
-                Cluster Builder <span className="text-muted-foreground/60 font-bold">/</span> Filters
-              </h2>
-              {activeFilterCount > 0 && (
-                <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-black uppercase tracking-wider text-primary">
-                  {activeFilterCount} active
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Reusable RAN scope filters · dashboards & investigations</p>
-          </div>
+          {activeFilterCount > 0 && (
+            <span className="inline-flex h-5 items-center rounded-full bg-primary/10 px-2 text-[10px] font-black uppercase tracking-wider text-primary">
+              {activeFilterCount} active
+            </span>
+          )}
 
           {/* Search */}
           <div className="relative flex-1 max-w-xl ml-auto">
