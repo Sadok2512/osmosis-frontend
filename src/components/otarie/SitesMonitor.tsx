@@ -12359,7 +12359,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
                                                   className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${isSel ? 'bg-primary/10' : 'hover:bg-muted/30'}`}
                                                 >
-                                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                                  <td title={cell.cell_id} className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                                   <td className="px-2 py-2 text-center">
                                                     <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : getCellTechGroup(cell.techno) === '3G' ? (bandColors['3G_GROUP'] || '#3498DB') : getCellTechGroup(cell.techno) === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12') }}>
                                                       {getCellTechGroup(cell.techno) || '4G'}
@@ -12724,7 +12724,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                   onClick={(e) => { e.stopPropagation(); handleCellClick(cell.cell_id); }}
                                                   className={`cursor-pointer transition-colors border-b border-border/30 last:border-b-0 ${isSel ? 'bg-primary/10' : 'hover:bg-muted/30'}`}
                                                 >
-                                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
+                                                  <td title={cell.cell_id} className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                                   <td className="px-2 py-2 text-center">
                                                     <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : getCellTechGroup(cell.techno) === '3G' ? (bandColors['3G_GROUP'] || '#3498DB') : getCellTechGroup(cell.techno) === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12') }}>
                                                       {getCellTechGroup(cell.techno) || '4G'}
@@ -14973,7 +14973,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <tbody>
                               {filtered.map((n, i) => (
                                 <tr key={i} className="border-b border-border/30 last:border-0 hover:bg-muted/30">
-                                  <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
+                                  <td title={`${n.targetCellId}${n.targetSiteName ? ' — ' + n.targetSiteName : ''}`} className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">
                                     <div className="flex items-center gap-1.5">
                                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: NEIGHBOR_COLORS[n.relationType] }} />
                                       {n.targetCellId}
