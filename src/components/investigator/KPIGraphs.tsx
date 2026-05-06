@@ -2292,12 +2292,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               let splitUnit = '';
               for (const p of items) {
                 if ((p as any).seriesName?.endsWith(' · NULL')) {
-                  rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:8px;height:8px;border-radius:999px;border:2px solid ${PH_COLORS.nullPoint};background:${PH_COLORS.nullPointBorder};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${(p as any).seriesName.replace(' · NULL', '')}</span><b style="color:${PH_COLORS.nullPoint}">NULL</b></div>`);
                   continue;
                 }
                 const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
                 const unit = matchedDef?.unit || '';
-                const val = p.value != null ? p.value.toFixed(2) : '—';
+                if (p.value == null) continue;
+                const val = p.value.toFixed(2);
                 const isSplit = p.seriesName?.includes(' — ') || p.seriesName?.includes(' / ') || (hasSplitData && items.length > 1 && !p.seriesName?.includes('('));
                 if (isSplit && p.value != null) { splitTotal += p.value; splitCount++; splitUnit = unit; }
                 // Find matching series metadata for NE info
