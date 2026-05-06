@@ -2270,6 +2270,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               let splitCount = 0;
               let splitUnit = '';
               for (const p of items) {
+                if ((p as any).seriesName?.endsWith(' · NULL')) {
+                  rows.push(`<div style="display:flex;align-items:center;gap:8px;padding:2px 0"><span style="width:8px;height:8px;border-radius:999px;border:2px solid ${PH_COLORS.nullPoint};background:${PH_COLORS.nullPointBorder};display:inline-block"></span><span style="flex:1;color:${PH_COLORS.labelMuted};font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px">${(p as any).seriesName.replace(' · NULL', '')}</span><b style="color:${PH_COLORS.nullPoint}">NULL</b></div>`);
+                  continue;
+                }
                 const matchedDef = defs.find(d => d.label === p.seriesName || p.seriesName?.startsWith(d.label + ' — '));
                 const unit = matchedDef?.unit || '';
                 const val = p.value != null ? p.value.toFixed(2) : '—';
@@ -2357,12 +2361,14 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
             const resolvedAxisIdx = hasRightAxis
               ? (userAssigned != null ? userAssigned : (s.yAxisIndex != null ? s.yAxisIndex : 0))
               : 0;
+            const isNullSeries = !!s._isNullSeries;
 
             return {
               ...s,
               yAxisIndex: resolvedAxisIdx,
-              lineStyle: { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
-              emphasis: {
+              legendHoverLink: !isNullSeries,
+              lineStyle: isNullSeries ? s.lineStyle : { ...(s.lineStyle || {}), width: s.lineStyle?.width || cfg.lineWidth || 2.5 },
+              emphasis: isNullSeries ? s.emphasis : {
                 focus: 'series' as const,
                 blurScope: 'coordinateSystem' as const,
                 lineStyle: { width: (s.lineStyle?.width || cfg.lineWidth || 2.5) + 1.5 },
