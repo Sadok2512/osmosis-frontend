@@ -975,13 +975,15 @@ export const topoApi = {
     }
   },
 
-  /** Pre-warm the cells cache so sectors appear instantly on zoom-in */
-  prefetchCells: async (filters?: BboxFilters): Promise<void> => {
-    try {
-      await getCachedCells(filters);
-    } catch (err) {
-      console.warn('[TopoApi] Cells prefetch failed (non-blocking)', err);
-    }
+  /** Pre-warm the cells cache so sectors appear instantly on zoom-in.
+   *  No-op since 2026-05-06: listCellsByBbox now fetches /topo/cells?bbox=
+   *  directly server-side and the global getCachedCells path was paginating
+   *  50k cells (5×10k chunks ≈ 10-25s) in the background, blocking the user
+   *  on "Loading cells…" for the entire chain. The bbox-direct path is fast
+   *  enough that no cache warmup is needed. Kept as a no-op so existing
+   *  callers (SitesMonitor zoom-in triggers) don't need to be touched. */
+  prefetchCells: async (_filters?: BboxFilters): Promise<void> => {
+    return;
   },
 
   /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters?dor=X&constructeur=Y */
