@@ -241,6 +241,27 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
         </div>
       </div>
 
+      {showRaw && (
+        <div className="border-b border-amber-200 bg-amber-50/40 px-4 py-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700">
+              Raw backend payload — {Array.isArray(rawForSlot) ? rawForSlot.length : 0} points
+            </span>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(JSON.stringify(rawForSlot, null, 2));
+              }}
+              className="text-[10px] font-semibold text-amber-700 hover:text-amber-900 underline"
+            >
+              Copier JSON
+            </button>
+          </div>
+          <pre className="text-[10px] font-mono text-slate-700 bg-white border border-amber-200 rounded p-2 overflow-auto max-h-[300px]">
+{JSON.stringify(rawForSlot, null, 2)}
+          </pre>
+        </div>
+      )}
+
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
         <table className="w-full border-collapse text-[12px]">
           <thead className="sticky top-0 z-20">
