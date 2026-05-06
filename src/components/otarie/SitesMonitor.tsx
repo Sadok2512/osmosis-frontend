@@ -12255,10 +12255,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8E44AD' }} title="2G" />}
-                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3498DB' }} title="3G" />}
-                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#F39C12' }} title="4G" />}
-                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#27AE60' }} title="5G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['2G_GROUP'] || '#8E44AD' }} title="2G" />}
+                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['3G_GROUP'] || '#3498DB' }} title="3G" />}
+                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['4G_GROUP'] || '#F39C12' }} title="4G" />}
+                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['5G_GROUP'] || '#27AE60' }} title="5G" />}
                                             </>
                                           );
                                         })()}
@@ -12276,7 +12276,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     cells.map(c => getCellTechGroup(c.techno)).filter(Boolean) as string[]
                                   )
                                 );
-                                const legendEntries = ([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][])
+                                const legendEntries = ([['2G', bandColors['2G_GROUP'] || '#8E44AD'],['3G', bandColors['3G_GROUP'] || '#3498DB'],['4G', bandColors['4G_GROUP'] || '#F39C12'],['5G', bandColors['5G_GROUP'] || '#27AE60']] as [string,string][])
                                   .filter(([tech]) => siteTechs.has(tech));
                                 if (legendEntries.length === 0) return null;
                                 return (
@@ -12339,7 +12339,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                 >
                                                   <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                                   <td className="px-2 py-2 text-center">
-                                                    <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
+                                                    <span className="inline-flex items-center justify-center min-w-[28px] px-2 py-0.5 rounded-md text-[10px] font-extrabold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : getCellTechGroup(cell.techno) === '3G' ? (bandColors['3G_GROUP'] || '#3498DB') : getCellTechGroup(cell.techno) === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12') }}>
                                                       {getCellTechGroup(cell.techno) || '4G'}
                                                     </span>
                                                   </td>
@@ -12610,10 +12610,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           const techs = new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean));
                                           return (
                                             <>
-                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#8E44AD' }} title="2G" />}
-                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#3498DB' }} title="3G" />}
-                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#F39C12' }} title="4G" />}
-                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: '#27AE60' }} title="5G" />}
+                                              {techs.has('2G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['2G_GROUP'] || '#8E44AD' }} title="2G" />}
+                                              {techs.has('3G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['3G_GROUP'] || '#3498DB' }} title="3G" />}
+                                              {techs.has('4G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['4G_GROUP'] || '#F39C12' }} title="4G" />}
+                                              {techs.has('5G') && <span className="w-3 h-3 rounded-full border border-white/30" style={{ background: bandColors['5G_GROUP'] || '#27AE60' }} title="5G" />}
                                             </>
                                           );
                                         })()}
@@ -12630,7 +12630,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     cells.map(c => getCellTechGroup(c.techno)).filter(Boolean) as string[]
                                   )
                                 );
-                                const legendEntries = ([['2G','#8E44AD'],['3G','#3498DB'],['4G','#F39C12'],['5G','#27AE60']] as [string,string][])
+                                const legendEntries = ([['2G', bandColors['2G_GROUP'] || '#8E44AD'],['3G', bandColors['3G_GROUP'] || '#3498DB'],['4G', bandColors['4G_GROUP'] || '#F39C12'],['5G', bandColors['5G_GROUP'] || '#27AE60']] as [string,string][])
                                   .filter(([tech]) => siteTechs.has(tech));
                                 if (legendEntries.length === 0) return null;
                                 return (
@@ -12694,7 +12694,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                                 >
                                                   <td className="px-3 py-2 font-mono font-bold text-foreground truncate max-w-[140px]">{cell.cell_id}</td>
                                                   <td className="px-2 py-2 text-center">
-                                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? '#27AE60' : getCellTechGroup(cell.techno) === '3G' ? '#3498DB' : getCellTechGroup(cell.techno) === '2G' ? '#8E44AD' : '#F39C12' }}>
+                                                    <span className="inline-block px-1.5 py-0.5 rounded text-[9px] font-bold text-white" style={{ backgroundColor: getCellTechGroup(cell.techno) === '5G' ? (bandColors['5G_GROUP'] || '#27AE60') : getCellTechGroup(cell.techno) === '3G' ? (bandColors['3G_GROUP'] || '#3498DB') : getCellTechGroup(cell.techno) === '2G' ? (bandColors['2G_GROUP'] || '#8E44AD') : (bandColors['4G_GROUP'] || '#F39C12') }}>
                                                       {getCellTechGroup(cell.techno) || '4G'}
                                                     </span>
                                                   </td>
