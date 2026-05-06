@@ -1168,78 +1168,26 @@ const losTargetIcon = L.divIcon({
   iconAnchor: [7, 7],
 });
 
-// Fit map bounds to highlighted cells
-const FitHighlightBounds = ({ coords }: { coords: [number, number][] }) => {
-  const map = useMap();
-  useEffect(() => {
-    if (coords.length > 0) {
-      const bounds = L.latLngBounds(coords.map(c => L.latLng(c[0], c[1])));
-      map.fitBounds(bounds.pad(0.2), { duration: 1 });
-    }
-  }, [coords, map]);
+// Auto-fit disabled by user request — keep components as no-ops to preserve refs/props
+const FitHighlightBounds = ({ coords: _coords }: { coords: [number, number][] }) => {
   return null;
 };
 
-// Fit map to dashboard sites after loading
 const FitToDashboardSites = React.forwardRef<HTMLDivElement, { sites: SiteSummary[]; fitKey: number }>(function FitToDashboardSites(
-  { sites, fitKey },
+  _props,
   _ref,
 ) {
-  const map = useMap();
-  const lastFitKeyRef = useRef<number>(0);
-  const isFirstFit = useRef(true);
-  useEffect(() => {
-    if (fitKey <= 0 || fitKey === lastFitKeyRef.current) return;
-    lastFitKeyRef.current = fitKey;
-    const validCoords = sites
-      .filter(s => s.coordinates && Number.isFinite(s.coordinates[0]) && Number.isFinite(s.coordinates[1]) && (s.coordinates[0] !== 0 || s.coordinates[1] !== 0))
-      .map(s => L.latLng(s.coordinates[0], s.coordinates[1]));
-
-    // On first fit, use a delay to avoid competing with TopoFranceViewportReset
-    const delay = isFirstFit.current ? 400 : 0;
-    isFirstFit.current = false;
-
-    const timer = setTimeout(() => {
-      if (validCoords.length > 0) {
-        const bounds = L.latLngBounds(validCoords);
-        map.fitBounds(bounds.pad(0.15), { duration: 0.6, maxZoom: 13 });
-        // Prevent fitBounds from zooming out below default level
-        setTimeout(() => {
-          if (map.getZoom() < FRANCE_DEFAULT_ZOOM) {
-            map.setZoom(FRANCE_DEFAULT_ZOOM, { animate: false });
-          }
-        }, 100);
-      } else {
-        map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-      }
-    }, delay);
-    return () => clearTimeout(timer);
-  }, [fitKey, sites, map]);
   return null;
 });
 
-const TopoFranceViewportReset = ({ enabled, resetKey }: { enabled: boolean; resetKey: string }) => {
+const TopoFranceViewportReset = ({ enabled: _enabled, resetKey: _resetKey }: { enabled: boolean; resetKey: string }) => {
   const map = useMap();
-  const lastResetKeyRef = useRef<string | null>(null);
-
-  // Always center on France on very first mount, regardless of mode
+  // Only invalidate size on mount so map renders correctly; do NOT auto-setView/zoom.
   useEffect(() => {
-    // Multiple attempts to ensure map is centered after full init
-    const t1 = setTimeout(() => {
-      map.invalidateSize();
-      map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-    }, 50);
-    return () => { clearTimeout(t1); };
+    const t = setTimeout(() => { map.invalidateSize(); }, 50);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!enabled || lastResetKeyRef.current === resetKey) return;
-    lastResetKeyRef.current = resetKey;
-    map.invalidateSize();
-    map.setView(FRANCE_CENTER, FRANCE_DEFAULT_ZOOM, { animate: false });
-  }, [enabled, resetKey, map]);
-
   return null;
 };
 
