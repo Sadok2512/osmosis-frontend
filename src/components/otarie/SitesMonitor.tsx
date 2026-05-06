@@ -6245,12 +6245,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               return;
             }
             // Fallback: dashboard loader with null filters
+            let firstNoDashFitDone = false;
             const fallback = await fetchDashboardSites(null, undefined, (batch) => {
               if (!cancelledNoDash && batch.length > 0) {
                 setSites(batch);
                 setBboxTotal(batch.length);
                 setLoading(false);
-                setDashboardFitKey(k => k + 1);
+                if (!firstNoDashFitDone) {
+                  firstNoDashFitDone = true;
+                  setDashboardFitKey(k => k + 1);
+                }
               }
             });
             if (cancelledNoDash) return;
