@@ -7889,8 +7889,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
           // Update snapshot & sectors after cells loaded
           setSelectedSiteSnapshot(siteWithCells);
-          const sectorNums = Array.from(new Set(cells.map(c => getSectorNumber(c.cell_id)))).sort((a, b) => a - b);
-          setExpandedSectors(new Set(sectorNums.length > 0 ? [sectorNums[0]] : []));
+          const sectorKeys = Array.from(new Set(cells.map(c => getSectorKey(c.cell_id))));
+          setExpandedSectors(new Set(sectorKeys.length > 0 ? [sectorKeys[0]] : []));
           // If cells have better coordinates, fly again
           const cellsWithCoords = cells.filter((c: any) => Number.isFinite(c.latitude) && Number.isFinite(c.longitude));
           if (cellsWithCoords.length > 0) {
