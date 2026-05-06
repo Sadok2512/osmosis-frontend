@@ -379,7 +379,7 @@ const FilterRepositoryView3: React.FC = () => {
             <Pagination page={page} totalPages={totalPages} setPage={setPage} count={filtered.length} perPage={ITEMS_PER_PAGE} />
           </>
         ) : (
-          <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
+          <div className="rounded-2xl bg-card border border-border shadow-sm overflow-visible">
             <div className="grid grid-cols-[2fr_0.7fr_0.7fr_0.7fr_0.9fr_1fr_0.85fr_0.8fr_88px] px-5 py-3 border-b border-border bg-muted/30">
               {['Filter', 'Sites', 'Cells', 'Tech', 'Vendor', 'State', 'Owner', 'Updated', 'Actions'].map(h => (
                 <span key={h} className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{h}</span>
