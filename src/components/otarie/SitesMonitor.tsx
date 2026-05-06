@@ -12609,8 +12609,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               <div className="flex items-stretch gap-2 mb-3">
                                 {sortedSec.map(([sKey, cells], idx) => {
                                   const isSectorExpanded = expandedSectors.size > 0 ? expandedSectors.has(sKey) : idx === 0;
-                                  const technos = [...new Set(cells.map(c => c.techno).filter(Boolean))].sort().reverse();
-                                  const technoLabel = technos.length > 0 ? technos.join(' / ') : '—';
+                                   const TECH_ORDER: Record<string, number> = { '2G': 0, '3G': 1, '4G': 2, '5G': 3 };
+                                   const technoGroups = [...new Set(cells.map(c => getCellTechGroup(c.techno)).filter(Boolean) as string[])]
+                                     .sort((a, b) => (TECH_ORDER[a] ?? 99) - (TECH_ORDER[b] ?? 99));
+                                   const technoLabel = technoGroups.length > 0 ? technoGroups.join(' / ') : '—';
                                   const secPart = getSidebarSectorNumber(sKey);
                                   const eqLabel = getSidebarEquipmentLabel(cells);
                                   return (
