@@ -2123,8 +2123,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           const maxAlpha = 0.5;
           const op = Math.max(0, Math.min(100, cfg.gridOpacity ?? 50));
           const alpha = baseAlpha + (maxAlpha - baseAlpha) * op / 100;
+          // Default to true so empty/loading charts still display the grid.
+          const show = cfg.showGrid !== false;
           return {
-            show: cfg.showGrid,
+            show,
             lineStyle: { color: `rgba(15,23,42,${alpha.toFixed(3)})`, type: 'dashed' as const },
           };
         };
