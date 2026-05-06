@@ -8596,9 +8596,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           const isTagged = isSiteTagged(site.site_id);
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const siteHasRealCells = site.cells.length > 0;
-          const renderSiteCells = shouldUseSiteDetailCells
+          const renderSiteCellsRaw = shouldUseSiteDetailCells
             ? siteDetail.cells
             : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
+          // siteDetail.cells is the full inventory — when a dashboard scope
+          // is active (e.g. Lille_L1800 → bande=LTE1800), re-apply it so
+          // the selected site doesn't leak out-of-scope cells onto the map.
+          const renderSiteCells = (shouldUseSiteDetailCells && dashboardActive && activeDashboardFilters)
+            ? getRenderableCellsForSite(
+                { ...site, cells: renderSiteCellsRaw },
+                mapTechnoFilter,
+                enabledTechnos,
+                isBandEnabled,
+                activeDashboardFilters.bande ?? null,
+                activeDashboardFilters.techno ?? null,
+              )
+            : renderSiteCellsRaw;
           const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
@@ -8822,9 +8835,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             if (isIndoor) return false;
             const isSelectedSite = selectedSiteId === site.site_id;
             const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
-            const renderSiteCells = shouldUseSiteDetailCells
+            const renderSiteCellsRaw = shouldUseSiteDetailCells
               ? siteDetail.cells
               : (site.cells.length > 0 ? site.cells : buildSyntheticRenderCells(site));
+            const renderSiteCells = (shouldUseSiteDetailCells && dashboardActive && activeDashboardFilters)
+              ? getRenderableCellsForSite(
+                  { ...site, cells: renderSiteCellsRaw },
+                  mapTechnoFilter,
+                  enabledTechnos,
+                  isBandEnabled,
+                  activeDashboardFilters.bande ?? null,
+                  activeDashboardFilters.techno ?? null,
+                )
+              : renderSiteCellsRaw;
             const isTagged = isSiteTagged(site.site_id);
             const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
@@ -9014,9 +9037,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (viewport.zoom <= 13 && densityInfo && !densityInfo.visible && !isHovered && !isSelectedSite && !isTaggedSite) return null;
           const shouldUseSiteDetailCells = isSelectedSite && siteDetail?.site_id === site.site_id && siteDetail.cells.length > 0;
           const siteHasRealCells = site.cells.length > 0;
-          const renderSiteCells = shouldUseSiteDetailCells
+          const renderSiteCellsRaw = shouldUseSiteDetailCells
             ? siteDetail.cells
             : (siteHasRealCells ? site.cells : buildSyntheticRenderCells(site));
+          // siteDetail.cells is the full inventory — when a dashboard scope
+          // is active (e.g. Lille_L1800 → bande=LTE1800), re-apply it so
+          // the selected site doesn't leak out-of-scope cells onto the map.
+          const renderSiteCells = (shouldUseSiteDetailCells && dashboardActive && activeDashboardFilters)
+            ? getRenderableCellsForSite(
+                { ...site, cells: renderSiteCellsRaw },
+                mapTechnoFilter,
+                enabledTechnos,
+                isBandEnabled,
+                activeDashboardFilters.bande ?? null,
+                activeDashboardFilters.techno ?? null,
+              )
+            : renderSiteCellsRaw;
           const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
           // Cell-count density scale: sites with more cells get bigger sectors (sqrt, clamped 0.7..1.6)
