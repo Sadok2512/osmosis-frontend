@@ -7521,19 +7521,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       (window as any).__dashBandsLogged = JSON.stringify([...dashBands]);
       console.info('[SitesMonitor] Dashboard band filter active:', [...dashBands], 'techs:', dashTechs ? [...dashTechs] : null);
     }
-    const projectSiteCells = (s: SiteSummary): SiteSummary => {
+    const projectSiteCells = (s: SiteSummary): SiteSummary | null => {
       if (!dashBands && !dashTechs) return s;
-      if (!s.cells?.length) return s;
+      if (!s.cells?.length) return null;
       const filtered = s.cells.filter(c => {
         if (dashBands) {
           const cb = String(c.bande || '').trim().toUpperCase();
           const cbNorm = normalizeBandKey(c.bande || '', c.techno) || cb;
-          // If cell has no band info, fall back to techno match instead of dropping it
-          if (!cb && !cbNorm) {
-            // skip band check, rely on techno filter below
-          } else if (!dashBands.has(cb) && !dashBands.has(cbNorm)) {
-            return false;
-          }
+          // STRICT: cells without band info are dropped when a dashboard band filter is active
+          if (!cb && !cbNorm) return false;
+          if (!dashBands.has(cb) && !dashBands.has(cbNorm)) return false;
         }
         if (dashTechs) {
           const ct = String(c.techno || '').trim().toUpperCase();
@@ -7542,11 +7539,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         }
         return true;
       });
+      // Drop sites that have zero matching cells under the dashboard perimeter
+      if (!filtered.length) return null;
       return { ...s, cells: filtered };
     };
     const safeFilter = (arr: any[]): SiteSummary[] => (arr || [])
       .filter((s): s is SiteSummary => !!s && typeof s === 'object' && !!s.site_id)
-      .map(projectSiteCells);
+      .map(projectSiteCells)
+      .filter((s): s is SiteSummary => s !== null);
     const siteMatchesCurrentTechFilter = (site: SiteSummary) => {
       if (mapTechnoFilter === 'OFF') return false;
 
