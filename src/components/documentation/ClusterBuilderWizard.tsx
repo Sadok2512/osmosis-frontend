@@ -235,10 +235,12 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
     if (s === 0) return name.trim().length > 0;
     if (s === 1) return topoCount > 0 && (countError || matchingCount == null || matchingCount.cells > 0);
     if (s === 2) {
-      // Step 3 (Parameters) is MANDATORY — at least one parameter
-      // condition must be added AND validated successfully (cells > 0).
-      // Was optional pre-2026-05-06; user reported the bypass as a bug.
-      if (paramConditions.length === 0) return false;
+      // Parameters step is OPTIONAL (reverted 2026-05-06 after the
+      // "mandatory" tighten-up). User decided clusters can be defined
+      // by topology only. If any condition IS added, it still must
+      // validate successfully with cells > 0 — partial / unvalidated
+      // conditions stay blocking.
+      if (paramConditions.length === 0) return true;
       return paramValidation.status === 'ok' && paramValidation.cells > 0;
     }
     return true;
