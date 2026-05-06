@@ -1228,7 +1228,11 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
       })
         .then(r => r.ok ? r.json() : { series: [], meta: {} })
         .then(data => {
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted) {
+            // Clear spinner even when aborted to avoid stuck loading overlay
+            setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
+            return;
+          }
           // Commit render params atomically with data
           committedParamsRef.current[slot.id] = {
             startDate: slotContext.dateFrom,
@@ -1242,9 +1246,8 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
         })
         .catch(() => {
-          if (!controller.signal.aborted) {
-            setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
-          }
+          // Always clear, regardless of abort state
+          setFetchingSlots(prev => ({ ...prev, [slot.id]: false }));
         });
     });
 
