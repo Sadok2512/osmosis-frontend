@@ -12350,7 +12350,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {sectorCells.map((cell) => {
+                                            {Array.from(new Map(sectorCells.map(c => [`${c.cell_id}|${(c as any).bande ?? ''}|${(c as any).techno ?? ''}`, c])).values()).map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
                                               const tilt = (cell as any).tilt as number | null;
                                               return (
