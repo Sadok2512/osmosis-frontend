@@ -480,8 +480,8 @@ const FilterRepositoryView3: React.FC = () => {
                       </button>
                       {actionMenuId === filter.id && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setActionMenuId(null)} />
-                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1.5">
+                          <div className="fixed inset-0 z-[90]" onClick={() => setActionMenuId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-[100] w-48 rounded-xl border border-border bg-popover shadow-2xl py-1.5">
                             <ActionItem icon={<Eye className="w-3.5 h-3.5" />} label="Open" onClick={() => { setSelectedFilter(filter); setActionMenuId(null); }} />
                             <ActionItem
                               icon={<Pencil className="w-3.5 h-3.5" />}
@@ -655,8 +655,8 @@ const FilterCard: React.FC<FilterCardProps> = ({
           </button>
           {actionsOpen && (
             <>
-              <div className="fixed inset-0 z-40" onClick={e => { e.stopPropagation(); closeActions(); }} />
-              <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-xl border border-border bg-card shadow-xl py-1.5" onClick={e => e.stopPropagation()}>
+              <div className="fixed inset-0 z-[90]" onClick={e => { e.stopPropagation(); closeActions(); }} />
+              <div className="absolute right-0 top-full mt-1 z-[100] w-48 rounded-xl border border-border bg-popover shadow-2xl py-1.5" onClick={e => e.stopPropagation()}>
                 <ActionItem icon={<Eye className="w-3.5 h-3.5" />} label="Open" onClick={() => { onOpen(); closeActions(); }} />
                 <ActionItem
                   icon={<Pencil className="w-3.5 h-3.5" />}
