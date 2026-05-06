@@ -6782,18 +6782,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     const technoActive = mapTechnoFilter !== 'OFF';
     const restrictByTech = mapTechnoFilter !== 'ALL' && technoActive;
     const restrictByEnabled = mapTechnoFilter === 'ALL' && enabledTechnos.size > 0 && enabledTechnos.size < 4;
+    // Active dashboard band/techno perimeter (e.g. Lille_L800 → only L800)
+    const dashBandsRaw = dashboardActive && activeDashboardFilters?.bande?.length
+      ? activeDashboardFilters.bande
+      : null;
+    const dashBandKeys = dashBandsRaw
+      ? new Set(dashBandsRaw.map(b => normalizeBandKey(b, undefined) || String(b).toUpperCase().trim()).filter(Boolean) as string[])
+      : null;
+    const dashTechnos = dashboardActive && activeDashboardFilters?.techno?.length
+      ? new Set(activeDashboardFilters.techno.map(t => String(t).toUpperCase().trim()))
+      : null;
     for (const s of filteredSites) {
       if (!s.cells?.length) continue;
       for (const cell of s.cells) {
         const grp = getCellTechGroup((cell as any).techno);
         if (restrictByTech && grp !== mapTechnoFilter) continue;
         if (restrictByEnabled && !enabledTechnos.has(grp as any)) continue;
+        if (dashTechnos && !dashTechnos.has(String((cell as any).techno || '').toUpperCase().trim()) && !dashTechnos.has(grp as any)) continue;
         const key = normalizeBandKey((cell as any).bande, (cell as any).techno);
+        if (dashBandKeys && key && !dashBandKeys.has(key)) continue;
         if (key) set.add(key);
       }
     }
     return set;
-  }, [filteredSites, mapTechnoFilter, enabledTechnos]);
+  }, [filteredSites, mapTechnoFilter, enabledTechnos, dashboardActive, activeDashboardFilters]);
 
   // Dynamic filter options based on actual data
   const uniqueVendors = useMemo(() => ['ALL', ...new Set(sites.map(s => s.vendor).filter(Boolean))].sort(), [sites]);
