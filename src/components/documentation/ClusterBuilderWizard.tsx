@@ -708,7 +708,7 @@ const ClusterBuilderWizard: React.FC<ClusterBuilderWizardProps> = ({ onSubmit, o
                 disabled={!name.trim() || submitting}
                 className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 disabled:opacity-40 transition-opacity"
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {editMode ? 'Update Cluster' : 'Save Cluster'}
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} {submitting ? 'Saving…' : (editMode ? 'Update Cluster' : 'Save Cluster')}
               </button>
             )}
           </div>
