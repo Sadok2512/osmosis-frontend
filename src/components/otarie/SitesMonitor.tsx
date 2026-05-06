@@ -6488,10 +6488,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if (focusMode !== 'site' || !selectedSiteId || !siteDetail || siteDetail.site_id !== selectedSiteId) return;
     if (expandedSectors.size > 0) return;
 
-    const sectorNums = new Set(siteDetail.cells.map(c => getSectorNumber(c.cell_id)));
-    if (sectorNums.size > 0) {
-      const first = Math.min(...sectorNums);
-      setExpandedSectors(new Set([first]));
+    const sectorKeys = Array.from(new Set(siteDetail.cells.map(c => getSectorKey(c.cell_id))));
+    if (sectorKeys.length > 0) {
+      setExpandedSectors(new Set([sectorKeys[0]]));
     }
   }, [focusMode, selectedSiteId, siteDetail, expandedSectors.size]);
 
