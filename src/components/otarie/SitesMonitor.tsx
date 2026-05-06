@@ -14247,17 +14247,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             // the map; the detail panel is a faithful inventory of the site's
             // cells so the user can see all 2G/3G/4G/5G when clicking a multi-
             // tech site even if they had previously toggled the map to "4G only".
-            // Dashboard-saved filters (activeDashboardFilters.*) still apply
-            // because they represent the user's persisted scope, not the
-            // ephemeral toolbar toggle.
-            const filteredCells = siteDetail.cells.filter(cell => {
-              const cellTech = getCellTechGroup(cell.techno);
-              if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
-              if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || cell.techno === t)) return false;
-              if (activeDashboardFilters?.zone_arcep?.length && (cell as any).zone_arcep && !activeDashboardFilters.zone_arcep.includes((cell as any).zone_arcep)) return false;
-              if (activeDashboardFilters?.dor?.length && (cell as any).dor && !activeDashboardFilters.dor.includes((cell as any).dor)) return false;
-              return true;
-            });
+            // Site detail panel is an exhaustive view of the site — it
+            // shows every cell regardless of the dashboard's persisted
+            // filter (bande/techno/zone_arcep/dor). Previously the panel
+            // hid 9/21 cells on a 4G+5G dashboard filter for a 2G/3G/4G/5G
+            // colocated site, which was misleading: operators expected the
+            // detail card to mirror reality, not the dashboard scope.
+            // The dashboard list/map still respects the filter; only this
+            // detail view ignores it.
+            const filteredCells = siteDetail.cells;
             // Group cells by sector number
             const sectorMap = new Map<number, typeof siteDetail.cells>();
             filteredCells.forEach(cell => {
