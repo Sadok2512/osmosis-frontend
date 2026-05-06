@@ -7846,6 +7846,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, []);
 
   const handleSiteClick = async (site: SiteSummary) => {
+    // Disable site selection while the polygon drawing tool is active
+    // (avoid stealing clicks meant to add polygon vertices)
+    if (activeMapTool === 'polygon') return;
     // Toggle: clicking the already-selected site deselects it
     if (selectedSiteId === site.site_id) {
       handleBackToGlobal();
