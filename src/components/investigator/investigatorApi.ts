@@ -128,7 +128,7 @@ export async function fetchCounterTimeSeriesFallback(
     if (splitByPmDim) body.split_by_dimension = true;
     if (splitByField) body.split_by_field = splitByField;
 
-    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
+    const STRUCTURAL_DIMS = new Set(['SITE', 'CELL', 'VENDOR', 'TECHNOLOGY', 'TECHNO', 'KPI_LEVEL', 'PLAQUE', 'CLUSTER', 'CLUSTER_B', 'DOR', 'DR', 'BAND', 'ZONE_ARCEP', 'ZONE ARCEP']);
     if (filters && filters.length > 0) {
       const dimFilterValues: string[] = [];
       for (const f of filters) {
@@ -147,8 +147,11 @@ export async function fetchCounterTimeSeriesFallback(
           body.vendor = f.values[0];
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
-        } else if (dim === 'PLAQUE' && f.values?.length) {
-          body.plaque = f.values[0];
+        } else if ((dim === 'PLAQUE' || dim === 'CLUSTER' || dim === 'CLUSTER_B') && f.values?.length) {
+          // CLUSTER (plaque names) and CLUSTER_B (saved network_filters clusters)
+          // both go to backend `cluster=` — /pm/counters/timeseries accepts
+          // either `cluster` or `plaque` and resolves via ref_cell_daily.
+          body.cluster = f.values[0];
         } else if ((dim === 'DOR' || dim === 'DR') && f.values?.length) {
           body.dor = f.values[0];
         } else if (dim === 'BAND' && f.values?.length) {
