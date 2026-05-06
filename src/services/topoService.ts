@@ -830,15 +830,25 @@ function dtoToSiteSummary(dto: BboxSiteDTO): SiteSummary | null {
   // Backend rarely provides per-tech cell counts on the bbox endpoint — derive them from
   // the `bandes` array so synthetic-cell generation can produce one mini-sector per band.
   // Each band is assumed to cover the standard 3 sectors when no explicit count is provided.
+  // Fallback to `technos` array when bandes lacks legacy entries (the backend's
+  // bandes field aggregates only 4G/5G bands from site_ref_daily, missing
+  // UMTS/GSM that live only in ref_cell_daily). Without this, multi-tech
+  // sites like LES_RICHARDIERES_A11 (3G+4G) had cells_3g=0 and rendered as
+  // 4G-only on the map.
   const SECTORS_PER_BAND = 3;
   const bands5G = bandes.filter(b => /^(NR|N\d|5G)/i.test(b)).length;
   const bands4G = bandes.filter(b => /^(LTE|L\d|4G)/i.test(b)).length;
   const bands3G = bandes.filter(b => /^(UMTS|U\d|WCDMA|3G)/i.test(b)).length;
   const bands2G = bandes.filter(b => /^(GSM|G\d|2G)/i.test(b)).length;
-  const derivedLte = bands4G * SECTORS_PER_BAND;
-  const derivedNr  = bands5G * SECTORS_PER_BAND;
-  const derived2g  = bands2G * SECTORS_PER_BAND;
-  const derived3g  = bands3G * SECTORS_PER_BAND;
+  const technosUpper = (technos || []).map(t => String(t || '').trim().toUpperCase());
+  const technosHas5G = technosUpper.some(t => t === '5G' || t === 'NR');
+  const technosHas4G = technosUpper.some(t => t === '4G' || t === 'LTE');
+  const technosHas3G = technosUpper.some(t => t === '3G' || t === 'UMTS' || t === 'WCDMA');
+  const technosHas2G = technosUpper.some(t => t === '2G' || t === 'GSM');
+  const derivedLte = bands4G > 0 ? bands4G * SECTORS_PER_BAND : (technosHas4G ? SECTORS_PER_BAND : 0);
+  const derivedNr  = bands5G > 0 ? bands5G * SECTORS_PER_BAND : (technosHas5G ? SECTORS_PER_BAND : 0);
+  const derived2g  = bands2G > 0 ? bands2G * SECTORS_PER_BAND : (technosHas2G ? SECTORS_PER_BAND : 0);
+  const derived3g  = bands3G > 0 ? bands3G * SECTORS_PER_BAND : (technosHas3G ? SECTORS_PER_BAND : 0);
 
   return {
     site_id: siteId,
