@@ -14205,21 +14205,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
           {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (() => {
-            // Filter cells by active dashboard/view filters
+            // Site detail panel: show ALL cells of the site, independent of the
+            // map-level toolbar filter (mapTechnoFilter / enabledTechnos /
+            // localTechno / localBande). Those filters control what's DRAWN on
+            // the map; the detail panel is a faithful inventory of the site's
+            // cells so the user can see all 2G/3G/4G/5G when clicking a multi-
+            // tech site even if they had previously toggled the map to "4G only".
+            // Dashboard-saved filters (activeDashboardFilters.*) still apply
+            // because they represent the user's persisted scope, not the
+            // ephemeral toolbar toggle.
             const filteredCells = siteDetail.cells.filter(cell => {
               const cellTech = getCellTechGroup(cell.techno);
-              // Apply map techno filter (toolbar 4G/5G toggle)
-              if (mapTechnoFilter === '4G' && cellTech !== '4G') return false;
-              if (mapTechnoFilter === '5G' && cellTech !== '5G') return false;
-              if (mapTechnoFilter === 'ALL' && cellTech && !enabledTechnos.has(cellTech)) return false;
-              if (localBande !== 'ALL' && cell.bande !== localBande) return false;
-              if (localTechno !== 'ALL' && cellTech !== localTechno) return false;
               if (activeDashboardFilters?.bande?.length && !activeDashboardFilters.bande.includes(cell.bande)) return false;
               if (activeDashboardFilters?.techno?.length && !activeDashboardFilters.techno.some(t => cellTech === t || cell.techno === t)) return false;
-              // Apply zone_arcep filter from dashboard/view (only if cell has the field)
-              if (localZoneArcep !== 'ALL' && (cell as any).zone_arcep && (cell as any).zone_arcep !== localZoneArcep) return false;
               if (activeDashboardFilters?.zone_arcep?.length && (cell as any).zone_arcep && !activeDashboardFilters.zone_arcep.includes((cell as any).zone_arcep)) return false;
-              // Apply dor filter from dashboard/view (only if cell has the field)
               if (activeDashboardFilters?.dor?.length && (cell as any).dor && !activeDashboardFilters.dor.includes((cell as any).dor)) return false;
               return true;
             });
