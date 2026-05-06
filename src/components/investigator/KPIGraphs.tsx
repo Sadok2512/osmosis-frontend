@@ -2230,6 +2230,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
           ],
           legend: {
             show: true,
+            data: series.filter((s: any) => !s._isNullSeries).map((s: any) => s.name),
             bottom: LEGEND_BOTTOM_PAD,
             left: 12,
             right: 12,
