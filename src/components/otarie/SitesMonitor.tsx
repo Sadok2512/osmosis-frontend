@@ -12025,7 +12025,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Plaque</span>
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider ml-1">Cluster</span>
                     <select value={localPlaque} onChange={(e) => setLocalPlaque(e.target.value)}
                       className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-foreground outline-none focus:border-primary transition-all">
                       {uniquePlaques.map(p => <option key={p} value={p}>{p}</option>)}
@@ -14324,6 +14324,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   <div className="rounded-xl border border-border overflow-hidden bg-card shadow-sm">
                     {[
                       { icon: <MapPin size={11} className="text-muted-foreground" />, label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
+                      { icon: <Layers size={11} className="text-muted-foreground" />, label: 'Cluster', value: (siteDetail as any).cluster || siteDetail.plaque || '—' },
                       { icon: <Signal size={11} className="text-muted-foreground" />, label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
                       { icon: <Globe size={11} className="text-muted-foreground" />, label: 'Zone ARCEP', value: (() => {
                         const zones = [...new Set(filteredCells.map(c => (c as any).zone_arcep).filter(Boolean))];
