@@ -324,6 +324,7 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (ex.dl_bandwidth != null) ext.dl_bandwidth = ex.dl_bandwidth;
     if (ex.num_tx_ant != null) ext.num_tx_ant = ex.num_tx_ant;
     if (extra.pci != null) ext.pci = extra.pci;
+    if ((extra as any).psc != null) ext.psc = (extra as any).psc;
     if (extra.eci != null) ext.eci = extra.eci;
     if (extra.nci != null) ext.nci = extra.nci;
     if (extra.cid != null) ext.cid = extra.cid;
