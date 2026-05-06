@@ -36,9 +36,10 @@ const DIMENSION_ICONS: Record<string, React.ReactNode> = {
 };
 
 const FilterDetailsDrawer: React.FC<FilterDetailsDrawerProps> = ({ filter, onClose, onEdit, onDuplicate, onDelete }) => {
-  const statusCfg = FILTER_STATUS_CONFIG[filter.status];
-  const permCfg = FILTER_PERMISSION_CONFIG[filter.permission];
-  const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility];
+  const fallbackCfg = { label: '—', color: 'text-muted-foreground', bg: 'bg-muted', icon: '' };
+  const statusCfg = FILTER_STATUS_CONFIG[filter.status] ?? { ...fallbackCfg, label: filter.status || '—' };
+  const permCfg = FILTER_PERMISSION_CONFIG[filter.permission] ?? { ...fallbackCfg, label: filter.permission || '—' };
+  const visCfg = FILTER_VISIBILITY_CONFIG[filter.visibility] ?? { ...fallbackCfg, label: filter.visibility || '—' };
   const isLocked = filter.permission === 'locked';
   const previewConditions = useMemo<TopologyConditionState[]>(() => (
     (filter.topology || []).map((cond, index) => ({
