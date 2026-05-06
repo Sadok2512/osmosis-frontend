@@ -20,6 +20,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const UserLogin = lazy(() => import("./pages/UserLogin"));
 const InvestigatorDrilldown = lazy(() => import("./pages/InvestigatorDrilldown"));
 const PrecisionArchitect = lazy(() => import("./pages/PrecisionArchitect"));
+const NetworkExplorer = lazy(() => import("./pages/NetworkExplorer"));
 
 type AppErrorState = { hasError: boolean; error?: Error; info?: string };
 
@@ -149,6 +150,7 @@ const App = () => (
               <Route path="/login" element={<UserLogin />} />
               <Route path="/" element={<Index />} />
               <Route path="/investigator" element={<InvestigatorDrilldown />} />
+              <Route path="/network-explorer" element={<NetworkExplorer />} />
               <Route path="/precision-architect" element={<Navigate to="/?tab=precision_architect" replace />} />
               {/* /admin/* routes removed 2026-05-06 — handled by Jinja
                   panel on :8000 (user mgmt + LLM config). The spa-proxy
