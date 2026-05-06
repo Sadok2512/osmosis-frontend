@@ -12722,7 +12722,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                           </tbody>
                                         </table>
                                       </div>
-                                    ))}
+                                    );
+                                    })}
                                   </div>
                                 );
                               })()}
