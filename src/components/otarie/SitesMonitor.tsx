@@ -12350,7 +12350,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {Array.from(new Map(sectorCells.map(c => [c.cell_id, c])).values()).map((cell) => {
+                                            {(() => {
+                                              const TG: Record<string, number> = { '2G': 0, '3G': 1, '4G': 2, '5G': 3 };
+                                              const unique = Array.from(new Map(sectorCells.map(c => [c.cell_id, c])).values());
+                                              return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
+                                            })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
                                               const tilt = (cell as any).tilt as number | null;
                                               return (
@@ -12714,7 +12718,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {Array.from(new Map(sectorCells.map(c => [c.cell_id, c])).values()).map((cell) => {
+                                            {(() => {
+                                              const TG: Record<string, number> = { '2G': 0, '3G': 1, '4G': 2, '5G': 3 };
+                                              const unique = Array.from(new Map(sectorCells.map(c => [c.cell_id, c])).values());
+                                              return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
+                                            })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
                                               const tilt = (cell as any).tilt as number | null;
                                               
