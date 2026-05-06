@@ -72,6 +72,22 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
   const [pageSize, setPageSize] = useState(50);
   const [currentPage, setCurrentPage] = useState(0);
   const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
+
+  const rawForSlot = useMemo(() => {
+    if (!activeSlot) return tsData;
+    const slotKeys = new Set([
+      ...(activeSlot.kpiIds || []),
+      ...((activeSlot as GraphSlot & { counterIds?: string[] }).counterIds || []),
+    ]);
+    const tagged = (tsData as any[]).filter((p) => p?._slotId === activeSlot.id);
+    if (tagged.length > 0) return tagged;
+    if (slotKeys.size === 0) return tsData;
+    return (tsData as any[]).filter((p) => {
+      const k = p?.kpi || p?.kpiName || p?.kpi_name || p?.metric;
+      return k && slotKeys.has(String(k));
+    });
+  }, [tsData, activeSlot]);
 
   const tableData = useMemo(
     () => sanitizeTableData(tsData, activeSlot),
