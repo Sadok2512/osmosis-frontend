@@ -2,9 +2,36 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Filter, Plus, X, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates } from '@/stores/investigatorFilterCache';
+import { ensureFilterLoaded, getFilterValues, dimToKey, isPmDimension, subscribe as subscribeCacheUpdates, type FilterContext } from '@/stores/investigatorFilterCache';
 import { getDimensionColor } from '@/components/investigator/dimensionColors';
 import type { ChartFilterChip } from '../types';
+
+// Map UI dimension label → backend dim code used in cascading context.
+// Mirrors the mapping in investigator/ControlPanel.tsx so PA and
+// Investigator hit the same /monitor/filters/values WHERE clauses.
+const dimToBackendCode = (dim: string): string => {
+  const m: Record<string, string> = {
+    Cell: 'CELL', Site: 'SITE', Vendor: 'VENDOR', Technology: 'TECHNO', RAT: 'TECHNO',
+    Band: 'BAND', DOR: 'DOR', DR: 'DOR', Plaque: 'PLAQUE', Cluster: 'PLAQUE', Cluster_B: 'CLUSTER',
+    constructeur: 'VENDOR', Constructeur: 'VENDOR', techno: 'TECHNO', Techno: 'TECHNO',
+  };
+  return m[dim] || dim.toUpperCase();
+};
+
+// Build a cascading-filter context from the active selection map,
+// excluding the chip's own dimension. Returns undefined when no
+// upstream filter is active so the cache key collapses to baseline.
+const buildCascadeContext = (active: Map<string, string[]>, selfDim: string): FilterContext | undefined => {
+  const ctx: FilterContext = {};
+  for (const [k, v] of active.entries()) {
+    if (k === selfDim) continue;
+    if (!v || !v.length) continue;
+    const code = dimToBackendCode(k);
+    if (!code || code === dimToBackendCode(selfDim)) continue;
+    ctx[code] = v;
+  }
+  return Object.keys(ctx).length ? ctx : undefined;
+};
 
 /**
  * PrecisionArchitect — Filter chips row.
@@ -24,25 +51,44 @@ interface Props {
   chipsOnly?: boolean;
   /** Render only the "Ajouter filtre" button (no chips). */
   addOnly?: boolean;
+  /** display_name → category (template section). When provided, the
+   *  AddFilterDropdown groups dimensions under sticky section headers. */
+  filterCategories?: Record<string, string>;
+  /** display_name → rat ('4G'|'5G'|'3G'|'2G'|'ALL'). Drives techno-aware
+   *  hiding: if `activeTechnos` doesn't include a dim's rat, it's hidden. */
+  filterRats?: Record<string, string>;
+  /** Currently selected technos (e.g. from the Périmètre popover). */
+  activeTechnos?: string[];
 }
 
-const useBackendFilterValues = (dimension: string): { values: string[]; labels: Record<string, string> } => {
+const useBackendFilterValues = (dimension: string, ctx?: FilterContext): { values: string[]; labels: Record<string, string> } => {
   const key = isPmDimension(dimension) ? dimension : dimToKey(dimension);
+  const ctxStr = useMemo(() => {
+    if (!ctx) return '';
+    return JSON.stringify(
+      Object.fromEntries(
+        Object.entries(ctx)
+          .filter(([_, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && v.length === 0))
+          .sort(([a], [b]) => a.localeCompare(b))
+      )
+    );
+  }, [ctx]);
+
   const [result, setResult] = useState<{ values: string[]; labels: Record<string, string> }>(() => {
-    const e = getFilterValues(key);
+    const e = getFilterValues(key, ctx);
     return { values: e.values, labels: e.labels || {} };
   });
 
   useEffect(() => {
-    ensureFilterLoaded(key);
+    ensureFilterLoaded(key, ctx);
     const unsub = subscribeCacheUpdates(() => {
-      const entry = getFilterValues(key);
+      const entry = getFilterValues(key, ctx);
       if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     });
-    const entry = getFilterValues(key);
+    const entry = getFilterValues(key, ctx);
     if (entry.loaded) setResult({ values: entry.values, labels: entry.labels || {} });
     return unsub;
-  }, [key]);
+  }, [key, ctxStr]);
 
   return result;
 };
@@ -53,15 +99,50 @@ const AddFilterDropdown: React.FC<{
   onAdd: (dim: string) => void;
   filterDimensions: string[];
   loading?: boolean;
-}> = ({ existingKeys, onAdd, filterDimensions, loading }) => {
+  /** display_name → category (template section). Drives section headers. */
+  filterCategories?: Record<string, string>;
+  /** display_name → rat ('4G'|'5G'|'3G'|'2G'|'ALL'). Hides tech-specific
+   *  dimensions when the user has not selected the matching techno. */
+  filterRats?: Record<string, string>;
+  /** Currently active technos (from caller). Empty → show every dim. */
+  activeTechnos?: string[];
+}> = ({ existingKeys, onAdd, filterDimensions, loading, filterCategories, filterRats, activeTechnos }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
 
-  const available = filterDimensions.filter(d => !existingKeys.includes(d));
+  // Techno-aware: hide tech-specific dimensions when the user did not
+  // select the matching techno. ALL/unset rats stay visible. Empty
+  // technoSet → operator hasn't picked yet → show every dim.
+  const technoSet = new Set((activeTechnos ?? []).map(t => t.toUpperCase()));
+  const technoActive = technoSet.size > 0;
+  const matchTechno = (d: string): boolean => {
+    if (!technoActive) return true;
+    const rat = filterRats?.[d];
+    if (!rat || rat === 'ALL') return true;
+    return technoSet.has(rat.toUpperCase());
+  };
+
+  const available = filterDimensions
+    .filter(d => !existingKeys.includes(d))
+    .filter(matchTechno);
   const filtered = search
     ? available.filter(d => d.toLowerCase().includes(search.toLowerCase()))
     : available;
+
+  // Group by category (template section: COMMON / RF PARAMETERS / 4G / 5G / 3G / 2G / OPERATIONS).
+  // Falls back to "Other" when the metadata is absent.
+  const grouped = useMemo(() => {
+    if (!filterCategories) return null;
+    const cats: Record<string, string[]> = {};
+    const order: string[] = [];
+    for (const d of filtered) {
+      const cat = filterCategories[d] || 'Other';
+      if (!cats[cat]) { cats[cat] = []; order.push(cat); }
+      cats[cat].push(d);
+    }
+    return order.map(cat => ({ category: cat, items: cats[cat] }));
+  }, [filtered, filterCategories]);
 
   const toggle = (dim: string) => {
     setSelected(prev => prev.includes(dim) ? prev.filter(d => d !== dim) : [...prev, dim]);
@@ -114,34 +195,69 @@ const AddFilterDropdown: React.FC<{
               {available.length === 0 ? 'Tous les filtres sont déjà ajoutés' : 'Aucun résultat'}
             </div>
           )}
-          {filtered.map(dim => {
-            const isPm = isPmDimension(dim);
-            const isChecked = selected.includes(dim);
-            return (
-              <button
-                key={dim}
-                onClick={() => toggle(dim)}
-                className={cn(
-                  'w-full text-left px-4 py-2.5 text-xs font-medium transition-all flex items-center gap-3',
-                  isChecked ? 'text-primary' : 'text-foreground',
-                  'hover:bg-muted/40'
-                )}
-              >
-                <span className={cn(
-                  'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                  isChecked
-                    ? 'border-primary bg-primary text-primary-foreground'
-                    : 'border-border/60 bg-background'
-                )}>
-                  {isChecked && <Check className="w-3 h-3" />}
-                </span>
-                <span className={cn('flex-1', isChecked && 'font-bold')}>{dim}</span>
-                {isPm && (
-                  <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700">PM</span>
-                )}
-              </button>
-            );
-          })}
+          {!loading && filtered.length > 0 && (grouped ? (
+            // Grouped by template section — sticky headers
+            grouped.map(({ category, items }) => (
+              <div key={category}>
+                <div className="px-4 pt-2 pb-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70 bg-muted/20 sticky top-0 z-10">
+                  {category}
+                </div>
+                {items.map(dim => {
+                  const isPm = isPmDimension(dim);
+                  const isChecked = selected.includes(dim);
+                  return (
+                    <button
+                      key={dim}
+                      onClick={() => toggle(dim)}
+                      className={cn(
+                        'w-full text-left px-4 py-2.5 text-xs font-medium transition-all flex items-center gap-3',
+                        isChecked ? 'text-primary' : 'text-foreground',
+                        'hover:bg-muted/40'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                        isChecked ? 'border-primary bg-primary text-primary-foreground' : 'border-border/60 bg-background'
+                      )}>
+                        {isChecked && <Check className="w-3 h-3" />}
+                      </span>
+                      <span className={cn('flex-1', isChecked && 'font-bold')}>{dim}</span>
+                      {isPm && (
+                        <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700">PM</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            filtered.map(dim => {
+              const isPm = isPmDimension(dim);
+              const isChecked = selected.includes(dim);
+              return (
+                <button
+                  key={dim}
+                  onClick={() => toggle(dim)}
+                  className={cn(
+                    'w-full text-left px-4 py-2.5 text-xs font-medium transition-all flex items-center gap-3',
+                    isChecked ? 'text-primary' : 'text-foreground',
+                    'hover:bg-muted/40'
+                  )}
+                >
+                  <span className={cn(
+                    'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                    isChecked ? 'border-primary bg-primary text-primary-foreground' : 'border-border/60 bg-background'
+                  )}>
+                    {isChecked && <Check className="w-3 h-3" />}
+                  </span>
+                  <span className={cn('flex-1', isChecked && 'font-bold')}>{dim}</span>
+                  {isPm && (
+                    <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700">PM</span>
+                  )}
+                </button>
+              );
+            })
+          ))}
         </div>
 
         <div className="flex items-center justify-between px-4 py-2.5 border-t border-border/40 bg-muted/20 rounded-b-xl">
@@ -175,9 +291,11 @@ const PADimensionChip: React.FC<{
   values: string[];
   onTogglePending: (vals: string[]) => void;
   onRemove: () => void;
-}> = ({ dim, values, onTogglePending, onRemove }) => {
+  /** Cascading context: upstream filters that should narrow the candidate values. */
+  cascadeContext?: FilterContext;
+}> = ({ dim, values, onTogglePending, onRemove, cascadeContext }) => {
   const [open, setOpen] = useState(false);
-  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim);
+  const { values: backendValues, labels: labelMap } = useBackendFilterValues(dim, cascadeContext);
   const [search, setSearch] = useState('');
   const [pending, setPending] = useState<string[]>([]);
 
@@ -309,7 +427,7 @@ const PADimensionChip: React.FC<{
   );
 };
 
-const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading, inline, chipsOnly, addOnly }) => {
+const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, filtersLoading, inline, chipsOnly, addOnly, filterCategories, filterRats, activeTechnos }) => {
   // Group flat ChartFilterChip[] → dimension → values
   const grouped = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -344,6 +462,21 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
 
   const clearAll = () => onChange([]);
 
+  // Pre-compute the active selection map (dim → values) — used both for
+  // chip rendering and for cascadeContext per chip.
+  const activeMap = useMemo(() => {
+    const m = new Map<string, string[]>();
+    grouped.forEach((vals, dim) => {
+      const filtered = vals.filter(v => v !== '');
+      if (filtered.length) m.set(dim, filtered);
+    });
+    // Merge externally-supplied technos so cascadeContext narrows by them too.
+    if (activeTechnos && activeTechnos.length) {
+      m.set('Technology', activeTechnos);
+    }
+    return m;
+  }, [grouped, activeTechnos]);
+
   const chipsNode = activeDims.map(dim => {
     const vals = (grouped.get(dim) ?? []).filter(v => v !== '');
     return (
@@ -353,6 +486,7 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
         values={vals}
         onTogglePending={(next) => setDimensionValues(dim, next)}
         onRemove={() => removeDimension(dim)}
+        cascadeContext={buildCascadeContext(activeMap, dim)}
       />
     );
   });
@@ -363,6 +497,9 @@ const PAFilterChips: React.FC<Props> = ({ filters, onChange, filterDimensions, f
       onAdd={addDimension}
       filterDimensions={filterDimensions}
       loading={filtersLoading}
+      filterCategories={filterCategories}
+      filterRats={filterRats}
+      activeTechnos={activeTechnos}
     />
   );
 

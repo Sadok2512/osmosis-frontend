@@ -138,6 +138,30 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
     return fromBackend;
   }, [filterCatalog]);
 
+  // Template-section categories + rats — drive grouped picker + techno-aware hiding.
+  const filterCategoriesMap = useMemo(() => {
+    const cats: Record<string, string> = {};
+    if (filterCatalog) {
+      for (const f of filterCatalog) {
+        const name = f.display_name || f.dimension_key;
+        const cat = (f as any).category;
+        if (name && cat) cats[name] = cat;
+      }
+    }
+    return cats;
+  }, [filterCatalog]);
+  const filterRatsMap = useMemo(() => {
+    const rats: Record<string, string> = {};
+    if (filterCatalog) {
+      for (const f of filterCatalog) {
+        const name = f.display_name || f.dimension_key;
+        const rat = (f as any).rat;
+        if (name && rat) rats[name] = rat;
+      }
+    }
+    return rats;
+  }, [filterCatalog]);
+
   const patchConfig = (patch: Partial<ChartWidgetConfig>) => {
     onChange({ config: { ...config, ...patch } });
   };
@@ -902,6 +926,8 @@ function TimeFiltersToolbar({
         onChange={(next) => patchData({ filters: next })}
         filterDimensions={dimensionOptions}
         filtersLoading={filtersLoading}
+        filterCategories={filterCategoriesMap}
+        filterRats={filterRatsMap}
       />
     </div>
   );

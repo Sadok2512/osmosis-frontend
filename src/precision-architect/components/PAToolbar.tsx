@@ -132,6 +132,33 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
     return filtered;
   }, [filterCatalog]);
 
+  // display_name → category (template section: COMMON / RF PARAMETERS /
+  // 4G / 5G / 3G / 2G / OPERATIONS) and display_name → rat for
+  // techno-aware hiding. Same source as the Investigator.
+  const filterCategoriesMap = useMemo(() => {
+    const cats: Record<string, string> = {};
+    if (filterCatalog) {
+      for (const f of filterCatalog) {
+        const name = f.display_name || f.dimension_key;
+        const cat = (f as any).category;
+        if (name && cat) cats[name] = cat;
+      }
+    }
+    if (!cats['Cluster_B']) cats['Cluster_B'] = 'Operations';
+    return cats;
+  }, [filterCatalog]);
+  const filterRatsMap = useMemo(() => {
+    const rats: Record<string, string> = {};
+    if (filterCatalog) {
+      for (const f of filterCatalog) {
+        const name = f.display_name || f.dimension_key;
+        const rat = (f as any).rat;
+        if (name && rat) rats[name] = rat;
+      }
+    }
+    return rats;
+  }, [filterCatalog]);
+
   // Global report-level state — single source of truth for all widgets that inherit.
   const {
     technos, vendors, from, to, preset, grain, advancedTimeFrame, filters,
@@ -639,6 +666,9 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           onChange={setFilters}
           filterDimensions={dimensionOptions}
           filtersLoading={filtersLoading}
+          filterCategories={filterCategoriesMap}
+          filterRats={filterRatsMap}
+          activeTechnos={technos}
           chipsOnly
         />
         <PAFilterChips
@@ -646,6 +676,9 @@ const PAToolbar: React.FC<Props> = ({ onApply }) => {
           onChange={setFilters}
           filterDimensions={dimensionOptions}
           filtersLoading={filtersLoading}
+          filterCategories={filterCategoriesMap}
+          filterRats={filterRatsMap}
+          activeTechnos={technos}
           addOnly
         />
       </div>
