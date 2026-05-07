@@ -316,7 +316,7 @@ const RadioProfilePage: React.FC = () => {
             )}
           </div>
 
-          <div className={`flex-1 min-h-0 p-4 space-y-4 ${fullscreen && analysis ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
+          <div className={`flex-1 min-h-0 p-4 ${analysis ? 'flex flex-col gap-3 overflow-hidden' : 'overflow-y-auto space-y-4'}`}>
             {!selectedSite && (
               <div className="flex flex-col items-center justify-center h-full text-center gap-3 text-muted-foreground">
                 <MousePointerClick className="w-10 h-10 opacity-30" />
