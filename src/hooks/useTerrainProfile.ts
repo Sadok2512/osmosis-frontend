@@ -14,27 +14,54 @@ interface TerrainProfileState {
 }
 
 /**
- * Fetch elevations from Open-Meteo Elevation API (free, no key needed)
+ * Fetch elevations from Open-Meteo Elevation API (free, no key needed).
+ * Retries on 429/503 with exponential backoff and caches results so repeated
+ * profiles for the same area don't hammer the API.
  */
+const elevationCache = new Map<string, number>();
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function fetchBatch(points: LatLng[], attempt = 0): Promise<number[]> {
+  const lats = points.map(p => p.lat.toFixed(5)).join(',');
+  const lngs = points.map(p => p.lng.toFixed(5)).join(',');
+  const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
+
+  const resp = await fetch(url);
+  if (resp.status === 429 || resp.status === 503) {
+    if (attempt < 4) {
+      await sleep(800 * Math.pow(2, attempt) + Math.random() * 400);
+      return fetchBatch(points, attempt + 1);
+    }
+    console.warn('[Elevation] rate-limited, falling back to flat terrain');
+    return points.map(() => 0);
+  }
+  if (!resp.ok) throw new Error(`Elevation API error: ${resp.status}`);
+  const data = await resp.json();
+  if (data.elevation && Array.isArray(data.elevation)) return data.elevation;
+  return points.map(() => 0);
+}
+
 async function fetchElevations(points: LatLng[]): Promise<number[]> {
   const batchSize = 100;
-  const elevations: number[] = [];
+  const elevations: number[] = new Array(points.length);
+  const toFetch: { idx: number; pt: LatLng }[] = [];
 
-  for (let i = 0; i < points.length; i += batchSize) {
-    const batch = points.slice(i, i + batchSize);
-    const lats = batch.map(p => p.lat.toFixed(6)).join(',');
-    const lngs = batch.map(p => p.lng.toFixed(6)).join(',');
-    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
+  points.forEach((p, idx) => {
+    const key = `${p.lat.toFixed(4)},${p.lng.toFixed(4)}`;
+    if (elevationCache.has(key)) elevations[idx] = elevationCache.get(key)!;
+    else toFetch.push({ idx, pt: p });
+  });
 
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error(`Elevation API error: ${resp.status}`);
-    const data = await resp.json();
-
-    if (data.elevation && Array.isArray(data.elevation)) {
-      elevations.push(...data.elevation);
-    } else {
-      elevations.push(...batch.map(() => 0));
-    }
+  for (let i = 0; i < toFetch.length; i += batchSize) {
+    const slice = toFetch.slice(i, i + batchSize);
+    const elevs = await fetchBatch(slice.map(s => s.pt));
+    slice.forEach((s, j) => {
+      const v = elevs[j] ?? 0;
+      elevations[s.idx] = v;
+      const key = `${s.pt.lat.toFixed(4)},${s.pt.lng.toFixed(4)}`;
+      elevationCache.set(key, v);
+    });
+    if (i + batchSize < toFetch.length) await sleep(250);
   }
 
   return elevations;
