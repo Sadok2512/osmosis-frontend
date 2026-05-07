@@ -498,7 +498,7 @@ const RadioProfilePage: React.FC = () => {
 
                 {/* Chart frame — fills available space */}
                 <div
-                  className="relative rounded-xl border border-border bg-card overflow-hidden group flex-[1.5] min-h-[480px]"
+                  className="relative rounded-xl border border-border bg-card overflow-hidden group flex-[2.25] min-h-[720px]"
                   onDoubleClick={() => setChartHeight(680)}
                   title="Double-cliquez pour réinitialiser la taille · Glissez le bord inférieur pour redimensionner"
                 >
@@ -536,7 +536,7 @@ const RadioProfilePage: React.FC = () => {
                 </div>
 
                 {/* Bottom area: scrollable details below the chart */}
-                <div className="shrink-0 max-h-[30%] overflow-y-auto space-y-3 pr-1">
+                <div className="shrink-0 max-h-[22%] overflow-y-auto space-y-3 pr-1">
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
                   <EngCard icon={<Ruler className="w-3.5 h-3.5" />} label="Distance" value={`${(totalDistance/1000).toFixed(2)} km`} accent="primary" />
                   <EngCard icon={<Mountain className="w-3.5 h-3.5" />} label="Terrain max" value={`${analysis.maxTerrainAlt} m`} />
