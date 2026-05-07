@@ -6461,7 +6461,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 setLoading(false);
                 if (!firstNoDashFitDone) {
                   firstNoDashFitDone = true;
-                  setDashboardFitKey(k => k + 1);
+                  if (skipNextNoDashFitRef.current) {
+                    skipNextNoDashFitRef.current = false;
+                  } else {
+                    setDashboardFitKey(k => k + 1);
+                  }
                 }
               }
             });
