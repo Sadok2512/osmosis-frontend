@@ -14817,6 +14817,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   <div
                                     key={c.cell_id}
                                     onClick={() => handleCellClick(c.cell_id)}
+                                    title={c.cell_id}
                                     className={`grid grid-cols-[1fr_44px_64px_40px_40px_50px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
                                       isSelected
                                         ? 'bg-primary/10 border-l-2 border-l-primary'
