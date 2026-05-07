@@ -33,8 +33,8 @@ interface Props {
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
 
 const VIEW_W = 1600;
-const VIEW_H = 600;
-const M = { top: 30, right: 30, bottom: 40, left: 50 };
+const VIEW_H = 1200;
+const M = { top: 40, right: 40, bottom: 50, left: 70 };
 const IW = VIEW_W - M.left - M.right;
 const IH = VIEW_H - M.top - M.bottom;
 
