@@ -291,8 +291,8 @@ const ProfileChart: React.FC<Props> = ({
       {/* Link summary (bottom-left) */}
       <div className="absolute bottom-9 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
         <div><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></div>
-        {fresnel && showFresnel && fresnel.minClearancePercent !== undefined && (
-          <div><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.round(fresnel.minClearancePercent)}%</span></div>
+        {fresnel && showFresnel && (
+          <div><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></div>
         )}
       </div>
 
