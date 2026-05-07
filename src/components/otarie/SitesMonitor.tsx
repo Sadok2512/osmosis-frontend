@@ -1567,7 +1567,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
               <div className="space-y-1">
                 {backendFilterDefs.map(dim => {
-                  const selectedValues = localSiteFilters[dim.id as keyof DashboardSiteFilters] || [];
+                  const rawSelected = localSiteFilters[dim.id as keyof DashboardSiteFilters];
+                  const selectedValues: string[] = Array.isArray(rawSelected) ? rawSelected : [];
                   return (
                     <CreateFilterDropdown
                       key={dim.id}
@@ -2456,7 +2457,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [dashFilterMode, setDashFilterMode] = useState<'my' | 'loaded' | 'all'>('my');
+  const [dashFilterMode] = useState<'my' | 'loaded' | 'all'>('loaded');
 
   // Track explicitly loaded dashboard IDs in localStorage
   const LOADED_KEY = 'osmosis_loaded_dashboard_ids';
@@ -2659,7 +2660,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
-      const current = prev[dimKey as keyof DashboardSiteFilters] || [];
+      const raw = prev[dimKey as keyof DashboardSiteFilters];
+      const current: string[] = Array.isArray(raw) ? raw : [];
       const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
       return { ...prev, [dimKey]: next.length > 0 ? next : undefined };
     });
@@ -2993,27 +2995,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         </div>
       </div>
 
-      {/* Dashboard filter tabs */}
-      <div className="flex items-center gap-0.5 px-1 mb-2">
-        {([
-          { key: 'my' as const, label: 'My', icon: User },
-          { key: 'loaded' as const, label: 'Loaded', icon: FolderOpen },
-          { key: 'all' as const, label: 'All', icon: Globe },
-        ]).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setDashFilterMode(key)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all ${
-              dashFilterMode === key
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            <Icon size={10} />
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* Dashboard filter tabs removed — only Loaded dashboards are shown */}
 
       {/* Create dashboard popup */}
       {showCreateDash && (
