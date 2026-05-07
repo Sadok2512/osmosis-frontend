@@ -28,9 +28,15 @@ const CF_KPI = 'https://kpi.qoebit.net';
 // On VPS IP: same-origin
 // Elsewhere: use Cloudflare tunnels
 export const VPS_ENDPOINTS = {
-  parser:  isOnAppDomain ? '' : CF_PARSER,           // same-origin: /api/v1/... works directly
-  kpi:     isOnAppDomain ? '/kpi-api' : CF_KPI,      // same-origin: /kpi-api/... proxied by nginx
-  agent:   isOnAppDomain ? '/agent-api' : CF_PARSER,  // same-origin: /agent-api/...
+  parser:  isOnAppDomain ? '' : CF_PARSER,                       // same-origin: /api/v1/... works directly
+  kpi:     isOnAppDomain ? '/kpi-api' : CF_KPI,                  // same-origin: /kpi-api/... proxied by nginx
+  // Agent off-domain: route through the parser's /api/v1/agent/* router
+  // (app.api.v1.endpoints.agent_proxy) which forwards to the agent service
+  // at AGENT_URL (default http://127.0.0.1:1000 on the VPS, set to 11000
+  // on Back100). Direct hits to /orchestrator/stream on api.qoebit.net
+  // returned 404 because the parser only mounts the orchestrator route
+  // under that prefix, not at root.
+  agent:   isOnAppDomain ? '/agent-api' : `${CF_PARSER}/api/v1/agent`,
 } as const;
 
 const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
