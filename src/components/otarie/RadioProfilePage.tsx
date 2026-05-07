@@ -498,8 +498,8 @@ const RadioProfilePage: React.FC = () => {
 
                 {/* Resizable Chart frame */}
                 <div
-                  className="relative rounded-xl border border-border bg-card overflow-hidden group"
-                  style={{ height: fullscreen ? 900 : chartHeight, minHeight: 380, maxHeight: 1200 }}
+                  className={`relative rounded-xl border border-border bg-card overflow-hidden group ${fullscreen ? 'flex-1 min-h-0' : ''}`}
+                  style={fullscreen ? undefined : { height: chartHeight, minHeight: 380, maxHeight: 1200 }}
                   onDoubleClick={() => setChartHeight(680)}
                   title="Double-cliquez pour réinitialiser la taille · Glissez le bord inférieur pour redimensionner"
                 >
