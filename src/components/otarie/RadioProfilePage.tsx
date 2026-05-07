@@ -579,6 +579,7 @@ const RadioProfilePage: React.FC = () => {
                     Nouveau tracé
                   </button>
                 </div>
+                </div>
               </>
             )}
           </div>
