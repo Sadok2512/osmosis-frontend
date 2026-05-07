@@ -183,13 +183,13 @@ const RadioProfilePage: React.FC = () => {
     let terrainPath = '';
     let altMin = 0, altMax = 1;
     if (profilePoints && profilePoints.length > 1) {
-      altMin = Math.min(...profilePoints.map(p => p.terrainAlt));
-      altMax = Math.max(...profilePoints.map(p => p.terrainAlt));
+      altMin = Math.min(...profilePoints.map(p => p.elevation));
+      altMax = Math.max(...profilePoints.map(p => p.elevation));
       const span = Math.max(20, altMax - altMin);
       const yOf = (alt: number) => padT + plotH * 0.55 + (1 - (alt - altMin) / span) * plotH * 0.4;
       terrainPath = profilePoints.map((p, i) => {
         const x = xOf(p.distance / 1000);
-        const y = yOf(p.terrainAlt);
+        const y = yOf(p.elevation);
         return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
       }).join(' ') + ` L${xOf(maxDistKm)} ${H - padB} L${padL} ${H - padB} Z`;
     } else {
