@@ -273,6 +273,18 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     const timeoutMs = 300000; // 5 min for PARMY fuzzy + SQL
     const timeoutId = setTimeout(() => { addDebugLog(`⏱️ Timeout ${timeoutMs / 1000}s`); controller.abort(); }, timeoutMs);
 
+    // Single offline-state message reused for every "service unreachable"
+    // failure mode below (network drop, DNS, abort, 404 route gone, 502/503
+    // upstream out). Keeps the UX consistent and points the operator at
+    // the actionable next step instead of dumping HTTP details.
+    const OFFLINE_MSG = "⚠️ **Service Agent hors-ligne.** L'orchestrateur OSMOSIS AI n'est pas joignable. Contactez l'administrateur — sur le VPS, exécuter `bash scripts/start-agent.sh` puis vérifier `curl http://127.0.0.1:8000/api/v1/agent/health`.";
+    const surfaceOffline = (reason: string) => {
+      addDebugLog(`AGENT OFFLINE: ${reason}`);
+      toast.error('Service Agent hors-ligne', { description: reason });
+      setMessages(prev => [...prev, { role: 'assistant', content: OFFLINE_MSG }]);
+      setIsLoading(false);
+    };
+
     let resp: Response;
     try {
       resp = await fetch(url, { method: 'POST', headers, body: payload, signal: controller.signal });
@@ -280,19 +292,27 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     } catch (fetchErr: any) {
       clearTimeout(timeoutId);
       addDebugLog(`Fetch error: ${fetchErr.message}`);
-      throw new Error(`Impossible de contacter le serveur local: ${fetchErr.message}`);
+      // AbortError (timeout) and TypeError("Failed to fetch") both land here.
+      // Distinguish timeout from "can't reach the host at all" so the
+      // admin sees which knob to pull.
+      const isTimeout = fetchErr?.name === 'AbortError';
+      surfaceOffline(isTimeout
+        ? `Délai dépassé (${timeoutMs / 1000}s) — l'orchestrateur n'a pas répondu.`
+        : `Impossible de contacter ${url} — ${fetchErr.message || 'connexion refusée'}.`);
+      return;
     }
     clearTimeout(timeoutId);
 
     if (!resp.ok) {
       const errBody = await resp.text().catch(() => '');
       addDebugLog(`Error: ${errBody.slice(0, 200)}`);
-      if (resp.status === 429) { toast.error('Limite atteinte — réessayez dans un instant.'); throw new Error('Rate limited'); }
-      if (resp.status === 402) { toast.error('Crédits insuffisants'); throw new Error('Payment required'); }
-      if (resp.status === 404) {
-        const fallbackMsg = "⚠️ Le service d'analyse IA (Agent Orchestrator) n'est pas disponible actuellement. Veuillez vérifier que le serveur VPS est démarré et que le service orchestrator est actif sur le port 1000.";
-        setMessages(prev => [...prev, { role: 'assistant', content: fallbackMsg }]);
-        setIsLoading(false);
+      if (resp.status === 429) { toast.error('Limite atteinte — réessayez dans un instant.'); setIsLoading(false); return; }
+      if (resp.status === 402) { toast.error('Crédits insuffisants'); setIsLoading(false); return; }
+      // 404 (route gone) / 502 (proxy can't reach upstream) / 503 (service
+      // unavailable) — treat all three as "agent service offline" so the
+      // operator knows it's an availability problem, not a payload bug.
+      if (resp.status === 404 || resp.status === 502 || resp.status === 503) {
+        surfaceOffline(`HTTP ${resp.status} sur ${url}`);
         return;
       }
       throw new Error(`Server error (${resp.status}): ${errBody.slice(0, 100)}`);
