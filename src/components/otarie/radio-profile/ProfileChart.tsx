@@ -238,7 +238,7 @@ const ProfileChart: React.FC<Props> = ({
   const statusText = linkState === 'LOS_CLEAR' ? 'LOS OK' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'LOS / Fresnel Blocked' : 'NLOS';
   const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(56,189,248,0.95)' : 'rgba(239,68,68,0.95)';
 
-  const obstructionPoint = analysis.obstructionIndex !== null ? {
+  const obstructionPoint = analysis && analysis.obstructionIndex !== null ? {
     distance: data[analysis.obstructionIndex]?.distance,
     altitude: data[analysis.obstructionIndex]?.terrain,
   } : null;
