@@ -2081,11 +2081,6 @@ const Filter2: React.FC<{
           </div>
         )}
 
-        <div className="flex items-center gap-1.5 px-1 text-[10px] font-black uppercase tracking-widest text-emerald-600">
-          <Settings className="h-3.5 w-3.5" />
-          <span>Network preference</span>
-        </div>
-
         {filters.map(filter => (
           <MultiFilterSelect
             key={filter.label}
