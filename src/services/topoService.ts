@@ -1123,6 +1123,10 @@ export async function fetchDashboardSites(
   if (siteFilters?.zone_arcep?.length) bboxFilters.zone_arcep = siteFilters.zone_arcep.join(',');
   if (siteFilters?.techno?.length) bboxFilters.techno = siteFilters.techno.join(',');
   if (siteFilters?.bande?.length) bboxFilters.bande = siteFilters.bande.join(',');
+  // 46-dim cascading bag — passed through to /topo/sites?dim_filters={JSON}
+  if (siteFilters?.dim_filters && Object.keys(siteFilters.dim_filters).length > 0) {
+    bboxFilters.dim_filters = siteFilters.dim_filters;
+  }
   if (search) bboxFilters.q = search;
 
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE

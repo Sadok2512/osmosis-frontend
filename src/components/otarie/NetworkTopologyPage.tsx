@@ -6,6 +6,8 @@ import {
   MapPin, Building2, BarChart3,
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
+import { topoApi } from '@/lib/localDb';
+import { ProgressiveFilterBuilder, type DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 import { cn } from '@/lib/utils';
 import { LayerVisibility, throttle } from '@/lib/layerVisibility';
 import { Card } from '@/components/ui/card';
@@ -349,6 +351,25 @@ const NetworkTopologyPage: React.FC = () => {
     return map;
   }, [filters]);
 
+  /* ── 46-dim cascading picker (Live Map) ──
+   * Catalog from /api/v1/topo/catalog/filters; values lazy-loaded per chip
+   * via /api/v1/topo/filters/values?dimension=&context= so cascading works.
+   * Selected dims land in extraFilters.dim_filters and are sent to
+   * /topo/sites?dim_filters={JSON} (backend extension 2026-05-07).
+   */
+  const [topoCatalog, setTopoCatalog] = useState<{ id: string; label: string; values: string[]; category?: string; rat?: string }[]>([]);
+  const [extraFilters, setExtraFilters] = useState<DashboardSiteFilters>({});
+  useEffect(() => {
+    let cancelled = false;
+    topoApi.filterCatalog()
+      .then(d => { if (!cancelled) setTopoCatalog(d.filters || []); })
+      .catch(err => console.warn('[topology] filterCatalog failed', err));
+    return () => { cancelled = true; };
+  }, []);
+  // Stable string for downstream effect deps — extraFilters identity changes
+  // on each onChange even when the values are the same; JSON normalizes that.
+  const dimFiltersKey = useMemo(() => JSON.stringify(extraFilters.dim_filters || {}), [extraFilters.dim_filters]);
+
   /* ══════════════════ SITES SEARCH ══════════════════ */
   const [query, setQuery] = useState('');
   const [vendorFilter, setVendorFilter] = useState<string[]>([]);
@@ -398,6 +419,32 @@ const NetworkTopologyPage: React.FC = () => {
       if (technoFilter.length) params.set('techno', joinFilterValues(technoFilter));
       if (plaqueFilter.length) params.set('plaque', joinFilterValues(plaqueFilter));
       if (dorFilter.length) params.set('dor', joinFilterValues(dorFilter));
+      // 46-dim picker selections — JSON-encoded into the dim_filters param.
+      const cleanedDimBag: Record<string, string[]> = {};
+      if (extraFilters.dim_filters) {
+        for (const [k, v] of Object.entries(extraFilters.dim_filters)) {
+          if (Array.isArray(v) && v.length > 0) cleanedDimBag[k] = v;
+        }
+      }
+      // Picker chips that ended up writing to legacy top-level keys (e.g. via
+      // ProgressiveFilterBuilder routing for 'dor', 'vendor', 'plaque', 'techno',
+      // 'bande', 'zone_arcep', 'cluster') would already be in extraFilters as
+      // top-level arrays — fold them into URL params alongside the legacy chips.
+      const legacyMap: Record<string, string | undefined> = {
+        dor: extraFilters.dor?.length ? extraFilters.dor.join(',') : undefined,
+        vendor: extraFilters.vendor?.length ? extraFilters.vendor.join(',') : undefined,
+        plaque: extraFilters.plaque?.length ? extraFilters.plaque.join(',') : undefined,
+        techno: extraFilters.techno?.length ? extraFilters.techno.join(',') : undefined,
+        bande: extraFilters.bande?.length ? extraFilters.bande.join(',') : undefined,
+        zone_arcep: extraFilters.zone_arcep?.length ? extraFilters.zone_arcep.join(',') : undefined,
+        cluster: extraFilters.cluster?.length ? extraFilters.cluster.join(',') : undefined,
+      };
+      for (const [k, v] of Object.entries(legacyMap)) {
+        if (v && !params.has(k)) params.set(k, v);
+      }
+      if (Object.keys(cleanedDimBag).length) {
+        params.set('dim_filters', JSON.stringify(cleanedDimBag));
+      }
       const d = await fetchJson<SiteRow[] | { sites?: SiteRow[]; rows?: SiteRow[] }>(`topo/sites?${params}`);
       if (requestId !== searchRequestRef.current) return;
       const rows = Array.isArray(d) ? d : (d.sites || d.rows || []);
@@ -411,7 +458,7 @@ const NetworkTopologyPage: React.FC = () => {
         setSitesLoading(false);
       }
     }
-  }, [query, vendorFilter, technoFilter, plaqueFilter, dorFilter]);
+  }, [query, vendorFilter, technoFilter, plaqueFilter, dorFilter, extraFilters, dimFiltersKey]);
 
   useEffect(() => {
     searchSitesRef.current = searchSites;
@@ -1367,6 +1414,19 @@ const NetworkTopologyPage: React.FC = () => {
                 onClear={clearSiteFilters}
                 onRefresh={searchSites}
               />
+
+              {/* 46-dim cascading picker — additive to the 4 quick chips above.
+                  Selections cascade through /api/v1/topo/filters/values and
+                  narrow the sites table via /topo/sites?dim_filters={JSON}. */}
+              {topoCatalog.length > 0 && (
+                <div className="px-4 pt-2 pb-3 border-t border-border/30">
+                  <ProgressiveFilterBuilder
+                    dimensions={topoCatalog}
+                    filters={extraFilters}
+                    onChange={setExtraFilters}
+                  />
+                </div>
+              )}
 
               <div className="max-h-[420px] overflow-y-auto">
                 <Table>

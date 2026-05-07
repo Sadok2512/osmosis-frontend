@@ -1916,9 +1916,29 @@ export interface SiteScope {
   value?: string;
 }
 
-/* ── Progressive filter builder (Add Filter pattern) ── */
-const ProgressiveFilterBuilder: React.FC<{
-  dimensions: { id: string; label: string; values: string[] }[];
+/* Exported for the Live Map (NetworkTopologyPage) so the 46-dim picker
+ * lives in one place instead of being copy-pasted. The picker is fully
+ * generic over DashboardSiteFilters; legacy 8 keys go top-level, every
+ * other dim lands in the dim_filters bag. */
+export { /* re-exports happen at component declaration below */ };
+
+/* ── Progressive filter builder (Add Filter pattern) ──
+ *
+ * Reads the dimension catalog from the parent (today: 46-dim list from
+ * `topoApi.filterCatalog()`). Each active chip lazy-fetches its candidate
+ * values via `topoApi.filterValues(dim, ctx)` with cascade context built
+ * from the OTHER currently-selected filters — so picking
+ * `CONSTRUCTEUR=NOKIA` immediately narrows the BANDE chip to bands that
+ * exist on Nokia sites, and so on.
+ *
+ * Routing per dim: the 8 legacy keys (dor / vendor / plaque / techno /
+ * bande / zone_arcep / saisonnier / cluster) write to the top level of
+ * DashboardSiteFilters; everything else lands in the `dim_filters` bag.
+ * The chip read/write logic abstracts that split via getDimVals/setDimVals
+ * so the picker UI doesn't care which dim is "legacy".
+ */
+export const ProgressiveFilterBuilder: React.FC<{
+  dimensions: { id: string; label: string; values: string[]; category?: string; rat?: string }[];
   filters: DashboardSiteFilters;
   onChange: (next: DashboardSiteFilters) => void;
 }> = ({ dimensions, filters, onChange }) => {
@@ -1938,12 +1958,25 @@ const ProgressiveFilterBuilder: React.FC<{
     return () => document.removeEventListener('mousedown', handler);
   }, [pickerOpen]);
 
-  const activeKeys = useMemo(
-    () => Object.entries(filters)
-      .filter(([, v]) => Array.isArray(v))
-      .map(([k]) => k),
-    [filters],
-  );
+  // Read the values array for a dim from either a legacy top-level key
+  // or the dim_filters bag. Returns undefined if the dim isn't active.
+  const getDimVals = (dimId: string): string[] | undefined => {
+    if (isLegacySiteFilterKey(dimId)) return (filters as any)[dimId];
+    return filters.dim_filters?.[dimId];
+  };
+
+  const activeKeys = useMemo(() => {
+    const out: string[] = [];
+    for (const k of Object.keys(filters)) {
+      if (k === 'dim_filters') continue;
+      const v = (filters as any)[k];
+      if (Array.isArray(v)) out.push(k);
+    }
+    if (filters.dim_filters) {
+      for (const k of Object.keys(filters.dim_filters)) out.push(k);
+    }
+    return out;
+  }, [filters]);
 
   const availableDims = useMemo(
     () => dimensions.filter(d => !activeKeys.includes(d.id)),
@@ -1953,23 +1986,44 @@ const ProgressiveFilterBuilder: React.FC<{
   const filteredAvailable = useMemo(() => {
     if (!pickerSearch.trim()) return availableDims;
     const q = pickerSearch.toLowerCase();
-    return availableDims.filter(d => d.label.toLowerCase().includes(q));
+    return availableDims.filter(d => d.label.toLowerCase().includes(q) || d.id.toLowerCase().includes(q));
   }, [availableDims, pickerSearch]);
 
   const addFilter = (dimId: string) => {
-    onChange({ ...filters, [dimId]: [] });
+    if (isLegacySiteFilterKey(dimId)) {
+      onChange({ ...filters, [dimId]: [] });
+    } else {
+      const bag = { ...(filters.dim_filters || {}), [dimId]: [] };
+      onChange({ ...filters, dim_filters: bag });
+    }
     setPickerOpen(false);
     setPickerSearch('');
   };
 
   const removeFilter = (dimId: string) => {
-    const next = { ...filters };
-    delete (next as any)[dimId];
-    onChange(next);
+    if (isLegacySiteFilterKey(dimId)) {
+      const next = { ...filters };
+      delete (next as any)[dimId];
+      onChange(next);
+      return;
+    }
+    if (filters.dim_filters && dimId in filters.dim_filters) {
+      const bag = { ...filters.dim_filters };
+      delete bag[dimId];
+      const next: DashboardSiteFilters = { ...filters };
+      if (Object.keys(bag).length) next.dim_filters = bag;
+      else delete next.dim_filters;
+      onChange(next);
+    }
   };
 
   const updateFilterValues = (dimId: string, vals: string[]) => {
-    onChange({ ...filters, [dimId]: vals });
+    if (isLegacySiteFilterKey(dimId)) {
+      onChange({ ...filters, [dimId]: vals });
+      return;
+    }
+    const bag = { ...(filters.dim_filters || {}), [dimId]: vals };
+    onChange({ ...filters, dim_filters: bag });
   };
 
   const clearAll = () => onChange({});
@@ -1996,7 +2050,7 @@ const ProgressiveFilterBuilder: React.FC<{
           {activeKeys.map(key => {
             const dim = dimensions.find(d => d.id === key);
             if (!dim) return null;
-                  const selected = (filters[key as keyof DashboardSiteFilters] as string[]) || [];
+            const selected = getDimVals(key) || [];
             return (
               <div
                 key={key}
@@ -2015,11 +2069,12 @@ const ProgressiveFilterBuilder: React.FC<{
                   </button>
                 </div>
                 <div className="px-2.5 pb-2 pt-1">
-                  <CreateFilterDropdown
-                    label=""
-                    values={dim.values}
+                  <LazyDimValuesDropdown
+                    dimId={dim.id}
                     selected={selected}
                     onChange={(vals) => updateFilterValues(key, vals)}
+                    filters={filters}
+                    initialValues={dim.values}
                   />
                 </div>
               </div>
@@ -2071,8 +2126,10 @@ const ProgressiveFilterBuilder: React.FC<{
                       onClick={() => addFilter(dim.id)}
                       className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] text-muted-foreground hover:bg-primary/5 hover:text-primary transition-colors"
                     >
-                      <span className="font-semibold uppercase tracking-wider">{dim.label}</span>
-                      <span className="text-[9px] text-muted-foreground/60">{dim.values.length}</span>
+                      <span className="font-semibold uppercase tracking-wider truncate">{dim.label}</span>
+                      {dim.category && (
+                        <span className="text-[8px] text-muted-foreground/60 shrink-0 normal-case">{dim.category}</span>
+                      )}
                     </button>
                   ))
                 )}
@@ -2091,13 +2148,84 @@ const ProgressiveFilterBuilder: React.FC<{
   );
 };
 
+/* ── Lazy-loading wrapper that fetches per-dim values via the backend's
+ *    cascading endpoint. The cascade context is built from every other
+ *    selected filter (legacy keys + dim_filters bag), excluding self. */
+const LazyDimValuesDropdown: React.FC<{
+  dimId: string;
+  selected: string[];
+  onChange: (vals: string[]) => void;
+  filters: DashboardSiteFilters;
+  initialValues?: string[];  // optional pre-populated list (rarely set)
+}> = ({ dimId, selected, onChange, filters, initialValues }) => {
+  const [values, setValues] = useState<string[]>(initialValues && initialValues.length > 0 ? initialValues : []);
+  const [loading, setLoading] = useState(false);
+  const [errored, setErrored] = useState(false);
+
+  // Build cascade context excluding self. Both legacy top-level keys and the
+  // dim_filters bag contribute; everything is keyed by the backend dim code.
+  const ctx = useMemo(() => {
+    const c: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(filters)) {
+      if (k === dimId || k === 'dim_filters') continue;
+      if (Array.isArray(v) && v.length > 0) c[k] = v as string[];
+    }
+    if (filters.dim_filters) {
+      for (const [k, v] of Object.entries(filters.dim_filters)) {
+        if (k === dimId) continue;
+        if (Array.isArray(v) && v.length > 0) c[k] = v;
+      }
+    }
+    return c;
+  }, [filters, dimId]);
+
+  // Stable string for dependency tracking — JSON.stringify on a freshly-built
+  // object rebuilds every render, so keys-and-values must be sorted.
+  const ctxKey = useMemo(() => {
+    const entries = Object.entries(ctx)
+      .map(([k, v]) => [k, [...v].sort()] as const)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return JSON.stringify(entries);
+  }, [ctx]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setErrored(false);
+    topoApi.filterValues(dimId, ctx)
+      .then(vals => {
+        if (cancelled) return;
+        setValues(vals);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setErrored(true);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimId, ctxKey]);
+
+  return <CreateFilterDropdown
+    label=""
+    values={values}
+    selected={selected}
+    onChange={onChange}
+    loading={loading}
+    errored={errored}
+  />;
+};
+
 /* ── Multi-select dropdown for dashboard creation filters ── */
 const CreateFilterDropdown: React.FC<{
   label: string;
   values: string[];
   selected: string[];
   onChange: (vals: string[]) => void;
-}> = ({ label, values, selected, onChange }) => {
+  loading?: boolean;
+  errored?: boolean;
+}> = ({ label, values, selected, onChange, loading, errored }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
@@ -2121,7 +2249,18 @@ const CreateFilterDropdown: React.FC<{
     onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
   };
 
-  if (values.length === 0) return null;
+  // Empty list — render a disabled placeholder rather than vanishing the
+  // chip body. Without this, lazy-loaded dims showed nothing while values
+  // were in flight, making the chip look broken.
+  if (values.length === 0) {
+    return (
+      <div className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-dashed border-border bg-muted/10 text-left">
+        <span className="text-[10px] text-muted-foreground/70">
+          {loading ? 'Chargement…' : errored ? 'Erreur de chargement' : 'Aucune valeur disponible'}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -2208,6 +2347,14 @@ const CreateFilterDropdown: React.FC<{
 };
 
 
+/** Legacy site-filter keys that map directly onto `/topo/sites` named query
+ *  params. Everything outside this set goes into the `dim_filters` bag below
+ *  and is sent as the `dim_filters={JSON}` parameter the backend introduced
+ *  on 2026-05-07 to support the 46-dim cascading picker. */
+export const LEGACY_SITE_FILTER_KEYS = [
+  'dor', 'vendor', 'plaque', 'techno', 'bande', 'zone_arcep', 'saisonnier', 'cluster',
+] as const;
+
 export interface DashboardSiteFilters {
   dor?: string[];
   vendor?: string[];
@@ -2217,23 +2364,40 @@ export interface DashboardSiteFilters {
   zone_arcep?: string[];
   saisonnier?: string[];
   cluster?: string[];
+  /** 46-dim cascading bag, keyed by `dimension_definitions.code` (e.g.
+   *  CONSTRUCTEUR, BANDE, NCI_5G). Used for any dim outside the legacy 8
+   *  named keys above. Sent to the backend as `?dim_filters={JSON}`. */
+  dim_filters?: Record<string, string[]>;
 }
 
-/** Merge two DashboardSiteFilters with AND logic (intersection for same keys) */
+const isLegacySiteFilterKey = (k: string): boolean =>
+  (LEGACY_SITE_FILTER_KEYS as readonly string[]).includes(k);
+
+/** Merge two DashboardSiteFilters with AND logic (intersection for same keys).
+ *  Handles both legacy top-level keys and the 46-dim `dim_filters` bag. */
 function mergeSiteFilters(dashboardFilters: DashboardSiteFilters | null, viewFilters: DashboardSiteFilters | null): DashboardSiteFilters {
   if (!dashboardFilters || Object.keys(dashboardFilters).length === 0) return viewFilters || {};
   if (!viewFilters || Object.keys(viewFilters).length === 0) return dashboardFilters;
   const merged: DashboardSiteFilters = { ...dashboardFilters };
+  const intersect = (a: string[] | undefined, b: string[]): string[] => {
+    if (!a || a.length === 0) return b;
+    const i = a.filter(v => b.includes(v));
+    return i.length > 0 ? i : b;  // empty intersection → view wins (will show no results)
+  };
   for (const [key, viewVals] of Object.entries(viewFilters)) {
-    if (!viewVals || viewVals.length === 0) continue;
-    const dashVals = (merged as any)[key];
-    if (dashVals && dashVals.length > 0) {
-      // Intersection: keep only values present in both
-      const intersection = dashVals.filter((v: string) => viewVals.includes(v));
-      (merged as any)[key] = intersection.length > 0 ? intersection : viewVals; // If empty intersection, use view (will show no results)
-    } else {
-      (merged as any)[key] = viewVals;
+    if (key === 'dim_filters') continue;  // handled below
+    const arr = viewVals as string[] | undefined;
+    if (!arr || arr.length === 0) continue;
+    (merged as any)[key] = intersect((merged as any)[key], arr);
+  }
+  // Merge dim_filters bag entry-by-entry
+  if (viewFilters.dim_filters) {
+    const mergedBag: Record<string, string[]> = { ...(merged.dim_filters || {}) };
+    for (const [code, vals] of Object.entries(viewFilters.dim_filters)) {
+      if (!vals || vals.length === 0) continue;
+      mergedBag[code] = intersect(mergedBag[code], vals);
     }
+    if (Object.keys(mergedBag).length) merged.dim_filters = mergedBag;
   }
   return merged;
 }
@@ -2467,10 +2631,22 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.map(d => d.id === dbId ? { ...d, name: newName.trim() } : d));
   };
 
-  // Use backend filter defs for dashboard creation — fallback to static FILTER_DIMENSIONS if empty
+  // 46-dim cascading catalog from osmosis-parser /api/v1/topo/catalog/filters.
+  // Loaded once on mount; chips fetch their candidate values lazily via
+  // topoApi.filterValues so the picker doesn't pay a 46×DISTINCT scan up front.
+  const [topoCatalog, setTopoCatalog] = useState<{ id: string; label: string; values: string[]; category?: string; rat?: string }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    topoApi.filterCatalog()
+      .then(d => { if (!cancelled) setTopoCatalog(d.filters || []); })
+      .catch(() => { /* silent — falls back to backendFilterDefs / static below */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Picker source priority: 46-dim topo catalog → backend filter defs → static fallback.
   const filterDimensions = useMemo(() => {
+    if (topoCatalog.length > 0) return topoCatalog;
     if (backendFilterDefs && backendFilterDefs.length > 0) return backendFilterDefs;
-    // Fallback: build from static config
     const FALLBACK_KEYS = ['dor', 'vendor', 'plaque', 'rat', 'bande', 'zone_arcep'];
     return FILTER_DIMENSIONS
       .filter(dim => FALLBACK_KEYS.includes(dim.key))
@@ -2479,7 +2655,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         return { id: dim.key, label: dim.label, values: vals.sort() };
       })
       .filter(d => d.values.length > 0);
-  }, [backendFilterDefs]);
+  }, [topoCatalog, backendFilterDefs]);
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
@@ -2490,7 +2666,15 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   };
 
   const hasAnyCreateFilter = useMemo(() => {
-    return Object.values(createFilters).some(v => v && v.length > 0);
+    for (const [k, v] of Object.entries(createFilters)) {
+      if (k === 'dim_filters') {
+        const bag = v as Record<string, string[]> | undefined;
+        if (bag && Object.values(bag).some(arr => Array.isArray(arr) && arr.length > 0)) return true;
+        continue;
+      }
+      if (Array.isArray(v) && v.length > 0) return true;
+    }
+    return false;
   }, [createFilters]);
 
   const handleCreateDashboardWithFilters = async () => {
@@ -2506,10 +2690,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       finalScope.type = 'Plaque';
       finalScope.value = createFilters.plaque[0];
     }
-    // Clean filters (remove empty arrays)
+    // Clean filters (remove empty arrays + empty dim_filters bag)
     const cleanFilters: DashboardSiteFilters = {};
     for (const [k, v] of Object.entries(createFilters)) {
-      if (v && v.length > 0) (cleanFilters as any)[k] = v;
+      if (k === 'dim_filters') {
+        const bag = v as Record<string, string[]> | undefined;
+        if (bag) {
+          const cleanedBag: Record<string, string[]> = {};
+          for (const [code, vals] of Object.entries(bag)) {
+            if (Array.isArray(vals) && vals.length > 0) cleanedBag[code] = vals;
+          }
+          if (Object.keys(cleanedBag).length) cleanFilters.dim_filters = cleanedBag;
+        }
+        continue;
+      }
+      if (Array.isArray(v) && v.length > 0) (cleanFilters as any)[k] = v;
     }
     try {
       const session = JSON.parse(localStorage.getItem('admin_session') || 'null');
@@ -2594,10 +2789,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     if (!newViewName.trim()) return;
     setCreating(true);
     try {
-      // Build clean siteFilters from newViewFilters
+      // Build clean siteFilters from newViewFilters (preserves dim_filters bag)
       const cleanFilters: DashboardSiteFilters = {};
       for (const [k, v] of Object.entries(newViewFilters)) {
-        if (v && (v as string[]).length > 0) (cleanFilters as any)[k] = v;
+        if (k === 'dim_filters') {
+          const bag = v as Record<string, string[]> | undefined;
+          if (bag) {
+            const cleanedBag: Record<string, string[]> = {};
+            for (const [code, vals] of Object.entries(bag)) {
+              if (Array.isArray(vals) && vals.length > 0) cleanedBag[code] = vals;
+            }
+            if (Object.keys(cleanedBag).length) cleanFilters.dim_filters = cleanedBag;
+          }
+          continue;
+        }
+        if (Array.isArray(v) && v.length > 0) (cleanFilters as any)[k] = v;
       }
       await mapViewsApi.create({
         name: newViewName.trim(),

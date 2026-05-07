@@ -321,6 +321,9 @@ export interface BboxFilters {
   cluster?: string;
   plaque?: string;
   q?: string;
+  /** 46-dim cascading bag, keyed by `dimension_definitions.code`. Sent
+   *  as `dim_filters={JSON}` to /topo/sites (backend extension 2026-05-07). */
+  dim_filters?: Record<string, string[]>;
 }
 
 function flattenTopoFieldValues(value: unknown): string[] {
@@ -756,9 +759,19 @@ export const topoApi = {
     bboxQs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
     bboxQs.set('limit', String(limit));
     if (filters) {
-      Object.entries(filters).forEach(([k, v]) => {
-        if (v && v !== 'ALL') bboxQs.set(k, v);
+      // dim_filters is the 46-dim bag — serialize to JSON (the generic loop
+      // below would coerce the object to "[object Object]").
+      const { dim_filters, ...rest } = filters;
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v && v !== 'ALL') bboxQs.set(k, v as string);
       });
+      if (dim_filters && Object.keys(dim_filters).length > 0) {
+        const cleaned: Record<string, string[]> = {};
+        for (const [code, vals] of Object.entries(dim_filters)) {
+          if (Array.isArray(vals) && vals.length > 0) cleaned[code] = vals;
+        }
+        if (Object.keys(cleaned).length) bboxQs.set('dim_filters', JSON.stringify(cleaned));
+      }
     }
 
     if (isLocalExpress()) {
@@ -986,7 +999,9 @@ export const topoApi = {
     return;
   },
 
-  /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters?dor=X&constructeur=Y */
+  /** Fetch available filter dimensions from VPS: GET /api/v1/topo/filters?dor=X&constructeur=Y
+   *  Legacy 7-dim picker. New 46-dim catalog lives at filterCatalog() below.
+   */
   filters: async (contextParams?: string): Promise<{ filters: { id: string; label: string; values: string[] }[] }> => {
     const suffix = contextParams ? `?${contextParams}` : '';
     if (isLocalExpress()) {
@@ -995,11 +1010,66 @@ export const topoApi = {
     return fetchJson<any>(parserUrl(`/topo/filters${suffix}`));
   },
 
-  /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y */
-  filteredSites: async (queryParams: string): Promise<any[]> => {
-    const url = queryParams
-      ? parserUrl(`/topo/sites?${queryParams}`)
-      : parserUrl('/topo/sites');
+  /** Fetch the 46-dimension catalog: GET /api/v1/topo/catalog/filters
+   *  Reformatted to the legacy `{filters: [{id, label, values}]}` shape so
+   *  the existing ProgressiveFilterBuilder picker can consume it directly.
+   *  `values` is empty until lazily populated via filterValues(). */
+  filterCatalog: async (): Promise<{ filters: { id: string; label: string; category?: string; rat?: string; values: string[] }[] }> => {
+    const path = '/topo/catalog/filters';
+    const data = await fetchJson<any[]>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
+    const list = Array.isArray(data) ? data : [];
+    return {
+      filters: list.map(d => ({
+        id:       d.dimension_key,
+        label:    d.display_name || d.dimension_key,
+        category: d.category,
+        rat:      d.rat,
+        values:   [],  // lazy
+      })),
+    };
+  },
+
+  /** Fetch distinct values for a single dimension, with optional cascading
+   *  context from upstream selections. Mirrors kpi-engine's
+   *  /monitor/filters/values shape. */
+  filterValues: async (
+    dimension: string,
+    context?: Record<string, string | string[] | undefined>,
+    opts?: { search?: string; limit?: number },
+  ): Promise<string[]> => {
+    const qs = new URLSearchParams({ dimension });
+    if (opts?.search) qs.set('search', opts.search);
+    if (opts?.limit && opts.limit > 0) qs.set('limit', String(opts.limit));
+    if (context) {
+      const cleaned: Record<string, string | string[]> = {};
+      for (const [k, v] of Object.entries(context)) {
+        if (v === undefined || v === '' || v === 'Tous') continue;
+        if (Array.isArray(v) && v.length === 0) continue;
+        cleaned[k] = v;
+      }
+      if (Object.keys(cleaned).length) qs.set('context', JSON.stringify(cleaned));
+    }
+    const path = `/topo/filters/values?${qs.toString()}`;
+    const data = await fetchJson<{ values: string[] }>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
+    return data?.values || [];
+  },
+
+  /** Fetch sites with dynamic filters: GET /api/v1/topo/sites?dor=X&techno=Y
+   *  Optional `dimFilters` is the 46-dim cascading bag — sent as the
+   *  `dim_filters` URL-encoded JSON param the backend introduced 2026-05-07. */
+  filteredSites: async (queryParams: string, dimFilters?: Record<string, string[]>): Promise<any[]> => {
+    let qs = queryParams || '';
+    if (dimFilters) {
+      const cleaned: Record<string, string[]> = {};
+      for (const [k, v] of Object.entries(dimFilters)) {
+        if (Array.isArray(v) && v.length > 0) cleaned[k] = v;
+      }
+      if (Object.keys(cleaned).length) {
+        const dfParam = `dim_filters=${encodeURIComponent(JSON.stringify(cleaned))}`;
+        qs = qs ? `${qs}&${dfParam}` : dfParam;
+      }
+    }
+    const url = qs ? parserUrl(`/topo/sites?${qs}`) : parserUrl('/topo/sites');
     const data = await fetchJson<any>(url);
     return Array.isArray(data) ? data : (data?.sites || data?.rows || []);
   },
