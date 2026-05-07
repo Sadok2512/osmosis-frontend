@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio } from 'lucide-react';
+import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio, ChevronDown, Check } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { topoApi } from '@/lib/localDb';
 // ProgressiveFilterBuilder import removed 2026-05-07 — Topology Search
@@ -91,6 +91,206 @@ const PARAM_FILTER_KEYS = [
   { key: 'value', label: 'Valeur' },
 ];
 
+/** Lazy multiselect / text-input fallback for one Topology Search row.
+ *
+ * Behavior (per UX request 2026-05-07):
+ *   * No field selected → disabled placeholder.
+ *   * Field selected, values loading → "Chargement…" disabled input.
+ *   * Field selected, values loaded with N entries:
+ *       - 0 < N ≤ 20  → checkbox multiselect (no search bar — list short).
+ *       - N > 20      → checkbox multiselect with search bar.
+ *   * Field selected but values list errors / is empty → fall back to
+ *     comma-separated text input (the original 2026-05-07 spec UX),
+ *     so unmapped or unpopulated dims (PCI/NR_ARFCN/BSCID etc.) still
+ *     work via free-text entry.
+ *
+ * The multiselect path writes to `values: string[]` directly. The text
+ * fallback writes to `valuesText: string`. Save logic prefers `values`
+ * when non-empty, else parses `valuesText`. */
+const TopoRowValueInput: React.FC<{
+  field: string;
+  values: string[];
+  valuesText: string;
+  onValuesChange: (values: string[]) => void;
+  onValuesTextChange: (text: string) => void;
+  hasError?: boolean;
+}> = ({ field, values, valuesText, onValuesChange, onValuesTextChange, hasError }) => {
+  const [available, setAvailable] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errored, setErrored] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Outside-click close
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // Fetch this dim's distinct values when the field changes
+  useEffect(() => {
+    if (!field) {
+      setAvailable([]);
+      setLoading(false);
+      setErrored(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setErrored(false);
+    topoApi.filterValues(field)
+      .then(vals => {
+        if (cancelled) return;
+        setAvailable(vals);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAvailable([]);
+        setErrored(true);
+        setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [field]);
+
+  // No field selected — disabled placeholder
+  if (!field) {
+    return (
+      <Input
+        disabled
+        placeholder="Sélectionnez d'abord un type de filtre"
+        className="text-xs h-8"
+      />
+    );
+  }
+
+  // Loading
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 px-3 h-8 rounded-md border border-input bg-muted/30 text-[10px] text-muted-foreground">
+        <Loader2 size={11} className="animate-spin" /> Chargement des valeurs…
+      </div>
+    );
+  }
+
+  // Failed/empty → text input fallback (comma-separated entry).
+  // This preserves the original UX spec for dims whose distinct list
+  // is unavailable (e.g. PCI/BSCID columns currently unpopulated).
+  if (errored || available.length === 0) {
+    return (
+      <Input
+        value={valuesText}
+        onChange={e => onValuesTextChange(e.target.value)}
+        placeholder="Valeur… (séparées par virgules : 150, 200, 320)"
+        className={`text-xs h-8 ${hasError ? 'border-destructive' : ''}`}
+      />
+    );
+  }
+
+  // Multiselect mode. Search bar appears when list > 20 (per user request).
+  const useSearch = available.length > 20;
+  const filtered = useSearch && search.trim()
+    ? available.filter(v => v.toLowerCase().includes(search.toLowerCase()))
+    : available;
+  const toggle = (val: string) => {
+    onValuesChange(values.includes(val) ? values.filter(v => v !== val) : [...values, val]);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between gap-2 px-3 h-8 rounded-md border bg-background text-left transition-all ${
+          open ? 'border-primary ring-2 ring-primary/15' : hasError ? 'border-destructive' : values.length > 0 ? 'border-primary/40' : 'border-input'
+        }`}
+      >
+        <span className={`flex-1 truncate text-xs ${values.length > 0 ? 'text-foreground' : 'text-muted-foreground/70'}`}>
+          {values.length === 0
+            ? `Sélectionner une ou plusieurs valeurs (${available.length})`
+            : values.length <= 3
+              ? values.join(', ')
+              : `${values.length} valeurs sélectionnées`}
+        </span>
+        <ChevronDown size={12} className={`text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-[200] bg-popover rounded-lg border border-border shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+          {useSearch && (
+            <div className="px-2 pt-2 pb-1.5">
+              <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
+                <Search size={11} className="text-muted-foreground shrink-0" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Rechercher…"
+                  className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none"
+                  autoFocus
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-border/40">
+            <button
+              type="button"
+              onClick={() => onValuesChange([...filtered])}
+              className="text-[9px] font-semibold text-primary hover:underline"
+            >
+              Tout sélectionner
+            </button>
+            <span className="text-muted-foreground/40">·</span>
+            <button
+              type="button"
+              onClick={() => onValuesChange([])}
+              className="text-[9px] font-semibold text-destructive hover:underline"
+            >
+              Effacer
+            </button>
+            <span className="ml-auto text-[9px] text-muted-foreground/60">
+              {values.length}/{available.length}
+            </span>
+          </div>
+          <div className="max-h-[220px] overflow-y-auto py-0.5">
+            {filtered.length === 0 ? (
+              <p className="text-[9px] text-muted-foreground/60 text-center py-3 italic">Aucun résultat</p>
+            ) : (
+              filtered.map(val => {
+                const isSelected = values.includes(val);
+                return (
+                  <button
+                    type="button"
+                    key={val}
+                    onClick={() => toggle(val)}
+                    className={`w-full flex items-center gap-2 px-2.5 py-1.5 text-[10px] transition-colors ${
+                      isSelected ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}
+                  >
+                    <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                      isSelected ? 'bg-primary border-primary' : 'border-border'
+                    }`}>
+                      {isSelected && <Check size={9} className="text-primary-foreground" />}
+                    </div>
+                    <span className="truncate font-medium">{val}</span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function CreateViewModal(
   { open, onOpenChange, onSave, saving, availableKpis = [] }: Props,
   ref,
@@ -107,15 +307,33 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
   // Topology Search state — row-based builder per 2026-05-07 spec.
   // Each row carries the dim code (`field`), an operator (default IN),
-  // and a free-text value field that the user fills with comma-separated
-  // values (parsed at save time into a string[]). Logic between rows is
-  // user-toggleable OR/AND — defaults to OR per spec ("at least one of
-  // the filters matches").
-  type TopoSearchRow = { id: string; field: string; operator: TopoSearchOperator; valuesText: string };
+  // and TWO value-storage fields:
+  //   * `values: string[]`     — populated when the multiselect mode renders
+  //                              (dims whose distinct value list loads with N>0).
+  //   * `valuesText: string`   — comma-separated text input fallback
+  //                              (when the dim's value list errors or is empty).
+  // Save prefers `values` when non-empty; otherwise parses `valuesText`.
+  type TopoSearchRow = {
+    id: string;
+    field: string;
+    operator: TopoSearchOperator;
+    values: string[];
+    valuesText: string;
+  };
+  const newTopoSearchRow = (): TopoSearchRow => ({
+    id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())),
+    field: '',
+    operator: 'IN',
+    values: [],
+    valuesText: '',
+  });
   const [topoSearchLogic, setTopoSearchLogic] = useState<'OR' | 'AND'>('OR');
-  const [topoSearchRows, setTopoSearchRows] = useState<TopoSearchRow[]>(() => [
-    { id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' },
-  ]);
+  const [topoSearchRows, setTopoSearchRows] = useState<TopoSearchRow[]>(() => [newTopoSearchRow()]);
+
+  /** Resolve a row to its effective values list (multiselect first, then
+   *  comma-parsed text). Used by validation and save. */
+  const rowValues = (r: TopoSearchRow): string[] =>
+    r.values.length > 0 ? r.values : parseValuesText(r.valuesText);
   const [topoCatalog, setTopoCatalog] = useState<{ id: string; label: string; values: string[]; category?: string; rat?: string }[]>([]);
   useEffect(() => {
     if (!open) return;
@@ -179,7 +397,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       setSelectedKpis([]);
       setKpiSearch('');
       setTopoSearchLogic('OR');
-      setTopoSearchRows([{ id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }]);
+      setTopoSearchRows([newTopoSearchRow()]);
       setParamFilters({});
       setActiveParamKeys(['parameter']);
       setCoverageBand('');
@@ -249,15 +467,13 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
   // Validation per spec: "Empêcher la création si un filtre n'a pas de
   // type ou pas de valeur." Every non-empty row must have BOTH a field
-  // AND at least one parsed value. Rows that are entirely blank
-  // (default initial state) don't block validation — but if the user
-  // started filling one, they must complete it.
+  // AND at least one effective value (multiselect OR parsed text).
   const topoSearchValid = useMemo(() => {
-    const filledRows = topoSearchRows.filter(r => r.field.trim() || r.valuesText.trim());
+    const filledRows = topoSearchRows.filter(r => r.field.trim() || r.valuesText.trim() || r.values.length > 0);
     if (filledRows.length === 0) return false;
     for (const r of filledRows) {
       if (!r.field.trim()) return false;
-      if (parseValuesText(r.valuesText).length === 0) return false;
+      if (rowValues(r).length === 0) return false;
     }
     return true;
   }, [topoSearchRows]);
@@ -280,12 +496,12 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       config.dateTo = kpiDateTo;
     } else if (viewType === 'topology_search') {
       // Build TopoSearchPayload from the rows: keep only complete rows
-      // (field + ≥1 parsed value), drop blanks, normalize spacing.
+      // (field + ≥1 value via either multiselect or text input).
       const filters: TopoSearchFilter[] = [];
       for (const r of topoSearchRows) {
         const field = r.field.trim();
         if (!field) continue;
-        const values = parseValuesText(r.valuesText);
+        const values = rowValues(r);
         if (values.length === 0) continue;
         filters.push({ field, operator: r.operator, values });
       }
@@ -305,7 +521,13 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent ref={ref} className="max-w-xl max-h-[85vh] overflow-y-auto p-0">
+      <DialogContent
+        ref={ref}
+        // Width sized 1.5× the prior max-w-xl (576px) per UX request
+        // 2026-05-07 — gives the row builder more room to breathe so
+        // the dim selector + multiselect dropdown don't fight for px.
+        className="sm:max-w-[864px] max-h-[88vh] overflow-y-auto p-0"
+      >
         {/* Progress bar */}
         <div className="flex items-center gap-0 px-6 pt-5 pb-0">
           <div className={`flex-1 h-1 rounded-full transition-colors ${step >= 1 ? 'bg-primary' : 'bg-muted'}`} />
@@ -713,9 +935,9 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
                 <div className="space-y-2">
                   {topoSearchRows.map((row, idx) => {
-                    const parsedCount = parseValuesText(row.valuesText).length;
+                    const effectiveCount = rowValues(row).length;
                     const fieldMissing = !row.field.trim();
-                    const valuesMissing = !!row.field.trim() && parsedCount === 0;
+                    const valuesMissing = !!row.field.trim() && effectiveCount === 0;
                     return (
                       <React.Fragment key={row.id}>
                         {idx > 0 && (
@@ -729,13 +951,13 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                         )}
                         <div className="flex items-start gap-2">
                           {/* Dim type selector */}
-                          <div className="w-44 shrink-0">
+                          <div className="w-52 shrink-0">
                             <Select
                               value={row.field || undefined}
-                              onValueChange={val => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, field: val } : r))}
+                              onValueChange={val => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, field: val, values: [], valuesText: '' } : r))}
                               disabled={topoCatalog.length === 0}
                             >
-                              <SelectTrigger className={`text-xs h-8 ${fieldMissing && row.valuesText.trim() ? 'border-destructive' : ''}`}>
+                              <SelectTrigger className={`text-xs h-8 ${fieldMissing && (row.valuesText.trim() || row.values.length > 0) ? 'border-destructive' : ''}`}>
                                 <SelectValue placeholder="Sélectionner un filtre" />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px]">
@@ -748,24 +970,26 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                               </SelectContent>
                             </Select>
                           </div>
-                          {/* Comma-separated value input */}
-                          <div className="flex-1">
-                            <Input
-                              value={row.valuesText}
-                              onChange={e => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, valuesText: e.target.value } : r))}
-                              placeholder="Valeur… (séparées par virgules : 150, 200, 320)"
-                              className={`text-xs h-8 ${valuesMissing ? 'border-destructive' : ''}`}
+                          {/* Lazy multiselect (preferred) with text-input fallback */}
+                          <div className="flex-1 min-w-0">
+                            <TopoRowValueInput
+                              field={row.field}
+                              values={row.values}
+                              valuesText={row.valuesText}
+                              onValuesChange={vals => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, values: vals, valuesText: '' } : r))}
+                              onValuesTextChange={txt => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, valuesText: txt, values: [] } : r))}
+                              hasError={valuesMissing}
                             />
-                            {parsedCount > 0 && (
+                            {effectiveCount > 0 && (
                               <span className="text-[9px] text-muted-foreground/60 mt-0.5 block">
-                                {parsedCount} valeur{parsedCount > 1 ? 's' : ''}
+                                {effectiveCount} valeur{effectiveCount > 1 ? 's' : ''}
                               </span>
                             )}
                           </div>
                           {/* Delete row */}
                           <button
                             type="button"
-                            onClick={() => setTopoSearchRows(prev => prev.length === 1 ? [{ id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }] : prev.filter(r => r.id !== row.id))}
+                            onClick={() => setTopoSearchRows(prev => prev.length === 1 ? [newTopoSearchRow()] : prev.filter(r => r.id !== row.id))}
                             className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors h-8 shrink-0"
                             aria-label="Supprimer ce filtre"
                             title="Supprimer ce filtre"
@@ -781,7 +1005,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 {/* + Ajouter un filtre */}
                 <button
                   type="button"
-                  onClick={() => setTopoSearchRows(prev => [...prev, { id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }])}
+                  onClick={() => setTopoSearchRows(prev => [...prev, newTopoSearchRow()])}
                   className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border text-[11px] font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
                 >
                   <Plus size={12} />
