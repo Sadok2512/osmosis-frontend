@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
+import { topoApi } from '@/lib/localDb';
+import { ProgressiveFilterBuilder, type DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
 
 // ── Types ──
 export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter' | 'coverage';
@@ -33,7 +35,11 @@ export interface ViewConfig {
   dateFrom?: string;
   dateTo?: string;
   // Topology Search
-  topoFilters?: Record<string, string>;
+  /** Topology Search filters — adopts the 46-dim cascading picker.
+   *  Legacy 8 keys (dor/vendor/plaque/techno/bande/zone_arcep/saisonnier/cluster)
+   *  go top-level; everything else lands in `dim_filters`. Keys map to
+   *  public.dimension_definitions.code. */
+  topoFilters?: DashboardSiteFilters;
   // Parameter
   paramFilters?: Record<string, string>;
   // Coverage Prediction
@@ -54,16 +60,8 @@ const DEFAULT_THRESHOLDS: KpiThreshold[] = [
   { min: 50, max: 100, color: '#22c55e' },
 ];
 
-const TOPO_FILTER_KEYS = [
-  { key: 'pci', label: 'PCI' },
-  { key: 'eci', label: 'ECI' },
-  { key: 'tac', label: 'TAC' },
-  { key: 'earfcn', label: 'EARFCN' },
-  { key: 'nrarfcn', label: 'NRARFCN' },
-  { key: 'code_nidt', label: 'Code NIDT' },
-  { key: 'nom_site', label: 'Nom Site' },
-  { key: 'nom_cellule', label: 'Nom Cellule' },
-];
+// TOPO_FILTER_KEYS removed 2026-05-07 — Topology Search now uses
+// ProgressiveFilterBuilder over the 46-dim catalog (see step-2 block below).
 
 const PARAM_FILTER_KEYS = [
   { key: 'parameter', label: 'Paramètre' },
@@ -88,9 +86,17 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
   const [selectedKpis, setSelectedKpis] = useState<KpiOverlayItem[]>([]);
   const [kpiSearch, setKpiSearch] = useState('');
 
-  // Topology Search state
-  const [topoFilters, setTopoFilters] = useState<Record<string, string>>({});
-  const [activeTopoKeys, setActiveTopoKeys] = useState<string[]>(['pci']);
+  // Topology Search state — 46-dim cascading picker (multi-value chips with cascade context).
+  const [topoFilters, setTopoFilters] = useState<DashboardSiteFilters>({});
+  const [topoCatalog, setTopoCatalog] = useState<{ id: string; label: string; values: string[]; category?: string; rat?: string }[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    topoApi.filterCatalog()
+      .then(d => { if (!cancelled) setTopoCatalog(d.filters || []); })
+      .catch(err => console.warn('[CreateViewModal] filterCatalog failed', err));
+    return () => { cancelled = true; };
+  }, [open]);
 
   // KPI date range
   const [kpiDateFrom, setKpiDateFrom] = useState(() => {
@@ -140,7 +146,6 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       setSelectedKpis([]);
       setKpiSearch('');
       setTopoFilters({});
-      setActiveTopoKeys(['pci']);
       setParamFilters({});
       setActiveParamKeys(['parameter']);
       setCoverageBand('');
@@ -208,9 +213,22 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
   const [coverageBand, setCoverageBand] = useState<string>('');
 
+  const topoFilterCount = useMemo(() => {
+    let n = 0;
+    for (const [k, v] of Object.entries(topoFilters)) {
+      if (k === 'dim_filters') {
+        const bag = v as Record<string, string[]> | undefined;
+        if (bag) for (const arr of Object.values(bag)) if (Array.isArray(arr) && arr.length > 0) n++;
+        continue;
+      }
+      if (Array.isArray(v) && v.length > 0) n++;
+    }
+    return n;
+  }, [topoFilters]);
+
   const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
-    (viewType === 'topology_search' && Object.values(topoFilters).some(v => v.trim())) ||
+    (viewType === 'topology_search' && topoFilterCount > 0) ||
     (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim())) ||
     (viewType === 'coverage' && Boolean(coverageBand))
   );
@@ -225,9 +243,23 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       config.dateFrom = kpiDateFrom;
       config.dateTo = kpiDateTo;
     } else if (viewType === 'topology_search') {
-      config.topoFilters = Object.fromEntries(
-        Object.entries(topoFilters).filter(([, v]) => v.trim())
-      );
+      // Strip empty arrays + empty dim_filters bag entries
+      const clean: DashboardSiteFilters = {};
+      for (const [k, v] of Object.entries(topoFilters)) {
+        if (k === 'dim_filters') {
+          const bag = v as Record<string, string[]> | undefined;
+          if (bag) {
+            const cleanedBag: Record<string, string[]> = {};
+            for (const [code, vals] of Object.entries(bag)) {
+              if (Array.isArray(vals) && vals.length > 0) cleanedBag[code] = vals;
+            }
+            if (Object.keys(cleanedBag).length) clean.dim_filters = cleanedBag;
+          }
+          continue;
+        }
+        if (Array.isArray(v) && v.length > 0) (clean as any)[k] = v;
+      }
+      config.topoFilters = clean;
     } else if (viewType === 'parameter') {
       config.paramFilters = Object.fromEntries(
         Object.entries(paramFilters).filter(([, v]) => v.trim())
@@ -602,7 +634,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
                     <Search size={16} className="text-primary" /> Topology Search
                   </h2>
-                  <p className="text-[10px] text-muted-foreground">Recherchez des éléments spécifiques dans la topologie</p>
+                  <p className="text-[10px] text-muted-foreground">Recherchez des éléments spécifiques dans la topologie (46 dimensions cascading)</p>
                 </div>
               </div>
 
@@ -617,53 +649,24 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 />
               </div>
 
-              {/* Topo filters */}
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Filtres topologiques</label>
-                <div className="space-y-2">
-                  {activeTopoKeys.map(key => {
-                    const def = TOPO_FILTER_KEYS.find(t => t.key === key);
-                    return (
-                      <div key={key} className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-foreground w-24 shrink-0">{def?.label || key}</span>
-                        <Input
-                          value={topoFilters[key] || ''}
-                          onChange={e => setTopoFilters(prev => ({ ...prev, [key]: e.target.value }))}
-                          placeholder={`Valeur ${def?.label || key}...`}
-                          className="text-xs h-8 flex-1"
-                        />
-                        <button
-                          onClick={() => {
-                            setActiveTopoKeys(prev => prev.filter(k => k !== key));
-                            setTopoFilters(prev => { const n = { ...prev }; delete n[key]; return n; });
-                          }}
-                          className="p-1 hover:text-destructive text-muted-foreground"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    );
-                  })}
+              {/* 46-dim cascading topology filter picker. Catalog from
+                  /api/v1/topo/catalog/filters; per-chip values lazy-loaded
+                  via /api/v1/topo/filters/values?dimension=&context= so
+                  picking CONSTRUCTEUR=NOKIA narrows the BANDE chip to the
+                  Nokia-only band set, etc. Replaces the previous
+                  hardcoded 8-key Input grid (PCI/ECI/TAC/EARFCN/...). */}
+              {topoCatalog.length === 0 ? (
+                <div className="flex items-center gap-2 px-3 py-4 rounded-lg border border-dashed border-border bg-muted/10">
+                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Chargement du catalogue de dimensions…</span>
                 </div>
-
-                {/* Add filter */}
-                {TOPO_FILTER_KEYS.filter(t => !activeTopoKeys.includes(t.key)).length > 0 && (
-                  <Select
-                    onValueChange={key => setActiveTopoKeys(prev => [...prev, key])}
-                  >
-                    <SelectTrigger className="text-xs h-8 mt-2 w-48">
-                      <SelectValue placeholder="+ Ajouter un filtre" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {TOPO_FILTER_KEYS
-                        .filter(t => !activeTopoKeys.includes(t.key))
-                        .map(t => (
-                          <SelectItem key={t.key} value={t.key}>{t.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+              ) : (
+                <ProgressiveFilterBuilder
+                  dimensions={topoCatalog}
+                  filters={topoFilters}
+                  onChange={setTopoFilters}
+                />
+              )}
 
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t border-border">

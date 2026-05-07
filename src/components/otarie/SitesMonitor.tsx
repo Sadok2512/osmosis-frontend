@@ -2857,18 +2857,26 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         // Also set kpiOverlays for backward compat
         settings.kpiOverlays = (config.kpis || []).map(k => k.kpiKey);
       } else if (config.type === 'topology_search') {
-        // Convert topo filters to viewConditions
-        const conditions: ViewFilterCondition[] = Object.entries(config.topoFilters || {})
-          .filter(([, v]) => v.trim())
-          .map(([dim, val]) => ({
-            id: crypto.randomUUID(),
-            dimension: dim,
-            operator: '=' as const,
-            values: [val],
-          }));
-        settings.viewConditions = conditions;
-        settings.siteFilters = conditionsToSiteFilters(conditions);
-        settings.topoSearchConfig = config.topoFilters;
+        // 46-dim cascading picker output is a DashboardSiteFilters bag:
+        // legacy 8 keys are top-level arrays, everything else is in dim_filters.
+        // Flatten into a single Record<string, string[]> so siteFiltersToConditions
+        // emits one ViewFilterCondition per dim regardless of which bucket.
+        const tf = (config.topoFilters || {}) as DashboardSiteFilters;
+        const flat: Record<string, string[]> = {};
+        for (const [k, v] of Object.entries(tf)) {
+          if (k === 'dim_filters') continue;
+          if (Array.isArray(v) && v.length > 0) flat[k] = v as string[];
+        }
+        if (tf.dim_filters) {
+          for (const [code, vals] of Object.entries(tf.dim_filters)) {
+            if (Array.isArray(vals) && vals.length > 0) flat[code] = vals;
+          }
+        }
+        settings.viewConditions = siteFiltersToConditions(flat);
+        // Persist the DashboardSiteFilters shape directly so the dim_filters
+        // bag survives a save/reload cycle for downstream /topo/sites?dim_filters=…
+        settings.siteFilters = tf;
+        settings.topoSearchConfig = tf;
       } else if (config.type === 'parameter') {
         settings.paramFilters = Object.fromEntries(
           Object.entries(config.paramFilters || {}).filter(([, v]) => String(v || '').trim())
