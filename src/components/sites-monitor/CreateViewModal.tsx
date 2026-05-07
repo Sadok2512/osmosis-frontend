@@ -291,6 +291,110 @@ const TopoRowValueInput: React.FC<{
   );
 };
 
+/** Searchable single-select for the Topology Search row's dim chooser.
+ *  shadcn's <Select> doesn't have a built-in search box, and 46 dims is
+ *  enough that scrolling becomes friction — this gives the user the
+ *  same "Rechercher…" affordance as the value multiselect below. */
+const DimFieldSelect: React.FC<{
+  value: string;
+  options: { id: string; label: string; category?: string }[];
+  onChange: (id: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  hasError?: boolean;
+}> = ({ value, options, onChange, disabled, placeholder, hasError }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return options;
+    const q = search.toLowerCase();
+    return options.filter(o =>
+      o.label.toLowerCase().includes(q) ||
+      o.id.toLowerCase().includes(q) ||
+      (o.category || '').toLowerCase().includes(q)
+    );
+  }, [options, search]);
+
+  const selected = options.find(o => o.id === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center justify-between gap-2 px-3 h-8 rounded-md border bg-background text-left transition-all ${
+          open ? 'border-primary ring-2 ring-primary/15' : hasError ? 'border-destructive' : selected ? 'border-primary/40' : 'border-input'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      >
+        <span className={`flex-1 truncate text-xs ${selected ? 'text-foreground' : 'text-muted-foreground/70'}`}>
+          {selected ? (
+            <>
+              <span className="font-semibold">{selected.label}</span>
+              {selected.category && <span className="ml-2 text-[9px] text-muted-foreground/60">{selected.category}</span>}
+            </>
+          ) : (placeholder || 'Sélectionner un filtre')}
+        </span>
+        <ChevronDown size={12} className={`text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && !disabled && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-[200] bg-popover rounded-lg border border-border shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="px-2 pt-2 pb-1.5">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
+              <Search size={11} className="text-muted-foreground shrink-0" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher un filtre…"
+                className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="max-h-[260px] overflow-y-auto py-0.5">
+            {filtered.length === 0 ? (
+              <p className="text-[9px] text-muted-foreground/60 text-center py-3 italic">Aucun résultat</p>
+            ) : (
+              filtered.map(opt => {
+                const isSel = opt.id === value;
+                return (
+                  <button
+                    type="button"
+                    key={opt.id}
+                    onClick={() => { onChange(opt.id); setOpen(false); setSearch(''); }}
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-[10px] transition-colors ${
+                      isSel ? 'bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}
+                  >
+                    <span className="font-semibold uppercase tracking-wider truncate">{opt.label}</span>
+                    {opt.category && (
+                      <span className="text-[9px] text-muted-foreground/60 shrink-0 normal-case">{opt.category}</span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function CreateViewModal(
   { open, onOpenChange, onSave, saving, availableKpis = [] }: Props,
   ref,
@@ -950,25 +1054,15 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                           </div>
                         )}
                         <div className="flex items-start gap-2">
-                          {/* Dim type selector */}
+                          {/* Dim type selector with built-in search */}
                           <div className="w-52 shrink-0">
-                            <Select
-                              value={row.field || undefined}
-                              onValueChange={val => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, field: val, values: [], valuesText: '' } : r))}
+                            <DimFieldSelect
+                              value={row.field}
+                              options={topoCatalog}
+                              onChange={val => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, field: val, values: [], valuesText: '' } : r))}
                               disabled={topoCatalog.length === 0}
-                            >
-                              <SelectTrigger className={`text-xs h-8 ${fieldMissing && (row.valuesText.trim() || row.values.length > 0) ? 'border-destructive' : ''}`}>
-                                <SelectValue placeholder="Sélectionner un filtre" />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-[300px]">
-                                {topoCatalog.map(d => (
-                                  <SelectItem key={d.id} value={d.id} className="text-xs">
-                                    <span className="font-semibold">{d.label}</span>
-                                    {d.category && <span className="ml-2 text-[9px] text-muted-foreground/60">{d.category}</span>}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                              hasError={fieldMissing && (row.valuesText.trim().length > 0 || row.values.length > 0)}
+                            />
                           </div>
                           {/* Lazy multiselect (preferred) with text-input fallback */}
                           <div className="flex-1 min-w-0">
