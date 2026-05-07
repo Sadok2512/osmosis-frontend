@@ -7,11 +7,30 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { topoApi } from '@/lib/localDb';
-import { ProgressiveFilterBuilder, type DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
+// ProgressiveFilterBuilder import removed 2026-05-07 — Topology Search
+// now uses the row-based builder in step 2 (per UX spec).
 
 // ── Types ──
 export type ViewType = 'kpi_overlay' | 'topology_search' | 'parameter' | 'coverage';
 export type AnalysisLevel = 'site' | 'cell' | 'band';
+
+/** Row-based Topology Search payload — matches the spec the user
+ *  defined for "Nouvelle vue → Topology Search". `field` is a code
+ *  from public.dimension_definitions (PCI, TAC_4G, CONSTRUCTEUR, …);
+ *  `operator` defaults to IN. Filters combine with `logic` between
+ *  rows. The osmosis-parser :8000 endpoint /api/v1/topo/sites accepts
+ *  this payload as the `topo_search={JSON}` query param (extension
+ *  added 2026-05-07). */
+export type TopoSearchOperator = 'IN' | 'NOT_IN' | '=' | '!=';
+export interface TopoSearchFilter {
+  field: string;
+  operator: TopoSearchOperator;
+  values: string[];
+}
+export interface TopoSearchPayload {
+  logic: 'OR' | 'AND';
+  filters: TopoSearchFilter[];
+}
 
 export interface KpiThreshold {
   min: number;
@@ -35,11 +54,11 @@ export interface ViewConfig {
   dateFrom?: string;
   dateTo?: string;
   // Topology Search
-  /** Topology Search filters — adopts the 46-dim cascading picker.
-   *  Legacy 8 keys (dor/vendor/plaque/techno/bande/zone_arcep/saisonnier/cluster)
-   *  go top-level; everything else lands in `dim_filters`. Keys map to
-   *  public.dimension_definitions.code. */
-  topoFilters?: DashboardSiteFilters;
+  /** Topology Search row-builder payload (replaces the previous
+   *  ProgressiveFilterBuilder DashboardSiteFilters shape on 2026-05-07
+   *  per UX spec — multi-value comma-separated input, OR/AND logic
+   *  between rows). */
+  topoSearch?: TopoSearchPayload;
   // Parameter
   paramFilters?: Record<string, string>;
   // Coverage Prediction
@@ -86,8 +105,17 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
   const [selectedKpis, setSelectedKpis] = useState<KpiOverlayItem[]>([]);
   const [kpiSearch, setKpiSearch] = useState('');
 
-  // Topology Search state — 46-dim cascading picker (multi-value chips with cascade context).
-  const [topoFilters, setTopoFilters] = useState<DashboardSiteFilters>({});
+  // Topology Search state — row-based builder per 2026-05-07 spec.
+  // Each row carries the dim code (`field`), an operator (default IN),
+  // and a free-text value field that the user fills with comma-separated
+  // values (parsed at save time into a string[]). Logic between rows is
+  // user-toggleable OR/AND — defaults to OR per spec ("at least one of
+  // the filters matches").
+  type TopoSearchRow = { id: string; field: string; operator: TopoSearchOperator; valuesText: string };
+  const [topoSearchLogic, setTopoSearchLogic] = useState<'OR' | 'AND'>('OR');
+  const [topoSearchRows, setTopoSearchRows] = useState<TopoSearchRow[]>(() => [
+    { id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' },
+  ]);
   const [topoCatalog, setTopoCatalog] = useState<{ id: string; label: string; values: string[]; category?: string; rat?: string }[]>([]);
   useEffect(() => {
     if (!open) return;
@@ -97,6 +125,11 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       .catch(err => console.warn('[CreateViewModal] filterCatalog failed', err));
     return () => { cancelled = true; };
   }, [open]);
+
+  // Parse a row's free-text value field into a clean string[] — split on
+  // commas, trim each entry, drop empties. "150, 200, 320" → ["150","200","320"].
+  const parseValuesText = (text: string): string[] =>
+    text.split(',').map(s => s.trim()).filter(Boolean);
 
   // KPI date range
   const [kpiDateFrom, setKpiDateFrom] = useState(() => {
@@ -145,7 +178,8 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       setLevel('cell');
       setSelectedKpis([]);
       setKpiSearch('');
-      setTopoFilters({});
+      setTopoSearchLogic('OR');
+      setTopoSearchRows([{ id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }]);
       setParamFilters({});
       setActiveParamKeys(['parameter']);
       setCoverageBand('');
@@ -213,22 +247,24 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
 
   const [coverageBand, setCoverageBand] = useState<string>('');
 
-  const topoFilterCount = useMemo(() => {
-    let n = 0;
-    for (const [k, v] of Object.entries(topoFilters)) {
-      if (k === 'dim_filters') {
-        const bag = v as Record<string, string[]> | undefined;
-        if (bag) for (const arr of Object.values(bag)) if (Array.isArray(arr) && arr.length > 0) n++;
-        continue;
-      }
-      if (Array.isArray(v) && v.length > 0) n++;
+  // Validation per spec: "Empêcher la création si un filtre n'a pas de
+  // type ou pas de valeur." Every non-empty row must have BOTH a field
+  // AND at least one parsed value. Rows that are entirely blank
+  // (default initial state) don't block validation — but if the user
+  // started filling one, they must complete it.
+  const topoSearchValid = useMemo(() => {
+    const filledRows = topoSearchRows.filter(r => r.field.trim() || r.valuesText.trim());
+    if (filledRows.length === 0) return false;
+    for (const r of filledRows) {
+      if (!r.field.trim()) return false;
+      if (parseValuesText(r.valuesText).length === 0) return false;
     }
-    return n;
-  }, [topoFilters]);
+    return true;
+  }, [topoSearchRows]);
 
   const isValid = (
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
-    (viewType === 'topology_search' && topoFilterCount > 0) ||
+    (viewType === 'topology_search' && topoSearchValid) ||
     (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim())) ||
     (viewType === 'coverage' && Boolean(coverageBand))
   );
@@ -243,23 +279,19 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       config.dateFrom = kpiDateFrom;
       config.dateTo = kpiDateTo;
     } else if (viewType === 'topology_search') {
-      // Strip empty arrays + empty dim_filters bag entries
-      const clean: DashboardSiteFilters = {};
-      for (const [k, v] of Object.entries(topoFilters)) {
-        if (k === 'dim_filters') {
-          const bag = v as Record<string, string[]> | undefined;
-          if (bag) {
-            const cleanedBag: Record<string, string[]> = {};
-            for (const [code, vals] of Object.entries(bag)) {
-              if (Array.isArray(vals) && vals.length > 0) cleanedBag[code] = vals;
-            }
-            if (Object.keys(cleanedBag).length) clean.dim_filters = cleanedBag;
-          }
-          continue;
-        }
-        if (Array.isArray(v) && v.length > 0) (clean as any)[k] = v;
+      // Build TopoSearchPayload from the rows: keep only complete rows
+      // (field + ≥1 parsed value), drop blanks, normalize spacing.
+      const filters: TopoSearchFilter[] = [];
+      for (const r of topoSearchRows) {
+        const field = r.field.trim();
+        if (!field) continue;
+        const values = parseValuesText(r.valuesText);
+        if (values.length === 0) continue;
+        filters.push({ field, operator: r.operator, values });
       }
-      config.topoFilters = clean;
+      if (filters.length > 0) {
+        config.topoSearch = { logic: topoSearchLogic, filters };
+      }
     } else if (viewType === 'parameter') {
       config.paramFilters = Object.fromEntries(
         Object.entries(paramFilters).filter(([, v]) => v.trim())
@@ -634,7 +666,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
                     <Search size={16} className="text-primary" /> Topology Search
                   </h2>
-                  <p className="text-[10px] text-muted-foreground">Recherchez des éléments spécifiques dans la topologie (46 dimensions cascading)</p>
+                  <p className="text-[10px] text-muted-foreground">Recherchez des éléments correspondant à au moins un des filtres (OU) ou à tous (ET).</p>
                 </div>
               </div>
 
@@ -649,31 +681,120 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 />
               </div>
 
-              {/* 46-dim cascading topology filter picker. Catalog from
-                  /api/v1/topo/catalog/filters; per-chip values lazy-loaded
-                  via /api/v1/topo/filters/values?dimension=&context= so
-                  picking CONSTRUCTEUR=NOKIA narrows the BANDE chip to the
-                  Nokia-only band set, etc. Replaces the previous
-                  hardcoded 8-key Input grid (PCI/ECI/TAC/EARFCN/...). */}
-              {topoCatalog.length === 0 ? (
-                <div className="flex items-center gap-2 px-3 py-4 rounded-lg border border-dashed border-border bg-muted/10">
-                  <Loader2 size={14} className="animate-spin text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">Chargement du catalogue de dimensions…</span>
+              {/* Logic toggle (OR is the spec default — "OU/OR"). */}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Logique entre filtres</label>
+                <div className="inline-flex rounded-lg border border-border bg-muted/30 p-0.5">
+                  {(['OR', 'AND'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setTopoSearchLogic(opt)}
+                      className={`px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                        topoSearchLogic === opt ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {opt === 'OR' ? 'OU / OR' : 'ET / AND'}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <ProgressiveFilterBuilder
-                  dimensions={topoCatalog}
-                  filters={topoFilters}
-                  onChange={setTopoFilters}
-                />
-              )}
+              </div>
+
+              {/* Filters block: rows of [dim dropdown] [comma-separated values] [×]. */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Filtres topologiques</label>
+                  {topoCatalog.length === 0 && (
+                    <span className="flex items-center gap-1 text-[9px] text-muted-foreground/70">
+                      <Loader2 size={10} className="animate-spin" /> Chargement…
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {topoSearchRows.map((row, idx) => {
+                    const parsedCount = parseValuesText(row.valuesText).length;
+                    const fieldMissing = !row.field.trim();
+                    const valuesMissing = !!row.field.trim() && parsedCount === 0;
+                    return (
+                      <React.Fragment key={row.id}>
+                        {idx > 0 && (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-px bg-border" />
+                            <span className="text-[9px] font-bold text-primary/70 uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/5 border border-primary/20">
+                              {topoSearchLogic === 'OR' ? 'OU / OR' : 'ET / AND'}
+                            </span>
+                            <div className="flex-1 h-px bg-border" />
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2">
+                          {/* Dim type selector */}
+                          <div className="w-44 shrink-0">
+                            <Select
+                              value={row.field || undefined}
+                              onValueChange={val => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, field: val } : r))}
+                              disabled={topoCatalog.length === 0}
+                            >
+                              <SelectTrigger className={`text-xs h-8 ${fieldMissing && row.valuesText.trim() ? 'border-destructive' : ''}`}>
+                                <SelectValue placeholder="Sélectionner un filtre" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[300px]">
+                                {topoCatalog.map(d => (
+                                  <SelectItem key={d.id} value={d.id} className="text-xs">
+                                    <span className="font-semibold">{d.label}</span>
+                                    {d.category && <span className="ml-2 text-[9px] text-muted-foreground/60">{d.category}</span>}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          {/* Comma-separated value input */}
+                          <div className="flex-1">
+                            <Input
+                              value={row.valuesText}
+                              onChange={e => setTopoSearchRows(prev => prev.map(r => r.id === row.id ? { ...r, valuesText: e.target.value } : r))}
+                              placeholder="Valeur… (séparées par virgules : 150, 200, 320)"
+                              className={`text-xs h-8 ${valuesMissing ? 'border-destructive' : ''}`}
+                            />
+                            {parsedCount > 0 && (
+                              <span className="text-[9px] text-muted-foreground/60 mt-0.5 block">
+                                {parsedCount} valeur{parsedCount > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                          {/* Delete row */}
+                          <button
+                            type="button"
+                            onClick={() => setTopoSearchRows(prev => prev.length === 1 ? [{ id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }] : prev.filter(r => r.id !== row.id))}
+                            className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors h-8 shrink-0"
+                            aria-label="Supprimer ce filtre"
+                            title="Supprimer ce filtre"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
+                </div>
+
+                {/* + Ajouter un filtre */}
+                <button
+                  type="button"
+                  onClick={() => setTopoSearchRows(prev => [...prev, { id: (typeof crypto !== 'undefined' ? crypto.randomUUID() : String(Math.random())), field: '', operator: 'IN', valuesText: '' }])}
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-border text-[11px] font-semibold text-muted-foreground hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+                >
+                  <Plus size={12} />
+                  Ajouter un filtre
+                </button>
+              </div>
 
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t border-border">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">
                   <ChevronLeft size={14} className="mr-1" /> Retour
                 </Button>
-                <Button onClick={handleSave} disabled={!isValid || saving} className="flex-1">
+                <Button onClick={handleSave} disabled={!isValid || !name.trim() || saving} className="flex-1">
                   {saving ? 'Création...' : 'Créer la vue'}
                 </Button>
               </div>

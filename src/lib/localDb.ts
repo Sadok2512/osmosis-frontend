@@ -324,6 +324,14 @@ export interface BboxFilters {
   /** 46-dim cascading bag, keyed by `dimension_definitions.code`. Sent
    *  as `dim_filters={JSON}` to /topo/sites (backend extension 2026-05-07). */
   dim_filters?: Record<string, string[]>;
+  /** Row-based Topology Search payload from "Nouvelle vue → Topology
+   *  Search". Sent as `topo_search={JSON}` to /topo/sites; honors the
+   *  user-selected OR/AND logic between filters (backend extension
+   *  2026-05-07). */
+  topo_search?: {
+    logic: 'OR' | 'AND';
+    filters: { field: string; operator: 'IN' | 'NOT_IN' | '=' | '!='; values: string[] }[];
+  };
 }
 
 function flattenTopoFieldValues(value: unknown): string[] {
@@ -759,9 +767,9 @@ export const topoApi = {
     bboxQs.set('bbox', `${bbox.minLng},${bbox.minLat},${bbox.maxLng},${bbox.maxLat}`);
     bboxQs.set('limit', String(limit));
     if (filters) {
-      // dim_filters is the 46-dim bag — serialize to JSON (the generic loop
-      // below would coerce the object to "[object Object]").
-      const { dim_filters, ...rest } = filters;
+      // dim_filters / topo_search are JSON objects — serialize separately
+      // (the generic loop below would coerce them to "[object Object]").
+      const { dim_filters, topo_search, ...rest } = filters;
       Object.entries(rest).forEach(([k, v]) => {
         if (v && v !== 'ALL') bboxQs.set(k, v as string);
       });
@@ -771,6 +779,9 @@ export const topoApi = {
           if (Array.isArray(vals) && vals.length > 0) cleaned[code] = vals;
         }
         if (Object.keys(cleaned).length) bboxQs.set('dim_filters', JSON.stringify(cleaned));
+      }
+      if (topo_search && Array.isArray(topo_search.filters) && topo_search.filters.length > 0) {
+        bboxQs.set('topo_search', JSON.stringify(topo_search));
       }
     }
 

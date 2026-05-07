@@ -1127,6 +1127,11 @@ export async function fetchDashboardSites(
   if (siteFilters?.dim_filters && Object.keys(siteFilters.dim_filters).length > 0) {
     bboxFilters.dim_filters = siteFilters.dim_filters;
   }
+  // Row-based Topology Search payload (OR/AND between filters). Goes to
+  // /topo/sites?topo_search={JSON}. ANDs with dim_filters when both set.
+  if (siteFilters?.topo_search && Array.isArray(siteFilters.topo_search.filters) && siteFilters.topo_search.filters.length > 0) {
+    bboxFilters.topo_search = siteFilters.topo_search;
+  }
   if (search) bboxFilters.q = search;
 
   // 1) Try VPS — progressive: show sites immediately, then enrich with QoE

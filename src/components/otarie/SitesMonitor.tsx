@@ -2369,6 +2369,14 @@ export interface DashboardSiteFilters {
    *  CONSTRUCTEUR, BANDE, NCI_5G). Used for any dim outside the legacy 8
    *  named keys above. Sent to the backend as `?dim_filters={JSON}`. */
   dim_filters?: Record<string, string[]>;
+  /** Row-based Topology Search payload from "Nouvelle vue → Topology
+   *  Search". Logic between filters is OR (default) or AND, configurable
+   *  per-view. Sent as `?topo_search={JSON}` and combines AND with the
+   *  rest of the dashboard's narrowing filters. */
+  topo_search?: {
+    logic: 'OR' | 'AND';
+    filters: { field: string; operator: 'IN' | 'NOT_IN' | '=' | '!='; values: string[] }[];
+  };
 }
 
 const isLegacySiteFilterKey = (k: string): boolean =>
@@ -2399,6 +2407,13 @@ function mergeSiteFilters(dashboardFilters: DashboardSiteFilters | null, viewFil
       mergedBag[code] = intersect(mergedBag[code], vals);
     }
     if (Object.keys(mergedBag).length) merged.dim_filters = mergedBag;
+  }
+  // topo_search: view wins (OR semantics across two payloads is ambiguous —
+  // the more specific source of truth is the view's payload, since the
+  // dashboard usually carries narrowing filters and the view layers on
+  // a row-builder search on top).
+  if (viewFilters.topo_search && viewFilters.topo_search.filters?.length > 0) {
+    merged.topo_search = viewFilters.topo_search;
   }
   return merged;
 }
@@ -2857,26 +2872,25 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
         // Also set kpiOverlays for backward compat
         settings.kpiOverlays = (config.kpis || []).map(k => k.kpiKey);
       } else if (config.type === 'topology_search') {
-        // 46-dim cascading picker output is a DashboardSiteFilters bag:
-        // legacy 8 keys are top-level arrays, everything else is in dim_filters.
-        // Flatten into a single Record<string, string[]> so siteFiltersToConditions
-        // emits one ViewFilterCondition per dim regardless of which bucket.
-        const tf = (config.topoFilters || {}) as DashboardSiteFilters;
-        const flat: Record<string, string[]> = {};
-        for (const [k, v] of Object.entries(tf)) {
-          if (k === 'dim_filters') continue;
-          if (Array.isArray(v) && v.length > 0) flat[k] = v as string[];
+        // Row-based payload (2026-05-07 spec): { logic, filters: [{field,
+        // operator, values}] }. Persisted directly under
+        // settings.siteFilters.topo_search so it flows into
+        // /topo/sites?topo_search=… via fetchDashboardSites → BboxFilters.
+        const ts = config.topoSearch;
+        if (ts && ts.filters.length > 0) {
+          // Best-effort viewConditions for legacy consumers that read
+          // ViewFilterCondition[] (operator IN; OR-vs-AND is lost here —
+          // those consumers always intersect, which is wrong for OR-mode
+          // but better than nothing while we keep the apply path simple).
+          settings.viewConditions = ts.filters.map(f => ({
+            id: crypto.randomUUID(),
+            dimension: f.field,
+            operator: f.operator as any,
+            values: f.values,
+          }));
+          settings.siteFilters = { topo_search: ts } as DashboardSiteFilters;
+          settings.topoSearchConfig = ts;
         }
-        if (tf.dim_filters) {
-          for (const [code, vals] of Object.entries(tf.dim_filters)) {
-            if (Array.isArray(vals) && vals.length > 0) flat[code] = vals;
-          }
-        }
-        settings.viewConditions = siteFiltersToConditions(flat);
-        // Persist the DashboardSiteFilters shape directly so the dim_filters
-        // bag survives a save/reload cycle for downstream /topo/sites?dim_filters=…
-        settings.siteFilters = tf;
-        settings.topoSearchConfig = tf;
       } else if (config.type === 'parameter') {
         settings.paramFilters = Object.fromEntries(
           Object.entries(config.paramFilters || {}).filter(([, v]) => String(v || '').trim())
