@@ -458,32 +458,6 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
 
       {/* Bottom summary panels removed per user request */}
 
-        {/* Legend */}
-        <div className="col-span-2 rounded-xl bg-white/[0.03] border border-white/5 p-2.5">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5">Legend</div>
-          <ul className="text-[10px] space-y-1">
-            <LegendItem dot="●" color="#dbeafe" label="Antenna" />
-            <LegendItem dot="—" color={color} label="Main Beam" />
-            <LegendItem dot="┄" color={color} label="Beam Edge" dashed />
-            <LegendItem dot="—" color="#7aaedf" label="Terrain Profile" />
-            <LegendItem dot="■" color={mainZone.color} label="Ground Coverage" />
-            <LegendItem dot="◉" color="#22c55e" label="Main Beam Impact" />
-            <LegendItem dot="◉" color="#ef4444" label="Coverage End" />
-          </ul>
-        </div>
-
-        {/* Sector chip */}
-        <div className="col-span-2 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex flex-col">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5">Sector</div>
-          <div className="flex-1 rounded-lg flex items-center justify-center"
-            style={{ background: `radial-gradient(circle at center, ${color}33 0%, transparent 70%)` }}>
-            <SectorIndicator azimuth={azimut ?? 0} hbw={hbw} color={color} />
-          </div>
-          <div className="text-[10px] text-center mt-1 font-mono text-white/60">
-            Az {azimut ?? '—'}° · HBW {hbw}°
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
