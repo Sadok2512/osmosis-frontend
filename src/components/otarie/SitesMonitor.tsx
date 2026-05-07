@@ -3218,21 +3218,21 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                      // is opened ONLY via the Settings button (see below).
                      setExpandedDashboardId(isExpanded ? null : db.id);
                    }}
-                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isExpanded ? 'bg-primary/5' : 'hover:bg-muted/20'}`}
+                   className={`flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-colors ${isActive ? (isExpanded ? 'bg-primary/5' : '') : (isExpanded ? 'bg-muted/30' : 'hover:bg-muted/20')}`}
                   style={dbColor ? { borderLeft: `3px solid ${dbColor}` } : undefined}
                 >
                   <div className="shrink-0 p-0.5">
-                    <ChevronDown size={12} className={`transition-transform ${isExpanded ? 'text-primary' : 'text-muted-foreground -rotate-90'}`} />
+                    <ChevronDown size={12} className={`transition-transform ${isExpanded ? (isActive ? 'text-primary' : 'text-foreground') : 'text-muted-foreground -rotate-90'}`} />
                   </div>
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isExpanded && !dbColor ? 'bg-primary/15' : ''}`}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${isExpanded && !dbColor && isActive ? 'bg-primary/15' : (isExpanded && !dbColor ? 'bg-muted' : '')}`}
                     style={dbColor ? { background: dbColor + (isExpanded ? '33' : '22'), color: dbColor } : undefined}
                   >
-                    <LayoutGrid size={13} className={dbColor ? '' : (isExpanded ? 'text-primary' : 'text-primary/60')} style={dbColor ? { color: dbColor } : undefined} />
+                    <LayoutGrid size={13} className={dbColor ? '' : (isActive ? 'text-primary' : (isExpanded ? 'text-foreground' : 'text-muted-foreground'))} style={dbColor ? { color: dbColor } : undefined} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className={`text-[12px] font-bold truncate ${isExpanded ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
+                      <span className={`text-[12px] font-bold truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>{db.name}</span>
                       {isActive && (
                         <span className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[7px] font-bold uppercase">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
