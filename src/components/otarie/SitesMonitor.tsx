@@ -14527,15 +14527,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
           )}
-          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && !detailLoading && (
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <AlertTriangle size={20} className="text-muted-foreground" />
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">No site details available</p>
-                <button onClick={() => { setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }} className="text-[10px] text-primary hover:underline mt-1">Back to Global</button>
-              </div>
-            </div>
-          )}
+          {(focusMode === 'site' || focusMode === 'cell') && !siteDetail && !detailLoading && (() => {
+            // No active site → fall back to Global view automatically.
+            // If a dashboard is active, the Global view already reflects its scope.
+            setTimeout(() => { setFocusMode('global'); setSelectedSiteId(null); setSelectedSiteSnapshot(null); }, 0);
+            return null;
+          })()}
 
           {/* ========== SITE FOCUS MODE ========== */}
           {focusMode === 'site' && siteDetail && (() => {
