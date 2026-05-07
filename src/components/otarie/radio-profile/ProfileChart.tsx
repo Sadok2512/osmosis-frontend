@@ -250,7 +250,7 @@ const ProfileChart: React.FC<Props> = ({
   return (
     <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl">
       {/* Status badge */}
-      <div className="absolute top-3 right-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md"
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md"
         style={{
           background: 'rgba(15,23,42,0.7)',
           border: `1px solid ${statusColor}`,
@@ -263,10 +263,38 @@ const ProfileChart: React.FC<Props> = ({
       </div>
 
       {siteName && (
-        <div className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
+        <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
           <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}</span>
         </div>
       )}
+
+      {/* Site A info card */}
+      <div className="absolute top-12 left-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[150px]">
+        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Site A (TX)</div>
+        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
+          <div>Antenna H: <span className="text-emerald-300 font-bold">{ant.hba.toFixed(0)} m</span></div>
+          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></div>
+          <div>Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></div>
+        </div>
+      </div>
+
+      {/* Site B info card */}
+      <div className="absolute top-12 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[150px] text-right">
+        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Site B (RX)</div>
+        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
+          <div>Antenna H: <span className="text-emerald-300 font-bold">{(remoteAntenna?.hba ?? ant.rxHeight ?? 1.5).toFixed(0)} m</span></div>
+          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></div>
+          <div>Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></div>
+        </div>
+      </div>
+
+      {/* Link summary (bottom-left) */}
+      <div className="absolute bottom-9 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
+        <div><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></div>
+        {fresnel && showFresnel && fresnel.minClearancePercent !== undefined && (
+          <div><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.round(fresnel.minClearancePercent)}%</span></div>
+        )}
+      </div>
 
       <svg
         ref={svgRef}
