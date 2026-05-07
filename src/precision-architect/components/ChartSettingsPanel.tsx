@@ -455,6 +455,8 @@ function DataSourceTab({
           filtersLoading={filtersLoading}
           onApply={onApply}
           isStat={isStat}
+          filterCategoriesMap={filterCategoriesMap}
+          filterRatsMap={filterRatsMap}
         />
       )}
     </div>
