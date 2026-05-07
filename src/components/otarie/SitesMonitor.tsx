@@ -5336,6 +5336,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
   const [dashboardFitKey, setDashboardFitKey] = useState(0);
   const initialFitDoneRef = useRef(false);
+  // When user deactivates a dashboard we keep the current map view (no recenter).
+  const skipNextNoDashFitRef = useRef(false);
   // activeDashboardId already declared above for tab persistence
   // Auto-fit map to sites on initial load (no dashboard active) so user lands on the data
   useEffect(() => {
@@ -6443,7 +6445,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               setSites(allSites);
               setBboxTotal(allSites.length);
               setLoading(false);
-              setDashboardFitKey(k => k + 1);
+              if (skipNextNoDashFitRef.current) {
+                skipNextNoDashFitRef.current = false;
+              } else {
+                setDashboardFitKey(k => k + 1);
+              }
               return;
             }
             // Fallback: dashboard loader with null filters
@@ -6455,7 +6461,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 setLoading(false);
                 if (!firstNoDashFitDone) {
                   firstNoDashFitDone = true;
-                  setDashboardFitKey(k => k + 1);
+                  if (skipNextNoDashFitRef.current) {
+                    skipNextNoDashFitRef.current = false;
+                  } else {
+                    setDashboardFitKey(k => k + 1);
+                  }
                 }
               }
             });
@@ -13761,11 +13771,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     // Reset active view on dashboard switch
                     setActiveViewId(null);
                     if (!active) {
-                      // Keep the map populated after deactivating a dashboard:
-                      // switch to "no dashboard" mode so global sites keep loading
-                      // instead of clearing the map.
-                      setNoDashboardMode(true);
-                      setActiveDashboardId(null);
+                       // Keep the map populated after deactivating a dashboard:
+                       // switch to "no dashboard" mode so global sites keep loading
+                       // instead of clearing the map. Preserve current map view —
+                       // do not recenter / fitBounds when deactivating.
+                       skipNextNoDashFitRef.current = true;
+                       initialFitDoneRef.current = true;
+                       setNoDashboardMode(true);
+                       setActiveDashboardId(null);
                     } else if (siteFilters && Object.keys(siteFilters).length > 0) {
                       // Apply multi-filters from dashboard
                       if (siteFilters.dor?.length === 1) setLocalDor(siteFilters.dor[0]);
