@@ -17,26 +17,44 @@ export const getZoomAwareRadius = (
   densityFactor: number = 1,
   viewportWidth: number = 1400,
 ): number => {
-  // PRO: max sector kept tight to avoid carpet effect in dense urban zones
+  // Adaptive target pixel size — capped at high zoom to avoid carpet/oversize effect.
+  // At high zoom (>=16) we shrink target px so sectors stop growing visually and
+  // switch to a tighter "engineering" rendering mode.
   let targetPx: number;
   if (zoom <= 9) targetPx = 7;
   else if (zoom <= 11) targetPx = 10;
   else if (zoom <= 12) targetPx = 12;
   else if (zoom <= 13) targetPx = 13;
   else if (zoom <= 14) targetPx = 18;
-  else targetPx = 22;
+  else if (zoom <= 15) targetPx = 22;
+  else if (zoom <= 16) targetPx = 20; // start tightening
+  else if (zoom <= 17) targetPx = 17; // compact
+  else if (zoom <= 18) targetPx = 14; // engineering precision mode
+  else targetPx = 12;                 // very high zoom — tight directional arcs
 
   // Dynamic viewport scaling — smaller screens get proportionally smaller beams
   const vpScale = Math.max(0.55, Math.min(1.0, viewportWidth / 1600));
   targetPx *= vpScale;
 
   // Density shrinking — softer floor so beams stay visible in dense urban zones.
-  // densityFactor 0..1 (0 = very dense). Floor raised from 0.30 → 0.55 to keep beams readable.
   const densityScale = 0.55 + 0.45 * Math.max(0, Math.min(1, densityFactor));
   targetPx *= densityScale;
 
   const mpp = metersPerPixel(lat, zoom);
-  return Math.max(20, Math.min(420, targetPx * mpp));
+
+  // Hard cap on absolute radius (meters) — decreases at high zoom so polygons
+  // never expand into a screen-covering blob.
+  let maxRadiusMeters = 420;
+  if (zoom >= 18) maxRadiusMeters = 90;
+  else if (zoom >= 17) maxRadiusMeters = 140;
+  else if (zoom >= 16) maxRadiusMeters = 200;
+  else if (zoom >= 15) maxRadiusMeters = 280;
+
+  // Floor in meters — relaxed at high zoom so the 20 m min doesn't inflate
+  // sectors past the targetPx ceiling.
+  const minRadiusMeters = zoom >= 16 ? 8 : zoom >= 15 ? 12 : 20;
+
+  return Math.max(minRadiusMeters, Math.min(maxRadiusMeters, targetPx * mpp));
 };
 
 /**
@@ -48,7 +66,17 @@ export const getTaggedRadius = (zoom: number): number => {
   const MAX_RADIUS = 5000;
   const REF_ZOOM = 12;
   const scale = Math.pow(2, REF_ZOOM - zoom);
-  return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+  const raw = BASE * scale;
+  // At high zoom, cap the tagged ring so it stays visually prominent but not
+  // screen-covering. This keeps tagged identification clear without making the
+  // overlay dominate the map.
+  let highZoomCap = MAX_RADIUS;
+  if (zoom >= 18) highZoomCap = 120;
+  else if (zoom >= 17) highZoomCap = 180;
+  else if (zoom >= 16) highZoomCap = 260;
+  else if (zoom >= 15) highZoomCap = 380;
+  return Math.max(MIN_RADIUS * (zoom >= 15 ? 0 : 1) + (zoom >= 15 ? 60 : 0),
+    Math.min(highZoomCap, Math.min(MAX_RADIUS, raw)));
 };
 
 /** Compute density factor from visible site count — aggressive shrink in dense zones */
