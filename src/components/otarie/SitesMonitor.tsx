@@ -2230,14 +2230,30 @@ const CreateFilterDropdown: React.FC<{
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    const update = () => {
+      const r = btnRef.current?.getBoundingClientRect();
+      if (r) setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    };
+    update();
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) { setOpen(false); setSearch(''); }
+      const t = e.target as Node;
+      if (ref.current?.contains(t)) return;
+      if (btnRef.current?.contains(t)) return;
+      setOpen(false); setSearch('');
     };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
+    };
   }, [open]);
 
   const filtered = useMemo(() => {
@@ -2250,9 +2266,6 @@ const CreateFilterDropdown: React.FC<{
     onChange(selected.includes(val) ? selected.filter(v => v !== val) : [...selected, val]);
   };
 
-  // Empty list — render a disabled placeholder rather than vanishing the
-  // chip body. Without this, lazy-loaded dims showed nothing while values
-  // were in flight, making the chip look broken.
   if (values.length === 0) {
     return (
       <div className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-dashed border-border bg-muted/10 text-left">
@@ -2264,8 +2277,9 @@ const CreateFilterDropdown: React.FC<{
   }
 
   return (
-    <div ref={ref} className="relative">
+    <div className="relative">
       <button
+        ref={btnRef}
         onClick={() => setOpen(!open)}
         className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-left transition-all ${
           open
@@ -2276,7 +2290,7 @@ const CreateFilterDropdown: React.FC<{
         }`}
       >
         <div className="flex-1 min-w-0">
-          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">{label}</span>
+          {label && <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">{label}</span>}
           {selected.length === 0 ? (
             <span className="text-[10px] text-muted-foreground/60">Tout</span>
           ) : selected.length <= 2 ? (
@@ -2295,8 +2309,12 @@ const CreateFilterDropdown: React.FC<{
         </div>
       </button>
 
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-[200] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden">
+      {open && pos && createPortal(
+        <div
+          ref={ref}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+          className="z-[9999] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden"
+        >
           {values.length > 5 && (
             <div className="px-2.5 pt-2 pb-1">
               <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-muted/50 border border-border">
@@ -2316,7 +2334,7 @@ const CreateFilterDropdown: React.FC<{
             <span className="text-muted-foreground/40">·</span>
             <button onClick={() => onChange([])} className="text-[9px] font-semibold text-destructive hover:underline">Effacer</button>
           </div>
-          <div className="max-h-[180px] overflow-y-auto py-0.5">
+          <div className="max-h-[240px] overflow-y-auto py-0.5">
             {filtered.length === 0 ? (
               <p className="text-[9px] text-muted-foreground/50 text-center py-3 italic">Aucun résultat</p>
             ) : (
@@ -2341,7 +2359,8 @@ const CreateFilterDropdown: React.FC<{
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
