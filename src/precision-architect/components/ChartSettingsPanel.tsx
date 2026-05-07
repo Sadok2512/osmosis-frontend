@@ -350,6 +350,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 filtersLoading={filtersLoading}
                 onApply={() => commitAppliedConfig(false)}
                 isStat={widget.kind === 'stat'}
+                filterCategoriesMap={filterCategoriesMap}
+                filterRatsMap={filterRatsMap}
               />
             )}
             {tab === 'appearance' && (
@@ -382,6 +384,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 function DataSourceTab({
   config, patchData, addMetric, addMetricsFromKeys, addCountersFromKeys, updateMetric, removeMetric, title, onTitleChange,
   kpiOptions, kpisLoading, kpiCatalogForSelector, counterCatalog, dimensionOptions, filtersLoading, onApply, isStat,
+  filterCategoriesMap, filterRatsMap,
 }: {
   config: ChartWidgetConfig;
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -400,6 +403,8 @@ function DataSourceTab({
   filtersLoading: boolean;
   onApply: () => void;
   isStat?: boolean;
+  filterCategoriesMap: Record<string, string>;
+  filterRatsMap: Record<string, string>;
 }) {
   const [sub, setSub] = useState<'kpi' | 'time'>('kpi');
   return (
@@ -455,6 +460,8 @@ function DataSourceTab({
           filtersLoading={filtersLoading}
           onApply={onApply}
           isStat={isStat}
+          filterCategoriesMap={filterCategoriesMap}
+          filterRatsMap={filterRatsMap}
         />
       )}
     </div>
@@ -465,6 +472,7 @@ function DataSourceTab({
 
 function DataTab({
   data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply, isStat,
+  filterCategoriesMap, filterRatsMap,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -474,6 +482,8 @@ function DataTab({
   filtersLoading: boolean;
   onApply: () => void;
   isStat?: boolean;
+  filterCategoriesMap: Record<string, string>;
+  filterRatsMap: Record<string, string>;
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
@@ -548,6 +558,8 @@ function DataTab({
               filtersLoading={filtersLoading}
               onApply={onApply}
               isStat={isStat}
+              filterCategoriesMap={filterCategoriesMap}
+              filterRatsMap={filterRatsMap}
             />
           </div>
         )}
@@ -722,6 +734,7 @@ function formatDateDisplay(iso: string): { date: string; time: string } {
 
 function TimeFiltersToolbar({
   data, patchData, dimensionOptions, filtersLoading, onApply, isStat,
+  filterCategoriesMap, filterRatsMap,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -729,6 +742,8 @@ function TimeFiltersToolbar({
   filtersLoading: boolean;
   onApply: () => void;
   isStat?: boolean;
+  filterCategoriesMap: Record<string, string>;
+  filterRatsMap: Record<string, string>;
 }) {
   const technos = data.technos ?? [];
   const filters = data.filters ?? [];

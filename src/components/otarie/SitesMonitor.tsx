@@ -7506,7 +7506,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     const projectSiteCells = (s: SiteSummary): SiteSummary | null => {
       if (!dashBands && !dashTechs) return s;
-      if (!s.cells?.length) return null;
+      // When cells aren't loaded yet, keep the site (cell-level filter applies once
+      // background fetch completes). Without this pass-through, a freshly bbox-fetched
+      // site with cells=[] would be dropped → empty map under active dashboard scope.
+      if (!s.cells?.length) return s;
       const filtered = s.cells.filter(c => {
         if (dashBands) {
           const cb = String(c.bande || '').trim().toUpperCase();
