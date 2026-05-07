@@ -10482,29 +10482,68 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 )
               ) : (
                 (() => {
-                  // Coverage mode antenna params: pull from the first cell of
-                  // the currently-selected site if available; otherwise use
-                  // sensible defaults so the chart still draws something
-                  // useful. Phase 3 will auto-detect sector-vs-link context.
-                  const cell = siteDetail?.cells?.find(c => c.azimut != null) || siteDetail?.cells?.[0];
-                  const antennaH = Number((cell as any)?.hba ?? 30) || 30;
-                  const tilt = Number((cell as any)?.tilt ?? 0);
-                  const az = Number(cell?.azimut ?? 0);
-                  const baseAmsl = linkProfileAnalysis?.effectiveTerrain?.[0] ?? 0;
+                  // Coverage mode: each antenna covers the ground around its OWN
+                  // site. We render Site A from the currently-selected site, and,
+                  // when the link references a second site, we resolve it from
+                  // the loaded sites list and render its independent ground
+                  // coverage. We deliberately do NOT pass any link line / LOS /
+                  // Fresnel between the two — Coverage Profile is antenna-to-
+                  // ground only.
+                  const cellA = siteDetail?.cells?.find(c => c.azimut != null) || siteDetail?.cells?.[0];
+                  const antennaH_A = Number((cellA as any)?.hba ?? 30) || 30;
+                  const tiltA = Number((cellA as any)?.tilt ?? 0);
+                  const azA = Number(cellA?.azimut ?? 0);
+                  const baseAmslA = linkProfileAnalysis?.effectiveTerrain?.[0] ?? 0;
+
+                  // Try to resolve Site B from linkActiveCoords.to against the
+                  // loaded site list (match by coordinates with small tolerance).
+                  let siteB: any = undefined;
+                  if (linkActiveCoords) {
+                    const [tLat, tLng] = linkActiveCoords.to;
+                    const eps = 1e-4;
+                    const matchB = sites.find(s =>
+                      s.coordinates &&
+                      Math.abs(s.coordinates[0] - tLat) < eps &&
+                      Math.abs(s.coordinates[1] - tLng) < eps
+                    );
+                    if (matchB) {
+                      const cellB = matchB.cells?.find((c: any) => c.azimut != null) || matchB.cells?.[0];
+                      const baseAmslB = linkProfileAnalysis?.effectiveTerrain?.[
+                        (linkProfileAnalysis.effectiveTerrain.length - 1)
+                      ] ?? 0;
+                      siteB = {
+                        siteName: matchB.site_name,
+                        sectorName: cellB?.cell_id,
+                        azimut: Number(cellB?.azimut ?? 180),
+                        antennaHeight: Number((cellB as any)?.hba ?? 30) || 30,
+                        mechanicalTilt: Number((cellB as any)?.tilt ?? 0),
+                        electricalTilt: 0,
+                        band: cellB?.bande || 'LTE1800',
+                        techno: cellB?.techno || '4G',
+                        siteAltitudeAmsl: baseAmslB,
+                      };
+                    }
+                  }
+
                   return (
                     <CoverageProfile
                       siteName={siteDetail?.site_name || linkProfileLabel}
-                      sectorName={cell?.cell_id}
-                      azimut={az}
-                      antennaHeight={antennaH}
-                      mechanicalTilt={tilt}
+                      sectorName={cellA?.cell_id}
+                      azimut={azA}
+                      antennaHeight={antennaH_A}
+                      mechanicalTilt={tiltA}
                       electricalTilt={0}
-                      band={cell?.bande || 'LTE1800'}
-                      techno={cell?.techno || '4G'}
-                      siteAltitudeAmsl={baseAmsl}
-                      terrainProfile={linkProfilePoints && linkProfilePoints.length > 0 ? linkProfilePoints : undefined}
+                      band={cellA?.bande || 'LTE1800'}
+                      techno={cellA?.techno || '4G'}
+                      siteAltitudeAmsl={baseAmslA}
+                      // Terrain is intentionally NOT passed here when siteB is
+                      // present: the link terrain spans Site A → Site B and
+                      // would visually re-introduce a site-to-site relationship.
+                      // Each chart shows its own local ground instead.
+                      terrainProfile={!siteB && linkProfilePoints && linkProfilePoints.length > 0 ? linkProfilePoints : undefined}
                       showClutter={linkEnableClutter}
                       clutterHeight={linkClutterHeight}
+                      siteB={siteB}
                     />
                   );
                 })()
