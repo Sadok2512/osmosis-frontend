@@ -2457,7 +2457,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
-  const [dashFilterMode, setDashFilterMode] = useState<'my' | 'loaded' | 'all'>('my');
+  const [dashFilterMode] = useState<'my' | 'loaded' | 'all'>('loaded');
 
   // Track explicitly loaded dashboard IDs in localStorage
   const LOADED_KEY = 'osmosis_loaded_dashboard_ids';
