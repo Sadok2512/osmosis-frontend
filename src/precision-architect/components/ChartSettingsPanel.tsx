@@ -350,6 +350,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
                 filtersLoading={filtersLoading}
                 onApply={() => commitAppliedConfig(false)}
                 isStat={widget.kind === 'stat'}
+                filterCategoriesMap={filterCategoriesMap}
+                filterRatsMap={filterRatsMap}
               />
             )}
             {tab === 'appearance' && (
