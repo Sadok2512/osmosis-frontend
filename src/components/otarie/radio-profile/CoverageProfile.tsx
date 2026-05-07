@@ -269,14 +269,21 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#3b6694" stopOpacity="0.6" />
-              <stop offset="100%" stopColor="#0d2238" stopOpacity="0.9" />
+              <stop offset="0%" stopColor="#334155" stopOpacity="0.55" />
+              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.15" />
             </linearGradient>
-            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0">
-              <stop offset="0%" stopColor={nearZone.color} stopOpacity="0.55" />
-              <stop offset="50%" stopColor={mainZone.color} stopOpacity="0.45" />
-              <stop offset="100%" stopColor={farZone.color} stopOpacity="0.35" />
+            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.2">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.45" />
+              <stop offset="40%" stopColor="#eab308" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
             </linearGradient>
+            <filter id="cp-beam-glow">
+              <feGaussianBlur stdDeviation="3" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
           </defs>
 
           {/* Grid */}
