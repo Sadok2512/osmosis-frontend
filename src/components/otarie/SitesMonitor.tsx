@@ -5336,6 +5336,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [dashboardRefreshTick, setDashboardRefreshTick] = useState(0);
   const [dashboardFitKey, setDashboardFitKey] = useState(0);
   const initialFitDoneRef = useRef(false);
+  // When user deactivates a dashboard we keep the current map view (no recenter).
+  const skipNextNoDashFitRef = useRef(false);
   // activeDashboardId already declared above for tab persistence
   // Auto-fit map to sites on initial load (no dashboard active) so user lands on the data
   useEffect(() => {
