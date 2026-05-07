@@ -179,7 +179,12 @@ const DEFAULT_FORM = (): CreateFormState => {
     dors: [],
     sites: [],
     zoneArcep: [],
-    aggregations: ['cell'],
+    // Default to site-level aggregation (was 'cell'). Cell-level produces
+    // ~24× more rows on a typical site (sectors × technos × bands) and is
+    // rarely what an operator wants on first execution — they almost always
+    // start at site level, then drill down. Switched 2026-05-07 per user
+    // request: "why agg is by default is cell".
+    aggregations: ['site'],
     dimensions: [],
     granularity: '1h',
   };
@@ -1204,7 +1209,7 @@ const RanQueryModule: React.FC = () => {
       dors: r.dors ?? [],
       sites: r.sites ?? [],
       zoneArcep: r.zoneArcep ?? [],
-      aggregations: r.aggregations ?? (r.aggregation ? [r.aggregation] : ['cell']),
+      aggregations: r.aggregations ?? (r.aggregation ? [r.aggregation] : ['site']),
       dimensions: r.dimensions ?? [],
       granularity: r.timeConfig.granularity ?? '1h',
     });
