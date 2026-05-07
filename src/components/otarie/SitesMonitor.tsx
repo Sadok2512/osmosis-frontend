@@ -1563,79 +1563,124 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           )}
 
           {/* ── Site Filters ── */}
-          {backendFilterDefs && backendFilterDefs.length > 0 && (
-            <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
-              <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
-              <div className="space-y-1">
-                {backendFilterDefs.map(dim => {
-                  const rawSelected = localSiteFilters[dim.id as keyof DashboardSiteFilters];
-                  const selectedValues: string[] = Array.isArray(rawSelected) ? rawSelected : [];
-                  return (
-                    <CreateFilterDropdown
-                      key={dim.id}
-                      label={dim.label}
-                      values={dim.values}
-                      selected={selectedValues}
-                      onChange={(vals) => {
-                        const updated = { ...localSiteFilters, [dim.id]: vals.length > 0 ? vals : undefined };
-                        const clean: DashboardSiteFilters = {};
-                        for (const [k, v] of Object.entries(updated)) { if (v && (v as string[]).length > 0) (clean as any)[k] = v; }
-                        setLocalSiteFilters(updated);
-                        setDirty(true);
-                        if (onSiteFiltersChange) onSiteFiltersChange(clean);
-                      }}
-                    />
-                  );
-                })}
-              </div>
+          {backendFilterDefs && backendFilterDefs.length > 0 && (() => {
+            const isLocked = !!dashboardId;
+            const activeEntries = Object.entries(localSiteFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v));
+            const labelFor = (key: string) => key.startsWith('manual_')
+              ? key.replace('manual_', '').toUpperCase()
+              : (backendFilterDefs.find(d => d.id === key)?.label || key.toUpperCase());
 
-              {/* Free-text filters: ECI, PCI, TILT */}
-              <div className="mt-2 pt-2 border-t border-border/30 space-y-1.5">
-                <p className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-1">Manual Filters</p>
-                {(['eci', 'pci', 'tilt'] as const).map(field => {
-                  const key = `manual_${field}` as string;
-                  const currentVal = (localSiteFilters as any)[key] || '';
-                  return (
-                    <div key={field} className="flex items-center gap-2">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-10 shrink-0">{field.toUpperCase()}</label>
-                      <input
-                        value={currentVal}
-                        onChange={(e) => {
-                          const updated = { ...localSiteFilters, [key]: e.target.value || undefined };
-                          setLocalSiteFilters(updated);
-                          setDirty(true);
-                        }}
-                        placeholder={`Enter ${field.toUpperCase()} value...`}
-                        className="flex-1 bg-card border border-border/50 rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/40"
-                      />
-                      {currentVal && (
-                        <button onClick={() => {
-                          const updated = { ...localSiteFilters, [key]: undefined };
-                          setLocalSiteFilters(updated);
-                          setDirty(true);
-                        }} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">
-                          <X size={10} />
-                        </button>
-                      )}
+            if (isLocked) {
+              // Read-only view after dashboard creation
+              return (
+                <div className="p-3 rounded-xl border border-border/40 bg-muted/20">
+                  <SectionHeader
+                    icon={<Filter size={12} className="text-primary" />}
+                    title="Filtres appliqués"
+                    subtitle="Verrouillés après création du dashboard"
+                  />
+                  {activeEntries.length === 0 ? (
+                    <div className="px-2.5 py-3 rounded-lg bg-muted/30 border border-dashed border-border/50 text-center">
+                      <p className="text-[10px] text-muted-foreground/80 italic">
+                        Aucun filtre spécifique — tous les sites sont inclus.
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-
-              {Object.values(localSiteFilters).some(v => v && (Array.isArray(v) ? v.length > 0 : !!v)) && (
-                <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15">
-                  <span className="text-[8px] font-bold text-primary/70 uppercase tracking-widest">Active Filters</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {Object.entries(localSiteFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v)).map(([key, vals]) => (
-                      <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
-                        {key.startsWith('manual_') ? key.replace('manual_', '').toUpperCase() : (backendFilterDefs.find(d => d.id === key)?.label || key)}: {Array.isArray(vals) ? vals!.join(', ') : vals}
-                      </span>
-                    ))}
-                  </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {activeEntries.map(([key, vals]) => (
+                        <span
+                          key={key}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-[10px] font-semibold text-primary border border-primary/20"
+                        >
+                          <span className="opacity-70 uppercase tracking-wider text-[8px]">{labelFor(key)}</span>
+                          <span>{Array.isArray(vals) ? vals!.join(', ') : vals}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="mt-2 text-[9px] text-muted-foreground/60 italic">
+                    🔒 Les filtres de sites sont verrouillés après la création du dashboard.
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
+              );
+            }
+
+            // Editable mode (creation only)
+            return (
+              <div className="p-3 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+                <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
+                <div className="space-y-1">
+                  {backendFilterDefs.map(dim => {
+                    const rawSelected = localSiteFilters[dim.id as keyof DashboardSiteFilters];
+                    const selectedValues: string[] = Array.isArray(rawSelected) ? rawSelected : [];
+                    return (
+                      <CreateFilterDropdown
+                        key={dim.id}
+                        label={dim.label}
+                        values={dim.values}
+                        selected={selectedValues}
+                        onChange={(vals) => {
+                          const updated = { ...localSiteFilters, [dim.id]: vals.length > 0 ? vals : undefined };
+                          const clean: DashboardSiteFilters = {};
+                          for (const [k, v] of Object.entries(updated)) { if (v && (v as string[]).length > 0) (clean as any)[k] = v; }
+                          setLocalSiteFilters(updated);
+                          setDirty(true);
+                          if (onSiteFiltersChange) onSiteFiltersChange(clean);
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Free-text filters: ECI, PCI, TILT */}
+                <div className="mt-2 pt-2 border-t border-border/30 space-y-1.5">
+                  <p className="text-[8px] font-bold text-muted-foreground/60 uppercase tracking-widest mb-1">Manual Filters</p>
+                  {(['eci', 'pci', 'tilt'] as const).map(field => {
+                    const key = `manual_${field}` as string;
+                    const currentVal = (localSiteFilters as any)[key] || '';
+                    return (
+                      <div key={field} className="flex items-center gap-2">
+                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider w-10 shrink-0">{field.toUpperCase()}</label>
+                        <input
+                          value={currentVal}
+                          onChange={(e) => {
+                            const updated = { ...localSiteFilters, [key]: e.target.value || undefined };
+                            setLocalSiteFilters(updated);
+                            setDirty(true);
+                          }}
+                          placeholder={`Enter ${field.toUpperCase()} value...`}
+                          className="flex-1 bg-card border border-border/50 rounded-lg px-2.5 py-1.5 text-[11px] text-foreground outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/10 transition-all placeholder:text-muted-foreground/40"
+                        />
+                        {currentVal && (
+                          <button onClick={() => {
+                            const updated = { ...localSiteFilters, [key]: undefined };
+                            setLocalSiteFilters(updated);
+                            setDirty(true);
+                          }} className="p-1 rounded hover:bg-muted text-muted-foreground/50 hover:text-foreground">
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {activeEntries.length > 0 && (
+                  <div className="mt-2 px-2.5 py-1.5 rounded-lg bg-primary/5 border border-primary/15">
+                    <span className="text-[8px] font-bold text-primary/70 uppercase tracking-widest">Active Filters</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {activeEntries.map(([key, vals]) => (
+                        <span key={key} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-[8px] font-semibold text-primary border border-primary/10">
+                          {labelFor(key)}: {Array.isArray(vals) ? vals!.join(', ') : vals}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
 
           {/* ── Map Rendering, Appearance, Labels ── */}
           {<>
