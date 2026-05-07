@@ -1689,45 +1689,23 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
           {/* ── Appearance, Labels ── */}
           {<>
 
-          {/* ── Appearance Row: Theme + Color side by side ── */}
-          <div className="grid grid-cols-2 gap-2.5">
-            {/* Theme Mode */}
-            <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
-              <SectionHeader icon={<SlidersHorizontal size={12} className="text-primary" />} title="Display Mode" />
-              <div className="space-y-1.5">
-                {SETTINGS_THEME_MODES.map(mode => {
-                  const isActive = localThemeMode === mode.value;
-                  return (
-                    <button key={mode.value} onClick={() => { setLocalThemeMode(mode.value); setDirty(true); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${isActive
-                        ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'bg-card/60 border-border/30 text-muted-foreground hover:text-foreground hover:border-border'
-                      }`}>
-                      <span className="text-sm">{mode.icon}</span>
-                      <span className="uppercase tracking-wider">{mode.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Theme Color */}
-            <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
-              <SectionHeader icon={<Crosshair size={12} className="text-primary" />} title="Accent Color" />
-              <div className="grid grid-cols-4 gap-2 mt-1">
-                {SETTINGS_PALETTE.map(c => {
-                  const isActive = localColor === c.value;
-                  return (
-                    <button key={c.value || 'none'} onClick={() => { setLocalColor(c.value); setDirty(true); }}
-                      className="flex items-center justify-center group" title={c.label}>
-                      <div className={`w-7 h-7 rounded-full transition-all duration-150 ${isActive
-                        ? 'scale-110 ring-2 ring-primary/40 ring-offset-2 ring-offset-card shadow-md'
-                        : 'hover:scale-105 ring-1 ring-border/40 hover:ring-border'
-                      }`} style={{ background: c.value || 'hsl(var(--muted))' }} />
-                    </button>
-                  );
-                })}
-              </div>
+          {/* ── Display Mode ── */}
+          <div className="p-3.5 rounded-xl border border-border/40 bg-muted/20 hover:bg-muted/30 transition-colors">
+            <SectionHeader icon={<SlidersHorizontal size={12} className="text-primary" />} title="Display Mode" />
+            <div className="grid grid-cols-3 gap-1.5">
+              {SETTINGS_THEME_MODES.map(mode => {
+                const isActive = localThemeMode === mode.value;
+                return (
+                  <button key={mode.value} onClick={() => { setLocalThemeMode(mode.value); setDirty(true); }}
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[10px] font-bold transition-all border ${isActive
+                      ? 'bg-primary/10 text-primary border-primary/30'
+                      : 'bg-card/60 border-border/30 text-muted-foreground hover:text-foreground hover:border-border'
+                    }`}>
+                    <span className="text-sm">{mode.icon}</span>
+                    <span className="uppercase tracking-wider">{mode.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
