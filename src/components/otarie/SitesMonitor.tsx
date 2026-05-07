@@ -5187,11 +5187,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
     if (!from || !to) return;
-    if (!activeDashboardIdRef.current) return;
+    if (from.id === to.id) return;
     const link = createTaggedLink(from, to);
     setTaggedLinks(prev => {
       const next = [...prev, link];
-      persistTaggedLinks(next, activeDashboardIdRef.current);
+      // Persist only when a dashboard is active; otherwise keep in-memory only.
+      if (activeDashboardIdRef.current) {
+        persistTaggedLinks(next, activeDashboardIdRef.current);
+      }
       return next;
     });
     setLinkCreationMode(false);
