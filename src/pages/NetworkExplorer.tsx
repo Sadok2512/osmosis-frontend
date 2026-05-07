@@ -738,6 +738,8 @@ const NetworkExplorer = () => {
             <p className="mt-1 text-sm font-medium text-slate-500">Outage or severe service degradation</p>
           </div>
         </section>
+        </>
+        )}
       </div>
     </main>
   );
