@@ -159,7 +159,7 @@ export function preloadAllFilters() {
   if (preloaded) return;
   preloaded = true;
   // Warm only the common top-level dimensions to avoid overloading the VPS proxy at startup.
-  ['SITE', 'DOR', 'CLUSTER', 'BAND'].forEach(ensureFilterLoaded);
+  ['SITE', 'DOR', 'CLUSTER', 'BAND'].forEach(k => ensureFilterLoaded(k));
 }
 
 /** Map UI dimension label → cache key */
