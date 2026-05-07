@@ -11,6 +11,7 @@ interface MultiSelectPopoverProps {
   selected: string[];
   onConfirm: (next: string[]) => void;
   onOpen?: () => void;
+  onSearch?: (query: string) => void;
   loading?: boolean;
   multi?: boolean;
   emptyHint?: string;
@@ -24,6 +25,7 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
   selected,
   onConfirm,
   onOpen,
+  onSearch,
   loading,
   multi = true,
   emptyHint = 'No options available',
@@ -42,6 +44,13 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open, selected, onOpen]);
+
+  useEffect(() => {
+    if (!open || !onSearch) return;
+    const query = search.trim();
+    const handle = window.setTimeout(() => onSearch(query), 250);
+    return () => window.clearTimeout(handle);
+  }, [open, search, onSearch]);
 
   const filtered = useMemo(() => {
     const safeOptions = Array.isArray(options) ? options : [];

@@ -102,10 +102,11 @@ const ParameterHubPage: React.FC = () => {
   const [hasApplied, setHasApplied] = useState(false);
 
   // Lazy-load parameter list — only when the Parameters multi-select is first opened.
-  const loadParameters = useCallback(() => {
-    if (availableParameters.length > 0 || parametersLoading) return;
+  const loadParameters = useCallback((query = '') => {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery && (availableParameters.length > 0 || parametersLoading)) return;
     setParametersLoading(true);
-    fetchAvailableParameters()
+    fetchAvailableParameters(false, normalizedQuery)
       .then((list) => setAvailableParameters(list))
       .catch((e) => console.error('[ParameterHub] params fetch failed', e))
       .finally(() => setParametersLoading(false));
@@ -228,8 +229,9 @@ const ParameterHubPage: React.FC = () => {
                   selected={draftFilters.parameters}
                   onConfirm={(v) => setFilterValues('parameters', v)}
                   onOpen={loadParameters}
+                  onSearch={loadParameters}
                   loading={parametersLoading}
-                  emptyHint="No parameters in catalog"
+                  emptyHint="Type at least 2 characters to search parameters"
                   trigger={
                     <button>
                       <FilterChip

@@ -63,15 +63,48 @@ async function dumpGet<T>(path: string, opts?: { timeoutMs?: number; maxRetries?
 }
 
 /** Distinct parameter names for the selector.
- *  Backend has ~8700 distinct parameters and does NOT support offset/page on
- *  this endpoint, so we fetch the full catalog in one call (≈30–45s cold,
- *  much faster warm) and cache it for the rest of the session. */
-const PARAMS_CACHE_KEY = 'osmosis.paramHub.distinctParams.v2';
+ *  The full catalog is heavy, so the picker loads an initial slice and then
+ *  queries the backend by search text for the rest of the ~8700 parameters. */
+const PARAMS_CACHE_KEY = 'osmosis.paramHub.distinctParams.v3';
 const PARAMS_CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
 let _paramsMemCache: string[] | null = null;
 let _paramsInflight: Promise<string[]> | null = null;
+const _paramsSearchCache = new Map<string, string[]>();
+const _paramsSearchInflight = new Map<string, Promise<string[]>>();
 
-export async function fetchAvailableParameters(force = false): Promise<string[]> {
+function normalizeStringList(payload: unknown): string[] {
+  const raw = Array.isArray(payload)
+    ? payload
+    : Array.isArray((payload as any)?.data)
+      ? (payload as any).data
+      : Array.isArray((payload as any)?.items)
+        ? (payload as any).items
+        : Array.isArray((payload as any)?.rows)
+          ? (payload as any).rows
+          : [];
+  return raw.map((v) => String(v ?? '').trim()).filter(Boolean);
+}
+
+export async function fetchAvailableParameters(force = false, search = ''): Promise<string[]> {
+  const query = search.trim();
+  if (query.length >= 2) {
+    const cacheKey = query.toLowerCase();
+    if (!force && _paramsSearchCache.has(cacheKey)) return _paramsSearchCache.get(cacheKey)!;
+    if (_paramsSearchInflight.has(cacheKey)) return _paramsSearchInflight.get(cacheKey)!;
+
+    const promise = dumpGet<unknown>(
+      `params/distinct?column=parameter_raw&limit=200&search=${encodeURIComponent(query)}`,
+      { timeoutMs: 30_000, maxRetries: 1 },
+    ).then((payload) => {
+      const sorted = normalizeStringList(payload).sort((a, b) => a.localeCompare(b));
+      _paramsSearchCache.set(cacheKey, sorted);
+      return sorted;
+    }).finally(() => { _paramsSearchInflight.delete(cacheKey); });
+
+    _paramsSearchInflight.set(cacheKey, promise);
+    return promise;
+  }
+
   if (!force && _paramsMemCache && _paramsMemCache.length > 0) return _paramsMemCache;
 
   // sessionStorage warm cache (survives soft reloads within a tab)
@@ -91,13 +124,11 @@ export async function fetchAvailableParameters(force = false): Promise<string[]>
   if (_paramsInflight) return _paramsInflight;
 
   _paramsInflight = (async () => {
-    // limit=10000 safely covers the current ~8700 distinct parameters.
-    // Long timeout because the cold ClickHouse query can take ~40s.
-    const list = await dumpGet<string[]>(
-      'params/distinct?column=parameter_raw&limit=10000',
-      { timeoutMs: 60_000, maxRetries: 2 },
+    const list = await dumpGet<unknown>(
+      'params/distinct?column=parameter_raw&limit=300',
+      { timeoutMs: 30_000, maxRetries: 1 },
     );
-    const sorted = Array.isArray(list) ? [...list].sort((a, b) => a.localeCompare(b)) : [];
+    const sorted = normalizeStringList(list).sort((a, b) => a.localeCompare(b));
     _paramsMemCache = sorted;
     if (typeof sessionStorage !== 'undefined') {
       try {
