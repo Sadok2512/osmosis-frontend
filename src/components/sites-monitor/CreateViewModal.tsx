@@ -107,6 +107,8 @@ const PARAM_FILTER_KEYS = [
  * The multiselect path writes to `values: string[]` directly. The text
  * fallback writes to `valuesText: string`. Save logic prefers `values`
  * when non-empty, else parses `valuesText`. */
+type ValueValidation = 'checking' | 'valid' | 'invalid';
+
 const TopoRowValueInput: React.FC<{
   field: string;
   values: string[];
@@ -120,6 +122,7 @@ const TopoRowValueInput: React.FC<{
   const [errored, setErrored] = useState(false);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [validations, setValidations] = useState<Record<string, ValueValidation>>({});
   const ref = useRef<HTMLDivElement>(null);
 
   // Outside-click close
@@ -161,6 +164,84 @@ const TopoRowValueInput: React.FC<{
     return () => { cancelled = true; };
   }, [field]);
 
+  // ── Per-typed-value backend validation (text-input fallback only) ──
+  // When the dim's distinct list isn't loadable, the row falls back to
+  // free-text entry. We then ping the backend with `?dimension=&search=v`
+  // for each typed value (debounced) and tag it ✓ valid / ✗ invalid.
+  // For PCI today the column is empty in topo_data, so every value
+  // honestly tags as ✗ — it's not a UI bug, the underlying data is
+  // missing (parser-mapping issue).
+  const inTextMode = !!field && !loading && (errored || available.length === 0);
+  const parsedValues = useMemo(() => parseValuesText(valuesText), [valuesText]);
+  const parsedKey = parsedValues.join('|');
+  useEffect(() => {
+    if (!inTextMode || !field || parsedValues.length === 0) {
+      setValidations({});
+      return;
+    }
+    let cancelled = false;
+    const debounce = setTimeout(async () => {
+      if (cancelled) return;
+      // Mark unknown ones as 'checking'; preserve already-resolved verdicts
+      // until the new verdict lands so the UI doesn't flicker on every keystroke.
+      setValidations(prev => {
+        const next: Record<string, ValueValidation> = {};
+        for (const v of parsedValues) {
+          next[v] = prev[v] === 'valid' || prev[v] === 'invalid' ? prev[v] : 'checking';
+        }
+        return next;
+      });
+      const results = await Promise.all(parsedValues.map(async v => {
+        try {
+          const matches = await topoApi.filterValues(field, undefined, { search: v, limit: 10 });
+          const exists = matches.some(m => String(m).toLowerCase() === v.toLowerCase());
+          return [v, exists ? 'valid' : 'invalid'] as const;
+        } catch {
+          return [v, 'invalid'] as const;
+        }
+      }));
+      if (cancelled) return;
+      setValidations(Object.fromEntries(results) as Record<string, ValueValidation>);
+    }, 500);
+    return () => { cancelled = true; clearTimeout(debounce); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsedKey, field, inTextMode]);
+
+  const renderValidationBadges = () => {
+    if (!inTextMode || parsedValues.length === 0) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {parsedValues.map(v => {
+          const s = validations[v];
+          const cls = s === 'valid'
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+            : s === 'invalid'
+              ? 'border-destructive/40 bg-destructive/10 text-destructive'
+              : 'border-border bg-muted/30 text-muted-foreground';
+          const icon = s === 'valid'
+            ? <Check size={9} />
+            : s === 'invalid'
+              ? <X size={9} />
+              : <Loader2 size={9} className="animate-spin" />;
+          return (
+            <span
+              key={v}
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-medium ${cls}`}
+              title={
+                s === 'valid' ? `Existe dans ${field}` :
+                s === 'invalid' ? `Introuvable dans ${field}` :
+                `Vérification…`
+              }
+            >
+              {icon}
+              <span className="font-mono">{v}</span>
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
+
   // No field selected — disabled placeholder
   if (!field) {
     return (
@@ -186,12 +267,15 @@ const TopoRowValueInput: React.FC<{
   // is unavailable (e.g. PCI/BSCID columns currently unpopulated).
   if (errored || available.length === 0) {
     return (
-      <Input
-        value={valuesText}
-        onChange={e => onValuesTextChange(e.target.value)}
-        placeholder="Valeur… (séparées par virgules : 150, 200, 320)"
-        className={`text-xs h-8 ${hasError ? 'border-destructive' : ''}`}
-      />
+      <div>
+        <Input
+          value={valuesText}
+          onChange={e => onValuesTextChange(e.target.value)}
+          placeholder="Valeur… (séparées par virgules : 150, 200, 320)"
+          className={`text-xs h-8 ${hasError ? 'border-destructive' : ''}`}
+        />
+        {renderValidationBadges()}
+      </div>
     );
   }
 
