@@ -738,9 +738,12 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   const [filterVisibility, setFilterVisibility] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortKey>('updated');
 
+  const [mapViews, setMapViews] = useState<any[]>([]);
+
   useEffect(() => {
     setLoading(true);
     loadAllDashboardsFromDB().then(d => { setDashboards(d); setLoading(false); });
+    mapViewsApi.list().then(v => { if (Array.isArray(v)) setMapViews(v); }).catch(() => {});
   }, []);
 
   const duplicateDashboard = async (id: string) => {
