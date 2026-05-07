@@ -5324,9 +5324,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLinkProfileLabel(link.label);
     setShowLinkProfile(true);
     const coords = { from: link.fromCoords, to: link.toCoords };
+    // Avoid recomputing (and clearing analysis) if reopening the same link with
+    // identical coords — keeps the panel visible immediately on reopen.
+    const sameCoords =
+      linkActiveCoords &&
+      linkActiveCoords.from[0] === coords.from[0] &&
+      linkActiveCoords.from[1] === coords.from[1] &&
+      linkActiveCoords.to[0] === coords.to[0] &&
+      linkActiveCoords.to[1] === coords.to[1];
     setLinkActiveCoords(coords);
-    recomputeLinkProfile(coords, linkEnableCurvature);
-  }, [recomputeLinkProfile, linkEnableCurvature]);
+    if (!sameCoords || !linkProfileAnalysis) {
+      recomputeLinkProfile(coords, linkEnableCurvature);
+    }
+  }, [recomputeLinkProfile, linkEnableCurvature, linkActiveCoords, linkProfileAnalysis]);
 
   // ── Neighbor visualization ──
   const [neighborCellId, setNeighborCellId] = useState<string | null>(null);
