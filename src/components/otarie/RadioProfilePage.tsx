@@ -92,7 +92,7 @@ const RadioProfilePage: React.FC = () => {
   // RF parameters
   const [mechTilt, setMechTilt] = useState(0);
   const [elecTilt, setElecTilt] = useState(0);
-  const [rxHeight, setRxHeight] = useState(1.5);
+  const [rxHeight, setRxHeight] = useState(2);
   const [hbw, setHbw] = useState(65);
   const [vbw, setVbw] = useState(7);
   const [f2b, setF2b] = useState(25);
