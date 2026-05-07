@@ -147,6 +147,37 @@ const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
 const TECH_OPTIONS: Tech[] = ['2G', '3G', '4G', '5G'];
 const STATUS_OPTIONS: ReportStatus[] = ['Draft', 'Ready', 'Running', 'Completed', 'Empty', 'Failed'];
 const VENDOR_OPTIONS = ['Ericsson', 'Nokia', 'Huawei', 'Samsung', 'Alcatel'];
+// Catalog dimension_keys come back in mixed forms (PLAQUE_SITE / NOM_SITE /
+// BANDE / CONSTRUCTEUR / etc.). The Reports module's chip-equality checks
+// were built against the canonical FE values (cell / site / plaque / band /
+// vendor / dor / cluster / arcep). Normalize at load time so the rest of
+// the code keeps working without an `=== 'plaque' || === 'plaque_site'`
+// litany at every callsite. Returns '' for unknown dims so the chip is
+// dropped from the dropdown.
+const _CATALOG_AGG_ALIASES: Record<string, string> = {
+  PLAQUE_SITE:  'plaque',
+  NOM_SITE:     'site',
+  NOM_CELLULE:  'cell',
+  CELLNAME:     'cell',
+  SITENAME:     'site',
+  CONSTRUCTEUR: 'vendor',
+  BANDE:        'band',
+  CLUSTER_B:    'cluster',
+  ZONE_ARCEP:   'arcep',
+  TECHNO:       'techno',
+};
+function canonicalAggKey(raw: string | undefined | null): string {
+  if (!raw) return '';
+  const up = String(raw).toUpperCase();
+  if (_CATALOG_AGG_ALIASES[up]) return _CATALOG_AGG_ALIASES[up];
+  // Pass-through for already-canonical values (CELL, SITE, PLAQUE, …)
+  const lower = up.toLowerCase();
+  if (['cell', 'site', 'plaque', 'cluster', 'dor', 'dr', 'region', 'arcep', 'band', 'vendor', 'techno'].includes(lower)) {
+    return lower;
+  }
+  return '';
+}
+
 const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
   { value: 'cell', label: 'Cell' },
   { value: 'site', label: 'Site' },
@@ -343,7 +374,8 @@ function buildFilterPayload(report: RanReport) {
   if (report.zoneArcep && report.zoneArcep.length > 0) base.zone_arcep = report.zoneArcep;
   if (report.technologies && report.technologies.length > 0) base.technology = report.technologies;
   // Multi-aggregation: use first non-cell aggregation as split_by
-  const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
+    .map(a => canonicalAggKey(a) || a);
   const primaryAgg = aggList.find(a => a !== 'cell') || null;
   if (primaryAgg) {
     const aggMap: Record<string, string> = { site: 'site_name', band: 'band', cluster: 'cluster', dor: 'dor', dr: 'dor', region: 'region', arcep: 'zone_arcep' };
@@ -373,17 +405,24 @@ export function resolvePivotKpiColumns(
 
 export function buildMonitorQueryPayload(report: RanReport, vendor: string, kpiKeys: string[]) {
   const { date_from, date_to } = resolveTimeRange(report.timeConfig);
-  const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
+    .map(a => canonicalAggKey(a) || a);
   const splitMap: Record<string, string> = {
     cell: 'CELL',
     site: 'SITE',
     band: 'BAND',
     cluster: 'CLUSTER',
+    cluster_b: 'CLUSTER',
     dor: 'DOR',
     dr: 'DOR',
     region: 'DOR',
     arcep: 'ZONE_ARCEP',
+    zone_arcep: 'ZONE_ARCEP',
     plaque: 'PLAQUE',
+    // The aggregation chip stores the underlying ref_cell_daily column
+    // name `plaque_site` — alias to the engine-level PLAQUE dim so the
+    // multi-aggregation actually splits by plaque.
+    plaque_site: 'PLAQUE',
   };
   // Map every aggregation chip to its backend dim, preserving user order.
   const splitByList = aggList
@@ -492,7 +531,8 @@ async function executeReportApi(
       const data = await res.json();
       const batchResults: ReportResultRow[] = [];
       const rows = Array.isArray(data?.rows) ? data.rows : [];
-      const aggList = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+      const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
+    .map(a => canonicalAggKey(a) || a);
       const primaryAgg = aggList.find(a => a !== 'cell') || null;
       // Multi-dim backend now returns named columns (site_name, cell_name, plaque, …)
       // directly. Fallback chain (split_value-based) only kicks in for the legacy
@@ -601,7 +641,8 @@ function downloadCsv(report: RanReport) {
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   // Build pivot CSV: dimension columns + KPI columns
-  const aggLevels = report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']);
+  const aggLevels = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
+    .map(a => canonicalAggKey(a) || a);
   const dimHeaders: string[] = ['Timestamp', 'Vendor', 'Technology'];
   if (aggLevels.includes('cluster')) dimHeaders.push('Cluster');
   if (aggLevels.includes('plaque')) dimHeaders.push('Plaque');
@@ -866,7 +907,13 @@ const RanQueryModule: React.FC = () => {
         const items = Array.isArray(data) ? data : data.filters || data.data || [];
         const agg = items
           .filter((f: any) => f.is_aggregatable && f.is_active !== false)
-          .map((f: any) => ({ value: (f.dimension_key || '').toLowerCase(), label: f.display_name || f.dimension_key }));
+          .map((f: any) => ({ value: canonicalAggKey(f.dimension_key), label: f.display_name || f.dimension_key }))
+          // Drop catalog dims that don't map to a chip we know how to render
+          // (sector, tac, lat/lng/azimuth/tilt, etc.) — they'd produce empty
+          // columns in the report results.
+          .filter((a: any) => a.value)
+          // Dedupe by canonical value (PLAQUE_SITE + PLAQUE → one chip)
+          .filter((a: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.value === a.value) === i);
         // Always include Cluster
         if (!agg.find((a: any) => a.value === 'cluster')) agg.push({ value: 'cluster', label: 'Cluster' });
         if (agg.length > 0) setAggregationOptions(agg);
@@ -1004,7 +1051,8 @@ const RanQueryModule: React.FC = () => {
   // shows the table the user expected, with empty cells.
   const pivotData = useMemo(() => {
     if (!selectedReport) return { rows: [], kpis: [], dimCols: [] };
-    const aggLevels = selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell']);
+    const aggLevels = (selectedReport.aggregations || (selectedReport.aggregation ? [selectedReport.aggregation] : ['cell']))
+      .map(a => canonicalAggKey(a) || a);
     // Determine which dimension columns to show
     const dimCols: { key: string; label: string }[] = [];
     dimCols.push({ key: '_timestamp', label: 'Timestamp' });
