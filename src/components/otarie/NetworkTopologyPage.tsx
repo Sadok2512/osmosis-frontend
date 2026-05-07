@@ -1577,7 +1577,12 @@ const NetworkTopologyPage: React.FC = () => {
 
                       {/* Cells tab */}
                       <TabsContent value="cells" className="mt-3">
-                        <div className="border rounded-lg overflow-hidden max-h-[500px] overflow-auto">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <span className="text-xs text-muted-foreground">
+                            Showing <span className="font-bold text-foreground">{siteDetail.cells.length}</span> cells
+                          </span>
+                        </div>
+                        <div className="border rounded-lg overflow-auto max-h-[70vh]">
                           <Table>
                             <TableHeader className="sticky top-0 bg-card z-10">
                               <TableRow>
@@ -1590,7 +1595,7 @@ const NetworkTopologyPage: React.FC = () => {
                               {siteDetail.cells.map((c, i) => (
                                 <TableRow key={i}>
                                   {cellColumns.map(k => (
-                                    <TableCell key={k} className="text-xs whitespace-nowrap">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
+                                    <TableCell key={k} className="text-xs whitespace-nowrap py-1.5">{String((c as Record<string, unknown>)[k] ?? '')}</TableCell>
                                   ))}
                                 </TableRow>
                               ))}
