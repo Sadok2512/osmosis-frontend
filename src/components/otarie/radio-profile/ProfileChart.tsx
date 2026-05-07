@@ -120,8 +120,8 @@ const ProfileChart: React.FC<Props> = ({
     [derived?.totalDistKm]
   );
   const yScale = useMemo(
-    () => d3.scaleLinear().domain([0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
-    [derived?.yDomainMax]
+    () => d3.scaleLinear().domain([derived?.yDomainMin ?? 0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
+    [derived?.yDomainMin, derived?.yDomainMax]
   );
 
   const terrainPath = useMemo(() => {
