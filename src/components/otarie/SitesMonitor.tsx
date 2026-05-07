@@ -6445,7 +6445,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               setSites(allSites);
               setBboxTotal(allSites.length);
               setLoading(false);
-              setDashboardFitKey(k => k + 1);
+              if (skipNextNoDashFitRef.current) {
+                skipNextNoDashFitRef.current = false;
+              } else {
+                setDashboardFitKey(k => k + 1);
+              }
               return;
             }
             // Fallback: dashboard loader with null filters
