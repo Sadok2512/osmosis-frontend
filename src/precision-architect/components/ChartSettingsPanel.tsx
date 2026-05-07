@@ -734,6 +734,7 @@ function formatDateDisplay(iso: string): { date: string; time: string } {
 
 function TimeFiltersToolbar({
   data, patchData, dimensionOptions, filtersLoading, onApply, isStat,
+  filterCategoriesMap, filterRatsMap,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -741,6 +742,8 @@ function TimeFiltersToolbar({
   filtersLoading: boolean;
   onApply: () => void;
   isStat?: boolean;
+  filterCategoriesMap: Record<string, string>;
+  filterRatsMap: Record<string, string>;
 }) {
   const technos = data.technos ?? [];
   const filters = data.filters ?? [];
