@@ -353,7 +353,7 @@ const ProfileChart: React.FC<Props> = ({
             )}
           </AnimatePresence>
 
-          {/* LOS line */}
+          {/* LOS line - solid bright */}
           <motion.line
             initial={{ pathLength: 0, opacity: 0 }}
             animate={{ pathLength: 1, opacity: 1 }}
@@ -362,9 +362,9 @@ const ProfileChart: React.FC<Props> = ({
             y1={losY1}
             x2={losX2}
             y2={losY2}
-            stroke="rgb(163,230,53)"
+            stroke="rgb(190,242,100)"
             strokeWidth={2}
-            strokeDasharray="6,4"
+            strokeLinecap="round"
             filter="url(#glow)"
           />
 
