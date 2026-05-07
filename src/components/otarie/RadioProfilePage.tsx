@@ -1,18 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Polygon, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
-import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng, AntennaParams } from '@/utils/geodesicUtils';
-import ProfileChart from './radio-profile/ProfileChart';
-import InfoPanel from './radio-profile/InfoPanel';
 import { topoApi } from '@/lib/localDb';
-import {
-  Radio, Crosshair, Loader2, AlertTriangle, Maximize2, Minimize2,
-  MousePointerClick, RotateCcw, Settings2, Mountain, Antenna, Signal, Ruler, CircleDot
-} from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import { Radio, Loader2, RotateCcw, Antenna } from 'lucide-react';
 
 interface SelectedSite {
   id: number;
@@ -27,209 +19,205 @@ interface SelectedSite {
   vendor: string;
 }
 
-const MapClickHandler: React.FC<{ onMapClick: (latlng: LatLng) => void; drawing: boolean }> = ({ onMapClick, drawing }) => {
-  useMapEvents({
-    click(e) {
-      if (drawing) onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
-};
-
 const createSiteIcon = (selected: boolean) => L.divIcon({
   className: '',
   html: `<div style="
-    width:${selected ? 28 : 20}px;height:${selected ? 28 : 20}px;
+    width:${selected ? 22 : 14}px;height:${selected ? 22 : 14}px;
     border-radius:50%;
-    background:${selected ? 'hsl(170,70%,35%)' : 'hsl(220,50%,50%)'};
-    border:3px solid ${selected ? '#fff' : 'rgba(255,255,255,0.7)'};
-    box-shadow:0 2px 8px rgba(0,0,0,0.3);
-    transition:all 0.2s;
-  "></div>`,
-  iconSize: [selected ? 28 : 20, selected ? 28 : 20],
-  iconAnchor: [selected ? 14 : 10, selected ? 14 : 10],
+    background:${selected ? 'hsl(170,70%,40%)' : 'hsl(220,50%,55%)'};
+    border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>`,
+  iconSize: [selected ? 22 : 14, selected ? 22 : 14],
+  iconAnchor: [selected ? 11 : 7, selected ? 11 : 7],
 });
 
-const targetIcon = L.divIcon({
-  className: '',
-  html: `<div style="width:14px;height:14px;border-radius:50%;background:hsl(0,84%,60%);border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>`,
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-});
-
-/** Parse bande string to frequency in GHz */
 function bandeToGHz(bande: string): number {
   const mhz = parseFloat(bande);
   if (isNaN(mhz) || mhz <= 0) return 1.8;
   return mhz / 1000;
 }
 
-const EngCard: React.FC<{ icon: React.ReactNode; label: string; value: string; accent?: 'primary' | 'ok' | 'warn' }> = ({ icon, label, value, accent }) => {
-  const tone =
-    accent === 'warn' ? 'text-destructive' :
-    accent === 'ok' ? 'text-emerald-500' :
-    accent === 'primary' ? 'text-primary' : 'text-foreground';
-  return (
-    <div className="rounded-lg border border-border bg-muted/20 px-2.5 py-2 flex flex-col gap-1 min-w-0">
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-        <span className="text-muted-foreground/70">{icon}</span>
-        <span className="truncate">{label}</span>
-      </div>
-      <div className={`text-xs font-bold font-mono ${tone}`}>{value}</div>
-    </div>
+/** Project a destination point given start, bearing (deg) and distance (m). */
+function destinationPoint(lat: number, lng: number, bearingDeg: number, distM: number): LatLng {
+  const R = 6371000;
+  const br = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const dR = distM / R;
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(dR) + Math.cos(lat1) * Math.sin(dR) * Math.cos(br));
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(br) * Math.sin(dR) * Math.cos(lat1),
+    Math.cos(dR) - Math.sin(lat1) * Math.sin(lat2),
   );
-};
+  return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
+}
+
+/** Build a 3-point sector polygon for the coverage footprint on the mini map. */
+function buildSectorPolygon(site: SelectedSite, rangeM: number, hbwDeg: number): [number, number][] {
+  const half = hbwDeg / 2;
+  const steps = 14;
+  const pts: [number, number][] = [[site.lat, site.lng]];
+  for (let i = 0; i <= steps; i++) {
+    const b = site.azimuth - half + (i * hbwDeg) / steps;
+    const p = destinationPoint(site.lat, site.lng, b, rangeM);
+    pts.push([p.lat, p.lng]);
+  }
+  return pts;
+}
+
+const RX_HEIGHT_M = 2;
+const VBW_DEFAULT = 7;
+const HBW_DEFAULT = 65;
 
 const RadioProfilePage: React.FC = () => {
   const [sites, setSites] = useState<SelectedSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<SelectedSite | null>(null);
-  const [targetPoint, setTargetPoint] = useState<LatLng | null>(null);
-  const [drawingMode, setDrawingMode] = useState(false);
-  const [enableCurvature, setEnableCurvature] = useState(true);
-  const [enableFresnel, setEnableFresnel] = useState(false);
-  const [clutterHeight, setClutterHeight] = useState(0);
-  const [enableClutter, setEnableClutter] = useState(false);
-  // RF parameters
+  const [mode, setMode] = useState<'link' | 'coverage' | 'bands'>('coverage');
+  const [showBeam, setShowBeam] = useState(true);
+  const [showFootprint, setShowFootprint] = useState(true);
+  const [showTilt, setShowTilt] = useState(true);
+  const [showClutter, setShowClutter] = useState(false);
   const [mechTilt, setMechTilt] = useState(0);
   const [elecTilt, setElecTilt] = useState(0);
-  const [rxHeight, setRxHeight] = useState(2);
-  const [hbw, setHbw] = useState(65);
-  const [vbw, setVbw] = useState(7);
-  const [f2b, setF2b] = useState(25);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [enableTilt, setEnableTilt] = useState(true);
-  const [basemap, setBasemap] = useState<'light' | 'dark' | 'satellite'>('light');
-  const [autoScale, setAutoScale] = useState(true);
-  const [chartHeight, setChartHeight] = useState(680);
 
-  const { loading, error, profilePoints, analysis, computeProfile } = useTerrainProfile();
-
-  const totalDistance = selectedSite && targetPoint
-    ? haversineDistance({ lat: selectedSite.lat, lng: selectedSite.lng }, targetPoint)
-    : 0;
-
-  const frequencyGHz = selectedSite ? bandeToGHz(selectedSite.bande) : 1.8;
-  const fresnel = useFresnel(profilePoints, analysis, totalDistance, frequencyGHz, enableFresnel);
+  const { loading, profilePoints, analysis, computeProfile } = useTerrainProfile();
 
   // Load sites
   useEffect(() => {
-    const loadSites = async () => {
+    (async () => {
       try {
         const json = await topoApi.listFull(100000);
         const data = json.rows || [];
-
-        if (!data.length) return;
-
-      const siteMap = new Map<string, SelectedSite>();
-      data.forEach((row: any) => {
-        if (!row.latitude || !row.longitude) return;
-        const key = row.nom_site;
-        if (!siteMap.has(key)) {
-          siteMap.set(key, {
-            id: row.id,
-            name: row.nom_site,
-            lat: row.latitude,
-            lng: row.longitude,
-            azimuth: row.azimut ?? 0,
-            hba: row.hba ?? 30,
-            tilt: row.tilt ?? 0,
-            techno: row.techno ?? 'LTE',
-            bande: row.bande ?? '1800',
-            vendor: row.constructeur ?? 'Unknown',
-          });
-        }
-      });
-      setSites(Array.from(siteMap.values()));
+        const siteMap = new Map<string, SelectedSite>();
+        data.forEach((row: any) => {
+          if (!row.latitude || !row.longitude) return;
+          const key = row.nom_site;
+          if (!siteMap.has(key)) {
+            siteMap.set(key, {
+              id: row.id,
+              name: row.nom_site,
+              lat: row.latitude,
+              lng: row.longitude,
+              azimuth: row.azimut ?? 0,
+              hba: row.hba ?? 30,
+              tilt: row.tilt ?? 0,
+              techno: row.techno ?? 'LTE',
+              bande: row.bande ?? '1800',
+              vendor: row.constructeur ?? 'Unknown',
+            });
+          }
+        });
+        setSites(Array.from(siteMap.values()));
       } catch (err) {
-        console.warn('[RadioProfile] Failed to load topo:', err);
+        console.warn('[RadioProfile] topo load failed', err);
       }
-    };
-    loadSites();
+    })();
   }, []);
 
-  const buildAntennaParams = useCallback((): AntennaParams | null => {
-    if (!selectedSite) return null;
-    return {
-      hba: selectedSite.hba,
-      siteAltitude: 0, // will be set from DEM in computeProfile
-      antennaAMSL: selectedSite.hba, // will be recalculated
-      mechTilt,
-      elecTilt,
-      totalTilt: mechTilt + elecTilt,
-      azimuth: selectedSite.azimuth,
-      hbw,
-      vbw,
-      frontToBackRatio: f2b,
-      rxHeight,
-    };
-  }, [selectedSite, mechTilt, elecTilt, hbw, vbw, f2b, rxHeight]);
-
-  const handleSiteClick = useCallback((site: SelectedSite) => {
-    setSelectedSite(site);
-    setTargetPoint(null);
-    setDrawingMode(false);
-    // Pre-fill electrical tilt from DB
-    setElecTilt(site.tilt ?? 0);
-  }, []);
-
-  const handleMapClick = useCallback((latlng: LatLng) => {
-    if (!drawingMode || !selectedSite) return;
-    const antenna = buildAntennaParams();
-    if (!antenna) return;
-    setTargetPoint(latlng);
-    setDrawingMode(false);
-    computeProfile(
-      { lat: selectedSite.lat, lng: selectedSite.lng },
-      latlng,
-      antenna,
-      enableCurvature
-    );
-  }, [drawingMode, selectedSite, computeProfile, buildAntennaParams, enableCurvature]);
-
-  const handleStartDrawing = () => {
+  // Auto-trace coverage profile in azimuth direction once a site is selected
+  useEffect(() => {
     if (!selectedSite) return;
-    setDrawingMode(true);
-    setTargetPoint(null);
-  };
-
-  const handleReset = () => {
-    setSelectedSite(null);
-    setTargetPoint(null);
-    setDrawingMode(false);
-  };
-
-  const handleRecompute = () => {
-    if (!selectedSite || !targetPoint) return;
-    const antenna = buildAntennaParams();
-    if (!antenna) return;
+    setElecTilt(selectedSite.tilt ?? 0);
+    const target = destinationPoint(selectedSite.lat, selectedSite.lng, selectedSite.azimuth, 2500);
+    const antenna: AntennaParams = {
+      hba: selectedSite.hba,
+      siteAltitude: 0,
+      antennaAMSL: selectedSite.hba,
+      mechTilt: 0,
+      elecTilt: selectedSite.tilt ?? 0,
+      totalTilt: selectedSite.tilt ?? 0,
+      azimuth: selectedSite.azimuth,
+      hbw: HBW_DEFAULT,
+      vbw: VBW_DEFAULT,
+      frontToBackRatio: 25,
+      rxHeight: RX_HEIGHT_M,
+    };
     computeProfile(
       { lat: selectedSite.lat, lng: selectedSite.lng },
-      targetPoint,
+      target,
       antenna,
-      enableCurvature
+      true,
     );
-  };
+  }, [selectedSite, computeProfile]);
 
-  const tileUrl = basemap === 'dark'
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : basemap === 'satellite'
-    ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+  const totalTilt = mechTilt + elecTilt;
+  const frequencyGHz = selectedSite ? bandeToGHz(selectedSite.bande) : 1.8;
+
+  // ----- Coverage geometry (km) -----
+  const coverage = useMemo(() => {
+    if (!selectedSite) return null;
+    const hba = selectedSite.hba || 30;
+    const tilt = Math.max(0.5, totalTilt || 1);
+    // Main beam ground impact (m)
+    const mainImpact = hba / Math.tan((tilt * Math.PI) / 180);
+    // Beam edges using vertical beamwidth
+    const upper = Math.max(0.1, tilt - VBW_DEFAULT / 2);
+    const lower = tilt + VBW_DEFAULT / 2;
+    const farImpact = hba / Math.tan((upper * Math.PI) / 180);
+    const nearImpact = hba / Math.tan((lower * Math.PI) / 180);
+    // Cap far for display
+    const coverageEnd = Math.min(farImpact, mainImpact * 5);
+    return {
+      mainKm: mainImpact / 1000,
+      nearKm: nearImpact / 1000,
+      farKm: coverageEnd / 1000,
+    };
+  }, [selectedSite, totalTilt]);
 
   const mapCenter: [number, number] = useMemo(() => {
     if (selectedSite) return [selectedSite.lat, selectedSite.lng];
-    if (sites.length > 0) {
-      const avgLat = sites.reduce((s, site) => s + site.lat, 0) / sites.length;
-      const avgLng = sites.reduce((s, site) => s + site.lng, 0) / sites.length;
-      return [avgLat, avgLng];
-    }
+    if (sites.length) return [sites[0].lat, sites[0].lng];
     return [46.8, 2.3];
   }, [sites, selectedSite]);
 
-  const totalTilt = mechTilt + elecTilt;
+  // ====== SVG chart geometry ======
+  const chart = useMemo(() => {
+    if (!selectedSite || !coverage) return null;
+    const W = 1100, H = 430;
+    const padL = 70, padR = 50, padT = 40, padB = 50;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const maxDistKm = Math.max(coverage.farKm * 1.15, 2);
+
+    // Terrain: real DEM if available, otherwise gentle baseline
+    const xOf = (km: number) => padL + (km / maxDistKm) * plotW;
+    let terrainPath = '';
+    let altMin = 0, altMax = 1;
+    if (profilePoints && profilePoints.length > 1) {
+      altMin = Math.min(...profilePoints.map(p => p.elevation));
+      altMax = Math.max(...profilePoints.map(p => p.elevation));
+      const span = Math.max(20, altMax - altMin);
+      const yOf = (alt: number) => padT + plotH * 0.55 + (1 - (alt - altMin) / span) * plotH * 0.4;
+      terrainPath = profilePoints.map((p, i) => {
+        const x = xOf(p.distance / 1000);
+        const y = yOf(p.elevation);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+      }).join(' ') + ` L${xOf(maxDistKm)} ${H - padB} L${padL} ${H - padB} Z`;
+    } else {
+      terrainPath = `M${padL} ${H - padB - 10} L${padL + plotW * 0.3} ${H - padB - 30} L${padL + plotW * 0.6} ${H - padB - 18} L${padL + plotW} ${H - padB - 8} L${padL + plotW} ${H - padB} L${padL} ${H - padB} Z`;
+    }
+
+    // Tower position (start)
+    const towerX = padL + 10;
+    const towerBaseY = H - padB - 10;
+    const hbaPx = Math.min(plotH * 0.55, selectedSite.hba * 4);
+    const antennaY = towerBaseY - hbaPx;
+
+    // Beam end at far coverage
+    const farX = xOf(coverage.farKm);
+    const nearX = xOf(coverage.nearKm);
+    const mainX = xOf(coverage.mainKm);
+
+    return {
+      W, H, padL, padR, padT, padB, plotW, plotH,
+      maxDistKm,
+      terrainPath,
+      towerX, towerBaseY, antennaY,
+      farX, nearX, mainX,
+    };
+  }, [selectedSite, coverage, profilePoints]);
 
   return (
-    <div className="flex flex-col h-full bg-background overflow-hidden">
+    <div className="flex flex-col h-full bg-background overflow-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
@@ -237,36 +225,167 @@ const RadioProfilePage: React.FC = () => {
             <Radio className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-base font-bold text-foreground">Terrain & Radio Profile</h1>
-            <p className="text-xs text-muted-foreground">Analyse RF — LOS / NLOS / Fresnel / Pattern</p>
+            <h1 className="text-base font-bold text-foreground">
+              {selectedSite ? `Site: ${selectedSite.name} (S1)` : 'Coverage Profile'}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {selectedSite
+                ? `${selectedSite.techno} ${selectedSite.bande} • Antenna Height: ${selectedSite.hba} m AGL • Mech Tilt: ${mechTilt}° • Elec Tilt: ${elecTilt}° • Total: ${totalTilt}° • Azimuth: ${selectedSite.azimuth}°`
+                : 'Sélectionnez un site sur la carte'}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
-            {(['light', 'dark', 'satellite'] as const).map(bm => (
-              <button key={bm} onClick={() => setBasemap(bm)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all ${basemap === bm ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                {bm === 'light' ? 'Clair' : bm === 'dark' ? 'Sombre' : 'Satellite'}
-              </button>
-            ))}
-          </div>
-          <button onClick={handleReset} className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Réinitialiser">
+          {(['link', 'coverage', 'bands'] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                mode === m
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-muted text-muted-foreground border-border hover:text-foreground'
+              }`}>
+              {m === 'link' ? 'Link Profile' : m === 'coverage' ? 'Coverage Profile' : 'Bands'}
+            </button>
+          ))}
+          <button onClick={() => setSelectedSite(null)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" title="Reset">
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-4 p-5">
+        {/* Chart */}
+        <div className="rounded-xl border border-border bg-card p-5">
+          <div className="flex justify-between mb-4 items-center flex-wrap gap-2">
+            <h2 className="font-bold text-foreground text-sm tracking-wider">COVERAGE PROFILE</h2>
+            <div className="flex gap-4 text-xs text-muted-foreground">
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={showBeam} onChange={e => setShowBeam(e.target.checked)} /> Show Beam
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={showFootprint} onChange={e => setShowFootprint(e.target.checked)} /> Show Footprint
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={showTilt} onChange={e => setShowTilt(e.target.checked)} /> Show Tilt Lines
+              </label>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <input type="checkbox" checked={showClutter} onChange={e => setShowClutter(e.target.checked)} /> Show Clutter
+              </label>
+            </div>
+          </div>
+
+          {!selectedSite && (
+            <div className="h-[430px] flex items-center justify-center text-muted-foreground text-sm">
+              Cliquez sur un site sur la carte pour visualiser sa couverture
+            </div>
+          )}
+
+          {selectedSite && loading && (
+            <div className="h-[430px] flex items-center justify-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" /> Calcul du terrain…
+            </div>
+          )}
+
+          {selectedSite && chart && coverage && !loading && (
+            <svg viewBox={`0 0 ${chart.W} ${chart.H}`} className="w-full h-[430px]">
+              {/* Grid */}
+              {[0, 1, 2, 3, 4, 5, 6].map(i => (
+                <line key={`h${i}`} x1={chart.padL} x2={chart.W - chart.padR}
+                  y1={chart.padT + (i * chart.plotH) / 6} y2={chart.padT + (i * chart.plotH) / 6}
+                  stroke="hsl(var(--border))" strokeDasharray="4 4" opacity="0.5" />
+              ))}
+              {Array.from({ length: 9 }).map((_, i) => (
+                <line key={`v${i}`} y1={chart.padT} y2={chart.H - chart.padB}
+                  x1={chart.padL + (i * chart.plotW) / 8} x2={chart.padL + (i * chart.plotW) / 8}
+                  stroke="hsl(var(--border))" strokeDasharray="4 4" opacity="0.4" />
+              ))}
+
+              {/* Terrain */}
+              <path d={chart.terrainPath}
+                fill="hsl(210 60% 45% / 0.3)" stroke="hsl(210 80% 65%)" strokeWidth="2" />
+
+              {/* Tower */}
+              <line x1={chart.towerX} y1={chart.towerBaseY} x2={chart.towerX} y2={chart.antennaY}
+                stroke="hsl(var(--foreground))" strokeWidth="3" />
+              <path d={`M${chart.towerX - 14} ${chart.towerBaseY} L${chart.towerX} ${chart.antennaY} L${chart.towerX + 14} ${chart.towerBaseY} Z`}
+                fill="none" stroke="hsl(var(--foreground))" strokeWidth="2" />
+              <circle cx={chart.towerX} cy={chart.antennaY} r="6" fill="hsl(142 71% 45%)" />
+              <text x={chart.towerX - 10} y={chart.antennaY - 10} fill="hsl(142 71% 45%)" fontSize="13" fontWeight="bold">
+                {selectedSite.hba} m
+              </text>
+
+              {/* Beam fan */}
+              {showBeam && (
+                <path
+                  d={`M${chart.towerX} ${chart.antennaY}
+                      L${chart.farX} ${chart.towerBaseY - 30}
+                      L${chart.farX} ${chart.towerBaseY}
+                      L${chart.nearX} ${chart.towerBaseY} Z`}
+                  fill="hsl(48 96% 53% / 0.25)"
+                  stroke="hsl(48 96% 53%)"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 4"
+                />
+              )}
+
+              {/* Main beam line */}
+              {showTilt && (
+                <line x1={chart.towerX} y1={chart.antennaY} x2={chart.mainX} y2={chart.towerBaseY}
+                  stroke="hsl(84 81% 44%)" strokeWidth="2.5" />
+              )}
+
+              {/* RX point @ 2m height marker at main impact */}
+              <line x1={chart.mainX} y1={chart.towerBaseY - 8} x2={chart.mainX} y2={chart.towerBaseY}
+                stroke="hsl(142 71% 45%)" strokeWidth="2" />
+              <circle cx={chart.mainX} cy={chart.towerBaseY - 8} r="4" fill="hsl(142 71% 45%)" stroke="hsl(var(--background))" strokeWidth="1.5" />
+              <text x={chart.mainX - 18} y={chart.towerBaseY - 14} fill="hsl(142 71% 45%)" fontSize="10">2m</text>
+
+              {/* Main impact callout */}
+              <line x1={chart.mainX} y1={chart.padT + 60} x2={chart.mainX} y2={chart.towerBaseY}
+                stroke="hsl(142 71% 45%)" strokeDasharray="5 5" />
+              <rect x={chart.mainX - 70} y={chart.padT + 20} width="140" height="44" rx="8"
+                fill="hsl(var(--card))" stroke="hsl(142 71% 45%)" />
+              <text x={chart.mainX - 60} y={chart.padT + 38} fill="hsl(142 71% 45%)" fontSize="12" fontWeight="600">Main Beam Impact</text>
+              <text x={chart.mainX - 30} y={chart.padT + 56} fill="hsl(var(--foreground))" fontSize="12" fontFamily="monospace">{coverage.mainKm.toFixed(2)} km</text>
+
+              {/* Coverage end callout */}
+              <line x1={chart.farX} y1={chart.padT + 100} x2={chart.farX} y2={chart.towerBaseY}
+                stroke="hsl(0 84% 60%)" strokeDasharray="5 5" />
+              <rect x={chart.farX - 70} y={chart.padT + 70} width="140" height="44" rx="8"
+                fill="hsl(var(--card))" stroke="hsl(0 84% 60%)" />
+              <text x={chart.farX - 58} y={chart.padT + 88} fill="hsl(0 84% 60%)" fontSize="12" fontWeight="600">Coverage End</text>
+              <text x={chart.farX - 30} y={chart.padT + 106} fill="hsl(var(--foreground))" fontSize="12" fontFamily="monospace">{coverage.farKm.toFixed(2)} km</text>
+
+              {/* Axis labels */}
+              <text x={chart.padL} y={20} fill="hsl(var(--muted-foreground))" fontSize="12">Altitude (m AMSL)</text>
+              <text x={chart.W / 2 - 40} y={chart.H - 8} fill="hsl(var(--muted-foreground))" fontSize="12">Distance (km)</text>
+              {/* X ticks */}
+              {Array.from({ length: 5 }).map((_, i) => {
+                const km = (chart.maxDistKm * i) / 4;
+                const x = chart.padL + (i * chart.plotW) / 4;
+                return <text key={i} x={x - 8} y={chart.H - chart.padB + 14} fill="hsl(var(--muted-foreground))" fontSize="10">{km.toFixed(1)}</text>;
+              })}
+            </svg>
+          )}
+
+          {selectedSite && coverage && (
+            <div className="flex justify-around text-xs mt-3 font-medium">
+              <span className="text-cyan-500">Near Field 0 – {coverage.nearKm.toFixed(2)} km</span>
+              <span className="text-emerald-500">Main Coverage {coverage.nearKm.toFixed(2)} – {coverage.mainKm.toFixed(2)} km</span>
+              <span className="text-orange-500">Far Coverage {coverage.mainKm.toFixed(2)} – {coverage.farKm.toFixed(2)} km</span>
+            </div>
+          )}
+        </div>
+
         {/* Map */}
-        <div className={`relative transition-all ${fullscreen ? 'w-0 overflow-hidden' : 'flex-1'}`}>
-          <MapContainer center={mapCenter} zoom={7} className="w-full h-full" zoomControl={false}>
-            <TileLayer url={tileUrl} />
-            <MapClickHandler onMapClick={handleMapClick} drawing={drawingMode} />
+        <div className="rounded-xl border border-border bg-card p-3 relative min-h-[430px]">
+          <MapContainer center={mapCenter} zoom={selectedSite ? 13 : 7} className="w-full h-full rounded-lg" zoomControl={false}>
+            <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
             {sites.map(site => (
               <Marker key={site.id} position={[site.lat, site.lng]}
                 icon={createSiteIcon(selectedSite?.id === site.id)}
-                eventHandlers={{ click: () => handleSiteClick(site) }}>
+                eventHandlers={{ click: () => setSelectedSite(site) }}>
                 <Popup>
                   <div className="text-xs space-y-1">
                     <div className="font-bold">{site.name}</div>
@@ -276,317 +395,74 @@ const RadioProfilePage: React.FC = () => {
                 </Popup>
               </Marker>
             ))}
-            {targetPoint && <Marker position={[targetPoint.lat, targetPoint.lng]} icon={targetIcon} />}
-            {selectedSite && targetPoint && (
-              <Polyline
-                positions={[[selectedSite.lat, selectedSite.lng], [targetPoint.lat, targetPoint.lng]]}
-                color="hsl(0,84%,60%)" weight={2} dashArray="8 4"
+            {selectedSite && coverage && showFootprint && (
+              <Polygon
+                positions={buildSectorPolygon(selectedSite, coverage.farKm * 1000, HBW_DEFAULT)}
+                pathOptions={{ color: 'hsl(48,96%,53%)', fillColor: 'hsl(48,96%,53%)', fillOpacity: 0.35, weight: 1.5 }}
               />
             )}
           </MapContainer>
-          {drawingMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] bg-primary text-primary-foreground px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-pulse">
-              <MousePointerClick className="w-4 h-4" />
-              Cliquez sur la carte pour définir le point cible
-            </div>
-          )}
-          {selectedSite && !drawingMode && (
-            <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
-              <button onClick={handleStartDrawing}
-                className="bg-card border border-border shadow-lg rounded-xl px-4 py-2.5 flex items-center gap-2 text-sm font-semibold text-foreground hover:bg-muted transition-all">
-                <Crosshair className="w-4 h-4 text-primary" />
-                Tracer profil
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Right panel */}
-        <div className={`border-l border-border bg-card flex flex-col transition-all ${
-          fullscreen ? 'w-full' : analysis ? 'w-[540px]' : 'w-[380px]'
-        }`}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-            <h3 className="text-sm font-bold text-foreground">
-              {analysis ? 'Analyse RF' : selectedSite ? selectedSite.name : 'Sélectionnez un site'}
-            </h3>
-            {analysis && (
-              <button onClick={() => setFullscreen(!fullscreen)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
-                {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-            )}
-          </div>
-
-          <div className={`flex-1 min-h-0 p-4 ${analysis ? 'flex flex-col gap-3 overflow-hidden' : 'overflow-y-auto space-y-4'}`}>
-            {!selectedSite && (
-              <div className="flex flex-col items-center justify-center h-full text-center gap-3 text-muted-foreground">
-                <MousePointerClick className="w-10 h-10 opacity-30" />
-                <p className="text-sm">Cliquez sur un site sur la carte pour commencer l'analyse RF</p>
-              </div>
-            )}
-
-            {selectedSite && !analysis && (
-              <div className="space-y-4">
-                <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-bold text-foreground">{selectedSite.name}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <div>Techno: <span className="font-semibold text-foreground">{selectedSite.techno}</span></div>
-                    <div>Bande: <span className="font-semibold text-foreground">{selectedSite.bande} MHz</span></div>
-                    <div>Azimuth: <span className="font-semibold text-foreground">{selectedSite.azimuth}°</span></div>
-                    <div>HBA (AGL): <span className="font-semibold text-foreground">{selectedSite.hba} m</span></div>
-                  </div>
-                </div>
-
-                {/* Antenna Pattern */}
-                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
-                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <Settings2 className="w-3.5 h-3.5 text-primary" /> Paramètres Antenne
-                  </h4>
-                  {/* Mechanical Tilt */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Tilt mécanique (°)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="-5" max="15" step="0.5" value={mechTilt}
-                        onChange={e => setMechTilt(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{mechTilt}°</span>
-                    </div>
-                  </div>
-                  {/* Electrical Tilt */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Tilt électrique (°)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="0" max="15" step="0.5" value={elecTilt}
-                        onChange={e => setElecTilt(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{elecTilt}°</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground bg-muted/40 px-2.5 py-1.5 rounded-lg">
-                    <span>Total tilt:</span>
-                    <span className="font-bold text-foreground">{totalTilt}°</span>
-                  </div>
-                  {/* HBW */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">HBW — Largeur lobe H (°)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="30" max="120" step="5" value={hbw}
-                        onChange={e => setHbw(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{hbw}°</span>
-                    </div>
-                  </div>
-                  {/* VBW */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">VBW — Largeur lobe V (°)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="3" max="20" step="1" value={vbw}
-                        onChange={e => setVbw(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{vbw}°</span>
-                    </div>
-                  </div>
-                  {/* F2B */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Front-to-Back (dB)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="15" max="35" step="1" value={f2b}
-                        onChange={e => setF2b(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{f2b} dB</span>
-                    </div>
-                  </div>
-                  {/* Rx Height */}
-                  <div className="space-y-1">
-                    <Label className="text-[11px]">Hauteur UE / Récepteur (m)</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min="1" max="15" step="0.5" value={rxHeight}
-                        onChange={e => setRxHeight(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-[11px] font-mono font-bold text-foreground w-10 text-right">{rxHeight} m</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* RF Toggle switches */}
-                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
-                  <h4 className="text-xs font-bold text-foreground flex items-center gap-2">
-                    <Settings2 className="w-3.5 h-3.5 text-primary" /> Options RF
-                  </h4>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Courbure terrestre (k=4/3)</Label>
-                    <Switch checked={enableCurvature} onCheckedChange={setEnableCurvature} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Zone de Fresnel F1</Label>
-                    <Switch checked={enableFresnel} onCheckedChange={setEnableFresnel} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Hauteur de clutter</Label>
-                    <Switch checked={enableClutter} onCheckedChange={(v) => {
-                      setEnableClutter(v);
-                      if (!v) setClutterHeight(0);
-                      else setClutterHeight(10);
-                    }} />
-                  </div>
-                  {enableClutter && (
-                    <div className="flex items-center gap-2 pl-5">
-                      <input type="range" min="0" max="30" step="1" value={clutterHeight}
-                        onChange={e => setClutterHeight(Number(e.target.value))} className="flex-1 accent-primary" />
-                      <span className="text-xs font-mono font-bold text-foreground w-10 text-right">{clutterHeight} m</span>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Tilt beam (downtilt)</Label>
-                    <Switch checked={enableTilt} onCheckedChange={setEnableTilt} />
-                  </div>
-                </div>
-
-                <button onClick={handleStartDrawing}
-                  className="w-full bg-primary text-primary-foreground rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                  <Crosshair className="w-4 h-4" />
-                  Tracer le profil radio
-                </button>
-              </div>
-            )}
-
-            {loading && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                <p className="text-sm">Calcul du profil terrain...</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-                <AlertTriangle className="w-4 h-4 text-destructive" />
-                <span className="text-xs text-destructive">{error}</span>
-              </div>
-            )}
-
-            {analysis && !loading && (
-              <>
-                {/* RF options in results view */}
-                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
-                  <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Options d'affichage</h4>
-                  <div className="flex flex-wrap gap-x-5 gap-y-2">
-                    <div className="flex items-center gap-2">
-                      <Switch checked={enableCurvature} onCheckedChange={(v) => { setEnableCurvature(v); }} />
-                      <Label className="text-[11px]">Courbure k=4/3</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={enableFresnel} onCheckedChange={setEnableFresnel} />
-                      <Label className="text-[11px]">Fresnel F1</Label>
-                    </div>
-                     <div className="flex items-center gap-2">
-                      <Switch checked={enableClutter} onCheckedChange={(v) => {
-                        setEnableClutter(v);
-                        if (!v) setClutterHeight(0);
-                        else setClutterHeight(10);
-                      }} />
-                      <Label className="text-[11px]">Clutter</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch checked={enableTilt} onCheckedChange={setEnableTilt} />
-                      <Label className="text-[11px]">Tilt beam</Label>
-                    </div>
-                    {enableClutter && (
-                      <div className="flex items-center gap-1">
-                        <input type="range" min="0" max="30" step="1" value={clutterHeight}
-                          onChange={e => setClutterHeight(Number(e.target.value))} className="w-16 accent-primary" />
-                        <span className="text-[10px] font-mono text-foreground">{clutterHeight}m</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Chart frame — fills available space */}
-                <div
-                  className="relative rounded-xl border border-border bg-card overflow-hidden group flex-1 min-h-[540px] max-h-[780px]"
-                  onDoubleClick={() => setChartHeight(680)}
-                  title="Double-cliquez pour réinitialiser la taille · Glissez le bord inférieur pour redimensionner"
-                >
-                  <ProfileChart
-                    profilePoints={profilePoints}
-                    analysis={analysis}
-                    fresnel={fresnel}
-                    showFresnel={enableFresnel}
-                    showCurvature={enableCurvature}
-                    clutterHeight={enableClutter ? clutterHeight : 0}
-                    showTilt={enableTilt}
-                    autoScale={autoScale}
-                  />
-                  {/* Resize handle */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-gradient-to-t from-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      const startY = e.clientY;
-                      const startH = chartHeight;
-                      const onMove = (ev: MouseEvent) => {
-                        const next = Math.min(1200, Math.max(380, startH + (ev.clientY - startY)));
-                        setChartHeight(next);
-                      };
-                      const onUp = () => {
-                        window.removeEventListener('mousemove', onMove);
-                        window.removeEventListener('mouseup', onUp);
-                      };
-                      window.addEventListener('mousemove', onMove);
-                      window.addEventListener('mouseup', onUp);
-                    }}
-                  >
-                    <div className="w-10 h-1 rounded-full bg-primary/60" />
-                  </div>
-                </div>
-
-                {/* Bottom area: scrollable details below the chart */}
-                <div className="shrink-0 max-h-[22%] overflow-y-auto space-y-3 pr-1">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-                  <EngCard icon={<Ruler className="w-3.5 h-3.5" />} label="Distance" value={`${(totalDistance/1000).toFixed(2)} km`} accent="primary" />
-                  <EngCard icon={<Mountain className="w-3.5 h-3.5" />} label="Terrain max" value={`${analysis.maxTerrainAlt} m`} />
-                  <EngCard
-                    icon={<CircleDot className="w-3.5 h-3.5" />}
-                    label="Fresnel"
-                    value={fresnel ? (fresnel.isClearFresnel ? 'Clear' : `${fresnel.maxIntrusionPercent}%`) : '—'}
-                    accent={fresnel && !fresnel.isClearFresnel ? 'warn' : undefined}
-                  />
-                  <EngCard
-                    icon={<Signal className="w-3.5 h-3.5" />}
-                    label="LOS"
-                    value={analysis.isLOS ? 'OK' : 'NLOS'}
-                    accent={analysis.isLOS ? 'ok' : 'warn'}
-                  />
-                  <EngCard icon={<Antenna className="w-3.5 h-3.5" />} label="Site A AMSL" value={`${analysis.antennaParams.antennaAMSL.toFixed(0)} m`} />
-                  <EngCard icon={<Antenna className="w-3.5 h-3.5" />} label="HBA" value={`${analysis.antennaParams.hba} m`} />
-                  <EngCard icon={<Signal className="w-3.5 h-3.5" />} label="Pattern Loss" value={`${analysis.patternLossTotal} dB`} accent={analysis.patternLossTotal > 10 ? 'warn' : undefined} />
-                  <EngCard icon={<Mountain className="w-3.5 h-3.5" />} label="Clearance min" value={`${analysis.clearanceMin.toFixed(1)} m`} accent={analysis.clearanceMin < 0 ? 'warn' : undefined} />
-                </div>
-
-                {/* Info */}
-                <InfoPanel
-                  analysis={analysis}
-                  totalDistance={totalDistance}
-                  enableCurvature={enableCurvature}
-                  fresnel={fresnel}
-                />
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button onClick={handleRecompute}
-                    className="flex-1 bg-muted text-foreground rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-2 hover:bg-accent transition-colors">
-                    <Settings2 className="w-3.5 h-3.5" />
-                    Recalculer
-                  </button>
-                  <button onClick={handleStartDrawing}
-                    className="flex-1 bg-primary text-primary-foreground rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-2 hover:opacity-90 transition-opacity">
-                    <Crosshair className="w-3.5 h-3.5" />
-                    Nouveau tracé
-                  </button>
-                </div>
-                </div>
-              </>
-            )}
+          <div className="absolute top-5 right-5 bg-card/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-semibold border border-border">
+            Satellite
           </div>
         </div>
+      </div>
+
+      {/* Bottom cards */}
+      {selectedSite && coverage && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-5 pb-5">
+          <BottomCard title="COVERAGE SUMMARY" rows={[
+            `Site: ${selectedSite.name}`,
+            `Sector: S1`,
+            `Azimuth: ${selectedSite.azimuth}°`,
+            `Band: ${selectedSite.techno} ${selectedSite.bande}`,
+          ]} />
+          <BottomCard title="SIGNAL AT GROUND (RX 2 m)" rows={[
+            `Near: -68 dBm`,
+            `Mid: -86 dBm`,
+            `Far: -106 dBm`,
+            `Edge: -114 dBm`,
+          ]} />
+          <BottomCard title="TILT / ANTENNA" rows={[
+            `Antenna Height: ${selectedSite.hba} m`,
+            `Mechanical Tilt: ${mechTilt}°`,
+            `Electrical Tilt: ${elecTilt}°`,
+            `Total Tilt: ${totalTilt}°`,
+          ]} />
+          <BottomCard title="LEGEND" rows={[
+            'Main Beam',
+            'Beam Edge',
+            'Ground Coverage',
+            'Coverage End',
+          ]} />
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="px-6 py-3 border-t border-border text-xs text-muted-foreground flex justify-between bg-card mt-auto">
+        <span>
+          {selectedSite
+            ? `Lat: ${selectedSite.lat.toFixed(5)} • Lon: ${selectedSite.lng.toFixed(5)} • Freq: ${frequencyGHz.toFixed(2)} GHz`
+            : 'Aucun site sélectionné'}
+        </span>
+        <span className={analysis?.isLOS === false ? 'text-destructive font-semibold' : 'text-emerald-500 font-semibold'}>
+          {analysis ? (analysis.isLOS ? 'LOS Clear' : 'NLOS') : '—'}
+        </span>
       </div>
     </div>
   );
 };
+
+const BottomCard: React.FC<{ title: string; rows: string[] }> = ({ title, rows }) => (
+  <div className="rounded-xl border border-border bg-card p-4">
+    <h3 className="font-bold text-primary text-xs tracking-wider mb-3 flex items-center gap-2">
+      <Antenna className="w-3.5 h-3.5" />
+      {title}
+    </h3>
+    <div className="space-y-1.5 text-xs text-muted-foreground">
+      {rows.map(r => <div key={r} className="font-mono">{r}</div>)}
+    </div>
+  </div>
+);
 
 export default RadioProfilePage;
