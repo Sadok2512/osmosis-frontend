@@ -28,6 +28,8 @@ interface Props {
   remoteAntenna?: RemoteAntennaParams | null;
   siteName?: string;
   onHoverPoint?: (data: ProfileHoverData | null) => void;
+  autoScale?: boolean;
+  manualMinHeight?: number | null;
 }
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
