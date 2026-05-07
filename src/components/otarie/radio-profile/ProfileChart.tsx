@@ -77,8 +77,9 @@ const ProfileChart: React.FC<Props> = ({
     const rfMax = Math.max(tMax, antennaAMSL, rxAMSL, remoteAMSL ?? -Infinity);
     const rfMin = Math.min(tMin, rxAMSL);
     const range = Math.max(20, rfMax - rfMin);
-    // Y starts from 0 (per V2 spec) with headroom above
-    const yDomainMax = Math.ceil(rfMax + Math.max(20, range * 0.25));
+    // Adaptive Y bounds (terrain stays readable on flat short links)
+    const yDomainMin = Math.max(0, Math.floor(rfMin - Math.max(8, range * 0.15)));
+    const yDomainMax = Math.ceil(rfMax + Math.max(15, range * 0.25));
 
     // First Fresnel block index
     let firstFresnelBlockIndex: number | null = null;
@@ -106,6 +107,7 @@ const ProfileChart: React.FC<Props> = ({
       antennaAMSL,
       rxAMSL,
       remoteAMSL,
+      yDomainMin,
       yDomainMax,
       firstFresnelBlockIndex,
       linkState,
@@ -118,8 +120,8 @@ const ProfileChart: React.FC<Props> = ({
     [derived?.totalDistKm]
   );
   const yScale = useMemo(
-    () => d3.scaleLinear().domain([0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
-    [derived?.yDomainMax]
+    () => d3.scaleLinear().domain([derived?.yDomainMin ?? 0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
+    [derived?.yDomainMin, derived?.yDomainMax]
   );
 
   const terrainPath = useMemo(() => {
