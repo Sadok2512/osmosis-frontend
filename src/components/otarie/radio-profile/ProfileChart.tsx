@@ -49,6 +49,8 @@ const ProfileChart: React.FC<Props> = ({
   remoteAntenna,
   siteName,
   onHoverPoint,
+  autoScale = true,
+  manualMinHeight = null,
 }) => {
   const ant = analysis?.antennaParams ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
