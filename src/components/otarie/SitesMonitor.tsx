@@ -18,6 +18,7 @@ import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
 import { is5GTech, is4GTech, is3GTech, is2GTech, getCellTechGroup, normalizeSiteKey, resolveCanonicalSiteId, stableCellKey, computeMapAggregation } from '@/utils/telecomHelpers';
 import ProfileChart, { ProfileHoverData } from './radio-profile/ProfileChart';
 import InfoPanel from './radio-profile/InfoPanel';
+import CoverageProfile from './radio-profile/CoverageProfile';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -5170,6 +5171,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [linkEnableClutter, setLinkEnableClutter] = useState(false);
   const [linkClutterHeight, setLinkClutterHeight] = useState(0);
   const [linkActiveCoords, setLinkActiveCoords] = useState<{ from: [number, number]; to: [number, number] } | null>(null);
+  // Profile mode: 'link' = site-to-site microwave (LOS + Fresnel between two
+  // antennas); 'coverage' = single-antenna ground-coverage view (sector toward
+  // terrain). Default 'link' for back-compat with existing tagged-link flow.
+  const [linkProfileMode, setLinkProfileMode] = useState<'link' | 'coverage'>('link');
 
   // ── Terrain Profile for Measurements ──
   const { loading: measProfileLoading, profilePoints: measProfilePoints, analysis: measProfileAnalysis, computeProfile: measProfileCompute } = useTerrainProfile();
@@ -10326,66 +10331,94 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </div>
             {/* Controls */}
             <div className="flex items-center gap-2">
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-                style={{
-                  background: linkEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <Switch checked={linkEnableCurvature} onCheckedChange={(v) => {
-                  setLinkEnableCurvature(v);
-                  if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v);
-                }} />
-                <Label className="text-[10px] text-white/60">k=4/3</Label>
+              {/* Mode toggle: site-to-site microwave (Link) vs antenna-to-ground (Coverage) */}
+              <div className="flex items-center bg-white/5 rounded-xl border border-white/10 p-0.5">
+                <button
+                  onClick={() => setLinkProfileMode('link')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                    linkProfileMode === 'link'
+                      ? 'bg-blue-500/30 text-blue-200 border border-blue-400/40'
+                      : 'text-white/50 hover:text-white/80'
+                  }`}
+                >
+                  Link Profile
+                </button>
+                <button
+                  onClick={() => setLinkProfileMode('coverage')}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                    linkProfileMode === 'coverage'
+                      ? 'bg-emerald-500/30 text-emerald-200 border border-emerald-400/40'
+                      : 'text-white/50 hover:text-white/80'
+                  }`}
+                >
+                  Coverage Profile
+                </button>
               </div>
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-                style={{
-                  background: linkEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <Switch checked={linkEnableFresnel} onCheckedChange={setLinkEnableFresnel} />
-                <Label className="text-[10px] text-white/60">Fresnel</Label>
-              </div>
-              <div
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
-                style={{
-                  background: linkEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                }}
-              >
-                <Switch checked={linkEnableClutter} onCheckedChange={(v) => {
-                  setLinkEnableClutter(v);
-                  if (!v) setLinkClutterHeight(0);
-                  else setLinkClutterHeight(10);
-                }} />
-                <Label className="text-[10px] text-white/60">Clutter</Label>
-              </div>
-              {linkEnableClutter && (
-                <div className="flex items-center gap-1.5">
-                  <input type="range" min="0" max="30" step="1" value={linkClutterHeight}
-                    onChange={e => setLinkClutterHeight(Number(e.target.value))}
-                    className="w-14 accent-sky-400" />
-                  <span className="text-[9px] font-mono text-white/50">{linkClutterHeight}m</span>
-                </div>
+              {/* Link-mode controls (curvature/Fresnel/clutter) — hidden in Coverage mode */}
+              {linkProfileMode === 'link' && (
+                <>
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                    style={{
+                      background: linkEnableCurvature ? 'rgba(56,189,248,0.1)' : 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Switch checked={linkEnableCurvature} onCheckedChange={(v) => {
+                      setLinkEnableCurvature(v);
+                      if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v);
+                    }} />
+                    <Label className="text-[10px] text-white/60">k=4/3</Label>
+                  </div>
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                    style={{
+                      background: linkEnableFresnel ? 'rgba(250,204,21,0.08)' : 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Switch checked={linkEnableFresnel} onCheckedChange={setLinkEnableFresnel} />
+                    <Label className="text-[10px] text-white/60">Fresnel</Label>
+                  </div>
+                  <div
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                    style={{
+                      background: linkEnableClutter ? 'rgba(251,146,60,0.08)' : 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    <Switch checked={linkEnableClutter} onCheckedChange={(v) => {
+                      setLinkEnableClutter(v);
+                      if (!v) setLinkClutterHeight(0);
+                      else setLinkClutterHeight(10);
+                    }} />
+                    <Label className="text-[10px] text-white/60">Clutter</Label>
+                  </div>
+                  {linkEnableClutter && (
+                    <div className="flex items-center gap-1.5">
+                      <input type="range" min="0" max="30" step="1" value={linkClutterHeight}
+                        onChange={e => setLinkClutterHeight(Number(e.target.value))}
+                        className="w-14 accent-sky-400" />
+                      <span className="text-[9px] font-mono text-white/50">{linkClutterHeight}m</span>
+                    </div>
+                  )}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="Détails techniques">
+                        <Info size={16} />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="top" align="end" className="w-[320px] p-0 border-white/10 bg-slate-900/95 backdrop-blur-xl">
+                      <InfoPanel
+                        analysis={linkProfileAnalysis}
+                        totalDistance={linkTotalDistance}
+                        enableCurvature={linkEnableCurvature}
+                        fresnel={linkFresnel}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
               )}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors" title="Détails techniques">
-                    <Info size={16} />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent side="top" align="end" className="w-[320px] p-0 border-white/10 bg-slate-900/95 backdrop-blur-xl">
-                  <InfoPanel
-                    analysis={linkProfileAnalysis}
-                    totalDistance={linkTotalDistance}
-                    enableCurvature={linkEnableCurvature}
-                    fresnel={linkFresnel}
-                  />
-                </PopoverContent>
-              </Popover>
               <button
                 onClick={() => { setShowLinkProfile(false); setSelectedLinkId(null); setLinkProfileHover(null); setLinkActiveCoords(null); }}
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
@@ -10398,18 +10431,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           <div className="flex-1 overflow-hidden px-5 pb-4 min-h-0">
             {/* Chart — full width / full height */}
             <div className="h-full min-h-0 min-w-0">
-              <ProfileChart
-                profilePoints={linkProfilePoints}
-                analysis={linkProfileAnalysis}
-                fresnel={linkFresnel}
-                showFresnel={linkEnableFresnel}
-                showCurvature={linkEnableCurvature}
-                clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
-                onHoverPoint={setLinkProfileHover}
-                showTilt
-                remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
-                siteName={linkProfileLabel}
-              />
+              {linkProfileMode === 'link' ? (
+                <ProfileChart
+                  profilePoints={linkProfilePoints}
+                  analysis={linkProfileAnalysis}
+                  fresnel={linkFresnel}
+                  showFresnel={linkEnableFresnel}
+                  showCurvature={linkEnableCurvature}
+                  clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
+                  onHoverPoint={setLinkProfileHover}
+                  showTilt
+                  remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
+                  siteName={linkProfileLabel}
+                />
+              ) : (
+                (() => {
+                  // Coverage mode antenna params: pull from the first cell of
+                  // the currently-selected site if available; otherwise use
+                  // sensible defaults so the chart still draws something
+                  // useful. Phase 3 will auto-detect sector-vs-link context.
+                  const cell = siteDetail?.cells?.find(c => c.azimut != null) || siteDetail?.cells?.[0];
+                  const antennaH = Number((cell as any)?.hba ?? 30) || 30;
+                  const tilt = Number((cell as any)?.tilt ?? 0);
+                  const az = Number(cell?.azimut ?? 0);
+                  const baseAmsl = linkProfileAnalysis?.effectiveTerrain?.[0] ?? 0;
+                  return (
+                    <CoverageProfile
+                      siteName={siteDetail?.site_name || linkProfileLabel}
+                      sectorName={cell?.cell_id}
+                      azimut={az}
+                      antennaHeight={antennaH}
+                      mechanicalTilt={tilt}
+                      electricalTilt={0}
+                      band={cell?.bande || 'LTE1800'}
+                      techno={cell?.techno || '4G'}
+                      siteAltitudeAmsl={baseAmsl}
+                      showClutter={linkEnableClutter}
+                      clutterHeight={linkClutterHeight}
+                    />
+                  );
+                })()
+              )}
             </div>
           </div>
         </div>
