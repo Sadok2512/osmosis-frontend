@@ -21,24 +21,60 @@ interface TerrainProfileState {
 const elevationCache = new Map<string, number>();
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-async function fetchBatch(points: LatLng[], attempt = 0): Promise<number[]> {
+// Returns null entries when no data could be obtained (so we don't poison cache).
+async function fetchOpenMeteo(points: LatLng[], attempt = 0): Promise<(number | null)[]> {
   const lats = points.map(p => p.lat.toFixed(5)).join(',');
   const lngs = points.map(p => p.lng.toFixed(5)).join(',');
   const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lngs}`;
-
-  const resp = await fetch(url);
-  if (resp.status === 429 || resp.status === 503) {
-    if (attempt < 4) {
-      await sleep(800 * Math.pow(2, attempt) + Math.random() * 400);
-      return fetchBatch(points, attempt + 1);
+  try {
+    const resp = await fetch(url);
+    if (resp.status === 429 || resp.status === 503) {
+      if (attempt < 3) {
+        await sleep(700 * Math.pow(2, attempt) + Math.random() * 300);
+        return fetchOpenMeteo(points, attempt + 1);
+      }
+      return points.map(() => null);
     }
-    console.warn('[Elevation] rate-limited, falling back to flat terrain');
-    return points.map(() => 0);
+    if (!resp.ok) return points.map(() => null);
+    const data = await resp.json();
+    if (data.elevation && Array.isArray(data.elevation)) {
+      return data.elevation.map((v: any) => (typeof v === 'number' ? v : null));
+    }
+    return points.map(() => null);
+  } catch {
+    return points.map(() => null);
   }
-  if (!resp.ok) throw new Error(`Elevation API error: ${resp.status}`);
-  const data = await resp.json();
-  if (data.elevation && Array.isArray(data.elevation)) return data.elevation;
-  return points.map(() => 0);
+}
+
+// Fallback: open-elevation.com (POST, supports up to ~100 locations).
+async function fetchOpenElevation(points: LatLng[]): Promise<(number | null)[]> {
+  try {
+    const resp = await fetch('https://api.open-elevation.com/api/v1/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locations: points.map(p => ({ latitude: p.lat, longitude: p.lng })) }),
+    });
+    if (!resp.ok) return points.map(() => null);
+    const data = await resp.json();
+    if (Array.isArray(data?.results)) {
+      return data.results.map((r: any) => (typeof r?.elevation === 'number' ? r.elevation : null));
+    }
+    return points.map(() => null);
+  } catch {
+    return points.map(() => null);
+  }
+}
+
+async function fetchBatch(points: LatLng[]): Promise<(number | null)[]> {
+  const primary = await fetchOpenMeteo(points);
+  const missing = primary.some(v => v === null);
+  if (!missing) return primary;
+  // Only refetch the missing ones via fallback
+  const missingIdx: number[] = [];
+  primary.forEach((v, i) => { if (v === null) missingIdx.push(i); });
+  const fallback = await fetchOpenElevation(missingIdx.map(i => points[i]));
+  missingIdx.forEach((i, j) => { primary[i] = fallback[j]; });
+  return primary;
 }
 
 async function fetchElevations(points: LatLng[]): Promise<number[]> {
@@ -52,16 +88,42 @@ async function fetchElevations(points: LatLng[]): Promise<number[]> {
     else toFetch.push({ idx, pt: p });
   });
 
+  let anyFetched = false;
   for (let i = 0; i < toFetch.length; i += batchSize) {
     const slice = toFetch.slice(i, i + batchSize);
     const elevs = await fetchBatch(slice.map(s => s.pt));
     slice.forEach((s, j) => {
-      const v = elevs[j] ?? 0;
-      elevations[s.idx] = v;
-      const key = `${s.pt.lat.toFixed(4)},${s.pt.lng.toFixed(4)}`;
-      elevationCache.set(key, v);
+      const v = elevs[j];
+      if (typeof v === 'number') {
+        elevations[s.idx] = v;
+        // ONLY cache real values, never fallback zeros
+        const key = `${s.pt.lat.toFixed(4)},${s.pt.lng.toFixed(4)}`;
+        elevationCache.set(key, v);
+        anyFetched = true;
+      } else {
+        elevations[s.idx] = NaN;
+      }
     });
     if (i + batchSize < toFetch.length) await sleep(250);
+  }
+
+  // If everything failed, surface the error
+  if (toFetch.length > 0 && !anyFetched && elevations.every(v => Number.isNaN(v))) {
+    throw new Error('Elevation services unavailable (Open-Meteo + Open-Elevation). Try again in a moment.');
+  }
+
+  // Replace any remaining NaN with linear interpolation between known neighbours
+  for (let i = 0; i < elevations.length; i++) {
+    if (!Number.isNaN(elevations[i])) continue;
+    let prev = i - 1, next = i + 1;
+    while (prev >= 0 && Number.isNaN(elevations[prev])) prev--;
+    while (next < elevations.length && Number.isNaN(elevations[next])) next++;
+    const pv = prev >= 0 ? elevations[prev] : null;
+    const nv = next < elevations.length ? elevations[next] : null;
+    if (pv != null && nv != null) elevations[i] = pv + (nv - pv) * ((i - prev) / (next - prev));
+    else if (pv != null) elevations[i] = pv;
+    else if (nv != null) elevations[i] = nv;
+    else elevations[i] = 0;
   }
 
   return elevations;
