@@ -6356,7 +6356,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           });
 
         setSearchModeSites(summaries);
-        if (summaries.length > 0) setInventoryTab('tagged');
+        // Switch to the Sites tab so the search results are visible.
+        // (Previously switched to Tagged, which only shows user-tagged
+        // sites — search hits never appeared there.)
+        if (summaries.length > 0) setInventoryTab('sites');
 
         // Auto-fly to first result
         if (summaries.length > 0) {
