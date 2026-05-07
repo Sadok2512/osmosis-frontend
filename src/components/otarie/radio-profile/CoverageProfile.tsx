@@ -16,6 +16,19 @@ import React, { useMemo, useState } from 'react';
 import { Antenna } from 'lucide-react';
 import type { ProfilePoint } from '@/utils/geodesicUtils';
 
+export interface CoverageSiteParams {
+  siteName: string;
+  sectorName?: string;
+  azimut?: number;
+  antennaHeight: number;
+  mechanicalTilt: number;
+  electricalTilt: number;
+  band: string;
+  techno: string;
+  hbw?: number;
+  vbw?: number;
+}
+
 export interface CoverageProfileProps {
   siteName: string;
   sectorName?: string;
@@ -38,6 +51,13 @@ export interface CoverageProfileProps {
   showTiltLines?: boolean;
   showClutter?: boolean;
   clutterHeight?: number;
+  /**
+   * Optional second site. When provided, the chart shows TWO independent
+   * antenna-to-ground coverages (Site A on the left, Site B on the right,
+   * mirrored). NO link / LOS / Fresnel line is drawn between them — each
+   * antenna covers the ground around its own site only.
+   */
+  siteB?: CoverageSiteParams & { siteAltitudeAmsl?: number };
 }
 
 const SAFE_MIN_DEG = 0.5;
