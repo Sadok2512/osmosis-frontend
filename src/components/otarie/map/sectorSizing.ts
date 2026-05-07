@@ -66,7 +66,17 @@ export const getTaggedRadius = (zoom: number): number => {
   const MAX_RADIUS = 5000;
   const REF_ZOOM = 12;
   const scale = Math.pow(2, REF_ZOOM - zoom);
-  return Math.max(MIN_RADIUS, Math.min(MAX_RADIUS, BASE * scale));
+  const raw = BASE * scale;
+  // At high zoom, cap the tagged ring so it stays visually prominent but not
+  // screen-covering. This keeps tagged identification clear without making the
+  // overlay dominate the map.
+  let highZoomCap = MAX_RADIUS;
+  if (zoom >= 18) highZoomCap = 120;
+  else if (zoom >= 17) highZoomCap = 180;
+  else if (zoom >= 16) highZoomCap = 260;
+  else if (zoom >= 15) highZoomCap = 380;
+  return Math.max(MIN_RADIUS * (zoom >= 15 ? 0 : 1) + (zoom >= 15 ? 60 : 0),
+    Math.min(highZoomCap, Math.min(MAX_RADIUS, raw)));
 };
 
 /** Compute density factor from visible site count — aggressive shrink in dense zones */
