@@ -13297,9 +13297,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <Crosshair size={12} />
                               </button>
                               <button
-                                onClick={() => setSelectedLinkId(selectedLinkId === link.id ? null : link.id)}
+                                onClick={() => {
+                                  setSelectedLinkId(link.id);
+                                  const m = (window as any).__siteMonitorMap as L.Map | undefined;
+                                  if (m) {
+                                    const bounds = L.latLngBounds([link.fromCoords, link.toCoords]);
+                                    m.flyToBounds(bounds, { padding: [80, 80], duration: 0.8, maxZoom: 15 });
+                                  }
+                                }}
                                 className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
-                                title="Sélectionner"
+                                title="Centrer sur le lien"
                               >
                                 <MapPin size={12} />
                               </button>
