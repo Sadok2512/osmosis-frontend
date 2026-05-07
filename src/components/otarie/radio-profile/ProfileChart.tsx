@@ -197,13 +197,9 @@ const ProfileChart: React.FC<Props> = ({
   }
 
   // Build Y ticks: include 0, breakLow, and evenly spaced upper-band ticks
-  const yTicks = useMemo(() => {
-    if (derived.hasBreak) {
-      const upper = d3.scaleLinear().domain([derived.breakLow, derived.yDomainMax]).ticks(6);
-      return [0, ...upper.filter(t => t > derived.breakLow)];
-    }
-    return yScale.ticks(8);
-  }, [derived.hasBreak, derived.breakLow, derived.yDomainMax, yScale]);
+  const yTicks = derived.hasBreak
+    ? [0, ...d3.scaleLinear().domain([derived.breakLow, derived.yDomainMax]).ticks(6).filter(t => t > derived.breakLow)]
+    : yScale.ticks(8);
   const xTicks = xScale.ticks(8);
 
   const losX1 = xScale(0);
