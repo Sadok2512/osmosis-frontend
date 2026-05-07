@@ -9,7 +9,7 @@ import InfoPanel from './radio-profile/InfoPanel';
 import { topoApi } from '@/lib/localDb';
 import {
   Radio, Crosshair, Loader2, AlertTriangle, Maximize2, Minimize2,
-  MousePointerClick, RotateCcw, Settings2
+  MousePointerClick, RotateCcw, Settings2, Mountain, Antenna, Signal, Ruler, CircleDot
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -64,6 +64,22 @@ function bandeToGHz(bande: string): number {
   return mhz / 1000;
 }
 
+const EngCard: React.FC<{ icon: React.ReactNode; label: string; value: string; accent?: 'primary' | 'ok' | 'warn' }> = ({ icon, label, value, accent }) => {
+  const tone =
+    accent === 'warn' ? 'text-destructive' :
+    accent === 'ok' ? 'text-emerald-500' :
+    accent === 'primary' ? 'text-primary' : 'text-foreground';
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 px-2.5 py-2 flex flex-col gap-1 min-w-0">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="text-muted-foreground/70">{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <div className={`text-xs font-bold font-mono ${tone}`}>{value}</div>
+    </div>
+  );
+};
+
 const RadioProfilePage: React.FC = () => {
   const [sites, setSites] = useState<SelectedSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<SelectedSite | null>(null);
@@ -83,6 +99,8 @@ const RadioProfilePage: React.FC = () => {
   const [fullscreen, setFullscreen] = useState(false);
   const [enableTilt, setEnableTilt] = useState(true);
   const [basemap, setBasemap] = useState<'light' | 'dark' | 'satellite'>('light');
+  const [autoScale, setAutoScale] = useState(true);
+  const [chartHeight, setChartHeight] = useState(680);
 
   const { loading, error, profilePoints, analysis, computeProfile } = useTerrainProfile();
 
@@ -478,8 +496,13 @@ const RadioProfilePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Chart */}
-                <div className={`rounded-xl border border-border bg-card overflow-hidden ${fullscreen ? 'h-[900px]' : 'h-[680px]'}`}>
+                {/* Resizable Chart frame */}
+                <div
+                  className="relative rounded-xl border border-border bg-card overflow-hidden group"
+                  style={{ height: fullscreen ? 900 : chartHeight, minHeight: 380, maxHeight: 1200 }}
+                  onDoubleClick={() => setChartHeight(680)}
+                  title="Double-cliquez pour réinitialiser la taille · Glissez le bord inférieur pour redimensionner"
+                >
                   <ProfileChart
                     profilePoints={profilePoints}
                     analysis={analysis}
@@ -488,7 +511,51 @@ const RadioProfilePage: React.FC = () => {
                     showCurvature={enableCurvature}
                     clutterHeight={enableClutter ? clutterHeight : 0}
                     showTilt={enableTilt}
+                    autoScale={autoScale}
                   />
+                  {/* Resize handle */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize bg-gradient-to-t from-primary/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const startY = e.clientY;
+                      const startH = chartHeight;
+                      const onMove = (ev: MouseEvent) => {
+                        const next = Math.min(1200, Math.max(380, startH + (ev.clientY - startY)));
+                        setChartHeight(next);
+                      };
+                      const onUp = () => {
+                        window.removeEventListener('mousemove', onMove);
+                        window.removeEventListener('mouseup', onUp);
+                      };
+                      window.addEventListener('mousemove', onMove);
+                      window.addEventListener('mouseup', onUp);
+                    }}
+                  >
+                    <div className="w-10 h-1 rounded-full bg-primary/60" />
+                  </div>
+                </div>
+
+                {/* Bottom engineering summary row */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  <EngCard icon={<Ruler className="w-3.5 h-3.5" />} label="Distance" value={`${(totalDistance/1000).toFixed(2)} km`} accent="primary" />
+                  <EngCard icon={<Mountain className="w-3.5 h-3.5" />} label="Terrain max" value={`${analysis.maxTerrainAlt} m`} />
+                  <EngCard
+                    icon={<CircleDot className="w-3.5 h-3.5" />}
+                    label="Fresnel"
+                    value={fresnel ? (fresnel.isClearFresnel ? 'Clear' : `${fresnel.maxIntrusionPercent}%`) : '—'}
+                    accent={fresnel && !fresnel.isClearFresnel ? 'warn' : undefined}
+                  />
+                  <EngCard
+                    icon={<Signal className="w-3.5 h-3.5" />}
+                    label="LOS"
+                    value={analysis.isLOS ? 'OK' : 'NLOS'}
+                    accent={analysis.isLOS ? 'ok' : 'warn'}
+                  />
+                  <EngCard icon={<Antenna className="w-3.5 h-3.5" />} label="Site A AMSL" value={`${analysis.antennaParams.antennaAMSL.toFixed(0)} m`} />
+                  <EngCard icon={<Antenna className="w-3.5 h-3.5" />} label="HBA" value={`${analysis.antennaParams.hba} m`} />
+                  <EngCard icon={<Signal className="w-3.5 h-3.5" />} label="Pattern Loss" value={`${analysis.patternLossTotal} dB`} accent={analysis.patternLossTotal > 10 ? 'warn' : undefined} />
+                  <EngCard icon={<Mountain className="w-3.5 h-3.5" />} label="Clearance min" value={`${analysis.clearanceMin.toFixed(1)} m`} accent={analysis.clearanceMin < 0 ? 'warn' : undefined} />
                 </div>
 
                 {/* Info */}
