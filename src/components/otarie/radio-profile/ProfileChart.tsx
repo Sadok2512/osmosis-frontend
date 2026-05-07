@@ -473,64 +473,123 @@ interface SiteTowerProps {
 const SiteTower: React.FC<SiteTowerProps> = ({
   x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL,
 }) => {
-  const textX = align === 'left' ? 12 : -12;
+  const sign = align === 'left' ? 1 : -1;
   const textAnchor = align === 'left' ? 'start' : 'end';
-  const dishDx = align === 'left' ? 1 : -1;
+  const towerHeightPx = Math.max(20, terrainY - antennaY);
+  const baseHalf = Math.max(10, Math.min(22, towerHeightPx * 0.14));
+  const topHalf = 3;
+
+  // Lattice cross-bracing
+  const segments = Math.max(4, Math.floor(towerHeightPx / 22));
+  const braces: string[] = [];
+  for (let i = 0; i < segments; i++) {
+    const t1 = i / segments;
+    const t2 = (i + 1) / segments;
+    const y1 = terrainY - towerHeightPx * t1;
+    const y2 = terrainY - towerHeightPx * t2;
+    const w1 = baseHalf - (baseHalf - topHalf) * t1;
+    const w2 = baseHalf - (baseHalf - topHalf) * t2;
+    // X cross
+    braces.push(`M ${-w1} ${y1} L ${w2} ${y2} M ${w1} ${y1} L ${-w2} ${y2}`);
+    // horizontal
+    braces.push(`M ${-w2} ${y2} L ${w2} ${y2}`);
+  }
 
   return (
     <g transform={`translate(${x}, 0)`}>
-      {/* Foundation */}
+      {/* Ground shadow */}
+      <ellipse cx={0} cy={terrainY + 2} rx={baseHalf + 4} ry={2.5} fill="rgba(0,0,0,0.45)" />
+
+      {/* Tower legs (trapezoid silhouette) */}
       <path
-        d={`M -5 ${terrainY} L -8 ${innerHeight} L 8 ${innerHeight} L 5 ${terrainY} Z`}
-        fill="rgba(15,23,42,0.85)"
+        d={`M ${-baseHalf} ${terrainY} L ${-topHalf} ${antennaY} L ${topHalf} ${antennaY} L ${baseHalf} ${terrainY} Z`}
+        fill="rgba(148,163,184,0.08)"
+        stroke="rgba(186,230,253,0.85)"
+        strokeWidth={1.5}
       />
-      {/* Mast */}
-      <line x1={0} y1={terrainY} x2={0} y2={antennaY} stroke="rgba(56,189,248,0.6)" strokeWidth={2} />
-      {/* Lattice */}
-      <path
-        d={`M -8 ${terrainY} L 0 ${antennaY} L 8 ${terrainY}
-            M -6 ${terrainY + (antennaY - terrainY) * 0.5} L 6 ${terrainY + (antennaY - terrainY) * 0.5}`}
-        stroke="rgba(56,189,248,0.35)"
-        strokeWidth={1}
-        fill="none"
-      />
-      {/* Antenna */}
-      <motion.circle
-        initial={{ r: 0 }}
-        animate={{ r: 5 }}
-        cx={dishDx * 4}
-        cy={antennaY}
-        fill="rgb(45,212,191)"
-        stroke="white"
-        strokeWidth={1}
-      />
-      <path
-        d={align === 'left'
-          ? `M 0 ${antennaY - 7} Q 9 ${antennaY} 0 ${antennaY + 7} Z`
-          : `M 0 ${antennaY - 7} Q -9 ${antennaY} 0 ${antennaY + 7} Z`}
-        fill="rgba(20,184,166,0.5)"
-        stroke="rgba(94,234,212,0.9)"
-        strokeWidth={1}
-      />
-      {/* Vertical measurement */}
-      <line
-        x1={align === 'left' ? 16 : -16}
-        y1={terrainY}
-        x2={align === 'left' ? 16 : -16}
-        y2={antennaY}
-        stroke="rgba(52,211,153,0.45)"
-        strokeDasharray="2,2"
-      />
-      {/* Labels */}
-      <text x={textX} y={antennaY - 6} textAnchor={textAnchor} fill="white" className="text-[11px] font-bold uppercase">
-        {label}
-      </text>
-      <text x={textX} y={antennaY + 6} textAnchor={textAnchor} fill="rgb(52,211,153)" className="text-[10px] font-bold">
-        {heightAGL.toFixed(1)}m AGL
-      </text>
-      <text x={textX} y={antennaY + 18} textAnchor={textAnchor} fill="rgba(148,163,184,0.85)" className="text-[9px] font-mono">
-        {altitudeAMSL}m AMSL
-      </text>
+
+      {/* Lattice bracing */}
+      <path d={braces.join(' ')} stroke="rgba(125,211,252,0.55)" strokeWidth={0.8} fill="none" />
+
+      {/* Center mast highlight */}
+      <line x1={0} y1={terrainY} x2={0} y2={antennaY} stroke="rgba(186,230,253,0.6)" strokeWidth={1} />
+
+      {/* Antenna mounting platform */}
+      <rect x={-topHalf - 2} y={antennaY - 2} width={(topHalf + 2) * 2} height={3} fill="rgba(186,230,253,0.9)" />
+
+      {/* Parabolic dish antenna pointing toward link */}
+      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY})`}>
+        {/* dish body */}
+        <path
+          d={align === 'left'
+            ? `M 0 -10 Q 14 0 0 10 L 0 -10 Z`
+            : `M 0 -10 Q -14 0 0 10 L 0 -10 Z`}
+          fill="rgba(45,212,191,0.35)"
+          stroke="rgb(94,234,212)"
+          strokeWidth={1.4}
+        />
+        {/* feed horn */}
+        <line x1={0} y1={0} x2={sign * 10} y2={0} stroke="rgb(94,234,212)" strokeWidth={1.2} />
+        <circle cx={sign * 10} cy={0} r={2} fill="rgb(45,212,191)" />
+        {/* glow */}
+        <circle cx={sign * 5} cy={0} r={3} fill="rgb(45,212,191)" opacity={0.5} filter="url(#glow)" />
+      </g>
+
+      {/* Vertical measurement (antenna height AGL) */}
+      <g>
+        <line
+          x1={sign * (baseHalf + 14)}
+          y1={terrainY}
+          x2={sign * (baseHalf + 14)}
+          y2={antennaY}
+          stroke="rgba(52,211,153,0.7)"
+          strokeWidth={1}
+        />
+        {/* end caps */}
+        <line x1={sign * (baseHalf + 10)} y1={terrainY} x2={sign * (baseHalf + 18)} y2={terrainY} stroke="rgba(52,211,153,0.7)" strokeWidth={1} />
+        <line x1={sign * (baseHalf + 10)} y1={antennaY} x2={sign * (baseHalf + 18)} y2={antennaY} stroke="rgba(52,211,153,0.7)" strokeWidth={1} />
+        <text
+          x={sign * (baseHalf + 22)}
+          y={(terrainY + antennaY) / 2 + 3}
+          textAnchor={textAnchor}
+          fill="rgb(110,231,183)"
+          className="text-[10px] font-bold font-mono"
+        >
+          {heightAGL.toFixed(0)} m
+        </text>
+      </g>
+
+      {/* Site label box */}
+      <g transform={`translate(${sign * (baseHalf + 6)}, ${antennaY - 38})`}>
+        <rect
+          x={align === 'left' ? 0 : -88}
+          y={0}
+          width={88}
+          height={32}
+          rx={4}
+          fill="rgba(15,23,42,0.85)"
+          stroke="rgba(94,234,212,0.5)"
+          strokeWidth={1}
+        />
+        <text
+          x={align === 'left' ? 6 : -82}
+          y={13}
+          textAnchor="start"
+          fill="rgb(94,234,212)"
+          className="text-[10px] font-bold uppercase tracking-wider"
+        >
+          {label}
+        </text>
+        <text
+          x={align === 'left' ? 6 : -82}
+          y={26}
+          textAnchor="start"
+          fill="rgba(226,232,240,0.9)"
+          className="text-[9px] font-mono"
+        >
+          {altitudeAMSL} m AMSL
+        </text>
+      </g>
     </g>
   );
 };
