@@ -11801,12 +11801,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     setMapTechnoFilter(tech);
                     const NR_BANDS = ['NR3500', 'NR700', 'NR2100'];
                     const LTE_BANDS = ['L2600', 'L2100', 'L1800', 'L800', 'L700'];
+                    const UMTS_BANDS = ['UMTS2100', 'UMTS900'];
+                    const GSM_BANDS = ['GSM900', 'GSM1800'];
                     if (tech === 'ALL') {
-                      setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS]));
+                      setEnabledBands(new Set([...NR_BANDS, ...LTE_BANDS, ...UMTS_BANDS, ...GSM_BANDS]));
                     } else if (tech === '5G') {
                       setEnabledBands(new Set(NR_BANDS));
                     } else if (tech === '4G') {
                       setEnabledBands(new Set(LTE_BANDS));
+                    } else if (tech === '3G') {
+                      setEnabledBands(new Set(UMTS_BANDS));
+                    } else if (tech === '2G') {
+                      setEnabledBands(new Set(GSM_BANDS));
                     } else {
                       setEnabledBands(new Set());
                     }
