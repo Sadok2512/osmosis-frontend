@@ -2660,7 +2660,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
 
   const toggleCreateFilterValue = (dimKey: string, val: string) => {
     setCreateFilters(prev => {
-      const current = prev[dimKey as keyof DashboardSiteFilters] || [];
+      const raw = prev[dimKey as keyof DashboardSiteFilters];
+      const current: string[] = Array.isArray(raw) ? raw : [];
       const next = current.includes(val) ? current.filter(v => v !== val) : [...current, val];
       return { ...prev, [dimKey]: next.length > 0 ? next : undefined };
     });
