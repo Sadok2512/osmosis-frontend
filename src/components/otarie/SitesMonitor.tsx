@@ -5162,7 +5162,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   }, [linkSource, addTaggedLink]);
 
   // ── Terrain Profile for Links ──
-  const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, computeProfile: linkComputeProfile } = useTerrainProfile();
+  const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, error: linkProfileError, computeProfile: linkComputeProfile } = useTerrainProfile();
   const [showLinkProfile, setShowLinkProfile] = useState(false);
   const [linkProfileLabel, setLinkProfileLabel] = useState('');
   const [linkProfileHover, setLinkProfileHover] = useState<ProfileHoverData | null>(null);
@@ -10312,7 +10312,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* ── Link Terrain Profile Panel ── */}
-      {showLinkProfile && (linkProfileAnalysis || linkProfileLoading) && (
+      {/* Stay visible whenever the user has opened a link/coverage profile.
+          The chart slot below decides what to render based on mode + state
+          (loading spinner, error banner, ProfileChart, or CoverageProfile)
+          so the frame doesn't flash open then disappear when the elevation
+          API hiccups or the analysis can't be computed. */}
+      {showLinkProfile && (
         <div
           className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[44%] flex flex-col animate-fade-in"
           style={{
@@ -10442,18 +10447,38 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {/* Chart — full width / full height */}
             <div className="h-full min-h-0 min-w-0">
               {linkProfileMode === 'link' ? (
-                <ProfileChart
-                  profilePoints={linkProfilePoints}
-                  analysis={linkProfileAnalysis}
-                  fresnel={linkFresnel}
-                  showFresnel={linkEnableFresnel}
-                  showCurvature={linkEnableCurvature}
-                  clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
-                  onHoverPoint={setLinkProfileHover}
-                  showTilt
-                  remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
-                  siteName={linkProfileLabel}
-                />
+                linkProfileLoading ? (
+                  <div className="h-full flex items-center justify-center text-white/60 text-xs gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
+                    Calcul du profil terrain…
+                  </div>
+                ) : linkProfileAnalysis ? (
+                  <ProfileChart
+                    profilePoints={linkProfilePoints}
+                    analysis={linkProfileAnalysis}
+                    fresnel={linkFresnel}
+                    showFresnel={linkEnableFresnel}
+                    showCurvature={linkEnableCurvature}
+                    clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
+                    onHoverPoint={setLinkProfileHover}
+                    showTilt
+                    remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
+                    siteName={linkProfileLabel}
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-xs gap-2">
+                    <span className="text-red-300 font-bold">
+                      {linkProfileError ? `Erreur: ${linkProfileError}` : 'Aucune donnée de terrain'}
+                    </span>
+                    <button
+                      onClick={() => linkActiveCoords && recomputeLinkProfile(linkActiveCoords, linkEnableCurvature)}
+                      className="px-3 py-1 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-200 hover:bg-sky-500/30"
+                    >
+                      Réessayer
+                    </button>
+                    <span className="text-white/40">Vous pouvez aussi passer en mode Coverage Profile.</span>
+                  </div>
+                )
               ) : (
                 (() => {
                   // Coverage mode antenna params: pull from the first cell of
