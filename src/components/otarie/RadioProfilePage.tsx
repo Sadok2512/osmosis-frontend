@@ -64,6 +64,22 @@ function bandeToGHz(bande: string): number {
   return mhz / 1000;
 }
 
+const EngCard: React.FC<{ icon: React.ReactNode; label: string; value: string; accent?: 'primary' | 'ok' | 'warn' }> = ({ icon, label, value, accent }) => {
+  const tone =
+    accent === 'warn' ? 'text-destructive' :
+    accent === 'ok' ? 'text-emerald-500' :
+    accent === 'primary' ? 'text-primary' : 'text-foreground';
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 px-2.5 py-2 flex flex-col gap-1 min-w-0">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <span className="text-muted-foreground/70">{icon}</span>
+        <span className="truncate">{label}</span>
+      </div>
+      <div className={`text-xs font-bold font-mono ${tone}`}>{value}</div>
+    </div>
+  );
+};
+
 const RadioProfilePage: React.FC = () => {
   const [sites, setSites] = useState<SelectedSite[]>([]);
   const [selectedSite, setSelectedSite] = useState<SelectedSite | null>(null);
