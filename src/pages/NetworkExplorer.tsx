@@ -538,6 +538,18 @@ const NetworkExplorer = () => {
                 <input className="h-10 w-full rounded-lg border border-slate-200 bg-white/90 pl-9 pr-3 text-sm font-semibold outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100" placeholder="Search hierarchy" />
               </div>
             </div>
+            <div className="mb-4 rounded-xl border border-teal-100 bg-gradient-to-br from-teal-50/60 to-white p-4">
+              <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-teal-700">Hierarchy schema</div>
+              <pre className="font-mono text-[12px] leading-6 text-slate-700 whitespace-pre">
+{`Project Name
+└── Vendor
+    └── UPR
+        └── DR
+            └── Plaque
+                └── Sites
+                    └── Cells`}
+              </pre>
+            </div>
             <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
               <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">{renderNode(architectureTree)}</div>
               <aside className="rounded-xl border border-teal-100 bg-gradient-to-br from-white to-teal-50 p-4">
