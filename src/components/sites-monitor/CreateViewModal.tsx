@@ -107,6 +107,13 @@ const PARAM_FILTER_KEYS = [
  * The multiselect path writes to `values: string[]` directly. The text
  * fallback writes to `valuesText: string`. Save logic prefers `values`
  * when non-empty, else parses `valuesText`. */
+// Parse a row's free-text value field into a clean string[] — split on
+// commas, trim each entry, drop empties. "150, 200, 320" → ["150","200","320"].
+// Module-scope so TopoRowValueInput (defined below) and the modal body
+// (defined further down) share one canonical implementation.
+const parseValuesText = (text: string): string[] =>
+  text.split(',').map(s => s.trim()).filter(Boolean);
+
 type ValueValidation = 'checking' | 'valid' | 'invalid';
 
 const TopoRowValueInput: React.FC<{
@@ -531,11 +538,6 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       .catch(err => console.warn('[CreateViewModal] filterCatalog failed', err));
     return () => { cancelled = true; };
   }, [open]);
-
-  // Parse a row's free-text value field into a clean string[] — split on
-  // commas, trim each entry, drop empties. "150, 200, 320" → ["150","200","320"].
-  const parseValuesText = (text: string): string[] =>
-    text.split(',').map(s => s.trim()).filter(Boolean);
 
   // KPI date range
   const [kpiDateFrom, setKpiDateFrom] = useState(() => {
