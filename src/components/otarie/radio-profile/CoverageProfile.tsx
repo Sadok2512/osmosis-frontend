@@ -333,7 +333,7 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
           </text>
 
           {/* Terrain */}
-          <path d={terrainPath} fill="url(#cp-terrain)" stroke="#7aaedf" strokeWidth={1.1} />
+          <path d={terrainPath} fill="url(#cp-terrain)" stroke="rgba(148,163,184,0.5)" strokeWidth={1.5} />
 
           {/* Clutter overlay */}
           {showClutter && clutterHeight > 0 && terrainSeries.length >= 2 && (
