@@ -100,6 +100,11 @@ const ProfileChart: React.FC<Props> = ({
       ? 'LOS_FRESNEL_BLOCKED'
       : 'LOS_CLEAR';
 
+    // Axis break: keep 0 m visible but compress the empty band [0 → breakLow]
+    // into the bottom 12% of the chart so the RF area uses 88% of vertical space.
+    const breakLow = Math.max(0, Math.floor(rfMin * 0.85 / 10) * 10);
+    const hasBreak = breakLow > 30 && (yDomainMax - breakLow) > 0;
+
     return {
       totalDistKm,
       terrainEff,
@@ -109,6 +114,8 @@ const ProfileChart: React.FC<Props> = ({
       remoteAMSL,
       yDomainMin,
       yDomainMax,
+      breakLow,
+      hasBreak,
       firstFresnelBlockIndex,
       linkState,
     };
@@ -119,10 +126,20 @@ const ProfileChart: React.FC<Props> = ({
     () => d3.scaleLinear().domain([0, derived?.totalDistKm ?? 1]).range([0, IW]),
     [derived?.totalDistKm]
   );
-  const yScale = useMemo(
-    () => d3.scaleLinear().domain([derived?.yDomainMin ?? 0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
-    [derived?.yDomainMin, derived?.yDomainMax]
-  );
+  // Piecewise Y scale: [0..breakLow] → bottom 12%, [breakLow..max] → top 88%
+  const yScale = useMemo(() => {
+    const dMin = derived?.yDomainMin ?? 0;
+    const dMax = derived?.yDomainMax ?? 100;
+    if (derived?.hasBreak) {
+      const bl = derived.breakLow;
+      const breakPx = IH * 0.88; // y-pixel where break sits (bottom band height = 12%)
+      return d3.scaleLinear()
+        .domain([dMin, bl, dMax])
+        .range([IH, breakPx, 0]);
+    }
+    return d3.scaleLinear().domain([dMin, dMax]).range([IH, 0]).nice();
+  }, [derived?.yDomainMin, derived?.yDomainMax, derived?.hasBreak, derived?.breakLow]);
+
 
   const terrainPath = useMemo(() => {
     if (!derived) return '';
