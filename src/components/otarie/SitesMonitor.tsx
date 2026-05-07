@@ -3177,7 +3177,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         title={isActive ? 'Masquer les sites sur la carte' : 'Afficher les sites sur la carte'}
                       >
                         {isActive ? <Eye size={12} /> : <EyeOff size={12} />}
-                        <span className="uppercase tracking-wider">{isActive ? 'Visible' : 'Hidden'}</span>
+                        <span className="uppercase tracking-wider">{isActive ? 'Actif' : 'Activer'}</span>
                       </button>
                       <button
                         onClick={() => requestDashboardSwitch(null)}
