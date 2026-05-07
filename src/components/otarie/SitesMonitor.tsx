@@ -11165,14 +11165,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             </button>
           )}
 
-          {/* Fixed right zone — Views */}
-          <div className="shrink-0 flex items-center gap-2 px-3 border-l border-border/40">
-            <MapViewManager
-              currentSettings={getCurrentMapSettings()}
-              onLoadView={handleLoadView}
-              activeDashboardId={activeDashboardId}
-            />
-          </div>
+          {/* Right-side Views button removed per user request */}
         </div>
       </div>
 
