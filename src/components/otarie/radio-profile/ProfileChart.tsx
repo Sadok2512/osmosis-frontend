@@ -80,10 +80,28 @@ const ProfileChart: React.FC<Props> = ({
     const tMax = Math.max(...terrainEff);
     const rfMax = Math.max(tMax, antennaAMSL, rxAMSL, remoteAMSL ?? -Infinity);
     const rfMin = Math.min(tMin, rxAMSL);
-    // Y-axis ALWAYS starts at 0 m for proper engineering reference (kept via axis break)
-    const yDomainMin = 0;
-    // Tighter top headroom (was 20% → 12%) so RF content fills the frame
-    const yDomainMax = Math.ceil((rfMax + Math.max(15, (rfMax - rfMin) * 0.12)) / 25) * 25;
+
+    // Smart adaptive Y-axis:
+    // - autoScale ON  → start near rfMin (frame the RF area, kill empty space)
+    // - manual override → use manualMinHeight
+    // - autoScale OFF → start at 0 with axis-break compression
+    const range = Math.max(20, rfMax - rfMin);
+    let yDomainMin = 0;
+    let useBreak = false;
+    let breakLow = 0;
+
+    if (manualMinHeight !== null && manualMinHeight >= 0 && manualMinHeight < rfMin) {
+      yDomainMin = manualMinHeight;
+    } else if (autoScale) {
+      // Pad below by 10% of range, snapped to 10m
+      yDomainMin = Math.max(0, Math.floor((rfMin - range * 0.10) / 10) * 10);
+    } else {
+      yDomainMin = 0;
+      breakLow = Math.max(0, Math.floor(rfMin * 0.85 / 10) * 10);
+      useBreak = breakLow > 30;
+    }
+
+    const yDomainMax = Math.ceil((rfMax + Math.max(15, range * 0.12)) / 25) * 25;
 
     // First Fresnel block index
     let firstFresnelBlockIndex: number | null = null;
@@ -104,11 +122,6 @@ const ProfileChart: React.FC<Props> = ({
       ? 'LOS_FRESNEL_BLOCKED'
       : 'LOS_CLEAR';
 
-    // Axis break: keep 0 m visible but compress the empty band [0 → breakLow]
-    // into the bottom 12% of the chart so the RF area uses 88% of vertical space.
-    const breakLow = Math.max(0, Math.floor(rfMin * 0.85 / 10) * 10);
-    const hasBreak = breakLow > 30 && (yDomainMax - breakLow) > 0;
-
     return {
       totalDistKm,
       terrainEff,
@@ -119,11 +132,11 @@ const ProfileChart: React.FC<Props> = ({
       yDomainMin,
       yDomainMax,
       breakLow,
-      hasBreak,
+      hasBreak: useBreak,
       firstFresnelBlockIndex,
       linkState,
     };
-  }, [profilePoints, analysis, fresnel, ant, remoteAntenna]);
+  }, [profilePoints, analysis, fresnel, ant, remoteAntenna, autoScale, manualMinHeight]);
 
   // Hooks must run unconditionally — compute even when no data
   const xScale = useMemo(
