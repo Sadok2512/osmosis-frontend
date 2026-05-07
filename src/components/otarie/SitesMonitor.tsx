@@ -13272,7 +13272,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                               <Network size={14} className="text-blue-500" />
                             </div>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 text-center">
                               <div className="text-[11px] font-bold text-foreground truncate">{link.label}</div>
                               <div className="text-[9px] text-muted-foreground">{link.fromType} ↔ {link.toType}</div>
                             </div>
