@@ -10501,6 +10501,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       band={cell?.bande || 'LTE1800'}
                       techno={cell?.techno || '4G'}
                       siteAltitudeAmsl={baseAmsl}
+                      terrainProfile={linkProfilePoints && linkProfilePoints.length > 0 ? linkProfilePoints : undefined}
                       showClutter={linkEnableClutter}
                       clutterHeight={linkClutterHeight}
                     />
