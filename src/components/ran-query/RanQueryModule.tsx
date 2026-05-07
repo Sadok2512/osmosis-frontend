@@ -1287,7 +1287,10 @@ const RanQueryModule: React.FC = () => {
       if (!report) throw new Error('Report not found');
       const { rows, errors, denseFillNotice } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
-      const hasData = rows.length > 0;
+      // A row with value=null is a dense-fill / empty-scope stub — useful to
+      // render the table skeleton, but doesn't count as "data found".
+      const hasRealData = rows.some(r => r.value != null);
+      const hasData = hasRealData;
 
       // When the query returns no rows, ask the backend for the actual PM data
       // window so the user knows what range *would* have data — instead of the
