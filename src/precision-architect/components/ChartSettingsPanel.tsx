@@ -467,6 +467,7 @@ function DataSourceTab({
 
 function DataTab({
   data, patchData, title, onTitleChange, dimensionOptions, filtersLoading, onApply, isStat,
+  filterCategoriesMap, filterRatsMap,
 }: {
   data: ChartWidgetConfig['data'];
   patchData: (p: Partial<ChartWidgetConfig['data']>) => void;
@@ -476,6 +477,8 @@ function DataTab({
   filtersLoading: boolean;
   onApply: () => void;
   isStat?: boolean;
+  filterCategoriesMap: Record<string, string>;
+  filterRatsMap: Record<string, string>;
 }) {
   // Default: inherit from the report-level top toolbar.
   const inherits = data.timeRange?.inherit !== false && data.inheritFromDashboard !== false;
