@@ -40,7 +40,12 @@ import {
   YAxis,
 } from 'recharts';
 
-type ReportStatus = 'Draft' | 'Ready' | 'Running' | 'Completed' | 'Failed';
+// 'Empty' added 2026-05-07 to distinguish "the query ran successfully but
+// returned 0 rows because there's no PM data in the requested window" from
+// "the query actually failed (HTTP 500 / timeout / etc.)". Before this,
+// both cases collapsed onto 'Failed' (red) which mis-led the operator into
+// thinking the system was broken when it was just a data-gap problem.
+type ReportStatus = 'Draft' | 'Ready' | 'Running' | 'Completed' | 'Empty' | 'Failed';
 type ReportHealth = 'ok' | 'warning' | 'error';
 type TimeMode = 'absolute' | 'relative';
 type Tech = '2G' | '3G' | '4G' | '5G';
@@ -140,7 +145,7 @@ interface CreateFormState {
 
 const STORAGE_KEY = 'osmosis_ran_query_reports_v1';
 const TECH_OPTIONS: Tech[] = ['2G', '3G', '4G', '5G'];
-const STATUS_OPTIONS: ReportStatus[] = ['Draft', 'Ready', 'Running', 'Completed', 'Failed'];
+const STATUS_OPTIONS: ReportStatus[] = ['Draft', 'Ready', 'Running', 'Completed', 'Empty', 'Failed'];
 const VENDOR_OPTIONS = ['Ericsson', 'Nokia', 'Huawei', 'Samsung', 'Alcatel'];
 const FALLBACK_AGGREGATION_OPTIONS: { value: string; label: string }[] = [
   { value: 'cell', label: 'Cell' },
@@ -256,6 +261,10 @@ function statusClasses(status: ReportStatus): string {
       return 'bg-blue-500/12 text-blue-700 border-blue-500/25';
     case 'Failed':
       return 'bg-red-500/12 text-red-700 border-red-500/25';
+    case 'Empty':
+      // Yellow/amber, NOT red — the query ran fine, the data gap is just
+      // a data-availability issue (e.g. PM ingestion lag).
+      return 'bg-amber-500/12 text-amber-700 border-amber-500/25';
     case 'Ready':
       return 'bg-amber-500/12 text-amber-700 border-amber-500/25';
     default:
@@ -1246,10 +1255,25 @@ const RanQueryModule: React.FC = () => {
 
       setReports(prev => prev.map(r => {
         if (r.id !== reportId) return r;
+        // Status mapping (2026-05-07):
+        //   hasData                          → Completed (green)
+        //   !hasData && errors.length === 0  → Empty     (amber) — the query
+        //     succeeded, the result set is just empty (typically a PM data
+        //     gap in the requested time window). Operator should re-aim the
+        //     time range, not chase a backend bug.
+        //   !hasData && errors.length > 0    → Failed    (red)   — at least
+        //     one underlying request actually errored (HTTP 500, timeout,
+        //     malformed payload). Real bug, worth investigating.
+        const finalStatus: ReportStatus = hasData
+          ? 'Completed'
+          : (errors.length > 0 ? 'Failed' : 'Empty');
+        const finalHealth: ReportHealth | undefined = hasData
+          ? (errors.length > 0 ? 'warning' : 'ok')
+          : (errors.length > 0 ? 'error' : 'warning');
         return {
           ...r,
-          status: (hasData ? 'Completed' : 'Failed') as ReportStatus,
-          health: hasData ? (errors.length > 0 ? 'warning' : 'ok') : 'error',
+          status: finalStatus,
+          health: finalHealth,
           results: rows,
           errorMessage: !hasData ? (errorMsg || emptyMsg) : errorMsg,
           lastRunAt: new Date().toISOString(),
@@ -1561,7 +1585,7 @@ const RanQueryModule: React.FC = () => {
                           disabled={isExecutingId === report.id}
                           className="inline-flex items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/8 px-3 py-1.5 text-xs font-bold text-primary transition-all hover:bg-primary/14 disabled:opacity-50"
                         >
-                          {isExecutingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {report.status === 'Completed' ? 'Reload' : 'Execute'}
+                          {isExecutingId === report.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {(report.status === 'Completed' || report.status === 'Empty') ? 'Reload' : 'Execute'}
                         </button>
                         <button onClick={() => openReport(report.id)} className="inline-flex items-center gap-1.5 rounded-xl border border-border/60 px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                           <FolderOpen className="h-3.5 w-3.5" /> Open
@@ -2105,7 +2129,7 @@ const RanQueryModule: React.FC = () => {
                   </details>
                 )}
                 <button onClick={() => executeReport(selectedReport.id)} disabled={isExecutingId === selectedReport.id} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-4 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50">
-                  {isExecutingId === selectedReport.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {selectedReport.status === 'Completed' ? 'Reload' : 'Execute'}
+                  {isExecutingId === selectedReport.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />} {(selectedReport.status === 'Completed' || selectedReport.status === 'Empty') ? 'Reload' : 'Execute'}
                 </button>
                 <button onClick={() => downloadCsv(selectedReport)} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-2.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
                   <Download className="h-3.5 w-3.5" /> Download report
