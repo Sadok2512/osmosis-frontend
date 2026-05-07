@@ -129,6 +129,7 @@ const TopoRowValueInput: React.FC<{
   const [errored, setErrored] = useState(false);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [pasteText, setPasteText] = useState('');
   const [validations, setValidations] = useState<Record<string, ValueValidation>>({});
   const ref = useRef<HTMLDivElement>(null);
 
@@ -295,6 +296,25 @@ const TopoRowValueInput: React.FC<{
     onValuesChange(values.includes(val) ? values.filter(v => v !== val) : [...values, val]);
   };
 
+  /** Comma-separated paste mode inside the multiselect dropdown.
+   *  The user can paste "150, 200, 320" to add several values at once
+   *  instead of scrolling through 957 PCIs. Each parsed value is matched
+   *  case-insensitively against `available`; matched values get the
+   *  canonical case from the catalog, unmatched values are still added
+   *  (the user knows their topology better than the dim's distinct list,
+   *  and the backend will validate at query time). */
+  const applyPaste = () => {
+    const pasted = parseValuesText(pasteText);
+    if (pasted.length === 0) return;
+    const lookup = new Map<string, string>(available.map(v => [v.toLowerCase(), v]));
+    const next = new Set(values);
+    for (const v of pasted) {
+      next.add(lookup.get(v.toLowerCase()) || v);
+    }
+    onValuesChange(Array.from(next));
+    setPasteText('');
+  };
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -330,6 +350,37 @@ const TopoRowValueInput: React.FC<{
               </div>
             </div>
           )}
+          {/* Paste mode: comma-separated bulk insert. Faster than scrolling
+              through 957 PCIs to find the 3 you want. Enter or click Ajouter
+              to apply; values matched against the catalog get canonical case,
+              unmatched values are kept verbatim. */}
+          <div className="px-2 pt-1.5 pb-1.5">
+            <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-muted/30 border ${pasteText.trim() ? 'border-primary/40' : 'border-border'}`}>
+              <Plus size={11} className="text-muted-foreground shrink-0" />
+              <input
+                value={pasteText}
+                onChange={e => setPasteText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyPaste();
+                  }
+                }}
+                placeholder="Ou collez : 150, 200, 320"
+                className="flex-1 bg-transparent text-[10px] text-foreground placeholder:text-muted-foreground/50 outline-none font-mono"
+              />
+              {pasteText.trim() && (
+                <button
+                  type="button"
+                  onClick={applyPaste}
+                  className="text-[9px] font-bold text-primary px-2 py-0.5 rounded bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
+                  title="Ajouter ces valeurs"
+                >
+                  Ajouter
+                </button>
+              )}
+            </div>
+          </div>
           <div className="flex items-center gap-1 px-2.5 py-1.5 border-b border-border/40">
             <button
               type="button"
