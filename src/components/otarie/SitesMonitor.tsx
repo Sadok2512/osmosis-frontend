@@ -12752,10 +12752,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
                                             })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
-                                              const stateRaw = String((cell as any).etat_cellule ?? (cell as any).etat_fonctionnement ?? (cell as any).oper_state ?? '').trim();
+                                              // Cell state fallback chain — backend now composes `cell_state`
+                                              // from ref_cell_daily.cell_status with fallback to
+                                              // etat_fonctionnement (so cells whose BTS isn't in the latest
+                                              // dump still surface a real status). Older cached payloads
+                                              // may only have etat_cellule / etat_fonctionnement / oper_state /
+                                              // cell_status individually — try each in priority order.
+                                              const stateRaw = String(
+                                                (cell as any).cell_state
+                                                  ?? (cell as any).etat_cellule
+                                                  ?? (cell as any).etat_fonctionnement
+                                                  ?? (cell as any).cell_status
+                                                  ?? (cell as any).oper_state
+                                                  ?? ''
+                                              ).trim();
                                               const stateUp = stateRaw.toUpperCase();
-                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES)/.test(stateUp);
-                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|HS|FAULT|SUSPEND|OFF)/.test(stateUp);
+                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES|UNLOCKED)/.test(stateUp);
+                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|LOCKED|HS|FAULT|SUSPEND|OFF|SWITCHED_OFF)/.test(stateUp);
                                               const stateColor = isOk ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isKo ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-muted/40 text-muted-foreground';
                                               return (
                                                 <tr
@@ -13126,10 +13139,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                               return unique.sort((a, b) => (TG[getCellTechGroup(a.techno) || ''] ?? 99) - (TG[getCellTechGroup(b.techno) || ''] ?? 99));
                                             })().map((cell) => {
                                               const isSel = focusCellId === cell.cell_id;
-                                              const stateRaw = String((cell as any).etat_cellule ?? (cell as any).etat_fonctionnement ?? (cell as any).oper_state ?? '').trim();
+                                              // Cell state fallback chain — backend now composes `cell_state`
+                                              // from ref_cell_daily.cell_status with fallback to
+                                              // etat_fonctionnement (so cells whose BTS isn't in the latest
+                                              // dump still surface a real status). Older cached payloads
+                                              // may only have etat_cellule / etat_fonctionnement / oper_state /
+                                              // cell_status individually — try each in priority order.
+                                              const stateRaw = String(
+                                                (cell as any).cell_state
+                                                  ?? (cell as any).etat_cellule
+                                                  ?? (cell as any).etat_fonctionnement
+                                                  ?? (cell as any).cell_status
+                                                  ?? (cell as any).oper_state
+                                                  ?? ''
+                                              ).trim();
                                               const stateUp = stateRaw.toUpperCase();
-                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES)/.test(stateUp);
-                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|HS|FAULT|SUSPEND|OFF)/.test(stateUp);
+                                              const isOk = /^(ACTIF|ACTIVE|UP|IN_?SERVICE|OPERATIONAL|ENABLED|ON|MES|UNLOCKED)/.test(stateUp);
+                                              const isKo = stateUp !== '' && /(INACTIF|INACTIVE|OUT|DOWN|DISABLED|LOCKED|HS|FAULT|SUSPEND|OFF|SWITCHED_OFF)/.test(stateUp);
                                               const stateColor = isOk ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : isKo ? 'bg-red-500/15 text-red-600 dark:text-red-400' : 'bg-muted/40 text-muted-foreground';
 
                                               return (
