@@ -263,22 +263,29 @@ const InvestigatorDataTable: React.FC<Props> = ({ tsData, activeSlot, filterCont
       )}
 
       <div className="overflow-auto flex-grow relative bg-white" style={{ maxHeight: 500 }}>
-        <table className="w-full border-collapse text-[12px]">
+        <table className="w-max min-w-full border-collapse text-[12px]" style={{ tableLayout: 'auto' }}>
           <thead className="sticky top-0 z-20">
             <tr className="bg-slate-50/95 backdrop-blur border-b border-slate-200/80">
-              {columns.map((column) => (
-                <th
-                  key={column.key}
-                  className={cn(
-                    'py-3 px-5 font-bold text-[12px] uppercase tracking-[0.12em] whitespace-nowrap',
-                    column.kind === 'time' ? 'text-left text-slate-500' : '',
-                    column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
-                    (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
-                  )}
-                >
-                  <span className="truncate max-w-[240px] inline-block align-middle" title={column.label}>{column.label}</span>
-                </th>
-              ))}
+              {columns.map((column) => {
+                const minWidth =
+                  column.kind === 'time' ? 180 :
+                  column.kind === 'kpi' ? 160 :
+                  160;
+                return (
+                  <th
+                    key={column.key}
+                    style={{ minWidth }}
+                    className={cn(
+                      'py-3 px-5 font-bold text-[12px] uppercase tracking-[0.12em] whitespace-nowrap',
+                      column.kind === 'time' ? 'text-left text-slate-500' : '',
+                      column.kind === 'kpi' ? `text-right ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                      (column.kind === 'filter' || column.kind === 'split' || column.kind === 'dimension') ? `text-left ${TABLE_ACCENT_TEXT_CLASS}` : '',
+                    )}
+                  >
+                    <span className="truncate inline-block align-middle" title={column.label}>{column.label}</span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
