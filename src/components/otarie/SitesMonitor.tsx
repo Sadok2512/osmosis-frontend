@@ -5090,7 +5090,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [renameValue, setRenameValue] = useState('');
 
   const addCustomPoint = useCallback((lat: number, lon: number) => {
-    if (!activeDashboardIdRef.current) return;
     setCustomPoints(prev => {
       const idx = prev.length + 1;
       const pt: CustomMapPoint = {
@@ -5102,7 +5101,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         createdAt: new Date().toISOString(),
       };
       const next = [...prev, pt];
-      persistCustomPoints(next, activeDashboardIdRef.current);
+      if (activeDashboardIdRef.current) {
+        persistCustomPoints(next, activeDashboardIdRef.current);
+      }
       return next;
     });
     setPointCreationMode(false);
