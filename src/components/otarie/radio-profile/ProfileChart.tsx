@@ -76,9 +76,10 @@ const ProfileChart: React.FC<Props> = ({
     const tMax = Math.max(...terrainEff);
     const rfMax = Math.max(tMax, antennaAMSL, rxAMSL, remoteAMSL ?? -Infinity);
     const rfMin = Math.min(tMin, rxAMSL);
-    // Y-axis ALWAYS starts at 0 m for proper engineering reference
+    // Y-axis ALWAYS starts at 0 m for proper engineering reference (kept via axis break)
     const yDomainMin = 0;
-    const yDomainMax = Math.ceil((rfMax + Math.max(20, (rfMax - rfMin) * 0.2)) / 50) * 50;
+    // Tighter top headroom (was 20% → 12%) so RF content fills the frame
+    const yDomainMax = Math.ceil((rfMax + Math.max(15, (rfMax - rfMin) * 0.12)) / 25) * 25;
 
     // First Fresnel block index
     let firstFresnelBlockIndex: number | null = null;
