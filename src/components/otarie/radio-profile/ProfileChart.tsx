@@ -107,6 +107,7 @@ const ProfileChart: React.FC<Props> = ({
       antennaAMSL,
       rxAMSL,
       remoteAMSL,
+      yDomainMin,
       yDomainMax,
       firstFresnelBlockIndex,
       linkState,
