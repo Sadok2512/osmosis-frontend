@@ -60,7 +60,7 @@ const ProfileChart: React.FC<Props> = ({
   profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
   remoteAntenna, siteName, onHoverPoint,
 }) => {
-  const ant = analysis.antennaParams;
+  const ant = analysis?.antennaParams ?? null;
   const [hoverTx, setHoverTx] = useState(false);
   const [hoverRx, setHoverRx] = useState(false);
   const derived = useMemo(() => {
