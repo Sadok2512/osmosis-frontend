@@ -9,7 +9,7 @@ import InfoPanel from './radio-profile/InfoPanel';
 import { topoApi } from '@/lib/localDb';
 import {
   Radio, Crosshair, Loader2, AlertTriangle, Maximize2, Minimize2,
-  MousePointerClick, RotateCcw, Settings2
+  MousePointerClick, RotateCcw, Settings2, Mountain, Antenna, Signal, Ruler, CircleDot
 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
