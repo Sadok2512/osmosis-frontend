@@ -10358,7 +10358,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* ── Link Terrain Profile Panel ── */}
-      {showLinkProfile && (linkProfileAnalysis || linkProfileLoading) && (
+      {showLinkProfile && linkProfileAnalysis && !linkProfileLoading && (
         <div
           className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[38%] flex flex-col animate-fade-in"
           style={{
