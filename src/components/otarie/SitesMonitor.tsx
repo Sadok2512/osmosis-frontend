@@ -1567,7 +1567,8 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
               <SectionHeader icon={<Filter size={12} className="text-primary" />} title="Site Filters" subtitle="Filter sites displayed on the map" />
               <div className="space-y-1">
                 {backendFilterDefs.map(dim => {
-                  const selectedValues = localSiteFilters[dim.id as keyof DashboardSiteFilters] || [];
+                  const rawSelected = localSiteFilters[dim.id as keyof DashboardSiteFilters];
+                  const selectedValues: string[] = Array.isArray(rawSelected) ? rawSelected : [];
                   return (
                     <CreateFilterDropdown
                       key={dim.id}
