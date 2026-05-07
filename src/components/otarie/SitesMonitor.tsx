@@ -13456,7 +13456,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     // Reset active view on dashboard switch
                     setActiveViewId(null);
                     if (!active) {
-                      setSites([]);
+                      // Keep the map populated after deactivating a dashboard:
+                      // switch to "no dashboard" mode so global sites keep loading
+                      // instead of clearing the map.
+                      setNoDashboardMode(true);
                       setActiveDashboardId(null);
                     } else if (siteFilters && Object.keys(siteFilters).length > 0) {
                       // Apply multi-filters from dashboard
