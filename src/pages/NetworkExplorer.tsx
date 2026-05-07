@@ -29,6 +29,7 @@ import {
   Zap,
 } from "lucide-react";
 import { getPreferredDataSource, getVpsProxyHeaders, getVpsProxyUrl } from "@/lib/apiConfig";
+import ParameterHubPage from "@/components/parameter-hub/ParameterHubPage";
 
 type Status = "Healthy" | "Warning" | "Critical";
 type Tech = "2G" | "3G" | "4G" | "5G";
@@ -505,6 +506,10 @@ const NetworkExplorer = () => {
           </div>
         </header>
 
+        {activeTab === "Parameter Hub" ? (
+          <ParameterHubPage />
+        ) : (
+        <>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
           {kpis.map(({ label, value, icon: Icon, hint }) => (
             <article key={label} className="rounded-xl border border-white/85 bg-white/80 p-4 shadow-[0_14px_40px_rgba(15,23,42,0.06)] backdrop-blur transition hover:-translate-y-0.5 hover:shadow-[0_18px_48px_rgba(15,118,110,0.12)]">
@@ -733,6 +738,8 @@ const NetworkExplorer = () => {
             <p className="mt-1 text-sm font-medium text-slate-500">Outage or severe service degradation</p>
           </div>
         </section>
+        </>
+        )}
       </div>
     </main>
   );
