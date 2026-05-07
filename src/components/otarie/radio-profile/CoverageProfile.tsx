@@ -351,13 +351,15 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
             />
           )}
 
-          {/* Beam cone — gradient */}
+          {/* Beam cone — gradient with glow */}
           {showBeam && (
             <path
               d={`M ${towerX} ${antennaY} L ${nearImpact.x} ${nearImpact.y} L ${farImpact.x} ${farImpact.y} Z`}
               fill="url(#cp-beam)"
+              filter="url(#cp-beam-glow)"
               stroke={`${color}aa`}
               strokeWidth={1}
+              className="transition-all duration-700"
             />
           )}
 
