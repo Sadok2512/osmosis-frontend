@@ -76,10 +76,9 @@ const ProfileChart: React.FC<Props> = ({
     const tMax = Math.max(...terrainEff);
     const rfMax = Math.max(tMax, antennaAMSL, rxAMSL, remoteAMSL ?? -Infinity);
     const rfMin = Math.min(tMin, rxAMSL);
-    const range = Math.max(20, rfMax - rfMin);
-    // Adaptive Y bounds (terrain stays readable on flat short links)
-    const yDomainMin = Math.max(0, Math.floor(rfMin - Math.max(8, range * 0.15)));
-    const yDomainMax = Math.ceil(rfMax + Math.max(15, range * 0.25));
+    // Y-axis ALWAYS starts at 0 m for proper engineering reference
+    const yDomainMin = 0;
+    const yDomainMax = Math.ceil((rfMax + Math.max(20, (rfMax - rfMin) * 0.2)) / 50) * 50;
 
     // First Fresnel block index
     let firstFresnelBlockIndex: number | null = null;
