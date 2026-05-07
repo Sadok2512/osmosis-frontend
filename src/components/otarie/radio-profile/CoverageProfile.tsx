@@ -391,15 +391,42 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
             </>
           )}
 
-          {/* Tower */}
-          <line x1={towerX} y1={groundY} x2={towerX} y2={antennaY} stroke="#dbeafe" strokeWidth={2.5} />
-          <path d={`M ${towerX - 9} ${groundY} L ${towerX} ${antennaY} L ${towerX + 9} ${groundY}`}
-            fill="none" stroke="#dbeafe" strokeWidth={1.2} opacity={0.55} />
-          <circle cx={towerX} cy={antennaY} r={6} fill={color} stroke="#fff" strokeWidth={1.5} />
-          <g transform={`translate(${towerX + 12}, ${antennaY - 14})`}>
-            <rect x="-2" y="-10" width="60" height="14" rx="4" fill="#0b1728" stroke={`${color}66`} />
-            <text x="4" y="0" fontSize="10" fontWeight="700" fill={color}>
-              {antennaHeight} m AGL
+          {/* Pylon (lattice tower) */}
+          <path
+            d={`M ${towerX - 8} ${groundY} L ${towerX - 4} ${antennaY} L ${towerX + 4} ${antennaY} L ${towerX + 8} ${groundY} Z`}
+            fill="rgba(15,23,42,0.8)"
+            stroke="rgba(51,65,85,0.9)"
+            strokeWidth={1}
+          />
+          <line x1={towerX} y1={groundY} x2={towerX} y2={antennaY} stroke="rgba(96,165,250,0.45)" strokeWidth={1.5} />
+          {[0.2, 0.4, 0.6, 0.8].map(p => {
+            const yy = groundY - (groundY - antennaY) * p;
+            const xw = 8 - 4 * p;
+            return (
+              <line key={p}
+                x1={towerX - xw} y1={yy} x2={towerX + xw} y2={yy}
+                stroke="rgba(71,85,105,0.6)" strokeWidth={0.6} />
+            );
+          })}
+          {/* Antenna head */}
+          <circle cx={towerX} cy={antennaY} r={7} fill={`${color}33`} stroke={color} strokeWidth={1} />
+          <path d={`M ${towerX} ${antennaY - 8} L ${towerX + 8} ${antennaY} L ${towerX} ${antennaY + 8} Z`}
+            fill={color} />
+          <line x1={towerX + 5} y1={antennaY - 3} x2={towerX + 5} y2={antennaY + 3} stroke="#fff" strokeWidth={1} />
+
+          {/* Site info overlay inside chart */}
+          <g transform={`translate(${M.left + 10}, ${M.top + 8})`}>
+            <rect width="150" height="74" rx="8" fill="rgba(2,6,23,0.82)" stroke="rgba(51,65,85,0.6)" />
+            <text x="10" y="20" fontSize="10" fontWeight="700" fill="#34d399">{siteName}{sectorName ? ` · ${sectorName}` : ''}</text>
+            <text x="10" y="36" fontSize="9" fill="#94a3b8">
+              Height (AGL): <tspan fill="#fff" fontWeight="700">{antennaHeight}m</tspan>
+            </text>
+            <text x="10" y="50" fontSize="9" fill="#94a3b8">
+              Mech. Tilt: <tspan fill="#fff" fontWeight="700">{mechanicalTilt}°</tspan>
+              {electricalTilt ? <tspan fill="#94a3b8"> · Elec: <tspan fill="#fff" fontWeight="700">{electricalTilt}°</tspan></tspan> : null}
+            </text>
+            <text x="10" y="64" fontSize="9" fill="#94a3b8">
+              Azimuth: <tspan fill="#fff" fontWeight="700">{azimut ?? '—'}°</tspan>
             </text>
           </g>
 
