@@ -456,72 +456,8 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = ({
         </div>
       </div>
 
-      {/* ── Bottom summary panels ── */}
-      <div className="grid grid-cols-12 gap-2 mt-2 shrink-0">
-        {/* Coverage Summary */}
-        <div className="col-span-5 rounded-xl bg-white/[0.03] border border-white/5 p-2.5">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5 flex items-center gap-1.5">
-            <Antenna size={11} className="text-emerald-400" />
-            Coverage Summary
-          </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-            <Row k="Site:" v={siteName} mono />
-            <Row k="Antenna Height (AGL):" v={`${antennaHeight} m`} accent />
-            <Row k="Sector:" v={sectorName ?? 'S1'} mono />
-            <Row k="Mechanical Tilt:" v={`${mechanicalTilt}°`} />
-            <Row k="Azimuth:" v={`${azimut ?? '—'}°`} />
-            <Row k="Electrical Tilt:" v={`${electricalTilt}°`} />
-            <Row k="Technology:" v={String(techno).toUpperCase()} accent />
-            <Row k="Total Tilt:" v={`${geom.totalTilt.toFixed(1)}°`} />
-            <Row k="Band / Freq.:" v={bandLabel} />
-            <Row k="Vertical Beamwidth:" v={`${vbwEff}°`} />
-            <Row k="Main Beam Impact:" v={`${(geom.mainDist / 1000).toFixed(2)} km`} good />
-            <Row k="Estimated Coverage:" v={`${(geom.farDist / 1000).toFixed(2)} km`} good />
-            <Row k="Coverage Area (Est.):" v={`${coverageAreaKm2.toFixed(1)} km²`} />
-            <Row k="Max Range (Theor.):" v={`${(geom.maxRange / 1000).toFixed(2)} km`} />
-            <Row k="Terrain Obstruction:" v={'✓ Clear'} good />
-          </div>
-        </div>
+      {/* Bottom summary panels removed per user request */}
 
-        {/* Signal at Ground */}
-        <div className="col-span-3 rounded-xl bg-white/[0.03] border border-white/5 p-2.5">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5">
-            Signal at Ground <span className="text-white/30 normal-case">(estimated)</span>
-          </div>
-          <div className="space-y-1 text-[10px]">
-            <SigRow label="Near (100 m):" rsrp={rsrpNear} />
-            <SigRow label="Mid (500 m):" rsrp={rsrpMid} />
-            <SigRow label="Far (1.5 km):" rsrp={rsrpFar} />
-            <SigRow label={`Edge (${(geom.farDist / 1000).toFixed(2)} km):`} rsrp={rsrpEdge} />
-          </div>
-        </div>
-
-        {/* Legend */}
-        <div className="col-span-2 rounded-xl bg-white/[0.03] border border-white/5 p-2.5">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5">Legend</div>
-          <ul className="text-[10px] space-y-1">
-            <LegendItem dot="●" color="#dbeafe" label="Antenna" />
-            <LegendItem dot="—" color={color} label="Main Beam" />
-            <LegendItem dot="┄" color={color} label="Beam Edge" dashed />
-            <LegendItem dot="—" color="#7aaedf" label="Terrain Profile" />
-            <LegendItem dot="■" color={mainZone.color} label="Ground Coverage" />
-            <LegendItem dot="◉" color="#22c55e" label="Main Beam Impact" />
-            <LegendItem dot="◉" color="#ef4444" label="Coverage End" />
-          </ul>
-        </div>
-
-        {/* Sector chip */}
-        <div className="col-span-2 rounded-xl bg-white/[0.03] border border-white/5 p-2.5 flex flex-col">
-          <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50 mb-1.5">Sector</div>
-          <div className="flex-1 rounded-lg flex items-center justify-center"
-            style={{ background: `radial-gradient(circle at center, ${color}33 0%, transparent 70%)` }}>
-            <SectorIndicator azimuth={azimut ?? 0} hbw={hbw} color={color} />
-          </div>
-          <div className="text-[10px] text-center mt-1 font-mono text-white/60">
-            Az {azimut ?? '—'}° · HBW {hbw}°
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
