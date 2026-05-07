@@ -19,7 +19,7 @@ import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
 import BIChartCardECharts from '../bi/BIChartCardECharts';
-import { dashboardsApi } from '@/lib/localDb';
+import { dashboardsApi, mapViewsApi } from '@/lib/localDb';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
@@ -738,9 +738,12 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
   const [filterVisibility, setFilterVisibility] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortKey>('updated');
 
+  const [mapViews, setMapViews] = useState<any[]>([]);
+
   useEffect(() => {
     setLoading(true);
     loadAllDashboardsFromDB().then(d => { setDashboards(d); setLoading(false); });
+    mapViewsApi.list().then(v => { if (Array.isArray(v)) setMapViews(v); }).catch(() => {});
   }, []);
 
   const duplicateDashboard = async (id: string) => {
@@ -1126,21 +1129,18 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                       </span>
                     </div>
 
-                    {/* SITES / CELLS stat boxes */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Sites</div>
-                        <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight mt-0.5">
-                          {sitesCount !== null ? fmtNum(sitesCount) : '—'}
+                    {/* Views count */}
+                    {(() => {
+                      const viewsCount = mapViews.filter(v => v.description === db.id).length;
+                      return (
+                        <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 flex items-center justify-between">
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Views</div>
+                          <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight">
+                            {fmtNum(viewsCount)}
+                          </div>
                         </div>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2">
-                        <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Cells</div>
-                        <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight mt-0.5">
-                          {cellsCount !== null ? fmtNum(cellsCount) : '—'}
-                        </div>
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* Tech label */}
                     <div className={`text-[11px] font-semibold ${techList.length > 0 ? s.iconColor : 'text-muted-foreground'}`}>
