@@ -1498,13 +1498,17 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
 
   const handleConfirm = async () => {
     if (onRename && localName.trim() && localName !== currentName) onRename(localName.trim());
+    const isLocked = !!dashboardId;
     // Clean siteFilters
     const cleanSiteFilters: DashboardSiteFilters = {};
     for (const [k, v] of Object.entries(localSiteFilters)) {
       if (v && v.length > 0) (cleanSiteFilters as any)[k] = v;
     }
-    onUpdate({ mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters, siteFilters: cleanSiteFilters, mapLabelFields: Array.from(mapLabelFields) });
-    if (onSiteFiltersChange) onSiteFiltersChange(cleanSiteFilters);
+    const baseUpdate: any = { mapStyle: localMapStyle, themeMode: localThemeMode, mapLayer: localMapStyle, color: localColor, mapKpi: localKpis[0], mapKpis: localKpis, dataSource: localDataSource, viewFilters: localFilters, mapLabelFields: Array.from(mapLabelFields) };
+    // Only persist siteFilters during creation (locked after dashboard exists)
+    if (!isLocked) baseUpdate.siteFilters = cleanSiteFilters;
+    onUpdate(baseUpdate);
+    if (!isLocked && onSiteFiltersChange) onSiteFiltersChange(cleanSiteFilters);
     if (dashboardId && localVisibility !== isShared) {
       await dashboardsApi.update(dashboardId, { is_shared: localVisibility });
       onSetDashboards(prev => prev.map(d => d.id === dashboardId ? { ...d, is_shared: localVisibility } : d));
