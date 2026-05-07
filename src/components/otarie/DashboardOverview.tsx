@@ -19,7 +19,7 @@ import { TableWidgetConfig } from '../bi/BITableWidget';
 import { KPI_UNITS } from '../bi/biTypes';
 import { getDimensionValues } from '../bi/mockBIData';
 import BIChartCardECharts from '../bi/BIChartCardECharts';
-import { dashboardsApi } from '@/lib/localDb';
+import { dashboardsApi, mapViewsApi } from '@/lib/localDb';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
