@@ -109,6 +109,9 @@ export interface RanReport {
   results: ReportResultRow[];
   errorMessage?: string;
   health?: ReportHealth;
+  // Backend dense-fill signal — set when the cap blocked the timeline
+  // gap-fill (string of the form "too_many_series:NxM").
+  denseFillNotice?: string;
   // ── Extended filter & aggregation context ──
   clusters?: string[];
   dors?: string[];
@@ -499,10 +502,14 @@ async function pLimit<T>(tasks: (() => Promise<T>)[], limit: number): Promise<T[
 async function executeReportApi(
   report: RanReport,
   kpiKeySet: Set<string>,
-): Promise<{ rows: ReportResultRow[]; errors: string[] }> {
+): Promise<{ rows: ReportResultRow[]; errors: string[]; denseFillNotice?: string }> {
   const { vendors, base } = buildFilterPayload(report);
   const errors: string[] = [];
   const results: ReportResultRow[] = [];
+  // First non-null meta.dense_fill encountered — backend signals
+  // "too_many_series:NxM" when the cap blocked the gap-fill so the FE
+  // can warn the user that the timeline is sparse.
+  let denseFillNotice: string | undefined;
 
   // Separate KPIs from counters
   const kpiKeys = report.kpis.filter(k => kpiKeySet.has(k));
@@ -529,6 +536,9 @@ async function executeReportApi(
         return [];
       }
       const data = await res.json();
+      if (!denseFillNotice && typeof data?.meta?.dense_fill === 'string') {
+        denseFillNotice = data.meta.dense_fill;
+      }
       const batchResults: ReportResultRow[] = [];
       const rows = Array.isArray(data?.rows) ? data.rows : [];
       const aggList = (report.aggregations || (report.aggregation ? [report.aggregation] : ['cell']))
@@ -542,7 +552,9 @@ async function executeReportApi(
         for (const kpiCode of rowKpis) {
           if (!kpiKeys.includes(kpiCode)) continue;
           const value = parseMetricValue(pt?.[kpiCode] ?? pt?.avg ?? pt?.value);
-          if (value == null) continue;
+          // Keep null-valued rows: backend dense-fill emits avg=null for
+          // missing (timestamp × dim-combo) cells so the table can render
+          // a continuous timeline with explicit "—" gaps.
           const unit = kpiCode.includes('RATE') || kpiCode.includes('SR') ? '%' : kpiCode.includes('THR') ? 'Mbps' : '';
           const splitValue = getReportDimensionValue(pt, primaryAgg, pt.split_value);
           batchResults.push({
@@ -631,7 +643,7 @@ async function executeReportApi(
   for (const batch of batches) results.push(...batch);
   console.log(`[RapportBuilder] Total: ${results.length} rows, ${errors.length} errors, ${allTasks.length} tasks`);
 
-  return { rows: results, errors };
+  return { rows: results, errors, denseFillNotice };
 }
 
 function downloadCsv(report: RanReport) {
@@ -1273,7 +1285,7 @@ const RanQueryModule: React.FC = () => {
       // Read fresh report state
       const report = reports.find(r => r.id === reportId);
       if (!report) throw new Error('Report not found');
-      const { rows, errors } = await executeReportApi(report, kpiKeySet);
+      const { rows, errors, denseFillNotice } = await executeReportApi(report, kpiKeySet);
       const errorMsg = errors.length > 0 ? errors.join(' | ') : undefined;
       const hasData = rows.length > 0;
 
@@ -1329,6 +1341,7 @@ const RanQueryModule: React.FC = () => {
           health: finalHealth,
           results: rows,
           errorMessage: !hasData ? (errorMsg || emptyMsg) : errorMsg,
+          denseFillNotice,
           lastRunAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -2215,6 +2228,17 @@ const RanQueryModule: React.FC = () => {
                 </div>
               ) : detailMode === 'table' ? (
                 <div>
+                  {selectedReport.denseFillNotice?.startsWith('too_many_series:') && (() => {
+                    // "too_many_series:NxM" → N series × M timestamps
+                    const [, dims] = selectedReport.denseFillNotice.split(':');
+                    const [n, m] = (dims || '').split('x');
+                    return (
+                      <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium text-amber-800">
+                        <strong>Empty hours hidden</strong> — {n} series × {m} timestamps exceeds the 50,000-cell cap.
+                        Narrow the scope (one site / one band / shorter range) to get the full timeline with explicit gaps.
+                      </div>
+                    );
+                  })()}
                   <div className="mb-3 flex items-center justify-between text-xs text-muted-foreground">
                     <span>{pivotData.rows.length} rows · {pivotData.kpis.length} KPI columns · {pivotData.dimCols.length} dimensions</span>
                     {totalPivotPages > 1 && (
