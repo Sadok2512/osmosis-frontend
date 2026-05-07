@@ -368,6 +368,19 @@ const ProfileChart: React.FC<Props> = ({
                 </text>
               </g>
             ))}
+
+            {/* Axis break indicator */}
+            {derived.hasBreak && (() => {
+              const yBreak = yScale(derived.breakLow);
+              const y0 = yScale(0);
+              const yMid = (yBreak + y0) / 2;
+              return (
+                <g>
+                  <line x1={0} x2={IW} y1={yBreak + 1} y2={yBreak + 1} stroke="rgba(148,163,184,0.4)" strokeDasharray="2,3" />
+                  <path d={`M -14 ${yMid - 4} l 8 -4 l -16 -4 l 8 -4`} stroke="rgba(148,163,184,0.75)" strokeWidth={1.2} fill="none" />
+                </g>
+              );
+            })()}
           </g>
 
           {/* Clutter */}
