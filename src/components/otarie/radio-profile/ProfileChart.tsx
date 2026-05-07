@@ -272,7 +272,7 @@ const ProfileChart: React.FC<Props> = ({
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
