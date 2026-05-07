@@ -498,7 +498,7 @@ const RadioProfilePage: React.FC = () => {
 
                 {/* Chart frame — fills available space */}
                 <div
-                  className="relative rounded-xl border border-border bg-card overflow-hidden group flex-[1.5] min-h-[480px]"
+                  className="relative rounded-xl border border-border bg-card overflow-hidden group flex-[2.25] min-h-[720px]"
                   onDoubleClick={() => setChartHeight(680)}
                   title="Double-cliquez pour réinitialiser la taille · Glissez le bord inférieur pour redimensionner"
                 >
