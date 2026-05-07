@@ -83,6 +83,8 @@ const RadioProfilePage: React.FC = () => {
   const [fullscreen, setFullscreen] = useState(false);
   const [enableTilt, setEnableTilt] = useState(true);
   const [basemap, setBasemap] = useState<'light' | 'dark' | 'satellite'>('light');
+  const [autoScale, setAutoScale] = useState(true);
+  const [chartHeight, setChartHeight] = useState(680);
 
   const { loading, error, profilePoints, analysis, computeProfile } = useTerrainProfile();
 
