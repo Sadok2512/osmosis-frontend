@@ -1879,12 +1879,12 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
         {/* ── Sticky Footer ── */}
         <div className="shrink-0 px-5 py-3 border-t border-border/40 bg-gradient-to-r from-muted/30 to-transparent">
           <div className="flex items-center gap-2">
-            <button onClick={() => { handleConfirm(); if (onActivate) onActivate(); onClose(); }}
+            <button onClick={() => { handleConfirm(); onClose(); }}
               className={`flex-1 py-2.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all ${dirty
                 ? 'bg-primary text-primary-foreground shadow-md shadow-primary/15 hover:bg-primary/90'
                 : 'bg-muted/60 text-muted-foreground/60 border border-border/30'
               }`}>
-              {dirty ? 'Save & Activate' : 'Settings Saved'}
+              {dirty ? 'Save' : 'Settings Saved'}
             </button>
             {dirty && (
               <button onClick={() => { setLocalMapStyle(settings.mapStyle || 'street'); setLocalThemeMode(settings.themeMode || 'light'); setLocalColor(settings.color || ''); setLocalVisibility(isShared ?? true); setDirty(false); }}
