@@ -479,7 +479,7 @@ const RadioProfilePage: React.FC = () => {
                 </div>
 
                 {/* Chart */}
-                <div className={`rounded-xl border border-border bg-card overflow-hidden ${fullscreen ? 'h-[820px]' : 'h-[600px]'}`}>
+                <div className={`rounded-xl border border-border bg-card overflow-hidden ${fullscreen ? 'h-[900px]' : 'h-[680px]'}`}>
                   <ProfileChart
                     profilePoints={profilePoints}
                     analysis={analysis}
