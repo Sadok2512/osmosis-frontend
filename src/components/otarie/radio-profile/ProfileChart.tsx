@@ -64,7 +64,7 @@ const ProfileChart: React.FC<Props> = ({
   const [hoverTx, setHoverTx] = useState(false);
   const [hoverRx, setHoverRx] = useState(false);
   const derived = useMemo(() => {
-    if (!profilePoints.length) {
+    if (!profilePoints.length || !analysis) {
       return {
         data: [] as Record<string, any>[],
         yMin: 0, yMax: 100,
