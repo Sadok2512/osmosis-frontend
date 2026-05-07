@@ -13330,11 +13330,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               <button
                                 onClick={() => {
                                   setSelectedLinkId(link.id);
-                                  const m = (window as any).__siteMonitorMap as L.Map | undefined;
-                                  if (m) {
-                                    const bounds = L.latLngBounds([link.fromCoords, link.toCoords]);
-                                    m.flyToBounds(bounds, { padding: [80, 80], duration: 0.8, maxZoom: 15 });
-                                  }
+                                  const midLat = (link.fromCoords[0] + link.toCoords[0]) / 2;
+                                  const midLng = (link.fromCoords[1] + link.toCoords[1]) / 2;
+                                  setFlyTarget([midLat, midLng]);
+                                  // Also fit bounds for proper zoom
+                                  setTimeout(() => {
+                                    const m = (window as any).__siteMonitorMap as L.Map | undefined;
+                                    if (m) {
+                                      const bounds = L.latLngBounds([link.fromCoords, link.toCoords]);
+                                      m.flyToBounds(bounds, { padding: [80, 80], duration: 0.8, maxZoom: 15 });
+                                    }
+                                  }, 50);
                                 }}
                                 className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground transition-colors"
                                 title="Centrer sur le lien"
