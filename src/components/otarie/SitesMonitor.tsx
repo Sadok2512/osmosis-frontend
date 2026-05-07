@@ -10319,13 +10319,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           API hiccups or the analysis can't be computed. */}
       {showLinkProfile && (
         <div
-          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[44%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto flex flex-col animate-fade-in"
           style={{
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '75%',
-            maxWidth: '1350px',
-            minHeight: '380px',
+            width: '78%',
+            maxWidth: '1450px',
+            height: 'min(620px, 70vh)',
+            minHeight: '520px',
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.1)',
