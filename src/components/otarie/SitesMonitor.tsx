@@ -6738,25 +6738,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     // Skip local search filter when using searchModeSites (already server-filtered)
     const searchTerm = isSearchActive && searchModeSites.length > 0 ? '' : localSearch.toLowerCase();
+    // When search is active, bypass dashboard-injected local filters
+    // (dor/plaque/bande/zone_arcep/techno). Otherwise a search for "lyon"
+    // under the Lille_L800 dashboard returns 0 hits because the LYON
+    // sites coming back from the server don't match plaque=LILLE etc.
+    const bypassLocalFilters = isSearchActive && searchModeSites.length > 0;
     const filtered = baseSites.filter(s => {
       const siteName = String(s.site_name ?? '');
       const siteId = String(s.site_id ?? '');
       const siteCells = Array.isArray(s.cells) ? s.cells : [];
       const matchesSearch = !searchTerm || siteName.toLowerCase().includes(searchTerm) || siteId.toLowerCase().includes(searchTerm) || siteCells.some(c => String(c.cell_id ?? '').toLowerCase().includes(searchTerm) || String(c.techno ?? '').toLowerCase().includes(searchTerm) || String(c.bande ?? '').toLowerCase().includes(searchTerm));
-      const matchesDor = filters.dor === 'ALL' || s.dor === filters.dor;
-      const matchesPlaque = filters.plaque === 'ALL' || s.plaque === filters.plaque;
-      const matchesVendor = filters.vendor === 'ALL' || s.vendor === filters.vendor;
-      const matchesDep = filters.department === 'ALL' || s.department === filters.department;
+      const matchesDor = bypassLocalFilters || filters.dor === 'ALL' || s.dor === filters.dor;
+      const matchesPlaque = bypassLocalFilters || filters.plaque === 'ALL' || s.plaque === filters.plaque;
+      const matchesVendor = bypassLocalFilters || filters.vendor === 'ALL' || s.vendor === filters.vendor;
+      const matchesDep = bypassLocalFilters || filters.department === 'ALL' || s.department === filters.department;
       // When cells are empty (bbox-loaded), rely on normalized site tech inference instead of hiding valid NR/LTE sites
-      const matchesRat = filters.rat === 'ALL' || (siteCells.length > 0
+      const matchesRat = bypassLocalFilters || filters.rat === 'ALL' || (siteCells.length > 0
         ? siteCells.some(c => getCellTechGroup(c.techno) === filters.rat)
         : siteMatchesRequestedTech(s, filters.rat as TechGroup));
-      const matchesLocalVendor = localVendor === 'ALL' || s.vendor === localVendor;
-      const matchesLocalDor = localDor === 'ALL' || s.dor === localDor;
-      const matchesLocalPlaque = localPlaque === 'ALL' || s.plaque === localPlaque;
-      const matchesLocalBande = localBande === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.bande === localBande) : !(s as any).bande || (s as any).bande === localBande);
-      const matchesLocalZoneArcep = localZoneArcep === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => (c as any).zone_arcep === localZoneArcep) : (s as any).zone_arcep === localZoneArcep);
-      const matchesLocalTechno = localTechno === 'ALL' || (siteCells.length > 0
+      const matchesLocalVendor = bypassLocalFilters || localVendor === 'ALL' || s.vendor === localVendor;
+      const matchesLocalDor = bypassLocalFilters || localDor === 'ALL' || s.dor === localDor;
+      const matchesLocalPlaque = bypassLocalFilters || localPlaque === 'ALL' || s.plaque === localPlaque;
+      const matchesLocalBande = bypassLocalFilters || localBande === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => c.bande === localBande) : !(s as any).bande || (s as any).bande === localBande);
+      const matchesLocalZoneArcep = bypassLocalFilters || localZoneArcep === 'ALL' || (siteCells.length > 0 ? siteCells.some(c => (c as any).zone_arcep === localZoneArcep) : (s as any).zone_arcep === localZoneArcep);
+      const matchesLocalTechno = bypassLocalFilters || localTechno === 'ALL' || (siteCells.length > 0
         ? siteCells.some(c => getCellTechGroup(c.techno) === localTechno)
         : siteMatchesRequestedTech(s, localTechno));
       
