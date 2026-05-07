@@ -548,6 +548,8 @@ function DataTab({
               filtersLoading={filtersLoading}
               onApply={onApply}
               isStat={isStat}
+              filterCategoriesMap={filterCategoriesMap}
+              filterRatsMap={filterRatsMap}
             />
           </div>
         )}
