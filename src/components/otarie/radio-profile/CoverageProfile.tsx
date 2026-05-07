@@ -128,7 +128,66 @@ function rsrpClass(rsrp: number): { color: string; label: string } {
   return { color: '#ef4444', label: '< -115 dBm' };
 }
 
-export const CoverageProfile: React.FC<CoverageProfileProps> = ({
+/**
+ * Public component. Renders ONE antenna-to-ground coverage chart by default.
+ * If `siteB` is provided, it renders TWO independent ground-coverage charts
+ * stacked vertically (Site A on top, Site B below). NO link / LOS / Fresnel
+ * line is ever drawn between the two sites — each antenna only covers the
+ * ground around its own site.
+ */
+export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
+  if (props.siteB) {
+    const {
+      siteB,
+      siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
+      band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
+      showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+    } = props;
+    const aProps = {
+      siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
+      band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
+      showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+    };
+    return (
+      <div className="w-full h-full grid grid-rows-2 gap-2 min-h-0">
+        <div className="min-h-0 relative">
+          <div className="absolute top-2 left-3 z-10 px-2 py-0.5 rounded-md bg-emerald-500/15 border border-emerald-400/30 text-emerald-200 text-[10px] font-bold uppercase tracking-wider pointer-events-none">
+            Site A ground coverage
+          </div>
+          <CoverageProfileSingle {...aProps} />
+        </div>
+        <div className="min-h-0 relative">
+          <div className="absolute top-2 left-3 z-10 px-2 py-0.5 rounded-md bg-sky-500/15 border border-sky-400/30 text-sky-200 text-[10px] font-bold uppercase tracking-wider pointer-events-none">
+            Site B ground coverage
+          </div>
+          <CoverageProfileSingle
+            siteName={siteB.siteName}
+            sectorName={siteB.sectorName}
+            azimut={siteB.azimut}
+            antennaHeight={siteB.antennaHeight}
+            mechanicalTilt={siteB.mechanicalTilt}
+            electricalTilt={siteB.electricalTilt}
+            band={siteB.band}
+            techno={siteB.techno}
+            hbw={siteB.hbw}
+            vbw={siteB.vbw}
+            bandwidthMhz={bandwidthMhz}
+            txPowerDbm={txPowerDbm}
+            siteAltitudeAmsl={siteB.siteAltitudeAmsl ?? siteAltitudeAmsl}
+            showBeam={showBeam}
+            showFootprint={showFootprint}
+            showTiltLines={showTiltLines}
+            showClutter={showClutter}
+            clutterHeight={clutterHeight}
+          />
+        </div>
+      </div>
+    );
+  }
+  return <CoverageProfileSingle {...props} />;
+};
+
+const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   siteName,
   sectorName,
   azimut,
