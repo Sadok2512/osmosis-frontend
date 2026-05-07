@@ -1,9 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import {
-  AreaChart, Area, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, ReferenceDot, ReferenceLine, Legend, Label as RLabel,
-  Customized,
-} from 'recharts';
+import React, { useMemo, useRef, useState } from 'react';
+import * as d3 from 'd3';
+import { motion, AnimatePresence } from 'motion/react';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
 
 export interface ProfileHoverData {
@@ -35,565 +32,505 @@ interface Props {
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
 
-const clampNumber = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-
-/* ── SVG antenna tower icon drawn at pixel coords ── */
-const AntennaTowerSVG: React.FC<{ cx: number; cy: number }> = ({ cx, cy }) => (
-  <g>
-    {/* Mast */}
-    <line x1={cx} y1={cy} x2={cx} y2={cy - 28} stroke="rgba(56,189,248,0.9)" strokeWidth={2} />
-    {/* Cross bars */}
-    <line x1={cx - 5} y1={cy - 10} x2={cx + 5} y2={cy - 10} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
-    <line x1={cx - 3} y1={cy - 18} x2={cx + 3} y2={cy - 18} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
-    {/* Base legs */}
-    <line x1={cx} y1={cy} x2={cx - 6} y2={cy + 4} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
-    <line x1={cx} y1={cy} x2={cx + 6} y2={cy + 4} stroke="rgba(56,189,248,0.7)" strokeWidth={1.5} />
-    {/* Signal waves */}
-    <path d={`M${cx + 4},${cy - 26} Q${cx + 8},${cy - 30} ${cx + 4},${cy - 34}`} fill="none" stroke="rgba(56,189,248,0.5)" strokeWidth={1} />
-    <path d={`M${cx + 7},${cy - 24} Q${cx + 12},${cy - 30} ${cx + 7},${cy - 36}`} fill="none" stroke="rgba(56,189,248,0.35)" strokeWidth={1} />
-    {/* Antenna tip dot */}
-    <circle cx={cx} cy={cy - 28} r={2.5} fill="rgba(56,189,248,0.9)" stroke="white" strokeWidth={1} />
-  </g>
-);
+const VIEW_W = 1000;
+const VIEW_H = 500;
+const M = { top: 60, right: 60, bottom: 60, left: 70 };
+const IW = VIEW_W - M.left - M.right;
+const IH = VIEW_H - M.top - M.bottom;
 
 const ProfileChart: React.FC<Props> = ({
-  profilePoints, analysis, fresnel, showFresnel = false, showCurvature = true, clutterHeight = 0, showTilt = false,
-  remoteAntenna, siteName, onHoverPoint,
+  profilePoints,
+  analysis,
+  fresnel,
+  showFresnel = false,
+  clutterHeight = 0,
+  remoteAntenna,
+  siteName,
+  onHoverPoint,
 }) => {
   const ant = analysis?.antennaParams ?? null;
-  const [hoverTx, setHoverTx] = useState(false);
-  const [hoverRx, setHoverRx] = useState(false);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+
   const derived = useMemo(() => {
     if (!profilePoints.length || !analysis) {
-      return {
-        data: [] as Record<string, any>[],
-        yMin: 0, yMax: 100,
-        groundImpact: null as null | { index: number; distance: number; altitude: number },
-        remoteGroundImpact: null as null | { index: number; distance: number; altitude: number },
-        firstFresnelBlockIndex: null as number | null,
-        linkState: 'LOS_CLEAR' as LinkState,
-      };
+      return null;
     }
 
-    const terrainRaw = profilePoints.map((p) => p.elevation);
-    const terrainEffective = analysis.effectiveTerrain;
-    const beamAltitudes = analysis.beamAltitudes;
+    const totalDistM = profilePoints[profilePoints.length - 1].distance;
+    const totalDistKm = totalDistM / 1000;
 
-    // ─── Y-AXIS SCALING: terrain + antenna ONLY ───
-    const terrainMin = Math.min(...terrainEffective);
-    const terrainMax = Math.max(...terrainEffective);
-    const antennaAMSL = ant?.antennaAMSL ?? terrainMax;
+    const terrainEff = analysis.effectiveTerrain;
+    const beamAlts = analysis.beamAltitudes;
+
+    const antennaAMSL = ant?.antennaAMSL ?? terrainEff[0];
     const rxAMSL = ant && ant.rxHeight > 0
       ? profilePoints[profilePoints.length - 1].elevation + ant.rxHeight
-      : terrainEffective[terrainEffective.length - 1];
+      : terrainEff[terrainEff.length - 1];
 
-    let remoteAlt = terrainMax;
-    if (remoteAntenna && profilePoints.length > 1) {
-      remoteAlt = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
-    }
+    const remoteAMSL = remoteAntenna && profilePoints.length > 1
+      ? terrainEff[terrainEff.length - 1] + remoteAntenna.hba
+      : null;
 
-    const rfMin = Math.min(terrainMin, rxAMSL);
-    const rfMax = Math.max(terrainMax, antennaAMSL, remoteAlt);
+    const tMin = Math.min(...terrainEff);
+    const tMax = Math.max(...terrainEff);
+    const rfMax = Math.max(tMax, antennaAMSL, rxAMSL, remoteAMSL ?? -Infinity);
+    const rfMin = Math.min(tMin, rxAMSL);
     const range = Math.max(20, rfMax - rfMin);
-    const yMin = Math.max(0, Math.floor(rfMin - Math.max(5, range * 0.08)));
-    const yMax = Math.ceil(rfMax + Math.max(15, range * 0.28));
+    // Y starts from 0 (per V2 spec) with headroom above
+    const yDomainMax = Math.ceil(rfMax + Math.max(20, range * 0.25));
 
-    // ─── GROUND IMPACT: local ───
-    let groundImpact: { index: number; distance: number; altitude: number } | null = null;
-    if (showTilt && ant) {
-      const tiltRad = (ant.totalTilt * Math.PI) / 180;
-      for (let i = 1; i < profilePoints.length; i++) {
-        const prevDiff = (antennaAMSL - profilePoints[i - 1].distance * Math.tan(tiltRad)) - terrainEffective[i - 1];
-        const currDiff = (antennaAMSL - profilePoints[i].distance * Math.tan(tiltRad)) - terrainEffective[i];
-        if (prevDiff >= 0 && currDiff <= 0) {
-          const denom = prevDiff - currDiff || 1e-6;
-          const t = prevDiff / denom;
-          const d = profilePoints[i - 1].distance + t * (profilePoints[i].distance - profilePoints[i - 1].distance);
-          const a = terrainEffective[i - 1] + t * (terrainEffective[i] - terrainEffective[i - 1]);
-          groundImpact = { index: i, distance: Math.round(d) / 1000, altitude: Math.round(a * 10) / 10 };
-          break;
-        }
-      }
-    }
-
-    // ─── GROUND IMPACT: remote ───
-    let remoteGroundImpact: { index: number; distance: number; altitude: number } | null = null;
-    if (remoteAntenna && remoteAntenna.totalTilt > 0 && profilePoints.length > 1) {
-      const totalDist = profilePoints[profilePoints.length - 1].distance;
-      const remoteAMSL = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
-      const remoteTiltRad = (remoteAntenna.totalTilt * Math.PI) / 180;
-      for (let i = profilePoints.length - 2; i >= 0; i--) {
-        const d = totalDist - profilePoints[i].distance;
-        const beam = remoteAMSL - d * Math.tan(remoteTiltRad);
-        if (beam <= terrainEffective[i]) {
-          const nd = totalDist - profilePoints[i + 1].distance;
-          const pb = remoteAMSL - nd * Math.tan(remoteTiltRad);
-          const pt = terrainEffective[i + 1];
-          const ct = terrainEffective[i];
-          const t = (pb - pt) / ((pb - pt) - (beam - ct));
-          const impDist = profilePoints[i + 1].distance + t * (profilePoints[i].distance - profilePoints[i + 1].distance);
-          const impAlt = pt + t * (ct - pt);
-          remoteGroundImpact = { index: i, distance: Math.round(impDist) / 1000, altitude: Math.round(impAlt * 10) / 10 };
-          break;
-        }
-      }
-    }
-
-    // ─── FRESNEL ─── (always compute for status, even if not visually shown)
+    // First Fresnel block index
     let firstFresnelBlockIndex: number | null = null;
     if (fresnel) {
       for (let i = 0; i < profilePoints.length; i++) {
-        if (terrainEffective[i] > fresnel.fresnelLowerBound[i]) { firstFresnelBlockIndex = i; break; }
+        if (terrainEff[i] > fresnel.fresnelLowerBound[i]) {
+          firstFresnelBlockIndex = i;
+          break;
+        }
       }
     }
 
-    // ─── LINK STATE ───
     const hasLOS = analysis.obstructionIndex !== null;
     const fresnelBlocked = firstFresnelBlockIndex !== null;
-    const linkState: LinkState = hasLOS ? 'NLOS' : fresnelBlocked ? 'LOS_FRESNEL_BLOCKED' : 'LOS_CLEAR';
+    const linkState: LinkState = hasLOS
+      ? 'NLOS'
+      : fresnelBlocked
+      ? 'LOS_FRESNEL_BLOCKED'
+      : 'LOS_CLEAR';
 
-    // ─── BUILD DATA ───
-    const data = profilePoints.map((p, i) => {
-      const entry: Record<string, any> = {
-        distance: Math.round(p.distance) / 1000,
-        terrain: Math.round(terrainEffective[i] * 10) / 10,
-        rawTerrain: Math.round(terrainRaw[i] * 10) / 10,
-        _idx: i,
-        beam: null, tiltBeam: null, tiltConeUpper: null, tiltConeLower: null,
-        fresnelUpper: null, fresnelLower: null, clutter: null, rxLine: null,
-        remoteTiltBeam: null, remoteConeUpper: null, remoteConeLower: null,
-        antennaMast: null,
-      };
+    return {
+      totalDistKm,
+      terrainEff,
+      beamAlts,
+      antennaAMSL,
+      rxAMSL,
+      remoteAMSL,
+      yDomainMax,
+      firstFresnelBlockIndex,
+      linkState,
+    };
+  }, [profilePoints, analysis, fresnel, ant, remoteAntenna]);
 
-      if (i === 0 && ant) {
-        entry.antennaMast = clampNumber(antennaAMSL, yMin, yMax);
-      }
+  // Hooks must run unconditionally — compute even when no data
+  const xScale = useMemo(
+    () => d3.scaleLinear().domain([0, derived?.totalDistKm ?? 1]).range([0, IW]),
+    [derived?.totalDistKm]
+  );
+  const yScale = useMemo(
+    () => d3.scaleLinear().domain([0, derived?.yDomainMax ?? 100]).range([IH, 0]).nice(),
+    [derived?.yDomainMax]
+  );
 
-      if (ant && ant.rxHeight > 0) entry.rxLine = Math.round((p.elevation + ant.rxHeight) * 10) / 10;
-      if (clutterHeight > 0) entry.clutter = Math.round((terrainEffective[i] + clutterHeight) * 10) / 10;
+  const terrainPath = useMemo(() => {
+    if (!derived) return '';
+    const area = d3
+      .area<number>()
+      .x((_, i) => xScale(profilePoints[i].distance / 1000))
+      .y0(IH)
+      .y1((v) => yScale(v))
+      .curve(d3.curveMonotoneX);
+    return area(derived.terrainEff) ?? '';
+  }, [derived, profilePoints, xScale, yScale]);
 
-      if (showFresnel && fresnel) {
-        entry.fresnelUpper = clampNumber(Math.round(fresnel.fresnelUpperBound[i] * 10) / 10, yMin, yMax);
-        entry.fresnelLower = clampNumber(Math.round(fresnel.fresnelLowerBound[i] * 10) / 10, yMin, yMax);
-        // Band height for stacked area rendering
-        entry.fresnelBand = Math.max(0, entry.fresnelUpper - entry.fresnelLower);
-      }
+  const terrainTopPath = useMemo(() => {
+    if (!derived) return '';
+    const line = d3
+      .line<number>()
+      .x((_, i) => xScale(profilePoints[i].distance / 1000))
+      .y((v) => yScale(v))
+      .curve(d3.curveMonotoneX);
+    return line(derived.terrainEff) ?? '';
+  }, [derived, profilePoints, xScale, yScale]);
 
-      // LOS line (orange dashed like photo)
-      entry.beam = clampNumber(Math.round(beamAltitudes[i] * 10) / 10, yMin, yMax);
+  const clutterPath = useMemo(() => {
+    if (!derived || clutterHeight <= 0) return '';
+    const area = d3
+      .area<number>()
+      .x((_, i) => xScale(profilePoints[i].distance / 1000))
+      .y0((v) => yScale(v))
+      .y1((v) => yScale(v + clutterHeight))
+      .curve(d3.curveStepAfter);
+    return area(derived.terrainEff) ?? '';
+  }, [derived, profilePoints, xScale, yScale, clutterHeight]);
 
-      // Local tilt beam + cone
-      if (showTilt && ant) {
-        const tiltRad = (ant.totalTilt * Math.PI) / 180;
-        const tiltAlt = antennaAMSL - p.distance * Math.tan(tiltRad);
-        const vis = !groundImpact || i <= groundImpact.index;
-        if (vis && tiltAlt >= terrainEffective[i]) {
-          entry.tiltBeam = clampNumber(Math.round(tiltAlt * 10) / 10, yMin, yMax);
+  const fresnelPath = useMemo(() => {
+    if (!derived || !fresnel || !showFresnel) return '';
+    const top: [number, number][] = profilePoints.map((p, i) => [
+      xScale(p.distance / 1000),
+      yScale(fresnel.fresnelUpperBound[i]),
+    ]);
+    const bottom: [number, number][] = profilePoints
+      .map((p, i): [number, number] => [
+        xScale(p.distance / 1000),
+        yScale(fresnel.fresnelLowerBound[i]),
+      ])
+      .reverse();
+    return (d3.line()([...top, ...bottom]) ?? '') + 'Z';
+  }, [derived, fresnel, showFresnel, profilePoints, xScale, yScale]);
+
+  if (!derived || !ant) {
+    return (
+      <div className="flex items-center justify-center w-full h-full rounded-xl bg-slate-900/50 border border-slate-700/50 text-slate-400 text-sm">
+        Computing radio profile…
+      </div>
+    );
+  }
+
+  const yTicks = yScale.ticks(8);
+  const xTicks = xScale.ticks(8);
+
+  const losX1 = xScale(0);
+  const losY1 = yScale(derived.antennaAMSL);
+  const losX2 = xScale(derived.totalDistKm);
+  const losY2 = yScale(derived.remoteAMSL ?? derived.rxAMSL);
+
+  const obstructionPoint =
+    analysis.obstructionIndex !== null && profilePoints[analysis.obstructionIndex]
+      ? {
+          x: xScale(profilePoints[analysis.obstructionIndex].distance / 1000),
+          y: yScale(derived.terrainEff[analysis.obstructionIndex]),
         }
-        if (ant.vbw > 0 && vis) {
-          const uRad = ((ant.totalTilt - ant.vbw / 2) * Math.PI) / 180;
-          const lRad = ((ant.totalTilt + ant.vbw / 2) * Math.PI) / 180;
-          const uAlt = antennaAMSL - p.distance * Math.tan(uRad);
-          const lAlt = antennaAMSL - p.distance * Math.tan(lRad);
-          if (uAlt >= terrainEffective[i]) entry.tiltConeUpper = clampNumber(Math.round(uAlt * 10) / 10, yMin, yMax);
-          if (lAlt >= terrainEffective[i]) entry.tiltConeLower = clampNumber(Math.round(lAlt * 10) / 10, yMin, yMax);
+      : null;
+
+  const fresnelBlockPoint =
+    derived.firstFresnelBlockIndex !== null && profilePoints[derived.firstFresnelBlockIndex]
+      ? {
+          x: xScale(profilePoints[derived.firstFresnelBlockIndex].distance / 1000),
+          y: yScale(derived.terrainEff[derived.firstFresnelBlockIndex]),
         }
+      : null;
+
+  const statusText =
+    derived.linkState === 'LOS_CLEAR'
+      ? 'LOS OK'
+      : derived.linkState === 'LOS_FRESNEL_BLOCKED'
+      ? 'LOS / Fresnel Blocked'
+      : 'NLOS';
+  const statusColor =
+    derived.linkState === 'LOS_CLEAR'
+      ? 'rgb(34,197,94)'
+      : derived.linkState === 'LOS_FRESNEL_BLOCKED'
+      ? 'rgb(56,189,248)'
+      : 'rgb(239,68,68)';
+
+  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * VIEW_W - M.left;
+    const distKm = xScale.invert(Math.max(0, Math.min(IW, px)));
+    const distM = distKm * 1000;
+    let idx = 0;
+    let best = Infinity;
+    for (let i = 0; i < profilePoints.length; i++) {
+      const d = Math.abs(profilePoints[i].distance - distM);
+      if (d < best) {
+        best = d;
+        idx = i;
       }
-
-      // Remote beam (link mode)
-      if (remoteAntenna && profilePoints.length > 1) {
-        const totalDist = profilePoints[profilePoints.length - 1].distance;
-        const remoteAMSL = terrainEffective[profilePoints.length - 1] + remoteAntenna.hba;
-        const dFR = totalDist - p.distance;
-        const rTiltRad = (remoteAntenna.totalTilt * Math.PI) / 180;
-        const rBeam = remoteAMSL - dFR * Math.tan(rTiltRad);
-        const rVis = !remoteGroundImpact || i >= remoteGroundImpact.index;
-        if (rVis && rBeam >= terrainEffective[i]) {
-          entry.remoteTiltBeam = clampNumber(Math.round(rBeam * 10) / 10, yMin, yMax);
-        }
-        if (remoteAntenna.vbw > 0 && rVis) {
-          const ruRad = ((remoteAntenna.totalTilt - remoteAntenna.vbw / 2) * Math.PI) / 180;
-          const rlRad = ((remoteAntenna.totalTilt + remoteAntenna.vbw / 2) * Math.PI) / 180;
-          const ruAlt = remoteAMSL - dFR * Math.tan(ruRad);
-          const rlAlt = remoteAMSL - dFR * Math.tan(rlRad);
-          if (ruAlt >= terrainEffective[i]) entry.remoteConeUpper = clampNumber(Math.round(ruAlt * 10) / 10, yMin, yMax);
-          if (rlAlt >= terrainEffective[i]) entry.remoteConeLower = clampNumber(Math.round(rlAlt * 10) / 10, yMin, yMax);
-        }
-      }
-
-      return entry;
-    });
-
-    return { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState };
-  }, [profilePoints, analysis, fresnel, showFresnel, clutterHeight, showTilt, ant, remoteAntenna]);
-
-  const { data, yMin, yMax, groundImpact, remoteGroundImpact, firstFresnelBlockIndex, linkState } = derived;
-
-  // Colors matching the reference photo
-  const losLineColor = 'rgba(249,115,22,0.9)'; // orange dashed LOS
-  const beamConeBlue = 'rgba(56,130,220,0.12)';
-  const beamConeStroke = 'rgba(180,220,80,0.5)'; // green-yellow cone lines like photo
-  const beamCenterStroke = 'rgba(180,220,80,0.7)'; // green-yellow center beam
-
-  const statusText = linkState === 'LOS_CLEAR' ? 'LOS OK' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'LOS / Fresnel Blocked' : 'NLOS';
-  const statusColor = linkState === 'LOS_CLEAR' ? 'rgba(34,197,94,0.95)' : linkState === 'LOS_FRESNEL_BLOCKED' ? 'rgba(56,189,248,0.95)' : 'rgba(239,68,68,0.95)';
-
-  const obstructionPoint = analysis && analysis.obstructionIndex !== null ? {
-    distance: data[analysis.obstructionIndex]?.distance,
-    altitude: data[analysis.obstructionIndex]?.terrain,
-  } : null;
-
-  const fresnelBlockPoint = firstFresnelBlockIndex !== null && data[firstFresnelBlockIndex] ? {
-    distance: data[firstFresnelBlockIndex].distance,
-    altitude: data[firstFresnelBlockIndex].terrain,
-  } : null;
-
-  const rxTerrainAlt = data.length > 1 ? data[data.length - 1].terrain : 0;
-  const rxAlt = data.length > 1 ? (data[data.length - 1].rxLine ?? rxTerrainAlt) : 0;
-
-  const handleMouseMove = useCallback((state: any) => {
-    if (!onHoverPoint || state?.activeTooltipIndex == null) return;
-    const idx = state.activeTooltipIndex;
-    if (idx >= 0 && idx < profilePoints.length) {
-      const p = profilePoints[idx];
-      onHoverPoint({ distanceKm: Math.round(p.distance) / 1000, elevationM: Math.round(p.elevation * 10) / 10, lat: p.lat, lng: p.lng });
     }
-  }, [onHoverPoint, profilePoints]);
+    setHoverIdx(idx);
+    if (onHoverPoint) {
+      const p = profilePoints[idx];
+      onHoverPoint({
+        distanceKm: p.distance / 1000,
+        elevationM: p.elevation,
+        lat: p.lat,
+        lng: p.lng,
+      });
+    }
+  };
 
-  const handleMouseLeave = useCallback(() => { onHoverPoint?.(null); }, [onHoverPoint]);
+  const handleMouseLeave = () => {
+    setHoverIdx(null);
+    onHoverPoint?.(null);
+  };
 
   return (
-    <div className="w-full h-full relative">
-      {/* Status badge removed per user request */}
+    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl">
+      {/* Status badge */}
+      <div className="absolute top-3 right-3 z-10 flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md"
+        style={{
+          background: 'rgba(15,23,42,0.7)',
+          border: `1px solid ${statusColor}`,
+          boxShadow: `0 0 16px ${statusColor}40`,
+        }}>
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: statusColor }} />
+        <span className="text-[11px] font-bold tracking-wider" style={{ color: statusColor }}>
+          {statusText}
+        </span>
+      </div>
 
-      {/* TX hover zone — invisible area near left edge */}
-      {ant && data.length > 0 && ant.antennaAMSL > 0 && (
-        <div
-          className="absolute top-0 left-0 z-10 w-16 h-full"
-          onMouseEnter={() => setHoverTx(true)}
-          onMouseLeave={() => setHoverTx(false)}
-        />
-      )}
-
-      {/* TX Site info panel — appears on antenna hover */}
-      {hoverTx && ant && data.length > 0 && (
-        <div className="absolute top-10 left-16 z-20 px-3.5 py-2.5 rounded-lg pointer-events-none animate-in fade-in zoom-in-95 duration-200"
-          style={{
-            background: 'rgba(15,23,42,0.85)',
-            border: '1px solid rgba(56,189,248,0.3)',
-            backdropFilter: 'blur(12px)',
-            color: 'rgba(255,255,255,0.9)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-          }}>
-          <div className="text-[12px] font-bold text-white mb-1.5">
-            Site: <span className="text-sky-400">{siteName || 'TX'}</span>
-          </div>
-          <div className="text-[11px] leading-5">
-            <div>HBA: <span className="font-bold">{ant.hba}m</span></div>
-            <div>Tilt: <span className="font-bold">{ant.totalTilt}°</span></div>
-            <div>Azimuth: <span className="font-bold">{ant.azimuth}°</span></div>
-          </div>
+      {siteName && (
+        <div className="absolute top-3 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
+          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}</span>
         </div>
       )}
 
-      {/* RX hover zone — invisible area near right edge */}
-      {data.length > 1 && ant && (
-        <div
-          className="absolute top-0 right-0 z-10 w-16 h-full"
-          onMouseEnter={() => setHoverRx(true)}
-          onMouseLeave={() => setHoverRx(false)}
-        />
-      )}
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+        className="w-full h-full"
+        preserveAspectRatio="xMidYMid meet"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <defs>
+          <linearGradient id="terrainGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+          </linearGradient>
+          <linearGradient id="clutterGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.05" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-      {/* RX Site info panel — appears on RX hover */}
-      {hoverRx && data.length > 1 && ant && (
-        <div className="absolute top-10 right-16 z-20 px-3 py-2 rounded-lg pointer-events-none animate-in fade-in zoom-in-95 duration-200"
-          style={{
-            background: 'rgba(15,23,42,0.85)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(12px)',
-            color: 'rgba(255,255,255,0.9)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-          }}>
-          <div className="text-[11px] font-bold text-white mb-0.5">
-            Site: <span className="text-emerald-400">RX</span>
-          </div>
-          <div className="text-[10px]">
-            H: <span className="font-bold">{ant.rxHeight ?? 1.5} m</span>
-          </div>
-        </div>
-      )}
-
-      {/* Fresnel blocked tooltip badge (like photo - dark badge with ⚠) */}
-      {!obstructionPoint && fresnelBlockPoint && (
-        <div className="absolute z-10 pointer-events-none animate-in fade-in zoom-in-95 duration-300"
-          style={{
-            left: '55%',
-            top: '45%',
-            transform: 'translate(-50%, -50%)',
-          }}>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-            style={{
-              background: 'rgba(15,23,42,0.85)',
-              border: '1px solid rgba(251,146,60,0.5)',
-              backdropFilter: 'blur(10px)',
-              boxShadow: '0 4px 20px rgba(251,146,60,0.15)',
-            }}>
-            <span className="text-amber-400 text-sm">⚠</span>
-            <span className="text-amber-400 text-[11px] font-bold">Fresnel blocked</span>
-          </div>
-        </div>
-      )}
-
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-          onMouseMove={onHoverPoint ? handleMouseMove : undefined}
-          onMouseLeave={onHoverPoint ? handleMouseLeave : undefined}
-        >
-          <defs>
-            <linearGradient id="terrainGradGlass" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(56,189,248,0.35)" />
-              <stop offset="60%" stopColor="rgba(56,189,248,0.12)" />
-              <stop offset="100%" stopColor="rgba(56,189,248,0.02)" />
-            </linearGradient>
-            <linearGradient id="beamConeGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(56,130,220,0.22)" />
-              <stop offset="100%" stopColor="rgba(56,130,220,0.03)" />
-            </linearGradient>
-            <linearGradient id="fresnelGradGlass" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(250,204,21,0.5)" />
-              <stop offset="50%" stopColor="rgba(250,180,21,0.35)" />
-              <stop offset="100%" stopColor="rgba(250,204,21,0.15)" />
-            </linearGradient>
-            <linearGradient id="fresnelBandGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="rgba(250,204,21,0.4)" />
-              <stop offset="50%" stopColor="rgba(250,180,21,0.25)" />
-              <stop offset="100%" stopColor="rgba(250,204,21,0.1)" />
-            </linearGradient>
-            {/* Orange glow radial gradient for Fresnel obstruction */}
-            <radialGradient id="fresnelGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(249,115,22,0.5)" />
-              <stop offset="50%" stopColor="rgba(249,115,22,0.2)" />
-              <stop offset="100%" stopColor="rgba(249,115,22,0)" />
-            </radialGradient>
-          </defs>
-
-          <CartesianGrid strokeDasharray="3 6" stroke="rgba(255,255,255,0.06)" vertical={false} />
-
-          <XAxis
-            dataKey="distance"
-            tickFormatter={(v) => `${Number(v).toFixed(1)}`}
-            label={{ value: 'Distance (km)', position: 'insideBottomRight', offset: -2, style: { fontSize: 10, fill: 'rgba(255,255,255,0.55)', fontWeight: 600 } }}
-            tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
-            stroke="rgba(255,255,255,0.1)"
-            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-          />
-
-          <YAxis
-            domain={[yMin, yMax]}
-            label={{ value: 'Alt (m)', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: 'rgba(255,255,255,0.5)', fontWeight: 600 } }}
-            tick={{ fontSize: 9, fill: 'rgba(255,255,255,0.45)' }}
-            stroke="rgba(255,255,255,0.1)"
-            axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            tickLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-          />
-
-          <Tooltip
-            contentStyle={{
-              background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
-              fontSize: 11, color: 'rgba(255,255,255,0.9)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-            }}
-            formatter={(value: number, name: string) => {
-              if (name === '_idx' || name === 'antennaMast' || name === 'fresnelBand') return [null, null];
-              const labels: Record<string, string> = {
-                terrain: 'Terrain eff.', beam: 'LOS (TX→RX)', rawTerrain: 'Terrain brut',
-                rxLine: `RX (${ant?.rxHeight ?? 1.5}m)`, clutter: 'Terrain+Clutter',
-                fresnelUpper: 'Fresnel F1 sup', fresnelLower: 'Fresnel F1 inf',
-                tiltBeam: `Centre beam ${ant?.totalTilt ?? 0}°`, tiltConeUpper: 'Beam sup', tiltConeLower: 'Beam inf',
-                remoteTiltBeam: `Remote Tilt ${remoteAntenna?.totalTilt ?? 0}°`, remoteConeUpper: 'Remote Beam sup', remoteConeLower: 'Remote Beam inf',
-              };
-              return [`${Number(value).toFixed(1)} m`, labels[name] || name];
-            }}
-            labelFormatter={(v) => `${Number(v).toFixed(2)} km`}
-          />
-
-          <Legend
-            wrapperStyle={{ fontSize: 10, opacity: 0.7 }}
-            formatter={(value: string) => {
-              if (value === '_idx' || value === 'antennaMast' || value === 'fresnelBand') return null;
-              const labels: Record<string, string> = {
-                terrain: 'Terrain', beam: 'LOS', rawTerrain: 'Terrain brut', rxLine: 'Hauteur RX',
-                clutter: 'Clutter', fresnelUpper: 'Fresnel F1', fresnelLower: 'Fresnel F1',
-                tiltBeam: 'Centre beam', tiltConeUpper: 'Beam cone', tiltConeLower: 'Beam cone',
-                remoteTiltBeam: 'Remote Tilt', remoteConeUpper: 'Remote Beam', remoteConeLower: 'Remote Beam',
-              };
-              return labels[value] || value;
-            }}
-          />
-
-          {/* Fresnel zone — rendered as stacked band between lower and upper */}
-          {showFresnel && fresnel && (
-            <>
-              {/* Invisible base: fresnelLower (transparent fill, no stroke) */}
-              <Area type="monotone" dataKey="fresnelLower" stackId="fresnel" stroke="none" fill="transparent" dot={false} isAnimationActive={false} />
-              {/* Visible band: fresnelBand stacked on top of lower */}
-              <Area type="monotone" dataKey="fresnelBand" stackId="fresnel" stroke="none" fill="url(#fresnelBandGrad)" dot={false} isAnimationActive={false} />
-            </>
-          )}
-
-          {/* Terrain fill */}
-          <Area type="monotone" dataKey="terrain" stroke="rgba(255,255,255,0.85)" fill="url(#terrainGradGlass)" strokeWidth={1.5} dot={false} isAnimationActive={false} />
-
-          {/* Raw terrain */}
-          {showCurvature && (
-            <Line type="monotone" dataKey="rawTerrain" stroke="rgba(255,255,255,0.35)" strokeWidth={1.2} dot={false} isAnimationActive={false} />
-          )}
-
-          {/* RX line */}
-          <Line type="monotone" dataKey="rxLine" stroke="rgba(168,85,247,0.7)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
+        <g transform={`translate(${M.left}, ${M.top})`}>
+          {/* Grid */}
+          <g>
+            {yTicks.map((t) => (
+              <g key={`y-${t}`} transform={`translate(0, ${yScale(t)})`}>
+                <line x2={IW} stroke="rgba(148,163,184,0.15)" strokeDasharray="4,4" />
+                <text
+                  x={-10}
+                  alignmentBaseline="middle"
+                  textAnchor="end"
+                  fill="rgba(148,163,184,0.7)"
+                  className="text-[10px] font-mono"
+                >
+                  {t}m
+                </text>
+              </g>
+            ))}
+            {xTicks.map((t) => (
+              <g key={`x-${t}`} transform={`translate(${xScale(t)}, ${IH})`}>
+                <line y1={-IH} stroke="rgba(148,163,184,0.15)" strokeDasharray="4,4" />
+                <text y={20} textAnchor="middle" fill="rgba(148,163,184,0.7)" className="text-[10px] font-mono">
+                  {t}km
+                </text>
+              </g>
+            ))}
+          </g>
 
           {/* Clutter */}
           {clutterHeight > 0 && (
-            <Line type="monotone" dataKey="clutter" stroke="rgba(251,146,60,0.7)" strokeWidth={1.5} strokeDasharray="5 3" dot={false} isAnimationActive={false} />
-          )}
-
-          {/* Fresnel boundaries - yellow dashed */}
-          {showFresnel && fresnel && (
-            <>
-              <Line type="monotone" dataKey="fresnelUpper" stroke="rgba(250,204,21,0.8)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
-              <Line type="monotone" dataKey="fresnelLower" stroke="rgba(250,204,21,0.8)" strokeWidth={1.5} strokeDasharray="6 3" dot={false} isAnimationActive={false} />
-            </>
-          )}
-
-          {/* Beam cone fill — BLUE semi-transparent (Atoll photo style) */}
-          {showTilt && ant && ant.vbw > 0 && (
-            <>
-              <Area type="monotone" dataKey="tiltConeUpper" stroke="none" fill="url(#beamConeGrad)" dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeUpper" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls={false} />
-              <Line type="monotone" dataKey="tiltConeLower" stroke={beamConeStroke} strokeWidth={1} strokeDasharray="4 3" dot={false} isAnimationActive={false} connectNulls={false} />
-            </>
-          )}
-
-          {/* Centre beam — green-yellow (like photo) */}
-          {showTilt && (
-            <Line type="monotone" dataKey="tiltBeam" stroke={beamCenterStroke} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} />
-          )}
-
-          {/* Remote beam (link mode) */}
-          {remoteAntenna && (
-            <>
-              {remoteAntenna.vbw > 0 && (
-                <Area type="monotone" dataKey="remoteConeUpper" stroke="none" fill="rgba(34,197,94,0.08)" dot={false} isAnimationActive={false} connectNulls={false} />
-              )}
-              {remoteAntenna.vbw > 0 && (
-                <>
-                  <Line type="monotone" dataKey="remoteConeUpper" stroke="rgba(34,197,94,0.35)" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
-                  <Line type="monotone" dataKey="remoteConeLower" stroke="rgba(34,197,94,0.35)" strokeWidth={1} strokeDasharray="3 3" dot={false} isAnimationActive={false} connectNulls={false} />
-                </>
-              )}
-              <Line type="monotone" dataKey="remoteTiltBeam" stroke="rgba(34,197,94,0.9)" strokeWidth={2.5} dot={false} isAnimationActive={false} connectNulls={false} />
-            </>
-          )}
-
-          {/* LOS line — ORANGE dashed (matching photo exactly) */}
-          <Line type="monotone" dataKey="beam" stroke={losLineColor} strokeWidth={2} strokeDasharray="8 4" dot={false} isAnimationActive={false} />
-
-          {/* Hidden fields */}
-          <Line type="monotone" dataKey="_idx" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
-          <Line type="monotone" dataKey="antennaMast" stroke="none" dot={false} isAnimationActive={false} legendType="none" />
-
-          {/* Antenna mast vertical line (terrain → antenna AMSL) — dashed gray like photo */}
-          {data.length > 0 && ant && (
-            <ReferenceLine
-              segment={[
-                { x: data[0].distance, y: data[0].terrain },
-                { x: data[0].distance, y: ant.antennaAMSL },
-              ]}
-              stroke="rgba(255,255,255,0.5)"
-              strokeWidth={1.5}
-              strokeDasharray="4 3"
+            <motion.path
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              d={clutterPath}
+              fill="url(#clutterGradient)"
+              stroke="rgba(96,165,250,0.3)"
+              strokeWidth={1}
             />
           )}
 
-          {/* TX antenna tower icon */}
-          {data.length > 0 && ant && (
-            <ReferenceDot x={data[0].distance} y={ant.antennaAMSL} r={0} fill="none" stroke="none">
-              <Customized component={(props: any) => {
-                const { viewBox } = props;
-                if (!viewBox) return null;
-                return <AntennaTowerSVG cx={viewBox.x} cy={viewBox.y} />;
-              }} />
-            </ReferenceDot>
-          )}
+          {/* Terrain fill */}
+          <path d={terrainPath} fill="url(#terrainGradient)" />
+          <path d={terrainTopPath} fill="none" stroke="rgba(203,213,225,0.85)" strokeWidth={1.5} />
 
-          {/* TX base terrain dot */}
-          {data.length > 0 && (
-            <ReferenceDot x={data[0].distance} y={data[0].terrain} r={4} fill="rgba(56,189,248,0.8)" stroke="rgba(255,255,255,0.6)" strokeWidth={1.5} />
-          )}
-
-          {/* Orange glow at Fresnel obstruction (like photo) */}
-          {!obstructionPoint && fresnelBlockPoint && (
-            <ReferenceDot x={fresnelBlockPoint.distance} y={fresnelBlockPoint.altitude} r={10} fill="rgba(249,115,22,0.6)" stroke="none">
-            </ReferenceDot>
-          )}
-
-          {/* LOS obstruction marker */}
-          {obstructionPoint && (
-            <ReferenceDot x={obstructionPoint.distance} y={obstructionPoint.altitude} r={7} fill="rgba(239,68,68,0.9)" stroke="rgba(255,255,255,0.6)" strokeWidth={2}>
-              <RLabel value="⛔ NLOS" position="top" style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
-          )}
-
-          {/* Fresnel obstruction dot — orange */}
-          {!obstructionPoint && fresnelBlockPoint && (
-            <ReferenceDot x={fresnelBlockPoint.distance} y={fresnelBlockPoint.altitude} r={6} fill="rgba(249,115,22,0.9)" stroke="rgba(255,255,255,0.7)" strokeWidth={2} />
-          )}
-
-          {/* Ground impact marker */}
-          {showTilt && groundImpact && (
-            <ReferenceDot x={groundImpact.distance} y={groundImpact.altitude} r={7} fill="rgba(239,68,68,0.95)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-              <RLabel value={`🎯 ${groundImpact.distance.toFixed(2)} km`} position="top" style={{ fontSize: 9, fill: 'rgba(239,68,68,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
-          )}
-
-          {/* Remote antenna (link mode) */}
-          {remoteAntenna && data.length > 1 && (
-            <>
-              <ReferenceLine
-                segment={[
-                  { x: data[data.length - 1].distance, y: data[data.length - 1].terrain },
-                  { x: data[data.length - 1].distance, y: (analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba },
-                ]}
-                stroke="rgba(34,197,94,0.8)"
-                strokeWidth={2}
+          {/* Fresnel zone */}
+          <AnimatePresence>
+            {showFresnel && fresnelPath && (
+              <motion.path
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                d={fresnelPath}
+                fill="rgba(234,179,8,0.13)"
+                stroke="rgba(234,179,8,0.4)"
+                strokeWidth={1}
+                strokeDasharray="5,3"
               />
-              <ReferenceDot x={data[data.length - 1].distance} y={(analysis.effectiveTerrain[profilePoints.length - 1] ?? 0) + remoteAntenna.hba} r={7} fill="rgba(34,197,94,0.9)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-                <RLabel value={`📡 T:${remoteAntenna.totalTilt}° H:${remoteAntenna.hba}m`} position="top" style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }} offset={10} />
-              </ReferenceDot>
-            </>
+            )}
+          </AnimatePresence>
+
+          {/* LOS line */}
+          <motion.line
+            initial={{ pathLength: 0, opacity: 0 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            x1={losX1}
+            y1={losY1}
+            x2={losX2}
+            y2={losY2}
+            stroke="rgb(163,230,53)"
+            strokeWidth={2}
+            strokeDasharray="6,4"
+            filter="url(#glow)"
+          />
+
+          {/* Obstruction marker */}
+          {obstructionPoint && (
+            <motion.g
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4, type: 'spring' }}
+              transform={`translate(${obstructionPoint.x}, ${obstructionPoint.y})`}
+            >
+              <circle r={10} fill="rgba(239,68,68,0.25)" />
+              <circle r={5} fill="rgb(239,68,68)" stroke="white" strokeWidth={1.5} />
+            </motion.g>
           )}
 
-          {/* Remote ground impact */}
-          {remoteAntenna && remoteGroundImpact && (
-            <ReferenceDot x={remoteGroundImpact.distance} y={remoteGroundImpact.altitude} r={7} fill="rgba(34,197,94,0.95)" stroke="rgba(255,255,255,0.8)" strokeWidth={2}>
-              <RLabel value={`🎯 Remote ${remoteGroundImpact.distance.toFixed(2)} km`} position="top" style={{ fontSize: 9, fill: 'rgba(34,197,94,0.9)', fontWeight: 700 }} offset={10} />
-            </ReferenceDot>
+          {/* Fresnel block marker */}
+          {!obstructionPoint && fresnelBlockPoint && (
+            <motion.g
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.4, type: 'spring' }}
+              transform={`translate(${fresnelBlockPoint.x}, ${fresnelBlockPoint.y})`}
+            >
+              <circle r={9} fill="rgba(249,115,22,0.25)" />
+              <circle r={5} fill="rgb(249,115,22)" stroke="white" strokeWidth={1.5} />
+            </motion.g>
           )}
 
-          {/* RX target — green circle with white border (like photo) */}
-          {!remoteAntenna && data.length > 1 && ant && (
-            <>
-              <ReferenceDot x={data[data.length - 1].distance} y={rxAlt} r={7} fill="rgba(34,197,94,0.9)" stroke="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-              <ReferenceDot x={data[data.length - 1].distance} y={rxAlt} r={3} fill="white" stroke="none" />
-            </>
+          {/* TX site (left) */}
+          <SiteTower
+            x={xScale(0)}
+            terrainY={yScale(derived.terrainEff[0])}
+            antennaY={yScale(derived.antennaAMSL)}
+            innerHeight={IH}
+            align="left"
+            label="TX"
+            heightAGL={ant.hba}
+            altitudeAMSL={Math.round(derived.antennaAMSL)}
+          />
+
+          {/* RX site (right) */}
+          <SiteTower
+            x={xScale(derived.totalDistKm)}
+            terrainY={yScale(derived.terrainEff[derived.terrainEff.length - 1])}
+            antennaY={yScale(derived.remoteAMSL ?? derived.rxAMSL)}
+            innerHeight={IH}
+            align="right"
+            label="RX"
+            heightAGL={remoteAntenna?.hba ?? ant.rxHeight ?? 1.5}
+            altitudeAMSL={Math.round(derived.remoteAMSL ?? derived.rxAMSL)}
+          />
+
+          {/* Hover crosshair */}
+          {hoverIdx !== null && profilePoints[hoverIdx] && (
+            <g transform={`translate(${xScale(profilePoints[hoverIdx].distance / 1000)}, 0)`}>
+              <line
+                y1={0}
+                y2={IH}
+                stroke="rgba(56,189,248,0.5)"
+                strokeWidth={1}
+                strokeDasharray="3,3"
+              />
+              <circle
+                cy={yScale(derived.terrainEff[hoverIdx])}
+                r={4}
+                fill="rgb(56,189,248)"
+                stroke="white"
+                strokeWidth={1.5}
+              />
+            </g>
           )}
-        </AreaChart>
-      </ResponsiveContainer>
+        </g>
+      </svg>
+
+      {/* Axis labels */}
+      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left">
+        Height (AMSL m)
+      </div>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
+        Distance (km)
+      </div>
+
+      {/* Hover tooltip */}
+      {hoverIdx !== null && profilePoints[hoverIdx] && (
+        <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
+          <div>D: <span className="text-cyan-400 font-bold">{(profilePoints[hoverIdx].distance / 1000).toFixed(2)} km</span></div>
+          <div>Alt: <span className="text-emerald-400 font-bold">{Math.round(profilePoints[hoverIdx].elevation)} m</span></div>
+        </div>
+      )}
     </div>
+  );
+};
+
+interface SiteTowerProps {
+  x: number;
+  terrainY: number;
+  antennaY: number;
+  innerHeight: number;
+  align: 'left' | 'right';
+  label: string;
+  heightAGL: number;
+  altitudeAMSL: number;
+}
+
+const SiteTower: React.FC<SiteTowerProps> = ({
+  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL,
+}) => {
+  const textX = align === 'left' ? 12 : -12;
+  const textAnchor = align === 'left' ? 'start' : 'end';
+  const dishDx = align === 'left' ? 1 : -1;
+
+  return (
+    <g transform={`translate(${x}, 0)`}>
+      {/* Foundation */}
+      <path
+        d={`M -5 ${terrainY} L -8 ${innerHeight} L 8 ${innerHeight} L 5 ${terrainY} Z`}
+        fill="rgba(15,23,42,0.85)"
+      />
+      {/* Mast */}
+      <line x1={0} y1={terrainY} x2={0} y2={antennaY} stroke="rgba(56,189,248,0.6)" strokeWidth={2} />
+      {/* Lattice */}
+      <path
+        d={`M -8 ${terrainY} L 0 ${antennaY} L 8 ${terrainY}
+            M -6 ${terrainY + (antennaY - terrainY) * 0.5} L 6 ${terrainY + (antennaY - terrainY) * 0.5}`}
+        stroke="rgba(56,189,248,0.35)"
+        strokeWidth={1}
+        fill="none"
+      />
+      {/* Antenna */}
+      <motion.circle
+        initial={{ r: 0 }}
+        animate={{ r: 5 }}
+        cx={dishDx * 4}
+        cy={antennaY}
+        fill="rgb(45,212,191)"
+        stroke="white"
+        strokeWidth={1}
+      />
+      <path
+        d={align === 'left'
+          ? `M 0 ${antennaY - 7} Q 9 ${antennaY} 0 ${antennaY + 7} Z`
+          : `M 0 ${antennaY - 7} Q -9 ${antennaY} 0 ${antennaY + 7} Z`}
+        fill="rgba(20,184,166,0.5)"
+        stroke="rgba(94,234,212,0.9)"
+        strokeWidth={1}
+      />
+      {/* Vertical measurement */}
+      <line
+        x1={align === 'left' ? 16 : -16}
+        y1={terrainY}
+        x2={align === 'left' ? 16 : -16}
+        y2={antennaY}
+        stroke="rgba(52,211,153,0.45)"
+        strokeDasharray="2,2"
+      />
+      {/* Labels */}
+      <text x={textX} y={antennaY - 6} textAnchor={textAnchor} fill="white" className="text-[11px] font-bold uppercase">
+        {label}
+      </text>
+      <text x={textX} y={antennaY + 6} textAnchor={textAnchor} fill="rgb(52,211,153)" className="text-[10px] font-bold">
+        {heightAGL.toFixed(1)}m AGL
+      </text>
+      <text x={textX} y={antennaY + 18} textAnchor={textAnchor} fill="rgba(148,163,184,0.85)" className="text-[9px] font-mono">
+        {altitudeAMSL}m AMSL
+      </text>
+    </g>
   );
 };
 
