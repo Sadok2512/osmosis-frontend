@@ -10361,12 +10361,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Link Terrain Profile Panel ── */}
       {showLinkProfile && (linkProfileAnalysis || linkProfileLoading) && (
         <div
-          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[38%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[44%] flex flex-col animate-fade-in"
           style={{
             left: '50%',
             transform: 'translateX(-50%)',
             width: '75%',
             maxWidth: '1350px',
+            minHeight: '380px',
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -10455,10 +10456,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             </div>
           </div>
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Chart — full width */}
-            <div className="h-[680px] min-w-0">
+          {/* Content — chart fills available space; no scroll bar */}
+          <div className="flex-1 overflow-hidden px-5 pb-4 min-h-0">
+            {/* Chart — full width / full height */}
+            <div className="h-full min-h-0 min-w-0">
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
@@ -10479,12 +10480,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ── Measurement Terrain Profile Panel ── */}
       {showMeasProfile && measProfileAnalysis && !measProfileLoading && (
         <div
-          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[25%] flex flex-col animate-fade-in"
+          className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[44%] flex flex-col animate-fade-in"
           style={{
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '50%',
-            maxWidth: '900px',
+            width: '62%',
+            maxWidth: '1180px',
+            minHeight: '380px',
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(24px)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -10551,10 +10553,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </button>
             </div>
           </div>
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {/* Chart — full width */}
-            <div className="h-[680px] min-w-0">
+          {/* Content — chart fills available space; no scroll bar */}
+          <div className="flex-1 overflow-hidden px-5 pb-4 min-h-0">
+            {/* Chart — full width / full height */}
+            <div className="h-full min-h-0 min-w-0">
               <ProfileChart
                 profilePoints={measProfilePoints}
                 analysis={measProfileAnalysis}
