@@ -10316,7 +10316,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5 flex gap-5">
             {/* Chart */}
-            <div className="flex-1 h-[560px] min-w-0">
+            <div className="flex-1 h-[680px] min-w-0">
               <ProfileChart
                 profilePoints={losProfilePoints}
                 analysis={losAnalysis}
@@ -10458,7 +10458,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
             {/* Chart — full width */}
-            <div className="h-[560px] min-w-0">
+            <div className="h-[680px] min-w-0">
               <ProfileChart
                 profilePoints={linkProfilePoints}
                 analysis={linkProfileAnalysis}
@@ -10554,7 +10554,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
             {/* Chart — full width */}
-            <div className="h-[560px] min-w-0">
+            <div className="h-[680px] min-w-0">
               <ProfileChart
                 profilePoints={measProfilePoints}
                 analysis={measProfileAnalysis}
