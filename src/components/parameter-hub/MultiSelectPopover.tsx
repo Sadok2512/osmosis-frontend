@@ -43,7 +43,8 @@ export const MultiSelectPopover: React.FC<MultiSelectPopoverProps> = ({
       setSearch('');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
-  }, [open, selected, onOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open || !onSearch) return;
