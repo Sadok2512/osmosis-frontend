@@ -858,7 +858,7 @@ export default function EditorView({
                     </button>
                   ))}
                 </aside>
-                <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-8 pb-10 overflow-y-auto custom-scrollbar">
                   <div className="max-w-4xl">
                     {settingsTab === 'data' && (
                       <div className="space-y-3 text-xs text-on-surface-variant">
