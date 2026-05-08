@@ -41,18 +41,37 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
   try {
     const data = await dashboardsApi.list();
     if (!data || !Array.isArray(data)) return [];
-    return data.map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      description: row.description || '',
-      isShared: row.is_shared ?? true,
-      widgets: row.widgets as WidgetItem[],
-      updatedAt: row.updated_at,
-      dashboardType: (row.dashboard_type as DashboardType) || 'analytic_qoe',
-      visibility: (row.visibility as Visibility) || 'public',
-      ownerUsername: row.owner_username || getStoredSession()?.username || 'Inconnu',
-      sharedWith: row.shared_with || [],
-    }));
+
+    // Enrich with Supabase metadata (visibility / owner / shared_with) since the
+    // VPS endpoint may not return these columns. Supabase is the source of truth.
+    let metaById = new Map<string, any>();
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      const ids = data.map((r: any) => r.id).filter(Boolean);
+      if (ids.length > 0) {
+        const { data: meta } = await supabase
+          .from('dashboards')
+          .select('id, visibility, owner_username, shared_with, dashboard_type')
+          .in('id', ids);
+        if (Array.isArray(meta)) meta.forEach((m: any) => metaById.set(m.id, m));
+      }
+    } catch { /* ignore — fall back to VPS values */ }
+
+    return data.map((row: any) => {
+      const meta = metaById.get(row.id) || {};
+      return {
+        id: row.id,
+        name: row.name,
+        description: row.description || '',
+        isShared: row.is_shared ?? true,
+        widgets: row.widgets as WidgetItem[],
+        updatedAt: row.updated_at,
+        dashboardType: (meta.dashboard_type || row.dashboard_type) as DashboardType || 'analytic_qoe',
+        visibility: (meta.visibility || row.visibility) as Visibility || 'public',
+        ownerUsername: meta.owner_username || row.owner_username || getStoredSession()?.username || 'Inconnu',
+        sharedWith: meta.shared_with || row.shared_with || [],
+      };
+    });
   } catch { return []; }
 }
 
