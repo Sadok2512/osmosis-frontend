@@ -13633,24 +13633,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       const distM = haversineDistance(fromLL, toLL);
                       const azFromTo = bearing(fromLL, toLL);
                       const azToFrom = bearing(toLL, fromLL);
-                      const fromBands = fromSite ? listSiteBands(fromSite.cells) : [];
-                      const toBands = toSite ? listSiteBands(toSite.cells) : [];
+                      // Use canonical band keys (NR700, NR2100, NR3500, L800, L1800, ...) so raw bande
+                      // strings like "NR_2100", "N1", "N28", "B1" still surface as the right band.
+                      const canonOf = (c: any) => normalizeBandKey(String(c.bande || ''), c.techno) as string | null;
+                      const listCanonBands = (cells: any[]): string[] => {
+                        const set = new Set<string>();
+                        for (const c of cells) {
+                          const k = canonOf(c);
+                          if (k) set.add(k);
+                        }
+                        // Sort: 5G (NR…) → 4G (L…) → 3G (UMTS…) → 2G (GSM…)
+                        const order = (b: string) => b.startsWith('NR') ? 0 : b.startsWith('L') ? 1 : b.startsWith('UMTS') ? 2 : 3;
+                        return Array.from(set).sort((a, b) => order(a) - order(b) || a.localeCompare(b));
+                      };
+                      const fromBands = fromSite ? listCanonBands(fromSite.cells) : [];
+                      const toBands = toSite ? listCanonBands(toSite.cells) : [];
                       const fromBand = pendingLink.fromBand ?? fromBands[0] ?? null;
                       const toBand = pendingLink.toBand ?? toBands[0] ?? null;
-                      const fromAuto = fromSite && fromBand ? pickClosestSector(fromSite.cells, azFromTo, fromBand) : null;
-                      const toAuto = toSite && toBand ? pickClosestSector(toSite.cells, azToFrom, toBand) : null;
+                      const fromBandCells = fromSite && fromBand ? fromSite.cells.filter(c => canonOf(c) === fromBand) : [];
+                      const toBandCells = toSite && toBand ? toSite.cells.filter(c => canonOf(c) === toBand) : [];
+                      const pickAuto = (cells: any[], targetAz: number) => {
+                        if (!cells.length) return null;
+                        let best: any = null;
+                        for (const c of cells) {
+                          const az = Number(c.azimut);
+                          if (!Number.isFinite(az)) continue;
+                          const d = Math.abs(((targetAz - az) % 360 + 540) % 360 - 180);
+                          if (!best || d < best.azimuthDelta) best = { ...c, azimuthDelta: d };
+                        }
+                        return best;
+                      };
+                      const fromAuto = pickAuto(fromBandCells, azFromTo);
+                      const toAuto = pickAuto(toBandCells, azToFrom);
                       const fromCell = fromSite
                         ? (pendingLink.fromCellOverride
-                            ? fromSite.cells.find(c => c.cell_id === pendingLink.fromCellOverride) ?? fromAuto
+                            ? fromBandCells.find(c => c.cell_id === pendingLink.fromCellOverride) ?? fromAuto
                             : fromAuto)
                         : null;
                       const toCell = toSite
                         ? (pendingLink.toCellOverride
-                            ? toSite.cells.find(c => c.cell_id === pendingLink.toCellOverride) ?? toAuto
+                            ? toBandCells.find(c => c.cell_id === pendingLink.toCellOverride) ?? toAuto
                             : toAuto)
                         : null;
-                      const fromBandCells = fromSite && fromBand ? fromSite.cells.filter(c => String(c.bande || '').trim() === fromBand) : [];
-                      const toBandCells = toSite && toBand ? toSite.cells.filter(c => String(c.bande || '').trim() === toBand) : [];
                       const ready = (!fromSite || !!fromCell) && (!toSite || !!toCell);
 
                       const renderSide = (
