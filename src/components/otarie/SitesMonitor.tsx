@@ -10465,6 +10465,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     showTilt
                     remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
                     siteName={linkProfileLabel}
+                    txIsPoint={taggedLinks.find(l => l.id === selectedLinkId)?.fromType === 'point'}
+                    rxIsPoint={taggedLinks.find(l => l.id === selectedLinkId)?.toType === 'point'}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-xs gap-2">
