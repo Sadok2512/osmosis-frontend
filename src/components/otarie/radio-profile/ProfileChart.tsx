@@ -643,7 +643,7 @@ const SiteTower: React.FC<SiteTowerProps> = ({
       <rect x={-topHalf - 2} y={antennaY - 2} width={(topHalf + 2) * 2} height={3} fill="rgba(186,230,253,0.9)" />
 
       {/* Parabolic dish antenna pointing toward link */}
-      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY}) rotate(${aimDeg - (align === 'left' ? 0 : 180)})`}>
+      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY}) rotate(${aimDeg})`}>
         {/* dish body */}
         <path
           d={`M 0 -10 Q 14 0 0 10 L 0 -10 Z`}
