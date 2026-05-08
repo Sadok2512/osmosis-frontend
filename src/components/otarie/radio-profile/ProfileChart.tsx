@@ -555,13 +555,46 @@ interface SiteTowerProps {
   label: string;
   heightAGL: number;
   altitudeAMSL: number;
+  isPoint?: boolean;
 }
 
 const SiteTower: React.FC<SiteTowerProps> = ({
-  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL,
+  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false,
 }) => {
   const sign = align === 'left' ? 1 : -1;
   const textAnchor = align === 'left' ? 'start' : 'end';
+
+  // Custom point: not a tower — render a thin 2 m pole at terrain level.
+  if (isPoint) {
+    const POLE_PX = Math.max(6, Math.min(18, (terrainY - antennaY) || 10));
+    const poleTopY = terrainY - POLE_PX;
+    return (
+      <g transform={`translate(${x}, 0)`}>
+        <ellipse cx={0} cy={terrainY + 1.5} rx={3} ry={1.5} fill="rgba(0,0,0,0.5)" />
+        <line x1={0} y1={terrainY} x2={0} y2={poleTopY} stroke="rgba(186,230,253,0.95)" strokeWidth={1.5} />
+        <circle cx={0} cy={poleTopY} r={2.2} fill="rgb(94,234,212)" stroke="white" strokeWidth={0.8} />
+        <g transform={`translate(${sign * 6}, ${poleTopY - 24})`}>
+          <rect
+            x={align === 'left' ? 0 : -78}
+            y={0}
+            width={78}
+            height={28}
+            rx={4}
+            fill="rgba(15,23,42,0.85)"
+            stroke="rgba(94,234,212,0.5)"
+            strokeWidth={1}
+          />
+          <text x={align === 'left' ? 6 : -72} y={11} textAnchor="start" fill="rgb(94,234,212)" className="text-[10px] font-bold uppercase tracking-wider">
+            {label} (POINT)
+          </text>
+          <text x={align === 'left' ? 6 : -72} y={23} textAnchor="start" fill="rgba(226,232,240,0.9)" className="text-[9px] font-mono">
+            {altitudeAMSL} m AMSL
+          </text>
+        </g>
+      </g>
+    );
+  }
+
   const towerHeightPx = Math.max(20, terrainY - antennaY);
   const baseHalf = Math.max(10, Math.min(22, towerHeightPx * 0.14));
   const topHalf = 3;
