@@ -813,8 +813,8 @@ export default function EditorView({
           // Other widget kinds keep the legacy bottom panel.
           const widgetLabel = `${w.kind.toUpperCase()} · ${w.id.slice(0, 18)}`;
           return (
-            <div className="h-[clamp(10rem,25vh,19rem)] bg-white border-t border-outline-variant/20 shadow-2xl relative z-40 shrink-0">
-              <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
+            <div className="h-[clamp(22rem,60vh,44rem)] w-full max-w-[1100px] mx-auto bg-white border border-outline-variant/20 rounded-t-2xl shadow-2xl relative z-40 shrink-0 flex flex-col">
+              <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low shrink-0 sticky top-0 z-10 rounded-t-2xl">
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
                   <div className="h-4 w-px bg-outline-variant" />
@@ -837,8 +837,8 @@ export default function EditorView({
                 </div>
               </div>
 
-              <div className="flex h-full pb-10">
-                <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+              <div className="flex flex-1 min-h-0">
+                <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 overflow-y-auto">
                   {([
                     { key: 'data', label: 'Data Source', icon: undefined as any },
                     { key: 'appearance', label: 'Appearance', icon: undefined as any },
@@ -858,7 +858,7 @@ export default function EditorView({
                     </button>
                   ))}
                 </aside>
-                <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 p-8 pb-10 overflow-y-auto custom-scrollbar">
                   <div className="max-w-4xl">
                     {settingsTab === 'data' && (
                       <div className="space-y-3 text-xs text-on-surface-variant">
@@ -924,7 +924,7 @@ export default function EditorView({
         </button>
       )}
 
-      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} bottom-8 z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
+      <div className={`fixed ${showSettings ? 'right-[336px]' : 'right-16'} ${activeWidget ? 'bottom-[calc(min(60vh,44rem)+1rem)]' : 'bottom-8'} z-[60] flex flex-col items-end gap-3 overflow-visible transition-all duration-300`}>
         <AnimatePresence>
           {toolboxOpen && (
             <motion.div
