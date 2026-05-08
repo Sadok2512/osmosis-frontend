@@ -868,8 +868,9 @@ const KPI_ACCENT: Record<string, { ring: string; text: string; glow: string; bg:
   cyan:    { ring: 'border-cyan-400/30',    text: 'text-cyan-300',    glow: 'shadow-[0_0_12px_rgba(34,211,238,0.15)]',  bg: 'bg-cyan-500/[0.06]' },
   emerald: { ring: 'border-emerald-400/30', text: 'text-emerald-300', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.15)]',  bg: 'bg-emerald-500/[0.06]' },
   amber:   { ring: 'border-amber-400/30',   text: 'text-amber-300',   glow: 'shadow-[0_0_12px_rgba(251,191,36,0.15)]',  bg: 'bg-amber-500/[0.06]' },
+  sky:     { ring: 'border-sky-400/30',     text: 'text-sky-300',     glow: 'shadow-[0_0_12px_rgba(56,189,248,0.15)]',  bg: 'bg-sky-500/[0.06]' },
 };
-const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
+const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'|'sky'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
   const a = KPI_ACCENT[accent];
   return (
     <div className={`col-span-2 flex flex-col justify-center px-3 py-1.5 rounded-xl border backdrop-blur-md ${a.ring} ${a.bg} ${a.glow}`}>
