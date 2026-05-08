@@ -199,8 +199,8 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
       </div>
 
       {/* Body: sidebar tabs + content */}
-      <div className="flex h-full pb-10">
-        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+      <div className="flex flex-1 min-h-0">
+        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 overflow-y-auto">
           {([
             { key: 'data' as const, label: 'Data Source', icon: Database },
             { key: 'appearance' as const, label: 'Appearance', icon: Palette },
