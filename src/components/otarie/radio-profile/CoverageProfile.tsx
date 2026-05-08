@@ -118,10 +118,21 @@ function fspl(distM: number, freqMhz: number): number {
   return 32.45 + 20 * Math.log10(distM / 1000) + 20 * Math.log10(freqMhz);
 }
 
-/** Estimate received signal at a ground distance (very rough, side-lobe agnostic). */
-function estimateRsrpDbm(distM: number, freqMhz: number, txPowerDbm: number, antennaGainDbi = 17): number {
-  if (distM <= 1) return txPowerDbm + antennaGainDbi - 30;
-  return txPowerDbm + antennaGainDbi - fspl(distM, freqMhz);
+/**
+ * Estimate received RSRP at a ground distance — smooth log-distance model
+ * tuned to realistic telecom ranges:
+ *   d ≤ 50 m   → -65 to -75 dBm   (near field)
+ *   d ≈ 200 m  → ~-85 dBm         (main coverage)
+ *   d ≈ 700 m  → ~-100 dBm        (far)
+ *   d ≥ 1500 m → ≤ -115 dBm       (edge)
+ * Adjusted for frequency and tx power offsets.
+ */
+function estimateRsrpDbm(distM: number, freqMhz: number, txPowerDbm: number): number {
+  const d = Math.max(20, distM);
+  const freqAdj = 6 * Math.log10(Math.max(100, freqMhz) / 1800); // +dB at higher freq
+  const pAdj = txPowerDbm - 46;
+  // -60 dBm at 20 m, ~-88 dBm at 200 m, ~-102 dBm at 700 m, ~-113 dBm at 1500 m
+  return -60 - 28 * Math.log10(d / 20) - freqAdj + pAdj;
 }
 
 function rsrpClass(rsrp: number): { color: string; label: string } {
@@ -321,16 +332,14 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   // Top edge = far-edge ray from antenna to where it meets terrain.
   // Bottom edge = terrain walked back to where near-edge ray meets terrain.
   // Closing edge = near-edge ray back up to antenna.
-  const beamCoveragePath = useMemo(() => {
+  const beamHits = useMemo(() => {
     const ax = towerX;
     const ay = antennaY;
     const xLimit = M.left + IW;
-    // Ray Y at given screen-x for line through (ax, ay) and impact point.
     const rayY = (impact: { x: number; y: number }, x: number) => {
       if (Math.abs(impact.x - ax) < 1e-6) return impact.y;
       return ay + ((x - ax) * (impact.y - ay)) / (impact.x - ax);
     };
-    // Terrain Y at given screen-x via piecewise-linear interpolation of terrainSeries.
     const tYs = terrainSeries.map(p => ({ sx: xScale(p.x), sy: yScale(p.y) }));
     const tY = (x: number) => {
       if (x <= tYs[0].sx) return tYs[0].sy;
@@ -343,7 +352,6 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       }
       return tYs[tYs.length - 1].sy;
     };
-    // First x ≥ ax+ε where ray dips into terrain (rayY ≥ terrainY in screen-y).
     const findHit = (impact: { x: number; y: number }) => {
       const N = 320;
       const xStart = ax + 0.5;
@@ -365,16 +373,19 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
     };
     const farHitX = findHit(farImpact);
     const nearHitX = Math.min(findHit(nearImpact), farHitX);
+    const mainHitX = Math.min(findHit(mainImpact), farHitX);
     const farHitY = tY(farHitX);
     const nearHitY = tY(nearHitX);
-    // Walk terrain backward (farHit → nearHit) to bound the bottom of the polygon.
+    const mainHitY = tY(mainHitX);
     const back: string[] = [];
     for (let i = tYs.length - 1; i >= 0; i--) {
       if (tYs[i].sx < nearHitX || tYs[i].sx > farHitX) continue;
       back.push(`L ${tYs[i].sx.toFixed(2)} ${tYs[i].sy.toFixed(2)}`);
     }
-    return `M ${ax.toFixed(2)} ${ay.toFixed(2)} L ${farHitX.toFixed(2)} ${farHitY.toFixed(2)} ${back.join(' ')} L ${nearHitX.toFixed(2)} ${nearHitY.toFixed(2)} Z`;
-  }, [towerX, antennaY, nearImpact, farImpact, terrainSeries, xScale, yScale]);
+    const path = `M ${ax.toFixed(2)} ${ay.toFixed(2)} L ${farHitX.toFixed(2)} ${farHitY.toFixed(2)} ${back.join(' ')} L ${nearHitX.toFixed(2)} ${nearHitY.toFixed(2)} Z`;
+    return { path, farHitX, farHitY, nearHitX, nearHitY, mainHitX, mainHitY };
+  }, [towerX, antennaY, nearImpact, farImpact, mainImpact, terrainSeries, xScale, yScale]);
+  const beamCoveragePath = beamHits.path;
 
   // Aim angle so the dish points along the main beam direction.
   const mainAimDeg = useMemo(
@@ -580,21 +591,21 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout */}
-          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={mainImpact.y}
+          {/* Main beam impact callout — locked on terrain */}
+          <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={mainImpact.x} cy={mainImpact.y} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
-          <g transform={`translate(${Math.min(mainImpact.x - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
+          <g transform={`translate(${Math.min(beamHits.mainHitX - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
             <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout */}
-          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={farImpact.y}
+          {/* Coverage end callout — locked on terrain */}
+          <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={farImpact.x} cy={farImpact.y} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
-          <g transform={`translate(${Math.min(farImpact.x - 50, M.left + IW - 110)}, ${Math.max(antennaY + 4, M.top + 50)})`}>
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
+          <g transform={`translate(${Math.min(beamHits.farHitX - 50, M.left + IW - 110)}, ${Math.max(beamHits.farHitY - 48, M.top + 50)})`}>
             <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
@@ -716,7 +727,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
           const clearance = beamAlt - terrainAlt;
           return (
-            <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/60 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[180px]">
+            <div className="absolute bottom-3 left-3 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
               <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
