@@ -3415,8 +3415,9 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         <span className="uppercase tracking-wider">{isActive ? 'Actif' : 'Activer'}</span>
                       </button>
                       <button
-                        onClick={() => {
-                          // Close = deactivate (if active) AND collapse the dashboard panel
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Close = deactivate (if active), collapse, AND unload from list
                           if (isActive) {
                             onActiveDashboardIdChange(null);
                             onActiveViewIdChange(null);
@@ -3424,6 +3425,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                           }
                           setEditingDashboardId(null);
                           setExpandedDashboardId(null);
+                          removeLoadedId(db.id);
                         }}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold transition-all border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-muted"
                       >
