@@ -489,6 +489,7 @@ const ProfileChart: React.FC<Props> = ({
             label="TX"
             heightAGL={ant.hba}
             altitudeAMSL={Math.round(derived.antennaAMSL)}
+            isPoint={txIsPoint}
           />
 
           {/* RX site (right) */}
@@ -501,6 +502,7 @@ const ProfileChart: React.FC<Props> = ({
             label="RX"
             heightAGL={remoteAntenna?.hba ?? ant.rxHeight ?? 1.5}
             altitudeAMSL={Math.round(derived.remoteAMSL ?? derived.rxAMSL)}
+            isPoint={rxIsPoint}
           />
 
           {/* Hover crosshair */}
