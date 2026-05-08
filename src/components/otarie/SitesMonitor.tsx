@@ -5175,6 +5175,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // antennas); 'coverage' = single-antenna ground-coverage view (sector toward
   // terrain). Default 'link' for back-compat with existing tagged-link flow.
   const [linkProfileMode, setLinkProfileMode] = useState<'link' | 'coverage'>('link');
+  const activeTaggedLink = useMemo(
+    () => taggedLinks.find(link => link.id === selectedLinkId) ?? null,
+    [taggedLinks, selectedLinkId]
+  );
 
   // ── Terrain Profile for Measurements ──
   const { loading: measProfileLoading, profilePoints: measProfilePoints, analysis: measProfileAnalysis, computeProfile: measProfileCompute } = useTerrainProfile();
@@ -5251,17 +5255,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     );
   }, [profileTarget, focusCellId, siteDetail, selectedSiteSnapshot, cellProfileCompute]);
 
-  const recomputeLinkProfile = useCallback((coords: { from: [number, number]; to: [number, number] }, curvature: boolean) => {
+  const recomputeLinkProfile = useCallback((
+    coords: { from: [number, number]; to: [number, number] },
+    curvature: boolean,
+    endpoints?: Pick<TaggedLink, 'fromType' | 'toType'>,
+  ) => {
     const fromLL = { lat: coords.from[0], lng: coords.from[1] };
     const toLL = { lat: coords.to[0], lng: coords.to[1] };
     const linkBearing = Math.round(bearing(fromLL, toLL) * 10) / 10;
+    const fromType = endpoints?.fromType ?? activeTaggedLink?.fromType;
+    const toType = endpoints?.toType ?? activeTaggedLink?.toType;
+    const txHeight = fromType === 'point' ? 2 : 30;
+    const rxHeight = toType === 'point' ? 2 : 30;
     linkComputeProfile(
       fromLL,
       toLL,
-      { hba: 30, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: linkBearing, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight: 30, siteAltitude: 0, antennaAMSL: 30 },
+      { hba: txHeight, mechTilt: 0, elecTilt: 0, totalTilt: 0, azimuth: linkBearing, hbw: 65, vbw: 7, frontToBackRatio: 25, rxHeight, siteAltitude: 0, antennaAMSL: txHeight },
       curvature
     );
-  }, [linkComputeProfile]);
+  }, [linkComputeProfile, activeTaggedLink]);
 
   const openLinkTerrainProfile = useCallback((link: TaggedLink) => {
     setSelectedLinkId(link.id);
@@ -5278,7 +5290,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       linkActiveCoords.to[1] === coords.to[1];
     setLinkActiveCoords(coords);
     if (!sameCoords || !linkProfileAnalysis) {
-      recomputeLinkProfile(coords, linkEnableCurvature);
+      recomputeLinkProfile(coords, linkEnableCurvature, link);
     }
   }, [recomputeLinkProfile, linkEnableCurvature, linkActiveCoords, linkProfileAnalysis]);
 
