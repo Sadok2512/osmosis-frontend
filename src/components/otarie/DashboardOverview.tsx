@@ -841,9 +841,19 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     setDashboards(refreshed);
   };
 
+  const incrementViewCount = async (id: string) => {
+    // Optimistic UI bump
+    setDashboards(prev => prev.map(d => d.id === id ? { ...d, viewCount: (d.viewCount || 0) + 1 } : d));
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.rpc('increment_dashboard_view', { p_id: id });
+    } catch { /* ignore — optimistic value remains until next reload */ }
+  };
+
   const openInEditor = (id: string) => {
     const target = dashboards.find((d) => d.id === id);
     localStorage.setItem('osmosis_open_dashboard_id', id);
+    incrementViewCount(id);
     // Precision Architect dashboards have their own editor — route there
     // instead of the BI Studio so the saved pages/widgets actually load.
     if (target?.dashboardType === 'precision_architect') {
@@ -862,6 +872,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
       openInEditor(id);
       return;
     }
+    incrementViewCount(id);
     setSelectedId(id);
   };
 
