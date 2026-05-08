@@ -433,7 +433,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       {/* (info moved to footer) */}
 
       {/* ── Chart ── */}
-      <div className="flex-1 min-h-0 relative">
+      <div ref={containerRef} className="flex-1 min-h-0 relative">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -445,8 +445,9 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             const rect = svgRef.current.getBoundingClientRect();
             const px = ((e.clientX - rect.left) / rect.width) * VIEW_W;
             const d = ((px - M.left) / IW) * xMaxDomain;
-            if (d < 0 || d > xMaxDomain) { setHoverDist(null); onHoverPoint?.(null); return; }
+            if (d < 0 || d > xMaxDomain) { setHoverDist(null); setHoverPx(null); onHoverPoint?.(null); return; }
             setHoverDist(d);
+            setHoverPx({ x: e.clientX - rect.left, y: e.clientY - rect.top });
             if (onHoverPoint && terrainProfile && terrainProfile.length > 0) {
               let best = 0; let bestD = Infinity;
               for (let i = 0; i < terrainProfile.length; i++) {
@@ -457,7 +458,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               onHoverPoint({ distanceKm: p.distance / 1000, elevationM: p.elevation, lat: p.lat, lng: p.lng });
             }
           }}
-          onMouseLeave={() => { setHoverDist(null); onHoverPoint?.(null); }}
+          onMouseLeave={() => { setHoverDist(null); setHoverPx(null); onHoverPoint?.(null); }}
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
