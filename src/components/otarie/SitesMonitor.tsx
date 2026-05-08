@@ -2308,7 +2308,7 @@ const CreateFilterDropdown: React.FC<{
       {open && pos && createPortal(
         <div
           ref={ref}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+          style={{ position: 'absolute', top: pos.top, left: pos.left, width: pos.width }}
           className="z-[9999] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden"
         >
           {values.length > 5 && (
