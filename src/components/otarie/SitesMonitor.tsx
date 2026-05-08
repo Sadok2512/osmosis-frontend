@@ -161,7 +161,7 @@ import { getSectorNumber, getEquipmentPrefix } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, getTaggedRadius, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
-import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
+import { TaggedLink, TaggedLinkSector, loadTaggedLinks, persistTaggedLinks, createTaggedLink, pickClosestSector, listSiteBands } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
