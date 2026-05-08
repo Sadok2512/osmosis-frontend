@@ -30,6 +30,10 @@ interface Props {
   onHoverPoint?: (data: ProfileHoverData | null) => void;
   autoScale?: boolean;
   manualMinHeight?: number | null;
+  /** TX endpoint is a custom point (not a tower) — renders a 2 m pole. */
+  txIsPoint?: boolean;
+  /** RX endpoint is a custom point (not a tower) — renders a 2 m pole. */
+  rxIsPoint?: boolean;
 }
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
