@@ -16,7 +16,7 @@
 
 declare global {
   interface Crypto {
-    randomUUID?(): `${string}-${string}-${string}-${string}-${string}`;
+    randomUUID(): `${string}-${string}-${string}-${string}-${string}`;
   }
 }
 
