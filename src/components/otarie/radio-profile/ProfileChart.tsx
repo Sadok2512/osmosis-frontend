@@ -373,11 +373,12 @@ const ProfileChart: React.FC<Props> = ({
               <g key={`y-${t}`} transform={`translate(0, ${yScale(t)})`}>
                 <line x2={IW} stroke="rgba(148,163,184,0.15)" strokeDasharray="4,4" />
                 <text
-                  x={-10}
+                  x={-12}
                   alignmentBaseline="middle"
                   textAnchor="end"
-                  fill="rgba(148,163,184,0.7)"
-                  className="text-[10px] font-mono"
+                  fill="rgba(148,163,184,0.85)"
+                  fontSize={26}
+                  fontFamily="monospace"
                 >
                   {t}m
                 </text>
@@ -386,8 +387,8 @@ const ProfileChart: React.FC<Props> = ({
             {xTicks.map((t) => (
               <g key={`x-${t}`} transform={`translate(${xScale(t)}, ${IH})`}>
                 <line y1={-IH} stroke="rgba(148,163,184,0.15)" strokeDasharray="4,4" />
-                <text y={20} textAnchor="middle" fill="rgba(148,163,184,0.7)" className="text-[10px] font-mono">
-                  {t}km
+                <text y={36} textAnchor="middle" fill="rgba(148,163,184,0.85)" fontSize={26} fontFamily="monospace">
+                  {t} km
                 </text>
               </g>
             ))}
