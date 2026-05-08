@@ -312,14 +312,78 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const mainZone = zone(geom.nearDist, geom.mainDist);
   const farZone = zone(geom.mainDist, geom.farDist);
 
+  // Build a coverage polygon clipped to terrain.
+  // Top edge = far-edge ray from antenna to where it meets terrain.
+  // Bottom edge = terrain walked back to where near-edge ray meets terrain.
+  // Closing edge = near-edge ray back up to antenna.
+  const beamCoveragePath = useMemo(() => {
+    const ax = towerX;
+    const ay = antennaY;
+    const xLimit = M.left + IW;
+    // Ray Y at given screen-x for line through (ax, ay) and impact point.
+    const rayY = (impact: { x: number; y: number }, x: number) => {
+      if (Math.abs(impact.x - ax) < 1e-6) return impact.y;
+      return ay + ((x - ax) * (impact.y - ay)) / (impact.x - ax);
+    };
+    // Terrain Y at given screen-x via piecewise-linear interpolation of terrainSeries.
+    const tYs = terrainSeries.map(p => ({ sx: xScale(p.x), sy: yScale(p.y) }));
+    const tY = (x: number) => {
+      if (x <= tYs[0].sx) return tYs[0].sy;
+      if (x >= tYs[tYs.length - 1].sx) return tYs[tYs.length - 1].sy;
+      for (let i = 0; i < tYs.length - 1; i++) {
+        if (x >= tYs[i].sx && x <= tYs[i + 1].sx) {
+          const t = (x - tYs[i].sx) / Math.max(1e-6, tYs[i + 1].sx - tYs[i].sx);
+          return tYs[i].sy + (tYs[i + 1].sy - tYs[i].sy) * t;
+        }
+      }
+      return tYs[tYs.length - 1].sy;
+    };
+    // First x ≥ ax+ε where ray dips into terrain (rayY ≥ terrainY in screen-y).
+    const findHit = (impact: { x: number; y: number }) => {
+      const N = 320;
+      const xStart = ax + 0.5;
+      const xEnd = xLimit;
+      let prevDiff = rayY(impact, xStart) - tY(xStart);
+      if (prevDiff >= 0) return xStart;
+      let prevX = xStart;
+      for (let i = 1; i <= N; i++) {
+        const x = xStart + ((xEnd - xStart) * i) / N;
+        const diff = rayY(impact, x) - tY(x);
+        if (diff >= 0) {
+          const t = prevDiff / (prevDiff - diff);
+          return prevX + (x - prevX) * t;
+        }
+        prevDiff = diff;
+        prevX = x;
+      }
+      return xEnd;
+    };
+    const farHitX = findHit(farImpact);
+    const nearHitX = Math.min(findHit(nearImpact), farHitX);
+    const farHitY = tY(farHitX);
+    const nearHitY = tY(nearHitX);
+    // Walk terrain backward (farHit → nearHit) to bound the bottom of the polygon.
+    const back: string[] = [];
+    for (let i = tYs.length - 1; i >= 0; i--) {
+      if (tYs[i].sx < nearHitX || tYs[i].sx > farHitX) continue;
+      back.push(`L ${tYs[i].sx.toFixed(2)} ${tYs[i].sy.toFixed(2)}`);
+    }
+    return `M ${ax.toFixed(2)} ${ay.toFixed(2)} L ${farHitX.toFixed(2)} ${farHitY.toFixed(2)} ${back.join(' ')} L ${nearHitX.toFixed(2)} ${nearHitY.toFixed(2)} Z`;
+  }, [towerX, antennaY, nearImpact, farImpact, terrainSeries, xScale, yScale]);
+
+  // Aim angle so the dish points along the main beam direction.
+  const mainAimDeg = useMemo(
+    () => (Math.atan2(mainImpact.y - antennaY, mainImpact.x - towerX) * 180) / Math.PI,
+    [mainImpact, antennaY, towerX],
+  );
+
   return (
-    <div className="w-full h-full flex flex-col text-white">
+    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl flex flex-col text-white">
       {/* ── Sub-header strip: toggles ── */}
-      <div className="flex items-center justify-between px-3 py-2 mb-1 rounded-xl bg-white/[0.03] border border-white/5 shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 mb-1 mt-1 mx-1 rounded-xl bg-white/[0.03] border border-white/5 shrink-0">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 mr-2">Coverage Profile</span>
           <Toggle label="Show Beam" value={showBeam} onChange={setShowBeam} />
-          <Toggle label="Show Footprint" value={showFootprint} onChange={setShowFootprint} />
           <Toggle label="Show Tilt Lines" value={showTiltLines} onChange={setShowTiltLines} />
           <Toggle label="Show Clutter" value={showClutter} onChange={setShowClutter} />
         </div>
@@ -340,6 +404,27 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         </div>
       </div>
 
+      {/* Site name pill (top-left, like Link Profile) */}
+      <div className="absolute top-12 left-3 z-20 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
+        <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+      </div>
+
+      {/* Site A info card (Link Profile style) */}
+      <div className="absolute top-[88px] left-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[160px]">
+        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Site A (TX)</div>
+        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
+          <div>Antenna H: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></div>
+          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></div>
+          <div>Ground: <span className="text-slate-200">{Math.round(groundBaseAmsl)} m</span></div>
+        </div>
+      </div>
+
+      {/* Bottom-left distance pill */}
+      <div className="absolute bottom-9 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
+        <div><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></div>
+        <div><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></div>
+      </div>
+
       {/* ── Chart ── */}
       <div className="flex-1 min-h-0 relative">
         <svg
@@ -350,18 +435,26 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#334155" stopOpacity="0.55" />
-              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.15" />
+              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
             </linearGradient>
             <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.2">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.45" />
-              <stop offset="40%" stopColor="#eab308" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.25" />
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.55" />
+              <stop offset="35%" stopColor="#eab308" stopOpacity="0.45" />
+              <stop offset="70%" stopColor="#f97316" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.35" />
             </linearGradient>
             <filter id="cp-beam-glow">
               <feGaussianBlur stdDeviation="3" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
@@ -375,12 +468,12 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
                 x2={M.left + IW}
                 y1={yScale(v)}
                 y2={yScale(v)}
-                stroke="#1d2f43"
-                strokeDasharray="3 5"
+                stroke="rgba(148,163,184,0.15)"
+                strokeDasharray="4 4"
                 strokeWidth={0.7}
               />
-              <text x={M.left - 8} y={yScale(v) + 4} textAnchor="end" fontSize="10" fill="#94a3b8">
-                {Math.round(v)}
+              <text x={M.left - 8} y={yScale(v) + 4} textAnchor="end" fontSize="10" fill="rgba(148,163,184,0.7)" fontFamily="monospace">
+                {Math.round(v)}m
               </text>
             </g>
           ))}
@@ -391,8 +484,8 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
                 x2={xScale(v)}
                 y1={M.top}
                 y2={M.top + IH}
-                stroke="#162638"
-                strokeDasharray="3 5"
+                stroke="rgba(148,163,184,0.15)"
+                strokeDasharray="4 4"
                 strokeWidth={0.7}
               />
               <text
@@ -400,21 +493,24 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
                 y={M.top + IH + 16}
                 textAnchor="middle"
                 fontSize="10"
-                fill="#94a3b8"
+                fill="rgba(148,163,184,0.7)"
+                fontFamily="monospace"
               >
-                {(v / 1000).toFixed(1)}
+                {(v / 1000).toFixed(1)}km
               </text>
             </g>
           ))}
-          <text x={M.left} y={M.top - 10} fontSize="10" fontWeight="600" fill="#cbd5e1">
-            Altitude (m AMSL)
-          </text>
-          <text x={M.left + IW / 2} y={VIEW_H - 6} fontSize="10" fontWeight="600" fill="#cbd5e1" textAnchor="middle">
-            Distance (km)
-          </text>
 
           {/* Terrain */}
-          <path d={terrainPath} fill="url(#cp-terrain)" stroke="rgba(148,163,184,0.5)" strokeWidth={1.5} />
+          <path d={terrainPath} fill="url(#cp-terrain)" />
+          {terrainSeries.length >= 2 && (
+            <path
+              d={terrainSeries.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xScale(p.x)} ${yScale(p.y)}`).join(' ')}
+              fill="none"
+              stroke="rgba(203,213,225,0.85)"
+              strokeWidth={1.5}
+            />
+          )}
 
           {/* Clutter overlay */}
           {showClutter && clutterHeight > 0 && terrainSeries.length >= 2 && (
@@ -432,10 +528,10 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             />
           )}
 
-          {/* Beam cone — gradient with glow */}
+          {/* Coverage beam — terrain-clipped polygon with green→red gradient */}
           {showBeam && (
             <path
-              d={`M ${towerX} ${antennaY} L ${nearImpact.x} ${nearImpact.y} L ${nearImpact.x} ${axisY} L ${farImpact.x} ${axisY} L ${farImpact.x} ${farImpact.y} Z`}
+              d={beamCoveragePath}
               fill="url(#cp-beam)"
               filter="url(#cp-beam-glow)"
               stroke={`${color}aa`}
@@ -460,61 +556,24 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               stroke={color} strokeWidth={2.5} />
           )}
 
-          {/* Ground footprint coloured by zone */}
-          {showFootprint && (
-            <>
-              <line x1={towerX} y1={groundY + 5} x2={nearImpact.x} y2={groundY + 5}
-                stroke={nearZone.color} strokeWidth={5} strokeLinecap="round" opacity={0.7} />
-              <line x1={nearImpact.x} y1={groundY + 5} x2={mainImpact.x} y2={groundY + 5}
-                stroke={mainZone.color} strokeWidth={5} strokeLinecap="round" opacity={0.7} />
-              <line x1={mainImpact.x} y1={groundY + 5} x2={farImpact.x} y2={groundY + 5}
-                stroke={farZone.color} strokeWidth={5} strokeLinecap="round" opacity={0.7} />
-            </>
-          )}
-
-          {/* Pylon (lattice tower) */}
-          <path
-            d={`M ${towerX - 8} ${groundY} L ${towerX - 4} ${antennaY} L ${towerX + 4} ${antennaY} L ${towerX + 8} ${groundY} Z`}
-            fill="rgba(15,23,42,0.8)"
-            stroke="rgba(51,65,85,0.9)"
-            strokeWidth={1}
+          {/* Tower (reused from Link Profile) */}
+          <SiteTower
+            x={towerX}
+            terrainY={groundY}
+            antennaY={antennaY}
+            innerHeight={IH}
+            align="left"
+            label="TX"
+            heightAGL={antennaHeight}
+            altitudeAMSL={Math.round(antennaAmsl)}
+            isPoint={false}
+            aimDeg={mainAimDeg}
           />
-          <line x1={towerX} y1={groundY} x2={towerX} y2={antennaY} stroke="rgba(96,165,250,0.45)" strokeWidth={1.5} />
-          {[0.2, 0.4, 0.6, 0.8].map(p => {
-            const yy = groundY - (groundY - antennaY) * p;
-            const xw = 8 - 4 * p;
-            return (
-              <line key={p}
-                x1={towerX - xw} y1={yy} x2={towerX + xw} y2={yy}
-                stroke="rgba(71,85,105,0.6)" strokeWidth={0.6} />
-            );
-          })}
-          {/* Antenna head */}
-          <circle cx={towerX} cy={antennaY} r={7} fill={`${color}33`} stroke={color} strokeWidth={1} />
-          <path d={`M ${towerX} ${antennaY - 8} L ${towerX + 8} ${antennaY} L ${towerX} ${antennaY + 8} Z`}
-            fill={color} />
-          <line x1={towerX + 5} y1={antennaY - 3} x2={towerX + 5} y2={antennaY + 3} stroke="#fff" strokeWidth={1} />
-
-          {/* Site info overlay inside chart */}
-          <g transform={`translate(${M.left + 10}, ${M.top + 8})`}>
-            <rect width="150" height="74" rx="8" fill="rgba(2,6,23,0.82)" stroke="rgba(51,65,85,0.6)" />
-            <text x="10" y="20" fontSize="10" fontWeight="700" fill="#34d399">{siteName}{sectorName ? ` · ${sectorName}` : ''}</text>
-            <text x="10" y="36" fontSize="9" fill="#94a3b8">
-              Height (AGL): <tspan fill="#fff" fontWeight="700">{antennaHeight}m</tspan>
-            </text>
-            <text x="10" y="50" fontSize="9" fill="#94a3b8">
-              Mech. Tilt: <tspan fill="#fff" fontWeight="700">{mechanicalTilt}°</tspan>
-              {electricalTilt ? <tspan fill="#94a3b8"> · Elec: <tspan fill="#fff" fontWeight="700">{electricalTilt}°</tspan></tspan> : null}
-            </text>
-            <text x="10" y="64" fontSize="9" fill="#94a3b8">
-              Azimuth: <tspan fill="#fff" fontWeight="700">{azimut ?? '—'}°</tspan>
-            </text>
-          </g>
 
           {/* Main beam impact callout */}
-          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={axisY}
+          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={mainImpact.y}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={mainImpact.x} cy={groundY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
+          <circle cx={mainImpact.x} cy={mainImpact.y} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
           <g transform={`translate(${Math.min(mainImpact.x - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
             <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
@@ -522,9 +581,9 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           </g>
 
           {/* Coverage end callout */}
-          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={axisY}
+          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={farImpact.y}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={farImpact.x} cy={groundY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
+          <circle cx={farImpact.x} cy={farImpact.y} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
           <g transform={`translate(${Math.min(farImpact.x - 50, M.left + IW - 110)}, ${Math.max(antennaY + 4, M.top + 50)})`}>
             <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
@@ -548,33 +607,15 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             ))}
           </g>
         </svg>
-
-        {/* Coverage zone segmented bar (Near/Main/Far) under chart */}
-        <div className="absolute left-[6.4%] right-[2.8%] bottom-0 flex text-[9px] font-bold uppercase tracking-wider pointer-events-none">
-          {(() => {
-            const total = Math.max(1, geom.farDist);
-            const fNear = (geom.nearDist / total) * 100;
-            const fMain = ((geom.mainDist - geom.nearDist) / total) * 100;
-            const fFar = ((geom.farDist - geom.mainDist) / total) * 100;
-            return (
-              <>
-                <div style={{ width: `${fNear}%` }} className="text-cyan-300 text-center">
-                  ← Near Field<br /><span className="text-white/40 normal-case font-mono">0 – {(geom.nearDist / 1000).toFixed(2)} km</span>
-                </div>
-                <div style={{ width: `${fMain}%` }} className="text-emerald-300 text-center">
-                  ← Main Coverage →<br /><span className="text-white/40 normal-case font-mono">{(geom.nearDist / 1000).toFixed(2)} – {(geom.mainDist / 1000).toFixed(2)} km</span>
-                </div>
-                <div style={{ width: `${fFar}%` }} className="text-orange-300 text-center">
-                  Far Coverage →<br /><span className="text-white/40 normal-case font-mono">{(geom.mainDist / 1000).toFixed(2)} – {(geom.farDist / 1000).toFixed(2)} km</span>
-                </div>
-              </>
-            );
-          })()}
-        </div>
       </div>
 
-      {/* Bottom summary panels removed per user request */}
-
+      {/* Axis labels (Link Profile style) */}
+      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
+        Altitude (AMSL m)
+      </div>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-semibold uppercase tracking-wider pointer-events-none">
+        Distance (km)
+      </div>
     </div>
   );
 };
