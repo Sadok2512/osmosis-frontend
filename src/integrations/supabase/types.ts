@@ -369,6 +369,7 @@ export type Database = {
           owner_username: string | null
           shared_with: string[] | null
           updated_at: string
+          view_count: number
           visibility: string
           widgets: Json
         }
@@ -383,6 +384,7 @@ export type Database = {
           owner_username?: string | null
           shared_with?: string[] | null
           updated_at?: string
+          view_count?: number
           visibility?: string
           widgets?: Json
         }
@@ -397,6 +399,7 @@ export type Database = {
           owner_username?: string | null
           shared_with?: string[] | null
           updated_at?: string
+          view_count?: number
           visibility?: string
           widgets?: Json
         }
@@ -2050,6 +2053,7 @@ export type Database = {
           zone_arcep: string
         }[]
       }
+      increment_dashboard_view: { Args: { p_id: string }; Returns: number }
       match_documents: {
         Args: {
           match_count?: number
