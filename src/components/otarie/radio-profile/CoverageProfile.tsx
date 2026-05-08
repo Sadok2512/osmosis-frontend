@@ -605,10 +605,14 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             </>
           )}
 
-          {/* Main beam axis */}
+          {/* Main beam axis — gradient stroke with soft glow */}
           {showBeam && (
-            <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
-              stroke={color} strokeWidth={2.5} />
+            <>
+              <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
+                stroke="url(#cp-beam-axis)" strokeWidth={4} strokeLinecap="round" opacity={0.35} filter="url(#cp-beam-glow)" />
+              <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
+                stroke="url(#cp-beam-axis)" strokeWidth={2} strokeLinecap="round" />
+            </>
           )}
 
           {/* Tower (reused from Link Profile) */}
@@ -625,45 +629,28 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout — locked on terrain.
-              Vertically positioned in the upper band so it never overlaps the
-              Coverage End callout (which sits just below it). */}
-          <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
-            stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${clamp(beamHits.mainHitX - 65, M.left + 8, M.left + IW - 138)}, ${M.top + 8})`}>
-            <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
-            <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
-            <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
+          {/* Main beam impact marker + leader line to top callout */}
+          <line x1={beamHits.mainHitX} y1={beamHits.mainHitY - 6} x2={beamHits.mainHitX} y2={M.top + 50}
+            stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} opacity={0.55} />
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={10} fill="#22c55e" opacity={0.22} filter="url(#glow)" />
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={5} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
+          <g transform={`translate(${clamp(beamHits.mainHitX - 70, M.left + 8, M.left + IW - 300)}, ${M.top + 8})`}>
+            <rect width="140" height="40" rx="8" fill="rgba(11,23,40,0.92)" stroke="rgba(34,197,94,0.5)" strokeWidth={1} />
+            <rect x="0" y="0" width="3" height="40" rx="1.5" fill="#22c55e" />
+            <text x="12" y="16" fontSize="9" fontWeight="700" letterSpacing="1.5" fill="#86efac">MAIN BEAM IMPACT</text>
+            <text x="12" y="32" fontSize="13" fontWeight="800" fill="#fff" fontFamily="monospace">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout — locked on terrain, stacked under Main Beam
-              callout with a 12px gap for consistent spacing hierarchy. */}
-          <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
-            stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${clamp(beamHits.farHitX - 55, M.left + 8, M.left + IW - 118)}, ${M.top + 58})`}>
-            <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
-            <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
-            <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
-          </g>
-
-          {/* RSRP legend top-right — aligned with the plot's right edge using
-              the same right margin gutter as the grid. */}
-          <g transform={`translate(${M.left + IW - 150}, ${M.top + 8})`}>
-            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.9)" stroke="rgba(255,255,255,0.1)" />
-            <text x="10" y="16" fontSize="10" fontWeight="700" fill="#cbd5e1">Signal Level (RSRP)</text>
-            {[
-              { c: '#22c55e', l: '> -85 dBm' },
-              { c: '#eab308', l: '-85 to -100 dBm' },
-              { c: '#f97316', l: '-100 to -115 dBm' },
-              { c: '#ef4444', l: '< -115 dBm' },
-            ].map((r, i) => (
-              <g key={r.l} transform={`translate(10, ${28 + i * 12})`}>
-                <rect width="10" height="8" fill={r.c} rx="2" />
-                <text x="16" y="7" fontSize="9" fill="#94a3b8">{r.l}</text>
-              </g>
-            ))}
+          {/* Coverage end marker + leader line */}
+          <line x1={beamHits.farHitX} y1={beamHits.farHitY - 6} x2={beamHits.farHitX} y2={M.top + 102}
+            stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} opacity={0.55} />
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={10} fill="#ef4444" opacity={0.22} filter="url(#glow)" />
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={5} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
+          <g transform={`translate(${clamp(beamHits.farHitX - 70, M.left + 8, M.left + IW - 300)}, ${M.top + 60})`}>
+            <rect width="140" height="40" rx="8" fill="rgba(11,23,40,0.92)" stroke="rgba(239,68,68,0.5)" strokeWidth={1} />
+            <rect x="0" y="0" width="3" height="40" rx="1.5" fill="#ef4444" />
+            <text x="12" y="16" fontSize="9" fontWeight="700" letterSpacing="1.5" fill="#fca5a5">COVERAGE END</text>
+            <text x="12" y="32" fontSize="13" fontWeight="800" fill="#fff" fontFamily="monospace">{(geom.farDist / 1000).toFixed(2)} km</text>
           </g>
 
           {/* Rotated Altitude axis label — drawn inside the SVG left margin so
