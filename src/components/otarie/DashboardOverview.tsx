@@ -35,6 +35,7 @@ interface EnhancedDashboard extends SavedDashboard {
   visibility: Visibility;
   ownerUsername: string;
   sharedWith: string[];
+  viewCount: number;
 }
 
 async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
@@ -51,7 +52,7 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
       if (ids.length > 0) {
         const { data: meta } = await supabase
           .from('dashboards')
-          .select('id, visibility, owner_username, shared_with, dashboard_type')
+          .select('id, visibility, owner_username, shared_with, dashboard_type, view_count')
           .in('id', ids);
         if (Array.isArray(meta)) meta.forEach((m: any) => metaById.set(m.id, m));
       }
@@ -70,6 +71,7 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
         visibility: (meta.visibility || row.visibility) as Visibility || 'public',
         ownerUsername: meta.owner_username || row.owner_username || getStoredSession()?.username || 'Inconnu',
         sharedWith: meta.shared_with || row.shared_with || [],
+        viewCount: Number(meta.view_count ?? row.view_count ?? 0) || 0,
       };
     });
   } catch { return []; }
@@ -839,9 +841,19 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
     setDashboards(refreshed);
   };
 
+  const incrementViewCount = async (id: string) => {
+    // Optimistic UI bump
+    setDashboards(prev => prev.map(d => d.id === id ? { ...d, viewCount: (d.viewCount || 0) + 1 } : d));
+    try {
+      const { supabase } = await import('@/integrations/supabase/client');
+      await supabase.rpc('increment_dashboard_view', { p_id: id });
+    } catch { /* ignore — optimistic value remains until next reload */ }
+  };
+
   const openInEditor = (id: string) => {
     const target = dashboards.find((d) => d.id === id);
     localStorage.setItem('osmosis_open_dashboard_id', id);
+    incrementViewCount(id);
     // Precision Architect dashboards have their own editor — route there
     // instead of the BI Studio so the saved pages/widgets actually load.
     if (target?.dashboardType === 'precision_architect') {
@@ -860,6 +872,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
       openInEditor(id);
       return;
     }
+    incrementViewCount(id);
     setSelectedId(id);
   };
 
@@ -1207,17 +1220,12 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                     </div>
 
                     {/* Views count */}
-                    {(() => {
-                      const viewsCount = mapViews.filter(v => v.description === db.id).length;
-                      return (
-                        <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 flex items-center justify-between">
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Views</div>
-                          <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight">
-                            {fmtNum(viewsCount)}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 flex items-center justify-between">
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Views</div>
+                      <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight">
+                        {fmtNum(db.viewCount || 0)}
+                      </div>
+                    </div>
 
                     {/* Tech label */}
                     <div className={`text-[11px] font-semibold ${techList.length > 0 ? s.iconColor : 'text-muted-foreground'}`}>
