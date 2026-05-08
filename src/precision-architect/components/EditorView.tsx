@@ -837,8 +837,8 @@ export default function EditorView({
                 </div>
               </div>
 
-              <div className="flex h-full pb-10">
-                <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+              <div className="flex flex-1 min-h-0">
+                <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 overflow-y-auto">
                   {([
                     { key: 'data', label: 'Data Source', icon: undefined as any },
                     { key: 'appearance', label: 'Appearance', icon: undefined as any },
