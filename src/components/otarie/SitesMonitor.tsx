@@ -12172,7 +12172,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       {/* ══ LEFT PANEL — Inventory Index ══ */}
       {viewMode === 'map' && (
         <div className={`absolute top-0 left-0 bottom-0 z-[1000] pointer-events-auto transition-all duration-300 ease-in-out ${
-          panelCollapsed ? 'w-14' : 'w-[400px]'
+          panelCollapsed ? 'w-14' : 'w-[460px]'
         }`}>
           {/* Collapsed state */}
           {panelCollapsed ? (
