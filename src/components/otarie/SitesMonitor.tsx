@@ -2226,7 +2226,14 @@ const CreateFilterDropdown: React.FC<{
     if (!open) return;
     const update = () => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      if (!r) return;
+      const dialog = btnRef.current?.closest('[role="dialog"]') as HTMLElement | null;
+      const dr = dialog?.getBoundingClientRect();
+      if (dialog && dr) {
+        setPos({ top: r.bottom - dr.top + dialog.scrollTop + 4, left: r.left - dr.left + dialog.scrollLeft, width: r.width });
+      } else {
+        setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
     };
     update();
     const handler = (e: MouseEvent) => {
