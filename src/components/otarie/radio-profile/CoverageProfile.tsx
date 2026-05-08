@@ -830,7 +830,10 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             <FooterStat label="Band" value={bandLabel} />
           </div>
         </div>
-        {/* Coverage KPI cards — each 2 cols */}
+        {/* Coverage KPI cards */}
+        {linkDistance > 0 && (
+          <KpiCard accent="sky" label="Link Dist" value={(linkDistance / 1000).toFixed(2)} unit="km" />
+        )}
         <KpiCard accent="cyan" label="Coverage" value={(geom.farDist / 1000).toFixed(2)} unit="km" />
         <KpiCard accent="emerald" label="Main Beam" value={(geom.mainDist / 1000).toFixed(2)} unit="km" />
         <KpiCard accent="amber" label="Area" value={coverageAreaKm2.toFixed(2)} unit="km²" />
