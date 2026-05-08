@@ -340,17 +340,41 @@ const SharePopover: React.FC<{
   const [vis, setVis] = useState<Visibility>(db.visibility);
   const [users, setUsers] = useState<string[]>(db.sharedWith);
   const [newUser, setNewUser] = useState('');
+  const [allUsers, setAllUsers] = useState<string[]>([]);
+  const [showSuggest, setShowSuggest] = useState(false);
 
-  const addUser = () => {
-    const u = newUser.trim();
-    if (u && !users.includes(u)) { setUsers([...users, u]); setNewUser(''); }
+  useEffect(() => {
+    (async () => {
+      try {
+        const { supabase } = await import('@/integrations/supabase/client');
+        const { data } = await supabase
+          .from('admin_users')
+          .select('username')
+          .eq('status', 'active')
+          .order('username');
+        if (data) setAllUsers(data.map((r: any) => r.username).filter(Boolean));
+      } catch (e) { /* ignore */ }
+    })();
+  }, []);
+
+  const addUser = (u?: string) => {
+    const v = (u ?? newUser).trim();
+    if (v && !users.includes(v)) { setUsers([...users, v]); setNewUser(''); setShowSuggest(false); }
   };
+
+  const suggestions = useMemo(() => {
+    const q = newUser.trim().toLowerCase();
+    return allUsers
+      .filter(u => !users.includes(u))
+      .filter(u => !q || u.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [allUsers, users, newUser]);
 
   const save = () => { onUpdate(db.id, vis, users); onClose(); };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="bg-popover border border-border rounded-2xl shadow-2xl p-5 w-[320px] space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-popover border border-border rounded-2xl shadow-2xl p-5 w-[340px] space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
             <Share2 className="w-4 h-4 text-primary" /> Partage
@@ -369,13 +393,27 @@ const SharePopover: React.FC<{
 
         {vis === 'shared' && (
           <div className="space-y-2">
-            <div className="flex gap-1.5">
-              <input type="text" value={newUser} onChange={e => setNewUser(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addUser()}
-                placeholder="Username..."
-                className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/20" />
-              <button onClick={addUser}
-                className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">+</button>
+            <div className="relative">
+              <div className="flex gap-1.5">
+                <input type="text" value={newUser}
+                  onChange={e => { setNewUser(e.target.value); setShowSuggest(true); }}
+                  onFocus={() => setShowSuggest(true)}
+                  onKeyDown={e => e.key === 'Enter' && addUser()}
+                  placeholder="Username..."
+                  className="flex-1 px-3 py-2 rounded-xl border border-border bg-background text-xs text-foreground outline-none focus:ring-2 focus:ring-primary/20" />
+                <button onClick={() => addUser()}
+                  className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">+</button>
+              </div>
+              {showSuggest && suggestions.length > 0 && (
+                <div className="absolute left-0 right-10 top-full mt-1 z-10 bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-auto py-1">
+                  {suggestions.map(u => (
+                    <button key={u} type="button" onClick={() => addUser(u)}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted text-left">
+                      <User className="w-3 h-3 text-muted-foreground" />{u}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             {users.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -386,6 +424,9 @@ const SharePopover: React.FC<{
                   </span>
                 ))}
               </div>
+            )}
+            {allUsers.length === 0 && (
+              <p className="text-[10px] text-muted-foreground">Aucun utilisateur trouvé — saisissez un username manuellement.</p>
             )}
           </div>
         )}
@@ -398,6 +439,7 @@ const SharePopover: React.FC<{
     </div>
   );
 };
+
 
 /* ─── Edit metadata modal ─── */
 const EditMetadataModal: React.FC<{
