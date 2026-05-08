@@ -411,21 +411,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
       </div>
 
-      {/* Site A info card (Link Profile style) */}
-      <div className="absolute top-[88px] left-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[160px]">
-        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">Site A (TX)</div>
-        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
-          <div>Antenna H: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></div>
-          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></div>
-          <div>Ground: <span className="text-slate-200">{Math.round(groundBaseAmsl)} m</span></div>
-        </div>
-      </div>
-
-      {/* Bottom-left distance pill */}
-      <div className="absolute bottom-9 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
-        <div><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></div>
-        <div><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></div>
-      </div>
+      {/* (info moved to footer) */}
 
       {/* ── Chart ── */}
       <div className="flex-1 min-h-0 relative">
@@ -672,8 +658,22 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
         Altitude (AMSL m)
       </div>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-semibold uppercase tracking-wider pointer-events-none">
-        Distance (km)
+
+      {/* Footer info bar: Site (TX) · Coverage summary */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+          <span className="text-emerald-400 font-bold uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''} (TX)</span>
+          <span className="text-slate-300">Ant: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></span>
+          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></span>
+          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(groundBaseAmsl)} m</span></span>
+          <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{geom.totalTilt.toFixed(1)}°</span></span>
+          <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{bandLabel}</span></span>
+        </div>
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
+          <span><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></span>
+          <span><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></span>
+          <span><span className="text-amber-400 font-bold">Area:</span> <span className="text-slate-100">{coverageAreaKm2.toFixed(2)} km²</span></span>
+        </div>
       </div>
     </div>
   );
