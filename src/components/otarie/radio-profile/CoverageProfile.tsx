@@ -260,9 +260,13 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const IW = VIEW_W - M.left - M.right;
   const IH = VIEW_H - M.top - M.bottom;
 
-  const xMaxDomain = autoScale
-    ? Math.max(1, geom.farDist) * 1.15
-    : geom.cap;
+  // Real link distance from terrain profile (matches Link Profile exactly)
+  const linkDistance = (terrainProfile && terrainProfile.length >= 2)
+    ? terrainProfile[terrainProfile.length - 1].distance
+    : 0;
+  const xMaxDomain = linkDistance > 0
+    ? linkDistance
+    : (autoScale ? Math.max(1, geom.farDist) * 1.15 : geom.cap);
   const groundBaseAmsl = siteAltitudeAmsl ?? 0;
   const antennaAmsl = groundBaseAmsl + antennaHeight;
 
