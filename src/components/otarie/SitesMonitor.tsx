@@ -10394,7 +10394,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   >
                     <Switch checked={linkEnableCurvature} onCheckedChange={(v) => {
                       setLinkEnableCurvature(v);
-                      if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v);
+                      if (linkActiveCoords) recomputeLinkProfile(linkActiveCoords, v, activeTaggedLink ?? undefined);
                     }} />
                     <Label className="text-[10px] text-white/60">k=4/3</Label>
                   </div>
@@ -10475,10 +10475,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     clutterHeight={linkEnableClutter ? linkClutterHeight : 0}
                     onHoverPoint={setLinkProfileHover}
                     showTilt
-                    remoteAntenna={{ hba: 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
+                    remoteAntenna={{ hba: activeTaggedLink?.toType === 'point' ? 2 : 30, totalTilt: 2, vbw: 7, azimuth: 0 }}
                     siteName={linkProfileLabel}
-                    txIsPoint={taggedLinks.find(l => l.id === selectedLinkId)?.fromType === 'point'}
-                    rxIsPoint={taggedLinks.find(l => l.id === selectedLinkId)?.toType === 'point'}
+                    txIsPoint={activeTaggedLink?.fromType === 'point'}
+                    rxIsPoint={activeTaggedLink?.toType === 'point'}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-xs gap-2">
@@ -10486,7 +10486,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {linkProfileError ? `Erreur: ${linkProfileError}` : 'Aucune donnée de terrain'}
                     </span>
                     <button
-                      onClick={() => linkActiveCoords && recomputeLinkProfile(linkActiveCoords, linkEnableCurvature)}
+                      onClick={() => linkActiveCoords && recomputeLinkProfile(linkActiveCoords, linkEnableCurvature, activeTaggedLink ?? undefined)}
                       className="px-3 py-1 rounded-lg bg-sky-500/20 border border-sky-400/40 text-sky-200 hover:bg-sky-500/30"
                     >
                       Réessayer
