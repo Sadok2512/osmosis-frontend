@@ -429,10 +429,19 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             const rect = svgRef.current.getBoundingClientRect();
             const px = ((e.clientX - rect.left) / rect.width) * VIEW_W;
             const d = ((px - M.left) / IW) * xMaxDomain;
-            if (d < 0 || d > xMaxDomain) { setHoverDist(null); return; }
+            if (d < 0 || d > xMaxDomain) { setHoverDist(null); onHoverPoint?.(null); return; }
             setHoverDist(d);
+            if (onHoverPoint && terrainProfile && terrainProfile.length > 0) {
+              let best = 0; let bestD = Infinity;
+              for (let i = 0; i < terrainProfile.length; i++) {
+                const dx = Math.abs(terrainProfile[i].distance - d);
+                if (dx < bestD) { bestD = dx; best = i; }
+              }
+              const p = terrainProfile[best];
+              onHoverPoint({ distanceKm: p.distance / 1000, elevationM: p.elevation, lat: p.lat, lng: p.lng });
+            }
           }}
-          onMouseLeave={() => setHoverDist(null)}
+          onMouseLeave={() => { setHoverDist(null); onHoverPoint?.(null); }}
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
