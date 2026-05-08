@@ -332,16 +332,14 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   // Top edge = far-edge ray from antenna to where it meets terrain.
   // Bottom edge = terrain walked back to where near-edge ray meets terrain.
   // Closing edge = near-edge ray back up to antenna.
-  const beamCoveragePath = useMemo(() => {
+  const beamHits = useMemo(() => {
     const ax = towerX;
     const ay = antennaY;
     const xLimit = M.left + IW;
-    // Ray Y at given screen-x for line through (ax, ay) and impact point.
     const rayY = (impact: { x: number; y: number }, x: number) => {
       if (Math.abs(impact.x - ax) < 1e-6) return impact.y;
       return ay + ((x - ax) * (impact.y - ay)) / (impact.x - ax);
     };
-    // Terrain Y at given screen-x via piecewise-linear interpolation of terrainSeries.
     const tYs = terrainSeries.map(p => ({ sx: xScale(p.x), sy: yScale(p.y) }));
     const tY = (x: number) => {
       if (x <= tYs[0].sx) return tYs[0].sy;
@@ -354,7 +352,6 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       }
       return tYs[tYs.length - 1].sy;
     };
-    // First x ≥ ax+ε where ray dips into terrain (rayY ≥ terrainY in screen-y).
     const findHit = (impact: { x: number; y: number }) => {
       const N = 320;
       const xStart = ax + 0.5;
@@ -376,16 +373,19 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
     };
     const farHitX = findHit(farImpact);
     const nearHitX = Math.min(findHit(nearImpact), farHitX);
+    const mainHitX = Math.min(findHit(mainImpact), farHitX);
     const farHitY = tY(farHitX);
     const nearHitY = tY(nearHitX);
-    // Walk terrain backward (farHit → nearHit) to bound the bottom of the polygon.
+    const mainHitY = tY(mainHitX);
     const back: string[] = [];
     for (let i = tYs.length - 1; i >= 0; i--) {
       if (tYs[i].sx < nearHitX || tYs[i].sx > farHitX) continue;
       back.push(`L ${tYs[i].sx.toFixed(2)} ${tYs[i].sy.toFixed(2)}`);
     }
-    return `M ${ax.toFixed(2)} ${ay.toFixed(2)} L ${farHitX.toFixed(2)} ${farHitY.toFixed(2)} ${back.join(' ')} L ${nearHitX.toFixed(2)} ${nearHitY.toFixed(2)} Z`;
-  }, [towerX, antennaY, nearImpact, farImpact, terrainSeries, xScale, yScale]);
+    const path = `M ${ax.toFixed(2)} ${ay.toFixed(2)} L ${farHitX.toFixed(2)} ${farHitY.toFixed(2)} ${back.join(' ')} L ${nearHitX.toFixed(2)} ${nearHitY.toFixed(2)} Z`;
+    return { path, farHitX, farHitY, nearHitX, nearHitY, mainHitX, mainHitY };
+  }, [towerX, antennaY, nearImpact, farImpact, mainImpact, terrainSeries, xScale, yScale]);
+  const beamCoveragePath = beamHits.path;
 
   // Aim angle so the dish points along the main beam direction.
   const mainAimDeg = useMemo(
