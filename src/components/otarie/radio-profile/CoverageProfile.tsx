@@ -210,6 +210,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   showTiltLines: showTiltLinesProp = true,
   showClutter: showClutterProp = false,
   clutterHeight = 10,
+  onHoverPoint,
 }) => {
   // Local UI state — toggles inside the panel header strip
   const [showBeam, setShowBeam] = useState(showBeamProp);
