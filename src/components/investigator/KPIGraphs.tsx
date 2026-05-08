@@ -1089,6 +1089,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
   onActivateTab?: (tab: 'table_data' | 'breakdown' | 'top_worst' | 'alarms' | 'neighbors' | 'cm_history' | null) => void;
+  isApplying?: boolean;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
@@ -1105,7 +1106,7 @@ const exportChartAsPng = (chartRef: ReactECharts | null, filename: string) => {
   document.body.removeChild(link);
 };
 
-const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onSetSlotTextStyle, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab }) => {
+const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorState, applyVersion = 0, layout, jalons, onChangeSlotKpi, onSetSlotKpiIds, onSetSlotCounterIds, onRemoveSlot, onAddEmptySlot, onUpdateSlotConfig, onRenameSlot, onSetSlotText, onSetSlotTextStyle, onOpenKpiSelector, onDuplicateSlot, activeSlotId, onSlotClick, isFullscreen, onActivateTab, isApplying }) => {
   // In fullscreen mode, show only the active slot
   const graphSlots = isFullscreen && activeSlotId ? rawSlots.filter(s => s.id === activeSlotId) : rawSlots;
   const cols = isFullscreen ? 1 : layout === 1 ? 1 : layout === 3 ? 3 : 2;
@@ -2459,9 +2460,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={(series || []).some((s: any) => Array.isArray(s.data) && s.data.some((v: any) => v != null && (typeof v !== 'number' || isFinite(v))))} />
             </div>
             <div className="relative">
-              {fetchingSlots[slot.id] && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60 rounded-lg backdrop-blur-[1px]">
-                  <RefreshCw className="w-5 h-5 animate-spin text-muted-foreground" />
+              {(fetchingSlots[slot.id] || isApplying) && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 rounded-lg backdrop-blur-[2px] animate-in fade-in duration-150">
+                  <RefreshCw className="w-6 h-6 animate-spin text-primary" />
+                  <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Chargement…</span>
                 </div>
               )}
               <SlotChart
