@@ -306,7 +306,7 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
 
       {/* Body: left sidebar tabs + content */}
       <div className="flex flex-1 min-h-0">
-        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1">
+        <aside className="w-48 border-r border-outline-variant/10 p-4 shrink-0 space-y-1 overflow-y-auto">
           {([
             { key: 'data', label: 'Data Source', icon: Database },
             { key: 'appearance', label: 'Appearance', icon: Palette },
