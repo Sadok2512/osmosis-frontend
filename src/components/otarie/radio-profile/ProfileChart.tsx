@@ -506,20 +506,40 @@ const ProfileChart: React.FC<Props> = ({
       </svg>
 
       {/* Axis labels */}
-      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left">
+      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
         Height (AMSL m)
-      </div>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
-        Distance (km)
       </div>
 
       {/* Hover tooltip */}
       {hoverIdx !== null && profilePoints[hoverIdx] && (
-        <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
+        <div className="absolute bottom-16 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
           <div>D: <span className="text-cyan-400 font-bold">{(profilePoints[hoverIdx].distance / 1000).toFixed(2)} km</span></div>
           <div>Alt: <span className="text-emerald-400 font-bold">{Math.round(profilePoints[hoverIdx].elevation)} m</span></div>
         </div>
       )}
+      </div>
+
+      {/* Footer info bar: Site A · Link summary · Site B */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+          <span className="text-emerald-400 font-bold uppercase tracking-wider">{txIsPoint ? 'Point (TX)' : 'Site A (TX)'}</span>
+          <span className="text-slate-300">{txIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(txIsPoint ? 2 : ant.hba).toFixed(0)} m</span></span>
+          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></span>
+          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></span>
+        </div>
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
+          <span><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></span>
+          {fresnel && showFresnel && (
+            <span><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+          <span className="text-emerald-400 font-bold uppercase tracking-wider">{rxIsPoint ? 'Point (RX)' : 'Site B (RX)'}</span>
+          <span className="text-slate-300">{rxIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(rxIsPoint ? 2 : (remoteAntenna?.hba ?? ant.rxHeight ?? 1.5)).toFixed(0)} m</span></span>
+          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></span>
+          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></span>
+        </div>
+      </div>
     </div>
   );
 };
