@@ -761,7 +761,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
           const clearance = beamAlt - terrainAlt;
           return (
-            <div className="absolute top-24 left-8 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
+            <div className="absolute top-[104px] left-[108px] z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
               <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
@@ -775,14 +775,10 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         })()}
       </div>
 
-      {/* Axis labels (Link Profile style) */}
-      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
-        Altitude (AMSL m)
-      </div>
-
-      {/* Footer info bar: Site (TX) · Coverage summary */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
-        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+      {/* Footer info bar: Site (TX) · Coverage summary — consistent gap-3
+          spacing, balanced padding, identical chip heights. */}
+      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-emerald-500/30">
           <span className="text-emerald-400 font-bold uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''} (TX)</span>
           <span className="text-slate-300">Ant: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></span>
           <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></span>
@@ -790,7 +786,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{geom.totalTilt.toFixed(1)}°</span></span>
           <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{bandLabel}</span></span>
         </div>
-        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-600/40">
           <span><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></span>
           <span><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></span>
           <span><span className="text-amber-400 font-bold">Area:</span> <span className="text-slate-100">{coverageAreaKm2.toFixed(2)} km²</span></span>
