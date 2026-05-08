@@ -2226,7 +2226,14 @@ const CreateFilterDropdown: React.FC<{
     if (!open) return;
     const update = () => {
       const r = btnRef.current?.getBoundingClientRect();
-      if (r) setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      if (!r) return;
+      const dialog = btnRef.current?.closest('[role="dialog"]') as HTMLElement | null;
+      const dr = dialog?.getBoundingClientRect();
+      if (dialog && dr) {
+        setPos({ top: r.bottom - dr.top + dialog.scrollTop + 4, left: r.left - dr.left + dialog.scrollLeft, width: r.width });
+      } else {
+        setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+      }
     };
     update();
     const handler = (e: MouseEvent) => {
@@ -2298,10 +2305,10 @@ const CreateFilterDropdown: React.FC<{
         </div>
       </button>
 
-      {open && pos && (
+      {open && pos && createPortal(
         <div
           ref={ref}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
+          style={{ position: 'absolute', top: pos.top, left: pos.left, width: pos.width }}
           className="z-[9999] bg-popover rounded-lg border border-border shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 overflow-hidden"
         >
           {values.length > 5 && (
@@ -2358,7 +2365,8 @@ const CreateFilterDropdown: React.FC<{
               })
             )}
           </div>
-        </div>
+        </div>,
+        (btnRef.current?.closest('[role="dialog"]') as HTMLElement) || document.body
       )}
     </div>
   );
