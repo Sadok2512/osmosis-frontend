@@ -10575,6 +10575,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       showClutter={linkEnableClutter}
                       clutterHeight={linkClutterHeight}
                       siteB={siteB}
+                      onHoverPoint={setLinkProfileHover}
                     />
                   );
                 })()
