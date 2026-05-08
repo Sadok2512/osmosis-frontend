@@ -594,29 +594,33 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout — locked on terrain */}
+          {/* Main beam impact callout — locked on terrain.
+              Vertically positioned in the upper band so it never overlaps the
+              Coverage End callout (which sits just below it). */}
           <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${Math.min(beamHits.mainHitX - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
+          <g transform={`translate(${clamp(beamHits.mainHitX - 65, M.left + 8, M.left + IW - 138)}, ${M.top + 8})`}>
             <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout — locked on terrain */}
+          {/* Coverage end callout — locked on terrain, stacked under Main Beam
+              callout with a 12px gap for consistent spacing hierarchy. */}
           <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${Math.min(beamHits.farHitX - 50, M.left + IW - 110)}, ${Math.max(beamHits.farHitY - 48, M.top + 50)})`}>
+          <g transform={`translate(${clamp(beamHits.farHitX - 55, M.left + 8, M.left + IW - 118)}, ${M.top + 58})`}>
             <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* RSRP legend top-right */}
-          <g transform={`translate(${M.left + IW - 150}, ${M.top + 6})`}>
-            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.85)" stroke="rgba(255,255,255,0.08)" />
+          {/* RSRP legend top-right — aligned with the plot's right edge using
+              the same right margin gutter as the grid. */}
+          <g transform={`translate(${M.left + IW - 150}, ${M.top + 8})`}>
+            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.9)" stroke="rgba(255,255,255,0.1)" />
             <text x="10" y="16" fontSize="10" fontWeight="700" fill="#cbd5e1">Signal Level (RSRP)</text>
             {[
               { c: '#22c55e', l: '> -85 dBm' },
@@ -630,6 +634,33 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               </g>
             ))}
           </g>
+
+          {/* Rotated Altitude axis label — drawn inside the SVG left margin so
+              it never overlaps the chart container. */}
+          <text
+            transform={`translate(${M.left - 56}, ${M.top + IH / 2}) rotate(-90)`}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="700"
+            letterSpacing="2"
+            fill="rgba(148,163,184,0.7)"
+          >
+            ALTITUDE (AMSL m)
+          </text>
+
+          {/* Distance axis label */}
+          <text
+            x={M.left + IW / 2}
+            y={M.top + IH + 44}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="700"
+            letterSpacing="2"
+            fill="rgba(148,163,184,0.7)"
+          >
+            DISTANCE (km)
+          </text>
+
 
           {/* Hover position pointer (crosshair on the link/beam) */}
           {hoverDist !== null && (() => {
