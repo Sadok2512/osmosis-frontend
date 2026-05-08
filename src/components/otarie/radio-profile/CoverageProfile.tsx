@@ -727,7 +727,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
           const clearance = beamAlt - terrainAlt;
           return (
-            <div className="absolute top-16 left-4 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
+            <div className="absolute top-24 left-8 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
               <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
