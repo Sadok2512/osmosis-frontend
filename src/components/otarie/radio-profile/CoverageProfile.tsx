@@ -12,7 +12,7 @@
  *   farEdgeDist         = antennaHeight / tan(totalTilt - vbw/2)       [m]
  *   nearEdgeDist        = antennaHeight / tan(totalTilt + vbw/2)       [m]
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Antenna } from 'lucide-react';
 import type { ProfilePoint } from '@/utils/geodesicUtils';
 import { SiteTower } from './ProfileChart';
@@ -215,6 +215,8 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const [showTiltLines, setShowTiltLines] = useState(showTiltLinesProp);
   const [showClutter, setShowClutter] = useState(showClutterProp);
   const [autoScale, setAutoScale] = useState(true);
+  const [hoverDist, setHoverDist] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const color = technoColor(techno);
   const vbwEff = vbw ?? defaultVbw(band, techno);
