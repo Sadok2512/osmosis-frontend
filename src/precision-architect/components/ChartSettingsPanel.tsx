@@ -244,9 +244,9 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
   };
 
   return (
-    <div className="h-[clamp(10rem,25vh,19rem)] w-full max-w-[1100px] mx-auto bg-white border border-outline-variant/20 rounded-t-2xl shadow-2xl relative z-40 shrink-0">
-      {/* Header — identical to Table-style panel */}
-      <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low">
+    <div className="h-[clamp(22rem,60vh,44rem)] w-full max-w-[1100px] mx-auto bg-white border border-outline-variant/20 rounded-t-2xl shadow-2xl relative z-40 shrink-0 flex flex-col">
+      {/* Header — sticky */}
+      <div className="px-8 py-3 border-b border-outline-variant/10 flex items-center justify-between bg-surface-container-low shrink-0 sticky top-0 z-10 rounded-t-2xl">
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black uppercase tracking-widest text-primary">Widget Settings</span>
           <div className="h-4 w-px bg-outline-variant" />
