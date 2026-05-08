@@ -1048,12 +1048,27 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
               onChange={setFilterType}
             />
 
-            <FilterDropdown
-              label="Visibilité" icon={<Globe className="w-3 h-3" />}
-              value={filterVisibility}
-              options={[{ value: 'all', label: 'Toute visibilité' }, { value: 'public', label: 'Public' }, { value: 'private', label: 'Privé' }, { value: 'shared', label: 'Partagé' }]}
-              onChange={setFilterVisibility}
-            />
+            <div className="inline-flex items-center gap-0.5 p-0.5 rounded-xl bg-muted border border-border">
+              {[
+                { value: 'all', label: 'Tous', icon: <Globe className="w-3 h-3" /> },
+                { value: 'public', label: 'Public', icon: <Globe className="w-3 h-3" /> },
+                { value: 'private', label: 'Privé', icon: <Lock className="w-3 h-3" /> },
+                { value: 'shared', label: 'Partagé', icon: <Users className="w-3 h-3" /> },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFilterVisibility(opt.value)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    filterVisibility === opt.value
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {opt.icon}{opt.label}
+                </button>
+              ))}
+            </div>
+
 
             <FilterDropdown
               label="Tri" icon={<ArrowUpDown className="w-3 h-3" />}
