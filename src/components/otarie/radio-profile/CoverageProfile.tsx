@@ -763,8 +763,25 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           else if (snapDist <= geom.mainDist) { zoneLabel = 'Main Coverage'; zoneColor = '#eab308'; }
           else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
           const clearance = beamAlt - terrainAlt;
+          // Smart positioning: follow cursor, flip to keep inside container & away from tower/callouts.
+          const TT_W = 200;
+          const TT_H = 138;
+          const PAD = 12;
+          const cw = containerRef.current?.clientWidth ?? 800;
+          const ch = containerRef.current?.clientHeight ?? 400;
+          const cx = hoverPx?.x ?? 0;
+          const cy = hoverPx?.y ?? 0;
+          let left = cx + 16;
+          if (left + TT_W + PAD > cw) left = cx - TT_W - 16;
+          left = Math.max(PAD, Math.min(left, cw - TT_W - PAD));
+          let top = cy + 16;
+          if (top + TT_H + PAD > ch) top = cy - TT_H - 16;
+          top = Math.max(PAD, Math.min(top, ch - TT_H - PAD));
           return (
-            <div className="absolute top-[104px] left-[108px] z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
+            <div
+              style={{ left, top, width: TT_W }}
+              className="absolute z-30 px-3 py-2 rounded-lg bg-slate-900/95 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl"
+            >
               <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
