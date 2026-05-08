@@ -250,9 +250,11 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   }, [mechanicalTilt, electricalTilt, antennaHeight, band, techno, vbwEff]);
 
   // ── Chart frame ──
+  // Margins use a consistent 8/12/16 spacing scale and reserve room for the
+  // rotated Altitude axis label on the left and the RSRP legend on the right.
   const VIEW_W = 1100;
   const VIEW_H = 430;
-  const M = { top: 26, right: 30, bottom: 60, left: 70 };
+  const M = { top: 40, right: 48, bottom: 64, left: 96 };
   const IW = VIEW_W - M.left - M.right;
   const IH = VIEW_H - M.top - M.bottom;
 
