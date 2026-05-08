@@ -292,7 +292,7 @@ const ProfileChart: React.FC<Props> = ({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl">
+    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl flex flex-col">
       {/* Status badge */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md"
         style={{
@@ -312,34 +312,7 @@ const ProfileChart: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Site A info card */}
-      <div className="absolute top-12 left-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[150px]">
-        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">{txIsPoint ? 'Point (TX)' : 'Site A (TX)'}</div>
-        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
-          <div>{txIsPoint ? 'Point H' : 'Antenna H'}: <span className="text-emerald-300 font-bold">{(txIsPoint ? 2 : ant.hba).toFixed(0)} m</span></div>
-          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></div>
-          <div>Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></div>
-        </div>
-      </div>
-
-      {/* Site B info card */}
-      <div className="absolute top-12 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/70 backdrop-blur-md border border-emerald-500/30 min-w-[150px] text-right">
-        <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">{rxIsPoint ? 'Point (RX)' : 'Site B (RX)'}</div>
-        <div className="text-[10px] text-slate-300 font-mono leading-relaxed">
-          <div>{rxIsPoint ? 'Point H' : 'Antenna H'}: <span className="text-emerald-300 font-bold">{(rxIsPoint ? 2 : (remoteAntenna?.hba ?? ant.rxHeight ?? 1.5)).toFixed(0)} m</span></div>
-          <div>AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></div>
-          <div>Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></div>
-        </div>
-      </div>
-
-      {/* Link summary (bottom-left) */}
-      <div className="absolute bottom-9 left-3 z-10 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
-        <div><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></div>
-        {fresnel && showFresnel && (
-          <div><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></div>
-        )}
-      </div>
-
+      <div className="flex-1 min-h-0 relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -533,20 +506,40 @@ const ProfileChart: React.FC<Props> = ({
       </svg>
 
       {/* Axis labels */}
-      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left">
+      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
         Height (AMSL m)
-      </div>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-slate-400 text-[10px] font-semibold uppercase tracking-wider">
-        Distance (km)
       </div>
 
       {/* Hover tooltip */}
       {hoverIdx !== null && profilePoints[hoverIdx] && (
-        <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
+        <div className="absolute bottom-16 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
           <div>D: <span className="text-cyan-400 font-bold">{(profilePoints[hoverIdx].distance / 1000).toFixed(2)} km</span></div>
           <div>Alt: <span className="text-emerald-400 font-bold">{Math.round(profilePoints[hoverIdx].elevation)} m</span></div>
         </div>
       )}
+      </div>
+
+      {/* Footer info bar: Site A · Link summary · Site B */}
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+          <span className="text-emerald-400 font-bold uppercase tracking-wider">{txIsPoint ? 'Point (TX)' : 'Site A (TX)'}</span>
+          <span className="text-slate-300">{txIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(txIsPoint ? 2 : ant.hba).toFixed(0)} m</span></span>
+          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></span>
+          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></span>
+        </div>
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
+          <span><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></span>
+          {fresnel && showFresnel && (
+            <span><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+          <span className="text-emerald-400 font-bold uppercase tracking-wider">{rxIsPoint ? 'Point (RX)' : 'Site B (RX)'}</span>
+          <span className="text-slate-300">{rxIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(rxIsPoint ? 2 : (remoteAntenna?.hba ?? ant.rxHeight ?? 1.5)).toFixed(0)} m</span></span>
+          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></span>
+          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></span>
+        </div>
+      </div>
     </div>
   );
 };
