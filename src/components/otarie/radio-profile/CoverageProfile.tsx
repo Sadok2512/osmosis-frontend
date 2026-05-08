@@ -434,7 +434,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           {/* Beam cone — gradient with glow */}
           {showBeam && (
             <path
-              d={`M ${towerX} ${antennaY} L ${nearImpact.x} ${nearImpact.y} L ${farImpact.x} ${farImpact.y} Z`}
+              d={`M ${towerX} ${antennaY} L ${nearImpact.x} ${nearImpact.y} L ${nearImpact.x} ${axisY} L ${farImpact.x} ${axisY} L ${farImpact.x} ${farImpact.y} Z`}
               fill="url(#cp-beam)"
               filter="url(#cp-beam-glow)"
               stroke={`${color}aa`}
