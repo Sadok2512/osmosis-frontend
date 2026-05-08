@@ -12,7 +12,7 @@
  *   farEdgeDist         = antennaHeight / tan(totalTilt - vbw/2)       [m]
  *   nearEdgeDist        = antennaHeight / tan(totalTilt + vbw/2)       [m]
  */
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Antenna } from 'lucide-react';
 import type { ProfilePoint } from '@/utils/geodesicUtils';
 import { SiteTower } from './ProfileChart';
@@ -215,6 +215,8 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const [showTiltLines, setShowTiltLines] = useState(showTiltLinesProp);
   const [showClutter, setShowClutter] = useState(showClutterProp);
   const [autoScale, setAutoScale] = useState(true);
+  const [hoverDist, setHoverDist] = useState<number | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const color = technoColor(techno);
   const vbwEff = vbw ?? defaultVbw(band, techno);
@@ -428,10 +430,20 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       {/* ── Chart ── */}
       <div className="flex-1 min-h-0 relative">
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full"
           style={{ background: 'transparent' }}
+          onMouseMove={(e) => {
+            if (!svgRef.current) return;
+            const rect = svgRef.current.getBoundingClientRect();
+            const px = ((e.clientX - rect.left) / rect.width) * VIEW_W;
+            const d = ((px - M.left) / IW) * xMaxDomain;
+            if (d < 0 || d > xMaxDomain) { setHoverDist(null); return; }
+            setHoverDist(d);
+          }}
+          onMouseLeave={() => setHoverDist(null)}
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
@@ -606,7 +618,54 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               </g>
             ))}
           </g>
+
+          {/* Hover position pointer (crosshair on the link/beam) */}
+          {hoverDist !== null && (() => {
+            const hx = xScale(hoverDist);
+            // Terrain Y at hoverDist (piecewise-linear interp on terrainSeries)
+            let tY = yScale(groundBaseAmsl);
+            if (terrainSeries.length >= 2) {
+              if (hoverDist <= terrainSeries[0].x) tY = yScale(terrainSeries[0].y);
+              else if (hoverDist >= terrainSeries[terrainSeries.length - 1].x) tY = yScale(terrainSeries[terrainSeries.length - 1].y);
+              else {
+                for (let i = 0; i < terrainSeries.length - 1; i++) {
+                  const a = terrainSeries[i], b = terrainSeries[i + 1];
+                  if (hoverDist >= a.x && hoverDist <= b.x) {
+                    const t = (hoverDist - a.x) / Math.max(1e-6, b.x - a.x);
+                    tY = yScale(a.y + (b.y - a.y) * t);
+                    break;
+                  }
+                }
+              }
+            }
+            // Main-beam Y at hoverDist (linear from antenna to mainImpact)
+            const denom = Math.max(1e-6, geom.mainDist);
+            const tBeam = Math.min(1, hoverDist / denom);
+            const beamY = antennaY + (mainImpact.y - antennaY) * tBeam;
+            const rsrp = estimateRsrpDbm(Math.max(1, hoverDist), freqMhz, txPowerDbm);
+            const cls = rsrpClass(rsrp);
+            const inBeam = hoverDist >= geom.nearDist * 0.8 && hoverDist <= geom.farDist * 1.05;
+            return (
+              <g pointerEvents="none">
+                <line x1={hx} y1={M.top} x2={hx} y2={M.top + IH} stroke="rgba(56,189,248,0.55)" strokeWidth={1} strokeDasharray="3 3" />
+                {inBeam && (
+                  <circle cx={hx} cy={beamY} r={5} fill={cls.color} stroke="white" strokeWidth={1.5} />
+                )}
+                <circle cx={hx} cy={tY} r={4} fill="rgb(56,189,248)" stroke="white" strokeWidth={1.5} />
+              </g>
+            );
+          })()}
         </svg>
+        {hoverDist !== null && (() => {
+          const rsrp = estimateRsrpDbm(Math.max(1, hoverDist), freqMhz, txPowerDbm);
+          const cls = rsrpClass(rsrp);
+          return (
+            <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/85 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
+              <div>D: <span className="text-cyan-400 font-bold">{(hoverDist / 1000).toFixed(2)} km</span></div>
+              <div>RSRP: <span className="font-bold" style={{ color: cls.color }}>{rsrp.toFixed(0)} dBm</span></div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Axis labels (Link Profile style) */}
