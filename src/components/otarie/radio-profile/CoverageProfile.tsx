@@ -266,6 +266,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const towerX = xScale(0);
   const groundY = yScale(groundBaseAmsl);
   const antennaY = yScale(antennaAmsl);
+  const axisY = M.top + IH;
 
   const nearImpact = { x: xScale(geom.nearDist), y: yScale(groundBaseAmsl) };
   const mainImpact = { x: xScale(geom.mainDist), y: yScale(groundBaseAmsl) };
