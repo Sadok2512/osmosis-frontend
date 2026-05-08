@@ -643,21 +643,19 @@ const SiteTower: React.FC<SiteTowerProps> = ({
       <rect x={-topHalf - 2} y={antennaY - 2} width={(topHalf + 2) * 2} height={3} fill="rgba(186,230,253,0.9)" />
 
       {/* Parabolic dish antenna pointing toward link */}
-      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY})`}>
+      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY}) rotate(${aimDeg - (align === 'left' ? 0 : 180)})`}>
         {/* dish body */}
         <path
-          d={align === 'left'
-            ? `M 0 -10 Q 14 0 0 10 L 0 -10 Z`
-            : `M 0 -10 Q -14 0 0 10 L 0 -10 Z`}
+          d={`M 0 -10 Q 14 0 0 10 L 0 -10 Z`}
           fill="rgba(45,212,191,0.35)"
           stroke="rgb(94,234,212)"
           strokeWidth={1.4}
         />
         {/* feed horn */}
-        <line x1={0} y1={0} x2={sign * 10} y2={0} stroke="rgb(94,234,212)" strokeWidth={1.2} />
-        <circle cx={sign * 10} cy={0} r={2} fill="rgb(45,212,191)" />
+        <line x1={0} y1={0} x2={10} y2={0} stroke="rgb(94,234,212)" strokeWidth={1.2} />
+        <circle cx={10} cy={0} r={2} fill="rgb(45,212,191)" />
         {/* glow */}
-        <circle cx={sign * 5} cy={0} r={3} fill="rgb(45,212,191)" opacity={0.5} filter="url(#glow)" />
+        <circle cx={5} cy={0} r={3} fill="rgb(45,212,191)" opacity={0.5} filter="url(#glow)" />
       </g>
 
       {/* Vertical measurement (antenna height AGL) */}
