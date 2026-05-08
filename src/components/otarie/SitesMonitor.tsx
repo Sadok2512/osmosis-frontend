@@ -3048,7 +3048,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       {showCreateDash && (
         <Dialog open={true} onOpenChange={(open) => { if (!open) { setShowCreateDash(false); setNewDashName(''); setCreateFilters({}); } }}>
           <DialogContent className="sm:max-w-[1100px] w-[95vw] max-h-[92vh] overflow-visible p-0 gap-0 flex flex-col">
-            <DialogHeader className="px-12 pt-12 pb-6">
+            <DialogHeader className="px-12 pt-12 pb-6 shrink-0">
               <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-3">
                 <Plus size={28} className="text-primary" />
                 Créer un Dashboard
@@ -3058,7 +3058,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
               </DialogDescription>
             </DialogHeader>
 
-            <div className="px-12 pb-12 space-y-8">
+            <div className="px-12 pb-12 space-y-8 flex-1 min-h-0 overflow-y-auto overflow-x-visible">
               {/* Name */}
               <div>
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block mb-3">Nom du dashboard</label>
