@@ -398,36 +398,58 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   );
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl flex flex-col text-white">
+    <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950/80 via-slate-900/60 to-slate-950/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] flex flex-col text-white">
       {/* ── Sub-header strip: toggles ── */}
-      <div className="flex items-center justify-between px-3 py-2 mb-1 mt-1 mx-1 rounded-xl bg-white/[0.03] border border-white/5 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 mr-2">Coverage Profile</span>
+      <div className="flex items-center justify-between px-4 py-2.5 m-2 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-emerald-300/80 mr-2 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20">Coverage Profile</span>
+          <div className="h-4 w-px bg-white/10 mx-1" />
           <Toggle label="Show Beam" value={showBeam} onChange={setShowBeam} />
           <Toggle label="Show Tilt Lines" value={showTiltLines} onChange={setShowTiltLines} />
           <Toggle label="Show Clutter" value={showClutter} onChange={setShowClutter} />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/50 font-medium">Auto Scale</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">Auto Scale</span>
           <button
             onClick={() => setAutoScale(v => !v)}
-            className={`w-9 h-4 rounded-full transition-colors relative ${autoScale ? 'bg-emerald-500/70' : 'bg-white/15'}`}
+            className={`w-9 h-4 rounded-full transition-colors relative ${autoScale ? 'bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/15'}`}
           >
             <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${autoScale ? 'left-[20px]' : 'left-0.5'}`} />
           </button>
           <button
             onClick={() => setAutoScale(true)}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/70 hover:text-white border border-white/10 hover:bg-white/5"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/70 hover:text-white border border-white/10 hover:bg-white/10 transition-colors"
           >
             Reset View
           </button>
         </div>
       </div>
 
-      {/* Site name pill — anchored just below the toggle strip, aligned with the
-          chart's left padding so it never overlaps the tower or axis labels. */}
-      <div className="absolute top-[52px] left-4 z-20 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-700/60 shadow-lg">
-        <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+      {/* Site name pill — anchored just below the toggle strip */}
+      <div className="absolute top-[60px] left-5 z-20 px-3 py-1.5 rounded-lg bg-slate-900/80 backdrop-blur-md border border-emerald-400/30 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
+          <span className="text-[11px] font-bold text-slate-100 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+        </div>
+      </div>
+
+      {/* RSRP legend — moved out of SVG into a glass card pinned top-right of the chart area */}
+      <div className="absolute top-[60px] right-5 z-20 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] pointer-events-none">
+        <div className="text-[9px] uppercase tracking-[0.15em] font-bold text-slate-300 mb-1.5">Signal Level (RSRP)</div>
+        <div className="grid grid-cols-1 gap-1">
+          {[
+            { c: '#22c55e', l: '> -85 dBm', t: 'Excellent' },
+            { c: '#eab308', l: '-85 / -100', t: 'Good' },
+            { c: '#f97316', l: '-100 / -115', t: 'Fair' },
+            { c: '#ef4444', l: '< -115 dBm', t: 'Poor' },
+          ].map(r => (
+            <div key={r.l} className="flex items-center gap-2 text-[9px] font-mono">
+              <span className="w-2.5 h-2.5 rounded-sm shadow-[0_0_4px_currentColor]" style={{ background: r.c, color: r.c }} />
+              <span className="text-slate-200 font-bold w-[68px]">{r.l}</span>
+              <span className="text-slate-400">{r.t}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* (info moved to footer) */}
@@ -462,24 +484,30 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+              <stop offset="0%" stopColor="#cbd5e1" stopOpacity="0.55" />
+              <stop offset="50%" stopColor="#64748b" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.05" />
             </linearGradient>
-            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.2">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.55" />
-              <stop offset="35%" stopColor="#eab308" stopOpacity="0.45" />
-              <stop offset="70%" stopColor="#f97316" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.35" />
+            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.15">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.7" />
+              <stop offset="35%" stopColor="#eab308" stopOpacity="0.55" />
+              <stop offset="70%" stopColor="#f97316" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.4" />
             </linearGradient>
-            <filter id="cp-beam-glow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <linearGradient id="cp-beam-axis" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#34d399" stopOpacity="1" />
+              <stop offset="60%" stopColor="#fbbf24" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#fb7185" stopOpacity="0.9" />
+            </linearGradient>
+            <filter id="cp-beam-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
@@ -577,10 +605,14 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             </>
           )}
 
-          {/* Main beam axis */}
+          {/* Main beam axis — gradient stroke with soft glow */}
           {showBeam && (
-            <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
-              stroke={color} strokeWidth={2.5} />
+            <>
+              <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
+                stroke="url(#cp-beam-axis)" strokeWidth={4} strokeLinecap="round" opacity={0.35} filter="url(#cp-beam-glow)" />
+              <line x1={towerX} y1={antennaY} x2={mainImpact.x} y2={mainImpact.y}
+                stroke="url(#cp-beam-axis)" strokeWidth={2} strokeLinecap="round" />
+            </>
           )}
 
           {/* Tower (reused from Link Profile) */}
@@ -597,45 +629,28 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout — locked on terrain.
-              Vertically positioned in the upper band so it never overlaps the
-              Coverage End callout (which sits just below it). */}
-          <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
-            stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${clamp(beamHits.mainHitX - 65, M.left + 8, M.left + IW - 138)}, ${M.top + 8})`}>
-            <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
-            <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
-            <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
+          {/* Main beam impact marker + leader line to top callout */}
+          <line x1={beamHits.mainHitX} y1={beamHits.mainHitY - 6} x2={beamHits.mainHitX} y2={M.top + 50}
+            stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} opacity={0.55} />
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={10} fill="#22c55e" opacity={0.22} filter="url(#glow)" />
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={5} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
+          <g transform={`translate(${clamp(beamHits.mainHitX - 70, M.left + 8, M.left + IW - 300)}, ${M.top + 8})`}>
+            <rect width="140" height="40" rx="8" fill="rgba(11,23,40,0.92)" stroke="rgba(34,197,94,0.5)" strokeWidth={1} />
+            <rect x="0" y="0" width="3" height="40" rx="1.5" fill="#22c55e" />
+            <text x="12" y="16" fontSize="9" fontWeight="700" letterSpacing="1.5" fill="#86efac">MAIN BEAM IMPACT</text>
+            <text x="12" y="32" fontSize="13" fontWeight="800" fill="#fff" fontFamily="monospace">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout — locked on terrain, stacked under Main Beam
-              callout with a 12px gap for consistent spacing hierarchy. */}
-          <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
-            stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${clamp(beamHits.farHitX - 55, M.left + 8, M.left + IW - 118)}, ${M.top + 58})`}>
-            <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
-            <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
-            <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
-          </g>
-
-          {/* RSRP legend top-right — aligned with the plot's right edge using
-              the same right margin gutter as the grid. */}
-          <g transform={`translate(${M.left + IW - 150}, ${M.top + 8})`}>
-            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.9)" stroke="rgba(255,255,255,0.1)" />
-            <text x="10" y="16" fontSize="10" fontWeight="700" fill="#cbd5e1">Signal Level (RSRP)</text>
-            {[
-              { c: '#22c55e', l: '> -85 dBm' },
-              { c: '#eab308', l: '-85 to -100 dBm' },
-              { c: '#f97316', l: '-100 to -115 dBm' },
-              { c: '#ef4444', l: '< -115 dBm' },
-            ].map((r, i) => (
-              <g key={r.l} transform={`translate(10, ${28 + i * 12})`}>
-                <rect width="10" height="8" fill={r.c} rx="2" />
-                <text x="16" y="7" fontSize="9" fill="#94a3b8">{r.l}</text>
-              </g>
-            ))}
+          {/* Coverage end marker + leader line */}
+          <line x1={beamHits.farHitX} y1={beamHits.farHitY - 6} x2={beamHits.farHitX} y2={M.top + 102}
+            stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} opacity={0.55} />
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={10} fill="#ef4444" opacity={0.22} filter="url(#glow)" />
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={5} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
+          <g transform={`translate(${clamp(beamHits.farHitX - 70, M.left + 8, M.left + IW - 300)}, ${M.top + 60})`}>
+            <rect width="140" height="40" rx="8" fill="rgba(11,23,40,0.92)" stroke="rgba(239,68,68,0.5)" strokeWidth={1} />
+            <rect x="0" y="0" width="3" height="40" rx="1.5" fill="#ef4444" />
+            <text x="12" y="16" fontSize="9" fontWeight="700" letterSpacing="1.5" fill="#fca5a5">COVERAGE END</text>
+            <text x="12" y="32" fontSize="13" fontWeight="800" fill="#fff" fontFamily="monospace">{(geom.farDist / 1000).toFixed(2)} km</text>
           </g>
 
           {/* Rotated Altitude axis label — drawn inside the SVG left margin so
@@ -795,22 +810,26 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         })()}
       </div>
 
-      {/* Footer info bar: Site (TX) · Coverage summary — consistent gap-3
-          spacing, balanced padding, identical chip heights. */}
-      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''} (TX)</span>
-          <span className="text-slate-300">Ant: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></span>
-          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></span>
-          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(groundBaseAmsl)} m</span></span>
-          <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{geom.totalTilt.toFixed(1)}°</span></span>
-          <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{bandLabel}</span></span>
+      {/* Footer KPI bar — segmented stat cards with clean hierarchy */}
+      <div className="shrink-0 grid grid-cols-12 gap-2 p-2 bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-t border-white/10">
+        {/* Site / TX details — spans 6 cols */}
+        <div className="col-span-6 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/[0.06] border border-emerald-400/20 backdrop-blur-md">
+          <div className="flex items-center gap-1.5 pr-2 border-r border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
+          </div>
+          <span className="text-[10px] font-bold text-slate-100 truncate max-w-[180px]" title={`${siteName}${sectorName ? ` · ${sectorName}` : ''}`}>{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+          <div className="flex items-center gap-3 ml-auto text-[10px] font-mono">
+            <FooterStat label="Ant" value={`${antennaHeight.toFixed(0)}m`} />
+            <FooterStat label="AMSL" value={`${Math.round(antennaAmsl)}m`} />
+            <FooterStat label="Tilt" value={`${geom.totalTilt.toFixed(1)}°`} />
+            <FooterStat label="Band" value={bandLabel} />
+          </div>
         </div>
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-600/40">
-          <span><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></span>
-          <span><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></span>
-          <span><span className="text-amber-400 font-bold">Area:</span> <span className="text-slate-100">{coverageAreaKm2.toFixed(2)} km²</span></span>
-        </div>
+        {/* Coverage KPI cards — each 2 cols */}
+        <KpiCard accent="cyan" label="Coverage" value={(geom.farDist / 1000).toFixed(2)} unit="km" />
+        <KpiCard accent="emerald" label="Main Beam" value={(geom.mainDist / 1000).toFixed(2)} unit="km" />
+        <KpiCard accent="amber" label="Area" value={coverageAreaKm2.toFixed(2)} unit="km²" />
       </div>
     </div>
   );
@@ -830,6 +849,31 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
     {label}
   </button>
 );
+
+const FooterStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <span className="flex items-baseline gap-1">
+    <span className="text-slate-400 text-[9px] uppercase tracking-wider">{label}</span>
+    <span className="text-emerald-200 font-bold">{value}</span>
+  </span>
+);
+
+const KPI_ACCENT: Record<string, { ring: string; text: string; glow: string; bg: string }> = {
+  cyan:    { ring: 'border-cyan-400/30',    text: 'text-cyan-300',    glow: 'shadow-[0_0_12px_rgba(34,211,238,0.15)]',  bg: 'bg-cyan-500/[0.06]' },
+  emerald: { ring: 'border-emerald-400/30', text: 'text-emerald-300', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.15)]',  bg: 'bg-emerald-500/[0.06]' },
+  amber:   { ring: 'border-amber-400/30',   text: 'text-amber-300',   glow: 'shadow-[0_0_12px_rgba(251,191,36,0.15)]',  bg: 'bg-amber-500/[0.06]' },
+};
+const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
+  const a = KPI_ACCENT[accent];
+  return (
+    <div className={`col-span-2 flex flex-col justify-center px-3 py-1.5 rounded-xl border backdrop-blur-md ${a.ring} ${a.bg} ${a.glow}`}>
+      <span className={`text-[9px] uppercase tracking-[0.15em] font-bold ${a.text}`}>{label}</span>
+      <div className="flex items-baseline gap-1 mt-0.5">
+        <span className="text-[15px] font-extrabold text-white font-mono leading-none">{value}</span>
+        <span className="text-[10px] text-slate-400 font-medium">{unit}</span>
+      </div>
+    </div>
+  );
+};
 
 const Row: React.FC<{ k: string; v: string; mono?: boolean; accent?: boolean; good?: boolean }> = ({ k, v, mono, accent, good }) => (
   <div className="flex items-baseline justify-between gap-2 truncate">
