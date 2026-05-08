@@ -5144,13 +5144,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
-  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+  // Pending link being configured: both endpoints chosen, but the user must
+  // pick a band per site-endpoint before the link is committed. The closest
+  // sector is auto-derived from the target bearing.
+  const [pendingLink, setPendingLink] = useState<{
+    from: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] };
+    to: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] };
+    fromBand: string | null;
+    toBand: string | null;
+    /** manual sector overrides (cell_id), null = use auto-pick */
+    fromCellOverride: string | null;
+    toCellOverride: string | null;
+  } | null>(null);
+
+  const commitTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource, extra?: { fromSector?: TaggedLinkSector | null; toSector?: TaggedLinkSector | null }) => {
     if (!from || !to) return;
     if (from.id === to.id) return;
-    const link = createTaggedLink(from, to);
+    const link = createTaggedLink(from, to, extra);
     setTaggedLinks(prev => {
       const next = [...prev, link];
-      // Persist only when a dashboard is active; otherwise keep in-memory only.
       if (activeDashboardIdRef.current) {
         persistTaggedLinks(next, activeDashboardIdRef.current);
       }
@@ -5158,7 +5170,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
     setLinkCreationMode(false);
     setLinkSource(null);
+    setPendingLink(null);
   }, []);
+
+  // Backwards-compat alias used elsewhere; opens the band/sector configurator
+  // when at least one endpoint is a site, otherwise commits straight away.
+  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+    if (!from || !to || from.id === to.id) return;
+    if (from.type === 'point' && to.type === 'point') {
+      commitTaggedLink(from, to);
+      return;
+    }
+    setPendingLink({
+      from, to,
+      fromBand: null, toBand: null,
+      fromCellOverride: null, toCellOverride: null,
+    });
+  }, [commitTaggedLink]);
 
   const deleteTaggedLink = useCallback((linkId: string) => {
     setTaggedLinks(prev => {
@@ -5179,6 +5207,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
   }, [linkSource, addTaggedLink]);
+
 
   // ── Terrain Profile for Links ──
   const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, error: linkProfileError, computeProfile: linkComputeProfile } = useTerrainProfile();
