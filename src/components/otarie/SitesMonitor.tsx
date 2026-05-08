@@ -2358,7 +2358,8 @@ const CreateFilterDropdown: React.FC<{
               })
             )}
           </div>
-        </div>
+        </div>,
+        (btnRef.current?.closest('[role="dialog"]') as HTMLElement) || document.body
       )}
     </div>
   );
