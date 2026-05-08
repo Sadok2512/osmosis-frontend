@@ -422,8 +422,9 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         </div>
       </div>
 
-      {/* Site name pill (top-left, like Link Profile) */}
-      <div className="absolute top-12 left-3 z-20 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
+      {/* Site name pill — anchored just below the toggle strip, aligned with the
+          chart's left padding so it never overlaps the tower or axis labels. */}
+      <div className="absolute top-[52px] left-4 z-20 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-700/60 shadow-lg">
         <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
       </div>
 
