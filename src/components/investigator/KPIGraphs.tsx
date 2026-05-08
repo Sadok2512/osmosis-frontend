@@ -1089,6 +1089,7 @@ interface Props {
   onSlotClick?: (slotId: string) => void;
   isFullscreen?: boolean;
   onActivateTab?: (tab: 'table_data' | 'breakdown' | 'top_worst' | 'alarms' | 'neighbors' | 'cm_history' | null) => void;
+  isApplying?: boolean;
 }
 
 /** Export an ECharts instance to PNG and trigger download */
