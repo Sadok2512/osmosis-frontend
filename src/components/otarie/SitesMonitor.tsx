@@ -2298,7 +2298,7 @@ const CreateFilterDropdown: React.FC<{
         </div>
       </button>
 
-      {open && pos && (
+      {open && pos && createPortal(
         <div
           ref={ref}
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width }}
