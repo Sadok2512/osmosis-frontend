@@ -591,21 +591,21 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout */}
-          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={mainImpact.y}
+          {/* Main beam impact callout — locked on terrain */}
+          <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={mainImpact.x} cy={mainImpact.y} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
-          <g transform={`translate(${Math.min(mainImpact.x - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
+          <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
+          <g transform={`translate(${Math.min(beamHits.mainHitX - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
             <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout */}
-          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={farImpact.y}
+          {/* Coverage end callout — locked on terrain */}
+          <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
-          <circle cx={farImpact.x} cy={farImpact.y} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
-          <g transform={`translate(${Math.min(farImpact.x - 50, M.left + IW - 110)}, ${Math.max(antennaY + 4, M.top + 50)})`}>
+          <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
+          <g transform={`translate(${Math.min(beamHits.farHitX - 50, M.left + IW - 110)}, ${Math.max(beamHits.farHitY - 48, M.top + 50)})`}>
             <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
