@@ -398,36 +398,58 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   );
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl flex flex-col text-white">
+    <div className="relative w-full h-full overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950/80 via-slate-900/60 to-slate-950/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] flex flex-col text-white">
       {/* ── Sub-header strip: toggles ── */}
-      <div className="flex items-center justify-between px-3 py-2 mb-1 mt-1 mx-1 rounded-xl bg-white/[0.03] border border-white/5 shrink-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-[10px] uppercase tracking-widest font-bold text-white/40 mr-2">Coverage Profile</span>
+      <div className="flex items-center justify-between px-4 py-2.5 m-2 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-emerald-300/80 mr-2 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20">Coverage Profile</span>
+          <div className="h-4 w-px bg-white/10 mx-1" />
           <Toggle label="Show Beam" value={showBeam} onChange={setShowBeam} />
           <Toggle label="Show Tilt Lines" value={showTiltLines} onChange={setShowTiltLines} />
           <Toggle label="Show Clutter" value={showClutter} onChange={setShowClutter} />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-white/50 font-medium">Auto Scale</span>
+        <div className="flex items-center gap-2.5">
+          <span className="text-[10px] text-white/50 font-semibold uppercase tracking-wider">Auto Scale</span>
           <button
             onClick={() => setAutoScale(v => !v)}
-            className={`w-9 h-4 rounded-full transition-colors relative ${autoScale ? 'bg-emerald-500/70' : 'bg-white/15'}`}
+            className={`w-9 h-4 rounded-full transition-colors relative ${autoScale ? 'bg-emerald-500/80 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/15'}`}
           >
             <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${autoScale ? 'left-[20px]' : 'left-0.5'}`} />
           </button>
           <button
             onClick={() => setAutoScale(true)}
-            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/70 hover:text-white border border-white/10 hover:bg-white/5"
+            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/70 hover:text-white border border-white/10 hover:bg-white/10 transition-colors"
           >
             Reset View
           </button>
         </div>
       </div>
 
-      {/* Site name pill — anchored just below the toggle strip, aligned with the
-          chart's left padding so it never overlaps the tower or axis labels. */}
-      <div className="absolute top-[52px] left-4 z-20 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-700/60 shadow-lg">
-        <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+      {/* Site name pill — anchored just below the toggle strip */}
+      <div className="absolute top-[60px] left-5 z-20 px-3 py-1.5 rounded-lg bg-slate-900/80 backdrop-blur-md border border-emerald-400/30 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
+          <span className="text-[11px] font-bold text-slate-100 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+        </div>
+      </div>
+
+      {/* RSRP legend — moved out of SVG into a glass card pinned top-right of the chart area */}
+      <div className="absolute top-[60px] right-5 z-20 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] pointer-events-none">
+        <div className="text-[9px] uppercase tracking-[0.15em] font-bold text-slate-300 mb-1.5">Signal Level (RSRP)</div>
+        <div className="grid grid-cols-1 gap-1">
+          {[
+            { c: '#22c55e', l: '> -85 dBm', t: 'Excellent' },
+            { c: '#eab308', l: '-85 / -100', t: 'Good' },
+            { c: '#f97316', l: '-100 / -115', t: 'Fair' },
+            { c: '#ef4444', l: '< -115 dBm', t: 'Poor' },
+          ].map(r => (
+            <div key={r.l} className="flex items-center gap-2 text-[9px] font-mono">
+              <span className="w-2.5 h-2.5 rounded-sm shadow-[0_0_4px_currentColor]" style={{ background: r.c, color: r.c }} />
+              <span className="text-slate-200 font-bold w-[68px]">{r.l}</span>
+              <span className="text-slate-400">{r.t}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* (info moved to footer) */}
