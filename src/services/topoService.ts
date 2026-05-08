@@ -291,7 +291,7 @@ export function inferBandFromCellName(cellName: string, techno: string): string 
   return 'L1800'; // default 4G
 }
 
-function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number, extra?: Partial<TopoRow>): CellProperties {
+function buildCellProperties(cellName: string, techno: string, bande: string, azimut: number, hba: number | null, extra?: Partial<TopoRow>): CellProperties {
   const base: CellProperties = {
     cell_id: cellName,
     techno,
@@ -431,7 +431,7 @@ export function buildSitesFromRows(rows: TopoRow[]): SiteSummary[] {
         normalizeTechnoRaw(r.techno || r.rat),
         r.bande || r.band || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
-        r.hba || 30,
+        (Number.isFinite(Number(r.hba)) && Number(r.hba) > 0 ? Number(r.hba) : null),
         r,
       );
     });
@@ -1313,7 +1313,10 @@ function mapSiteDetailPayloadToCells(payload: any): CellProperties[] {
       techno,
       bande,
       azimut,
-      Number(row?.hba ?? row?.height ?? 30) || 30,
+      // Keep hba null when the source row has no height — defaulting to 30
+      // here masked missing DEM/topology data and made every site look like
+      // it had a 30 m antenna in the Site Information panel.
+      (() => { const v = Number(row?.hba ?? row?.height); return Number.isFinite(v) && v > 0 ? v : null; })(),
       {
         ...row,
         cell_name: cellName,
@@ -1421,7 +1424,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, 
             techno,
             r.band || r.bande || inferBandFromCellName(cellName, techno),
             azimut,
-            r.hba || 30,
+            (Number.isFinite(Number(r.hba)) && Number(r.hba) > 0 ? Number(r.hba) : null),
             r,
           );
         });
@@ -1484,7 +1487,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, 
               : techUpper.includes('2G') || techUpper === 'GSM' ? '2G'
               : techUpper.includes('4G') || techUpper === 'LTE' ? '4G'
               : '4G';
-            return buildCellProperties(cellName, techno, r.band || r.bande || inferBandFromCellName(cellName, techno), azimut, r.hba || 30, r);
+            return buildCellProperties(cellName, techno, r.band || r.bande || inferBandFromCellName(cellName, techno), azimut, (Number.isFinite(Number(r.hba)) && Number(r.hba) > 0 ? Number(r.hba) : null), r);
           });
           if (cells.length > 0) {
             siteCellsCache.set(cacheKey, { cells, ts: Date.now() });
@@ -1560,7 +1563,7 @@ export async function fetchSiteCells(siteId: string, fallbackSiteName?: string, 
         normalizeTechnoRaw(r.techno || r.rat),
         r.bande || inferBandFromCellName(cellName, r.techno || '4G'),
         azimut,
-        r.hba || 30,
+        (Number.isFinite(Number(r.hba)) && Number(r.hba) > 0 ? Number(r.hba) : null),
         r,
       );
     });

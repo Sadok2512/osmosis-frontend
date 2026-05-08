@@ -14909,7 +14909,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     {[
                       { icon: <MapPin size={11} className="text-muted-foreground" />, label: 'Coordinates', value: `${siteDetail.coordinates[0].toFixed(5)}, ${siteDetail.coordinates[1].toFixed(5)}` },
                       { icon: <Layers size={11} className="text-muted-foreground" />, label: 'Cluster', value: (siteDetail as any).cluster || siteDetail.plaque || '—' },
-                      { icon: <Signal size={11} className="text-muted-foreground" />, label: 'Altitude (HBA)', value: filteredCells[0]?.hba != null ? `${filteredCells[0].hba} m AGL` : '—' },
+                      { icon: <Signal size={11} className="text-muted-foreground" />, label: 'Altitude (HBA)', value: (() => {
+                        // Aggregate hba across all cells of this site rather than
+                        // showing the first cell's value. Many sites have NULL
+                        // height in ref_cell_daily, and previously we silently
+                        // defaulted that to 30 m — making every site read "30 m
+                        // AGL" regardless of reality. Now: show — when no cell
+                        // has a value, the unique value when all cells agree, or
+                        // a min–max range when they differ.
+                        const hbas = filteredCells
+                          .map(c => c.hba)
+                          .filter((h): h is number => typeof h === 'number' && Number.isFinite(h) && h > 0);
+                        if (hbas.length === 0) return '—';
+                        const lo = Math.min(...hbas);
+                        const hi = Math.max(...hbas);
+                        return lo === hi ? `${lo} m AGL` : `${lo}–${hi} m AGL`;
+                      })() },
                       { icon: <Globe size={11} className="text-muted-foreground" />, label: 'Zone ARCEP', value: (() => {
                         const zones = [...new Set(filteredCells.map(c => (c as any).zone_arcep).filter(Boolean))];
                         return zones.length > 0 ? zones.join(', ') : (siteDetail as any).zone_arcep || '—';
