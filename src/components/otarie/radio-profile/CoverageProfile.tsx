@@ -607,48 +607,111 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
 
           {/* Hover position pointer (crosshair on the link/beam) */}
           {hoverDist !== null && (() => {
-            const hx = xScale(hoverDist);
-            // Terrain Y at hoverDist (piecewise-linear interp on terrainSeries)
-            let tY = yScale(groundBaseAmsl);
+            // Snap hoverDist to nearest terrain sample for stability
+            let snapDist = hoverDist;
+            let terrainAlt = groundBaseAmsl;
             if (terrainSeries.length >= 2) {
-              if (hoverDist <= terrainSeries[0].x) tY = yScale(terrainSeries[0].y);
-              else if (hoverDist >= terrainSeries[terrainSeries.length - 1].x) tY = yScale(terrainSeries[terrainSeries.length - 1].y);
-              else {
+              let best = 0;
+              let bestD = Infinity;
+              for (let i = 0; i < terrainSeries.length; i++) {
+                const dx = Math.abs(terrainSeries[i].x - hoverDist);
+                if (dx < bestD) { bestD = dx; best = i; }
+              }
+              // For finer tracking, interpolate around the closest segment
+              if (hoverDist <= terrainSeries[0].x) {
+                terrainAlt = terrainSeries[0].y;
+                snapDist = terrainSeries[0].x;
+              } else if (hoverDist >= terrainSeries[terrainSeries.length - 1].x) {
+                terrainAlt = terrainSeries[terrainSeries.length - 1].y;
+                snapDist = terrainSeries[terrainSeries.length - 1].x;
+              } else {
                 for (let i = 0; i < terrainSeries.length - 1; i++) {
                   const a = terrainSeries[i], b = terrainSeries[i + 1];
                   if (hoverDist >= a.x && hoverDist <= b.x) {
                     const t = (hoverDist - a.x) / Math.max(1e-6, b.x - a.x);
-                    tY = yScale(a.y + (b.y - a.y) * t);
+                    terrainAlt = a.y + (b.y - a.y) * t;
+                    snapDist = hoverDist;
                     break;
                   }
                 }
               }
             }
-            // Main-beam Y at hoverDist (linear from antenna to mainImpact)
+            const hx = xScale(snapDist);
+            const tY = yScale(terrainAlt);
+            // Main-beam altitude at hoverDist (linear ray from antenna to mainImpact in real altitude)
             const denom = Math.max(1e-6, geom.mainDist);
-            const tBeam = Math.min(1, hoverDist / denom);
-            const beamY = antennaY + (mainImpact.y - antennaY) * tBeam;
-            const rsrp = estimateRsrpDbm(Math.max(1, hoverDist), freqMhz, txPowerDbm);
+            const tBeam = snapDist / denom;
+            const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * Math.min(1, Math.max(0, tBeam));
+            const beamY = yScale(beamAlt);
+            const rsrp = estimateRsrpDbm(Math.max(1, snapDist), freqMhz, txPowerDbm);
             const cls = rsrpClass(rsrp);
-            const inBeam = hoverDist >= geom.nearDist * 0.8 && hoverDist <= geom.farDist * 1.05;
+            const inBeam = snapDist >= geom.nearDist * 0.8 && snapDist <= geom.farDist * 1.05;
+            const obstructed = terrainAlt > beamAlt && snapDist < geom.farDist;
+            // Coverage zone classification
+            let zoneLabel = 'Out of Range';
+            let zoneColor = '#94a3b8';
+            if (snapDist <= geom.nearDist) { zoneLabel = 'Near Field'; zoneColor = '#22c55e'; }
+            else if (snapDist <= geom.mainDist) { zoneLabel = 'Main Coverage'; zoneColor = '#eab308'; }
+            else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
             return (
               <g pointerEvents="none">
                 <line x1={hx} y1={M.top} x2={hx} y2={M.top + IH} stroke="rgba(56,189,248,0.55)" strokeWidth={1} strokeDasharray="3 3" />
+                {/* Beam-terrain link line */}
                 {inBeam && (
-                  <circle cx={hx} cy={beamY} r={5} fill={cls.color} stroke="white" strokeWidth={1.5} />
+                  <line x1={hx} y1={beamY} x2={hx} y2={tY} stroke={obstructed ? '#ef4444' : 'rgba(56,189,248,0.4)'} strokeWidth={1} strokeDasharray="2 3" />
                 )}
+                {inBeam && (
+                  <>
+                    <circle cx={hx} cy={beamY} r={8} fill={cls.color} opacity={0.25} filter="url(#glow)" />
+                    <circle cx={hx} cy={beamY} r={5} fill={cls.color} stroke="white" strokeWidth={1.5} />
+                  </>
+                )}
+                <circle cx={hx} cy={tY} r={7} fill="rgb(56,189,248)" opacity={0.3} filter="url(#glow)" />
                 <circle cx={hx} cy={tY} r={4} fill="rgb(56,189,248)" stroke="white" strokeWidth={1.5} />
               </g>
             );
           })()}
         </svg>
         {hoverDist !== null && (() => {
-          const rsrp = estimateRsrpDbm(Math.max(1, hoverDist), freqMhz, txPowerDbm);
+          // Recompute for tooltip (mirrors logic above)
+          let snapDist = hoverDist;
+          let terrainAlt = groundBaseAmsl;
+          if (terrainSeries.length >= 2) {
+            if (hoverDist <= terrainSeries[0].x) terrainAlt = terrainSeries[0].y;
+            else if (hoverDist >= terrainSeries[terrainSeries.length - 1].x) terrainAlt = terrainSeries[terrainSeries.length - 1].y;
+            else {
+              for (let i = 0; i < terrainSeries.length - 1; i++) {
+                const a = terrainSeries[i], b = terrainSeries[i + 1];
+                if (hoverDist >= a.x && hoverDist <= b.x) {
+                  const t = (hoverDist - a.x) / Math.max(1e-6, b.x - a.x);
+                  terrainAlt = a.y + (b.y - a.y) * t;
+                  break;
+                }
+              }
+            }
+          }
+          const denom = Math.max(1e-6, geom.mainDist);
+          const tBeam = snapDist / denom;
+          const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * Math.min(1, Math.max(0, tBeam));
+          const rsrp = estimateRsrpDbm(Math.max(1, snapDist), freqMhz, txPowerDbm);
           const cls = rsrpClass(rsrp);
+          const obstructed = terrainAlt > beamAlt && snapDist < geom.farDist;
+          let zoneLabel = 'Out of Range';
+          let zoneColor = '#94a3b8';
+          if (snapDist <= geom.nearDist) { zoneLabel = 'Near Field'; zoneColor = '#22c55e'; }
+          else if (snapDist <= geom.mainDist) { zoneLabel = 'Main Coverage'; zoneColor = '#eab308'; }
+          else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
+          const clearance = beamAlt - terrainAlt;
           return (
-            <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/85 backdrop-blur-md border border-slate-700/50 text-[10px] font-mono text-slate-200 pointer-events-none">
-              <div>D: <span className="text-cyan-400 font-bold">{(hoverDist / 1000).toFixed(2)} km</span></div>
-              <div>RSRP: <span className="font-bold" style={{ color: cls.color }}>{rsrp.toFixed(0)} dBm</span></div>
+            <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-slate-700/60 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[180px]">
+              <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Beam Alt</span><span className="text-emerald-300 font-bold">{beamAlt.toFixed(0)} m</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Clearance</span><span className={`font-bold ${clearance < 0 ? 'text-red-400' : 'text-emerald-300'}`}>{clearance >= 0 ? '+' : ''}{clearance.toFixed(0)} m</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">RSRP</span><span className="font-bold" style={{ color: cls.color }}>{rsrp.toFixed(0)} dBm</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">Zone</span><span className="font-bold" style={{ color: zoneColor }}>{zoneLabel}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-400">LOS</span><span className={`font-bold ${obstructed ? 'text-red-400' : 'text-emerald-300'}`}>{obstructed ? 'Obstructed' : 'Clear'}</span></div>
             </div>
           );
         })()}
