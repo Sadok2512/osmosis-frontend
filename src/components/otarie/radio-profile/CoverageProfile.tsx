@@ -430,10 +430,20 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       {/* ── Chart ── */}
       <div className="flex-1 min-h-0 relative">
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
           preserveAspectRatio="xMidYMid meet"
           className="w-full h-full"
           style={{ background: 'transparent' }}
+          onMouseMove={(e) => {
+            if (!svgRef.current) return;
+            const rect = svgRef.current.getBoundingClientRect();
+            const px = ((e.clientX - rect.left) / rect.width) * VIEW_W;
+            const d = ((px - M.left) / IW) * xMaxDomain;
+            if (d < 0 || d > xMaxDomain) { setHoverDist(null); return; }
+            setHoverDist(d);
+          }}
+          onMouseLeave={() => setHoverDist(null)}
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
