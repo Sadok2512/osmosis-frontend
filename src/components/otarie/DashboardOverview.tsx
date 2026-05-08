@@ -35,6 +35,7 @@ interface EnhancedDashboard extends SavedDashboard {
   visibility: Visibility;
   ownerUsername: string;
   sharedWith: string[];
+  viewCount: number;
 }
 
 async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
