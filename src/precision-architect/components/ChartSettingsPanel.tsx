@@ -329,8 +329,8 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
           })}
         </aside>
 
-        <div className="flex-1 min-w-0 p-6 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <div className="w-full min-w-0">
+        <div className="flex-1 min-w-0 p-6 pb-10 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <div className="w-full min-w-0 space-y-5">
             {tab === 'data' && (
               <DataSourceTab
                 config={config}
