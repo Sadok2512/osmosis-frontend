@@ -963,6 +963,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
           data={tsData}
           investigatorState={state}
           applyVersion={applyVersion}
+          isApplying={isApplying}
           layout={state.graphLayout}
           onChangeSlotKpi={(slotId, kpiId) => setState(prev => ({
             ...prev,
