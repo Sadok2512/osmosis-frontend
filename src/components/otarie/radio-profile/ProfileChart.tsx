@@ -479,6 +479,8 @@ const ProfileChart: React.FC<Props> = ({
             </motion.g>
           )}
 
+          {/* Aim angles in screen-space (deg) so each dish points toward the other endpoint */}
+          {(() => null)()}
           {/* TX site (left) */}
           <SiteTower
             x={xScale(0)}
@@ -490,6 +492,7 @@ const ProfileChart: React.FC<Props> = ({
             heightAGL={ant.hba}
             altitudeAMSL={Math.round(derived.antennaAMSL)}
             isPoint={txIsPoint}
+            aimDeg={Math.atan2(losY2 - losY1, losX2 - losX1) * 180 / Math.PI}
           />
 
           {/* RX site (right) */}
@@ -503,6 +506,7 @@ const ProfileChart: React.FC<Props> = ({
             heightAGL={remoteAntenna?.hba ?? ant.rxHeight ?? 1.5}
             altitudeAMSL={Math.round(derived.remoteAMSL ?? derived.rxAMSL)}
             isPoint={rxIsPoint}
+            aimDeg={Math.atan2(losY1 - losY2, losX1 - losX2) * 180 / Math.PI}
           />
 
           {/* Hover crosshair */}
