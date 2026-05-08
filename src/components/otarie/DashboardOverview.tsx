@@ -265,10 +265,10 @@ const KebabMenu: React.FC<{
           <TooltipTrigger asChild>
             <button
               onClick={(e) => { e.stopPropagation(); setOpen(!open); }}
-              className="relative z-10 p-1.5 rounded-lg bg-background/70 border border-border/60 shadow-sm hover:bg-muted text-foreground/80 hover:text-foreground transition-colors"
+              className="relative z-20 p-1.5 rounded-lg bg-card border border-border shadow-sm hover:bg-muted text-foreground transition-colors"
               aria-label="Plus d'actions"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreHorizontal className="w-4 h-4" strokeWidth={2.5} />
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom"><p className="text-xs">Plus d'actions</p></TooltipContent>
