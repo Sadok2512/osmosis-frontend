@@ -60,6 +60,7 @@ export interface CoverageProfileProps {
    * antenna covers the ground around its own site only.
    */
   siteB?: CoverageSiteParams & { siteAltitudeAmsl?: number };
+  onHoverPoint?: (data: ProfileHoverData | null) => void;
 }
 
 const SAFE_MIN_DEG = 0.5;
