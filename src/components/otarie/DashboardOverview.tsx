@@ -52,7 +52,7 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
       if (ids.length > 0) {
         const { data: meta } = await supabase
           .from('dashboards')
-          .select('id, visibility, owner_username, shared_with, dashboard_type')
+          .select('id, visibility, owner_username, shared_with, dashboard_type, view_count')
           .in('id', ids);
         if (Array.isArray(meta)) meta.forEach((m: any) => metaById.set(m.id, m));
       }
@@ -71,6 +71,7 @@ async function loadAllDashboardsFromDB(): Promise<EnhancedDashboard[]> {
         visibility: (meta.visibility || row.visibility) as Visibility || 'public',
         ownerUsername: meta.owner_username || row.owner_username || getStoredSession()?.username || 'Inconnu',
         sharedWith: meta.shared_with || row.shared_with || [],
+        viewCount: Number(meta.view_count ?? row.view_count ?? 0) || 0,
       };
     });
   } catch { return []; }
