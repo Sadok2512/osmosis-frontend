@@ -161,7 +161,7 @@ import { getSectorNumber, getEquipmentPrefix } from '../../utils/sectorUtils';
 import { normalizeCoordinates, fmtCoord } from '../../utils/coordinateHelpers';
 import { getBandSizeScale, getBandRenderOrder, getCellCountScale, computeSmartAutoDensity, beamScaleToDensityFactor, getTaggedRadius, type SiteDensityInfo } from './map/sectorSizing';
 import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue, getColorForValue } from './map/colorByDimension';
-import { TaggedLink, loadTaggedLinks, persistTaggedLinks, createTaggedLink } from './map/taggedLinks';
+import { TaggedLink, TaggedLinkSector, loadTaggedLinks, persistTaggedLinks, createTaggedLink, pickClosestSector, listSiteBands } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
@@ -5144,13 +5144,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [linkSource, setLinkSource] = useState<{ id: string; type: 'site' | 'point'; label: string; coords: [number, number] } | null>(null);
   const [selectedLinkId, setSelectedLinkId] = useState<string | null>(null);
 
-  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+  // Pending link being configured: both endpoints chosen, but the user must
+  // pick a band per site-endpoint before the link is committed. The closest
+  // sector is auto-derived from the target bearing.
+  const [pendingLink, setPendingLink] = useState<{
+    from: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] };
+    to: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] };
+    fromBand: string | null;
+    toBand: string | null;
+    /** manual sector overrides (cell_id), null = use auto-pick */
+    fromCellOverride: string | null;
+    toCellOverride: string | null;
+  } | null>(null);
+
+  const commitTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource, extra?: { fromSector?: TaggedLinkSector | null; toSector?: TaggedLinkSector | null }) => {
     if (!from || !to) return;
     if (from.id === to.id) return;
-    const link = createTaggedLink(from, to);
+    const link = createTaggedLink(from, to, extra);
     setTaggedLinks(prev => {
       const next = [...prev, link];
-      // Persist only when a dashboard is active; otherwise keep in-memory only.
       if (activeDashboardIdRef.current) {
         persistTaggedLinks(next, activeDashboardIdRef.current);
       }
@@ -5158,7 +5170,23 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     });
     setLinkCreationMode(false);
     setLinkSource(null);
+    setPendingLink(null);
   }, []);
+
+  // Backwards-compat alias used elsewhere; opens the band/sector configurator
+  // when at least one endpoint is a site, otherwise commits straight away.
+  const addTaggedLink = useCallback((from: typeof linkSource, to: typeof linkSource) => {
+    if (!from || !to || from.id === to.id) return;
+    if (from.type === 'point' && to.type === 'point') {
+      commitTaggedLink(from, to);
+      return;
+    }
+    setPendingLink({
+      from, to,
+      fromBand: null, toBand: null,
+      fromCellOverride: null, toCellOverride: null,
+    });
+  }, [commitTaggedLink]);
 
   const deleteTaggedLink = useCallback((linkId: string) => {
     setTaggedLinks(prev => {
@@ -5179,6 +5207,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       }
     }
   }, [linkSource, addTaggedLink]);
+
 
   // ── Terrain Profile for Links ──
   const { loading: linkProfileLoading, profilePoints: linkProfilePoints, analysis: linkProfileAnalysis, error: linkProfileError, computeProfile: linkComputeProfile } = useTerrainProfile();
@@ -13595,6 +13624,176 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       <Plus size={12} />
                       Créer un lien
                     </button>
+                  ) : pendingLink ? (
+                    (() => {
+                      const fromSite = pendingLink.from.type === 'site' ? taggedSites.find(s => s.site_id === pendingLink.from.id) : null;
+                      const toSite = pendingLink.to.type === 'site' ? taggedSites.find(s => s.site_id === pendingLink.to.id) : null;
+                      const fromLL: LatLng = { lat: pendingLink.from.coords[0], lng: pendingLink.from.coords[1] };
+                      const toLL: LatLng = { lat: pendingLink.to.coords[0], lng: pendingLink.to.coords[1] };
+                      const distM = haversineDistance(fromLL, toLL);
+                      const azFromTo = bearing(fromLL, toLL);
+                      const azToFrom = bearing(toLL, fromLL);
+                      const fromBands = fromSite ? listSiteBands(fromSite.cells) : [];
+                      const toBands = toSite ? listSiteBands(toSite.cells) : [];
+                      const fromBand = pendingLink.fromBand ?? fromBands[0] ?? null;
+                      const toBand = pendingLink.toBand ?? toBands[0] ?? null;
+                      const fromAuto = fromSite && fromBand ? pickClosestSector(fromSite.cells, azFromTo, fromBand) : null;
+                      const toAuto = toSite && toBand ? pickClosestSector(toSite.cells, azToFrom, toBand) : null;
+                      const fromCell = fromSite
+                        ? (pendingLink.fromCellOverride
+                            ? fromSite.cells.find(c => c.cell_id === pendingLink.fromCellOverride) ?? fromAuto
+                            : fromAuto)
+                        : null;
+                      const toCell = toSite
+                        ? (pendingLink.toCellOverride
+                            ? toSite.cells.find(c => c.cell_id === pendingLink.toCellOverride) ?? toAuto
+                            : toAuto)
+                        : null;
+                      const fromBandCells = fromSite && fromBand ? fromSite.cells.filter(c => String(c.bande || '').trim() === fromBand) : [];
+                      const toBandCells = toSite && toBand ? toSite.cells.filter(c => String(c.bande || '').trim() === toBand) : [];
+                      const ready = (!fromSite || !!fromCell) && (!toSite || !!toCell);
+
+                      const renderSide = (
+                        title: string,
+                        site: typeof fromSite,
+                        bands: string[],
+                        band: string | null,
+                        bandCells: typeof fromBandCells,
+                        cell: typeof fromCell,
+                        targetAz: number,
+                        onPickBand: (b: string) => void,
+                        onPickCell: (id: string | null) => void,
+                      ) => {
+                        if (!site) return null;
+                        return (
+                          <div className="rounded-lg border border-border/50 bg-card/60 p-2.5 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="text-[10px] font-bold text-foreground uppercase tracking-wider">{title}</div>
+                              <div className="text-[9px] text-muted-foreground font-mono">AZ cible: {targetAz.toFixed(1)}°</div>
+                            </div>
+                            <div className="text-[11px] font-semibold text-foreground truncate">🏗 {site.site_name}</div>
+                            {bands.length === 0 ? (
+                              <div className="text-[10px] text-destructive">Aucune bande disponible sur ce site.</div>
+                            ) : (
+                              <>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Bandes</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {bands.map(b => (
+                                    <button
+                                      key={b}
+                                      onClick={() => onPickBand(b)}
+                                      className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-colors ${
+                                        b === band ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted hover:bg-muted/80 text-foreground border-border'
+                                      }`}
+                                    >{b}</button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                            {band && (
+                              bandCells.length === 0 ? (
+                                <div className="text-[10px] text-destructive">Aucun secteur trouvé sur la bande {band}.</div>
+                              ) : (
+                                <>
+                                  <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Secteurs ({bandCells.length})</div>
+                                  <div className="grid grid-cols-2 gap-1">
+                                    {bandCells.map(c => {
+                                      const isAuto = cell?.cell_id === c.cell_id;
+                                      return (
+                                        <button
+                                          key={c.cell_id}
+                                          onClick={() => onPickCell(c.cell_id === cell?.cell_id ? null : c.cell_id)}
+                                          className={`text-left px-2 py-1.5 rounded-md text-[10px] font-mono border transition-colors ${
+                                            isAuto ? 'bg-emerald-500/15 border-emerald-500/60 text-foreground' : 'bg-muted/50 hover:bg-muted border-border text-muted-foreground'
+                                          }`}
+                                          title={c.cell_id}
+                                        >
+                                          <div className="font-bold truncate text-foreground">{c.cell_id}</div>
+                                          <div className="text-[9px] text-muted-foreground">AZ {Number(c.azimut).toFixed(0)}° • Δ {(((targetAz - Number(c.azimut)) % 360 + 540) % 360 - 180).toFixed(0)}°</div>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {cell && (
+                                    <div className="rounded-md bg-emerald-500/10 border border-emerald-500/40 p-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-mono">
+                                      <div className="col-span-2 text-[9px] font-bold uppercase tracking-wider text-emerald-600">Secteur sélectionné</div>
+                                      <div><span className="text-muted-foreground">Cell:</span> <span className="font-bold text-foreground">{cell.cell_id}</span></div>
+                                      <div><span className="text-muted-foreground">Techno:</span> <span className="font-bold text-foreground">{cell.techno || '—'}</span></div>
+                                      <div><span className="text-muted-foreground">Bande:</span> <span className="font-bold text-foreground">{cell.bande}</span></div>
+                                      <div><span className="text-muted-foreground">AZ:</span> <span className="font-bold text-foreground">{Number(cell.azimut).toFixed(0)}°</span></div>
+                                      <div><span className="text-muted-foreground">Tilt:</span> <span className="font-bold text-foreground">{cell.tilt != null ? `${Number(cell.tilt).toFixed(1)}°` : '—'}</span></div>
+                                      <div><span className="text-muted-foreground">HBA:</span> <span className="font-bold text-foreground">{cell.hba != null ? `${cell.hba} m` : '—'}</span></div>
+                                      <div className="col-span-2"><span className="text-muted-foreground">Δ azimut cible:</span> <span className="font-bold text-emerald-600">{(cell as any).azimuthDelta != null ? `${(cell as any).azimuthDelta.toFixed(1)}°` : '—'}</span></div>
+                                    </div>
+                                  )}
+                                </>
+                              )
+                            )}
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Configuration du lien</div>
+                            <div className="text-[9px] text-muted-foreground font-mono">{(distM / 1000).toFixed(2)} km</div>
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {pendingLink.from.label} → {pendingLink.to.label}
+                          </div>
+                          {renderSide(
+                            'Source',
+                            fromSite,
+                            fromBands,
+                            fromBand,
+                            fromBandCells,
+                            fromCell,
+                            azFromTo,
+                            (b) => setPendingLink(p => p ? { ...p, fromBand: b, fromCellOverride: null } : p),
+                            (id) => setPendingLink(p => p ? { ...p, fromCellOverride: id } : p),
+                          )}
+                          {renderSide(
+                            'Destination',
+                            toSite,
+                            toBands,
+                            toBand,
+                            toBandCells,
+                            toCell,
+                            azToFrom,
+                            (b) => setPendingLink(p => p ? { ...p, toBand: b, toCellOverride: null } : p),
+                            (id) => setPendingLink(p => p ? { ...p, toCellOverride: id } : p),
+                          )}
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              disabled={!ready}
+                              onClick={() => {
+                                const fs: TaggedLinkSector | null = fromCell ? {
+                                  cell_id: fromCell.cell_id, bande: fromCell.bande, techno: fromCell.techno,
+                                  azimut: Number(fromCell.azimut), tilt: fromCell.tilt ?? null, hba: fromCell.hba ?? null,
+                                  azimuthDelta: (fromCell as any).azimuthDelta,
+                                } : null;
+                                const ts: TaggedLinkSector | null = toCell ? {
+                                  cell_id: toCell.cell_id, bande: toCell.bande, techno: toCell.techno,
+                                  azimut: Number(toCell.azimut), tilt: toCell.tilt ?? null, hba: toCell.hba ?? null,
+                                  azimuthDelta: (toCell as any).azimuthDelta,
+                                } : null;
+                                commitTaggedLink(pendingLink.from, pendingLink.to, { fromSector: fs, toSector: ts });
+                              }}
+                              className="flex-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-[11px] font-bold uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Confirmer le lien
+                            </button>
+                            <button
+                              onClick={() => setPendingLink(null)}
+                              className="px-3 py-2 rounded-lg border border-border text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-muted transition-colors uppercase tracking-wider"
+                            >
+                              Retour
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()
                   ) : (
                     <div className="rounded-xl border border-primary/40 bg-primary/5 p-3 space-y-2">
                       <div className="text-[10px] font-bold text-primary uppercase tracking-wider">Sélection du lien</div>
@@ -13635,7 +13834,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         );
                       })}
                       <button
-                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); }}
+                        onClick={() => { setLinkCreationMode(false); setLinkSource(null); setPendingLink(null); }}
                         className="w-full text-center text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors py-1"
                       >
                         Annuler

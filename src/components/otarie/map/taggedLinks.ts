@@ -2,6 +2,17 @@
  * Tagged Links — model and persistence for links between tagged objects
  */
 
+export interface TaggedLinkSector {
+  cell_id: string;
+  bande: string;
+  techno?: string;
+  azimut: number;
+  tilt?: number | null;
+  hba?: number | null;
+  /** Angular delta between target bearing and sector azimuth, in degrees [0..180]. */
+  azimuthDelta?: number;
+}
+
 export interface TaggedLink {
   id: string;
   fromId: string;
@@ -14,6 +25,9 @@ export interface TaggedLink {
   toCoords: [number, number];
   label: string;
   createdAt: string;
+  /** Optional auto-picked sector metadata when the endpoint is a site. */
+  fromSector?: TaggedLinkSector | null;
+  toSector?: TaggedLinkSector | null;
 }
 
 const STORAGE_KEY = 'osmosis_tagged_links';
@@ -54,6 +68,7 @@ export function purgeLegacyTaggedLinks(): void {
 export function createTaggedLink(
   from: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] },
   to: { id: string; type: 'site' | 'point'; label: string; coords: [number, number] },
+  extra?: { fromSector?: TaggedLinkSector | null; toSector?: TaggedLinkSector | null },
 ): TaggedLink {
   return {
     id: `link-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -67,5 +82,52 @@ export function createTaggedLink(
     toCoords: to.coords,
     label: `${from.label} ↔ ${to.label}`,
     createdAt: new Date().toISOString(),
+    fromSector: extra?.fromSector ?? null,
+    toSector: extra?.toSector ?? null,
   };
+}
+
+/** Smallest signed-circular distance between two azimuths, in degrees [0..180]. */
+export function azimuthDelta(a: number, b: number): number {
+  const d = Math.abs(((a - b) % 360 + 540) % 360 - 180);
+  return d;
+}
+
+/**
+ * From a site's cells, pick the sector with the smallest angular difference
+ * between its azimuth and the target bearing. Optionally restrict to a band.
+ */
+export function pickClosestSector<C extends {
+  cell_id: string;
+  bande: string;
+  techno?: string;
+  azimut: number;
+  tilt?: number | null;
+  hba?: number | null;
+}>(
+  cells: C[],
+  targetBearing: number,
+  band?: string | null,
+): (C & { azimuthDelta: number }) | null {
+  const pool = (band
+    ? cells.filter(c => String(c.bande || '').trim() === String(band).trim())
+    : cells
+  ).filter(c => Number.isFinite(c.azimut as number));
+  if (!pool.length) return null;
+  let best: (C & { azimuthDelta: number }) | null = null;
+  for (const c of pool) {
+    const d = azimuthDelta(targetBearing, Number(c.azimut));
+    if (!best || d < best.azimuthDelta) best = { ...c, azimuthDelta: d } as any;
+  }
+  return best;
+}
+
+/** List unique non-empty bands present on a site's cells. */
+export function listSiteBands<C extends { bande: string }>(cells: C[]): string[] {
+  const set = new Set<string>();
+  for (const c of cells) {
+    const b = String(c.bande || '').trim();
+    if (b) set.add(b);
+  }
+  return Array.from(set).sort();
 }
