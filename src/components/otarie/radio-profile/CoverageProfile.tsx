@@ -230,7 +230,9 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const [showClutter, setShowClutter] = useState(showClutterProp);
   const [autoScale, setAutoScale] = useState(true);
   const [hoverDist, setHoverDist] = useState<number | null>(null);
+  const [hoverPx, setHoverPx] = useState<{ x: number; y: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const color = technoColor(techno);
   const vbwEff = vbw ?? defaultVbw(band, techno);
