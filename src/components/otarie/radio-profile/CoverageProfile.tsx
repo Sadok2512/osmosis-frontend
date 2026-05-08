@@ -810,22 +810,26 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         })()}
       </div>
 
-      {/* Footer info bar: Site (TX) · Coverage summary — consistent gap-3
-          spacing, balanced padding, identical chip heights. */}
-      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''} (TX)</span>
-          <span className="text-slate-300">Ant: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></span>
-          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></span>
-          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(groundBaseAmsl)} m</span></span>
-          <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{geom.totalTilt.toFixed(1)}°</span></span>
-          <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{bandLabel}</span></span>
+      {/* Footer KPI bar — segmented stat cards with clean hierarchy */}
+      <div className="shrink-0 grid grid-cols-12 gap-2 p-2 bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-t border-white/10">
+        {/* Site / TX details — spans 6 cols */}
+        <div className="col-span-6 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/[0.06] border border-emerald-400/20 backdrop-blur-md">
+          <div className="flex items-center gap-1.5 pr-2 border-r border-white/10">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
+          </div>
+          <span className="text-[10px] font-bold text-slate-100 truncate max-w-[180px]" title={`${siteName}${sectorName ? ` · ${sectorName}` : ''}`}>{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
+          <div className="flex items-center gap-3 ml-auto text-[10px] font-mono">
+            <FooterStat label="Ant" value={`${antennaHeight.toFixed(0)}m`} />
+            <FooterStat label="AMSL" value={`${Math.round(antennaAmsl)}m`} />
+            <FooterStat label="Tilt" value={`${geom.totalTilt.toFixed(1)}°`} />
+            <FooterStat label="Band" value={bandLabel} />
+          </div>
         </div>
-        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-600/40">
-          <span><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></span>
-          <span><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></span>
-          <span><span className="text-amber-400 font-bold">Area:</span> <span className="text-slate-100">{coverageAreaKm2.toFixed(2)} km²</span></span>
-        </div>
+        {/* Coverage KPI cards — each 2 cols */}
+        <KpiCard accent="cyan" label="Coverage" value={(geom.farDist / 1000).toFixed(2)} unit="km" />
+        <KpiCard accent="emerald" label="Main Beam" value={(geom.mainDist / 1000).toFixed(2)} unit="km" />
+        <KpiCard accent="amber" label="Area" value={coverageAreaKm2.toFixed(2)} unit="km²" />
       </div>
     </div>
   );
