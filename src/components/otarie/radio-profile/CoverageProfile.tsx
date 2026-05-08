@@ -15,6 +15,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Antenna } from 'lucide-react';
 import type { ProfilePoint } from '@/utils/geodesicUtils';
+import type { ProfileHoverData } from './ProfileChart';
 import { SiteTower } from './ProfileChart';
 
 export interface CoverageSiteParams {
