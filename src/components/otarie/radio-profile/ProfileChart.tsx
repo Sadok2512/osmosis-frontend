@@ -55,6 +55,8 @@ const ProfileChart: React.FC<Props> = ({
   onHoverPoint,
   autoScale = true,
   manualMinHeight = null,
+  txIsPoint = false,
+  rxIsPoint = false,
 }) => {
   const ant = analysis?.antennaParams ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
