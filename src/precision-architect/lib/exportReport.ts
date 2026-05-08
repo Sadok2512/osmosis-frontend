@@ -1,40 +1,78 @@
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 import PptxGenJS from 'pptxgenjs';
 
 /**
- * Capture the Precision Architect canvas (the scrollable `.pa-grid-edit` container)
- * as a single PNG dataURL covering its full scroll height.
+ * Capture the Precision Architect canvas as a PNG dataURL covering its full
+ * scroll height. Uses html-to-image (more reliable than html2canvas with
+ * modern CSS / cross-origin tiles) and falls back to html2canvas if needed.
  */
 async function captureCanvasDataURL(): Promise<{ dataUrl: string; width: number; height: number }> {
-  const target = document.querySelector('.pa-grid-edit') as HTMLElement | null;
+  // Try the editor scroll container first, then fall back to a presentation/viewer container.
+  const target = (document.querySelector('.pa-grid-edit')
+    || document.querySelector('.pa-presentation')
+    || document.querySelector('[data-pa-canvas]')) as HTMLElement | null;
+
   if (!target) {
-    throw new Error('Precision Architect canvas not found');
+    throw new Error('Report canvas not found. Open the Editor or Presentation view first.');
   }
 
-  // Save scroll state, capture full content height.
+  const fullW = Math.max(target.scrollWidth, target.clientWidth);
+  const fullH = Math.max(target.scrollHeight, target.clientHeight);
+
+  // Save scroll state so capture is non-disruptive.
   const prevScrollTop = target.scrollTop;
   target.scrollTop = 0;
 
-  const canvas = await html2canvas(target, {
-    backgroundColor: getComputedStyle(target).backgroundColor || '#ffffff',
-    scale: window.devicePixelRatio > 1 ? 2 : 1.5,
-    useCORS: true,
-    allowTaint: true,
-    logging: false,
-    windowWidth: target.scrollWidth,
-    windowHeight: target.scrollHeight,
-    width: target.scrollWidth,
-    height: target.scrollHeight,
-  });
+  const pixelRatio = Math.min(window.devicePixelRatio > 1 ? 2 : 1.5, 2);
+
+  let dataUrl: string;
+  try {
+    dataUrl = await toPng(target, {
+      cacheBust: true,
+      pixelRatio,
+      width: fullW,
+      height: fullH,
+      backgroundColor: getComputedStyle(target).backgroundColor || '#ffffff',
+      style: {
+        // Force the captured node to render at full content size, not its
+        // visible (scrolled) viewport.
+        transform: 'none',
+        width: `${fullW}px`,
+        height: `${fullH}px`,
+        maxHeight: 'none',
+        overflow: 'visible',
+      },
+      // Skip elements that might break capture (videos, iframes from other origins).
+      filter: (node) => {
+        if (!(node instanceof HTMLElement)) return true;
+        const tag = node.tagName;
+        if (tag === 'IFRAME' || tag === 'VIDEO') return false;
+        return true;
+      },
+    });
+  } catch (err) {
+    target.scrollTop = prevScrollTop;
+    console.error('[exportReport] toPng failed', err);
+    throw new Error(
+      `Failed to capture canvas: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 
   target.scrollTop = prevScrollTop;
 
-  return {
-    dataUrl: canvas.toDataURL('image/png'),
-    width: canvas.width,
-    height: canvas.height,
-  };
+  // Resolve the bitmap dimensions from the dataURL.
+  const img = await loadImage(dataUrl);
+  return { dataUrl, width: img.naturalWidth, height: img.naturalHeight };
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Failed to load capture image'));
+    img.src = src;
+  });
 }
 
 /** Slugify a project name for safe filenames. */
@@ -42,12 +80,11 @@ function safeName(name: string): string {
   return (name || 'precision-architect-report')
     .replace(/[^a-z0-9-_]+/gi, '-')
     .replace(/^-+|-+$/g, '')
-    .toLowerCase();
+    .toLowerCase() || 'precision-architect-report';
 }
 
 /**
- * Export the current report canvas to a multi-page PDF.
- * The big screenshot is sliced vertically into A4 landscape pages.
+ * Export the current report canvas to a multi-page PDF (A4 landscape).
  */
 export async function exportReportToPDF(projectName: string): Promise<void> {
   const { dataUrl, width: imgPxW, height: imgPxH } = await captureCanvasDataURL();
@@ -56,21 +93,14 @@ export async function exportReportToPDF(projectName: string): Promise<void> {
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
-  // Scale image so it fits the page width.
   const scale = pageW / imgPxW;
   const scaledFullH = imgPxH * scale;
 
   if (scaledFullH <= pageH) {
     pdf.addImage(dataUrl, 'PNG', 0, 0, pageW, scaledFullH);
   } else {
-    // Slice the source image vertically into chunks that fit pageH.
     const sliceHeightPx = Math.floor(pageH / scale);
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load capture image'));
-    });
+    const img = await loadImage(dataUrl);
 
     let y = 0;
     let pageIndex = 0;
@@ -94,8 +124,7 @@ export async function exportReportToPDF(projectName: string): Promise<void> {
 }
 
 /**
- * Export the current report canvas to a PPTX file.
- * The full canvas screenshot is sliced into 16:9 slides.
+ * Export the current report canvas to a PPTX file (16:9 widescreen).
  */
 export async function exportReportToPPTX(projectName: string): Promise<void> {
   const { dataUrl, width: imgPxW, height: imgPxH } = await captureCanvasDataURL();
@@ -105,7 +134,6 @@ export async function exportReportToPPTX(projectName: string): Promise<void> {
   const slideW = 13.333;
   const slideH = 7.5;
 
-  // Image scaled to slide width.
   const scale = slideW / imgPxW;
   const scaledFullH = imgPxH * scale;
 
@@ -115,12 +143,7 @@ export async function exportReportToPPTX(projectName: string): Promise<void> {
     slide.addImage({ data: dataUrl, x: 0, y: 0, w: slideW, h: scaledFullH });
   } else {
     const sliceHeightPx = Math.floor(slideH / scale);
-    const img = new Image();
-    img.src = dataUrl;
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Failed to load capture image'));
-    });
+    const img = await loadImage(dataUrl);
 
     let y = 0;
     while (y < imgPxH) {
