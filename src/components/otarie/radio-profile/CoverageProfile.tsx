@@ -511,7 +511,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           </g>
 
           {/* Main beam impact callout */}
-          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={groundY}
+          <line x1={mainImpact.x} y1={antennaY + 8} x2={mainImpact.x} y2={axisY}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={mainImpact.x} cy={groundY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} />
           <g transform={`translate(${Math.min(mainImpact.x - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
@@ -521,7 +521,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           </g>
 
           {/* Coverage end callout */}
-          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={groundY}
+          <line x1={farImpact.x} y1={antennaY + 8} x2={farImpact.x} y2={axisY}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={farImpact.x} cy={groundY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} />
           <g transform={`translate(${Math.min(farImpact.x - 50, M.left + IW - 110)}, ${Math.max(antennaY + 4, M.top + 50)})`}>
