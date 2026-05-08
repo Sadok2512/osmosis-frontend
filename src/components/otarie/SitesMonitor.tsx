@@ -2323,7 +2323,17 @@ const CreateFilterDropdown: React.FC<{
             <span className="text-muted-foreground/40">·</span>
             <button onClick={() => onChange([])} className="text-[9px] font-semibold text-destructive hover:underline">Effacer</button>
           </div>
-          <div className="max-h-[240px] overflow-y-auto py-0.5">
+          <div
+            className="max-h-[240px] overflow-y-auto py-0.5 overscroll-contain"
+            onWheel={(e) => {
+              const el = e.currentTarget;
+              const canScroll = el.scrollHeight > el.clientHeight;
+              if (canScroll) {
+                el.scrollTop += e.deltaY;
+                e.stopPropagation();
+              }
+            }}
+          >
             {filtered.length === 0 ? (
               <p className="text-[9px] text-muted-foreground/50 text-center py-3 italic">Aucun résultat</p>
             ) : (
