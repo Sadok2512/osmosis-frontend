@@ -850,6 +850,31 @@ const Toggle: React.FC<{ label: string; value: boolean; onChange: (v: boolean) =
   </button>
 );
 
+const FooterStat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <span className="flex items-baseline gap-1">
+    <span className="text-slate-400 text-[9px] uppercase tracking-wider">{label}</span>
+    <span className="text-emerald-200 font-bold">{value}</span>
+  </span>
+);
+
+const KPI_ACCENT: Record<string, { ring: string; text: string; glow: string; bg: string }> = {
+  cyan:    { ring: 'border-cyan-400/30',    text: 'text-cyan-300',    glow: 'shadow-[0_0_12px_rgba(34,211,238,0.15)]',  bg: 'bg-cyan-500/[0.06]' },
+  emerald: { ring: 'border-emerald-400/30', text: 'text-emerald-300', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.15)]',  bg: 'bg-emerald-500/[0.06]' },
+  amber:   { ring: 'border-amber-400/30',   text: 'text-amber-300',   glow: 'shadow-[0_0_12px_rgba(251,191,36,0.15)]',  bg: 'bg-amber-500/[0.06]' },
+};
+const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
+  const a = KPI_ACCENT[accent];
+  return (
+    <div className={`col-span-2 flex flex-col justify-center px-3 py-1.5 rounded-xl border backdrop-blur-md ${a.ring} ${a.bg} ${a.glow}`}>
+      <span className={`text-[9px] uppercase tracking-[0.15em] font-bold ${a.text}`}>{label}</span>
+      <div className="flex items-baseline gap-1 mt-0.5">
+        <span className="text-[15px] font-extrabold text-white font-mono leading-none">{value}</span>
+        <span className="text-[10px] text-slate-400 font-medium">{unit}</span>
+      </div>
+    </div>
+  );
+};
+
 const Row: React.FC<{ k: string; v: string; mono?: boolean; accent?: boolean; good?: boolean }> = ({ k, v, mono, accent, good }) => (
   <div className="flex items-baseline justify-between gap-2 truncate">
     <span className="text-white/45 truncate">{k}</span>
