@@ -1107,7 +1107,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                           {db.description || 'No description'}
                         </p>
                       </div>
-                      <div className="shrink-0 -mr-1 -mt-1" onClick={e => e.stopPropagation()}>
+                      <div className="shrink-0" onClick={e => e.stopPropagation()}>
                         <KebabMenu
                           onDuplicate={() => duplicateDashboard(db.id)}
                           onShare={() => setSharePopoverId(db.id)}
