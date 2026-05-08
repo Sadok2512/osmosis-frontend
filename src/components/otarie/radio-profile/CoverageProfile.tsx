@@ -256,7 +256,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   // rotated Altitude axis label on the left and the RSRP legend on the right.
   const VIEW_W = 1100;
   const VIEW_H = 430;
-  const M = { top: 40, right: 48, bottom: 64, left: 96 };
+  const M = { top: 40, right: 24, bottom: 64, left: 72 };
   const IW = VIEW_W - M.left - M.right;
   const IH = VIEW_H - M.top - M.bottom;
 
@@ -459,7 +459,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
-          preserveAspectRatio="xMidYMid meet"
+          preserveAspectRatio="none"
           className="w-full h-full"
           style={{ background: 'transparent' }}
           onMouseMove={(e) => {
