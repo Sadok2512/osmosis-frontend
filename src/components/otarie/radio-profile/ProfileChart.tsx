@@ -292,7 +292,7 @@ const ProfileChart: React.FC<Props> = ({
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl">
+    <div className="relative w-full h-full overflow-hidden rounded-xl bg-slate-900/50 backdrop-blur-md border border-slate-700/50 shadow-2xl flex flex-col">
       {/* Status badge */}
       <div className="absolute top-3 right-3 z-20 flex items-center gap-2 px-3 py-1.5 rounded-lg backdrop-blur-md"
         style={{
@@ -312,33 +312,7 @@ const ProfileChart: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Bottom info bar: Site A (left) · Link summary (center) · Site B (right) */}
-      <div className="absolute bottom-8 left-3 right-3 z-10 flex items-center justify-between gap-3 pointer-events-none">
-        {/* Site A info card */}
-        <div className="px-3 py-1.5 rounded-lg bg-slate-900/75 backdrop-blur-md border border-emerald-500/30 flex gap-3 text-[10px] font-mono">
-          <div className="text-emerald-400 font-bold uppercase tracking-wider">{txIsPoint ? 'Point (TX)' : 'Site A (TX)'}</div>
-          <div className="text-slate-300">{txIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(txIsPoint ? 2 : ant.hba).toFixed(0)} m</span></div>
-          <div className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></div>
-          <div className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></div>
-        </div>
-
-        {/* Link summary (center) */}
-        <div className="px-3 py-1.5 rounded-lg bg-slate-900/75 backdrop-blur-md border border-slate-600/40 flex gap-3 text-[10px] font-mono">
-          <div><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></div>
-          {fresnel && showFresnel && (
-            <div><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></div>
-          )}
-        </div>
-
-        {/* Site B info card */}
-        <div className="px-3 py-1.5 rounded-lg bg-slate-900/75 backdrop-blur-md border border-emerald-500/30 flex gap-3 text-[10px] font-mono text-right">
-          <div className="text-emerald-400 font-bold uppercase tracking-wider">{rxIsPoint ? 'Point (RX)' : 'Site B (RX)'}</div>
-          <div className="text-slate-300">{rxIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(rxIsPoint ? 2 : (remoteAntenna?.hba ?? ant.rxHeight ?? 1.5)).toFixed(0)} m</span></div>
-          <div className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></div>
-          <div className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></div>
-        </div>
-      </div>
-
+      <div className="flex-1 min-h-0 relative">
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
