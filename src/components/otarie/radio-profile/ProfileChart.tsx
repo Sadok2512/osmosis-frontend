@@ -550,7 +550,7 @@ const ProfileChart: React.FC<Props> = ({
   );
 };
 
-interface SiteTowerProps {
+export interface SiteTowerProps {
   x: number;
   terrainY: number;
   antennaY: number;
@@ -563,7 +563,7 @@ interface SiteTowerProps {
   aimDeg?: number;
 }
 
-const SiteTower: React.FC<SiteTowerProps> = ({
+export const SiteTower: React.FC<SiteTowerProps> = ({
   x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false, aimDeg = 0,
 }) => {
   const sign = align === 'left' ? 1 : -1;
