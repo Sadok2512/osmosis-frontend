@@ -479,6 +479,8 @@ const ProfileChart: React.FC<Props> = ({
             </motion.g>
           )}
 
+          {/* Aim angles in screen-space (deg) so each dish points toward the other endpoint */}
+          {(() => null)()}
           {/* TX site (left) */}
           <SiteTower
             x={xScale(0)}
@@ -490,6 +492,7 @@ const ProfileChart: React.FC<Props> = ({
             heightAGL={ant.hba}
             altitudeAMSL={Math.round(derived.antennaAMSL)}
             isPoint={txIsPoint}
+            aimDeg={Math.atan2(losY2 - losY1, losX2 - losX1) * 180 / Math.PI}
           />
 
           {/* RX site (right) */}
@@ -503,6 +506,7 @@ const ProfileChart: React.FC<Props> = ({
             heightAGL={remoteAntenna?.hba ?? ant.rxHeight ?? 1.5}
             altitudeAMSL={Math.round(derived.remoteAMSL ?? derived.rxAMSL)}
             isPoint={rxIsPoint}
+            aimDeg={Math.atan2(losY1 - losY2, losX1 - losX2) * 180 / Math.PI}
           />
 
           {/* Hover crosshair */}
@@ -556,10 +560,11 @@ interface SiteTowerProps {
   heightAGL: number;
   altitudeAMSL: number;
   isPoint?: boolean;
+  aimDeg?: number;
 }
 
 const SiteTower: React.FC<SiteTowerProps> = ({
-  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false,
+  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false, aimDeg = 0,
 }) => {
   const sign = align === 'left' ? 1 : -1;
   const textAnchor = align === 'left' ? 'start' : 'end';
@@ -638,21 +643,19 @@ const SiteTower: React.FC<SiteTowerProps> = ({
       <rect x={-topHalf - 2} y={antennaY - 2} width={(topHalf + 2) * 2} height={3} fill="rgba(186,230,253,0.9)" />
 
       {/* Parabolic dish antenna pointing toward link */}
-      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY})`}>
+      <g transform={`translate(${sign * (topHalf + 1)}, ${antennaY}) rotate(${aimDeg - (align === 'left' ? 0 : 180)})`}>
         {/* dish body */}
         <path
-          d={align === 'left'
-            ? `M 0 -10 Q 14 0 0 10 L 0 -10 Z`
-            : `M 0 -10 Q -14 0 0 10 L 0 -10 Z`}
+          d={`M 0 -10 Q 14 0 0 10 L 0 -10 Z`}
           fill="rgba(45,212,191,0.35)"
           stroke="rgb(94,234,212)"
           strokeWidth={1.4}
         />
         {/* feed horn */}
-        <line x1={0} y1={0} x2={sign * 10} y2={0} stroke="rgb(94,234,212)" strokeWidth={1.2} />
-        <circle cx={sign * 10} cy={0} r={2} fill="rgb(45,212,191)" />
+        <line x1={0} y1={0} x2={10} y2={0} stroke="rgb(94,234,212)" strokeWidth={1.2} />
+        <circle cx={10} cy={0} r={2} fill="rgb(45,212,191)" />
         {/* glow */}
-        <circle cx={sign * 5} cy={0} r={3} fill="rgb(45,212,191)" opacity={0.5} filter="url(#glow)" />
+        <circle cx={5} cy={0} r={3} fill="rgb(45,212,191)" opacity={0.5} filter="url(#glow)" />
       </g>
 
       {/* Vertical measurement (antenna height AGL) */}
