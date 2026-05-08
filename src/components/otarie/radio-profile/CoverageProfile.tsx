@@ -638,14 +638,13 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             }
             const hx = xScale(snapDist);
             const tY = yScale(terrainAlt);
-            // Main-beam altitude at hoverDist (linear ray from antenna to mainImpact in real altitude)
+            // Main-beam altitude at hoverDist (linear ray from antenna toward mainImpact, extrapolated)
             const denom = Math.max(1e-6, geom.mainDist);
             const tBeam = snapDist / denom;
-            const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * Math.min(1, Math.max(0, tBeam));
+            const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * tBeam;
             const beamY = yScale(beamAlt);
             const rsrp = estimateRsrpDbm(Math.max(1, snapDist), freqMhz, txPowerDbm);
             const cls = rsrpClass(rsrp);
-            const inBeam = snapDist >= geom.nearDist * 0.8 && snapDist <= geom.farDist * 1.05;
             const obstructed = terrainAlt > beamAlt && snapDist < geom.farDist;
             // Coverage zone classification
             let zoneLabel = 'Out of Range';
@@ -653,14 +652,16 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             if (snapDist <= geom.nearDist) { zoneLabel = 'Near Field'; zoneColor = '#22c55e'; }
             else if (snapDist <= geom.mainDist) { zoneLabel = 'Main Coverage'; zoneColor = '#eab308'; }
             else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
+            // Show beam pointer whenever the ray is within chart vertical bounds
+            const beamVisible = beamY >= M.top && beamY <= M.top + IH;
             return (
               <g pointerEvents="none">
                 <line x1={hx} y1={M.top} x2={hx} y2={M.top + IH} stroke="rgba(56,189,248,0.55)" strokeWidth={1} strokeDasharray="3 3" />
                 {/* Beam-terrain link line */}
-                {inBeam && (
+                {beamVisible && (
                   <line x1={hx} y1={beamY} x2={hx} y2={tY} stroke={obstructed ? '#ef4444' : 'rgba(56,189,248,0.4)'} strokeWidth={1} strokeDasharray="2 3" />
                 )}
-                {inBeam && (
+                {beamVisible && (
                   <>
                     <circle cx={hx} cy={beamY} r={8} fill={cls.color} opacity={0.25} filter="url(#glow)" />
                     <circle cx={hx} cy={beamY} r={5} fill={cls.color} stroke="white" strokeWidth={1.5} />
