@@ -39,8 +39,10 @@ export const VPS_ENDPOINTS = {
   agent:   isOnAppDomain ? '/agent-api' : `${CF_PARSER}/api/v1/agent`,
 } as const;
 
-const LOCAL_API_ENV = import.meta.env.VITE_LOCAL_API;
-const DEFAULT_LOCAL_API = 'http://localhost:3001';
+// Local Express server retired 2026-05-08 (was qoebit-frontend/server,
+// port :3001). Production never used it; the local-mode branches of
+// getApiUrl/getPreferredDataSource now degrade to VPS so a stale
+// localStorage `osmosis_data_source=local` doesn't break the app.
 const DATA_SOURCE_KEY = 'osmosis_data_source';
 
 /** Default request timeout (30s) */
@@ -88,21 +90,6 @@ type DataSource = 'local' | 'cloud' | 'vps';
 const isDataSource = (value: string | null): value is DataSource =>
   value === 'local' || value === 'cloud' || value === 'vps';
 
-const isBrowserRunningLocally = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') return true;
-  if (host.endsWith('.local') || host.startsWith('192.168.') || host.startsWith('10.')) return true;
-  const private172 = host.match(/^172\.(\d{1,3})\./);
-  if (private172) {
-    const octet = Number(private172[1]);
-    return octet >= 16 && octet <= 31;
-  }
-  return false;
-};
-
-const getLocalApiBase = (): string => LOCAL_API_ENV || DEFAULT_LOCAL_API;
-
 export const getPreferredDataSource = (): DataSource => {
   if (typeof window === 'undefined') return 'vps';
   const urlParams = new URLSearchParams(window.location.search);
@@ -110,7 +97,9 @@ export const getPreferredDataSource = (): DataSource => {
   if (isDataSource(urlSource)) return urlSource;
   const stored = window.localStorage.getItem(DATA_SOURCE_KEY);
   if (isDataSource(stored)) return stored;
-  return isBrowserRunningLocally() ? 'local' : 'vps';
+  // Default = vps for everyone now. The previous LAN/loopback heuristic
+  // routed to the local Express server which was deleted 2026-05-08.
+  return 'vps';
 };
 
 export const setPreferredDataSource = (source: DataSource): void => {
@@ -188,11 +177,9 @@ export function getVpsProxyHeaders(extraHeaders?: Record<string, string>): Recor
  */
 export function getApiUrl(functionName: string): string {
   const clean = functionName.replace(/^\/?(api\/)?(v\d+\/)?/, '');
+  // 'local' source falls through to 'vps' since the Express server is gone.
   const source = getPreferredDataSource();
-  if (source === 'local') {
-    return `${getLocalApiBase()}/api/${clean}`;
-  }
-  if (source === 'vps') {
+  if (source === 'vps' || source === 'local') {
     // Separate path from inline query string to avoid double-encoding in proxy URL
     const qIdx = clean.indexOf('?');
     const cleanPath = qIdx >= 0 ? clean.substring(0, qIdx) : clean;

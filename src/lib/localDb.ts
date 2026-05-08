@@ -15,8 +15,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { getPreferredDataSource, getVpsProxyUrl, getVpsProxyHeaders } from './apiConfig';
 import { inferBandFromCellName } from '@/services/topoService';
 
-const LOCAL_API = import.meta.env.VITE_LOCAL_API || 'http://localhost:3001';
-
 /** Build a VPS proxy URL for Parser :8000 */
 function parserUrl(path: string) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
@@ -29,10 +27,19 @@ function kpiUrl(path: string) {
   return getVpsProxyUrl('kpi', cleanPath);
 }
 
-/** Legacy url() for local Express mode only */
+// ── Express server retired 2026-05-08 ──
+// The local Express shim (qoebit-frontend/server/index.js, port :3001)
+// was a dev-only same-host SQL proxy that duplicated a subset of the
+// FastAPI parser. Production never used it. The directory is gone and
+// the connectivity probe was removed from BackendAdmin. The two helpers
+// below are kept as no-op shims so the dead `if (isLocalExpress())`
+// branches still type-check; isLocalExpress() now always returns false
+// so the local arms are unreachable at runtime. A future cleanup pass
+// can strip the dead branches without changing behavior.
 function localUrl(path: string) {
-  const clean = path.replace(/^\/?(api\/)?/, '');
-  return `${LOCAL_API}/api/${clean}`;
+  // Express is gone — route to the parser instead so any caller that still
+  // hits this never sees an offline 3001.
+  return parserUrl(path);
 }
 
 function getHeaders(): Record<string, string> {
@@ -48,7 +55,8 @@ function isVps(): boolean {
 }
 
 function isLocalExpress(): boolean {
-  return getPreferredDataSource() === 'local';
+  // Express server retired 2026-05-08 — see note above. Always false now.
+  return false;
 }
 
 /** Detect if we should use local or VPS (not cloud) */
