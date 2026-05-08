@@ -275,7 +275,7 @@ const KebabMenu: React.FC<{
         </Tooltip>
       </TooltipProvider>
       {open && (
-        <div className="absolute right-0 bottom-full mb-1 z-[100] w-44 bg-popover border border-border rounded-xl shadow-xl py-1 animate-in fade-in-0 zoom-in-95">
+        <div className="absolute right-0 top-full mt-1 z-[100] w-44 bg-popover border border-border rounded-xl shadow-xl py-1 animate-in fade-in-0 zoom-in-95">
           <button onClick={(e) => { e.stopPropagation(); onDuplicate(); setOpen(false); }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-foreground hover:bg-muted transition-colors">
             <Copy className="w-3.5 h-3.5 text-muted-foreground" /> Dupliquer
