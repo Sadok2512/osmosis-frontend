@@ -484,24 +484,30 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         >
           <defs>
             <linearGradient id="cp-terrain" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#94a3b8" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#1e293b" stopOpacity="0.1" />
+              <stop offset="0%" stopColor="#cbd5e1" stopOpacity="0.55" />
+              <stop offset="50%" stopColor="#64748b" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#0f172a" stopOpacity="0.05" />
             </linearGradient>
-            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.2">
-              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.55" />
-              <stop offset="35%" stopColor="#eab308" stopOpacity="0.45" />
-              <stop offset="70%" stopColor="#f97316" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.35" />
+            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.15">
+              <stop offset="0%" stopColor="#22c55e" stopOpacity="0.7" />
+              <stop offset="35%" stopColor="#eab308" stopOpacity="0.55" />
+              <stop offset="70%" stopColor="#f97316" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#ef4444" stopOpacity="0.4" />
             </linearGradient>
-            <filter id="cp-beam-glow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
+            <linearGradient id="cp-beam-axis" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0%" stopColor="#34d399" stopOpacity="1" />
+              <stop offset="60%" stopColor="#fbbf24" stopOpacity="0.95" />
+              <stop offset="100%" stopColor="#fb7185" stopOpacity="0.9" />
+            </linearGradient>
+            <filter id="cp-beam-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <filter id="glow">
-              <feGaussianBlur stdDeviation="2.5" result="coloredBlur" />
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
                 <feMergeNode in="coloredBlur" />
                 <feMergeNode in="SourceGraphic" />
