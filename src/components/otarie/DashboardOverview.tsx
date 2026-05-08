@@ -1220,17 +1220,12 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
                     </div>
 
                     {/* Views count */}
-                    {(() => {
-                      const viewsCount = mapViews.filter(v => v.description === db.id).length;
-                      return (
-                        <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 flex items-center justify-between">
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Views</div>
-                          <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight">
-                            {fmtNum(viewsCount)}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                    <div className="rounded-lg border border-border/60 bg-background/40 px-3 py-2 flex items-center justify-between">
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Views</div>
+                      <div className="text-[15px] font-bold text-foreground tabular-nums leading-tight">
+                        {fmtNum(db.viewCount || 0)}
+                      </div>
+                    </div>
 
                     {/* Tech label */}
                     <div className={`text-[11px] font-semibold ${techList.length > 0 ? s.iconColor : 'text-muted-foreground'}`}>
