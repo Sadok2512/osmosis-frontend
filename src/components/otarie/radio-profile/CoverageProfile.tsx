@@ -693,7 +693,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           }
           const denom = Math.max(1e-6, geom.mainDist);
           const tBeam = snapDist / denom;
-          const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * Math.min(1, Math.max(0, tBeam));
+          const beamAlt = antennaAmsl + (groundBaseAmsl - antennaAmsl) * tBeam;
           const rsrp = estimateRsrpDbm(Math.max(1, snapDist), freqMhz, txPowerDbm);
           const cls = rsrpClass(rsrp);
           const obstructed = terrainAlt > beamAlt && snapDist < geom.farDist;
