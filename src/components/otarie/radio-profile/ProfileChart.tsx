@@ -560,10 +560,11 @@ interface SiteTowerProps {
   heightAGL: number;
   altitudeAMSL: number;
   isPoint?: boolean;
+  aimDeg?: number;
 }
 
 const SiteTower: React.FC<SiteTowerProps> = ({
-  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false,
+  x, terrainY, antennaY, innerHeight, align, label, heightAGL, altitudeAMSL, isPoint = false, aimDeg = 0,
 }) => {
   const sign = align === 'left' ? 1 : -1;
   const textAnchor = align === 'left' ? 'start' : 'end';
