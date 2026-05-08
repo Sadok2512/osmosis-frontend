@@ -118,10 +118,21 @@ function fspl(distM: number, freqMhz: number): number {
   return 32.45 + 20 * Math.log10(distM / 1000) + 20 * Math.log10(freqMhz);
 }
 
-/** Estimate received signal at a ground distance (very rough, side-lobe agnostic). */
-function estimateRsrpDbm(distM: number, freqMhz: number, txPowerDbm: number, antennaGainDbi = 17): number {
-  if (distM <= 1) return txPowerDbm + antennaGainDbi - 30;
-  return txPowerDbm + antennaGainDbi - fspl(distM, freqMhz);
+/**
+ * Estimate received RSRP at a ground distance — smooth log-distance model
+ * tuned to realistic telecom ranges:
+ *   d ≤ 50 m   → -65 to -75 dBm   (near field)
+ *   d ≈ 200 m  → ~-85 dBm         (main coverage)
+ *   d ≈ 700 m  → ~-100 dBm        (far)
+ *   d ≥ 1500 m → ≤ -115 dBm       (edge)
+ * Adjusted for frequency and tx power offsets.
+ */
+function estimateRsrpDbm(distM: number, freqMhz: number, txPowerDbm: number): number {
+  const d = Math.max(20, distM);
+  const freqAdj = 6 * Math.log10(Math.max(100, freqMhz) / 1800); // +dB at higher freq
+  const pAdj = txPowerDbm - 46;
+  // -60 dBm at 20 m, ~-88 dBm at 200 m, ~-102 dBm at 700 m, ~-113 dBm at 1500 m
+  return -60 - 28 * Math.log10(d / 20) - freqAdj + pAdj;
 }
 
 function rsrpClass(rsrp: number): { color: string; label: string } {
