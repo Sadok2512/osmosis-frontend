@@ -250,9 +250,11 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   }, [mechanicalTilt, electricalTilt, antennaHeight, band, techno, vbwEff]);
 
   // ── Chart frame ──
+  // Margins use a consistent 8/12/16 spacing scale and reserve room for the
+  // rotated Altitude axis label on the left and the RSRP legend on the right.
   const VIEW_W = 1100;
   const VIEW_H = 430;
-  const M = { top: 26, right: 30, bottom: 60, left: 70 };
+  const M = { top: 40, right: 48, bottom: 64, left: 96 };
   const IW = VIEW_W - M.left - M.right;
   const IH = VIEW_H - M.top - M.bottom;
 
@@ -420,8 +422,9 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         </div>
       </div>
 
-      {/* Site name pill (top-left, like Link Profile) */}
-      <div className="absolute top-12 left-3 z-20 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
+      {/* Site name pill — anchored just below the toggle strip, aligned with the
+          chart's left padding so it never overlaps the tower or axis labels. */}
+      <div className="absolute top-[52px] left-4 z-20 px-3 py-1.5 rounded-lg bg-slate-900/70 backdrop-blur-md border border-slate-700/60 shadow-lg">
         <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
       </div>
 
@@ -591,29 +594,33 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             aimDeg={mainAimDeg}
           />
 
-          {/* Main beam impact callout — locked on terrain */}
+          {/* Main beam impact callout — locked on terrain.
+              Vertically positioned in the upper band so it never overlaps the
+              Coverage End callout (which sits just below it). */}
           <line x1={beamHits.mainHitX} y1={antennaY + 8} x2={beamHits.mainHitX} y2={beamHits.mainHitY}
             stroke="#22c55e" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={beamHits.mainHitX} cy={beamHits.mainHitY} r={6} fill="#22c55e" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${Math.min(beamHits.mainHitX - 60, M.left + IW - 130)}, ${Math.max(antennaY - 50, M.top + 4)})`}>
+          <g transform={`translate(${clamp(beamHits.mainHitX - 65, M.left + 8, M.left + IW - 138)}, ${M.top + 8})`}>
             <rect width="130" height="38" rx="6" fill="#0b1728" stroke="#14532d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#22c55e">Main Beam Impact</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.mainDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* Coverage end callout — locked on terrain */}
+          {/* Coverage end callout — locked on terrain, stacked under Main Beam
+              callout with a 12px gap for consistent spacing hierarchy. */}
           <line x1={beamHits.farHitX} y1={antennaY + 8} x2={beamHits.farHitX} y2={beamHits.farHitY}
             stroke="#ef4444" strokeDasharray="4 4" strokeWidth={1} />
           <circle cx={beamHits.farHitX} cy={beamHits.farHitY} r={6} fill="#ef4444" stroke="#fff" strokeWidth={1.5} filter="url(#glow)" />
-          <g transform={`translate(${Math.min(beamHits.farHitX - 50, M.left + IW - 110)}, ${Math.max(beamHits.farHitY - 48, M.top + 50)})`}>
+          <g transform={`translate(${clamp(beamHits.farHitX - 55, M.left + 8, M.left + IW - 118)}, ${M.top + 58})`}>
             <rect width="110" height="38" rx="6" fill="#0b1728" stroke="#7f1d1d" />
             <text x="10" y="16" fontSize="11" fontWeight="700" fill="#ef4444">Coverage End</text>
             <text x="10" y="30" fontSize="11" fill="#dbeafe">{(geom.farDist / 1000).toFixed(2)} km</text>
           </g>
 
-          {/* RSRP legend top-right */}
-          <g transform={`translate(${M.left + IW - 150}, ${M.top + 6})`}>
-            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.85)" stroke="rgba(255,255,255,0.08)" />
+          {/* RSRP legend top-right — aligned with the plot's right edge using
+              the same right margin gutter as the grid. */}
+          <g transform={`translate(${M.left + IW - 150}, ${M.top + 8})`}>
+            <rect width="146" height="78" rx="8" fill="rgba(11,23,40,0.9)" stroke="rgba(255,255,255,0.1)" />
             <text x="10" y="16" fontSize="10" fontWeight="700" fill="#cbd5e1">Signal Level (RSRP)</text>
             {[
               { c: '#22c55e', l: '> -85 dBm' },
@@ -627,6 +634,33 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               </g>
             ))}
           </g>
+
+          {/* Rotated Altitude axis label — drawn inside the SVG left margin so
+              it never overlaps the chart container. */}
+          <text
+            transform={`translate(${M.left - 56}, ${M.top + IH / 2}) rotate(-90)`}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="700"
+            letterSpacing="2"
+            fill="rgba(148,163,184,0.7)"
+          >
+            ALTITUDE (AMSL m)
+          </text>
+
+          {/* Distance axis label */}
+          <text
+            x={M.left + IW / 2}
+            y={M.top + IH + 44}
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="700"
+            letterSpacing="2"
+            fill="rgba(148,163,184,0.7)"
+          >
+            DISTANCE (km)
+          </text>
+
 
           {/* Hover position pointer (crosshair on the link/beam) */}
           {hoverDist !== null && (() => {
@@ -727,7 +761,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           else if (snapDist <= geom.farDist) { zoneLabel = 'Far Coverage'; zoneColor = '#f97316'; }
           const clearance = beamAlt - terrainAlt;
           return (
-            <div className="absolute top-24 left-8 z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
+            <div className="absolute top-[104px] left-[108px] z-10 px-3 py-2 rounded-lg bg-slate-900/90 backdrop-blur-md border border-cyan-500/30 text-[10px] font-mono text-slate-200 pointer-events-none shadow-2xl min-w-[190px]">
               <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold mb-1 border-b border-slate-700/50 pb-1">Hover Probe</div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Distance</span><span className="text-cyan-400 font-bold">{(snapDist / 1000).toFixed(3)} km</span></div>
               <div className="flex justify-between gap-3"><span className="text-slate-400">Terrain</span><span className="text-slate-100 font-bold">{terrainAlt.toFixed(0)} m</span></div>
@@ -741,14 +775,10 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         })()}
       </div>
 
-      {/* Axis labels (Link Profile style) */}
-      <div className="absolute top-12 left-4 text-slate-400 text-[10px] font-semibold uppercase tracking-wider rotate-[-90deg] origin-top-left pointer-events-none">
-        Altitude (AMSL m)
-      </div>
-
-      {/* Footer info bar: Site (TX) · Coverage summary */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
-        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
+      {/* Footer info bar: Site (TX) · Coverage summary — consistent gap-3
+          spacing, balanced padding, identical chip heights. */}
+      <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-emerald-500/30">
           <span className="text-emerald-400 font-bold uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''} (TX)</span>
           <span className="text-slate-300">Ant: <span className="text-emerald-300 font-bold">{antennaHeight.toFixed(0)} m</span></span>
           <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(antennaAmsl)} m</span></span>
@@ -756,7 +786,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{geom.totalTilt.toFixed(1)}°</span></span>
           <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{bandLabel}</span></span>
         </div>
-        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
+        <div className="flex items-center gap-3 px-3 py-1.5 rounded-lg bg-slate-900/70 border border-slate-600/40">
           <span><span className="text-cyan-400 font-bold">Coverage:</span> <span className="text-slate-100">{(geom.farDist / 1000).toFixed(2)} km</span></span>
           <span><span className="text-emerald-400 font-bold">Main:</span> <span className="text-slate-100">{(geom.mainDist / 1000).toFixed(2)} km</span></span>
           <span><span className="text-amber-400 font-bold">Area:</span> <span className="text-slate-100">{coverageAreaKm2.toFixed(2)} km²</span></span>
