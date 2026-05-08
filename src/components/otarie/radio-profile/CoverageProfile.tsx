@@ -260,9 +260,13 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   const IW = VIEW_W - M.left - M.right;
   const IH = VIEW_H - M.top - M.bottom;
 
-  const xMaxDomain = autoScale
-    ? Math.max(1, geom.farDist) * 1.15
-    : geom.cap;
+  // Real link distance from terrain profile (matches Link Profile exactly)
+  const linkDistance = (terrainProfile && terrainProfile.length >= 2)
+    ? terrainProfile[terrainProfile.length - 1].distance
+    : 0;
+  const xMaxDomain = linkDistance > 0
+    ? linkDistance
+    : (autoScale ? Math.max(1, geom.farDist) * 1.15 : geom.cap);
   const groundBaseAmsl = siteAltitudeAmsl ?? 0;
   const antennaAmsl = groundBaseAmsl + antennaHeight;
 
@@ -826,7 +830,10 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             <FooterStat label="Band" value={bandLabel} />
           </div>
         </div>
-        {/* Coverage KPI cards — each 2 cols */}
+        {/* Coverage KPI cards */}
+        {linkDistance > 0 && (
+          <KpiCard accent="sky" label="Link Dist" value={(linkDistance / 1000).toFixed(2)} unit="km" />
+        )}
         <KpiCard accent="cyan" label="Coverage" value={(geom.farDist / 1000).toFixed(2)} unit="km" />
         <KpiCard accent="emerald" label="Main Beam" value={(geom.mainDist / 1000).toFixed(2)} unit="km" />
         <KpiCard accent="amber" label="Area" value={coverageAreaKm2.toFixed(2)} unit="km²" />
@@ -861,8 +868,9 @@ const KPI_ACCENT: Record<string, { ring: string; text: string; glow: string; bg:
   cyan:    { ring: 'border-cyan-400/30',    text: 'text-cyan-300',    glow: 'shadow-[0_0_12px_rgba(34,211,238,0.15)]',  bg: 'bg-cyan-500/[0.06]' },
   emerald: { ring: 'border-emerald-400/30', text: 'text-emerald-300', glow: 'shadow-[0_0_12px_rgba(16,185,129,0.15)]',  bg: 'bg-emerald-500/[0.06]' },
   amber:   { ring: 'border-amber-400/30',   text: 'text-amber-300',   glow: 'shadow-[0_0_12px_rgba(251,191,36,0.15)]',  bg: 'bg-amber-500/[0.06]' },
+  sky:     { ring: 'border-sky-400/30',     text: 'text-sky-300',     glow: 'shadow-[0_0_12px_rgba(56,189,248,0.15)]',  bg: 'bg-sky-500/[0.06]' },
 };
-const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
+const KpiCard: React.FC<{ accent: 'cyan'|'emerald'|'amber'|'sky'; label: string; value: string; unit: string }> = ({ accent, label, value, unit }) => {
   const a = KPI_ACCENT[accent];
   return (
     <div className={`col-span-2 flex flex-col justify-center px-3 py-1.5 rounded-xl border backdrop-blur-md ${a.ring} ${a.bg} ${a.glow}`}>
