@@ -10242,6 +10242,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     rxCellName={activeTaggedLink?.toSector?.cell_id || undefined}
                     txBand={(activeTaggedLink?.fromSector as any)?.bande || (activeTaggedLink?.fromSector as any)?.band || undefined}
                     rxBand={(activeTaggedLink?.toSector as any)?.bande || (activeTaggedLink?.toSector as any)?.band || undefined}
+                    txAzimuth={Number.isFinite(activeTaggedLink?.fromSector?.azimut as number) ? Number(activeTaggedLink?.fromSector?.azimut) : null}
+                    rxAzimuth={Number.isFinite(activeTaggedLink?.toSector?.azimut as number) ? Number(activeTaggedLink?.toSector?.azimut) : null}
+                    linkBearing={activeTaggedLink ? Math.round(bearing({ lat: activeTaggedLink.fromCoords[0], lng: activeTaggedLink.fromCoords[1] }, { lat: activeTaggedLink.toCoords[0], lng: activeTaggedLink.toCoords[1] })) : null}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-xs gap-2">
