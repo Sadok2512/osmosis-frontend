@@ -14951,7 +14951,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             {/* Table header — BSP is the techno-specific physical
                                 identifier: 2G → BCCH (often blank, no DB column),
                                 3G → SC (psc), 4G/5G → PCI. Tooltip shows the meaning. */}
-                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px_50px_50px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50 border-l-2 border-l-transparent">
+                            <div className="max-h-[280px] overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
+                              <div className="grid grid-cols-[1fr_44px_64px_40px_40px_50px_50px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50 border-l-2 border-l-transparent sticky top-0 z-10">
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Cell ID</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tech</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Band</span>
@@ -14967,7 +14968,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               >HBA</span>
                             </div>
                             {/* Cell rows */}
-                            <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto">
+                              <div className="divide-y divide-border/20">
                               {cells.map((c) => {
                                 const eTilt = (c as any).tilt as number | null;
                                 const isSelected = focusCellId === c.cell_id;
@@ -15020,6 +15021,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                   </div>
                                 );
                               })}
+                              </div>
                             </div>
                           </div>
                         </TabsContent>
