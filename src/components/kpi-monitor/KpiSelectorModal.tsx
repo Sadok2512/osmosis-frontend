@@ -315,13 +315,29 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
 
   const totalFiltered = Array.from(tabCategories.values()).reduce((a, b) => a + b, 0);
 
+  // 2026-05-09 — when a multivendor canonical row is toggled in groupMode,
+  // we now select the CANONICAL key only (e.g. `4g_lte_dcr_volte`) instead
+  // of fanning out to the verbose variants (`Ericsson__&_*`, `Nokia__&_*`).
+  // Backend resolver (osmosis-parser kpi-engine SCHEMA_DECISIONS.md) accepts
+  // canonical names via OR-lookup on (kpi_code, kpi_code_normalized) and
+  // picks the right vendor formula per cell at compute time. Sending one
+  // chip lets the operator overlay Ericsson + Nokia on a single graph.
+  // variantKeys is kept in the signature for back-compat callers but is
+  // ignored — the deselect path uses both the canonical key AND the
+  // legacy variant keys so a previously-selected variant gets cleared.
   const toggle = (key: string, variantKeys?: string[]) => {
     setSelected(prev => {
       const next = new Set(prev);
-      const keys = variantKeys && variantKeys.length ? variantKeys : [key];
-      const allOn = keys.every(k => next.has(k));
-      if (allOn) keys.forEach(k => next.delete(k));
-      else       keys.forEach(k => next.add(k));
+      const isOn = next.has(key)
+        || (variantKeys && variantKeys.length > 0 && variantKeys.every(k => next.has(k)));
+      if (isOn) {
+        next.delete(key);
+        // Also clear any legacy verbose variants that may still be in
+        // the set (selection persisted from before the canonical fix).
+        if (variantKeys) variantKeys.forEach(k => next.delete(k));
+      } else {
+        next.add(key);
+      }
       return next;
     });
   };
@@ -565,9 +581,14 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                   {(displayCatalog.length > 200 && !search ? displayCatalog.slice(0, 200) : displayCatalog).map((k: any) => {
                     const variantKeys: string[] | undefined = k._variant_keys;
                     const isGroup = !!(variantKeys && variantKeys.length > 1);
-                    const isSelected = isGroup
-                      ? variantKeys!.every(vk => selected.has(vk))
-                      : selected.has(k.kpi_key);
+                    // 2026-05-09 — selection is now keyed by canonical
+                    // name (k.kpi_key in groupMode IS the canonical), so
+                    // both group and standalone rows check the same set.
+                    // Variant-keys check kept as a fallback for sessions
+                    // whose `selected` set still has legacy verbose
+                    // entries from before the canonical migration.
+                    const isSelected = selected.has(k.kpi_key)
+                      || (isGroup && variantKeys!.length > 0 && variantKeys!.every(vk => selected.has(vk)));
                     const isFav = favorites.includes(k.kpi_key);
                     // Variants list when grouped — used by the Info popover
                     // to show the per-vendor formula. When NOT grouped, the
