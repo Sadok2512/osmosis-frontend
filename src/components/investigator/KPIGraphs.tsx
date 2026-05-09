@@ -63,6 +63,28 @@ const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd 
   );
 };
 
+/** Per-slot button that opens the backend-request dialog filtered by this slot. */
+const SlotRequestButton: React.FC<{ slot: GraphSlot }> = ({ slot }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        title="Voir la requête VPS (URL · payload · réponse)"
+        className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+      >
+        <Eye className="w-3.5 h-3.5" />
+      </button>
+      <BackendRequestDialog
+        open={open}
+        onOpenChange={setOpen}
+        widgetFilter={`slot ${slot.id}`}
+        title={slot.name}
+      />
+    </>
+  );
+};
+
 /** Reusable graph settings popover for all slot types */
 const SlotSettingsPopover: React.FC<{
   slot: GraphSlot;
