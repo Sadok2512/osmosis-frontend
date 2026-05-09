@@ -564,10 +564,10 @@ export async function fetchTimeSeriesForSlot(
     };
   });
 
-  // Step 2: For KPIs not found in KPI Engine + raw counters, try counter fallback
-  const kpisWithData = new Set(kpiSeries.map((s: any) => s.kpi_key?.toLowerCase()));
-  const missingKpis = kpiOnlyIds.filter(k => !kpisWithData.has(k.toLowerCase()));
-  const fallbackIds = [...missingKpis, ...rawCounterIds];
+  // Step 2: PM Compute fallback ONLY for raw counter IDs (M..C.. / pm*).
+  // Do NOT fallback genuine KPI keys to PM Compute — sending a KPI name as a
+  // counter_name always returns 0 series and wastes a backend round-trip.
+  const fallbackIds = [...rawCounterIds];
   let hasUnfilteredFallback = false;
 
   if (fallbackIds.length > 0) {
