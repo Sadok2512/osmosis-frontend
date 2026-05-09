@@ -822,13 +822,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
           </div>
-          <span className="text-[10px] font-bold text-slate-100 truncate max-w-[180px]" title={`${siteName}${sectorName ? ` · ${sectorName}` : ''}`}>{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
-          <div className="flex items-center gap-3 ml-auto text-[10px] font-mono">
-            <FooterStat label="Ant" value={`${antennaHeight.toFixed(0)}m`} />
-            <FooterStat label="AMSL" value={`${Math.round(antennaAmsl)}m`} />
-            <FooterStat label="Tilt" value={`${geom.totalTilt.toFixed(1)}°`} />
-            <FooterStat label="Band" value={bandLabel} />
-          </div>
+          <span className="text-[10px] font-bold text-slate-100 truncate" title={sectorName || siteName}>{sectorName || siteName}</span>
         </div>
         {/* Coverage KPI cards */}
         {linkDistance > 0 && (
