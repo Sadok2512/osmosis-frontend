@@ -434,9 +434,19 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Step 1: KPI Engine — primary path for all KPI queries
+  // Strip vendor prefix from kpi_key (e.g. "Ericsson__&_4G_LTE_DCR_VoLTE" → "4G_LTE_DCR_VoLTE")
+  // Backend expects raw kpi_key without vendor prefix; the prefix is a display-side concat.
+  const cleanKpiKey = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+
   const url = getApiUrl('monitor/query/timeseries');
-  const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
+  // Normalize VENDOR values to uppercase (backend canonical form)
+  const allFilters = ctx.filters.map(f => ({
+    dimension: f.dimension,
+    op: 'IN',
+    values: f.dimension === 'VENDOR'
+      ? (f.values || []).map(v => String(v).toUpperCase())
+      : f.values,
+  }));
 
   // Add kpi_level filter
   if (ctx.kpiLevel && ctx.kpiLevel !== 'CELL') {
