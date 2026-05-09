@@ -541,10 +541,10 @@ const ProfileChart: React.FC<Props> = ({
             <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
           )}
         </div>
-        <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
-          <span><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></span>
+        <div className="flex items-center gap-4 px-4 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/40 text-[12px]">
+          <span className="flex items-baseline gap-1.5"><span className="text-cyan-300 font-bold uppercase tracking-wider text-[10px]">Dist</span><span className="text-white font-bold tabular-nums">{derived.totalDistKm.toFixed(2)} km</span></span>
           {fresnel && showFresnel && (
-            <span><span className="text-yellow-400 font-bold">Fresnel:</span> <span className="text-slate-100">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></span>
+            <span className="flex items-baseline gap-1.5"><span className="text-yellow-300 font-bold uppercase tracking-wider text-[10px]">Fresnel</span><span className="text-white font-bold tabular-nums">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></span>
           )}
         </div>
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
