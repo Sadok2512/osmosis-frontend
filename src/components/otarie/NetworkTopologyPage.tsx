@@ -1520,9 +1520,6 @@ const NetworkTopologyPage: React.FC = () => {
                       <TabsList>
                         <TabsTrigger value="info" className="gap-1 text-xs"><Info className="w-3.5 h-3.5" /> Info</TabsTrigger>
                         <TabsTrigger value="cells" className="gap-1 text-xs"><Signal className="w-3.5 h-3.5" /> Cells ({siteDetail.cells.length})</TabsTrigger>
-                        <TabsTrigger value="params" className="gap-1 text-xs"><Settings className="w-3.5 h-3.5" /> Parameters</TabsTrigger>
-                        <TabsTrigger value="alarms" className="gap-1 text-xs"><AlertCircle className="w-3.5 h-3.5" /> Alarms</TabsTrigger>
-                        <TabsTrigger value="cm" className="gap-1 text-xs"><RefreshCw className="w-3.5 h-3.5" /> CM History</TabsTrigger>
                       </TabsList>
 
                       {/* Info tab */}
@@ -1604,128 +1601,6 @@ const NetworkTopologyPage: React.FC = () => {
                         </div>
                       </TabsContent>
 
-                      {/* Parameters tab */}
-                      <TabsContent value="params" className="mt-3">
-                        <div className="flex gap-2 mb-3">
-                          <div className="relative flex-1">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <Input
-                              value={paramSearch}
-                              onChange={e => setParamSearch(e.target.value)}
-                              onKeyDown={e => e.key === 'Enter' && loadSiteParams(selectedSite!, paramSearch)}
-                              placeholder="Search parameters..."
-                              className="pl-9"
-                            />
-                          </div>
-                          <Button variant="outline" size="sm" onClick={() => loadSiteParams(selectedSite!, paramSearch)}>
-                            <Search className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        {paramsLoading ? (
-                          <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 inline animate-spin mr-2" />Loading...</div>
-                        ) : siteParams.length === 0 ? (
-                          <div className="text-center py-6 text-muted-foreground text-sm">No parameters found</div>
-                        ) : (
-                          <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-auto">
-                            <Table>
-                              <TableHeader className="sticky top-0 bg-card z-10">
-                                <TableRow>
-                                  <TableHead>Parameter</TableHead>
-                                  <TableHead>Value</TableHead>
-                                  <TableHead>MO</TableHead>
-                                  <TableHead>DN</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {siteParams.map((p, i) => (
-                                  <TableRow key={i}>
-                                    <TableCell className="font-mono text-xs text-cyan-500">{p.parameter}</TableCell>
-                                    <TableCell className="text-xs font-semibold text-blue-500">{p.value ?? '—'}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground">{p.mo || ''}</TableCell>
-                                    <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate" title={p.dn || ''}>{p.dn || ''}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      {/* Alarms tab */}
-                      <TabsContent value="alarms" className="mt-3">
-                        {alarmsLoading ? (
-                          <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 inline animate-spin mr-2" />Loading...</div>
-                        ) : siteAlarms.length === 0 ? (
-                          <div className="text-center py-6 text-muted-foreground text-sm">No alarms for this site</div>
-                        ) : (
-                          <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-auto">
-                            <Table>
-                              <TableHeader className="sticky top-0 bg-card z-10">
-                                <TableRow>
-                                  <TableHead>Time</TableHead>
-                                  <TableHead>Severity</TableHead>
-                                  <TableHead>Problem</TableHead>
-                                  <TableHead>Text</TableHead>
-                                  <TableHead>Status</TableHead>
-                                  <TableHead>Cell</TableHead>
-                                  <TableHead>Duration</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {siteAlarms.map((a, i) => (
-                                  <TableRow key={i}>
-                                    <TableCell className="text-xs whitespace-nowrap">{a.alarm_time ? new Date(a.alarm_time).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</TableCell>
-                                    <TableCell><span className={`text-[10px] px-1.5 py-0.5 rounded border ${severityClass(a.severity)}`}>{a.severity || '—'}</span></TableCell>
-                                    <TableCell className="text-xs max-w-[200px] truncate" title={a.problem || ''}>{a.problem || '—'}</TableCell>
-                                    <TableCell className="text-xs max-w-[200px] truncate" title={a.text || ''}>{a.text || ''}</TableCell>
-                                    <TableCell className="text-xs">{a.status || ''}</TableCell>
-                                    <TableCell className="text-xs">{a.cell_name || ''}</TableCell>
-                                    <TableCell className="text-xs">{a.duration_min != null ? `${a.duration_min}m` : ''}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </TabsContent>
-
-                      {/* CM History tab */}
-                      <TabsContent value="cm" className="mt-3">
-                        {cmLoading ? (
-                          <div className="text-center py-6 text-muted-foreground"><Loader2 className="w-4 h-4 inline animate-spin mr-2" />Loading...</div>
-                        ) : siteCmChanges.length === 0 ? (
-                          <div className="text-center py-6 text-muted-foreground text-sm">No CM changes for this site</div>
-                        ) : (
-                          <div className="border rounded-lg overflow-hidden max-h-[400px] overflow-auto">
-                            <Table>
-                              <TableHeader className="sticky top-0 bg-card z-10">
-                                <TableRow>
-                                  <TableHead>Date</TableHead>
-                                  <TableHead>Parameter</TableHead>
-                                  <TableHead>Old Value</TableHead>
-                                  <TableHead>New Value</TableHead>
-                                  <TableHead>Type</TableHead>
-                                  <TableHead>User</TableHead>
-                                  <TableHead>Cell</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {siteCmChanges.map((c, i) => (
-                                  <TableRow key={i}>
-                                    <TableCell className="text-xs whitespace-nowrap">{c.changed_at ? new Date(c.changed_at).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</TableCell>
-                                    <TableCell className="text-xs font-mono text-cyan-500">{c.parameter || '—'}</TableCell>
-                                    <TableCell className="text-xs text-rose-400 max-w-[120px] truncate" title={c.old_value || ''}>{c.old_value || '—'}</TableCell>
-                                    <TableCell className="text-xs text-emerald-400 max-w-[120px] truncate" title={c.new_value || ''}>{c.new_value || '—'}</TableCell>
-                                    <TableCell className="text-xs">{c.change_type || ''}</TableCell>
-                                    <TableCell className="text-xs">{c.user || ''}</TableCell>
-                                    <TableCell className="text-xs">{c.cell_name || ''}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </TabsContent>
                     </Tabs>
                   </>
                 )}
