@@ -61,9 +61,11 @@ export const getZoomAwareRadius = (
  * Tagged site radius with inverse zoom scaling.
  */
 export const getTaggedRadius = (zoom: number): number => {
-  const BASE = 700;
-  const MIN_RADIUS = 400;
-  const MAX_RADIUS = 5000;
+  // Tagged site emphasis multiplier (kept existing growth behavior, then +1.5x).
+  const BOOST = 1.5;
+  const BASE = 700 * BOOST;
+  const MIN_RADIUS = 400 * BOOST;
+  const MAX_RADIUS = 5000 * BOOST;
   const REF_ZOOM = 12;
   const scale = Math.pow(2, REF_ZOOM - zoom);
   const raw = BASE * scale;
@@ -71,11 +73,11 @@ export const getTaggedRadius = (zoom: number): number => {
   // screen-covering. This keeps tagged identification clear without making the
   // overlay dominate the map.
   let highZoomCap = MAX_RADIUS;
-  if (zoom >= 18) highZoomCap = 120;
-  else if (zoom >= 17) highZoomCap = 180;
-  else if (zoom >= 16) highZoomCap = 260;
-  else if (zoom >= 15) highZoomCap = 380;
-  return Math.max(MIN_RADIUS * (zoom >= 15 ? 0 : 1) + (zoom >= 15 ? 60 : 0),
+  if (zoom >= 18) highZoomCap = 120 * BOOST;
+  else if (zoom >= 17) highZoomCap = 180 * BOOST;
+  else if (zoom >= 16) highZoomCap = 260 * BOOST;
+  else if (zoom >= 15) highZoomCap = 380 * BOOST;
+  return Math.max(MIN_RADIUS * (zoom >= 15 ? 0 : 1) + (zoom >= 15 ? 60 * BOOST : 0),
     Math.min(highZoomCap, Math.min(MAX_RADIUS, raw)));
 };
 
