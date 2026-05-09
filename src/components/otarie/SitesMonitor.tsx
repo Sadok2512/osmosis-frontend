@@ -10102,6 +10102,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
               <div>
                 <h3 className="text-sm font-extrabold text-white tracking-tight">{linkProfileLabel}</h3>
+                {(activeTaggedLink?.fromSector || activeTaggedLink?.toSector) && (
+                  <p className="text-[10px] text-emerald-300/90 font-mono truncate max-w-[640px]">
+                    {activeTaggedLink?.fromSector
+                      ? `TX: ${activeTaggedLink.fromSector.cell_id}${activeTaggedLink.fromSector.bande ? ` (${activeTaggedLink.fromSector.bande})` : ''}`
+                      : 'TX: Point'}
+                    {' · '}
+                    {activeTaggedLink?.toSector
+                      ? `RX: ${activeTaggedLink.toSector.cell_id}${activeTaggedLink.toSector.bande ? ` (${activeTaggedLink.toSector.bande})` : ''}`
+                      : 'RX: Point'}
+                  </p>
+                )}
                 <p className="text-[10px] text-white/40">Profil terrain du lien · {linkTotalDistance > 0 ? (linkTotalDistance / 1000).toFixed(2) + ' km' : ''}</p>
               </div>
             </div>
