@@ -78,7 +78,6 @@ const SlotRequestButton: React.FC<{ slot: GraphSlot }> = ({ slot }) => {
       <BackendRequestDialog
         open={open}
         onOpenChange={setOpen}
-        widgetFilter={`slot ${slot.id}`}
         title={slot.name}
       />
     </>
