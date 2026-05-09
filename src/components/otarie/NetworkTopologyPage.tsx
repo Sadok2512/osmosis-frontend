@@ -1520,9 +1520,6 @@ const NetworkTopologyPage: React.FC = () => {
                       <TabsList>
                         <TabsTrigger value="info" className="gap-1 text-xs"><Info className="w-3.5 h-3.5" /> Info</TabsTrigger>
                         <TabsTrigger value="cells" className="gap-1 text-xs"><Signal className="w-3.5 h-3.5" /> Cells ({siteDetail.cells.length})</TabsTrigger>
-                        <TabsTrigger value="params" className="gap-1 text-xs"><Settings className="w-3.5 h-3.5" /> Parameters</TabsTrigger>
-                        <TabsTrigger value="alarms" className="gap-1 text-xs"><AlertCircle className="w-3.5 h-3.5" /> Alarms</TabsTrigger>
-                        <TabsTrigger value="cm" className="gap-1 text-xs"><RefreshCw className="w-3.5 h-3.5" /> CM History</TabsTrigger>
                       </TabsList>
 
                       {/* Info tab */}
