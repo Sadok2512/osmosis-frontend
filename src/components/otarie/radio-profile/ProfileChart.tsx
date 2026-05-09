@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
+import { bandFreqLabel } from './CoverageProfile';
 
 export interface ProfileHoverData {
   distanceKm: number;
