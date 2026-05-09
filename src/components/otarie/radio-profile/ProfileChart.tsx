@@ -55,6 +55,17 @@ interface Props {
   txBand?: string;
   /** RX band (raw string like "LTE1800") for footer label. */
   rxBand?: string;
+  /** TX serving sector azimuth (deg, 0..360). */
+  txAzimuth?: number | null;
+  /** RX serving sector azimuth (deg, 0..360). */
+  rxAzimuth?: number | null;
+  /** Bearing from TX to RX along the link (deg, 0..360). */
+  linkBearing?: number | null;
+}
+
+/** Smallest signed-circular distance between two azimuths, in degrees [0..180]. */
+function angularDelta(a: number, b: number): number {
+  return Math.abs(((a - b) % 360 + 540) % 360 - 180);
 }
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
