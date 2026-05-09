@@ -971,6 +971,11 @@ export async function fetchSitesByBbox(
     if (sites.length === 0 && resp.total > 0) {
       throw new Error('BBOX returned only invalid site coordinates');
     }
+    // Fix: VPS BBOX sometimes returns total=0 (timeout / partial index) even when local cache has data.
+    // Trigger fallback to fetchTopoSites() instead of letting the map go blank.
+    if (sites.length === 0 && resp.total === 0) {
+      throw new Error('BBOX returned 0 sites — falling back to local cache');
+    }
 
     const filteredSites = filterSitesAllTech(sites);
     bboxCache = { key, sites: filteredSites, total: filteredSites.length };
@@ -981,7 +986,17 @@ export async function fetchSitesByBbox(
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
     const allSites = await fetchTopoSites();
-    const filteredSites = filterSitesByBboxFilters(allSites, filters);
+    // Geographic bbox filter so we don't render the whole country at city zoom
+    const inBbox = allSites.filter(s => {
+      const [lat, lon] = s.coordinates || [];
+      return (
+        typeof lat === 'number' && typeof lon === 'number' &&
+        lat >= bbox.minLat && lat <= bbox.maxLat &&
+        lon >= bbox.minLng && lon <= bbox.maxLng
+      );
+    });
+    const filteredSites = filterSitesByBboxFilters(inBbox, filters);
+    console.log(`[TopoService] BBOX fallback: ${filteredSites.length} local sites in bbox`);
     return { sites: filteredSites, total: filteredSites.length };
   }
 }
