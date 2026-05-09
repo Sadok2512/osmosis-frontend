@@ -836,7 +836,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         )}
         <KpiCard accent="cyan" label="Coverage" value={(geom.farDist / 1000).toFixed(2)} unit="km" />
         <KpiCard accent="emerald" label="Main Beam" value={(geom.mainDist / 1000).toFixed(2)} unit="km" />
-        <KpiCard accent="amber" label="Area" value={coverageAreaKm2.toFixed(2)} unit="km²" />
+        
       </div>
     </div>
   );
