@@ -365,8 +365,9 @@ const buildTopoNetworkStatsFromRows = (rows: any[]): TopoNetworkStats => {
 
 const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_BAND_COLORS | null => {
   if (!bande) return null;
-  const normalized = bande.replace(/\s+/g, '').replace(/MHZ/gi, '').toUpperCase();
-  const is5G = (techno || '').toUpperCase().includes('5G') || normalized.includes('NR') || /^N\d+$/i.test(normalized);
+  // Strip whitespace, underscores, dashes and MHZ suffix so "NR_700", "NR-700", "NR 700 MHz" all collapse to "NR700"
+  const normalized = bande.replace(/[\s_\-]+/g, '').replace(/MHZ/gi, '').toUpperCase();
+  const is5G = (techno || '').toUpperCase().includes('5G') || /(^|[^A-Z])NR\d/.test(normalized) || /^N\d+$/i.test(normalized);
 
   // 2G bands — check first (exact match before generic frequency checks)
   if (normalized.includes('GSM900') || (normalized.includes('900') && (techno || '').includes('2G'))) return 'GSM900' as any;
@@ -376,10 +377,16 @@ const normalizeBandKey = (bande: string, techno?: string): keyof typeof DEFAULT_
   if (normalized.includes('UMTS2100') || normalized.includes('WCDMA2100') || (normalized.includes('2100') && (techno || '').includes('3G'))) return 'UMTS2100' as any;
   if (normalized.includes('UMTS900') || normalized.includes('WCDMA900') || (normalized.includes('900') && (techno || '').includes('3G'))) return 'UMTS900' as any;
 
-  // 5G bands
+  // 5G bands — must run before 4G fallback so "NR700" isn't misclassified as "L700"
   if (normalized.includes('3500') || normalized.includes('NR3500') || normalized.includes('N78')) return 'NR3500';
   if (normalized.includes('NR2100') || normalized === 'N1') return 'NR2100';
   if (normalized.includes('NR700') || normalized === 'N28') return 'NR700';
+  // 5G fallback by techno: any NR cell on 700/2100/3500 frequency
+  if (is5G) {
+    if (normalized.includes('700')) return 'NR700';
+    if (normalized.includes('2100')) return 'NR2100';
+    if (normalized.includes('3500')) return 'NR3500';
+  }
 
   // 4G bands
   if (normalized.includes('2600') || normalized.includes('L2600') || normalized.includes('B7')) return 'L2600';
