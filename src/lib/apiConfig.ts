@@ -75,8 +75,13 @@ export function logBackendRequest(
   }
   // Also push to the in-app live log panel.
   try {
+    const safeBodyForLog = body === undefined
+      ? undefined
+      : (typeof body === 'string' ? body : JSON.stringify(body));
     // Lazy import to avoid circular deps at module init.
-    import('./backendRequestLog').then(m => m.pushBackendRequestEntry(widgetName, method, url));
+    import('./backendRequestLog').then(m =>
+      m.pushBackendRequestEntry(widgetName, method, url, safeBodyForLog),
+    );
   } catch {
     // ignore
   }
