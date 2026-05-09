@@ -3,7 +3,7 @@ import { topoApi, BboxFilters, BboxSiteDTO, qoeMapApi, QoeMapSiteData } from '@/
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { supabase } from '@/integrations/supabase/client';
 import topoRaw from '../data/topoData';
-import { DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
+import type { DashboardSiteFilters } from '@/components/otarie/ProgressiveFilterBuilder';
 
 // ── Stale topo signal ──
 // vps-proxy serves the last good /topo/sites or /topo/cells response from

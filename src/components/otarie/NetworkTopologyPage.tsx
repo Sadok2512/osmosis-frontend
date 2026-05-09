@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { topoApi } from '@/lib/localDb';
-import { ProgressiveFilterBuilder, type DashboardSiteFilters } from '@/components/otarie/SitesMonitor';
+import { ProgressiveFilterBuilder, type DashboardSiteFilters } from '@/components/otarie/ProgressiveFilterBuilder';
 import { cn } from '@/lib/utils';
 import { LayerVisibility, throttle } from '@/lib/layerVisibility';
 import { Card } from '@/components/ui/card';
