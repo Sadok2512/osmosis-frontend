@@ -1199,8 +1199,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
       const counterSplitVal = cIds.map(cid => splitPerKpi[cid]).find(v => v && v !== 'None');
       const hasSplit = !!counterSplitVal;
 
+      // Strip vendor prefix from counter_names (e.g. "Ericsson__&_4G_LTE_DCR_VoLTE" → "4G_LTE_DCR_VoLTE")
+      const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
       const body: any = {
-        counter_names: cIds,
+        counter_names: cIds.map(cleanCounterName),
         date_from: slotContext.dateFrom,
         date_to: slotContext.dateTo,
         granularity: slotContext.granularity,
