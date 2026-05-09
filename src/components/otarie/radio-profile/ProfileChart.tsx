@@ -2,7 +2,19 @@ import React, { useMemo, useRef, useState } from 'react';
 import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
-import { bandFreqLabel } from './CoverageProfile';
+
+function formatBandLabel(band?: string): string {
+  if (!band) return '—';
+  const b = String(band).toUpperCase().replace(/\s+/g, '');
+  if (b.includes('3500') || b.includes('N78')) return '3500 MHz (n78)';
+  if (b.includes('2600') || b.includes('B7')) return '2600 MHz (B7)';
+  if (b.includes('2100') || b === 'B1') return '2100 MHz (B1)';
+  if (b.includes('1800') || b.includes('B3') || b.includes('DCS')) return '1800 MHz (B3)';
+  if (b.includes('900') || b.includes('B8')) return '900 MHz (B8)';
+  if (b.includes('800') || b.includes('B20')) return '800 MHz (B20)';
+  if (b.includes('700') || b.includes('B28')) return '700 MHz (B28)';
+  return band;
+}
 
 export interface ProfileHoverData {
   distanceKm: number;
