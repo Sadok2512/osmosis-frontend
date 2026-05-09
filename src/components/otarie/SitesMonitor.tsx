@@ -13419,26 +13419,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 <div className="text-[10px] text-destructive">Aucun secteur trouvé sur la bande {band}.</div>
                               ) : (
                                 <>
-                                  <div className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Secteurs ({bandCells.length})</div>
-                                  <div className="grid grid-cols-2 gap-1">
-                                    {bandCells.map(c => {
-                                      const isAuto = cell?.cell_id === c.cell_id;
-                                      return (
-                                        <button
-                                          key={c.cell_id}
-                                          onClick={() => onPickCell(c.cell_id === cell?.cell_id ? null : c.cell_id)}
-                                          className={`text-left px-2 py-1.5 rounded-md text-[10px] font-mono border transition-colors ${
-                                            isAuto ? 'bg-emerald-500/15 border-emerald-500/60 text-foreground' : 'bg-muted/50 hover:bg-muted border-border text-muted-foreground'
-                                          }`}
-                                          title={c.cell_id}
-                                        >
-                                          <div className="font-bold truncate text-foreground">{c.cell_id}</div>
-                                          <div className="text-[9px] text-muted-foreground">AZ {Number(c.azimut).toFixed(0)}° • Δ {(((targetAz - Number(c.azimut)) % 360 + 540) % 360 - 180).toFixed(0)}°</div>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
                                   {cell && (
+
                                     <div className="rounded-md bg-emerald-500/10 border border-emerald-500/40 p-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-mono">
                                       <div className="col-span-2 text-[9px] font-bold uppercase tracking-wider text-emerald-600">Secteur sélectionné</div>
                                       <div><span className="text-muted-foreground">Cell:</span> <span className="font-bold text-foreground">{cell.cell_id}</span></div>
