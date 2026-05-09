@@ -330,6 +330,17 @@ function buildCellProperties(cellName: string, techno: string, bande: string, az
     if (extra.cid != null) ext.cid = extra.cid;
     if (extra.tac != null) ext.tac = extra.tac;
     if (extra.lac != null) ext.lac = extra.lac;
+    // State fields — the SitesMonitor "Cell State" column reads them in
+    // priority cell_state → etat_cellule → etat_fonctionnement →
+    // cell_status → oper_state. Backend endpoints expose different
+    // subsets (/topo/cells gives cell_state+cell_status+etat_cellule+
+    // status; /topo/sites?include_cells gives cell_state+etat_cellule
+    // only) so propagate every known alias to keep the chain resilient.
+    if (ex.cell_state) ext.cell_state = ex.cell_state;
+    if (ex.cell_status) ext.cell_status = ex.cell_status;
+    if (ex.etat_fonctionnement) ext.etat_fonctionnement = ex.etat_fonctionnement;
+    if (ex.oper_state) ext.oper_state = ex.oper_state;
+    if (ex.status) ext.status = ex.status;
     if (extra.etat_cellule) ext.etat_cellule = extra.etat_cellule;
     if (extra.zone_arcep) ext.zone_arcep = extra.zone_arcep;
     if (extra.essentiel) ext.essentiel = extra.essentiel;
