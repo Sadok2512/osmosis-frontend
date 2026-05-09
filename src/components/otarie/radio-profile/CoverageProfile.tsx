@@ -280,9 +280,19 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
     ];
   }, [terrainProfile, groundBaseAmsl, xMaxDomain]);
 
-  const yMin = Math.min(groundBaseAmsl, ...terrainSeries.map(p => p.y)) - 10;
-  const yMaxRaw = Math.max(antennaAmsl + 30, ...terrainSeries.map(p => p.y));
-  const yMax = yMaxRaw + 10;
+  // Y-axis: same auto-scale logic as Link Profile —
+  // tight frame around terrain min and max(antenna, terrain) with adaptive padding.
+  const _tMin = Math.min(groundBaseAmsl, ...terrainSeries.map(p => p.y));
+  const _tMax = Math.max(...terrainSeries.map(p => p.y));
+  const _rfMax = Math.max(_tMax, antennaAmsl);
+  const _rfMin = _tMin;
+  const _range = Math.max(20, _rfMax - _rfMin);
+  const yMin = autoScale
+    ? Math.max(0, Math.floor((_rfMin - _range * 0.10) / 10) * 10)
+    : Math.min(groundBaseAmsl, _tMin) - 10;
+  const yMax = autoScale
+    ? Math.ceil((_rfMax + Math.max(15, _range * 0.12)) / 25) * 25
+    : Math.max(antennaAmsl + 30, _tMax) + 10;
   const ySpan = Math.max(1, yMax - yMin);
 
   const xScale = (d: number) => M.left + (d / xMaxDomain) * IW;
