@@ -249,7 +249,7 @@ const ParameterHubPage: React.FC = () => {
 
                 <div className="h-5 w-px bg-slate-200 mx-1" />
 
-                {FILTER_DIMS.map((d) => (
+                {FILTER_DIMS.filter(d => activeFilterDims.has(d.key) || draftFilters[d.key].length > 0).map((d) => (
                   <MultiSelectPopover
                     key={d.key}
                     title={`Select ${d.label}`}
@@ -263,12 +263,51 @@ const ParameterHubPage: React.FC = () => {
                         <FilterChip
                           label={d.label}
                           values={draftFilters[d.key]}
-                          onClear={() => setFilterValues(d.key, [])}
+                          onClear={() => {
+                            setFilterValues(d.key, []);
+                            setActiveFilterDims(prev => {
+                              const n = new Set(prev);
+                              n.delete(d.key);
+                              return n;
+                            });
+                          }}
                         />
                       </button>
                     }
                   />
                 ))}
+
+                {/* Add filter dropdown — Investigator-style */}
+                {(() => {
+                  const remaining = FILTER_DIMS.filter(d => !activeFilterDims.has(d.key) && draftFilters[d.key].length === 0);
+                  if (remaining.length === 0) return null;
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full border border-dashed border-slate-300 text-[12.5px] font-medium text-slate-500 hover:text-teal-700 hover:border-teal-400 hover:bg-teal-50/40 transition-all">
+                          <Plus className="w-3.5 h-3.5" /> Ajouter filtre
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-56 p-1">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">
+                          Dimensions
+                        </div>
+                        {remaining.map(d => (
+                          <button
+                            key={d.key}
+                            onClick={() => {
+                              setActiveFilterDims(prev => new Set(prev).add(d.key));
+                              ensureDistinct(d.column);
+                            }}
+                            className="w-full text-left px-2 py-1.5 rounded-md text-[12px] hover:bg-accent hover:text-accent-foreground transition-colors"
+                          >
+                            {d.label}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })()}
 
                 <div className="flex-1" />
 
