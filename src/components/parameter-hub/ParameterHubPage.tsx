@@ -85,6 +85,7 @@ const AGGREGATION_OPTIONS: { value: AggregationLevel; label: string }[] = [
 const ParameterHubPage: React.FC = () => {
   const [draftFilters, setDraftFilters] = useState<ParameterHubFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<ParameterHubFilters>(EMPTY_FILTERS);
+  const [activeFilterDims, setActiveFilterDims] = useState<Set<string>>(new Set());
   const [draftDimensions, setDraftDimensions] = useState<string[]>(['Cell', 'Vendor']);
   const [draftAggregation, setDraftAggregation] = useState<AggregationLevel>('sector');
   const [appliedAggregation, setAppliedAggregation] = useState<AggregationLevel>('sector');
