@@ -125,8 +125,8 @@ export async function fetchAvailableParameters(force = false, search = ''): Prom
 
   _paramsInflight = (async () => {
     const list = await dumpGet<unknown>(
-      'params/distinct?column=parameter_raw&limit=300',
-      { timeoutMs: 30_000, maxRetries: 1 },
+      'params/distinct?column=parameter_raw&limit=10000',
+      { timeoutMs: 60_000, maxRetries: 2 },
     );
     const sorted = normalizeStringList(list).sort((a, b) => a.localeCompare(b));
     _paramsMemCache = sorted;
