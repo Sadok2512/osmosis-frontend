@@ -504,21 +504,20 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
               <stop offset="50%" stopColor="#64748b" stopOpacity="0.3" />
               <stop offset="100%" stopColor="#0f172a" stopOpacity="0.05" />
             </linearGradient>
-            {(() => {
-              // Drive beam gradient stops from real RSRP-class colors at each landmark
-              // distance so the beam visually matches the "Signal Level (RSRP)" legend.
-              const farD = Math.max(1, geom.farDist);
-              const nearOff = Math.min(0.95, Math.max(0.02, geom.nearDist / farD));
-              const mainOff = Math.min(0.97, Math.max(nearOff + 0.02, geom.mainDist / farD));
-              return (
-                <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.15">
-                  <stop offset="0%" stopColor={nearZone.color} stopOpacity="0.75" />
-                  <stop offset={`${(nearOff * 100).toFixed(1)}%`} stopColor={nearZone.color} stopOpacity="0.6" />
-                  <stop offset={`${(mainOff * 100).toFixed(1)}%`} stopColor={mainZone.color} stopOpacity="0.5" />
-                  <stop offset="100%" stopColor={farZone.color} stopOpacity="0.4" />
-                </linearGradient>
-              );
-            })()}
+            <linearGradient id="cp-beam" x1="0" x2="1" y1="0" y2="0.15">
+              <stop offset="0%" stopColor={nearZone.color} stopOpacity="0.75" />
+              <stop
+                offset={`${(Math.min(0.95, Math.max(0.02, geom.nearDist / Math.max(1, geom.farDist))) * 100).toFixed(1)}%`}
+                stopColor={nearZone.color}
+                stopOpacity="0.6"
+              />
+              <stop
+                offset={`${(Math.min(0.97, Math.max(0.04, geom.mainDist / Math.max(1, geom.farDist))) * 100).toFixed(1)}%`}
+                stopColor={mainZone.color}
+                stopOpacity="0.5"
+              />
+              <stop offset="100%" stopColor={farZone.color} stopOpacity="0.45" />
+            </linearGradient>
             <linearGradient id="cp-beam-axis" x1="0" x2="1" y1="0" y2="0">
               <stop offset="0%" stopColor="#34d399" stopOpacity="1" />
               <stop offset="60%" stopColor="#fbbf24" stopOpacity="0.95" />
