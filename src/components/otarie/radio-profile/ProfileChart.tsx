@@ -574,17 +574,44 @@ const ProfileChart: React.FC<Props> = ({
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{ant.hba.toFixed(0)} m</span></span>
               <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(ant.totalTilt ?? 0).toFixed(1)}°</span></span>
+              {Number.isFinite(txAzimuth as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">Az: <span className="text-emerald-300 font-bold tabular-nums">{Math.round(txAzimuth as number)}°</span></span>
+                </>
+              )}
+              {Number.isFinite(linkBearing as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">Bearing: <span className="text-cyan-300 font-bold tabular-nums">{Math.round(linkBearing as number)}°</span></span>
+                </>
+              )}
+              {Number.isFinite(txAzimuth as number) && Number.isFinite(linkBearing as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">ΔAz: <span className={`font-bold tabular-nums ${angularDelta(txAzimuth as number, linkBearing as number) <= 30 ? 'text-emerald-300' : angularDelta(txAzimuth as number, linkBearing as number) <= 60 ? 'text-amber-300' : 'text-red-300'}`}>{angularDelta(txAzimuth as number, linkBearing as number).toFixed(1)}°</span></span>
+                </>
+              )}
             </>
           )}
           {txIsPoint && (
             <>
               <span className="text-slate-500">|</span>
               <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+              {Number.isFinite(linkBearing as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">Bearing: <span className="text-cyan-300 font-bold tabular-nums">{Math.round(linkBearing as number)}°</span></span>
+                </>
+              )}
             </>
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/40 text-[12px]">
           <span className="flex items-baseline gap-1.5"><span className="text-cyan-300 font-bold uppercase tracking-wider text-[10px]">Dist</span><span className="text-white font-bold tabular-nums">{derived.totalDistKm.toFixed(2)} km</span></span>
+          {Number.isFinite(linkBearing as number) && (
+            <span className="flex items-baseline gap-1.5"><span className="text-cyan-300 font-bold uppercase tracking-wider text-[10px]">Bearing</span><span className="text-white font-bold tabular-nums">{Math.round(linkBearing as number)}°</span></span>
+          )}
           {fresnel && showFresnel && (
             <span className="flex items-baseline gap-1.5"><span className="text-yellow-300 font-bold uppercase tracking-wider text-[10px]">Fresnel</span><span className="text-white font-bold tabular-nums">{Math.max(0, Math.round(100 - (fresnel.maxIntrusionPercent ?? 0)))}%</span></span>
           )}
@@ -603,12 +630,30 @@ const ProfileChart: React.FC<Props> = ({
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{(remoteAntenna?.hba ?? ant.rxHeight ?? 1.5).toFixed(0)} m</span></span>
               <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(remoteAntenna?.totalTilt ?? 0).toFixed(1)}°</span></span>
+              {Number.isFinite(rxAzimuth as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">Az: <span className="text-emerald-300 font-bold tabular-nums">{Math.round(rxAzimuth as number)}°</span></span>
+                </>
+              )}
+              {Number.isFinite(rxAzimuth as number) && Number.isFinite(linkBearing as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">ΔAz: <span className={`font-bold tabular-nums ${angularDelta(rxAzimuth as number, ((linkBearing as number) + 180) % 360) <= 30 ? 'text-emerald-300' : angularDelta(rxAzimuth as number, ((linkBearing as number) + 180) % 360) <= 60 ? 'text-amber-300' : 'text-red-300'}`}>{angularDelta(rxAzimuth as number, ((linkBearing as number) + 180) % 360).toFixed(1)}°</span></span>
+                </>
+              )}
             </>
           )}
           {rxIsPoint && (
             <>
               <span className="text-slate-500">|</span>
               <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+              {Number.isFinite(linkBearing as number) && (
+                <>
+                  <span className="text-slate-500">|</span>
+                  <span className="text-slate-300">Bearing: <span className="text-cyan-300 font-bold tabular-nums">{Math.round(((linkBearing as number) + 180) % 360)}°</span></span>
+                </>
+              )}
             </>
           )}
         </div>
