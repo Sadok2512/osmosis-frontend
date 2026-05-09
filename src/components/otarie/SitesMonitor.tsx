@@ -9910,7 +9910,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
            className="absolute bottom-4 z-[1001] overflow-hidden pointer-events-auto max-h-[48%] flex flex-col animate-fade-in"
           style={{
             left: (panelCollapsed ? 56 : 400) + 16,
-            right: (showRightPanel && !detailFullscreen ? 450 : 0) + 16,
+            right: (showRightPanel && !detailFullscreen ? 540 : 0) + 16,
             background: 'rgba(15,23,42,0.55)',
             backdropFilter: 'blur(22px)',
             WebkitBackdropFilter: 'blur(22px)',
@@ -10556,7 +10556,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Tool usage hint */}
       {activeMapTool && (
-        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-14 z-[1001] pointer-events-none transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 540 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
           <div className="bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-md px-3 py-1 text-[9px] font-medium text-muted-foreground whitespace-nowrap">
             {activeMapTool === 'distance' && '📏 Cliquez 2 points pour mesurer la distance'}
             {activeMapTool === 'polygon' && (polygonClosed ? '✅ Polygone fermé — cliquez le tool pour réinitialiser' : '🔷 Cliquez pour ajouter des points, double-clic pour fermer')}
@@ -10568,7 +10568,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       )}
 
       {/* Floating status bar — minimal GIS style, centered on map */}
-      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 450 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
+      <div className="absolute bottom-4 z-[1000] pointer-events-auto transition-all duration-300" style={{ left: `calc(${panelCollapsed ? 56 : 400}px + (100% - ${panelCollapsed ? 56 : 400}px - ${showRightPanel && !detailFullscreen ? 540 : 0}px) / 2)`, transform: 'translateX(-50%)' }}>
         <div className="bg-card/90 backdrop-blur-md border border-border/60 rounded-full shadow-lg px-6 py-3 flex items-center gap-2">
           {paramMode ? (
             <>
@@ -10714,7 +10714,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         style={{
           top: 12,
           left: `${(panelCollapsed ? 56 : 400) + 16}px`,
-          right: `${(showRightPanel && !detailFullscreen ? 450 : 0) + 16}px`,
+          right: `${(showRightPanel && !detailFullscreen ? 540 : 0) + 16}px`,
         }}
       >
         <div
@@ -11063,7 +11063,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           className="absolute z-[1001] pointer-events-auto animate-fade-in"
           style={{
             bottom: 80,
-            right: showRightPanel && !detailFullscreen ? 466 : 16,
+            right: showRightPanel && !detailFullscreen ? 556 : 16,
             transition: 'right 0.3s ease',
           }}
         >
@@ -11659,7 +11659,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* Floating LEFT side: techno filter + band legend */}
       {viewMode === 'map' && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ right: showRightPanel && !detailFullscreen ? 474 : 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto flex items-end gap-2 transition-all duration-500 ease-out" style={{ right: showRightPanel && !detailFullscreen ? 564 : 24 }}>
           {/* Techno filter: ALL / 5G / 4G — hidden when no sites */}
           {sites.length > 0 && (
             <div className="flex flex-col bg-card/95 backdrop-blur-md border border-border rounded-2xl shadow-xl overflow-hidden animate-fade-in">
@@ -11952,7 +11952,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
       {/* ── Color View Legend — rendered outside the band panel container ── */}
       {viewMode === 'map' && colorViewMode !== 'none' && Object.keys(colorViewColorMap).length > 0 && (
-        <div className="absolute bottom-6 z-[1000] pointer-events-auto" style={{ right: (showRightPanel && !detailFullscreen ? 450 : 0) + 24 }}>
+        <div className="absolute bottom-6 z-[1000] pointer-events-auto" style={{ right: (showRightPanel && !detailFullscreen ? 540 : 0) + 24 }}>
           <div className="bg-card/95 backdrop-blur-sm border border-border rounded-2xl shadow-xl overflow-hidden min-w-[160px] max-w-[220px]">
             <div className="px-4 py-2.5 border-b border-border/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
