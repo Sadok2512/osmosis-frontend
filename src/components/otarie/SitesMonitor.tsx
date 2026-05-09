@@ -35,7 +35,7 @@ import BatchCoveragePanel from './BatchCoveragePanel';
 import { CoverageGrid, SimulationParams, simulateCoverage, getDefaultParams, RSRP_LEGEND } from '@/services/propagationEngine';
 import { SitesFilterBar } from '@/components/sites-monitor/SitesFilterBar';
 import { useSitesFilters, FilterDefinition } from '@/hooks/useSitesFilters';
-import { ProgressiveFilterBuilder, type DashboardSiteFilters } from './ProgressiveFilterBuilder';
+import { ProgressiveFilterBuilder } from './ProgressiveFilterBuilder';
 import { InlineSimTab } from './SitesMonitorHelpers';
 import { ViewFilterBuilder, ViewFilterCondition, conditionsToSiteFilters, siteFiltersToConditions } from '@/components/sites-monitor/ViewFilterBuilder';
 import SiteChangesPanel from './SiteChangesPanel';
