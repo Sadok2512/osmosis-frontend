@@ -713,8 +713,9 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
     const dateTo = state.endDate?.split('T')[0] || today;
+    const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
     const body: any = {
-      counter_names: counterNames,
+      counter_names: counterNames.map(cleanCounterName),
       date_from: dateFrom,
       date_to: dateTo,
       granularity: normalizeGranularity(state.granularity),
