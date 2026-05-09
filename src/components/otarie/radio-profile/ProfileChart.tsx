@@ -576,17 +576,26 @@ const ProfileChart: React.FC<Props> = ({
           )}
         </div>
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">RX</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[220px]" title={rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}>
             {rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}
           </span>
           {!rxIsPoint && (
             <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{formatBandLabel(rxBand)}</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{(remoteAntenna?.hba ?? ant.rxHeight ?? 1.5).toFixed(0)} m</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(remoteAntenna?.totalTilt ?? 0).toFixed(1)}°</span></span>
             </>
           )}
           {rxIsPoint && (
-            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            </>
           )}
         </div>
       </div>
