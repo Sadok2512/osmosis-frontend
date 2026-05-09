@@ -116,8 +116,9 @@ export async function fetchCounterTimeSeriesFallback(
 
   try {
     const url = getApiUrl('pm/counters/timeseries');
+    const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
     const body: any = {
-      counter_names: counterNames,
+      counter_names: (counterNames || []).map(cleanCounterName),
       date_from: dateFrom,
       date_to: dateTo,
       granularity,
