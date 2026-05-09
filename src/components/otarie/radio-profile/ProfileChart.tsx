@@ -3,6 +3,19 @@ import * as d3 from 'd3';
 import { motion, AnimatePresence } from 'motion/react';
 import { ProfilePoint, LOSAnalysis, FresnelAnalysis } from '@/utils/geodesicUtils';
 
+function formatBandLabel(band?: string): string {
+  if (!band) return '—';
+  const b = String(band).toUpperCase().replace(/\s+/g, '');
+  if (b.includes('3500') || b.includes('N78')) return '3500 MHz (n78)';
+  if (b.includes('2600') || b.includes('B7')) return '2600 MHz (B7)';
+  if (b.includes('2100') || b === 'B1') return '2100 MHz (B1)';
+  if (b.includes('1800') || b.includes('B3') || b.includes('DCS')) return '1800 MHz (B3)';
+  if (b.includes('900') || b.includes('B8')) return '900 MHz (B8)';
+  if (b.includes('800') || b.includes('B20')) return '800 MHz (B20)';
+  if (b.includes('700') || b.includes('B28')) return '700 MHz (B28)';
+  return band;
+}
+
 export interface ProfileHoverData {
   distanceKm: number;
   elevationM: number;
@@ -38,6 +51,10 @@ interface Props {
   txCellName?: string;
   /** Optional RX cell label (replaces "Site B (RX)" when present). */
   rxCellName?: string;
+  /** TX band (raw string like "LTE1800") for footer label. */
+  txBand?: string;
+  /** RX band (raw string like "LTE1800") for footer label. */
+  rxBand?: string;
 }
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
@@ -63,6 +80,8 @@ const ProfileChart: React.FC<Props> = ({
   rxIsPoint = false,
   txCellName,
   rxCellName,
+  txBand,
+  rxBand,
 }) => {
   const ant = analysis?.antennaParams ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -528,17 +547,26 @@ const ProfileChart: React.FC<Props> = ({
       {/* Footer info bar: Site A · Link summary · Site B */}
       <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[220px]" title={txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}>
             {txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}
           </span>
           {!txIsPoint && (
             <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{formatBandLabel(txBand)}</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{ant.hba.toFixed(0)} m</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(ant.totalTilt ?? 0).toFixed(1)}°</span></span>
             </>
           )}
           {txIsPoint && (
-            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/40 text-[12px]">
@@ -548,17 +576,26 @@ const ProfileChart: React.FC<Props> = ({
           )}
         </div>
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">RX</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[220px]" title={rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}>
             {rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}
           </span>
           {!rxIsPoint && (
             <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{formatBandLabel(rxBand)}</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{(remoteAntenna?.hba ?? ant.rxHeight ?? 1.5).toFixed(0)} m</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(remoteAntenna?.totalTilt ?? 0).toFixed(1)}°</span></span>
             </>
           )}
           {rxIsPoint && (
-            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            </>
           )}
         </div>
       </div>

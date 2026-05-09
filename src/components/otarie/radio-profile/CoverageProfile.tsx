@@ -76,7 +76,7 @@ function technoColor(techno: string): string {
   return '#94a3b8';
 }
 
-function bandFreqLabel(band: string): { label: string; freqMhz: number } {
+export function bandFreqLabel(band: string): { label: string; freqMhz: number } {
   const b = String(band || '').toUpperCase().replace(/\s+/g, '');
   if (b.includes('3500') || b.includes('N78')) return { label: '3500 MHz (n78)', freqMhz: 3500 };
   if (b.includes('2600') || b.includes('B7')) return { label: '2600 MHz (B7)', freqMhz: 2600 };
@@ -833,6 +833,12 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
           </div>
           <span className="text-[10px] font-bold text-slate-100 truncate" title={sectorName || siteName}>{sectorName || siteName}</span>
+          <span className="text-slate-500">|</span>
+          <FooterStat label="Band" value={bandFreqLabel(band).label} />
+          <span className="text-slate-500">|</span>
+          <FooterStat label="HBA" value={`${antennaHeight.toFixed(0)} m`} />
+          <span className="text-slate-500">|</span>
+          <FooterStat label="Tilt" value={`${(geom.totalTilt ?? 0).toFixed(1)}°`} />
         </div>
         {/* Coverage KPI cards */}
         {linkDistance > 0 && (
