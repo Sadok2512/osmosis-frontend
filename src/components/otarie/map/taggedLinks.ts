@@ -32,14 +32,15 @@ export interface TaggedLink {
 
 const STORAGE_KEY = 'osmosis_tagged_links';
 
-function scopedKey(dashboardId?: string | null): string | null {
-  if (!dashboardId) return null;
+function scopedKey(dashboardId?: string | null): string {
+  // No active dashboard → use a global fallback key so links still persist
+  // (matches the custom points / tagged sites behaviour).
+  if (!dashboardId) return `${STORAGE_KEY}__global`;
   return `${STORAGE_KEY}__db_${dashboardId}`;
 }
 
 export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {
   const key = scopedKey(dashboardId);
-  if (!key) return [];
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : [];
@@ -50,7 +51,6 @@ export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {
 
 export function persistTaggedLinks(links: TaggedLink[], dashboardId?: string | null): void {
   const key = scopedKey(dashboardId);
-  if (!key) return;
   try {
     localStorage.setItem(key, JSON.stringify(links));
   } catch {}
