@@ -133,6 +133,7 @@ const ParameterHubPage: React.FC = () => {
 
   const clearAllFilters = () => {
     setDraftFilters(EMPTY_FILTERS);
+    setActiveFilterDims(new Set());
   };
 
   const totalActiveFilters = useMemo(() => {
