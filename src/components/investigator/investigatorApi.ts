@@ -515,6 +515,40 @@ export async function fetchTimeSeriesForSlot(
       || normalizedPrimarySplit === 'CELL'
       || normalizedSecondarySplit === 'SITE'
       || normalizedSecondarySplit === 'CELL';
+    // 2026-05-09 — auto-infer kpi_level from filters + split_by. The
+    // backend returns one row per ts at `kpi_level`, so we pick the
+    // FINEST grain implied by the request:
+    //   - any split_by/split_by_2 on CELL/SITE → need that grain
+    //   - any filter on a CELL/SITE/PLAQUE/DOR/REGION dim → match it
+    //   - default = the coarsest level still useful (PLAQUE) when
+    //     filtering by plaque/dor/region; CELL otherwise so the
+    //     drill-down view keeps its detail.
+    // Hierarchy (fine → coarse): CELL, SITE, PLAQUE, DOR, REGION, COUNTRY.
+    const _LEVEL_RANK: Record<string, number> = {
+      CELL: 0, SITE: 1, PLAQUE: 2, CLUSTER: 2, CLUSTER_B: 2,
+      DOR: 3, DR: 3, REGION: 4, COUNTRY: 5,
+    };
+    const _isLevelDim = (d: string) => d.toUpperCase() in _LEVEL_RANK;
+    const inferKpiLevel = (): string => {
+      // Explicit override wins (e.g. user picked level via dropdown).
+      if (ctx.kpiLevel && ctx.kpiLevel !== 'CELL') return ctx.kpiLevel;
+      const candidates: string[] = [];
+      if (splitBy && _isLevelDim(splitBy)) candidates.push(splitBy.toUpperCase());
+      if (splitBy2 && _isLevelDim(splitBy2)) candidates.push(splitBy2.toUpperCase());
+      for (const f of (ctx.filters || [])) {
+        if (f && f.dimension && _isLevelDim(f.dimension)) candidates.push(f.dimension.toUpperCase());
+      }
+      if (candidates.length === 0) return 'CELL';
+      // Pick the FINEST (lowest rank) among candidates.
+      const finest = candidates.reduce((best, d) =>
+        _LEVEL_RANK[d] < _LEVEL_RANK[best] ? d : best
+      );
+      // Normalize aliases to the canonical level the backend recognizes.
+      if (finest === 'CLUSTER' || finest === 'CLUSTER_B') return 'PLAQUE';
+      if (finest === 'DR') return 'DOR';
+      return finest;
+    };
+    const inferredKpiLevel = inferKpiLevel();
     const body: Record<string, any> = {
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
@@ -523,7 +557,7 @@ export async function fetchTimeSeriesForSlot(
       filters: allFilters,
       split_by: splitBy,
       split_by_2: splitBy2,
-      kpi_level: ctx.kpiLevel || 'CELL',
+      kpi_level: inferredKpiLevel,
       advancedTimeFrame: buildAdvancedTimeFramePayload(ctx.advancedTimeFrame),
     };
     if (hasSplit) {
