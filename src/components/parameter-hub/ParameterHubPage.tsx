@@ -21,6 +21,7 @@ const NetworkTopologyPage = lazy(() => import('../otarie/NetworkTopologyPage'));
 const NeighborExplorer = lazy(() => import('../investigator/NeighborExplorer'));
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import {
   AggregationLevel,
