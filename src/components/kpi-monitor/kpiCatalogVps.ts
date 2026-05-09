@@ -39,6 +39,12 @@ function mapRawToEntry(k: any): KpiCatalogEntry {
     is_normalized: k.is_normalized ?? undefined,
     dimension_type: k.dimension_type ?? null,
     dimension_prefix: k.dimension_prefix ?? null,
+    // 2026-05-09 — surface canonical name + raw formulas so the
+    // selector can (1) group rows by kpi_code_normalized and
+    // (2) show the per-vendor formula in an info popover.
+    kpi_code_normalized: k.kpi_code_normalized ?? undefined,
+    numerator: k.numerator ?? k.numerateur ?? undefined,
+    denominator: k.denominator ?? k.denominateur ?? undefined,
   };
 }
 

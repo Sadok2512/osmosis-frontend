@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp } from 'lucide-react';
+import { X, Search, Check, RotateCcw, ChevronRight, BarChart3, Filter, ChevronDown, Star, ChevronUp, Info } from 'lucide-react';
 import { loadFavorites as loadFavoritesDB, saveFavorites as saveFavoritesDB } from '@/services/favoritesService';
 import { KpiCatalogEntry, AxisSide } from './types';
 import { cn } from '@/lib/utils';
@@ -106,10 +106,16 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
   const [filterDimension, setFilterDimension] = useState('');
   // View mode: when true, group catalog rows that share kpi_code_normalized
   // into a single selectable entry covering every vendor variant.
-  const [groupMode, setGroupMode] = useState(false);
-  // When grouped, limit visible groups to those with >=2 vendor variants
-  // so the operator sees only truly multivendor canonical names.
-  const [multivendorOnly, setMultivendorOnly] = useState(true);
+  // Default ON since 2026-05-09 — backend writes the canonical name as
+  // kpi_code (verbose Vendor__&_* deprecated), so the operator should
+  // see the canonical KPI by default. Toggle off to inspect per-vendor.
+  const [groupMode, setGroupMode] = useState(true);
+  // When grouped, default OFF (show single-vendor canonical KPIs too,
+  // not just multivendor groups). Operator can opt-in to multivendor-only.
+  const [multivendorOnly, setMultivendorOnly] = useState(false);
+  // Per-row info popover: which canonical kpi_key has its formulas
+  // drawer open. Null = none open. Click "ⓘ" toggles.
+  const [infoOpenKey, setInfoOpenKey] = useState<string | null>(null);
 
   React.useEffect(() => {
     axisMapRef.current = axisMap;
@@ -563,9 +569,17 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                       ? variantKeys!.every(vk => selected.has(vk))
                       : selected.has(k.kpi_key);
                     const isFav = favorites.includes(k.kpi_key);
+                    // Variants list when grouped — used by the Info popover
+                    // to show the per-vendor formula. When NOT grouped, the
+                    // current row IS the variant; we wrap it as a single-
+                    // element list so the popover code stays uniform.
+                    const variantsForInfo: any[] = isGroup
+                      ? (k._variants || [])
+                      : [k];
+                    const infoOpen = infoOpenKey === k.kpi_key;
                     return (
+                      <React.Fragment key={k.kpi_key}>
                       <div
-                        key={k.kpi_key}
                         className={cn(
                           'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all mb-px',
                           isSelected ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted border border-transparent'
@@ -578,6 +592,20 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                           title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                         >
                           <Star className={cn('w-3 h-3', isFav ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground/40 hover:text-amber-400')} />
+                        </button>
+                        {/* Info ⓘ — opens the formula drawer below the row.
+                            Sibling of the select-button so clicking it does
+                            not toggle KPI selection. Disabled when no
+                            formula data is available (legacy catalog rows). */}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setInfoOpenKey(infoOpen ? null : k.kpi_key); }}
+                          className={cn(
+                            'shrink-0 p-0.5 rounded hover:bg-muted/50 transition-colors',
+                            infoOpen && 'bg-primary/10'
+                          )}
+                          title={infoOpen ? 'Masquer la formule' : 'Voir la formule'}
+                        >
+                          <Info className={cn('w-3 h-3', infoOpen ? 'text-primary' : 'text-muted-foreground/60 hover:text-primary')} />
                         </button>
 
                         {/* Select checkbox + info */}
@@ -643,6 +671,47 @@ const KpiSelectorModal: React.FC<KpiSelectorModalProps> = ({ open, onClose, cata
                           </button>
                         )}
                       </div>
+                      {/* Formula drawer — one block per vendor variant.
+                          For multivendor canonical KPIs this shows BOTH
+                          the Ericsson and Nokia formulas side-by-side so
+                          the operator can compare the underlying counters.
+                          Numerator / denominator come from
+                          kpi.kpi_definition.numerateur / denominateur (FR
+                          column names preserved by the catalog mapper). */}
+                      {infoOpen && (
+                        <div className="ml-7 mb-2 px-3 py-2 rounded-md bg-muted/40 border border-border/60">
+                          <div className="text-[9px] font-semibold text-muted-foreground mb-1.5">
+                            Formule{variantsForInfo.length > 1 ? 's' : ''} ({variantsForInfo.length} variant{variantsForInfo.length > 1 ? 's' : ''})
+                          </div>
+                          <div className="space-y-2">
+                            {variantsForInfo.map((v: any, idx: number) => {
+                              const num = v.numerator || v.numerateur || '—';
+                              const den = v.denominator || v.denominateur || '1';
+                              const denShown = String(den).trim() && String(den).trim() !== '1' && String(den).trim() !== '1.0';
+                              const vb = vendorBadge(v.vendor || '');
+                              return (
+                                <div key={`${v.kpi_key || k.kpi_key}-${idx}`} className="text-[10px]">
+                                  <div className="flex items-center gap-1.5 mb-0.5">
+                                    {v.vendor && (
+                                      <span className={cn('text-[8px] px-1.5 py-0.5 rounded font-bold', vb.bg, vb.text)}>{v.vendor}</span>
+                                    )}
+                                    <span className="font-mono text-[9px] text-muted-foreground">{v.kpi_key || k.kpi_key}</span>
+                                  </div>
+                                  <div className="font-mono text-[10px] text-foreground bg-background/60 rounded px-2 py-1 break-all">
+                                    <span className="text-emerald-500/90">num:</span> {num}
+                                  </div>
+                                  {denShown && (
+                                    <div className="font-mono text-[10px] text-foreground bg-background/60 rounded px-2 py-1 mt-0.5 break-all">
+                                      <span className="text-amber-500/90">den:</span> {den}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      </React.Fragment>
                     );
                   })}
                   {filteredCatalog.length > 200 && !search && (

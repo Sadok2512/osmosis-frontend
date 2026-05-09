@@ -34,6 +34,14 @@ export interface KpiCatalogEntry {
   is_normalized?: boolean;
   dimension_type?: string | null;
   dimension_prefix?: string | null;
+  // Canonical name used to group multivendor variants in the selector.
+  // Backend column kpi.kpi_definition.kpi_code_normalized.
+  kpi_code_normalized?: string;
+  // Raw formula expressions surfaced for the operator info popover.
+  // Stored in kpi.kpi_definition.numerateur / denominateur (FR-named
+  // columns kept for catalog back-compat).
+  numerator?: string;
+  denominator?: string;
 }
 
 export type GraphType = 'line' | 'area' | 'bar' | 'stacked_area' | 'scatter';
