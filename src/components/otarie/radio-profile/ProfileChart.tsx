@@ -42,6 +42,7 @@ interface Props {
   txBand?: string;
   /** RX band (raw string like "LTE1800") for footer label. */
   rxBand?: string;
+}
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
 
