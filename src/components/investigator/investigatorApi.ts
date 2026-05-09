@@ -144,7 +144,7 @@ export async function fetchCounterTimeSeriesFallback(
             body.object_type = f.values.length === 1 ? f.values[0] : f.values;
           }
         } else if (dim === 'VENDOR' && f.values?.length) {
-          body.vendor = f.values[0];
+          body.vendor = String(f.values[0]).toUpperCase();
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
         } else if ((dim === 'PLAQUE' || dim === 'CLUSTER' || dim === 'CLUSTER_B') && f.values?.length) {
