@@ -345,11 +345,7 @@ const ProfileChart: React.FC<Props> = ({
         </span>
       </div>
 
-      {siteName && (
-        <div className="absolute top-3 left-3 z-20 px-3 py-1.5 rounded-lg bg-slate-900/60 backdrop-blur-md border border-slate-700/50">
-          <span className="text-[11px] font-bold text-slate-200 uppercase tracking-wider">{siteName}</span>
-        </div>
-      )}
+      {/* Top-left site badge removed — info already shown in footer bar */}
 
       <div className="flex-1 min-h-0 relative">
       <svg
@@ -388,19 +384,19 @@ const ProfileChart: React.FC<Props> = ({
                   x={-12}
                   alignmentBaseline="middle"
                   textAnchor="end"
-                  fill="rgba(148,163,184,0.85)"
-                  fontSize={26}
+                  fill="rgba(148,163,184,0.7)"
+                  fontSize={18}
                   fontFamily="monospace"
                 >
-                  {t}m
+                  {Math.round(t)}m
                 </text>
               </g>
             ))}
             {xTicks.map((t) => (
               <g key={`x-${t}`} transform={`translate(${xScale(t)}, ${IH})`}>
                 <line y1={-IH} stroke="rgba(148,163,184,0.15)" strokeDasharray="4,4" />
-                <text y={36} textAnchor="middle" fill="rgba(148,163,184,0.85)" fontSize={26} fontFamily="monospace">
-                  {t} km
+                <text y={28} textAnchor="middle" fill="rgba(148,163,184,0.7)" fontSize={18} fontFamily="monospace">
+                  {t.toFixed(1)}km
                 </text>
               </g>
             ))}
