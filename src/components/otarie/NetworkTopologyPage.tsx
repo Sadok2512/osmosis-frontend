@@ -2017,7 +2017,7 @@ const Filter2: React.FC<{
         {(hasActiveFilters || hasQuery) && onClear && (
           <button
             type="button"
-            onClick={onClear}
+            onClick={() => { onClear(); setAddedFilters(new Set()); }}
             className={cn(
               'inline-flex items-center justify-center gap-1.5 rounded-full border border-outline-variant/30 bg-white text-[11px] font-black text-on-surface-variant shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600',
               isOverlay ? 'h-8 w-8 px-0' : 'h-9 px-3'
