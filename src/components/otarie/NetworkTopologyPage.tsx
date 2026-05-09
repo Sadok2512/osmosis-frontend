@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  Search, RefreshCw, Trash2, PlayCircle, FolderOpen, Radio, Info, X, Filter, Check,
+  Search, RefreshCw, Trash2, PlayCircle, FolderOpen, Radio, Info, X, Filter, Check, Plus,
   Loader2, CheckCircle2, AlertCircle, Database, Layers, Map, Globe,
   Boxes, Upload, Signal, Wifi, Settings, ChevronRight, ChevronDown, Eye,
   MapPin, Building2, BarChart3,
@@ -1910,6 +1910,9 @@ const Filter2: React.FC<{
   const hasQuery = typeof query === 'string' && !!query.trim();
   const hasActiveFilters = activeCount > 0;
   const isOverlay = variant === 'overlay';
+  const [addedFilters, setAddedFilters] = useState<Set<string>>(new Set());
+  const visibleFilters = filters.filter(f => f.value.length > 0 || addedFilters.has(f.label));
+  const remainingFilters = filters.filter(f => f.value.length === 0 && !addedFilters.has(f.label));
 
   return (
     <div
@@ -1961,21 +1964,60 @@ const Filter2: React.FC<{
           </div>
         )}
 
-        {filters.map(filter => (
+        {visibleFilters.map(filter => (
           <MultiFilterSelect
             key={filter.label}
             label={filter.label}
             value={filter.value}
-            onChange={filter.onChange}
+            onChange={(v) => {
+              filter.onChange(v);
+              if (v.length === 0) {
+                setAddedFilters(prev => {
+                  const n = new Set(prev);
+                  n.delete(filter.label);
+                  return n;
+                });
+              }
+            }}
             options={filter.options}
             compact={isOverlay}
           />
         ))}
 
+        {remainingFilters.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-full border border-dashed border-emerald-300 bg-white px-3 text-[11px] font-bold text-emerald-700 transition-colors hover:bg-emerald-50',
+                  isOverlay ? 'h-8' : 'h-9'
+                )}
+              >
+                <Plus className="h-3.5 w-3.5" /> Ajouter filtre
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-52 p-1">
+              <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Dimensions
+              </div>
+              {remainingFilters.map(f => (
+                <button
+                  key={f.label}
+                  onClick={() => setAddedFilters(prev => new Set(prev).add(f.label))}
+                  className="w-full text-left px-2 py-1.5 rounded-md text-[12px] hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  {f.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
+
         {(hasActiveFilters || hasQuery) && onClear && (
           <button
             type="button"
-            onClick={onClear}
+            onClick={() => { onClear(); setAddedFilters(new Set()); }}
             className={cn(
               'inline-flex items-center justify-center gap-1.5 rounded-full border border-outline-variant/30 bg-white text-[11px] font-black text-on-surface-variant shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600',
               isOverlay ? 'h-8 w-8 px-0' : 'h-9 px-3'
