@@ -8,6 +8,7 @@ import {
   type BackendRequestLogEntry,
 } from '@/lib/backendRequestLog';
 import { getApiHeaders } from '@/lib/apiConfig';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
