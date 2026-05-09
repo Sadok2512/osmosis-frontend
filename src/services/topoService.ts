@@ -986,7 +986,17 @@ export async function fetchSitesByBbox(
     if (err.name === 'AbortError') throw err;
     console.warn('[TopoService] BBOX fetch failed, falling back to full load', err);
     const allSites = await fetchTopoSites();
-    const filteredSites = filterSitesByBboxFilters(allSites, filters);
+    // Geographic bbox filter so we don't render the whole country at city zoom
+    const inBbox = allSites.filter(s => {
+      const [lat, lon] = s.coordinates || [];
+      return (
+        typeof lat === 'number' && typeof lon === 'number' &&
+        lat >= bbox.south && lat <= bbox.north &&
+        lon >= bbox.west && lon <= bbox.east
+      );
+    });
+    const filteredSites = filterSitesByBboxFilters(inBbox, filters);
+    console.log(`[TopoService] BBOX fallback: ${filteredSites.length} local sites in bbox`);
     return { sites: filteredSites, total: filteredSites.length };
   }
 }
