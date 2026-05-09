@@ -8,6 +8,7 @@ import {
   type BackendRequestLogEntry,
 } from '@/lib/backendRequestLog';
 import { getApiHeaders } from '@/lib/apiConfig';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
@@ -100,7 +101,13 @@ const BackendRequestDialog: React.FC<Props> = ({ open, onOpenChange, widgetFilte
           ) : (
             <ul className="space-y-2">
               {visible.map(it => {
-                const resp = responses[it.id];
+                const replayResp = responses[it.id];
+                // Prefer the auto-captured response (from fetch interceptor),
+                // fall back to the manual replay response if user clicked Rejouer.
+                const respStatus = it.responseStatus ?? replayResp?.status;
+                const respBodyRaw = replayResp?.body || it.responseBody;
+                const respError = replayResp?.error || it.responseError;
+                const respPending = it.pendingResponse && !replayResp;
                 const prettyBody = prettyJson(it.body);
                 return (
                   <li key={it.id} className="border border-border rounded-md bg-card text-[11px]">
@@ -110,14 +117,29 @@ const BackendRequestDialog: React.FC<Props> = ({ open, onOpenChange, widgetFilte
                         {it.widget}
                       </span>
                       <span className="font-bold text-emerald-600">{it.method}</span>
+                      {respStatus !== undefined && (
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded font-semibold text-[10px]',
+                          respStatus >= 200 && respStatus < 300
+                            ? 'bg-emerald-500/10 text-emerald-600'
+                            : 'bg-destructive/10 text-destructive',
+                        )}>
+                          {respStatus}
+                        </span>
+                      )}
+                      {respPending && (
+                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <Loader2 className="w-3 h-3 animate-spin" /> en cours…
+                        </span>
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
                         className="ml-auto h-6 px-2 text-[10px]"
                         onClick={() => replay(it)}
-                        disabled={resp?.loading}
+                        disabled={replayResp?.loading}
                       >
-                        {resp?.loading
+                        {replayResp?.loading
                           ? <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                           : <Play className="w-3 h-3 mr-1" />}
                         Rejouer
@@ -159,15 +181,15 @@ const BackendRequestDialog: React.FC<Props> = ({ open, onOpenChange, widgetFilte
                         </div>
                       )}
 
-                      {resp && !resp.loading && (
+                      {(respBodyRaw || respError) && (
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
-                              Réponse {resp.status ? `· ${resp.status}` : ''}
+                              Réponse {respStatus ? `· ${respStatus}` : ''}
                             </span>
-                            {resp.body && (
+                            {respBodyRaw && (
                               <button
-                                onClick={() => copyToClipboard(it.id * 10 + 3, resp.body)}
+                                onClick={() => copyToClipboard(it.id * 10 + 3, respBodyRaw)}
                                 className="text-muted-foreground hover:text-primary"
                                 title="Copier la réponse"
                               >
@@ -177,10 +199,10 @@ const BackendRequestDialog: React.FC<Props> = ({ open, onOpenChange, widgetFilte
                               </button>
                             )}
                           </div>
-                          {resp.error ? (
-                            <pre className="font-mono text-[10px] bg-destructive/10 text-destructive p-2 rounded whitespace-pre-wrap">{resp.error}</pre>
+                          {respError ? (
+                            <pre className="font-mono text-[10px] bg-destructive/10 text-destructive p-2 rounded whitespace-pre-wrap">{respError}</pre>
                           ) : (
-                            <pre className="font-mono text-[10px] bg-muted/40 p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{prettyJson(resp.body)}</pre>
+                            <pre className="font-mono text-[10px] bg-muted/40 p-2 rounded max-h-64 overflow-auto whitespace-pre-wrap">{prettyJson(respBodyRaw)}</pre>
                           )}
                         </div>
                       )}

@@ -87,6 +87,39 @@ export function logBackendRequest(
   }
 }
 
+// ── Global fetch interceptor: captures the response body for any URL that
+//    was logged via logBackendRequest, so the BackendRequestDialog can show
+//    request + response without modifying every call site.
+if (typeof window !== 'undefined' && !(window as unknown as { __vpsFetchPatched?: boolean }).__vpsFetchPatched) {
+  (window as unknown as { __vpsFetchPatched?: boolean }).__vpsFetchPatched = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const url = typeof input === 'string'
+      ? input
+      : input instanceof URL ? input.toString() : (input as Request).url;
+    let res: Response;
+    try {
+      res = await originalFetch(input as RequestInfo, init);
+    } catch (err: unknown) {
+      try {
+        const m = await import('./backendRequestLog');
+        m.attachResponseToLatest(url, undefined, undefined, err instanceof Error ? err.message : String(err));
+      } catch { /* ignore */ }
+      throw err;
+    }
+    // Clone so the original consumer is unaffected.
+    try {
+      const clone = res.clone();
+      clone.text().then(text => {
+        import('./backendRequestLog').then(m => {
+          m.attachResponseToLatest(url, res.status, text);
+        }).catch(() => { /* ignore */ });
+      }).catch(() => { /* ignore */ });
+    } catch { /* ignore */ }
+    return res;
+  };
+}
+
 /** Agent API key from env */
 export const AGENT_API_KEY = import.meta.env.VITE_AGENT_API_KEY || '';
 
