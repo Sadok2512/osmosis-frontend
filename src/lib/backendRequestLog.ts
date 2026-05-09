@@ -9,6 +9,8 @@ export interface BackendRequestLogEntry {
   widget: string;
   method: string;
   url: string;
+  /** Stringified request payload (JSON or raw string), if any. */
+  body?: string;
 }
 
 const MAX_ENTRIES = 100;
@@ -23,8 +25,13 @@ function emit() {
   });
 }
 
-export function pushBackendRequestEntry(widget: string, method: string, url: string): void {
-  entries.unshift({ id: nextId++, ts: Date.now(), widget, method, url });
+export function pushBackendRequestEntry(
+  widget: string,
+  method: string,
+  url: string,
+  body?: string,
+): void {
+  entries.unshift({ id: nextId++, ts: Date.now(), widget, method, url, body });
   if (entries.length > MAX_ENTRIES) entries.length = MAX_ENTRIES;
   emit();
 }

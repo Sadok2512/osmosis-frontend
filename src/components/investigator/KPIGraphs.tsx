@@ -11,7 +11,8 @@ import { fetchHistogramData, fetchKpiDefinitions, resolveSlotContext } from './i
 import type { KpiDefinition } from './types';
 import { buildPivotTable, formatInvestigatorValue, sanitizeTableData, TABLE_ACCENT_BG_CLASS, TABLE_ACCENT_TEXT_CLASS } from './tableDisplayUtils';
 import { cn } from '@/lib/utils';
-import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Paintbrush } from 'lucide-react';
+import { Settings2, TrendingUp, AreaChart, BarChart, CircleDot, X, Plus, Layers, Hash, BarChart3, GitBranch, Activity, RefreshCw, Copy, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Paintbrush, Eye } from 'lucide-react';
+import BackendRequestDialog from './BackendRequestDialog';
 import BreakdownChart from './BreakdownChart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
@@ -59,6 +60,27 @@ const AddWidgetMenu: React.FC<{ onAdd: (type: WidgetType) => void }> = ({ onAdd 
         ))}
       </PopoverContent>
     </Popover>
+  );
+};
+
+/** Per-slot button that opens the backend-request dialog filtered by this slot. */
+const SlotRequestButton: React.FC<{ slot: GraphSlot }> = ({ slot }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+        title="Voir la requête VPS (URL · payload · réponse)"
+        className="p-1.5 rounded-md border border-border/60 bg-muted/30 hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+      >
+        <Eye className="w-3.5 h-3.5" />
+      </button>
+      <BackendRequestDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={slot.name}
+      />
+    </>
   );
 };
 
@@ -1343,6 +1365,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
+                <SlotRequestButton slot={slot} />
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} hasTableData={false} />
               </div>
               <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ minHeight: chartHeight - 40 }}>
@@ -1388,6 +1411,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <span className="text-[8px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-500">Histogram</span>
                 <span className="ml-auto" />
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotRequestButton slot={slot} />
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               <HistogramWidget kpiIds={kpiIds} height={chartHeight} allKpis={allKpis} />
@@ -1414,6 +1438,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 )}
                 <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter KPI"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotRequestButton slot={slot} />
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               {(fetchingSlots[slot.id] || (isApplying && slot.id === activeSlotId)) && (
@@ -1456,6 +1481,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <span className="ml-auto" />
                 <button onClick={(e) => { e.stopPropagation(); onOpenKpiSelector(slot.id); }} className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" title="Ajouter KPI"><Plus className="w-3.5 h-3.5" /></button>
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
+                <SlotRequestButton slot={slot} />
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
               {tableRows.length > 0 ? (
@@ -2463,6 +2489,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <X className="w-3.5 h-3.5" />
               </button>
 
+              <SlotRequestButton slot={slot} />
               <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={(series || []).some((s: any) => Array.isArray(s.data) && s.data.some((v: any) => v != null && (typeof v !== 'number' || isFinite(v))))} />
             </div>
             <div className="relative">
