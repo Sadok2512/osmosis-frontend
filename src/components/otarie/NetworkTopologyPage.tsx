@@ -1415,18 +1415,6 @@ const NetworkTopologyPage: React.FC = () => {
                 onRefresh={searchSites}
               />
 
-              {/* 46-dim cascading picker — additive to the 4 quick chips above.
-                  Selections cascade through /api/v1/topo/filters/values and
-                  narrow the sites table via /topo/sites?dim_filters={JSON}. */}
-              {topoCatalog.length > 0 && (
-                <div className="px-4 pt-2 pb-3 border-t border-border/30">
-                  <ProgressiveFilterBuilder
-                    dimensions={topoCatalog}
-                    filters={extraFilters}
-                    onChange={setExtraFilters}
-                  />
-                </div>
-              )}
 
               <div className="max-h-[420px] overflow-y-auto">
                 <Table>
