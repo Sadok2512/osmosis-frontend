@@ -235,7 +235,7 @@ export async function fetchCounterTimeSeriesFallback(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify({
-            counter_names: (counterNames || []).map(cleanCounterName),
+            counter_names: (counterNames || []).map(c => String(c || '')),
             date_from: dateFrom,
             date_to: dateTo,
             granularity,
