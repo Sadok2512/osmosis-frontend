@@ -1910,6 +1910,9 @@ const Filter2: React.FC<{
   const hasQuery = typeof query === 'string' && !!query.trim();
   const hasActiveFilters = activeCount > 0;
   const isOverlay = variant === 'overlay';
+  const [addedFilters, setAddedFilters] = useState<Set<string>>(new Set());
+  const visibleFilters = filters.filter(f => f.value.length > 0 || addedFilters.has(f.label));
+  const remainingFilters = filters.filter(f => f.value.length === 0 && !addedFilters.has(f.label));
 
   return (
     <div
