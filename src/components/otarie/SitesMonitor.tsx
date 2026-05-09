@@ -10304,7 +10304,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                   return (
                     <CoverageProfile
-                      siteName={siteDetail?.site_name || linkProfileLabel}
+                      siteName={siteDetail?.site_name || (linkProfileLabel || '').split('↔')[0].split('--')[0].trim() || linkProfileLabel}
                       sectorName={cellA?.cell_id}
                       azimut={azA}
                       antennaHeight={antennaH_A}
