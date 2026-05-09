@@ -10105,14 +10105,30 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {(activeTaggedLink?.fromSector || activeTaggedLink?.toSector) && (
                   <p className="text-[10px] text-emerald-300/90 font-mono truncate max-w-[640px]">
                     {activeTaggedLink?.fromSector
-                      ? `TX: ${activeTaggedLink.fromSector.cell_id}${activeTaggedLink.fromSector.bande ? ` (${activeTaggedLink.fromSector.bande})` : ''}`
+                      ? `TX: ${activeTaggedLink.fromSector.cell_id}${activeTaggedLink.fromSector.bande ? ` (${activeTaggedLink.fromSector.bande})` : ''}${Number.isFinite(activeTaggedLink.fromSector.azimut as number) ? ` · Az ${Math.round(Number(activeTaggedLink.fromSector.azimut))}°` : ''}`
                       : 'TX: Point'}
                     {' · '}
                     {activeTaggedLink?.toSector
-                      ? `RX: ${activeTaggedLink.toSector.cell_id}${activeTaggedLink.toSector.bande ? ` (${activeTaggedLink.toSector.bande})` : ''}`
+                      ? `RX: ${activeTaggedLink.toSector.cell_id}${activeTaggedLink.toSector.bande ? ` (${activeTaggedLink.toSector.bande})` : ''}${Number.isFinite(activeTaggedLink.toSector.azimut as number) ? ` · Az ${Math.round(Number(activeTaggedLink.toSector.azimut))}°` : ''}`
                       : 'RX: Point'}
                   </p>
                 )}
+                {activeTaggedLink && (() => {
+                  const lb = Math.round(bearing({ lat: activeTaggedLink.fromCoords[0], lng: activeTaggedLink.fromCoords[1] }, { lat: activeTaggedLink.toCoords[0], lng: activeTaggedLink.toCoords[1] }));
+                  const txAz = Number(activeTaggedLink.fromSector?.azimut);
+                  const rxAz = Number(activeTaggedLink.toSector?.azimut);
+                  const dAng = (a: number, b: number) => Math.abs(((a - b) % 360 + 540) % 360 - 180);
+                  const txD = Number.isFinite(txAz) ? dAng(txAz, lb) : null;
+                  const rxD = Number.isFinite(rxAz) ? dAng(rxAz, (lb + 180) % 360) : null;
+                  const cls = (d: number) => d <= 30 ? 'text-emerald-300' : d <= 60 ? 'text-amber-300' : 'text-red-300';
+                  return (
+                    <p className="text-[10px] text-cyan-300/90 font-mono">
+                      Bearing <span className="text-white font-bold tabular-nums">{lb}°</span>
+                      {txD != null && <> · ΔAz TX <span className={`font-bold tabular-nums ${cls(txD)}`}>{txD.toFixed(1)}°</span></>}
+                      {rxD != null && <> · ΔAz RX <span className={`font-bold tabular-nums ${cls(rxD)}`}>{rxD.toFixed(1)}°</span></>}
+                    </p>
+                  );
+                })()}
                 <p className="text-[10px] text-white/40">Profil terrain du lien · {linkTotalDistance > 0 ? (linkTotalDistance / 1000).toFixed(2) + ' km' : ''}</p>
               </div>
             </div>
