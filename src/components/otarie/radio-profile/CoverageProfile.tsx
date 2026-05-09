@@ -424,8 +424,6 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       {/* ── Sub-header strip: toggles ── */}
       <div className="flex items-center justify-between px-4 py-2.5 m-2 rounded-xl bg-white/[0.04] border border-white/10 backdrop-blur-md shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-[0.18em] font-bold text-emerald-300/80 mr-2 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-400/20">Coverage Profile</span>
-          <div className="h-4 w-px bg-white/10 mx-1" />
           <Toggle label="Show Beam" value={showBeam} onChange={setShowBeam} />
           <Toggle label="Show Tilt Lines" value={showTiltLines} onChange={setShowTiltLines} />
           <Toggle label="Show Clutter" value={showClutter} onChange={setShowClutter} />
