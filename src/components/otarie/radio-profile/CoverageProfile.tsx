@@ -160,11 +160,13 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+      targetBearing, rawHba,
     } = props;
     const aProps = {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+      targetBearing, rawHba,
     };
     return (
       <div className="w-full h-full grid grid-rows-2 gap-2 min-h-0">
