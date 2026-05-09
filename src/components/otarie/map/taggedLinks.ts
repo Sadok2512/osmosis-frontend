@@ -41,7 +41,6 @@ function scopedKey(dashboardId?: string | null): string {
 
 export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {
   const key = scopedKey(dashboardId);
-  if (!key) return [];
   try {
     const saved = localStorage.getItem(key);
     return saved ? JSON.parse(saved) : [];
@@ -52,7 +51,6 @@ export function loadTaggedLinks(dashboardId?: string | null): TaggedLink[] {
 
 export function persistTaggedLinks(links: TaggedLink[], dashboardId?: string | null): void {
   const key = scopedKey(dashboardId);
-  if (!key) return;
   try {
     localStorage.setItem(key, JSON.stringify(links));
   } catch {}
