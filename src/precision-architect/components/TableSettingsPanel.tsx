@@ -88,6 +88,17 @@ export default function TableSettingsPanel({ widget, onChange, onClose }: Props)
       is_map_supported: false,
       category: k.category || 'Other',
       color: '#3b82f6',
+      // Mirror of ChartSettingsPanel — without these the selector
+      // can't group by canonical name or show per-vendor formulas.
+      vendor: k.vendor || '',
+      techno: k.techno || '',
+      is_normalized: k.is_normalized ?? false,
+      dimension_type: k.dimension_type || null,
+      dimension_prefix: (k as any).dimension_prefix || null,
+      supported_levels: k.supported_levels || [],
+      kpi_code_normalized: (k as any).kpi_code_normalized || '',
+      numerator: (k as any).numerator ?? (k as any).numerateur ?? '',
+      denominator: (k as any).denominator ?? (k as any).denominateur ?? '',
     } as any));
   }, [kpiCatalog]);
 

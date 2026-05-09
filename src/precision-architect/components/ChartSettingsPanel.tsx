@@ -113,6 +113,14 @@ export default function ChartSettingsPanel({ widget, onChange, onClose }: Props)
       dimension_type: k.dimension_type || null,
       dimension_prefix: (k as any).dimension_prefix || null,
       supported_levels: k.supported_levels || [],
+      // 2026-05-09 — preserve canonical name + raw formulas so the
+      // KpiSelectorModal can group multivendor variants under
+      // kpi_code_normalized AND show per-vendor formulas in the
+      // info popover. Without these fields the selector falls back
+      // to verbose Vendor__&_* names and the formula drawer is empty.
+      kpi_code_normalized: (k as any).kpi_code_normalized || '',
+      numerator: (k as any).numerator ?? (k as any).numerateur ?? '',
+      denominator: (k as any).denominator ?? (k as any).denominateur ?? '',
     } as any));
   }, [kpiCatalog]);
 
