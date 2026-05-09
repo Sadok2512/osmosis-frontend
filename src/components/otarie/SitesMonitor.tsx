@@ -10285,11 +10285,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   // coverage. We deliberately do NOT pass any link line / LOS /
                   // Fresnel between the two — Coverage Profile is antenna-to-
                   // ground only.
-                  const cellA = siteDetail?.cells?.find(c => c.azimut != null) || siteDetail?.cells?.[0];
-                  const antennaH_A = Number((cellA as any)?.hba ?? 30) || 30;
+                  // Prefer the user-selected sector (focusCellId) so footer values
+                  // mirror the "Selected sector" panel. Fallback to first cell with azimut.
+                  const cellA = (focusCellId ? siteDetail?.cells?.find(c => c.cell_id === focusCellId) : null)
+                    || siteDetail?.cells?.find(c => c.azimut != null)
+                    || siteDetail?.cells?.[0];
+                  const rawHbaA = (cellA as any)?.hba ?? null;
+                  const antennaH_A = Number(rawHbaA ?? 30) || 30;
                   const tiltA = Number((cellA as any)?.tilt ?? 0);
                   const azA = Number(cellA?.azimut ?? 0);
                   const baseAmslA = linkProfileAnalysis?.effectiveTerrain?.[0] ?? 0;
+                  const coverageTargetBearing = linkActiveCoords
+                    ? Math.round(bearing(
+                        { lat: linkActiveCoords.from[0], lng: linkActiveCoords.from[1] },
+                        { lat: linkActiveCoords.to[0], lng: linkActiveCoords.to[1] },
+                      ) * 10) / 10
+                    : null;
 
                   // Try to resolve Site B from linkActiveCoords.to against the
                   // loaded site list (match by coordinates with small tolerance).
@@ -10341,6 +10352,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       clutterHeight={linkClutterHeight}
                       siteB={siteB}
                       onHoverPoint={setLinkProfileHover}
+                      targetBearing={coverageTargetBearing}
+                      rawHba={rawHbaA}
                     />
                   );
                 })()

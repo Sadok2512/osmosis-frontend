@@ -61,6 +61,10 @@ export interface CoverageProfileProps {
    */
   siteB?: CoverageSiteParams & { siteAltitudeAmsl?: number };
   onHoverPoint?: (data: ProfileHoverData | null) => void;
+  /** Optional bearing from the antenna to the target point (deg). Used to compute ΔAz. */
+  targetBearing?: number | null;
+  /** Raw HBA value as stored in DB. When null, the chip shows "—" instead of a fallback number. */
+  rawHba?: number | null;
 }
 
 const SAFE_MIN_DEG = 0.5;
@@ -156,11 +160,13 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+      targetBearing, rawHba,
     } = props;
     const aProps = {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
+      targetBearing, rawHba,
     };
     return (
       <div className="w-full h-full grid grid-rows-2 gap-2 min-h-0">
@@ -222,6 +228,8 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   showClutter: showClutterProp = false,
   clutterHeight = 10,
   onHoverPoint,
+  targetBearing = null,
+  rawHba = null,
 }) => {
   // Local UI state — toggles inside the panel header strip
   const [showBeam, setShowBeam] = useState(showBeamProp);
@@ -827,18 +835,39 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
       {/* Footer KPI bar — segmented stat cards with clean hierarchy */}
       <div className="shrink-0 grid grid-cols-12 gap-2 p-2 bg-gradient-to-r from-slate-950/80 to-slate-900/60 border-t border-white/10">
         {/* Site / TX details — spans 6 cols */}
-        <div className="col-span-6 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/[0.06] border border-emerald-400/20 backdrop-blur-md">
+        <div className="col-span-6 flex items-center gap-x-2 gap-y-1 px-3 py-2 rounded-xl bg-emerald-500/[0.06] border border-emerald-400/20 backdrop-blur-md flex-wrap">
           <div className="flex items-center gap-1.5 pr-2 border-r border-white/10">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
           </div>
-          <span className="text-[10px] font-bold text-slate-100 truncate" title={sectorName || siteName}>{sectorName || siteName}</span>
+          <span className="text-[10px] font-bold text-slate-100 truncate max-w-[180px]" title={sectorName || siteName}>{sectorName || siteName}</span>
+          <span className="text-slate-500">|</span>
+          <FooterStat label="Techno" value={String(techno || '—').toUpperCase()} />
           <span className="text-slate-500">|</span>
           <FooterStat label="Band" value={bandFreqLabel(band).label} />
           <span className="text-slate-500">|</span>
-          <FooterStat label="HBA" value={`${antennaHeight.toFixed(0)} m`} />
+          <FooterStat label="HBA" value={rawHba == null ? '—' : `${Number(rawHba).toFixed(0)} m`} />
           <span className="text-slate-500">|</span>
           <FooterStat label="Tilt" value={`${(geom.totalTilt ?? 0).toFixed(1)}°`} />
+          {Number.isFinite(azimut as number) && (
+            <>
+              <span className="text-slate-500">|</span>
+              <FooterStat label="Az" value={`${Math.round(azimut as number)}°`} />
+            </>
+          )}
+          {Number.isFinite(azimut as number) && Number.isFinite(targetBearing as number) && (() => {
+            const da = Math.abs(((azimut as number) - (targetBearing as number) + 540) % 360 - 180);
+            const cls = da <= 30 ? 'text-emerald-300' : da <= 60 ? 'text-amber-300' : 'text-red-300';
+            return (
+              <>
+                <span className="text-slate-500">|</span>
+                <span className="flex items-baseline gap-1 text-[10px]">
+                  <span className="text-slate-400 uppercase tracking-wider">ΔAz</span>
+                  <span className={`font-bold tabular-nums ${cls}`}>{da.toFixed(1)}°</span>
+                </span>
+              </>
+            );
+          })()}
         </div>
         {/* Coverage KPI cards */}
         {linkDistance > 0 && (
