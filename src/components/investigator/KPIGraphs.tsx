@@ -713,9 +713,12 @@ const CounterTimeseriesWidget: React.FC<{ counterNames: string[]; height: number
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
     const dateFrom = state.startDate?.split('T')[0] || thirtyDaysAgo;
     const dateTo = state.endDate?.split('T')[0] || today;
-    const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+    // 2026-05-09: pass kpi/counter names through unchanged. Backend
+    // catalog accepts BOTH verbose `Ericsson__&_X` AND canonical
+    // `x_lowercase` via OR-lookup — see osmosis-parser commit 51048e3.
+    // Stripping to TitleCase produced names matching nothing.
     const body: any = {
-      counter_names: counterNames.map(cleanCounterName),
+      counter_names: counterNames || [],
       date_from: dateFrom,
       date_to: dateTo,
       granularity: normalizeGranularity(state.granularity),
@@ -1200,10 +1203,12 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
       const counterSplitVal = cIds.map(cid => splitPerKpi[cid]).find(v => v && v !== 'None');
       const hasSplit = !!counterSplitVal;
 
-      // Strip vendor prefix from counter_names (e.g. "Ericsson__&_4G_LTE_DCR_VoLTE" → "4G_LTE_DCR_VoLTE")
-      const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+      // 2026-05-09: pass counter_names through unchanged. Backend
+      // resolver (osmosis-parser commit 51048e3) accepts BOTH verbose
+      // `Ericsson__&_X` AND canonical `x_lowercase`. Stripping to
+      // TitleCase produced names matching nothing.
       const body: any = {
-        counter_names: cIds.map(cleanCounterName),
+        counter_names: cIds || [],
         date_from: slotContext.dateFrom,
         date_to: slotContext.dateTo,
         granularity: slotContext.granularity,
@@ -1220,7 +1225,10 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         } else if (dim === 'CELL') {
           body.cell_name = filter.values.length === 1 ? filter.values[0] : filter.values;
         } else if (dim === 'VENDOR') {
-          body.vendor = String(filter.values[0]).toUpperCase();
+          // 2026-05-09: backend stores Ericsson/Nokia in TitleCase.
+          // UPPERCASE matched 0 rows. Capitalize defensively.
+          const v = String(filter.values[0]);
+          body.vendor = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
         } else if (dim === 'TECHNOLOGY' || dim === 'TECHNO') {
           const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
           const allSelected = filter.values.length >= 4 && filter.values.every(v => ALL_TECHS.has(v));

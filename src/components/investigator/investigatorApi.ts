@@ -116,9 +116,17 @@ export async function fetchCounterTimeSeriesFallback(
 
   try {
     const url = getApiUrl('pm/counters/timeseries');
-    const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+    // 2026-05-09: do NOT strip the vendor prefix. The backend catalog
+    // (kpi.kpi_definition) accepts both verbose (`Ericsson__&_X`) AND
+    // canonical (`x_lowercase`) names via OR-lookup on
+    // (kpi_code, kpi_code_normalized) — see osmosis-parser commit 51048e3
+    // / kpi-engine/SCHEMA_DECISIONS.md. The previous strip produced
+    // `4G_LTE_DCR_VoLTE` (TitleCase), a name that exists in NEITHER
+    // form → 0 results.
+    // NB: counter_names is meant for `pmXxxYyy` raw counter codes —
+    // passing a kpi_code here is upstream's bug and the strip won't fix it.
     const body: any = {
-      counter_names: (counterNames || []).map(cleanCounterName),
+      counter_names: counterNames || [],
       date_from: dateFrom,
       date_to: dateTo,
       granularity,
@@ -145,7 +153,12 @@ export async function fetchCounterTimeSeriesFallback(
             body.object_type = f.values.length === 1 ? f.values[0] : f.values;
           }
         } else if (dim === 'VENDOR' && f.values?.length) {
-          body.vendor = String(f.values[0]).toUpperCase();
+          // 2026-05-09: backend stores vendor in TitleCase (Ericsson, Nokia)
+          // — uppercasing produces ERICSSON which matches 0 rows in
+          // osmosis.counter_15m. Pass through as-is, capitalize only if
+          // the caller sent it lowercase.
+          const v = String(f.values[0]);
+          body.vendor = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase();
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
         } else if ((dim === 'PLAQUE' || dim === 'CLUSTER' || dim === 'CLUSTER_B') && f.values?.length) {
@@ -435,17 +448,27 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Strip vendor prefix from kpi_key (e.g. "Ericsson__&_4G_LTE_DCR_VoLTE" → "4G_LTE_DCR_VoLTE")
-  // Backend expects raw kpi_key without vendor prefix; the prefix is a display-side concat.
-  const cleanKpiKey = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+  // 2026-05-09: do NOT transform kpi_key. Backend resolver
+  // (kpi-engine/lib/kpi_query_helpers.resolve_kpi_definition) matches
+  // BOTH `kpi_code` (verbose) AND `kpi_code_normalized` (canonical)
+  // via OR-lookup. The previous strip produced `4G_LTE_DCR_VoLTE`
+  // (TitleCase) which exists in NEITHER catalog column → 0 rows.
+  // Pass through as-is and let the backend resolve.
+  const cleanKpiKey = (k: string): string => String(k || '');
 
   const url = getApiUrl('monitor/query/timeseries');
-  // Normalize VENDOR values to uppercase (backend canonical form)
+  // 2026-05-09: VENDOR stays in the casing the catalog uses — TitleCase
+  // (Ericsson, Nokia, Huawei). UPPERCASE matched 0 rows in
+  // osmosis.counter_15m which stores TitleCase. Capitalize defensively
+  // so a legacy lowercase input still resolves.
   const allFilters = ctx.filters.map(f => ({
     dimension: f.dimension,
     op: 'IN',
     values: f.dimension === 'VENDOR'
-      ? (f.values || []).map(v => String(v).toUpperCase())
+      ? (f.values || []).map(v => {
+          const s = String(v);
+          return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+        })
       : f.values,
   }));
 
