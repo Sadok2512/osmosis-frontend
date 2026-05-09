@@ -971,6 +971,11 @@ export async function fetchSitesByBbox(
     if (sites.length === 0 && resp.total > 0) {
       throw new Error('BBOX returned only invalid site coordinates');
     }
+    // Fix: VPS BBOX sometimes returns total=0 (timeout / partial index) even when local cache has data.
+    // Trigger fallback to fetchTopoSites() instead of letting the map go blank.
+    if (sites.length === 0 && resp.total === 0) {
+      throw new Error('BBOX returned 0 sites — falling back to local cache');
+    }
 
     const filteredSites = filterSitesAllTech(sites);
     bboxCache = { key, sites: filteredSites, total: filteredSites.length };
