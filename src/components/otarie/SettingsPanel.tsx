@@ -47,20 +47,16 @@ const ACCENT_COLORS: { id: AccentColor; label: string; color: string }[] = [
 ];
 
 const MODULE_DEFS: { id: string; label: string; description: string; icon: React.ReactNode }[] = [
-  { id: 'ai_assistant', label: 'OSMOSIS AI', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
   { id: 'dashboard_overview', label: 'Dashboard Overview', description: 'Vue d\'ensemble des KPIs globaux', icon: <BarChart3 className="w-5 h-5" /> },
   { id: 'list', label: 'Live Monitor Map', description: 'Carte temps-réel des sites et cellules', icon: <Globe className="w-5 h-5" /> },
-  { id: 'traffic', label: 'Analytic QoE', description: 'Analyse avancée et tableaux de bord', icon: <Activity className="w-5 h-5" /> },
-  { id: 'kpi_monitor', label: 'KPI Monitor', description: 'Référentiel KPI réseau existant', icon: <Activity className="w-5 h-5" /> },
-  { id: 'kpi_reference2', label: 'KPI Reference 2', description: 'Nouveau référentiel KPI avec flux modernisé', icon: <LibraryBig className="w-5 h-5" /> },
-  { id: 'detector', label: 'Detector Console', description: 'Détection avancée et RCA', icon: <Server className="w-5 h-5" /> },
+  { id: 'odcc', label: 'ODCC', description: 'Observatoire détection & contrôle cellules', icon: <Radio className="w-5 h-5" /> },
+  { id: 'parameters', label: 'Network Explorer', description: 'Exploration des paramètres réseau', icon: <Server className="w-5 h-5" /> },
+  { id: 'docs', label: 'Cluster Builder', description: 'Référentiel réseau et clusters', icon: <Database className="w-5 h-5" /> },
+  { id: 'investigator', label: 'Investigator', description: 'Analyse KPI multi-dimensions', icon: <Activity className="w-5 h-5" /> },
+  { id: 'ran_query', label: 'Rapport Builder', description: 'Création et exécution de rapports KPI / counter', icon: <BarChart3 className="w-5 h-5" /> },
+  { id: 'precision_architect', label: 'Netview', description: 'Dashboards et widgets sur-mesure', icon: <LibraryBig className="w-5 h-5" /> },
+  { id: 'ai_assistant', label: 'OSMOSIS', description: 'Assistant IA pour l\'analyse QoE', icon: <Zap className="w-5 h-5" /> },
   { id: 'sentinel', label: 'ML Detector', description: 'Détection ML et clustering', icon: <Radio className="w-5 h-5" /> },
-  { id: 'radio_profile', label: 'Radio Profile', description: 'Profil radio et couverture', icon: <Radio className="w-5 h-5" /> },
-  { id: 'topologie', label: 'Parameters HUB', description: 'Paramètres et topologie', icon: <Server className="w-5 h-5" /> },
-  { id: 'ran_query', label: 'RAN Query', description: 'Création et exécution de rapports KPI / counter', icon: <BarChart3 className="w-5 h-5" /> },
-  { id: 'docs', label: 'Cluster Builder', description: 'Référentiel réseau', icon: <Database className="w-5 h-5" /> },
-  { id: 'backend_admin', label: 'Backend Admin', description: 'Administration backend', icon: <Database className="w-5 h-5" /> },
-  { id: 'topology', label: 'Topology', description: 'Visualisation réseau', icon: <Globe className="w-5 h-5" /> },
 ];
 
 const SectionCard: React.FC<{ title: string; description?: string; children: React.ReactNode }> = ({ title, description, children }) => (
