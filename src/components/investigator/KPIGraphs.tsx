@@ -1416,7 +1416,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
                 <button onClick={(e) => { e.stopPropagation(); onRemoveSlot(slot.id); }} className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><X className="w-3.5 h-3.5" /></button>
                 <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} />
               </div>
-              {(fetchingSlots[slot.id] || isApplying) && (
+              {(fetchingSlots[slot.id] || (isApplying && slot.id === activeSlotId)) && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 rounded-2xl backdrop-blur-[2px] animate-in fade-in duration-150">
                   <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                   <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Chargement…</span>
@@ -2466,7 +2466,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
               <SlotSettingsPopover slot={slot} cfg={cfg} onUpdateSlotConfig={onUpdateSlotConfig} onDuplicateSlot={onDuplicateSlot} onActivateTab={onActivateTab} chartRef={chartRefsMap.current[slot.id]} hasTableData={(series || []).some((s: any) => Array.isArray(s.data) && s.data.some((v: any) => v != null && (typeof v !== 'number' || isFinite(v))))} />
             </div>
             <div className="relative">
-              {(fetchingSlots[slot.id] || isApplying) && (
+              {(fetchingSlots[slot.id] || (isApplying && slot.id === activeSlotId)) && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-background/70 rounded-lg backdrop-blur-[2px] animate-in fade-in duration-150">
                   <RefreshCw className="w-6 h-6 animate-spin text-primary" />
                   <span className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">Chargement…</span>
