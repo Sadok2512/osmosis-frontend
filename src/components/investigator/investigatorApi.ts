@@ -116,8 +116,9 @@ export async function fetchCounterTimeSeriesFallback(
 
   try {
     const url = getApiUrl('pm/counters/timeseries');
+    const cleanCounterName = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
     const body: any = {
-      counter_names: counterNames,
+      counter_names: (counterNames || []).map(cleanCounterName),
       date_from: dateFrom,
       date_to: dateTo,
       granularity,
@@ -144,7 +145,7 @@ export async function fetchCounterTimeSeriesFallback(
             body.object_type = f.values.length === 1 ? f.values[0] : f.values;
           }
         } else if (dim === 'VENDOR' && f.values?.length) {
-          body.vendor = f.values[0];
+          body.vendor = String(f.values[0]).toUpperCase();
         } else if (dim === 'KPI_LEVEL') {
           /* ignore */
         } else if ((dim === 'PLAQUE' || dim === 'CLUSTER' || dim === 'CLUSTER_B') && f.values?.length) {
@@ -221,7 +222,7 @@ export async function fetchCounterTimeSeriesFallback(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify({
-            counter_names: counterNames,
+            counter_names: (counterNames || []).map(cleanCounterName),
             date_from: dateFrom,
             date_to: dateTo,
             granularity,
@@ -434,9 +435,19 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // Step 1: KPI Engine — primary path for all KPI queries
+  // Strip vendor prefix from kpi_key (e.g. "Ericsson__&_4G_LTE_DCR_VoLTE" → "4G_LTE_DCR_VoLTE")
+  // Backend expects raw kpi_key without vendor prefix; the prefix is a display-side concat.
+  const cleanKpiKey = (k: string): string => String(k || '').replace(/^[A-Za-z]+__&_/, '');
+
   const url = getApiUrl('monitor/query/timeseries');
-  const allFilters = ctx.filters.map(f => ({ dimension: f.dimension, op: 'IN', values: f.values }));
+  // Normalize VENDOR values to uppercase (backend canonical form)
+  const allFilters = ctx.filters.map(f => ({
+    dimension: f.dimension,
+    op: 'IN',
+    values: f.dimension === 'VENDOR'
+      ? (f.values || []).map(v => String(v).toUpperCase())
+      : f.values,
+  }));
 
   // Add kpi_level filter
   if (ctx.kpiLevel && ctx.kpiLevel !== 'CELL') {
@@ -479,7 +490,7 @@ export async function fetchTimeSeriesForSlot(
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
       granularity: ctx.granularity,
-      selections: kpiIds.map(k => ({ kpi_key: k })),
+      selections: kpiIds.map(k => ({ kpi_key: cleanKpiKey(k) })),
       filters: allFilters,
       split_by: splitBy,
       split_by_2: splitBy2,
