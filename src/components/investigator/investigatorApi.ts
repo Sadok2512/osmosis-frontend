@@ -222,7 +222,7 @@ export async function fetchCounterTimeSeriesFallback(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify({
-            counter_names: counterNames,
+            counter_names: (counterNames || []).map(cleanCounterName),
             date_from: dateFrom,
             date_to: dateTo,
             granularity,
