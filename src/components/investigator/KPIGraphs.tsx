@@ -1219,7 +1219,7 @@ const KPIGraphs: React.FC<Props> = ({ graphSlots: rawSlots, data, investigatorSt
         } else if (dim === 'CELL') {
           body.cell_name = filter.values.length === 1 ? filter.values[0] : filter.values;
         } else if (dim === 'VENDOR') {
-          body.vendor = filter.values[0];
+          body.vendor = String(filter.values[0]).toUpperCase();
         } else if (dim === 'TECHNOLOGY' || dim === 'TECHNO') {
           const ALL_TECHS = new Set(['2G', '3G', '4G', '5G']);
           const allSelected = filter.values.length >= 4 && filter.values.every(v => ALL_TECHS.has(v));
