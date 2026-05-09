@@ -235,7 +235,7 @@ export async function fetchCounterTimeSeriesFallback(
           method: 'POST',
           headers: getApiHeaders(),
           body: JSON.stringify({
-            counter_names: (counterNames || []).map(cleanCounterName),
+            counter_names: (counterNames || []).map(c => String(c || '')),
             date_from: dateFrom,
             date_to: dateTo,
             granularity,
@@ -448,13 +448,19 @@ export async function fetchTimeSeriesForSlot(
     return { data: allData, hasUnfilteredFallback: false };
   }
 
-  // 2026-05-09: do NOT transform kpi_key. Backend resolver
-  // (kpi-engine/lib/kpi_query_helpers.resolve_kpi_definition) matches
-  // BOTH `kpi_code` (verbose) AND `kpi_code_normalized` (canonical)
-  // via OR-lookup. The previous strip produced `4G_LTE_DCR_VoLTE`
-  // (TitleCase) which exists in NEITHER catalog column → 0 rows.
-  // Pass through as-is and let the backend resolve.
-  const cleanKpiKey = (k: string): string => String(k || '');
+  // 2026-05-09 (rev): backend commit d135820d activates a 5×-faster
+  // fast-path when kpi_key matches `kpi_code_normalized` (canonical:
+  // lowercase, no vendor prefix). Strip leading `Vendor__&_` segment
+  // and lowercase. Verbose names (Ericsson__&_4G_LTE_DCR_VoLTE) fall
+  // back to the slow resolver and miss the fast-path.
+  // Vendor distinction must come from `split_by: VENDOR`, not from
+  // separate verbose kpi_keys.
+  const cleanKpiKey = (k: string): string => {
+    const raw = String(k || '');
+    // Strip "<Vendor>__&_" prefix if present
+    const stripped = raw.replace(/^[A-Za-z][A-Za-z0-9]*__&_/, '');
+    return stripped.toLowerCase();
+  };
 
   const url = getApiUrl('monitor/query/timeseries');
   // 2026-05-09: VENDOR stays in the casing the catalog uses — TitleCase
