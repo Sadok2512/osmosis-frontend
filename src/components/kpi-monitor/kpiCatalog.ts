@@ -46,6 +46,14 @@ function dbRowToCatalog(row: any): KpiCatalogEntry {
     is_normalized: row.is_normalized ?? undefined,
     dimension_type: row.dimension_type ?? null,
     dimension_prefix: row.dimension_prefix ?? null,
+    // 2026-05-09 — preserve canonical name + raw formulas. The
+    // RanQueryModule falls back to this Supabase loader when the
+    // VPS catalog is unreachable; without these fields the selector
+    // reverts to verbose Vendor__&_* names and an empty formula
+    // popover.
+    kpi_code_normalized: row.kpi_code_normalized ?? undefined,
+    numerator: row.numerator ?? row.numerateur ?? undefined,
+    denominator: row.denominator ?? row.denominateur ?? undefined,
   };
 }
 

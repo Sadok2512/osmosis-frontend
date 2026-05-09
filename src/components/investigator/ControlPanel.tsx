@@ -1173,6 +1173,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
           dimension_prefix: k.dimension_prefix || null,
           counter_count: k.counter_count || 0,
           supported_levels: k.supported_levels || [],
+          // 2026-05-09 — preserve canonical name + raw formulas so the
+          // Investigator's KpiSelectorModal groups multivendor variants
+          // under kpi_code_normalized AND populates the formula popover.
+          // Without these the modal falls back to verbose Vendor__&_*
+          // names even though groupMode is on by default.
+          kpi_code_normalized: k.kpi_code_normalized || '',
+          numerator: k.numerator ?? k.numerateur ?? '',
+          denominator: k.denominator ?? k.denominateur ?? '',
         }));
         setCatalog(mapped);
       }
