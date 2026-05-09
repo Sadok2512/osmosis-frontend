@@ -14948,7 +14948,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               >HBA</span>
                             </div>
                             {/* Cell rows */}
-                            <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto">
+                            <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
                               {cells.map((c) => {
                                 const eTilt = (c as any).tilt as number | null;
                                 const isSelected = focusCellId === c.cell_id;
