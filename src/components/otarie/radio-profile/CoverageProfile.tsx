@@ -447,13 +447,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
         </div>
       </div>
 
-      {/* Site name pill — anchored just below the toggle strip */}
-      <div className="absolute top-[60px] left-5 z-20 px-3 py-1.5 rounded-lg bg-slate-900/80 backdrop-blur-md border border-emerald-400/30 shadow-[0_4px_20px_rgba(0,0,0,0.4)]">
-        <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse" />
-          <span className="text-[11px] font-bold text-slate-100 uppercase tracking-wider">{siteName}{sectorName ? ` · ${sectorName}` : ''}</span>
-        </div>
-      </div>
+
 
       {/* RSRP legend — moved out of SVG into a glass card pinned top-right of the chart area */}
       <div className="absolute top-[60px] right-5 z-20 px-3 py-2 rounded-lg bg-slate-900/80 backdrop-blur-md border border-white/10 shadow-[0_4px_20px_rgba(0,0,0,0.4)] pointer-events-none">
