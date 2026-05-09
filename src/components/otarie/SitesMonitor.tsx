@@ -10238,6 +10238,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     siteName={linkProfileLabel}
                     txIsPoint={activeTaggedLink?.fromType === 'point'}
                     rxIsPoint={activeTaggedLink?.toType === 'point'}
+                    txCellName={activeTaggedLink?.fromSector?.cell_id || undefined}
+                    rxCellName={activeTaggedLink?.toSector?.cell_id || undefined}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-xs gap-2">

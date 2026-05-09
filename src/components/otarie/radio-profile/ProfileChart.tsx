@@ -34,6 +34,10 @@ interface Props {
   txIsPoint?: boolean;
   /** RX endpoint is a custom point (not a tower) — renders a 2 m pole. */
   rxIsPoint?: boolean;
+  /** Optional TX cell label (replaces "Site A (TX)" when present). */
+  txCellName?: string;
+  /** Optional RX cell label (replaces "Site B (RX)" when present). */
+  rxCellName?: string;
 }
 
 type LinkState = 'LOS_CLEAR' | 'LOS_FRESNEL_BLOCKED' | 'NLOS';
@@ -57,6 +61,8 @@ const ProfileChart: React.FC<Props> = ({
   manualMinHeight = null,
   txIsPoint = false,
   rxIsPoint = false,
+  txCellName,
+  rxCellName,
 }) => {
   const ant = analysis?.antennaParams ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
@@ -522,10 +528,18 @@ const ProfileChart: React.FC<Props> = ({
       {/* Footer info bar: Site A · Link summary · Site B */}
       <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider">{txIsPoint ? 'Point (TX)' : 'Site A (TX)'}</span>
-          <span className="text-slate-300">{txIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(txIsPoint ? 2 : ant.hba).toFixed(0)} m</span></span>
-          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.antennaAMSL)} m</span></span>
-          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[0])} m</span></span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}>
+            {txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}
+          </span>
+          {!txIsPoint && (
+            <>
+              <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{ant.hba.toFixed(0)} m</span></span>
+              <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(ant.totalTilt ?? 0).toFixed(1)}°</span></span>
+            </>
+          )}
+          {txIsPoint && (
+            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+          )}
         </div>
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-slate-600/40">
           <span><span className="text-cyan-400 font-bold">Dist:</span> <span className="text-slate-100">{derived.totalDistKm.toFixed(2)} km</span></span>
@@ -534,10 +548,18 @@ const ProfileChart: React.FC<Props> = ({
           )}
         </div>
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider">{rxIsPoint ? 'Point (RX)' : 'Site B (RX)'}</span>
-          <span className="text-slate-300">{rxIsPoint ? 'H' : 'Ant'}: <span className="text-emerald-300 font-bold">{(rxIsPoint ? 2 : (remoteAntenna?.hba ?? ant.rxHeight ?? 1.5)).toFixed(0)} m</span></span>
-          <span className="text-slate-300">AMSL: <span className="text-emerald-300 font-bold">{Math.round(derived.remoteAMSL ?? derived.rxAMSL)} m</span></span>
-          <span className="text-slate-300">Ground: <span className="text-slate-200">{Math.round(derived.terrainEff[derived.terrainEff.length - 1])} m</span></span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}>
+            {rxCellName || (rxIsPoint ? 'Point (RX)' : 'Site B (RX)')}
+          </span>
+          {!rxIsPoint && (
+            <>
+              <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{(remoteAntenna?.hba ?? ant.rxHeight ?? 1.5).toFixed(0)} m</span></span>
+              <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(remoteAntenna?.totalTilt ?? 0).toFixed(1)}°</span></span>
+            </>
+          )}
+          {rxIsPoint && (
+            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+          )}
         </div>
       </div>
     </div>
