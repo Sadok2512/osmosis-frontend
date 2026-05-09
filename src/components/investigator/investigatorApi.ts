@@ -489,7 +489,7 @@ export async function fetchTimeSeriesForSlot(
       date_from: ctx.dateFrom,
       date_to: ctx.dateTo,
       granularity: ctx.granularity,
-      selections: kpiIds.map(k => ({ kpi_key: k })),
+      selections: kpiIds.map(k => ({ kpi_key: cleanKpiKey(k) })),
       filters: allFilters,
       split_by: splitBy,
       split_by_2: splitBy2,
