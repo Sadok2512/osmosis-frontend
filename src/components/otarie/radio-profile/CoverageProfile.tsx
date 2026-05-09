@@ -61,6 +61,10 @@ export interface CoverageProfileProps {
    */
   siteB?: CoverageSiteParams & { siteAltitudeAmsl?: number };
   onHoverPoint?: (data: ProfileHoverData | null) => void;
+  /** Optional bearing from the antenna to the target point (deg). Used to compute ΔAz. */
+  targetBearing?: number | null;
+  /** Raw HBA value as stored in DB. When null, the chip shows "—" instead of a fallback number. */
+  rawHba?: number | null;
 }
 
 const SAFE_MIN_DEG = 0.5;
