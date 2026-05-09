@@ -93,6 +93,9 @@ const ProfileChart: React.FC<Props> = ({
   rxCellName,
   txBand,
   rxBand,
+  txAzimuth = null,
+  rxAzimuth = null,
+  linkBearing = null,
 }) => {
   const ant = analysis?.antennaParams ?? null;
   const svgRef = useRef<SVGSVGElement>(null);
