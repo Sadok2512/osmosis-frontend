@@ -14935,7 +14935,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             {/* Table header — BSP is the techno-specific physical
                                 identifier: 2G → BCCH (often blank, no DB column),
                                 3G → SC (psc), 4G/5G → PCI. Tooltip shows the meaning. */}
-                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px_50px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50">
+                            <div className="grid grid-cols-[1fr_44px_64px_40px_40px_50px_50px] gap-0.5 px-3 py-1.5 bg-muted/30 border-b border-border/50">
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest">Cell ID</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Tech</span>
                               <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center">Band</span>
@@ -14945,6 +14945,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center"
                                 title="BSP — Broadcast/Scrambling/Physical: 2G=BCCH, 3G=SC, 4G/5G=PCI"
                               >BSP</span>
+                              <span
+                                className="text-[8px] font-bold text-muted-foreground uppercase tracking-widest text-center"
+                                title="HBA — Height Above Ground Level (antenna mounting height in meters)"
+                              >HBA</span>
                             </div>
                             {/* Cell rows */}
                             <div className="divide-y divide-border/20 max-h-[280px] overflow-y-auto">
@@ -14973,7 +14977,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                     key={c.cell_id}
                                     onClick={() => handleCellClick(c.cell_id)}
                                     title={c.cell_id}
-                                    className={`grid grid-cols-[1fr_44px_64px_40px_40px_50px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
+                                    className={`grid grid-cols-[1fr_44px_64px_40px_40px_50px_50px] gap-0.5 px-3 py-2 items-center cursor-pointer transition-all group ${
                                       isSelected
                                         ? 'bg-primary/10 border-l-2 border-l-primary'
                                         : 'hover:bg-muted/30 border-l-2 border-l-transparent'
@@ -14991,6 +14995,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                       className="text-[9px] font-semibold text-foreground text-center tabular-nums"
                                       title={bspTitle}
                                     >{bsp}</span>
+                                    {/* HBA — antenna height (m AGL). Shows "—" when DB has
+                                        no value, mirroring the Site Information panel. */}
+                                    <span
+                                      className="text-[9px] font-semibold text-foreground text-center tabular-nums"
+                                      title={c.hba != null ? `Antenna mounted at ${c.hba} m above ground` : 'Antenna height not stored in this dataset'}
+                                    >{c.hba != null ? `${c.hba} m` : '—'}</span>
                                   </div>
                                 );
                               })}
