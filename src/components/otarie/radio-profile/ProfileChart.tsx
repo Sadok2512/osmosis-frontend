@@ -547,17 +547,26 @@ const ProfileChart: React.FC<Props> = ({
       {/* Footer info bar: Site A · Link summary · Site B */}
       <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 bg-slate-900/60 border-t border-slate-700/50 text-[11px] font-mono">
         <div className="flex items-center gap-3 px-3 py-1 rounded-lg bg-slate-900/70 border border-emerald-500/30">
-          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[260px]" title={txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
+          <span className="text-slate-500">|</span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[220px]" title={txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}>
             {txCellName || (txIsPoint ? 'Point (TX)' : 'Site A (TX)')}
           </span>
           {!txIsPoint && (
             <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">Band: <span className="text-emerald-300 font-bold">{formatBandLabel(txBand)}</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">HBA: <span className="text-emerald-300 font-bold">{ant.hba.toFixed(0)} m</span></span>
+              <span className="text-slate-500">|</span>
               <span className="text-slate-300">Tilt: <span className="text-emerald-300 font-bold">{(ant.totalTilt ?? 0).toFixed(1)}°</span></span>
             </>
           )}
           {txIsPoint && (
-            <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300">H: <span className="text-emerald-300 font-bold">2 m</span></span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-4 px-4 py-1.5 rounded-lg bg-slate-900/80 border border-cyan-500/40 text-[12px]">
