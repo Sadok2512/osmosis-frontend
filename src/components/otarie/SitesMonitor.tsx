@@ -10240,6 +10240,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     rxIsPoint={activeTaggedLink?.toType === 'point'}
                     txCellName={activeTaggedLink?.fromSector?.cell_id || undefined}
                     rxCellName={activeTaggedLink?.toSector?.cell_id || undefined}
+                    txBand={(activeTaggedLink?.fromSector as any)?.bande || (activeTaggedLink?.fromSector as any)?.band || undefined}
+                    rxBand={(activeTaggedLink?.toSector as any)?.bande || (activeTaggedLink?.toSector as any)?.band || undefined}
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-xs gap-2">
