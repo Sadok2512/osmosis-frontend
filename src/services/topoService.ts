@@ -991,8 +991,8 @@ export async function fetchSitesByBbox(
       const [lat, lon] = s.coordinates || [];
       return (
         typeof lat === 'number' && typeof lon === 'number' &&
-        lat >= bbox.south && lat <= bbox.north &&
-        lon >= bbox.west && lon <= bbox.east
+        lat >= bbox.minLat && lat <= bbox.maxLat &&
+        lon >= bbox.minLng && lon <= bbox.maxLng
       );
     });
     const filteredSites = filterSitesByBboxFilters(inBbox, filters);
