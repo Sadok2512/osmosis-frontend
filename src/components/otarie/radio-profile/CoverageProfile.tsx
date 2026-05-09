@@ -842,19 +842,23 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">TX</span>
           </div>
-          <span className="text-[10px] font-bold text-slate-100 truncate max-w-[180px]" title={sectorName || siteName}>{sectorName || siteName}</span>
+          <span className="text-emerald-400 font-bold uppercase tracking-wider truncate max-w-[220px] text-[10px]" title={sectorName || siteName}>{sectorName || siteName}</span>
           <span className="text-slate-500">|</span>
-          <FooterStat label="Techno" value={String(techno || '—').toUpperCase()} />
+          <span className="text-slate-300 text-[10px]">Band: <span className="text-emerald-300 font-bold">{bandFreqLabel(band).label}</span></span>
           <span className="text-slate-500">|</span>
-          <FooterStat label="Band" value={bandFreqLabel(band).label} />
+          <span className="text-slate-300 text-[10px]">HBA: <span className="text-emerald-300 font-bold">{rawHba == null ? '—' : `${Number(rawHba).toFixed(0)} m`}</span></span>
           <span className="text-slate-500">|</span>
-          <FooterStat label="HBA" value={rawHba == null ? '—' : `${Number(rawHba).toFixed(0)} m`} />
-          <span className="text-slate-500">|</span>
-          <FooterStat label="Tilt" value={`${(geom.totalTilt ?? 0).toFixed(1)}°`} />
+          <span className="text-slate-300 text-[10px]">Tilt: <span className="text-emerald-300 font-bold">{(geom.totalTilt ?? 0).toFixed(1)}°</span></span>
           {Number.isFinite(azimut as number) && (
             <>
               <span className="text-slate-500">|</span>
-              <FooterStat label="Az" value={`${Math.round(azimut as number)}°`} />
+              <span className="text-slate-300 text-[10px]">Az: <span className="text-emerald-300 font-bold tabular-nums">{Math.round(azimut as number)}°</span></span>
+            </>
+          )}
+          {Number.isFinite(targetBearing as number) && (
+            <>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-300 text-[10px]">Bearing: <span className="text-cyan-300 font-bold tabular-nums">{Math.round(targetBearing as number)}°</span></span>
             </>
           )}
           {Number.isFinite(azimut as number) && Number.isFinite(targetBearing as number) && (() => {
@@ -863,10 +867,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
             return (
               <>
                 <span className="text-slate-500">|</span>
-                <span className="flex items-baseline gap-1 text-[10px]">
-                  <span className="text-slate-400 uppercase tracking-wider">ΔAz</span>
-                  <span className={`font-bold tabular-nums ${cls}`}>{da.toFixed(1)}°</span>
-                </span>
+                <span className="text-slate-300 text-[10px]">ΔAz: <span className={`font-bold tabular-nums ${cls}`}>{da.toFixed(1)}°</span></span>
               </>
             );
           })()}
