@@ -4856,20 +4856,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [taggedPolygons, setTaggedPolygons] = useState<TaggedPolygon[]>([]);
   const [renamingPolygonId, setRenamingPolygonId] = useState<string | null>(null);
   const [renamePolygonValue, setRenamePolygonValue] = useState('');
-  // Transient highlight for newly created tagged objects (polygon/radius/point/link).
-  const [highlightedTaggedId, setHighlightedTaggedId] = useState<string | null>(null);
-  const flashHighlight = useCallback((id: string) => {
-    setHighlightedTaggedId(id);
-    setInventoryTab('tagged');
-    // Auto-scroll into view on next frame
-    requestAnimationFrame(() => {
-      const el = document.querySelector(`[data-tagged-id="${id}"]`);
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    window.setTimeout(() => {
-      setHighlightedTaggedId(curr => (curr === id ? null : curr));
-    }, 2200);
-  }, []);
+
 
   const addTaggedPolygon = useCallback((poly: Omit<TaggedPolygon, 'id' | 'createdAt' | 'type' | 'name'> & { name?: string }) => {
     if (!activeDashboardIdRef.current) return null;
