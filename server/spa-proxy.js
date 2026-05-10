@@ -34,6 +34,7 @@ const TARGETS = {
   '/api/v1/':    { host: '127.0.0.1', port: 8000 },   // osmosis-parser
   '/admin/api/': { host: '127.0.0.1', port: 8000 },   // legacy admin auth POST
   '/kpi-api/':   { host: '127.0.0.1', port: 8001 },   // kpi-engine (strip prefix)
+  '/agent-api/': { host: '127.0.0.1', port: 8000 },   // OSMOSIS AI agent — through parser proxy at /api/v1/agent
   '/api/':       { host: '127.0.0.1', port: 3001 },   // this repo's index.js
 };
 
@@ -104,6 +105,13 @@ app.use(
   '/kpi-api',
   proxyTo(TARGETS['/kpi-api/'], (url) => url.replace(/^\/kpi-api/, '')),
 );
+// /agent-api/* → parser :8000 /api/v1/agent/* (the parser's agent_proxy.py
+// forwards from there to the agent server at AGENT_URL). Mounting this
+// before /api/ so it doesn't fall through to the local Express server.
+app.use(
+  '/agent-api',
+  proxyTo(TARGETS['/agent-api/'], (url) => url.replace(/^\/agent-api/, '/api/v1/agent')),
+);
 app.use(
   '/api',
   proxyTo(TARGETS['/api/'], (url) => url),
@@ -119,7 +127,7 @@ app.use(express.static(DIST_DIR, { index: false, extensions: ['html'] }));
 //   2. The Accept header explicitly excludes HTML (e.g. Accept: application/json)
 // Browsers always send `Accept: text/html,...` for navigations; tooling
 // like curl sends `Accept: */*` which we treat as "wants HTML" too.
-app.get(/^(?!\/(api|admin\/api|kpi-api)).*/, (req, res, next) => {
+app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api)).*/, (req, res, next) => {
   const looksLikeAsset = /\.[a-z0-9]{1,6}$/i.test(req.path);
   const accept = req.headers.accept || '*/*';
   const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
