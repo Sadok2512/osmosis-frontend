@@ -559,17 +559,35 @@ const SingleKpiBreakdown: React.FC<{
 
   const vendorList = useMemo<string[]>(() => {
     if (allVendors.length === 0) return [];
+    let scope = allVendors;
+
+    // Global VENDOR filter wins first — when the user has set
+    // VENDOR=Nokia (or VENDOR=Nokia,Ericsson) in the page filter bar,
+    // only show formulas for those vendors regardless of split.
+    const globalVendorFilter = (filters || []).find(
+      (f) => (f?.dimension || '').toUpperCase() === 'VENDOR'
+    );
+    if (globalVendorFilter && globalVendorFilter.values?.length) {
+      const allowed = new Set(
+        globalVendorFilter.values.map((v) => String(v).trim().toUpperCase())
+      );
+      const intersected = scope.filter((v) => allowed.has(v.toUpperCase()));
+      if (intersected.length > 0) scope = intersected;
+    }
+
+    // Split CONSTRUCTEUR/VENDOR Elements selection narrows further.
     const splitNorm = (splitBy || '').replace('PM_DIM:', '').toUpperCase();
     const isConstructeurSplit = splitNorm === 'CONSTRUCTEUR' || splitNorm === 'VENDOR';
-    if (!isConstructeurSplit || !selectedElements) return allVendors;
-    // selectedElements may hold uppercase or TitleCase — compare on
-    // upper-case to be resilient.
-    const selectedUpper = new Set(
-      Array.from(selectedElements).map((el) => String(el).trim().toUpperCase())
-    );
-    const filtered = allVendors.filter((v) => selectedUpper.has(v.toUpperCase()));
-    return filtered.length > 0 ? filtered : allVendors;
-  }, [allVendors, splitBy, selectedElements]);
+    if (isConstructeurSplit && selectedElements) {
+      const selectedUpper = new Set(
+        Array.from(selectedElements).map((el) => String(el).trim().toUpperCase())
+      );
+      const filtered = scope.filter((v) => selectedUpper.has(v.toUpperCase()));
+      if (filtered.length > 0) scope = filtered;
+    }
+
+    return scope;
+  }, [allVendors, splitBy, selectedElements, filters]);
 
   const isMultiVendor = vendorList.length > 1;
 
