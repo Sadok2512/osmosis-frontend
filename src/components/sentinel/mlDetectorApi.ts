@@ -54,21 +54,38 @@ export interface RunNowResponse {
 
 async function _get<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = getVpsProxyUrl('ml', path, params);
-  const r = await fetch(url, { headers: getVpsProxyHeaders() });
-  if (!r.ok) throw new Error(`ml-engine ${path} → ${r.status}`);
-  return r.json() as Promise<T>;
+  try {
+    const r = await fetch(url, { headers: getVpsProxyHeaders() });
+    if (!r.ok) {
+      console.warn(`[ml-engine] ${path} → ${r.status} (returning empty fallback)`);
+      return {} as T;
+    }
+    return r.json() as Promise<T>;
+  } catch (e) {
+    console.warn(`[ml-engine] ${path} unreachable:`, e);
+    return {} as T;
+  }
 }
 
 async function _post<T>(path: string): Promise<T> {
   const url = getVpsProxyUrl('ml', path);
-  const r = await fetch(url, { method: 'POST', headers: getVpsProxyHeaders() });
-  if (!r.ok) throw new Error(`ml-engine ${path} → ${r.status}`);
-  return r.json() as Promise<T>;
+  try {
+    const r = await fetch(url, { method: 'POST', headers: getVpsProxyHeaders() });
+    if (!r.ok) {
+      console.warn(`[ml-engine] POST ${path} → ${r.status}`);
+      return {} as T;
+    }
+    return r.json() as Promise<T>;
+  } catch (e) {
+    console.warn(`[ml-engine] POST ${path} unreachable:`, e);
+    return {} as T;
+  }
 }
 
 
 export async function listProfiles(): Promise<{ profiles: MlProfile[]; count: number }> {
-  return _get<{ profiles: MlProfile[]; count: number }>('/profiles');
+  const r = await _get<{ profiles?: MlProfile[]; count?: number }>('/profiles');
+  return { profiles: r?.profiles ?? [], count: r?.count ?? 0 };
 }
 
 export async function listAnomalies(opts: {
@@ -86,7 +103,14 @@ export async function listAnomalies(opts: {
   if (opts.date_to) params.date_to = opts.date_to;
   if (opts.page) params.page = String(opts.page);
   if (opts.limit) params.limit = String(opts.limit);
-  return _get<AnomaliesResponse>('/anomalies', params);
+  const r = await _get<Partial<AnomaliesResponse>>('/anomalies', params);
+  return {
+    items: r?.items ?? [],
+    total: r?.total ?? 0,
+    page: r?.page ?? (opts.page ?? 1),
+    pages: r?.pages ?? 0,
+    error: r?.error,
+  };
 }
 
 export async function runProfileNow(profileId: number): Promise<RunNowResponse> {
