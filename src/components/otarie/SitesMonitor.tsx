@@ -8160,26 +8160,124 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         ))}
 
         {/* ── Persisted Tagged Polygons (per active dashboard) ── */}
-        {taggedPolygons.map(poly => (
-          <Polygon
-            key={poly.id}
-            positions={poly.points}
-            pathOptions={{
-              color: 'hsl(280, 70%, 55%)',
-              weight: 2,
-              fillColor: 'hsl(280, 70%, 55%)',
-              fillOpacity: 0.08,
-              dashArray: '4 4',
-            }}
-          >
-            <Tooltip direction="center" opacity={0.95} sticky>
-              <div className="text-[11px] font-semibold">{poly.name}</div>
-              <div className="text-[10px] text-muted-foreground">
-                {poly.fmtArea} · {poly.fmtPerimeter}
-              </div>
-            </Tooltip>
-          </Polygon>
-        ))}
+        {taggedPolygons.map(poly => {
+          const isCircle = !!(poly.circleCenter && poly.circleRadiusM && poly.circleRadiusM > 0);
+          if (isCircle) {
+            const cCenter = poly.circleCenter as [number, number];
+            const cRadius = poly.circleRadiusM as number;
+            const totalKm = cRadius / 1000;
+            const stepKm = totalKm <= 20 ? 1 : totalKm <= 50 ? 5 : totalKm <= 200 ? 10 : 25;
+            const labelEveryKm = totalKm <= 10 ? 1 : totalKm <= 20 ? 2 : totalKm <= 50 ? 5 : 10;
+            const rings: number[] = [];
+            for (let km = stepKm; km * 1000 < cRadius; km += stepKm) rings.push(km * 1000);
+            rings.push(cRadius);
+
+            const RING_COLOR = '#0ea5e9';
+            const perimeterPoint = (bearingDeg: number, distM: number): [number, number] => {
+              const R = 6371000;
+              const lat1 = cCenter[0] * Math.PI / 180;
+              const lng1 = cCenter[1] * Math.PI / 180;
+              const brng = bearingDeg * Math.PI / 180;
+              const d = distM / R;
+              const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+              const lng2 = lng1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+              return [lat2 * 180 / Math.PI, lng2 * 180 / Math.PI];
+            };
+            const labelBearings = totalKm > 30 ? [0, 90, 180, 270] : totalKm > 10 ? [0, 180] : [0];
+
+            return (
+              <React.Fragment key={poly.id}>
+                {rings.map((r, i) => {
+                  const isFinal = i === rings.length - 1;
+                  return (
+                    <Circle
+                      key={`tagged-ring-${poly.id}-${i}`}
+                      center={cCenter}
+                      radius={r}
+                      pane="pane5G"
+                      pathOptions={{
+                        color: isFinal ? 'hsl(280, 70%, 55%)' : RING_COLOR,
+                        fillColor: isFinal ? 'hsl(280, 70%, 55%)' : 'transparent',
+                        fillOpacity: isFinal ? 0.06 : 0,
+                        weight: isFinal ? 2 : 1.2,
+                        dashArray: isFinal ? '6 4' : '6 6',
+                        opacity: isFinal ? 0.9 : 0.45,
+                      }}
+                    >
+                      {isFinal && (
+                        <Tooltip direction="center" opacity={0.95} sticky>
+                          <div className="text-[11px] font-semibold">{poly.name}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {poly.fmtArea} · {poly.fmtPerimeter}
+                          </div>
+                        </Tooltip>
+                      )}
+                    </Circle>
+                  );
+                })}
+                {rings.map((r, i) => {
+                  const isFinal = i === rings.length - 1;
+                  const rKm = r / 1000;
+                  const showLabel = isFinal || (rKm >= stepKm && rKm % labelEveryKm === 0);
+                  if (!showLabel) return null;
+                  const labelText = isFinal && (rKm % 1 !== 0)
+                    ? `${rKm.toFixed(2)} km`
+                    : rKm >= 1 ? `${Math.round(rKm)} km` : `${Math.round(r)} m`;
+                  return labelBearings.map((bearing) => {
+                    const pos = perimeterPoint(bearing, r);
+                    const labelIcon = L.divIcon({
+                      className: '',
+                      html: `<div style="
+                        background: rgba(255,255,255,0.93);
+                        color: ${isFinal ? 'hsl(280, 70%, 40%)' : '#0c4a6e'};
+                        font-size: 10px;
+                        font-weight: 700;
+                        padding: 1px 6px;
+                        border-radius: 4px;
+                        border: 1px solid ${isFinal ? 'hsla(280, 70%, 55%, 0.5)' : 'rgba(14,165,233,0.4)'};
+                        box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+                        white-space: nowrap;
+                        pointer-events: none;
+                        transform: translate(-50%, -50%);
+                      ">${labelText}</div>`,
+                      iconSize: [0, 0],
+                      iconAnchor: [0, 0],
+                    });
+                    return (
+                      <Marker
+                        key={`tagged-ring-label-${poly.id}-${i}-${bearing}`}
+                        position={pos}
+                        icon={labelIcon}
+                        interactive={false}
+                        pane="pane5G"
+                      />
+                    );
+                  });
+                })}
+              </React.Fragment>
+            );
+          }
+          return (
+            <Polygon
+              key={poly.id}
+              positions={poly.points}
+              pathOptions={{
+                color: 'hsl(280, 70%, 55%)',
+                weight: 2,
+                fillColor: 'hsl(280, 70%, 55%)',
+                fillOpacity: 0.08,
+                dashArray: '4 4',
+              }}
+            >
+              <Tooltip direction="center" opacity={0.95} sticky>
+                <div className="text-[11px] font-semibold">{poly.name}</div>
+                <div className="text-[10px] text-muted-foreground">
+                  {poly.fmtArea} · {poly.fmtPerimeter}
+                </div>
+              </Tooltip>
+            </Polygon>
+          );
+        })}
 
         {/* ── Search coordinate marker ── */}
         {searchCoordMarker && (
