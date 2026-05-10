@@ -146,11 +146,20 @@ function buildSafeFallback(service: string, path: string, message: string) {
   if (path.includes('/topo/hierarchy')) {
     return { ...base, items: [], rows: [] };
   }
+  if (service === 'ml' && path.includes('/profiles')) {
+    return { ...base, profiles: [], count: 0 };
+  }
+  if (service === 'ml' && path.includes('/anomalies')) {
+    return { ...base, items: [], total: 0, page: 1, pages: 0 };
+  }
 
   return { ...base, items: [], data: [], rows: [] };
 }
 
 function buildSafePostFallback(service: string, path: string, message: string) {
+  if (service === 'ml') {
+    return { unavailable: true, service, path, error: message, queued: false, task_id: '', profile_id: null };
+  }
   if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
     return buildSafeFallback(service, path, message);
   }
@@ -298,7 +307,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+      const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
         (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-') || path.includes('/dashboards'));
       const isAgentPost = req.method === 'POST' && service === 'agent';
