@@ -4,6 +4,7 @@ import {
   Eye,
   BarChart3,
   Bot,
+  Brain,
   ChevronRight,
   Wifi,
   WifiOff,
@@ -15,16 +16,18 @@ import {
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
+import SentinelMLDetector from './pages/SentinelMLDetector';
 import SentinelAIPanel from './SentinelAIPanel';
 import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
 
-type SentinelTab = 'overview' | 'explorer' | 'clustering';
+type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'ml-detector';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
   { id: 'explorer', label: 'Anomalies', icon: <Eye className="w-4 h-4" /> },
   { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
+  { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
 ];
 
 type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
@@ -287,6 +290,9 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
           )}
           {activeTab === 'clustering' && (
             <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />
+          )}
+          {activeTab === 'ml-detector' && (
+            <SentinelMLDetector />
           )}
         </div>
 
