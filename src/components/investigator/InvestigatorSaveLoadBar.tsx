@@ -65,6 +65,7 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [saveAsModalOpen, setSaveAsModalOpen] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
+  const [saveAsVisibility, setSaveAsVisibility] = useState<'private' | 'public'>('private');
   const [savedList, setSavedList] = useState<SavedInvestigator[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -162,6 +163,7 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
   // ═══ Save As ═══
   const openSaveAs = () => {
     setSaveAsName(`${investigatorName} (copie)`);
+    setSaveAsVisibility('private');
     setSaveAsModalOpen(true);
     setTimeout(() => saveAsInputRef.current?.select(), 100);
   };
@@ -173,11 +175,11 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
     setSaveStatus('saving');
     try {
       const ctx = getContext();
-      const created = await createInvestigator(name, ctx);
+      const created = await createInvestigator(name, ctx, saveAsVisibility);
       onLoad(created);
       setSaveStatus('saved');
       setLastSavedAt(new Date());
-      toast.success(`"${name}" créé`);
+      toast.success(`"${name}" créé (${saveAsVisibility === 'public' ? 'public' : 'privé'})`);
     } catch {
       toast.error('Erreur');
       setSaveStatus('unsaved');
@@ -386,6 +388,39 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
               className="text-sm"
               autoFocus
             />
+
+            {/* Visibility toggle */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setSaveAsVisibility('private')}
+                className={cn(
+                  'flex-1 px-3 py-2 text-xs font-semibold rounded-md border transition-all',
+                  saveAsVisibility === 'private'
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-transparent border-border text-muted-foreground hover:bg-muted/40'
+                )}
+              >
+                🔒 Private
+              </button>
+              <button
+                type="button"
+                onClick={() => setSaveAsVisibility('public')}
+                className={cn(
+                  'flex-1 px-3 py-2 text-xs font-semibold rounded-md border transition-all',
+                  saveAsVisibility === 'public'
+                    ? 'bg-primary/10 border-primary text-primary'
+                    : 'bg-transparent border-border text-muted-foreground hover:bg-muted/40'
+                )}
+              >
+                🌐 Public
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground -mt-1">
+              {saveAsVisibility === 'public'
+                ? 'Visible par tous les utilisateurs.'
+                : 'Visible uniquement par vous.'}
+            </p>
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setSaveAsModalOpen(false)}

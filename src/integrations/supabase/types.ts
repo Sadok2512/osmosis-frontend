@@ -412,6 +412,7 @@ export type Database = {
           id: string
           name: string
           updated_at: string
+          visibility: string
         }
         Insert: {
           context?: Json
@@ -419,6 +420,7 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          visibility?: string
         }
         Update: {
           context?: Json
@@ -426,6 +428,7 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string
+          visibility?: string
         }
         Relationships: []
       }
