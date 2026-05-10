@@ -4483,7 +4483,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const radiusAutoTaggedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!radiusConfirmed || !radiusCenter || radiusConfirmedMeters <= 0) return;
-    if (!activeDashboardIdRef.current) return;
+    // Tag without requiring an active dashboard — falls back to default scope.
     if (!addTaggedPolygonRef.current) return;
     const fp = `${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}@${Math.round(radiusConfirmedMeters)}`;
     if (radiusAutoTaggedRef.current === fp) return;
