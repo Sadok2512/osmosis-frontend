@@ -2,8 +2,9 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 export interface KPIBlock {
+  // ── "cards" mode (default): grid of KPI tiles ──
   title?: string;
-  cards: {
+  cards?: {
     label: string;
     value: string | number;
     unit?: string;
@@ -11,6 +12,22 @@ export interface KPIBlock {
     delta?: string;
     status?: 'critical' | 'warning' | 'good' | 'excellent';
   }[];
+  // ── "worst_cells_table" mode: ranked table from /monitor/query/worst-cells ──
+  type?: 'worst_cells' | string;
+  rows?: {
+    rank?: number;
+    dim_value?: string;
+    site_name?: string;
+    plaque?: string;
+    vendor?: string;
+    techno?: string;
+    value?: number | null;
+    samples?: number;
+  }[];
+  kpi_code?: string;
+  direction?: 'lower_better' | 'higher_better';
+  ranking?: 'worst' | 'best';
+  level?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -34,7 +51,50 @@ const TrendIcon: React.FC<{ trend?: string }> = ({ trend }) => {
 };
 
 const InlineKPICards: React.FC<{ config: KPIBlock }> = ({ config }) => {
-  const { title, cards } = config;
+  const { title, cards, type, rows } = config || {};
+
+  // ── worst_cells table mode ──
+  if (type === 'worst_cells' && rows?.length) {
+    const fmt = (v: number | null | undefined) =>
+      v == null ? '—' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2));
+    return (
+      <div className="my-4">
+        {title && (
+          <h4 className="text-xs font-bold text-foreground mb-3 flex items-center gap-2">
+            <span className="w-1 h-4 bg-primary rounded-full" />
+            {title}
+          </h4>
+        )}
+        <div className="rounded-lg border border-border overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-muted/40">
+              <tr>
+                <th className="px-2 py-1.5 text-left font-semibold w-8">#</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Cellule / Site</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Plaque</th>
+                <th className="px-2 py-1.5 text-left font-semibold">Vendor</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Valeur</th>
+                <th className="px-2 py-1.5 text-right font-semibold">Samples</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={i} className="border-t border-border/40 hover:bg-muted/20">
+                  <td className="px-2 py-1.5 text-muted-foreground tabular-nums">{r.rank ?? i + 1}</td>
+                  <td className="px-2 py-1.5 font-mono text-foreground">{r.dim_value || '—'}</td>
+                  <td className="px-2 py-1.5 text-muted-foreground">{r.plaque || '—'}</td>
+                  <td className="px-2 py-1.5 text-muted-foreground">{r.vendor || '—'}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums font-bold">{fmt(r.value)}</td>
+                  <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{r.samples ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  }
+
   if (!cards?.length) return null;
 
   return (
