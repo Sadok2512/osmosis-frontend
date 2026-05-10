@@ -4513,6 +4513,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       center: radiusCenter,
       fmtArea,
       fmtPerimeter,
+      circleCenter: radiusCenter,
+      circleRadiusM: radiusConfirmedMeters,
     });
   }, [radiusConfirmed, radiusCenter, radiusConfirmedMeters]);
 
