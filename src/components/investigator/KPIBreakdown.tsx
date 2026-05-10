@@ -239,7 +239,15 @@ const FormulaPanel: React.FC<{
   onSelectAllElements?: () => void;
   onDeselectAllElements?: () => void;
   elementColorMap?: Map<string, string>;
-}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements, elementColorMap }) => {
+  /**
+   * When true, suppress the Calculation / Numerator / Denominator
+   * blocks. The caller (multi-vendor mode) renders its own per-vendor
+   * formula card below — duplicating that here would mix counters
+   * across vendors in confusing chip rows. Header + Elements selector
+   * stay visible because they are still needed.
+   */
+  compact?: boolean;
+}> = ({ explain, numCounters, denCounters, hoveredCounter, onHoverCounter, hiddenCounters, onToggleCounter, splitBy, splitElements, selectedElements, onToggleElement, onSelectAllElements, onDeselectAllElements, elementColorMap, compact }) => {
   const [showSplitElements, setShowSplitElements] = useState(false);
 
   if (!explain) {
@@ -360,6 +368,7 @@ const FormulaPanel: React.FC<{
         </div>
       )}
 
+      {!compact && (
       <div className="p-5 space-y-5">
         {/* CALCULATION FORMULA — teal gradient hero */}
         <div className="rounded-2xl bg-gradient-to-br from-teal-600 to-teal-700 px-6 py-5 text-white shadow-[0_10px_30px_rgba(13,148,136,0.25)]">
@@ -416,6 +425,7 @@ const FormulaPanel: React.FC<{
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 };
@@ -969,6 +979,7 @@ const SingleKpiBreakdown: React.FC<{
         onSelectAllElements={selectAllElements}
         onDeselectAllElements={deselectAllElements}
         elementColorMap={elementColorMap}
+        compact={isMultiVendor}
       />
 
       {isMultiVendor ? (
