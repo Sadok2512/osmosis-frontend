@@ -1730,14 +1730,14 @@ const ControlPanel: React.FC<Props> = ({ state, setState, onApply, externalSelec
     <div className="sticky top-0 z-30" style={{ zoom: 1 }}>
       {/* ═══ LAYER 1: HEADER — Branding ═══ */}
       <div className="bg-card border-b border-border/60">
-        <div className="w-[95%] mx-auto px-4 2xl:px-6 h-12 2xl:h-14 flex items-center justify-between">
+        <div className="w-[95%] mx-auto px-4 2xl:px-6 h-15 2xl:h-[4.375rem] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-              <Settings2 className="w-4.5 h-4.5 text-primary" />
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Settings2 className="w-5.5 h-5.5 text-primary" />
             </div>
             <div className="leading-tight">
-              <h1 className="text-xs 2xl:text-sm font-bold text-foreground tracking-tight">OSMOSIS Investigator</h1>
-              <p className="text-[9px] 2xl:text-[10px] text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
+              <h1 className="text-sm 2xl:text-base font-bold text-foreground tracking-tight">OSMOSIS Investigator</h1>
+              <p className="text-[11px] 2xl:text-xs text-muted-foreground font-medium tracking-wide">KPI Investigation & Root Cause Analysis</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
