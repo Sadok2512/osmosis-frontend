@@ -1,9 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
 
+export type InvestigatorVisibility = 'private' | 'public';
+
 export interface SavedInvestigator {
   id: string;
   name: string;
   context: any;
+  visibility: InvestigatorVisibility;
   created_at: string;
   updated_at: string;
 }
@@ -19,10 +22,14 @@ export async function listInvestigators(): Promise<SavedInvestigator[]> {
 }
 
 /** Save a new investigator */
-export async function createInvestigator(name: string, context: any): Promise<SavedInvestigator> {
+export async function createInvestigator(
+  name: string,
+  context: any,
+  visibility: InvestigatorVisibility = 'private',
+): Promise<SavedInvestigator> {
   const { data, error } = await supabase
     .from('investigators')
-    .insert({ name, context })
+    .insert({ name, context, visibility })
     .select()
     .single();
   if (error) throw error;
