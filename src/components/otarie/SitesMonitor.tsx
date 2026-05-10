@@ -13253,7 +13253,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {taggedLinks.map(link => (
                         <div
                           key={link.id}
+                          data-tagged-id={link.id}
                           className={`rounded-xl border transition-all overflow-hidden ${
+                            highlightedTaggedId === link.id ? 'border-primary ring-2 ring-primary/40 animate-pulse' :
                             selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
                           }`}
                         >
