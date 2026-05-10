@@ -953,6 +953,10 @@ export interface TaggedPolygon {
   sitesInside?: number;
   cellsInside?: number;
   createdAt: string;
+  /** When the polygon represents a radius circle, keep its geometry so we
+   *  can re-render the concentric km rings + labels permanently. */
+  circleCenter?: [number, number];
+  circleRadiusM?: number;
 }
 
 const CUSTOM_POINTS_KEY = 'osmosis_custom_points';
