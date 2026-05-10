@@ -4901,6 +4901,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         fmtPerimeter: poly.fmtPerimeter,
         sitesInside: poly.sitesInside,
         cellsInside: poly.cellsInside,
+        circleCenter: poly.circleCenter,
+        circleRadiusM: poly.circleRadiusM,
         createdAt: new Date().toISOString(),
       };
       created = p;
