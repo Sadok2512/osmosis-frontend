@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
     console.log(`[vps-proxy] Upstream responded: ${upstreamRes.status}`);
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
-    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-') || path.includes('/dashboards'));
     const isSafeWrite = ['PUT', 'DELETE'].includes(req.method) && (service === 'kpi' || service === 'parser') && path.includes('/catalog/');
@@ -419,7 +419,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi');
+    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-'));
 
