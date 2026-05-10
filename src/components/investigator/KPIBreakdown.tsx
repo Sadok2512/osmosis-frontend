@@ -536,10 +536,50 @@ const SingleKpiBreakdown: React.FC<{
     return () => { cancelled = true; };
   }, [kpiId]);
 
+  // ── Vendor scoping ──────────────────────────────────────────────
+  // `allVendors` = vendors that have an active formula in the explain
+  // response. `vendorList` = the subset still visible to the user after
+  // CONSTRUCTEUR Element toggles. `isMultiVendor` is decided on
+  // vendorList so that filtering down to a single vendor switches the
+  // panel back to counter-timeseries mode (formula + fetch counters).
+  const allVendors = useMemo<string[]>(() => {
+    const raw = (explain?.vendor || '').split(',').map(s => s.trim()).filter(Boolean);
+    return Array.from(new Set(raw));
+  }, [explain]);
+
+  const vendorList = useMemo<string[]>(() => {
+    if (allVendors.length === 0) return [];
+    const splitNorm = (splitBy || '').replace('PM_DIM:', '').toUpperCase();
+    const isConstructeurSplit = splitNorm === 'CONSTRUCTEUR' || splitNorm === 'VENDOR';
+    if (!isConstructeurSplit || !selectedElements) return allVendors;
+    // selectedElements may hold uppercase or TitleCase — compare on
+    // upper-case to be resilient.
+    const selectedUpper = new Set(
+      Array.from(selectedElements).map((el) => String(el).trim().toUpperCase())
+    );
+    const filtered = allVendors.filter((v) => selectedUpper.has(v.toUpperCase()));
+    return filtered.length > 0 ? filtered : allVendors;
+  }, [allVendors, splitBy, selectedElements]);
+
+  const isMultiVendor = vendorList.length > 1;
+
   // Extract counter infos from explain
+  // Re-runs when the active vendor subset changes (split-element toggles)
+  // so the counter timeseries panel only fetches counters belonging to
+  // the vendors currently visible. Without this, deselecting ERICSSON
+  // would still try to fetch Ericsson `pmErabEstabSucc...` counters
+  // alongside Nokia ones.
   useEffect(() => {
     if (!explain) { setCounterInfos([]); return; }
-    const explainedCounters = normalizeExplainCounters(explain);
+    const allowedUpper = new Set(vendorList.map(v => v.toUpperCase()));
+    const filterByVendor = <T extends { source?: string }>(items: T[]): T[] => {
+      if (allowedUpper.size === 0) return items;
+      return items.filter(c => {
+        const src = (c.source || '').toUpperCase();
+        return !src || allowedUpper.has(src);
+      });
+    };
+    const explainedCounters = filterByVendor(normalizeExplainCounters(explain));
     if (explainedCounters.length > 0) {
       setCounterInfos(explainedCounters);
       setHiddenCounters(new Set());
@@ -562,12 +602,12 @@ const SingleKpiBreakdown: React.FC<{
     const denC = denSource.map(name => ({
       name, tag: 'DEN' as const, source: explain.vendor, aggregation: 'SUM',
     }));
-    const merged = [...numC, ...denC].filter((counter, index, arr) =>
+    const merged = filterByVendor([...numC, ...denC]).filter((counter, index, arr) =>
       arr.findIndex((item) => item.name === counter.name && item.tag === counter.tag) === index
     );
     setCounterInfos(merged);
     setHiddenCounters(new Set());
-  }, [explain]);
+  }, [explain, vendorList.join(',')]);
 
   const splitActive = !!(splitBy && splitBy !== 'None');
 
@@ -644,48 +684,8 @@ const SingleKpiBreakdown: React.FC<{
   }, [splitElements]);
 
 
-  // Multi-vendor detection — explain.vendor is "Nokia,Ericsson" (comma-
-  // separated) when the canonical kpi_code resolves to multiple per-
-  // vendor formulas. In that case the counter timeseries chart can't
-  // be drawn on a single axis (Nokia M-counters and Ericsson pm* are
-  // numerically incomparable), so we skip the fetch and render only
-  // the per-vendor formula text below.
-  // Vendors involved according to the backend explain response.
-  const allVendors = useMemo<string[]>(() => {
-    const raw = (explain?.vendor || '').split(',').map(s => s.trim()).filter(Boolean);
-    return Array.from(new Set(raw));
-  }, [explain]);
-
-  // Active vendors after the user's Elements selection. When the split
-  // is CONSTRUCTEUR/VENDOR and the user toggles off some checkboxes
-  // (e.g. deselects ERICSSON), restrict the per-vendor formula panel
-  // to the vendors actually selected. When the split isn't on
-  // CONSTRUCTEUR (or selectedElements is null = all selected), show
-  // every vendor that has a formula.
-  const vendorList = useMemo<string[]>(() => {
-    if (allVendors.length === 0) return [];
-    const splitNorm = (splitBy || '').replace('PM_DIM:', '').toUpperCase();
-    const isConstructeurSplit = splitNorm === 'CONSTRUCTEUR' || splitNorm === 'VENDOR';
-    if (!isConstructeurSplit || !selectedElements) return allVendors;
-    // selectedElements typically holds uppercase tokens (ERICSSON / NOKIA)
-    // while explain.vendor is TitleCase (Ericsson / Nokia). Compare on
-    // upper-case to keep this resilient regardless of where the casing
-    // was set upstream.
-    const selectedUpper = new Set(
-      Array.from(selectedElements).map((el) => String(el).trim().toUpperCase())
-    );
-    const filtered = allVendors.filter((v) => selectedUpper.has(v.toUpperCase()));
-    // Defensive: if the user deselected everything, fall back to the
-    // full vendor list rather than rendering an empty card.
-    return filtered.length > 0 ? filtered : allVendors;
-  }, [allVendors, splitBy, selectedElements]);
-
-  // Multi-vendor mode is decided by the API response, not by the user's
-  // element selection — toggling ERICSSON/NOKIA in the split list filters
-  // the *displayed* formulas via vendorList but doesn't switch the panel
-  // back to counter-timeseries mode (counters live in the global VENDOR
-  // filter scope, not in the per-element selection).
-  const isMultiVendor = allVendors.length > 1;
+  // (Multi-vendor block moved above the counter useEffect so that
+  // hooks can depend on vendorList without TDZ.)
 
   // Fetch counter timeseries (skipped in multi-vendor mode)
   useEffect(() => {
