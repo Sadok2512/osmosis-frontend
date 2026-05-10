@@ -33,11 +33,14 @@ const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
 type ConnectionStatus = 'idle' | 'testing' | 'connected' | 'error';
 
 const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' }) => {
-  // Honour ?tab=<id> so deep-links (e.g. from the parser admin sidebar
-  // pointing to ?tab=ml-detector) land on the right tab on first paint.
+  // Honour ?subtab=<id> so deep-links (e.g. from the parser admin sidebar
+  // pointing to /?tab=sentinel&subtab=ml-detector) land on the right
+  // sub-tab on first paint. We use `subtab`, not `tab`, because Index.tsx
+  // already consumes `tab` for the top-level page routing — same param
+  // name would collide and one would erase the other.
   const _initialTab: SentinelTab = (() => {
     if (typeof window === 'undefined') return 'overview';
-    const t = new URLSearchParams(window.location.search).get('tab');
+    const t = new URLSearchParams(window.location.search).get('subtab');
     const valid: SentinelTab[] = ['overview', 'explorer', 'clustering', 'ml-detector'];
     return (valid.includes(t as SentinelTab) ? t : 'overview') as SentinelTab;
   })();
