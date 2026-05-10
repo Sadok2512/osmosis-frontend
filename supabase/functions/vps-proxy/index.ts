@@ -19,6 +19,7 @@ const SERVICE_URLS: Record<string, string[]> = {
   parser: [`http://${VPS_HOST}:8000`, CF_PARSER],
   agent:  [`http://${VPS_HOST}:8000`, CF_PARSER],
   kpi:    [`http://${VPS_HOST}:8001`, CF_KPI],
+  ml:     [`http://${VPS_HOST}:11002`],
 };
 
 // Legacy compat
@@ -26,6 +27,7 @@ const SERVICE_PORTS: Record<string, number> = {
   kpi: 8001,
   parser: 8000,
   agent: 8000,
+  ml: 11002,
 };
 
 // ── Topology stale-cache ──
