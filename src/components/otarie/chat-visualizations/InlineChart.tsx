@@ -67,7 +67,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 const InlineChart: React.FC<{ config: ChartBlock }> = ({ config }) => {
-  const { title, xKey, yKeys, data, colors } = config;
+  // Defensive defaults — agent can emit a chart-typed block whose
+  // payload doesn't carry data/yKeys (e.g. a `kpi` block routed here
+  // by a misclassification, or a stream that finished early). Without
+  // these the useMemo on data.forEach below crashes the whole page
+  // ("Cannot read properties of undefined (reading 'forEach')").
+  const { title, xKey, yKeys = [], data = [], colors } = config || {};
 
   const initialType: ChartType =
     config.type === 'area' || config.type === 'scatter' ? 'line' :
