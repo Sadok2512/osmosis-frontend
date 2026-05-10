@@ -1018,7 +1018,7 @@ const SingleKpiBreakdown: React.FC<{
                 : `${vendorList.length} of ${allVendors.length} vendors selected via split elements`}
             </span>
           </div>
-          <div className="p-4 space-y-3">
+          <div className="p-5 space-y-4">
             {vendorList.map((v) => {
               const num = (explain?.numerator || '')
                 .split(';')
@@ -1030,21 +1030,31 @@ const SingleKpiBreakdown: React.FC<{
                 .find(s => s.startsWith(`[${v}]`)) || '';
               const stripPrefix = (s: string) => s.replace(/^\[[^\]]+\]\s*/, '');
               return (
-                <div key={v} className="rounded-lg border border-border/40 bg-muted/5 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary border border-primary/30">
+                <div
+                  key={v}
+                  className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]"
+                >
+                  <div
+                    className="flex items-center justify-between px-5 py-3"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-300">
                       {v}
                     </span>
                   </div>
-                  <div className="space-y-1.5 text-[11px] font-mono">
-                    <div>
-                      <span className="text-green-600 font-bold mr-2">NUM</span>
-                      <span className="text-foreground">{stripPrefix(num) || <em className="text-muted-foreground not-italic">—</em>}</span>
+                  <div className="px-5 py-4 space-y-2 font-mono text-sm leading-6">
+                    <div className="flex gap-3">
+                      <span className="shrink-0 text-emerald-300 font-extrabold tracking-wider">NUM</span>
+                      <span className="text-emerald-200 break-all whitespace-pre-wrap">
+                        {stripPrefix(num) || <em className="not-italic text-slate-500">—</em>}
+                      </span>
                     </div>
                     {den && (
-                      <div>
-                        <span className="text-blue-600 font-bold mr-2">DEN</span>
-                        <span className="text-foreground">{stripPrefix(den)}</span>
+                      <div className="flex gap-3">
+                        <span className="shrink-0 text-sky-300 font-extrabold tracking-wider">DEN</span>
+                        <span className="text-sky-200 break-all whitespace-pre-wrap">
+                          {stripPrefix(den)}
+                        </span>
                       </div>
                     )}
                   </div>
