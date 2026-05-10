@@ -4876,8 +4876,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       persistTaggedPolygons(next, activeDashboardIdRef.current);
       return next;
     });
+    if (created) flashHighlight((created as TaggedPolygon).id);
     return created;
-  }, []);
+  }, [flashHighlight]);
 
   const deleteTaggedPolygon = useCallback((id: string) => {
     setTaggedPolygons(prev => {
