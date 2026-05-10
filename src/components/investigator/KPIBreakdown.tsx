@@ -360,34 +360,89 @@ const FormulaPanel: React.FC<{
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-y lg:divide-y-0 lg:divide-x divide-border/30">
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-green-500/15 text-green-600 border border-green-500/30 tracking-wider">NUM</span>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Numerator</span>
-          </div>
-          <code className="block text-[11px] text-foreground font-mono leading-relaxed break-all bg-muted/20 rounded-lg p-3 border border-border/20">
-            {explain.numerator || '—'}
-          </code>
-          {numCounters.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {numCounters.map((c, i) => renderCounterChip(c, i))}
+      {/* CALCULATION FORMULA — hero card */}
+      <div className="p-5 bg-gradient-to-br from-slate-950 to-slate-900">
+        <div
+          className="rounded-2xl p-6 shadow-lg border border-teal-500/20"
+          style={{
+            background: 'linear-gradient(135deg, #042f2e 0%, #0f3a36 60%, #134e4a 100%)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-[0.18em] text-teal-300/90">
+                Calculation Formula
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-teal-500/20 text-teal-200 border border-teal-400/30 tracking-wider">
+                EXPRESSION
+              </span>
             </div>
-          )}
+            <span className="text-[9px] font-bold uppercase tracking-wider text-teal-300/60">
+              {explain.formula_type || 'ratio'}
+            </span>
+          </div>
+          <code className="block text-[15px] md:text-base text-teal-50 font-mono leading-relaxed break-all whitespace-pre-wrap">
+            {explain.numerator && explain.denominator
+              ? `( ${explain.numerator} )\n  /\n( ${explain.denominator} )`
+              : explain.numerator || explain.denominator || '—'}
+          </code>
         </div>
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="px-2.5 py-1 rounded-lg text-[10px] font-black bg-blue-500/15 text-blue-500 border border-blue-500/30 tracking-wider">DEN</span>
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Denominator</span>
-          </div>
-          <code className="block text-[11px] text-foreground font-mono leading-relaxed break-all bg-muted/20 rounded-lg p-3 border border-border/20">
-            {explain.denominator || '—'}
-          </code>
-          {denCounters.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {denCounters.map((c, i) => renderCounterChip(c, i))}
+      </div>
+
+      {/* KPI DEFINITIONS — Numerator / Denominator dark cards */}
+      <div className="p-5 pt-0 bg-gradient-to-br from-slate-950 to-slate-900">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Numerator card */}
+          <div
+            className="rounded-2xl p-5 shadow-lg border border-emerald-500/15"
+            style={{ background: '#020617' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-5 rounded-full bg-emerald-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                  Numerator
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-400/30 tracking-wider">
+                EXPRESSION
+              </span>
             </div>
-          )}
+            <code className="block text-[12px] text-cyan-200 font-mono leading-relaxed break-all whitespace-pre-wrap bg-slate-950/60 rounded-lg p-3 border border-slate-800">
+              {explain.numerator || '—'}
+            </code>
+            {numCounters.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {numCounters.map((c, i) => renderCounterChip(c, i))}
+              </div>
+            )}
+          </div>
+
+          {/* Denominator card */}
+          <div
+            className="rounded-2xl p-5 shadow-lg border border-sky-500/15"
+            style={{ background: '#0f172a' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-5 rounded-full bg-sky-400" />
+                <span className="text-[10px] font-black uppercase tracking-[0.18em] text-sky-300">
+                  Denominator
+                </span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-500/15 text-sky-300 border border-sky-400/30 tracking-wider">
+                EXPRESSION
+              </span>
+            </div>
+            <code className="block text-[12px] text-cyan-200 font-mono leading-relaxed break-all whitespace-pre-wrap bg-slate-950/60 rounded-lg p-3 border border-slate-800">
+              {explain.denominator || '—'}
+            </code>
+            {denCounters.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {denCounters.map((c, i) => renderCounterChip(c, i))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
