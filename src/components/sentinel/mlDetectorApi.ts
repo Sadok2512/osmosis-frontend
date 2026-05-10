@@ -54,16 +54,32 @@ export interface RunNowResponse {
 
 async function _get<T>(path: string, params?: Record<string, string>): Promise<T> {
   const url = getVpsProxyUrl('ml', path, params);
-  const r = await fetch(url, { headers: getVpsProxyHeaders() });
-  if (!r.ok) throw new Error(`ml-engine ${path} → ${r.status}`);
-  return r.json() as Promise<T>;
+  try {
+    const r = await fetch(url, { headers: getVpsProxyHeaders() });
+    if (!r.ok) {
+      console.warn(`[ml-engine] ${path} → ${r.status} (returning empty fallback)`);
+      return {} as T;
+    }
+    return r.json() as Promise<T>;
+  } catch (e) {
+    console.warn(`[ml-engine] ${path} unreachable:`, e);
+    return {} as T;
+  }
 }
 
 async function _post<T>(path: string): Promise<T> {
   const url = getVpsProxyUrl('ml', path);
-  const r = await fetch(url, { method: 'POST', headers: getVpsProxyHeaders() });
-  if (!r.ok) throw new Error(`ml-engine ${path} → ${r.status}`);
-  return r.json() as Promise<T>;
+  try {
+    const r = await fetch(url, { method: 'POST', headers: getVpsProxyHeaders() });
+    if (!r.ok) {
+      console.warn(`[ml-engine] POST ${path} → ${r.status}`);
+      return {} as T;
+    }
+    return r.json() as Promise<T>;
+  } catch (e) {
+    console.warn(`[ml-engine] POST ${path} unreachable:`, e);
+    return {} as T;
+  }
 }
 
 
