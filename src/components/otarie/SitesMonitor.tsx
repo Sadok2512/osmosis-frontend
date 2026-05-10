@@ -13121,7 +13121,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {customPoints.length > 0 && (
                     <div className="space-y-1.5 mb-2">
                       {customPoints.map(pt => (
-                        <div key={pt.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                        <div key={pt.id} data-tagged-id={pt.id} className={`rounded-xl border bg-card transition-all overflow-hidden ${highlightedTaggedId === pt.id ? 'border-primary ring-2 ring-primary/40 animate-pulse' : 'border-border hover:border-primary/20'}`}>
                           <div className="flex items-center gap-2 px-3 py-2.5">
                             <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
                               <CircleDot size={14} className="text-violet-500" />
