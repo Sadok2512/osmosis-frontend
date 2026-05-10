@@ -4939,7 +4939,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLinkCreationMode(false);
     setLinkSource(null);
     setPendingLink(null);
-  }, []);
+    flashHighlight(link.id);
+  }, [flashHighlight]);
 
   // Backwards-compat alias used elsewhere; opens the band/sector configurator
   // when at least one endpoint is a site, otherwise commits straight away.
