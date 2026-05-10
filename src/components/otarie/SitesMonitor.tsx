@@ -4796,7 +4796,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [renamingPointId, setRenamingPointId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
+  // Transient highlight for newly created tagged objects (polygon/radius/point/link).
+  const [highlightedTaggedId, setHighlightedTaggedId] = useState<string | null>(null);
+  const flashHighlight = useCallback((id: string) => {
+    setHighlightedTaggedId(id);
+    setInventoryTab('tagged');
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-tagged-id="${id}"]`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    window.setTimeout(() => {
+      setHighlightedTaggedId(curr => (curr === id ? null : curr));
+    }, 2200);
+  }, []);
+
   const addCustomPoint = useCallback((lat: number, lon: number) => {
+    let createdId: string | null = null;
     setCustomPoints(prev => {
       const idx = prev.length + 1;
       const pt: CustomMapPoint = {
@@ -4807,6 +4822,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         lon,
         createdAt: new Date().toISOString(),
       };
+      createdId = pt.id;
       const next = [...prev, pt];
       if (activeDashboardIdRef.current) {
         persistCustomPoints(next, activeDashboardIdRef.current);
@@ -4814,7 +4830,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return next;
     });
     setPointCreationMode(false);
-  }, []);
+    if (createdId) flashHighlight(createdId);
+  }, [flashHighlight]);
 
   const deleteCustomPoint = useCallback((id: string) => {
     setCustomPoints(prev => {
@@ -4840,6 +4857,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [renamingPolygonId, setRenamingPolygonId] = useState<string | null>(null);
   const [renamePolygonValue, setRenamePolygonValue] = useState('');
 
+
   const addTaggedPolygon = useCallback((poly: Omit<TaggedPolygon, 'id' | 'createdAt' | 'type' | 'name'> & { name?: string }) => {
     if (!activeDashboardIdRef.current) return null;
     let created: TaggedPolygon | null = null;
@@ -4862,8 +4880,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       persistTaggedPolygons(next, activeDashboardIdRef.current);
       return next;
     });
+    if (created) flashHighlight((created as TaggedPolygon).id);
     return created;
-  }, []);
+  }, [flashHighlight]);
 
   const deleteTaggedPolygon = useCallback((id: string) => {
     setTaggedPolygons(prev => {
@@ -4920,7 +4939,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     setLinkCreationMode(false);
     setLinkSource(null);
     setPendingLink(null);
-  }, []);
+    flashHighlight(link.id);
+  }, [flashHighlight]);
 
   // Backwards-compat alias used elsewhere; opens the band/sector configurator
   // when at least one endpoint is a site, otherwise commits straight away.
@@ -12112,7 +12132,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 {([
                   { id: 'dashboard' as const, label: 'Dashboard', icon: <LayoutGrid size={12} /> },
                   { id: 'sites' as const, label: 'Sites', icon: <MapPin size={12} /> },
-                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length})`, icon: <Star size={12} /> },
+                  { id: 'tagged' as const, label: `Tagged (${taggedSites.length + taggedPolygons.length + taggedLinks.length + customPoints.length})`, icon: <Star size={12} /> },
                   ...(sectorColorMode === 'kpi' && !paramMode && mapKpi ? [{ id: 'kpi' as const, label: 'KPI List', icon: <List size={12} /> }] : []),
                 ]).map(tab => (
                   <button
@@ -13102,7 +13122,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {customPoints.length > 0 && (
                     <div className="space-y-1.5 mb-2">
                       {customPoints.map(pt => (
-                        <div key={pt.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                        <div key={pt.id} data-tagged-id={pt.id} className={`rounded-xl border bg-card transition-all overflow-hidden ${highlightedTaggedId === pt.id ? 'border-primary ring-2 ring-primary/40 animate-pulse' : 'border-border hover:border-primary/20'}`}>
                           <div className="flex items-center gap-2 px-3 py-2.5">
                             <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
                               <CircleDot size={14} className="text-violet-500" />
@@ -13167,7 +13187,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                   {taggedPolygons.length > 0 && (
                     <div className="space-y-1.5 mb-2">
                       {taggedPolygons.map(poly => (
-                        <div key={poly.id} className="rounded-xl border border-border bg-card hover:border-primary/20 transition-all overflow-hidden">
+                        <div key={poly.id} data-tagged-id={poly.id} className={`rounded-xl border bg-card transition-all overflow-hidden ${highlightedTaggedId === poly.id ? 'border-primary ring-2 ring-primary/40 animate-pulse' : 'border-border hover:border-primary/20'}`}>
                           <div className="flex items-center gap-2 px-3 py-2.5">
                             <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
                               <Pentagon size={14} className="text-violet-500" />
@@ -13233,7 +13253,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       {taggedLinks.map(link => (
                         <div
                           key={link.id}
+                          data-tagged-id={link.id}
                           className={`rounded-xl border transition-all overflow-hidden ${
+                            highlightedTaggedId === link.id ? 'border-primary ring-2 ring-primary/40 animate-pulse' :
                             selectedLinkId === link.id ? 'border-primary/40 bg-primary/5' : 'border-border bg-card hover:border-primary/20'
                           }`}
                         >
