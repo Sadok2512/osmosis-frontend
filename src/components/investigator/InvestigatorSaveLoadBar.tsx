@@ -163,6 +163,7 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
   // ═══ Save As ═══
   const openSaveAs = () => {
     setSaveAsName(`${investigatorName} (copie)`);
+    setSaveAsVisibility('private');
     setSaveAsModalOpen(true);
     setTimeout(() => saveAsInputRef.current?.select(), 100);
   };
@@ -174,11 +175,11 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
     setSaveStatus('saving');
     try {
       const ctx = getContext();
-      const created = await createInvestigator(name, ctx);
+      const created = await createInvestigator(name, ctx, saveAsVisibility);
       onLoad(created);
       setSaveStatus('saved');
       setLastSavedAt(new Date());
-      toast.success(`"${name}" créé`);
+      toast.success(`"${name}" créé (${saveAsVisibility === 'public' ? 'public' : 'privé'})`);
     } catch {
       toast.error('Erreur');
       setSaveStatus('unsaved');
