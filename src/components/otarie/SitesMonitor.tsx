@@ -4449,7 +4449,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const addTaggedPolygonRef = useRef<((p: any) => any) | null>(null);
   useEffect(() => {
     if (!polygonClosed || !polygonStats) return;
-    if (!activeDashboardIdRef.current) return;
+    // Tag without requiring an active dashboard — falls back to default scope.
     if (!addTaggedPolygonRef.current) return;
     // Fingerprint to avoid re-tagging the same closed polygon on every
     // re-render (e.g. after sites refresh changing polygonStats).
