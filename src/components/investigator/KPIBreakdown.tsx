@@ -1018,7 +1018,7 @@ const SingleKpiBreakdown: React.FC<{
                 : `${vendorList.length} of ${allVendors.length} vendors selected via split elements`}
             </span>
           </div>
-          <div className="p-5 space-y-4">
+          <div className="p-5 space-y-6">
             {vendorList.map((v) => {
               const num = (explain?.numerator || '')
                 .split(';')
@@ -1029,34 +1029,59 @@ const SingleKpiBreakdown: React.FC<{
                 .map(s => s.trim())
                 .find(s => s.startsWith(`[${v}]`)) || '';
               const stripPrefix = (s: string) => s.replace(/^\[[^\]]+\]\s*/, '');
+              const numClean = stripPrefix(num);
+              const denClean = stripPrefix(den);
+              const calc = numClean && denClean && denClean.trim() !== '1'
+                ? `(${numClean}) / (${denClean})`
+                : numClean || denClean || 'No formula available';
               return (
-                <div
-                  key={v}
-                  className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]"
-                >
-                  <div
-                    className="flex items-center justify-between px-5 py-3"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-                  >
-                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.18em] text-emerald-300">
+                <div key={v} className="space-y-4">
+                  {/* Vendor badge */}
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] text-emerald-700">
                       {v}
                     </span>
                   </div>
-                  <div className="px-5 py-4 space-y-2 font-mono text-sm leading-6">
-                    <div className="flex gap-3">
-                      <span className="shrink-0 text-emerald-300 font-extrabold tracking-wider">NUM</span>
-                      <span className="text-emerald-200 break-all whitespace-pre-wrap">
-                        {stripPrefix(num) || <em className="not-italic text-slate-500">—</em>}
-                      </span>
-                    </div>
-                    {den && (
-                      <div className="flex gap-3">
-                        <span className="shrink-0 text-sky-300 font-extrabold tracking-wider">DEN</span>
-                        <span className="text-sky-200 break-all whitespace-pre-wrap">
-                          {stripPrefix(den)}
+
+                  {/* Calculation formula — teal hero */}
+                  <div className="rounded-2xl bg-gradient-to-br from-teal-600 to-teal-700 px-6 py-5 text-white shadow-[0_10px_30px_rgba(13,148,136,0.25)]">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-50">Calculation formula</p>
+                    <p className="mt-3 break-words font-mono text-base font-medium leading-relaxed text-white whitespace-pre-wrap">
+                      {calc}
+                    </p>
+                  </div>
+
+                  {/* Numerator / Denominator dark code blocks */}
+                  <div className="grid gap-5 xl:grid-cols-2">
+                    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]">
+                      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <span className="flex items-center gap-2 text-[13px] font-extrabold uppercase text-[#F8FAFC]" style={{ letterSpacing: '2px' }}>
+                          <Sigma className="w-4 h-4 text-emerald-300" strokeWidth={2.5} />
+                          Numerator
+                        </span>
+                        <span className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-300">
+                          Expression
                         </span>
                       </div>
-                    )}
+                      <pre className="block min-h-[120px] w-full overflow-auto bg-slate-950 px-5 py-4 font-mono text-sm leading-6 text-emerald-200 whitespace-pre-wrap break-all">
+                        {numClean || '—'}
+                      </pre>
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]">
+                      <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                        <span className="flex items-center gap-2 text-[13px] font-extrabold uppercase text-[#F8FAFC]" style={{ letterSpacing: '2px' }}>
+                          <Divide className="w-4 h-4 text-sky-300" strokeWidth={2.5} />
+                          Denominator
+                        </span>
+                        <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
+                          Expression
+                        </span>
+                      </div>
+                      <pre className="block min-h-[120px] w-full overflow-auto bg-slate-950 px-5 py-4 font-mono text-sm leading-6 text-sky-200 whitespace-pre-wrap break-all">
+                        {denClean || '—'}
+                      </pre>
+                    </div>
                   </div>
                 </div>
               );
