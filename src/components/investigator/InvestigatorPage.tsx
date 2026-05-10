@@ -1513,7 +1513,7 @@ const InvestigatorPageInstance: React.FC<{ instanceId: string; tabBar: React.Rea
                         dateFrom={breakdownSnapshot?.startDate || activeSlot.startDate || state.startDate}
                         dateTo={breakdownSnapshot?.endDate || activeSlot.endDate || state.endDate}
                         granularity={(breakdownSnapshot?.granularity as Granularity) || activeSlot.granularity || state.granularity}
-                        filters={Object.entries(breakdownSnapshot?.filters || activeSlot.filters || {})
+                        filters={Object.entries(activeSlot.filters || breakdownSnapshot?.filters || {})
                           .filter(([,v]) => v.length > 0)
                           .map(([dim, vals]) => ({ dimension: dim.toUpperCase(), values: vals }))}
                         splitBy={breakdownSnapshot?.splitBy || undefined}
