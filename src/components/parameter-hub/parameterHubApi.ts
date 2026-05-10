@@ -124,9 +124,11 @@ export async function fetchAvailableParameters(force = false, search = ''): Prom
   if (_paramsInflight) return _paramsInflight;
 
   _paramsInflight = (async () => {
+    // Backend currently times out for limit >= 500 on this endpoint.
+    // We bootstrap with a small slice; the search path (>=2 chars) covers the rest.
     const list = await dumpGet<unknown>(
-      'params/distinct?column=parameter_raw&limit=10000',
-      { timeoutMs: 60_000, maxRetries: 2 },
+      'params/distinct?column=parameter_raw&limit=300',
+      { timeoutMs: 30_000, maxRetries: 2 },
     );
     const sorted = normalizeStringList(list).sort((a, b) => a.localeCompare(b));
     _paramsMemCache = sorted;
