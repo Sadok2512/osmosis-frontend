@@ -4477,6 +4477,48 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [polygonClosed, polygonPoints.length]);
 
+  // ── Auto-tag confirmed radius circle as a TaggedPolygon ──
+  // Approximate the circle with 72 vertices and persist via addTaggedPolygon
+  // so radius creations show up under "Tagged Objects" like polygons.
+  const radiusAutoTaggedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!radiusConfirmed || !radiusCenter || radiusConfirmedMeters <= 0) return;
+    if (!activeDashboardIdRef.current) return;
+    if (!addTaggedPolygonRef.current) return;
+    const fp = `${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}@${Math.round(radiusConfirmedMeters)}`;
+    if (radiusAutoTaggedRef.current === fp) return;
+    radiusAutoTaggedRef.current = fp;
+    const STEPS = 72;
+    const [cLat, cLng] = radiusCenter;
+    const points: [number, number][] = [];
+    for (let i = 0; i < STEPS; i++) {
+      const rad = (i / STEPS) * 2 * Math.PI;
+      const dlat = (radiusConfirmedMeters / 111320) * Math.cos(rad);
+      const dlng = (radiusConfirmedMeters / (111320 * Math.cos(cLat * Math.PI / 180))) * Math.sin(rad);
+      points.push([cLat + dlat, cLng + dlng]);
+    }
+    const r = radiusConfirmedMeters;
+    const fmtRadius = r >= 1000 ? `${(r / 1000).toFixed(2)} km` : `${Math.round(r)} m`;
+    const area = Math.PI * r * r;
+    const fmtArea = area >= 1e6 ? `${(area / 1e6).toFixed(2)} km²` : `${Math.round(area)} m²`;
+    const perimeter = 2 * Math.PI * r;
+    const fmtPerimeter = perimeter >= 1000 ? `${(perimeter / 1000).toFixed(2)} km` : `${Math.round(perimeter)} m`;
+    addTaggedPolygonRef.current({
+      name: `Cercle ${fmtRadius}`,
+      points,
+      center: radiusCenter,
+      fmtArea,
+      fmtPerimeter,
+    });
+  }, [radiusConfirmed, radiusCenter, radiusConfirmedMeters]);
+
+  // Reset radius auto-tag fingerprint when the radius tool clears.
+  useEffect(() => {
+    if (!radiusCenter && !radiusConfirmed) {
+      radiusAutoTaggedRef.current = null;
+    }
+  }, [radiusCenter, radiusConfirmed]);
+
   const displayMode = viewport.zoom >= SITES_TO_CELLS_ZOOM
     ? 'cells'
     : viewport.zoom <= CELLS_TO_SITES_ZOOM
