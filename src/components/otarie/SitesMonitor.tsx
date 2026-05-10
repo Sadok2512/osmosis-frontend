@@ -4797,6 +4797,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [renameValue, setRenameValue] = useState('');
 
   const addCustomPoint = useCallback((lat: number, lon: number) => {
+    let createdId: string | null = null;
     setCustomPoints(prev => {
       const idx = prev.length + 1;
       const pt: CustomMapPoint = {
@@ -4807,6 +4808,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         lon,
         createdAt: new Date().toISOString(),
       };
+      createdId = pt.id;
       const next = [...prev, pt];
       if (activeDashboardIdRef.current) {
         persistCustomPoints(next, activeDashboardIdRef.current);
@@ -4814,7 +4816,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       return next;
     });
     setPointCreationMode(false);
-  }, []);
+    if (createdId) flashHighlight(createdId);
+  }, [flashHighlight]);
 
   const deleteCustomPoint = useCallback((id: string) => {
     setCustomPoints(prev => {
