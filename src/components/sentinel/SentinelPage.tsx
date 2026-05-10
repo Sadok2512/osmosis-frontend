@@ -223,24 +223,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
             <StatusPill />
 
             <button
-              onClick={testConnection}
-              disabled={connectionStatus === 'testing'}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all duration-200 border',
-                connectionStatus === 'testing'
-                  ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-wait'
-                  : 'bg-white text-slate-700 border-slate-200 hover:border-sky-300 hover:text-sky-700 hover:shadow-sm',
-              )}
-            >
-              {connectionStatus === 'testing' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Wifi className="w-3.5 h-3.5" />
-              )}
-              Test FastAPI
-            </button>
-
-            <button
               onClick={() => setAiPanelOpen(prev => !prev)}
               className={cn(
                 'relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[12px] font-semibold text-white transition-all duration-200',
