@@ -1004,7 +1004,29 @@ function loadTaggedPolygons(dashboardId?: string | null): TaggedPolygon[] {
   try {
     const raw = localStorage.getItem(key);
     const arr: TaggedPolygon[] = raw ? JSON.parse(raw) : [];
-    return arr.filter(p => Array.isArray(p.points) && p.points.length >= 3);
+    return arr
+      .filter(p => Array.isArray(p.points) && p.points.length >= 3)
+      .map(p => {
+        // Backfill circle metadata for legacy "Cercle …" entries saved before
+        // we started persisting circleCenter/circleRadiusM, so concentric km
+        // rings + labels are restored on reload.
+        if (p.circleCenter && typeof p.circleRadiusM === 'number' && p.circleRadiusM > 0) return p;
+        const looksLikeCircle = typeof p.name === 'string' && /^cercle\b/i.test(p.name) && p.points.length >= 24 && Array.isArray(p.center);
+        if (!looksLikeCircle) return p;
+        const [cLat, cLng] = p.center;
+        // Mean haversine distance from center to vertices ≈ radius (meters).
+        const R = 6371000;
+        let sum = 0;
+        for (const [lat, lng] of p.points) {
+          const dLat = (lat - cLat) * Math.PI / 180;
+          const dLng = (lng - cLng) * Math.PI / 180;
+          const a = Math.sin(dLat / 2) ** 2 + Math.cos(cLat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+          sum += 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+        }
+        const radiusM = sum / p.points.length;
+        if (!Number.isFinite(radiusM) || radiusM <= 0) return p;
+        return { ...p, circleCenter: p.center, circleRadiusM: radiusM };
+      });
   } catch { return []; }
 }
 
