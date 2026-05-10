@@ -4859,7 +4859,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const addTaggedPolygon = useCallback((poly: Omit<TaggedPolygon, 'id' | 'createdAt' | 'type' | 'name'> & { name?: string }) => {
-    if (!activeDashboardIdRef.current) return null;
+    // Allow tagging even when no dashboard is active (default scope).
     let created: TaggedPolygon | null = null;
     setTaggedPolygons(prev => {
       const idx = prev.length + 1;
