@@ -241,28 +241,6 @@ const FilterRepositoryView3: React.FC = () => {
             />
           </div>
 
-          {/* View toggle */}
-          <div className="inline-flex h-10 items-center rounded-full border border-border bg-background p-1 shrink-0">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`h-8 px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 transition-all ${
-                viewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="Grid"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" /> Grid
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`h-8 px-3 rounded-full text-[11px] font-bold inline-flex items-center gap-1.5 transition-all ${
-                viewMode === 'list' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              }`}
-              title="List"
-            >
-              <ListIcon className="w-3.5 h-3.5" /> List
-            </button>
-          </div>
-
           <button
             onClick={() => setShowCreate(true)}
             className="h-10 px-4 text-xs font-bold rounded-full bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md transition-all flex items-center gap-2 shrink-0"
