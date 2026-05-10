@@ -4449,7 +4449,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const addTaggedPolygonRef = useRef<((p: any) => any) | null>(null);
   useEffect(() => {
     if (!polygonClosed || !polygonStats) return;
-    if (!activeDashboardIdRef.current) return;
+    // Tag without requiring an active dashboard — falls back to default scope.
     if (!addTaggedPolygonRef.current) return;
     // Fingerprint to avoid re-tagging the same closed polygon on every
     // re-render (e.g. after sites refresh changing polygonStats).
@@ -4483,7 +4483,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const radiusAutoTaggedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!radiusConfirmed || !radiusCenter || radiusConfirmedMeters <= 0) return;
-    if (!activeDashboardIdRef.current) return;
+    // Tag without requiring an active dashboard — falls back to default scope.
     if (!addTaggedPolygonRef.current) return;
     const fp = `${radiusCenter[0].toFixed(5)},${radiusCenter[1].toFixed(5)}@${Math.round(radiusConfirmedMeters)}`;
     if (radiusAutoTaggedRef.current === fp) return;
@@ -4859,7 +4859,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
 
   const addTaggedPolygon = useCallback((poly: Omit<TaggedPolygon, 'id' | 'createdAt' | 'type' | 'name'> & { name?: string }) => {
-    if (!activeDashboardIdRef.current) return null;
+    // Allow tagging even when no dashboard is active (default scope).
     let created: TaggedPolygon | null = null;
     setTaggedPolygons(prev => {
       const idx = prev.length + 1;
