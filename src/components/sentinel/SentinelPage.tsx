@@ -25,7 +25,7 @@ type SentinelTab = 'overview' | 'explorer' | 'clustering' | 'ml-detector';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
-  { id: 'explorer', label: 'Anomalies', icon: <Eye className="w-4 h-4" /> },
+  
   { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
 ];
