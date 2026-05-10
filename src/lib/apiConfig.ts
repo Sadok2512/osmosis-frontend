@@ -23,6 +23,11 @@ const isOnAppDomain = typeof window !== 'undefined' && (
 // Cloudflare Tunnel endpoints (legacy — separate domains per service)
 const CF_PARSER = 'https://api.qoebit.net';
 const CF_KPI = 'https://kpi.qoebit.net';
+// ml-engine off-domain fallback. No dedicated CF tunnel yet — when one
+// is provisioned, set CF_ML to e.g. 'https://ml.qoebit.net'. Until then
+// the off-domain branch returns the empty string which forces callers
+// to handle the missing-tunnel case gracefully.
+const CF_ML = '';
 
 // On app.qoebit.net: use same-origin relative paths (nginx proxies /api/ and /kpi-api/)
 // On VPS IP: same-origin
@@ -37,6 +42,10 @@ export const VPS_ENDPOINTS = {
   // returned 404 because the parser only mounts the orchestrator route
   // under that prefix, not at root.
   agent:   isOnAppDomain ? '/agent-api' : `${CF_PARSER}/api/v1/agent`,
+  // ml-engine extracted from parser on 2026-05-10. On-VPS calls go
+  // through the spa-proxy at /ml-api/* → :11002. Off-domain has no
+  // tunnel yet — callers should expect empty string when CF_ML is unset.
+  ml:      isOnAppDomain ? '/ml-api' : CF_ML,
 } as const;
 
 // Local Express server retired 2026-05-08 (was qoebit-frontend/server,

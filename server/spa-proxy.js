@@ -35,6 +35,7 @@ const TARGETS = {
   '/admin/api/': { host: '127.0.0.1', port: 8000 },   // legacy admin auth POST
   '/kpi-api/':   { host: '127.0.0.1', port: 8001 },   // kpi-engine (strip prefix)
   '/agent-api/': { host: '127.0.0.1', port: 8000 },   // OSMOSIS AI agent — through parser proxy at /api/v1/agent
+  '/ml-api/':    { host: '127.0.0.1', port: 11002 },  // ML Engine — standalone service (extracted from parser 2026-05-10)
   '/api/':       { host: '127.0.0.1', port: 3001 },   // this repo's index.js
 };
 
@@ -112,6 +113,13 @@ app.use(
   '/agent-api',
   proxyTo(TARGETS['/agent-api/'], (url) => url.replace(/^\/agent-api/, '/api/v1/agent')),
 );
+// /ml-api/* → ml-engine :11002 /api/v1/ml/* (mounted before /api/ so the
+// catch-all repo-3001 proxy doesn't claim it). Standalone service since
+// 2026-05-10 — see /home/devmat/bmad-project/ml-engine.
+app.use(
+  '/ml-api',
+  proxyTo(TARGETS['/ml-api/'], (url) => url.replace(/^\/ml-api/, '/api/v1/ml')),
+);
 app.use(
   '/api',
   proxyTo(TARGETS['/api/'], (url) => url),
@@ -127,7 +135,7 @@ app.use(express.static(DIST_DIR, { index: false, extensions: ['html'] }));
 //   2. The Accept header explicitly excludes HTML (e.g. Accept: application/json)
 // Browsers always send `Accept: text/html,...` for navigations; tooling
 // like curl sends `Accept: */*` which we treat as "wants HTML" too.
-app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api)).*/, (req, res, next) => {
+app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api|ml-api)).*/, (req, res, next) => {
   const looksLikeAsset = /\.[a-z0-9]{1,6}$/i.test(req.path);
   const accept = req.headers.accept || '*/*';
   const wantsJson = accept.includes('application/json') && !accept.includes('text/html');
