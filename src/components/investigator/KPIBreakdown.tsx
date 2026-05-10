@@ -396,8 +396,11 @@ const FormulaPanel: React.FC<{
 
           {/* Denominator */}
           <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-[0_10px_30px_rgba(2,6,23,0.25)]">
-            <div className="flex items-center justify-between border-b border-slate-800 px-5 py-3">
-              <span className="text-xs font-bold uppercase tracking-[0.16em] text-sky-300">Denominator</span>
+            <div className="flex items-center justify-between px-5 py-3.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <span className="flex items-center gap-2 text-[13px] font-extrabold uppercase text-[#F8FAFC]" style={{ letterSpacing: '2px' }}>
+                <Divide className="w-4 h-4 text-sky-300" strokeWidth={2.5} />
+                Denominator
+              </span>
               <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
                 Expression
               </span>
