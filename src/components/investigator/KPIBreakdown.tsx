@@ -8,7 +8,7 @@ import { normalizeTimestamp } from './timeUtils';
 import { fetchCounterTimeSeriesFallback } from './investigatorApi';
 import {
   Layers, Calculator, Eye, EyeOff, Info, ChevronDown,
-  Database, GitBranch, Cpu, TrendingUp, Filter,
+  Database, GitBranch, Cpu, TrendingUp, Filter, Sigma, Divide,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
