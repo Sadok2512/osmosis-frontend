@@ -650,11 +650,42 @@ const SingleKpiBreakdown: React.FC<{
   // be drawn on a single axis (Nokia M-counters and Ericsson pm* are
   // numerically incomparable), so we skip the fetch and render only
   // the per-vendor formula text below.
-  const vendorList = useMemo<string[]>(() => {
+  // Vendors involved according to the backend explain response.
+  const allVendors = useMemo<string[]>(() => {
     const raw = (explain?.vendor || '').split(',').map(s => s.trim()).filter(Boolean);
     return Array.from(new Set(raw));
   }, [explain]);
-  const isMultiVendor = vendorList.length > 1;
+
+  // Active vendors after the user's Elements selection. When the split
+  // is CONSTRUCTEUR/VENDOR and the user toggles off some checkboxes
+  // (e.g. deselects ERICSSON), restrict the per-vendor formula panel
+  // to the vendors actually selected. When the split isn't on
+  // CONSTRUCTEUR (or selectedElements is null = all selected), show
+  // every vendor that has a formula.
+  const vendorList = useMemo<string[]>(() => {
+    if (allVendors.length === 0) return [];
+    const splitNorm = (splitBy || '').replace('PM_DIM:', '').toUpperCase();
+    const isConstructeurSplit = splitNorm === 'CONSTRUCTEUR' || splitNorm === 'VENDOR';
+    if (!isConstructeurSplit || !selectedElements) return allVendors;
+    // selectedElements typically holds uppercase tokens (ERICSSON / NOKIA)
+    // while explain.vendor is TitleCase (Ericsson / Nokia). Compare on
+    // upper-case to keep this resilient regardless of where the casing
+    // was set upstream.
+    const selectedUpper = new Set(
+      Array.from(selectedElements).map((el) => String(el).trim().toUpperCase())
+    );
+    const filtered = allVendors.filter((v) => selectedUpper.has(v.toUpperCase()));
+    // Defensive: if the user deselected everything, fall back to the
+    // full vendor list rather than rendering an empty card.
+    return filtered.length > 0 ? filtered : allVendors;
+  }, [allVendors, splitBy, selectedElements]);
+
+  // Multi-vendor mode is decided by the API response, not by the user's
+  // element selection — toggling ERICSSON/NOKIA in the split list filters
+  // the *displayed* formulas via vendorList but doesn't switch the panel
+  // back to counter-timeseries mode (counters live in the global VENDOR
+  // filter scope, not in the per-element selection).
+  const isMultiVendor = allVendors.length > 1;
 
   // Fetch counter timeseries (skipped in multi-vendor mode)
   useEffect(() => {
@@ -953,7 +984,9 @@ const SingleKpiBreakdown: React.FC<{
               Formulas per vendor
             </span>
             <span className="text-[10px] text-muted-foreground ml-1">
-              {vendorList.length} vendors involved — filter to one to see counter timeseries
+              {vendorList.length === allVendors.length
+                ? `${allVendors.length} vendors involved — filter to one (global VENDOR filter) to see counter timeseries`
+                : `${vendorList.length} of ${allVendors.length} vendors selected via split elements`}
             </span>
           </div>
           <div className="p-4 space-y-3">
