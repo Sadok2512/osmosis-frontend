@@ -65,6 +65,7 @@ const InvestigatorSaveLoadBar: React.FC<Props> = ({
   const [loadModalOpen, setLoadModalOpen] = useState(false);
   const [saveAsModalOpen, setSaveAsModalOpen] = useState(false);
   const [saveAsName, setSaveAsName] = useState('');
+  const [saveAsVisibility, setSaveAsVisibility] = useState<'private' | 'public'>('private');
   const [savedList, setSavedList] = useState<SavedInvestigator[]>([]);
   const [isLoadingList, setIsLoadingList] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
