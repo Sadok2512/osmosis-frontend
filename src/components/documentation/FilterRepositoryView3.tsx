@@ -74,7 +74,7 @@ const FilterRepositoryView3: React.FC = () => {
   const [editFilter, setEditFilter] = useState<NetworkFilter | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   const [deleteTarget, setDeleteTarget] = useState<NetworkFilter | null>(null);
   const [deleting, setDeleting] = useState(false);
 
