@@ -84,7 +84,8 @@ async function _post<T>(path: string): Promise<T> {
 
 
 export async function listProfiles(): Promise<{ profiles: MlProfile[]; count: number }> {
-  return _get<{ profiles: MlProfile[]; count: number }>('/profiles');
+  const r = await _get<{ profiles?: MlProfile[]; count?: number }>('/profiles');
+  return { profiles: r?.profiles ?? [], count: r?.count ?? 0 };
 }
 
 export async function listAnomalies(opts: {
@@ -102,7 +103,14 @@ export async function listAnomalies(opts: {
   if (opts.date_to) params.date_to = opts.date_to;
   if (opts.page) params.page = String(opts.page);
   if (opts.limit) params.limit = String(opts.limit);
-  return _get<AnomaliesResponse>('/anomalies', params);
+  const r = await _get<Partial<AnomaliesResponse>>('/anomalies', params);
+  return {
+    items: r?.items ?? [],
+    total: r?.total ?? 0,
+    page: r?.page ?? (opts.page ?? 1),
+    pages: r?.pages ?? 0,
+    error: r?.error,
+  };
 }
 
 export async function runProfileNow(profileId: number): Promise<RunNowResponse> {
