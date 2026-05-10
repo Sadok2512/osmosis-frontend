@@ -644,8 +644,26 @@ const SingleKpiBreakdown: React.FC<{
   }, [splitElements]);
 
 
-  // Fetch counter timeseries
+  // Multi-vendor detection — explain.vendor is "Nokia,Ericsson" (comma-
+  // separated) when the canonical kpi_code resolves to multiple per-
+  // vendor formulas. In that case the counter timeseries chart can't
+  // be drawn on a single axis (Nokia M-counters and Ericsson pm* are
+  // numerically incomparable), so we skip the fetch and render only
+  // the per-vendor formula text below.
+  const vendorList = useMemo<string[]>(() => {
+    const raw = (explain?.vendor || '').split(',').map(s => s.trim()).filter(Boolean);
+    return Array.from(new Set(raw));
+  }, [explain]);
+  const isMultiVendor = vendorList.length > 1;
+
+  // Fetch counter timeseries (skipped in multi-vendor mode)
   useEffect(() => {
+    if (isMultiVendor) {
+      setCounterTsData([]);
+      setCounterFallbackUnfiltered(false);
+      setLoading(false);
+      return;
+    }
     const names = counterInfos.map(c => c.name);
     if (names.length === 0) {
       setCounterTsData([]);
@@ -922,6 +940,58 @@ const SingleKpiBreakdown: React.FC<{
         elementColorMap={elementColorMap}
       />
 
+      {isMultiVendor ? (
+        /* Multi-vendor mode: just display the per-vendor formula text. The
+           counter timeseries chart is intentionally hidden — Nokia and
+           Ericsson counters are numerically incomparable so plotting both
+           on the same axis is misleading. The user filters down to a
+           single vendor to get the counter chart back. */
+        <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-primary" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-foreground">
+              Formulas per vendor
+            </span>
+            <span className="text-[10px] text-muted-foreground ml-1">
+              {vendorList.length} vendors involved — filter to one to see counter timeseries
+            </span>
+          </div>
+          <div className="p-4 space-y-3">
+            {vendorList.map((v) => {
+              const num = (explain?.numerator || '')
+                .split(';')
+                .map(s => s.trim())
+                .find(s => s.startsWith(`[${v}]`)) || '';
+              const den = (explain?.denominator || '')
+                .split(';')
+                .map(s => s.trim())
+                .find(s => s.startsWith(`[${v}]`)) || '';
+              const stripPrefix = (s: string) => s.replace(/^\[[^\]]+\]\s*/, '');
+              return (
+                <div key={v} className="rounded-lg border border-border/40 bg-muted/5 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary border border-primary/30">
+                      {v}
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-[11px] font-mono">
+                    <div>
+                      <span className="text-green-600 font-bold mr-2">NUM</span>
+                      <span className="text-foreground">{stripPrefix(num) || <em className="text-muted-foreground not-italic">—</em>}</span>
+                    </div>
+                    {den && (
+                      <div>
+                        <span className="text-blue-600 font-bold mr-2">DEN</span>
+                        <span className="text-foreground">{stripPrefix(den)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
       <div className="rounded-xl border border-border/40 bg-card overflow-hidden">
         <div className="px-5 py-3 border-b border-border/30 bg-muted/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -976,12 +1046,18 @@ const SingleKpiBreakdown: React.FC<{
           )}
         </div>
       </div>
+      )}
 
-      <CounterDefinitionPanel
-        counters={counterInfos}
-        hoveredCounter={hoveredCounter}
-        onHoverCounter={setHoveredCounter}
-      />
+      {/* Counter definition panel hidden in multi-vendor mode — counters
+          are mixed across vendors and the per-vendor formula block above
+          already conveys the relevant info. */}
+      {!isMultiVendor && (
+        <CounterDefinitionPanel
+          counters={counterInfos}
+          hoveredCounter={hoveredCounter}
+          onHoverCounter={setHoveredCounter}
+        />
+      )}
     </div>
   );
 };
