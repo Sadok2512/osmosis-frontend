@@ -96,38 +96,36 @@ function hashStr(s) {
 /**
  * Real adapter for the OSMOSIS KPI engine.
  *
- * Wires the module's `fetchKpiValues` contract to the project's existing
- * batch endpoint `POST /kpi-api/kpi/compute`, which accepts a list of
- * `kpi_codes` and an optional `cell_names` whitelist and returns aggregated
- * values over a date range. The proxy `/kpi-api/*` is rewritten by
- * `server/spa-proxy.js` to `http://127.0.0.1:8001` (kpi-engine).
+ * 2026-05-11 v2 — `/kpi/compute` only resolves ATOMIC kpi codes
+ * (`kpi/definitions` table). The UI surfaces SHARED/COMPOSITE codes
+ * like `4G_LTE_CSSR_VoLTE` from `/kpi-tables/shared` which `/kpi/compute`
+ * doesn't understand. The path that does is
+ * `POST /monitor/query/timeseries` (proven by `fetchKpiCellValues` in
+ * topoService). We fan out one timeseries call per requested KPI name
+ * (Promise.all) and merge the per-cell series into the
+ * `Map<cellId, Map<kpiName, number>>` the overlay module expects.
  *
- * Response parsing is defensive — the engine has shipped two shapes during
- * the migration: a flat `{ rows: [{cell_name, kpi_code, value}] }` and a
- * dict-of-dict `{ values: { cell: { kpi: value } } }`. We accept both.
- * Missing entries are omitted (the overlay treats them as neutral 0.5).
+ * The proxy `/kpi-api/*` is rewritten by `server/spa-proxy.js` to
+ * `http://127.0.0.1:8001` (kpi-engine).
+ *
+ * Missing entries are omitted (the overlay treats them as neutral 0.5
+ * and the tooltip shows "—").
  *
  * @type {FetchKpiValuesFn}
  */
 export async function realFetchKpiValues(request) {
-  const body = {
-    kpi_codes:   request.kpiNames,
-    cell_names:  request.cellIds && request.cellIds.length ? request.cellIds : null,
-    from_date:   request.periodStart,
-    to_date:     request.periodEnd,
-    aggregation: aggMap(request.aggregation),
-  };
+  const kpiNames = Array.isArray(request.kpiNames) ? request.kpiNames : [];
+  if (kpiNames.length === 0) return new Map();
 
-  const res = await fetch('/kpi-api/kpi/compute', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`KPI compute failed: HTTP ${res.status} ${detail.slice(0, 200)}`);
-  }
-  const json = await res.json();
+  // Build base filters once. Vendor / techno fall through to backend
+  // defaults (no narrowing) — the module's `tech` is informational
+  // (legend label) and not authoritative for the SQL filter, which
+  // works on dimensions stored in CH.
+  const baseFilters = [];
+  // Note: cellIds is NOT used as a CELL dimension filter here because
+  // the timeseries endpoint already returns split_value=cell_name for
+  // ALL cells of the bbox. The overlay then matches by cell.id, so
+  // we naturally get only the cells in our list (extras are dropped).
 
   const result = new Map();
   const ensureCell = (cellId) => {
@@ -136,53 +134,40 @@ export async function realFetchKpiValues(request) {
     return m;
   };
 
-  // Shape A: { rows: [{ cell_name, kpi_code, value }, ...] }
-  if (Array.isArray(json?.rows)) {
-    for (const r of json.rows) {
-      const cellId = r.cell_name || r.cellName || r.cellId;
-      const name = r.kpi_code || r.kpiName || r.name;
-      const v = Number(r.value);
-      if (cellId && name && Number.isFinite(v)) ensureCell(cellId).set(name, v);
+  // Fan out N timeseries calls in parallel — the engine accepts only one
+  // `kpi_key` per `selections` entry effectively (split_by=CELL on
+  // multi-KPI loses the kpi attribution in `pt`). Cheap to parallelise:
+  // typical N is 1-3.
+  await Promise.all(kpiNames.map(async (name) => {
+    const body = {
+      date_from:   request.periodStart,
+      date_to:     request.periodEnd,
+      granularity: 'total',
+      filters:     baseFilters,
+      selections:  [{ kpi_key: name }],
+      split_by:    'CELL',
+      top_n:       5000,
+    };
+    let json;
+    try {
+      const res = await fetch('/kpi-api/monitor/query/timeseries', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) return; // soft fail per KPI — other KPIs may succeed
+      json = await res.json();
+    } catch {
+      return;
     }
-    return result;
-  }
-
-  // Shape B: { values: { [cellId]: { [kpiName]: number } } }
-  if (json?.values && typeof json.values === 'object') {
-    for (const [cellId, kpis] of Object.entries(json.values)) {
-      if (!kpis || typeof kpis !== 'object') continue;
-      for (const [name, value] of Object.entries(kpis)) {
-        const v = Number(value);
-        if (Number.isFinite(v)) ensureCell(cellId).set(name, v);
-      }
-    }
-    return result;
-  }
-
-  // Shape C: timeseries-style fallback { series: [{ split_value, value, kpi_code }] }
-  if (Array.isArray(json?.series)) {
-    for (const pt of json.series) {
+    const series = Array.isArray(json?.series) ? json.series : [];
+    for (const pt of series) {
       const cellId = pt.split_value || pt.cell_name;
-      const name = pt.kpi_code || pt.kpiName;
-      const v = Number(pt.value);
-      if (cellId && name && Number.isFinite(v)) ensureCell(cellId).set(name, v);
+      const raw = pt.value;
+      const v = Number(raw);
+      if (cellId && Number.isFinite(v)) ensureCell(cellId).set(name, v);
     }
-    return result;
-  }
+  }));
 
-  // Unknown shape — return empty Map. The overlay will paint everything
-  // neutral and the legend ticks will read 0 → 0.
   return result;
-}
-
-/**
- * Translate the module's high-level `aggregation` token ('avg'|'sum'|'max'|'last')
- * to whatever the OSMOSIS engine wants. Today the engine only accepts a
- * granularity-style key ('15MIN'|'1H'|'1D'); since we want a single scalar
- * per cell over the whole period, pass '15MIN' and let the engine roll up
- * via its built-in aggregation. (Adapt here if the engine grows a real
- * `aggregation: avg|sum|max|last` knob.)
- */
-function aggMap(/* requestAgg */) {
-  return '15MIN';
 }
