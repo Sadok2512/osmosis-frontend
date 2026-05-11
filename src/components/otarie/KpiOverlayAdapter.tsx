@@ -142,28 +142,6 @@ const KpiOverlayAdapter: React.FC<Props> = ({
 
     const kpiName = view.selectedKpis[0];
 
-    //DIAG — KPI Overlay grey-rendering investigation (2026-05-11 v6.3.x).
-    //DIAG Log #1: kpiValueMap reaching the adapter. Expect mapSize > 0 if
-    //DIAG backend slow_path returns data; sampleKey format must match
-    //DIAG sampleCellId from log #2 (otherwise key-mismatch → all 'unknown').
-    // eslint-disable-next-line no-console
-    console.log('[diag] kpi-overlay map:', {
-      kpiName,
-      hasMap: !!kpiValueMap,
-      mapSize: kpiValueMap?.size ?? 0,
-      sampleKey: kpiValueMap ? [...kpiValueMap.keys()].slice(0, 3) : [],
-      sampleValue: kpiValueMap ? [...kpiValueMap.values()].slice(0, 3) : [],
-      thresholds: kpiThresholds,
-    });
-    //DIAG Log #2: cells fed to buildKpiOverlay. Compare sampleCellId.id
-    //DIAG against sampleKey above to spot any "CELL_*" prefix vs no-prefix
-    //DIAG mismatch between fetchKpiCellValues output and CoverageCell.id.
-    // eslint-disable-next-line no-console
-    console.log('[diag] kpi-overlay cells input:', {
-      nCells: cells.length,
-      sampleCellId: cells.slice(0, 3).map((c) => ({ id: c.id, lat: c.lat, siteName: c.siteName })),
-    });
-
     // Voronoï pavage — implemented directly (no radial clip) so the
     // bissectors form the only edges. We project (lon, lat) to flat
     // metres at the bbox-mean latitude so disks are round and bissector
@@ -295,23 +273,7 @@ const KpiOverlayAdapter: React.FC<Props> = ({
       });
     }
     const fc = { type: 'FeatureCollection', features };
-
-    //DIAG Log #3: post-build tier distribution. If everything lands in
-    //DIAG `unknown` even with mapSize > 0 → key mismatch confirmed.
-    //DIAG If `nFeatures` < nCells → some cells got dropped by the
-    //DIAG Voronoï radial clip (raise maxRadiusMeters).
-    // eslint-disable-next-line no-console
-    console.log('[diag] kpi-overlay ready:', {
-      nFeatures: fc.features.length,
-      nCellsInput: cells.length,
-      tierDistribution: tierCounts,
-      sampleProps: fc.features.slice(0, 2).map((f: any) => ({
-        id: f.properties.id,
-        tier: f.properties.tier,
-        rawValue: f.properties.rawValue,
-        tierColor: f.properties.tierColor,
-      })),
-    });
+    void tierCounts; // retained for an eventual on-ready callback
 
     removeLayer();
 

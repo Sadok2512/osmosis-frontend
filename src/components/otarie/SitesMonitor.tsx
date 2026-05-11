@@ -9762,22 +9762,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               }
             }
 
-            //DIAG — KPI mode beam visibility (v6.4.4, 2026-05-11). Logs the
-            //DIAG render decision per site so we can tell whether dedupItems
-            //DIAG is empty (no beams emitted) or the polygons are dropped
-            //DIAG elsewhere. Removed once beams render at zoom 13.
-            if (kpiForcesSectors) {
-              // eslint-disable-next-line no-console
-              console.log('[diag] kpi beam render:', {
-                zoom: viewport.zoom,
-                siteId: site.site_id,
-                renderSiteCellsLen: renderSiteCells.length,
-                cellItemsLen: cellItems.length,
-                dedupItemsLen: dedupItems.length,
-                synthetic: isSyntheticOnlySite,
-                indoor: isIndoor,
-              });
-            }
             return (
               <React.Fragment key={site.site_id}>
                 {dedupItems.map(({ tech, az, radius, bandKey, cell }) => {

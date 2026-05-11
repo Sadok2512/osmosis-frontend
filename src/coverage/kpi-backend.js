@@ -148,12 +148,6 @@ export async function realFetchKpiValues(request) {
       split_by:    'CELL',
       top_n:       5000,
     };
-    //DIAG — Issue 3 (KPI Overlay backend diagnosis, 2026-05-11).
-    //DIAG Logs the exact request shape so the Network tab line in
-    //DIAG devtools can be cross-checked. Remove once the empty-series
-    //DIAG investigation is closed.
-    // eslint-disable-next-line no-console
-    console.log('[diag] kpi request:', { url: '/kpi-api/monitor/query/timeseries', kpiName: name, body });
     let json;
     try {
       const res = await fetch('/kpi-api/monitor/query/timeseries', {
@@ -161,23 +155,9 @@ export async function realFetchKpiValues(request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      //DIAG
-      // eslint-disable-next-line no-console
-      console.log('[diag] kpi response status:', name, res.status);
-      if (!res.ok) {
-        //DIAG
-        // eslint-disable-next-line no-console
-        console.warn('[diag] kpi response NOT OK — body excerpt:', name, (await res.text().catch(() => '')).slice(0, 500));
-        return; // soft fail per KPI — other KPIs may succeed
-      }
+      if (!res.ok) return; // soft fail per KPI — other KPIs may succeed
       json = await res.json();
-      //DIAG
-      // eslint-disable-next-line no-console
-      console.log('[diag] kpi raw response:', name, json);
-    } catch (e) {
-      //DIAG
-      // eslint-disable-next-line no-console
-      console.warn('[diag] kpi fetch threw:', name, e);
+    } catch {
       return;
     }
     const series = Array.isArray(json?.series) ? json.series : [];
@@ -187,13 +167,7 @@ export async function realFetchKpiValues(request) {
       const v = Number(raw);
       if (cellId && Number.isFinite(v)) ensureCell(cellId).set(name, v);
     }
-    //DIAG
-    // eslint-disable-next-line no-console
-    console.log('[diag] kpi parsed:', name, 'series points:', series.length, 'non-null:', series.filter(p => p?.value != null).length);
   }));
 
-  //DIAG — final aggregated map summary.
-  // eslint-disable-next-line no-console
-  console.log('[diag] kpi parsed map size:', result.size, 'sample entry:', [...result.entries()][0]);
   return result;
 }
