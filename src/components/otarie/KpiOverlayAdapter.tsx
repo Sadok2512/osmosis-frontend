@@ -25,7 +25,11 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
 // Module is plain JS without TS types — `any` shape is intentional.
-import { buildKpiOverlay } from '@/coverage/kpi-overlay.js';
+// We bypass kpi-overlay.js::buildKpiOverlay (which radially clips every
+// vertex to maxRadius/cell, breaking Voronoï edges) and call the raw
+// `voronoiCells` half-plane clipper instead. Bissectors then do all
+// the work, polygons stay perfectly polygonal.
+import { voronoiCells } from '@/coverage/voronoi.js';
 
 /** 3-tier palette aligned with the legacy KPI legend used in SitesMonitor.
  *  `unknown` is the No-data tier (basemap visible through translucent grey). */
@@ -160,58 +164,119 @@ const KpiOverlayAdapter: React.FC<Props> = ({
       sampleCellId: cells.slice(0, 3).map((c) => ({ id: c.id, lat: c.lat, siteName: c.siteName })),
     });
 
-    // Build the Map<cellId, Map<kpiName, value>> shape the module expects.
-    // The colour is overridden right after, so this Map is only useful
-    // for buildKpiOverlay's compositeScore / properties metadata.
-    const kpiValuesForBuild = new Map<string, Map<string, number>>();
-    if (kpiValueMap) {
-      for (const [cellId, value] of kpiValueMap.entries()) {
-        if (!Number.isFinite(value)) continue;
-        const m = new Map<string, number>();
-        m.set(kpiName, value);
-        kpiValuesForBuild.set(cellId, m);
+    // Voronoï pavage — implemented directly (no radial clip) so the
+    // bissectors form the only edges. We project (lon, lat) to flat
+    // metres at the bbox-mean latitude so disks are round and bissector
+    // angles are correct everywhere.
+    //
+    // 1) Deduplicate seeds by rounded (lat, lon): multiple cells at the
+    //    same physical site share coordinates and voronoiCells gives
+    //    degenerate empty polygons for duplicates. We aggregate the
+    //    worst KPI tier across cells of each unique seed and emit ONE
+    //    polygon per seed.
+    const SEED_ROUND = 1e6; // ~10 cm
+    type Seed = {
+      x: number; y: number;
+      cellIds: string[];
+      siteName: string;
+      tech: string;
+      band: string;
+      // worst tier across cells of this seed
+      tier: 'green' | 'orange' | 'red' | 'unknown';
+      rawValueForLegend: number | null;
+    };
+    const RANK = { green: 0, orange: 1, red: 2, unknown: -1 };
+    const seedMap = new Map<string, Seed>();
+    const latRefRaw = cells.reduce((s, c) => s + c.lat, 0) / cells.length;
+    const M_PER_DEG_LAT = 111000;
+    const M_PER_DEG_LNG = 111000 * Math.cos((latRefRaw * Math.PI) / 180);
+    for (const c of cells) {
+      if (!Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
+      const key = `${Math.round(c.lat * SEED_ROUND)}|${Math.round(c.lon * SEED_ROUND)}`;
+      const x = c.lon * M_PER_DEG_LNG;
+      const y = c.lat * M_PER_DEG_LAT;
+      const v = kpiValueMap?.get(c.id);
+      const cellTier = valueToTier(v, kpiThresholds);
+      const acc = seedMap.get(key);
+      if (!acc) {
+        seedMap.set(key, {
+          x, y,
+          cellIds: [c.id],
+          siteName: c.siteName,
+          tech: c.tech,
+          band: c.band,
+          tier: cellTier,
+          rawValueForLegend: Number.isFinite(v as number) ? (v as number) : null,
+        });
+      } else {
+        acc.cellIds.push(c.id);
+        if (RANK[cellTier] > RANK[acc.tier]) {
+          acc.tier = cellTier;
+          if (Number.isFinite(v as number)) acc.rawValueForLegend = v as number;
+        }
       }
     }
+    const seeds = [...seedMap.values()];
+    if (seeds.length === 0) {
+      removeLayer();
+      return;
+    }
 
-    let result: any;
+    // 2) bbox in flat-metres with generous padding (50 km) so the
+    //    outermost cells aren't clipped to a hard rectangle inside the
+    //    viewport.
+    let xmin = Infinity, ymin = Infinity, xmax = -Infinity, ymax = -Infinity;
+    for (const s of seeds) {
+      if (s.x < xmin) xmin = s.x;
+      if (s.y < ymin) ymin = s.y;
+      if (s.x > xmax) xmax = s.x;
+      if (s.y > ymax) ymax = s.y;
+    }
+    const pad = 50000;
+    const bboxFlat: [number, number, number, number] = [xmin - pad, ymin - pad, xmax + pad, ymax + pad];
+
+    // 3) Voronoï half-plane clipping in flat-metres. No radial clip.
+    let polys: Array<Array<{ x: number; y: number }>>;
     try {
-      result = buildKpiOverlay({
-        cells,
-        kpiValues: kpiValuesForBuild,
-        view: { selectedKpis: [kpiName] },
-        // 15 km cap: large enough that for any realistic inter-site
-        // distance the Voronoï bisector clips before the radial cap
-        // does. Effect: continuous edge-to-edge pavage in dense AND
-        // suburban zones; only true wilderness (neighbour >30 km) sees
-        // a circular boundary.
-        options: { maxRadiusMeters: 15000 },
-      });
+      const r = voronoiCells(seeds.map((s) => ({ x: s.x, y: s.y })), bboxFlat);
+      polys = r.polys;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('[KpiOverlayAdapter] buildKpiOverlay threw:', err);
+      console.error('[KpiOverlayAdapter] voronoiCells threw:', err);
       removeLayer();
       return;
     }
 
-    const fc = result?.fc;
-    if (!fc || !Array.isArray(fc.features)) {
-      removeLayer();
-      return;
-    }
-
-    // Tier override per feature.
+    // 4) Build GeoJSON FeatureCollection (project back to lon/lat).
     const tierCounts: Record<string, number> = { green: 0, orange: 0, red: 0, unknown: 0 };
-    for (const f of fc.features) {
-      const cellId = f.properties?.id;
-      const v = cellId ? kpiValueMap?.get(cellId) : undefined;
-      const tier = valueToTier(v, kpiThresholds);
-      tierCounts[tier] = (tierCounts[tier] || 0) + 1;
-      f.properties = f.properties || {};
-      f.properties.tier = tier;
-      f.properties.tierColor = TIER_COLOR[tier];
-      f.properties.rawValue = v ?? null;
-      f.properties.kpiName = kpiName;
+    const features: any[] = [];
+    for (let i = 0; i < seeds.length; i++) {
+      const s = seeds[i];
+      const poly = polys[i];
+      if (!poly || poly.length < 3) continue;
+      const ring = poly.map((p) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT] as [number, number]);
+      // close the ring
+      const [fx, fy] = ring[0];
+      const [lx, ly] = ring[ring.length - 1];
+      if (fx !== lx || fy !== ly) ring.push([fx, fy]);
+      tierCounts[s.tier] = (tierCounts[s.tier] || 0) + 1;
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Polygon', coordinates: [ring] },
+        properties: {
+          id: s.cellIds[0],
+          cellIds: s.cellIds,
+          siteName: s.siteName,
+          tech: s.tech,
+          band: s.band,
+          tier: s.tier,
+          tierColor: TIER_COLOR[s.tier],
+          rawValue: s.rawValueForLegend,
+          kpiName,
+        },
+      });
     }
+    const fc = { type: 'FeatureCollection', features };
 
     //DIAG Log #3: post-build tier distribution. If everything lands in
     //DIAG `unknown` even with mapSize > 0 → key mismatch confirmed.
