@@ -5737,40 +5737,67 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   useEffect(() => {
     (async () => {
       try {
-        const url = getVpsProxyUrl('parser', '/api/v1/kpi/catalog');
-        const resp = await fetch(url, { headers: getVpsProxyHeaders() });
-        if (!resp.ok) throw new Error(`catalog fetch failed: ${resp.status}`);
-        const json = await resp.json();
-        // Filter out vendor-prefixed variants (Nokia__&_*, Ericsson__&_*,
-        // Huawei__&_*) on 2026-05-11. The UI dropdown should only expose
-        // the canonical KPI name (e.g. `4G_LTE_DCR_VoLTE`); the engine
-        // already aggregates across vendors when called with the bare
-        // name. Same convention as the Investigator page.
-        const VENDOR_PREFIX_RE = /^(Nokia|Ericsson|Huawei)__&_/i;
-        const rawKpis = (json.kpis || []) as any[];
-        const kpis = rawKpis
-          .filter((k: any) => !VENDOR_PREFIX_RE.test(k.kpi_id || ''))
-          .map((k: any) => ({
-            id: k.kpi_id,
-            label: k.label,
-            unit: k.unit || '',
-            category: k.category || 'OTHER',
-            techno: k.techno || 'all',
-            vendor: k.vendor || '',
-          }));
+        // 2026-05-11 v6.5.4 — switched source from /api/v1/kpi/catalog
+        // (4 801 full KPI definitions, mostly without CH data) to
+        // /kpi-api/kpi-tables/shared (the admin-curated list — 13
+        // entries today). Per memory `feedback_kpi_admin_list_only`,
+        // only admin-curated KPIs are in scope. The previous filter on
+        // /^(Nokia|Ericsson|Huawei)__&_/ on the 4801 list was deleting
+        // 12/13 of the curated KPIs and keeping 4725 useless ones.
+        const sharedUrl = getVpsProxyUrl('kpi', '/kpi-tables/shared');
+        const sharedResp = await fetch(sharedUrl, { headers: getVpsProxyHeaders() });
+        if (!sharedResp.ok) throw new Error(`shared catalog fetch failed: ${sharedResp.status}`);
+        const sharedJson = await sharedResp.json();
+        const sharedCodes: string[] = Array.isArray(sharedJson.kpi_codes) ? sharedJson.kpi_codes : [];
+
+        // Enrich with display metadata (label, unit, category, techno,
+        // vendor, thresholds) from the legacy /api/v1/kpi/catalog. The
+        // shared list only returns code strings; we join on kpi_id.
+        const catalogUrl = getVpsProxyUrl('parser', '/api/v1/kpi/catalog');
+        const catalogResp = await fetch(catalogUrl, { headers: getVpsProxyHeaders() });
+        const catalogJson = catalogResp.ok ? await catalogResp.json() : { kpis: [] };
+        const byId = new Map<string, any>();
+        for (const k of catalogJson.kpis || []) byId.set(k.kpi_id, k);
+
+        // Helper to infer techno / vendor from the kpi_code itself when
+        // the catalog row is missing (codes like Nokia__&_4G_LTE_CSSR
+        // pre-parse cleanly into vendor + techno).
+        const inferVendor = (code: string) => {
+          const m = code.match(/^(Nokia|Ericsson|Huawei)__/i);
+          return m ? m[1] : '';
+        };
+        const inferTechno = (code: string) => {
+          if (/(^|_)5G(_|$)/i.test(code)) return '5G';
+          if (/(^|_)4G(_|$)/i.test(code) || /LTE/i.test(code)) return '4G';
+          return 'all';
+        };
+
+        const kpis = sharedCodes.map((code) => {
+          const meta = byId.get(code) || {};
+          return {
+            id: code,
+            label: meta.label || code,
+            unit: meta.unit || '',
+            category: meta.category || 'OTHER',
+            techno: meta.techno || inferTechno(code),
+            vendor: meta.vendor || inferVendor(code),
+          };
+        });
         setCatalogKpis(kpis);
-        console.log(`[SitesMonitor] Loaded ${kpis.length} canonical KPIs (${rawKpis.length - kpis.length} vendor-prefixed variants filtered out)`);
-        // Auto-apply thresholds from catalog (merge with any saved ones)
+        console.log(`[SitesMonitor] Loaded ${kpis.length} admin-curated KPIs from /kpi-tables/shared`);
+
+        // Auto-apply thresholds from the enriched catalog (only for the
+        // curated codes).
         const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
-        for (const k of json.kpis || []) {
-          if (k.threshold_green != null && k.threshold_orange != null) {
-            thr[k.kpi_id] = { green: k.threshold_green, orange: k.threshold_orange, invert: k.invert || false };
+        for (const code of sharedCodes) {
+          const meta = byId.get(code);
+          if (meta && meta.threshold_green != null && meta.threshold_orange != null) {
+            thr[code] = { green: meta.threshold_green, orange: meta.threshold_orange, invert: meta.invert || false };
           }
         }
         if (Object.keys(thr).length > 0) {
           setCatalogThresholds(thr);
           setKpiThresholds(prev => {
-            // Catalog thresholds as base, user-saved overrides on top
             const merged = { ...thr, ...prev };
             return merged;
           });
