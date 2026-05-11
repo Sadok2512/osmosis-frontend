@@ -7898,13 +7898,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       setCoverageData(null);
       return;
     }
-    const bbox: BboxQuery = {
+    const bbox = {
       minLng: bounds.getWest(),
       minLat: bounds.getSouth(),
       maxLng: bounds.getEast(),
       maxLat: bounds.getNorth(),
       zoom: viewport.zoom,
-    };
+    } as BboxQuery;
     const ctrl = new AbortController();
     setCoverageStatus('loading');
     setCoverageError('');
