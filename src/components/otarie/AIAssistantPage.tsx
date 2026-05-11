@@ -25,17 +25,30 @@ import { createDefaultChart, CHART_COLORS } from '@/components/bi/biTypes';
 import { getStoredSession } from '@/services/adminAuth';
 const InlineMap = lazy(() => import('./chat-visualizations/InlineMap'));
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
+// Path A spec rename (2026-05-11) — canonical 6 agents.
+// Legacy ids kept in the type union + META so cached session messages still render.
+// New code should only emit canonical ids; legacy ones display with an "(ex-X)" suffix.
+type AgentId =
+  | 'OSMOSIS' | 'RCAI' | 'OPTIMUS' | 'AEGIS' | 'EXA' | 'ECHO'
+  // Backward-compat aliases (do not use in new code):
+  | 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC';
 type Msg = ChatMessage;
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
-  PULSE: { emoji: '📡', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
-  TRACE: { emoji: '🔧', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
-  SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
-  TOPO: { emoji: '🗼', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
-  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
-  ANALYTIC: { emoji: '📊', label: 'ANALYTIC', color: 'hsl(190, 70%, 50%)' },
+  // Canonical 6
   OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
+  RCAI:    { emoji: '🔍', label: 'RCAI',    color: 'hsl(265, 70%, 60%)' },
+  OPTIMUS: { emoji: '⚙️', label: 'OPTIMUS', color: 'hsl(35, 90%, 50%)' },
+  AEGIS:   { emoji: '🛡️', label: 'AEGIS',   color: 'hsl(0, 80%, 55%)' },
+  EXA:     { emoji: '📤', label: 'EXA',     color: 'hsl(190, 70%, 50%)' },
+  ECHO:    { emoji: '📊', label: 'ECHO',    color: 'hsl(150, 65%, 50%)' },
+  // Backward-compat aliases — legacy session messages render with their new canonical color/emoji
+  PULSE:    { emoji: '🔍', label: 'RCAI (ex-PULSE)',    color: 'hsl(265, 70%, 60%)' },
+  TRACE:    { emoji: '🔍', label: 'RCAI (ex-TRACE)',    color: 'hsl(265, 70%, 60%)' },
+  SENTINEL: { emoji: '🔍', label: 'RCAI (ex-SENTINEL)', color: 'hsl(265, 70%, 60%)' },
+  TOPO:     { emoji: '🔍', label: 'RCAI (ex-TOPO)',     color: 'hsl(265, 70%, 60%)' },
+  PARMY:    { emoji: '⚙️', label: 'OPTIMUS (ex-PARMY)', color: 'hsl(35, 90%, 50%)' },
+  ANALYTIC: { emoji: '📊', label: 'ECHO (ex-ANALYTIC)', color: 'hsl(150, 65%, 50%)' },
 };
 
 function extractAgent(content: string): { agent: AgentId | null; cleanContent: string } {
@@ -270,7 +283,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
     if (effectiveModel !== configuredModel) addDebugLog(`Model fallback: ${configuredModel || '(none)'} → ${effectiveModel}`);
 
     const controller = new AbortController();
-    const timeoutMs = 300000; // 5 min for PARMY fuzzy + SQL
+    const timeoutMs = 300000; // 5 min for OPTIMUS fuzzy + SQL (ex-PARMY)
     const timeoutId = setTimeout(() => { addDebugLog(`⏱️ Timeout ${timeoutMs / 1000}s`); controller.abort(); }, timeoutMs);
 
     // Single offline-state message reused for every "service unreachable"
@@ -914,7 +927,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                           <FeedbackButtons
                             sessionId={activeSessionId || ''}
                             messageIndex={i}
-                            agent={msg.agent || 'PULSE'}
+                            agent={msg.agent || 'OSMOSIS'}
                             userQuestion={i > 0 ? messages[i - 1]?.content || '' : ''}
                             assistantResponse={msg.content}
                           />
