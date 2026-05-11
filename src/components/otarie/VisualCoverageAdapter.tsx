@@ -25,6 +25,12 @@ import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
 // surface is small (setEnabled / rebuild / destroy / on / isEnabled).
 import { initVisualCoverage } from '@/coverage/coverage-layer.js';
 
+// Visual Coverage cap (2026-05-11). Bumped from 1500 → 10000 m so dense
+// metropolitan zones (Aix/Marseille) get edge-to-edge wedge pavage via
+// the adaptive-radius clipping in coverage.js; rural sites with no
+// neighbour within 20 km keep a full 10 km disk.
+const VC_MAX_RADIUS_METERS = 10000;
+
 interface Bounds { minLng: number; minLat: number; maxLng: number; maxLat: number; }
 
 /** Threshold rule that converts a numeric KPI value into a tier. With
@@ -92,7 +98,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   bbox,
   techno,
   vendor,
-  maxRadiusMeters = 1500,
+  maxRadiusMeters = VC_MAX_RADIUS_METERS,
   kpiCode,
   kpiValueMap,
   kpiThresholds,
