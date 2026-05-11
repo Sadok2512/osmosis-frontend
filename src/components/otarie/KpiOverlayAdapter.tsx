@@ -179,7 +179,12 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         cells,
         kpiValues: kpiValuesForBuild,
         view: { selectedKpis: [kpiName] },
-        options: { maxRadiusMeters: 5000 },
+        // 15 km cap: large enough that for any realistic inter-site
+        // distance the Voronoï bisector clips before the radial cap
+        // does. Effect: continuous edge-to-edge pavage in dense AND
+        // suburban zones; only true wilderness (neighbour >30 km) sees
+        // a circular boundary.
+        options: { maxRadiusMeters: 15000 },
       });
     } catch (err) {
       // eslint-disable-next-line no-console

@@ -8243,13 +8243,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             tooltips, panel; React just passes the bbox + enabled flag. */}
         <VisualCoverageAdapter
           enabled={showVisualCoverage}
-          panelMount={coveragePanelNode}
+          // Hide the VC panel ("sites calc / cells / neighbors used")
+          // when a KPI Overlay view is active — VC is in mutex OFF then,
+          // and an empty 0/0/0 panel just lies about what's on screen.
+          // Standalone VC toggle (no KPI view) keeps its panel.
+          panelMount={activeKpiOverlayView ? null : coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
-          // 2026-05-11 v6.3.0 — KPI tier override moved out of VC:
-          // KpiOverlayAdapter now owns the KPI-coloured rendering via
-          // its own per-cell Voronoï layer (buildKpiOverlay direct).
-          // VC keeps its disk+wedge look for the standalone toggle.
         />
         {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
             Calls buildKpiOverlay() directly for the per-cell Voronoï
