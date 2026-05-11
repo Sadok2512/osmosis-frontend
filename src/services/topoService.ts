@@ -1780,8 +1780,10 @@ export interface CoverageCell {
   band: string;
   vendor: string;
   /** KPI bucket. Server returns 'green' uniformly today (UX A.i, 2026-05-11);
-   *  proper sourcing from ClickHouse kpi_15m is a follow-up. */
-  kpi: 'green' | 'orange' | 'red';
+   *  the front-end may override per cell after fetch when a KPI Overlay
+   *  view is active — falling back to 'unknown' (No-data grey) for cells
+   *  missing a value in the active KPI map. */
+  kpi: 'green' | 'orange' | 'red' | 'unknown';
 }
 
 export interface CoverageCellsResponse {

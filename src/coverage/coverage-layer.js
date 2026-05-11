@@ -22,10 +22,15 @@
 import { buildSiteCoverage } from './coverage.js';
 import { mountCoveragePanel } from './coverage-panel.js';
 
+// 2026-05-11 — palette aligned with the legacy KPI legend tiers used in
+// SitesMonitor (Bon / Moyen / Critique). `red` is intentionally a violet
+// here because the legacy "Critique" tier uses a violet swatch, not red.
+// `unknown` is the No-data fallback (neutral grey).
 const KPI_COLOR = {
-  green:  '#3ddc97',
-  orange: '#ffa53b',
-  red:    '#ff5470',
+  green:   '#3ddc97',
+  orange:  '#e8862c',
+  red:     '#9b59b6',
+  unknown: '#888888',
 };
 
 export function initVisualCoverage(options) {

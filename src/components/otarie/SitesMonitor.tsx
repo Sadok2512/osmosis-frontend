@@ -7976,10 +7976,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           period: [kpiCfg.dateFrom, kpiCfg.dateTo],
           selectedKpis: kpiList,
         });
-        // Issue 2 fix (2026-05-11): KPI Overlay (per-cell Voronoi) and
-        // Visual Coverage (site footprint + wedges) compete for the same
-        // map surface. Make them mutually exclusive — the KPI view wins.
-        setShowVisualCoverage(false);
+        // 2026-05-11 revert of v6.1.2 mutex: KPI Overlay now reuses the
+        // Visual Coverage geometry (site footprint + wedges) and just
+        // re-colours wedges by KPI tier. Both layers cohabit — VC must
+        // be on for the user to see the result.
+        setShowVisualCoverage(true);
       }
     } else if ((settings as any).viewType && (settings as any).viewType !== 'kpi_overlay') {
       // Switching away from a KPI Overlay view ⇒ retire the layer.
@@ -8245,22 +8246,33 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           panelMount={coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
+          // 2026-05-11 — when a KPI Overlay view is active, drive the
+          // wedge colour via the per-cell KPI tier (Bon / Moyen / Critique
+          // / No-data). Otherwise the wedges keep their default backend
+          // colour (always 'green' today). The adapter no-ops the colour
+          // override when these props are nullish, so this is safe in
+          // the no-KPI-view case.
+          kpiCode={activeKpiOverlayView ? mapKpi : undefined}
+          kpiValueMap={activeKpiOverlayView ? kpiValues : null}
+          kpiThresholds={activeKpiOverlayView ? currentThreshold : null}
         />
-        {/* KPI Overlay adapter — bridges the drop-in KPI Overlay JS module
-            to react-leaflet. Active when a saved view of type kpi_overlay
-            is loaded. Catalog is derived from MAP_KPIS so polygons get
-            the right units / directions for normalization. Legend is
-            INTENTIONALLY NOT mounted (panelMount=null, 2026-05-11
-            revert): the legacy floating legend in this file owns the UI
-            (INTENSITÉ / TRANSP / Bon-Moyen-Mauvais), the module just
-            paints the Voronoï polygons. */}
-        <KpiOverlayAdapter
-          enabled={activeKpiOverlayView != null}
-          panelMount={null}
-          bbox={coverageBbox}
-          catalogSource={MAP_KPIS}
-          view={activeKpiOverlayView}
-        />
+        {/* KPI Overlay adapter — DISABLED on 2026-05-11. The KPI Overlay
+            view now drives the Visual Coverage wedges' colour through
+            its `kpiValueMap` prop instead of rendering a separate
+            per-cell Voronoï layer (UX choice: "I want polygons adjacent
+            between cells, exactly like Visual Coverage"). The
+            drop-in KPI module files remain in src/coverage/kpi-*.js
+            unused but kept verbatim, ready to re-enable if a continuous
+            gradient mode is wanted later. */}
+        {false && (
+          <KpiOverlayAdapter
+            enabled={activeKpiOverlayView != null}
+            panelMount={null}
+            bbox={coverageBbox}
+            catalogSource={MAP_KPIS}
+            view={activeKpiOverlayView}
+          />
+        )}
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
@@ -13979,10 +13991,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           period: [cfg.dateFrom, cfg.dateTo],
                           selectedKpis: kpiList,
                         });
-                        // Issue 2 fix (2026-05-11): mutually exclusive with
-                        // Visual Coverage to avoid the wedge layer covering
-                        // the KPI Voronoi tessellation.
-                        setShowVisualCoverage(false);
+                        // 2026-05-11 revert of v6.1.2 mutex: KPI Overlay
+                        // now drives the Visual Coverage wedges' colour
+                        // via per-cell KPI tier. VC must stay enabled.
+                        setShowVisualCoverage(true);
                       }
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);

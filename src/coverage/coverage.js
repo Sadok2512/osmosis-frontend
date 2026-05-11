@@ -36,7 +36,11 @@ const DEFAULTS = {
   wedgeSegments: 12,
 };
 
-const KPI_RANK = { green: 0, orange: 1, red: 2 };
+// 'unknown' is the No-data tier (grey) used when every cell of a site is
+// missing a KPI reading. We rank it BELOW 'green' so any real reading
+// promotes the site out of "no data" — i.e. a site with 1 green + 5
+// unknown cells is shown green, not grey.
+const KPI_RANK = { unknown: -1, green: 0, orange: 1, red: 2 };
 
 //#region wedge-dedup
 // Multiple cells per site can share the same azimuth (different techs/bands
@@ -237,13 +241,15 @@ export function buildSiteCoverage(cells, opts = {}) {
     const footprint = polygonIntersection(disk, vPoly);
     if (!footprint || footprint.length < 3) continue;
 
-    // Worst KPI across site's cells (red > orange > green).
-    let kpi = 'green';
+    // Worst KPI across site's cells (red > orange > green > unknown).
+    // Start from 'unknown' so a site with every cell missing a reading
+    // surfaces as No-data (grey) instead of falsely green.
+    let kpi = 'unknown';
     const technos = new Set();
     for (const c of s.cells) {
       if (c.tech) technos.add(c.tech);
-      const rank = KPI_RANK[c.kpi] ?? 0;
-      if (rank > (KPI_RANK[kpi] ?? 0)) kpi = c.kpi;
+      const rank = KPI_RANK[c.kpi] ?? KPI_RANK.unknown;
+      if (rank > (KPI_RANK[kpi] ?? KPI_RANK.unknown)) kpi = c.kpi;
     }
 
     const nNeighbors = neighborGraph[i] ? neighborGraph[i].size : 0;
