@@ -5741,16 +5741,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         const resp = await fetch(url, { headers: getVpsProxyHeaders() });
         if (!resp.ok) throw new Error(`catalog fetch failed: ${resp.status}`);
         const json = await resp.json();
-        const kpis = (json.kpis || []).map((k: any) => ({
-          id: k.kpi_id,
-          label: k.label,
-          unit: k.unit || '',
-          category: k.category || 'OTHER',
-          techno: k.techno || 'all',
-          vendor: k.vendor || '',
-        }));
+        // Filter out vendor-prefixed variants (Nokia__&_*, Ericsson__&_*,
+        // Huawei__&_*) on 2026-05-11. The UI dropdown should only expose
+        // the canonical KPI name (e.g. `4G_LTE_DCR_VoLTE`); the engine
+        // already aggregates across vendors when called with the bare
+        // name. Same convention as the Investigator page.
+        const VENDOR_PREFIX_RE = /^(Nokia|Ericsson|Huawei)__&_/i;
+        const rawKpis = (json.kpis || []) as any[];
+        const kpis = rawKpis
+          .filter((k: any) => !VENDOR_PREFIX_RE.test(k.kpi_id || ''))
+          .map((k: any) => ({
+            id: k.kpi_id,
+            label: k.label,
+            unit: k.unit || '',
+            category: k.category || 'OTHER',
+            techno: k.techno || 'all',
+            vendor: k.vendor || '',
+          }));
         setCatalogKpis(kpis);
-        console.log(`[SitesMonitor] Loaded ${kpis.length} KPIs from backend catalog`);
+        console.log(`[SitesMonitor] Loaded ${kpis.length} canonical KPIs (${rawKpis.length - kpis.length} vendor-prefixed variants filtered out)`);
         // Auto-apply thresholds from catalog (merge with any saved ones)
         const thr: Record<string, { green: number; orange: number; invert?: boolean }> = {};
         for (const k of json.kpis || []) {
