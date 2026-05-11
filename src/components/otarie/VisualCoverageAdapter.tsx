@@ -33,16 +33,6 @@ const VC_MAX_RADIUS_METERS = 10000;
 
 interface Bounds { minLng: number; minLat: number; maxLng: number; maxLat: number; }
 
-/** Threshold rule that converts a numeric KPI value into a tier. With
- *  `invert: false` (higher = better):  value ≥ green → 'green', else
- *  value ≥ orange → 'orange', else 'red'. With `invert: true`
- *  (lower = better) the comparisons flip. */
-export interface KpiThresholds {
-  green: number;
-  orange: number;
-  invert?: boolean;
-}
-
 interface Props {
   enabled: boolean;
   /** DOM node where the module mounts its vanilla panel (toggle + status
@@ -58,15 +48,6 @@ interface Props {
   /** Forwarded to `initVisualCoverage`. Defaults match the module's
    *  own DEFAULTS so callers don't have to think about them. */
   maxRadiusMeters?: number;
-  /** Optional KPI-tier coloring (2026-05-11). When provided, the
-   *  adapter post-processes the fetched cell list and replaces each
-   *  `cell.kpi` with the tier derived from
-   *  `kpiValueMap.get(cell.id) → thresholds`. Cells with no value land
-   *  in tier `'unknown'` (grey). The wedge palette already knows about
-   *  green / orange / red / unknown. */
-  kpiCode?: string;
-  kpiValueMap?: Map<string, number> | null;
-  kpiThresholds?: KpiThresholds | null;
   /** Optional callbacks so the parent can drive a custom status UI. */
   onCellsLoaded?: (count: number) => void;
   onError?: (message: string) => void;
@@ -77,21 +58,6 @@ interface Props {
   onEnabledChange?: (enabled: boolean) => void;
 }
 
-/** Map a numeric value to a 3-tier code per the threshold rule. Returns
- *  `'unknown'` when value is null/undefined/NaN — the wedge renderer
- *  paints that with the No-data grey. */
-function valueToTier(value: number | null | undefined, t: KpiThresholds | null | undefined): 'green' | 'orange' | 'red' | 'unknown' {
-  if (!t || value == null || !Number.isFinite(value)) return 'unknown';
-  if (t.invert) {
-    if (value <= t.green)  return 'green';
-    if (value <= t.orange) return 'orange';
-    return 'red';
-  }
-  if (value >= t.green)  return 'green';
-  if (value >= t.orange) return 'orange';
-  return 'red';
-}
-
 const VisualCoverageAdapter: React.FC<Props> = ({
   enabled,
   panelMount,
@@ -99,9 +65,6 @@ const VisualCoverageAdapter: React.FC<Props> = ({
   techno,
   vendor,
   maxRadiusMeters = VC_MAX_RADIUS_METERS,
-  kpiCode,
-  kpiValueMap,
-  kpiThresholds,
   onCellsLoaded,
   onError,
   onEnabledChange,
@@ -164,65 +127,14 @@ const VisualCoverageAdapter: React.FC<Props> = ({
     return () => sw.removeEventListener('click', handler);
   }, [panelMount, onEnabledChange]);
 
-  // Deterministic signature of the active KPI-tier config — used so the
-  // fetch effect rebuilds the cells (with re-coloring) when the KPI
-  // selection changes inside the same bbox. 4 scalars, never values
-  // themselves (avoids infinite re-render if the Map is rebuilt with
-  // equal contents but a new reference).
-  const kpiSig = (() => {
-    if (!kpiCode || !kpiValueMap || kpiValueMap.size === 0) return '';
-    let min = Infinity, max = -Infinity;
-    for (const v of kpiValueMap.values()) {
-      if (Number.isFinite(v)) {
-        if (v < min) min = v;
-        if (v > max) max = v;
-      }
-    }
-    return `${kpiCode}|${kpiValueMap.size}|${Number.isFinite(min) ? min : 'na'}|${Number.isFinite(max) ? max : 'na'}`;
-  })();
-
-  // ── fetch cells whenever bbox / filters / KPI signature change ──
+  // ── fetch cells whenever bbox / filters change ──
   useEffect(() => {
     if (!enabled || !bbox || !ctlRef.current) return;
     const ctrl = new AbortController();
     fetchCellsForCoverage(bbox, { techno, vendor, signal: ctrl.signal })
       .then(({ cells }) => {
-        // KPI-tier override (2026-05-11). When a kpiValueMap is provided
-        // by the parent, replace `cell.kpi` per cell — 'green' / 'orange'
-        // / 'red' / 'unknown'. The module's wedge renderer reads .kpi
-        // and pulls the matching colour from KPI_COLOR, so no module
-        // change is needed beyond the palette tweak in coverage-layer.js.
-        let coloured = cells;
-        if (kpiValueMap && kpiThresholds) {
-          coloured = cells.map((c) => ({
-            ...c,
-            kpi: valueToTier(kpiValueMap.get(c.id), kpiThresholds),
-          }));
-        }
-        //DIAG — KPI tier override visibility (2026-05-11). Logs the
-        //DIAG state of the value map vs the fetched cells so we can tell
-        //DIAG whether (a) the map is empty, (b) the keys don't match, or
-        //DIAG (c) every cell lands in a single tier. Remove once the
-        //DIAG colouring is validated.
-        // eslint-disable-next-line no-console
-        console.log('[diag] VC override:', {
-          hasValueMap: !!kpiValueMap,
-          mapSize: kpiValueMap?.size ?? 0,
-          mapKeysSample: kpiValueMap ? [...kpiValueMap.keys()].slice(0, 3) : [],
-          thresholds: kpiThresholds,
-          sampleCellId: cells[0]?.id,
-          sampleValue: kpiValueMap?.get?.(cells[0]?.id),
-          sampleTier: coloured[0]?.kpi,
-          tierDistribution: coloured.reduce((acc: Record<string, number>, c: any) => {
-            const k = c.kpi || 'unknown';
-            acc[k] = (acc[k] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>),
-          totalCellsWithValue: kpiValueMap ? cells.filter(c => kpiValueMap.has(c.id)).length : 0,
-          totalCellsWithoutValue: kpiValueMap ? cells.filter(c => !kpiValueMap.has(c.id)).length : cells.length,
-        });
-        ctlRef.current?.rebuild?.(coloured);
-        onCellsLoaded?.(coloured.length);
+        ctlRef.current?.rebuild?.(cells);
+        onCellsLoaded?.(cells.length);
       })
       .catch((err) => {
         if (err?.name === 'AbortError') return;
@@ -231,7 +143,7 @@ const VisualCoverageAdapter: React.FC<Props> = ({
         onError?.(msg);
       });
     return () => ctrl.abort();
-  }, [enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor, kpiSig, kpiThresholds?.green, kpiThresholds?.orange, kpiThresholds?.invert]);
+  }, [enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat, techno, vendor]);
 
   return null; // imperative — nothing to render
 };

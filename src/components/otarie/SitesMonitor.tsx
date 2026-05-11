@@ -7976,11 +7976,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           period: [kpiCfg.dateFrom, kpiCfg.dateTo],
           selectedKpis: kpiList,
         });
-        // 2026-05-11 revert of v6.1.2 mutex: KPI Overlay now reuses the
-        // Visual Coverage geometry (site footprint + wedges) and just
-        // re-colours wedges by KPI tier. Both layers cohabit — VC must
-        // be on for the user to see the result.
-        setShowVisualCoverage(true);
+        // 2026-05-11 second revert (v6.3.0): KPI Overlay drops the
+        // VC disk+wedge hybrid and goes back to its own per-cell
+        // Voronoï pavage (KpiOverlayAdapter direct buildKpiOverlay
+        // path). VC must be OFF so the two layers don't compete.
+        setShowVisualCoverage(false);
       }
     } else if ((settings as any).viewType && (settings as any).viewType !== 'kpi_overlay') {
       // Switching away from a KPI Overlay view ⇒ retire the layer.
@@ -8246,33 +8246,25 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           panelMount={coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
-          // 2026-05-11 — when a KPI Overlay view is active, drive the
-          // wedge colour via the per-cell KPI tier (Bon / Moyen / Critique
-          // / No-data). Otherwise the wedges keep their default backend
-          // colour (always 'green' today). The adapter no-ops the colour
-          // override when these props are nullish, so this is safe in
-          // the no-KPI-view case.
-          kpiCode={activeKpiOverlayView ? mapKpi : undefined}
-          kpiValueMap={activeKpiOverlayView ? kpiValues : null}
-          kpiThresholds={activeKpiOverlayView ? currentThreshold : null}
+          // 2026-05-11 v6.3.0 — KPI tier override moved out of VC:
+          // KpiOverlayAdapter now owns the KPI-coloured rendering via
+          // its own per-cell Voronoï layer (buildKpiOverlay direct).
+          // VC keeps its disk+wedge look for the standalone toggle.
         />
-        {/* KPI Overlay adapter — DISABLED on 2026-05-11. The KPI Overlay
-            view now drives the Visual Coverage wedges' colour through
-            its `kpiValueMap` prop instead of rendering a separate
-            per-cell Voronoï layer (UX choice: "I want polygons adjacent
-            between cells, exactly like Visual Coverage"). The
-            drop-in KPI module files remain in src/coverage/kpi-*.js
-            unused but kept verbatim, ready to re-enable if a continuous
-            gradient mode is wanted later. */}
-        {false && (
-          <KpiOverlayAdapter
-            enabled={activeKpiOverlayView != null}
-            panelMount={null}
-            bbox={coverageBbox}
-            catalogSource={MAP_KPIS}
-            view={activeKpiOverlayView}
-          />
-        )}
+        {/* KPI Overlay adapter — RE-ENABLED on 2026-05-11 (v6.3.0).
+            Calls buildKpiOverlay() directly for the per-cell Voronoï
+            pavage (continuous territory tessellation), then overrides
+            polygon colour with the 3-tier mapping (Bon/Moyen/Critique/
+            No-data) computed from kpiValues + currentThreshold. The
+            previous "hybrid via VC wedges" approach was rejected by the
+            user (UX feedback: "polygons must tile edge-to-edge"). */}
+        <KpiOverlayAdapter
+          enabled={activeKpiOverlayView != null}
+          bbox={coverageBbox}
+          view={activeKpiOverlayView}
+          kpiValueMap={kpiValues}
+          kpiThresholds={currentThreshold}
+        />
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
@@ -13991,10 +13983,11 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           period: [cfg.dateFrom, cfg.dateTo],
                           selectedKpis: kpiList,
                         });
-                        // 2026-05-11 revert of v6.1.2 mutex: KPI Overlay
-                        // now drives the Visual Coverage wedges' colour
-                        // via per-cell KPI tier. VC must stay enabled.
-                        setShowVisualCoverage(true);
+                        // 2026-05-11 second revert (v6.3.0): KPI Overlay
+                        // owns its own per-cell Voronoï layer again; VC
+                        // is shut down so the two don't paint over each
+                        // other.
+                        setShowVisualCoverage(false);
                       }
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
