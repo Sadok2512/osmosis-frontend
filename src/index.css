@@ -6,6 +6,12 @@
 @import "./coverage/coverage-panel.css";
 @import "./coverage/coverage-theme-override.css";
 
+/* KPI Overlay drop-in module (2026-05-11). Shares `.cov-tt*` classes with
+ * the Visual Coverage tooltip — the existing theme override already
+ * restyles them. The KPI legend uses its own `.cov-kpi-legend-*` classes
+ * which we keep at the module's default look (per UX choice). */
+@import "./coverage/kpi-overlay.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

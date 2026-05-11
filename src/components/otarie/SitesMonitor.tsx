@@ -167,6 +167,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import VisualCoverageAdapter from './VisualCoverageAdapter';
+import KpiOverlayAdapter, { type KpiOverlayView } from './KpiOverlayAdapter';
 import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
@@ -4211,6 +4212,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // and threaded down to DashboardInventoryTab.
   const [showVisualCoverage, setShowVisualCoverage] = useState(false);
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
+  // KPI Overlay layer (2026-05-11) — driven by saved views of type
+  // `kpi_overlay`. State holds the active view (or null when no KPI
+  // overlay view is selected); the floating legend mounts into
+  // `kpiLegendNode` (bottom-right of the map per UX choice).
+  const [activeKpiOverlayView, setActiveKpiOverlayView] = useState<KpiOverlayView | null>(null);
+  const [kpiLegendNode, setKpiLegendNode] = useState<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || FRANCE_DEFAULT_ZOOM });
   const [initialCenter] = useState<[number, number] | null>(() => {
     if (!isValidMapCoords(mapCache.cachedCenter)) return null;
@@ -7951,6 +7958,29 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     if ((settings as any).showVisualCoverage !== undefined) {
       setShowVisualCoverage(Boolean((settings as any).showVisualCoverage));
     }
+    // KPI Overlay (Voronoï coloured by KPI value, drop-in module 2026-05-11).
+    // The dashboard sidebar onApplyView path sets the SAME state via its
+    // own `kpi_overlay` block; this branch handles the legacy "Views"
+    // menu (handleLoadView) so both routes activate the layer.
+    const kpiCfg = (settings as any).kpiOverlayConfig;
+    if ((settings as any).viewType === 'kpi_overlay' && kpiCfg) {
+      const kpiList: string[] = Array.isArray(kpiCfg.kpis)
+        ? kpiCfg.kpis.map((k: any) => k?.kpiKey).filter((x: any): x is string => typeof x === 'string')
+        : [];
+      const lvl = kpiCfg.level === 'cell' ? 'Cellule' : kpiCfg.level === 'site' ? 'Site' : 'Cellule';
+      if (kpiList.length > 0 && kpiCfg.dateFrom && kpiCfg.dateTo) {
+        setActiveKpiOverlayView({
+          name: (settings as any).name || 'KPI Overlay',
+          tech: (kpiCfg.technology as '4G' | '5G') || '4G',
+          level: lvl,
+          period: [kpiCfg.dateFrom, kpiCfg.dateTo],
+          selectedKpis: kpiList,
+        });
+      }
+    } else if ((settings as any).viewType && (settings as any).viewType !== 'kpi_overlay') {
+      // Switching away from a KPI Overlay view ⇒ retire the layer.
+      setActiveKpiOverlayView(null);
+    }
   }, [sectorColorMode]);
 
   const siteRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -8211,6 +8241,18 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           panelMount={coveragePanelNode}
           bbox={coverageBbox}
           onEnabledChange={setShowVisualCoverage}
+        />
+        {/* KPI Overlay adapter — bridges the drop-in KPI Overlay JS module
+            to react-leaflet. Active when a saved view of type kpi_overlay
+            is loaded. Catalog is derived from MAP_KPIS so the legend
+            shows the right units / directions. Legend mounts into the
+            floating div at bottom-right of the map. */}
+        <KpiOverlayAdapter
+          enabled={activeKpiOverlayView != null}
+          panelMount={kpiLegendNode}
+          bbox={coverageBbox}
+          catalogSource={MAP_KPIS}
+          view={activeKpiOverlayView}
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
@@ -10017,6 +10059,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           return selectedSite ? <TiltOverlay site={selectedSite} visible={true} /> : null;
         })()}
       </MapContainer>
+
+      {/* KPI Overlay floating legend — bottom-right of the map (UX choice b
+          2026-05-11). The drop-in module renders its gradient bar + 5
+          ticks + status pill into this `<div>` via panelMount. Shown only
+          when a KPI Overlay view is active. */}
+      {activeKpiOverlayView && (
+        <div
+          ref={setKpiLegendNode}
+          className="absolute bottom-3 right-3 z-[1100] pointer-events-auto"
+        />
+      )}
 
       {/* Coverage simulation overlay kept in right panel only */}
 
@@ -13905,6 +13958,22 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         setParamPanelOpen(false);
                       }
                       const cfg = settings.kpiOverlayConfig;
+                      // Activate the Voronoï KPI Overlay layer (drop-in
+                      // module) in parallel with the existing per-sector
+                      // KPI coloring. Both consume `cfg.kpis`, so the two
+                      // visualisations stay in sync.
+                      const kpiList = Array.isArray(cfg.kpis)
+                        ? cfg.kpis.map((k: any) => k?.kpiKey).filter((x: any): x is string => typeof x === 'string')
+                        : [];
+                      if (kpiList.length > 0 && cfg.dateFrom && cfg.dateTo) {
+                        setActiveKpiOverlayView({
+                          name: settings.name || 'KPI Overlay',
+                          tech: (cfg.technology as '4G' | '5G') || '4G',
+                          level: cfg.level === 'site' ? 'Site' : 'Cellule',
+                          period: [cfg.dateFrom, cfg.dateTo],
+                          selectedKpis: kpiList,
+                        });
+                      }
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
                       if (cfg.dateFrom) setKpiDateFrom(cfg.dateFrom);
@@ -13938,7 +14007,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       if (Object.keys(viewThresholds).length > 0) {
                         setKpiThresholds(prev => ({ ...prev, ...viewThresholds }));
                       }
-                    } else if (settings.viewType === 'parameter' && settings.paramFilters) {
+                    } else {
+                      // Switching away from kpi_overlay (or dashboard-only) ⇒
+                      // retire the Voronoï KPI overlay layer. Without this,
+                      // the legend keeps the last view's data and the polygons
+                      // linger over the basemap until the next view loads.
+                      if (settings.viewType !== 'kpi_overlay') {
+                        setActiveKpiOverlayView(null);
+                      }
+                    }
+                    if (settings.viewType === 'parameter' && settings.paramFilters) {
                       // Activate parameter mode with the view's parameter config
                       const pf = settings.paramFilters;
                       if (pf.parameter) {

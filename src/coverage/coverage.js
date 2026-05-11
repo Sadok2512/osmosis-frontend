@@ -173,6 +173,37 @@ export function buildSiteCoverage(cells, opts = {}) {
     { neighborLimit: cfg.neighborLimit },
   );
 
+  //#region adaptive-radius
+  // 2026-05-11. Hard-coded backend cell.maxRadius (2500 m) produced
+  // footprints far larger than the actual cell coverage in suburban/
+  // rural zones (sites ~3-5 km apart yielded wedges that overlapped
+  // the basemap edge-to-edge). Instead of trusting the backend value
+  // or `cfg.maxRadiusMeters` alone, compute an adaptive cap per site
+  // from the nearest-neighbour distance: half of that distance is the
+  // largest disk that can fit without crossing into the neighbour.
+  // Clamped to [MIN_R, cfg.maxRadiusMeters] so dense urban sites stay
+  // legible and isolated sites still get a sensible default.
+  const NEIGHBOR_FRAC = 0.5;
+  const MIN_R = 200;
+  const adaptiveR = new Array(sites.length);
+  for (let i = 0; i < sites.length; i++) {
+    let nearest2 = Infinity;
+    for (let j = 0; j < sites.length; j++) {
+      if (i === j) continue;
+      const dx = sites[j].x - sites[i].x;
+      const dy = sites[j].y - sites[i].y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 < nearest2) nearest2 = d2;
+    }
+    const nearest = Number.isFinite(nearest2) ? Math.sqrt(nearest2) : Infinity;
+    // Cap at cfg.maxRadiusMeters when the nearest neighbour is far
+    // away (rural / isolated). Floor at MIN_R so urban-dense sites
+    // don't shrink to a point.
+    const r = Math.min(cfg.maxRadiusMeters, Math.max(MIN_R, nearest * NEIGHBOR_FRAC));
+    adaptiveR[i] = r;
+  }
+  //#endregion adaptive-radius
+
   // ── 4. Footprints + wedges ──
   const siteFeatures = [];
   const wedgeFeatures = [];
@@ -194,11 +225,12 @@ export function buildSiteCoverage(cells, opts = {}) {
     const vPoly = polys[i];
     if (!vPoly || vPoly.length < 3) continue;
 
-    // Per-site disk radius = max(per-cell maxRadius, global default).
-    let R = cfg.maxRadiusMeters;
-    for (const c of s.cells) {
-      if (Number.isFinite(c.maxRadius) && c.maxRadius > R) R = c.maxRadius;
-    }
+    // Per-site disk radius — adaptive (half-distance to nearest site,
+    // clamped). The previous "max across cells" rule was thrown away
+    // on 2026-05-11 because the backend hard-codes 2500 m on every
+    // cell which silently dominated the global cfg cap and produced
+    // gigantic footprints in semi-rural zones.
+    const R = adaptiveR[i];
 
     // footprint = disk ∩ site-Voronoi.
     const disk = approximateDisk({ x: s.x, y: s.y }, R, cfg.diskSegments);
@@ -243,7 +275,10 @@ export function buildSiteCoverage(cells, opts = {}) {
       // which is already the base footprint. Drawing them on top would
       // just hide the sector geometry the operator came here for.
       if (bw >= 180) continue;
-      const cellRadius = Number.isFinite(c.maxRadius) ? c.maxRadius : R;
+      // Wedge radius cannot exceed the site footprint cap (R) — if the
+      // backend hands us a larger per-cell maxRadius the disk would
+      // stick past the footprint and look broken after the intersection.
+      const cellRadius = Number.isFinite(c.maxRadius) ? Math.min(c.maxRadius, R) : R;
       const wedge = approximateWedge(
         { x: s.x, y: s.y },
         cellRadius,

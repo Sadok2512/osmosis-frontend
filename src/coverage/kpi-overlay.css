@@ -1,0 +1,112 @@
+/* kpi-overlay.css — Styles for the KPI Overlay legend + tooltip. */
+
+.cov-kpi-legend {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: "Space Grotesk", sans-serif;
+  color: #1a1a1a;
+  min-width: 320px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.cov-kpi-legend-title {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1a1a1a;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cov-kpi-legend-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: rgba(58, 138, 79, 0.15);
+  color: #3a8a4f;
+}
+.cov-kpi-status-loading {
+  background: rgba(241, 149, 63, 0.15) !important;
+  color: #c97a2a !important;
+}
+.cov-kpi-status-error {
+  background: rgba(217, 76, 90, 0.15) !important;
+  color: #b8334a !important;
+}
+
+.cov-kpi-legend-bar {
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  margin-bottom: 5px;
+}
+
+.cov-kpi-legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  color: #5a5a5a;
+}
+
+.cov-kpi-legend-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: #7a7a7a;
+  margin-top: 6px;
+}
+
+.cov-kpi-legend-direction {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: #9a9a9a;
+  margin-top: 2px;
+}
+
+/* Leaflet tooltip override */
+.leaflet-tooltip.cov-tooltip {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(0, 0, 0, 0.15) !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  color: #1a1a1a !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.leaflet-tooltip.cov-tooltip::before { display: none !important; }
+.cov-tt-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+  font-family: "Space Grotesk", sans-serif;
+}
+.cov-tt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 2px 0;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+.cov-tt-row span { color: #7a7a7a; }
+.cov-tt-row b { color: #1a1a1a; font-weight: 500; }
+.cov-tt-divider { height: 1px; background: rgba(0, 0, 0, 0.1); margin: 6px 0; }
+.cov-tt-kpi-block {
+  background: #f5f3ee;
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-top: 4px;
+}
+.cov-tt-kpi-block .cov-tt-row { margin: 1px 0; }
