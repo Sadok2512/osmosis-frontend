@@ -190,13 +190,13 @@ const SentinelLiveMap: React.FC<Props> = ({ date, apiConnected }) => {
       </div>
 
       {/* Map */}
-      <div className="flex-1 min-h-[480px] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
-        {!apiConnected ? (
-          <div className="h-full flex items-center justify-center text-slate-400 text-sm gap-2">
-            <AlertTriangle className="w-4 h-4" /> Backend hors ligne — pas de données live.
+      <div className="relative flex-1 min-h-[480px] rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+        {!apiConnected && (
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1000] px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] flex items-center gap-1.5 shadow-sm">
+            <AlertTriangle className="w-3.5 h-3.5" /> Backend hors ligne — carte en lecture seule
           </div>
-        ) : (
-          <MapContainer
+        )}
+        <MapContainer
             center={[46.6, 2.3]}
             zoom={6}
             style={{ height: '100%', width: '100%' }}
@@ -232,8 +232,7 @@ const SentinelLiveMap: React.FC<Props> = ({ date, apiConnected }) => {
                 </CircleMarker>
               );
             })}
-          </MapContainer>
-        )}
+        </MapContainer>
       </div>
     </div>
   );
