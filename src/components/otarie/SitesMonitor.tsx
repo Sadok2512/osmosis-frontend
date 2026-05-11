@@ -4214,10 +4214,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [coveragePanelNode, setCoveragePanelNode] = useState<HTMLDivElement | null>(null);
   // KPI Overlay layer (2026-05-11) — driven by saved views of type
   // `kpi_overlay`. State holds the active view (or null when no KPI
-  // overlay view is selected); the floating legend mounts into
-  // `kpiLegendNode` (bottom-right of the map per UX choice).
+  // overlay view is selected). The drop-in module no longer renders
+  // its own legend (panelMount=null on the adapter); the legacy
+  // sectorColorMode==='kpi' floating block owns the legend UI.
   const [activeKpiOverlayView, setActiveKpiOverlayView] = useState<KpiOverlayView | null>(null);
-  const [kpiLegendNode, setKpiLegendNode] = useState<HTMLDivElement | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || FRANCE_DEFAULT_ZOOM });
   const [initialCenter] = useState<[number, number] | null>(() => {
     if (!isValidMapCoords(mapCache.cachedCenter)) return null;
@@ -8248,12 +8248,15 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         />
         {/* KPI Overlay adapter — bridges the drop-in KPI Overlay JS module
             to react-leaflet. Active when a saved view of type kpi_overlay
-            is loaded. Catalog is derived from MAP_KPIS so the legend
-            shows the right units / directions. Legend mounts into the
-            floating div at bottom-right of the map. */}
+            is loaded. Catalog is derived from MAP_KPIS so polygons get
+            the right units / directions for normalization. Legend is
+            INTENTIONALLY NOT mounted (panelMount=null, 2026-05-11
+            revert): the legacy floating legend in this file owns the UI
+            (INTENSITÉ / TRANSP / Bon-Moyen-Mauvais), the module just
+            paints the Voronoï polygons. */}
         <KpiOverlayAdapter
           enabled={activeKpiOverlayView != null}
-          panelMount={kpiLegendNode}
+          panelMount={null}
           bbox={coverageBbox}
           catalogSource={MAP_KPIS}
           view={activeKpiOverlayView}
@@ -10064,16 +10067,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         })()}
       </MapContainer>
 
-      {/* KPI Overlay floating legend — bottom-right of the map (UX choice b
-          2026-05-11). The drop-in module renders its gradient bar + 5
-          ticks + status pill into this `<div>` via panelMount. Shown only
-          when a KPI Overlay view is active. */}
-      {activeKpiOverlayView && (
-        <div
-          ref={setKpiLegendNode}
-          className="absolute bottom-3 right-3 z-[1100] pointer-events-auto"
-        />
-      )}
+      {/* 2026-05-11 revert: the floating mount point for the drop-in
+          module's gradient legend was removed. The legacy per-sector
+          legend (above) is now the only KPI legend on the map. */}
 
       {/* Coverage simulation overlay kept in right panel only */}
 
@@ -11383,11 +11379,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
       </div>
 
       {/* ── KPI Legend + Threshold Editor (floating, bottom-right) ──
-            Hidden when the new Voronoï KPI Overlay view is active (Issue 1
-            fix, 2026-05-11): that view ships its own gradient legend via
-            the drop-in module's `mountKpiLegend`, so the legacy per-sector
-            legend would stack visually in the same corner. */}
-      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && !activeKpiOverlayView && (
+            Restored as the unique KPI legend (2026-05-11 revert): the
+            drop-in module's `mountKpiLegend` is no longer rendered — the
+            user prefers the legacy per-sector legend with INTENSITÉ /
+            TRANSP sliders + Bon/Moyen/Mauvais thresholds. The Voronoï
+            polygon layer from the KPI Overlay module still renders, just
+            without its own legend block. */}
+      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && (
         <div
           className="absolute z-[1001] pointer-events-auto animate-fade-in"
           style={{
