@@ -169,19 +169,25 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     // metres at the bbox-mean latitude so disks are round and bissector
     // angles are correct everywhere.
     //
-    // 1) Deduplicate seeds by rounded (lat, lon): multiple cells at the
-    //    same physical site share coordinates and voronoiCells gives
-    //    degenerate empty polygons for duplicates. We aggregate the
-    //    worst KPI tier across cells of each unique seed and emit ONE
-    //    polygon per seed.
-    const SEED_ROUND = 1e6; // ~10 cm
+    // 1) Build ONE seed per SECTOR — keyed by (siteId, azimuth-bucket
+    //    at 5°). Cells that share both site AND sector (multi-band /
+    //    multi-techno on the same physical antenna) collapse into one
+    //    seed; the worst KPI tier across those cells wins. To get
+    //    distinct polygons for sectors of the same site, we offset
+    //    each seed by `SECTOR_OFFSET_M` metres along its azimuth — the
+    //    bissectors between sector seeds then form a small "star" of
+    //    polygons at the site, opening up toward each azimuth.
+    const SECTOR_BUCKET_DEG = 5;
+    const SECTOR_OFFSET_M = 100;
     type Seed = {
       x: number; y: number;
+      siteLat: number; siteLon: number;
       cellIds: string[];
       siteName: string;
+      siteId: string;
       tech: string;
       band: string;
-      // worst tier across cells of this seed
+      azimuth: number;
       tier: 'green' | 'orange' | 'red' | 'unknown';
       rawValueForLegend: number | null;
     };
@@ -192,19 +198,29 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     const M_PER_DEG_LNG = 111000 * Math.cos((latRefRaw * Math.PI) / 180);
     for (const c of cells) {
       if (!Number.isFinite(c.lat) || !Number.isFinite(c.lon)) continue;
-      const key = `${Math.round(c.lat * SEED_ROUND)}|${Math.round(c.lon * SEED_ROUND)}`;
-      const x = c.lon * M_PER_DEG_LNG;
-      const y = c.lat * M_PER_DEG_LAT;
+      const az = Number.isFinite(c.azimuth) ? ((c.azimuth % 360) + 360) % 360 : 0;
+      const azBucket = Math.round(az / SECTOR_BUCKET_DEG) * SECTOR_BUCKET_DEG;
+      const siteKey = c.siteId || c.siteName || c.id;
+      const key = `${siteKey}|${azBucket}`;
+      // Site centre in flat metres, plus a tiny offset along the
+      // azimuth direction. Bearing convention: 0° = north (+y),
+      // 90° = east (+x). Unit vector = (sin θ, cos θ).
+      const rad = (az * Math.PI) / 180;
+      const sx = c.lon * M_PER_DEG_LNG + Math.sin(rad) * SECTOR_OFFSET_M;
+      const sy = c.lat * M_PER_DEG_LAT + Math.cos(rad) * SECTOR_OFFSET_M;
       const v = kpiValueMap?.get(c.id);
       const cellTier = valueToTier(v, kpiThresholds);
       const acc = seedMap.get(key);
       if (!acc) {
         seedMap.set(key, {
-          x, y,
+          x: sx, y: sy,
+          siteLat: c.lat, siteLon: c.lon,
           cellIds: [c.id],
           siteName: c.siteName,
+          siteId: c.siteId,
           tech: c.tech,
           band: c.band,
+          azimuth: az,
           tier: cellTier,
           rawValueForLegend: Number.isFinite(v as number) ? (v as number) : null,
         });
@@ -266,9 +282,11 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         properties: {
           id: s.cellIds[0],
           cellIds: s.cellIds,
+          siteId: s.siteId,
           siteName: s.siteName,
           tech: s.tech,
           band: s.band,
+          azimuth: s.azimuth,
           tier: s.tier,
           tierColor: TIER_COLOR[s.tier],
           rawValue: s.rawValueForLegend,
@@ -308,13 +326,16 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         const p = feature.properties;
         const valStr = p.rawValue == null ? '—' : Number(p.rawValue).toFixed(2);
         const tierLabel = p.tier === 'unknown' ? 'No data' : p.tier.toUpperCase();
+        const cellsMerged = Array.isArray(p.cellIds) ? p.cellIds.length : 1;
         layer.bindTooltip(
           `<div class="cov-tt">
             <div class="cov-tt-name">${escapeHtml(p.id)}</div>
             <div class="cov-tt-row"><span>site</span><b>${escapeHtml(p.siteName)}</b></div>
+            <div class="cov-tt-row"><span>azimuth</span><b>${Math.round(p.azimuth)}°</b></div>
             <div class="cov-tt-row"><span>tech</span><b>${escapeHtml(p.tech || '—')}${p.band ? ' · ' + escapeHtml(p.band) : ''}</b></div>
             <div class="cov-tt-row"><span>${escapeHtml(p.kpiName)}</span><b>${valStr}</b></div>
             <div class="cov-tt-row"><span>tier</span><b style="color:${p.tierColor}">${tierLabel}</b></div>
+            ${cellsMerged > 1 ? `<div class="cov-tt-row"><span>cells merged</span><b>${cellsMerged}</b></div>` : ''}
           </div>`,
           { className: 'cov-tooltip', sticky: true, direction: 'top' },
         );
