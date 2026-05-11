@@ -270,6 +270,11 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
       user_id: userId,
       session_id: activeSessionId,
       ...(forcedAgent ? { forcedAgent } : {}),
+      // Path A 2026-05-11: opt-in LLM router on the Talk-to-Network surface.
+      // Only fires when regex routing falls through to the OSMOSIS fallback
+      // (ambiguous questions). Page-specific panels keep regex routing because
+      // their uiScope.page maps to a forced agent before this body is built.
+      routerMode: 'llm',
     });
 
     // Route directly to Agent Layer :1000 via vps-proxy (service=agent)
