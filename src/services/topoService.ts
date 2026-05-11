@@ -1755,3 +1755,89 @@ function buildKpiValueMap(data: any[]): Map<string, number> {
 export function clearKpiCache() {
   kpiValueCache.clear();
 }
+
+
+// ─── Visual Coverage (cell dominance polygons) ─────────────────────
+// Pure-topology approximation served by /api/v1/topo/visual-coverage —
+// pie slices clipped by nearest-neighbour pull-back. No DEM, no RF.
+// The layer is OFF by default; this helper is only called when the
+// operator toggles "Visual Coverage" on. Cached by (bbox, radius)
+// signature so panning back to a previous view is instant.
+
+export interface VisualCoverageFeature {
+  type: 'Feature';
+  geometry: { type: 'Polygon'; coordinates: number[][][] };
+  properties: {
+    cell_name: string;
+    site_name: string;
+    techno: string;
+    vendor: string;
+    band: string;
+    azimuth: number;
+    beamwidth: number;
+    neighbour_count: number;
+    kpi_status?: 'green' | 'orange' | 'red' | null;
+  };
+}
+
+export interface VisualCoverageResponse {
+  type: 'FeatureCollection';
+  features: VisualCoverageFeature[];
+  meta: {
+    cells: number;
+    neighbours_used: number;
+    max_radius_m: number;
+    vertices: number;
+    error?: string;
+  };
+}
+
+const _visualCoverageCache = new Map<string, { ts: number; data: VisualCoverageResponse }>();
+const _VISUAL_COVERAGE_TTL = 5 * 60 * 1000;  // 5 min — cell positions change rarely
+const _VISUAL_COVERAGE_MAX_ENTRIES = 6;
+
+function _vcCacheKey(b: BboxQuery, maxRadiusM: number): string {
+  // Coarse-grained key (3 decimals = ~100 m precision) so panning a
+  // few pixels reuses the same cached payload.
+  const r = (n: number) => Math.round(n * 1000) / 1000;
+  return `${r(b.minLng)},${r(b.minLat)},${r(b.maxLng)},${r(b.maxLat)}|r=${maxRadiusM}`;
+}
+
+export async function fetchVisualCoverage(
+  bbox: BboxQuery,
+  options?: { maxRadiusM?: number; vertices?: number; signal?: AbortSignal },
+): Promise<VisualCoverageResponse> {
+  const maxRadiusM = options?.maxRadiusM ?? 600;
+  const vertices = options?.vertices ?? 24;
+  const key = _vcCacheKey(bbox, maxRadiusM);
+  const cached = _visualCoverageCache.get(key);
+  if (cached && (Date.now() - cached.ts) < _VISUAL_COVERAGE_TTL) {
+    return cached.data;
+  }
+
+  const params: Record<string, string> = {
+    min_lng: String(bbox.minLng),
+    max_lng: String(bbox.maxLng),
+    min_lat: String(bbox.minLat),
+    max_lat: String(bbox.maxLat),
+    max_radius_m: String(maxRadiusM),
+    vertices: String(vertices),
+  };
+  const url = getVpsProxyUrl('parser', '/api/v1/topo/visual-coverage', params);
+  const resp = await fetch(url, { headers: getVpsProxyHeaders(), signal: options?.signal });
+  if (!resp.ok) {
+    throw new Error(`/topo/visual-coverage HTTP ${resp.status}`);
+  }
+  const data = (await resp.json()) as VisualCoverageResponse;
+  // Cheap LRU: drop oldest if we grew past the limit.
+  if (_visualCoverageCache.size >= _VISUAL_COVERAGE_MAX_ENTRIES) {
+    const oldest = [..._visualCoverageCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) _visualCoverageCache.delete(oldest[0]);
+  }
+  _visualCoverageCache.set(key, { ts: Date.now(), data });
+  return data;
+}
+
+export function clearVisualCoverageCache() {
+  _visualCoverageCache.clear();
+}

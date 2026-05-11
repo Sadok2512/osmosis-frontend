@@ -165,7 +165,7 @@ import { ColorViewMode, COLOR_VIEW_LABELS, buildColorMap, getSiteDimensionValue,
 import { TaggedLink, TaggedLinkSector, loadTaggedLinks, persistTaggedLinks, createTaggedLink, pickClosestSector, listSiteBands } from './map/taggedLinks';
 import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS, NEIGHBOR_LABELS, fetchCellNeighbors, generateMockNeighbors } from './map/neighborTypes';
 import { invalidateSitesCache } from '../../services/mockData';
-import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
+import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache, fetchVisualCoverage, type VisualCoverageResponse, type VisualCoverageFeature } from '../../services/topoService';
 import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
@@ -4178,6 +4178,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [activeViewFilters, setActiveViewFilters] = useState<{ mode: string; kpi?: string; operator?: string; threshold?: number; tech?: string; attribute?: string; value?: string }[]>([]);
   const [activeViewConditions, setActiveViewConditions] = useState<ViewFilterCondition[]>([]);
   const [showLegend, setShowLegend] = useState(true);
+  // Visual Coverage layer (2026-05-11) — disabled by default; the
+  // operator opts in. coverageData is the FeatureCollection returned
+  // by /api/v1/topo/visual-coverage and is keyed by the current
+  // viewport bbox. coverageStatus drives the left-panel readout
+  // (Ready / Loading / Error).
+  const [showVisualCoverage, setShowVisualCoverage] = useState(false);
+  const [coverageData, setCoverageData] = useState<VisualCoverageResponse | null>(null);
+  const [coverageStatus, setCoverageStatus] = useState<'idle'|'loading'|'ready'|'error'>('idle');
+  const [coverageError, setCoverageError] = useState<string>('');
+  const [hoveredCoverage, setHoveredCoverage] = useState<VisualCoverageFeature | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || FRANCE_DEFAULT_ZOOM });
   const [initialCenter] = useState<[number, number] | null>(() => {
     if (!isValidMapCoords(mapCache.cachedCenter)) return null;
@@ -7867,6 +7877,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     };
   }, [viewport, mapLayer, mapKpi, mapTechnoFilter, enabledBands, sectorColorMode, mapDisplayMode, showBandPanel, showLegend, showRightPanel, panelCollapsed, localVendor, localDor, localPlaque, localBande, localZoneArcep, localTechno, showBeamSectors, beamVisibility]);
 
+  // ─── Visual Coverage layer ───
+  // Fire one fetch per (toggle + bbox + zoom-band) signature. Skip when:
+  //   - the toggle is off (default)
+  //   - we don't have bbox yet (initial mount)
+  //   - the zoom is too coarse for the layer to be readable (<10)
+  //     — cell polygons at country zoom are visual noise
+  useEffect(() => {
+    if (!showVisualCoverage) {
+      // Toggle off — keep the data cached but stop loading state.
+      setCoverageStatus('idle');
+      setCoverageError('');
+      return;
+    }
+    const bounds = viewport.bounds;
+    if (!bounds) { setCoverageStatus('idle'); return; }
+    if (viewport.zoom < 10) {
+      setCoverageStatus('idle');
+      setCoverageError('Zoom in to ≥10 to compute cell polygons');
+      setCoverageData(null);
+      return;
+    }
+    const bbox: BboxQuery = {
+      minLng: bounds.getWest(),
+      minLat: bounds.getSouth(),
+      maxLng: bounds.getEast(),
+      maxLat: bounds.getNorth(),
+      zoom: viewport.zoom,
+    };
+    const ctrl = new AbortController();
+    setCoverageStatus('loading');
+    setCoverageError('');
+    fetchVisualCoverage(bbox, { maxRadiusM: 600, vertices: 24, signal: ctrl.signal })
+      .then((data) => {
+        if (ctrl.signal.aborted) return;
+        setCoverageData(data);
+        setCoverageStatus(data.meta?.error ? 'error' : 'ready');
+        if (data.meta?.error) setCoverageError(data.meta.error);
+      })
+      .catch((e) => {
+        if (ctrl.signal.aborted) return;
+        setCoverageStatus('error');
+        setCoverageError(String(e?.message || e));
+      });
+    return () => ctrl.abort();
+  }, [showVisualCoverage, viewport.bounds, viewport.zoom]);
+
+  // KPI-status → polygon fill color. The backend leaves kpi_status null
+  // for now; the front-end resolves it at render time using `cellKpiMap`
+  // (already populated by the dashboard). green/orange/red mirror the
+  // legend thresholds used everywhere else for KPI coloring.
+  const visualCoverageColor = (status: 'green'|'orange'|'red'|null|undefined): string => {
+    if (status === 'green')  return '#10b981';
+    if (status === 'orange') return '#f59e0b';
+    if (status === 'red')    return '#ef4444';
+    return '#6366f1';   // neutral indigo when no KPI status
+  };
+
   const handleLoadView = useCallback((settings: MapViewSettings) => {
     setMapLayer(settings.mapLayer);
     if (MAP_KPIS.some(k => k.id === settings.mapKpi)) setMapKpi(settings.mapKpi);
@@ -8124,6 +8191,88 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           </div>
         </div>
       )}
+
+      {/* Visual Coverage — floating panel (toggle + status). Sticks to the
+          top-left of the map so it doesn't overlap the existing legend
+          or right panel. Toggle is OFF by default; the layer is purely
+          topological (no RF), see /api/v1/topo/visual-coverage. */}
+      <div className="absolute top-[72px] left-3 z-[1100] pointer-events-auto">
+        <div className="flex flex-col gap-1.5 px-3 py-2 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg text-[10px]" style={{ minWidth: 200 }}>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showVisualCoverage}
+              onChange={(e) => setShowVisualCoverage(e.target.checked)}
+            />
+            <span className="font-bold uppercase tracking-wider text-foreground">Visual Coverage</span>
+          </label>
+          {showVisualCoverage && (
+            <div className="flex flex-col gap-0.5 mt-0.5 text-muted-foreground">
+              <div className="flex items-center justify-between gap-3">
+                <span>Status</span>
+                <span style={{
+                  color: coverageStatus === 'ready'   ? 'var(--green, #10b981)' :
+                         coverageStatus === 'loading' ? 'var(--yellow, #f59e0b)' :
+                         coverageStatus === 'error'   ? 'var(--red, #ef4444)' :
+                         'var(--muted, #94a3b8)',
+                  fontWeight: 700,
+                }}>
+                  {coverageStatus === 'ready' ? 'Ready' :
+                   coverageStatus === 'loading' ? 'Loading…' :
+                   coverageStatus === 'error' ? 'Error' : 'Idle'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Cells</span><span style={{ fontWeight: 600 }}>{coverageData?.meta?.cells ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <span>Neighbours used</span><span style={{ fontWeight: 600 }}>{coverageData?.meta?.neighbours_used ?? 0}</span>
+              </div>
+              {coverageError && (
+                <div className="mt-1 px-2 py-1 rounded text-[10px]" style={{
+                  background: 'rgba(239,68,68,.1)', color: 'var(--red, #ef4444)',
+                  border: '1px solid rgba(239,68,68,.25)',
+                }}>{coverageError}</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Hover tooltip — shows once the user hovers a polygon. Doesn't
+            steal pointer events from the map. */}
+        {showVisualCoverage && hoveredCoverage && (
+          <div className="mt-2 px-3 py-2 rounded-xl bg-card/95 backdrop-blur-md border border-border shadow-lg text-[10px]" style={{ minWidth: 220, pointerEvents: 'none' }}>
+            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 11 }}>{hoveredCoverage.properties.cell_name || '—'}</div>
+            <div style={{ color: 'var(--muted, #94a3b8)', marginTop: 2 }}>
+              Site: {hoveredCoverage.properties.site_name || '—'}
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {hoveredCoverage.properties.techno && (
+                <span className="px-1.5 py-0.5 rounded" style={{ background: 'rgba(99,102,241,.12)', color: '#6366f1' }}>
+                  {hoveredCoverage.properties.techno}
+                </span>
+              )}
+              {hoveredCoverage.properties.vendor && (
+                <span className="px-1.5 py-0.5 rounded" style={{ background: 'rgba(148,163,184,.12)' }}>
+                  {hoveredCoverage.properties.vendor}
+                </span>
+              )}
+              {hoveredCoverage.properties.kpi_status && (
+                <span className="px-1.5 py-0.5 rounded" style={{
+                  background: 'rgba(' + (hoveredCoverage.properties.kpi_status === 'green' ? '34,197,94' : hoveredCoverage.properties.kpi_status === 'orange' ? '245,158,11' : '239,68,68') + ',.15)',
+                  color: visualCoverageColor(hoveredCoverage.properties.kpi_status),
+                }}>
+                  KPI {hoveredCoverage.properties.kpi_status}
+                </span>
+              )}
+            </div>
+            <div style={{ color: 'var(--muted, #94a3b8)', marginTop: 4 }}>
+              Neighbours used: <b>{hoveredCoverage.properties.neighbour_count}</b>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* FULL SCREEN MAP */}
       <MapContainer
         center={initialCenter || FRANCE_CENTER}
@@ -8146,6 +8295,34 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
           attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
+        {/* Visual Coverage layer — pure-topology cell dominance polygons.
+            Disabled by default; opt-in via the toggle in the left panel.
+            Transparent fill + thin border so it overlays the existing
+            site / sector renders without obscuring them. */}
+        {showVisualCoverage && coverageStatus === 'ready' && coverageData && coverageData.features.map((f, idx) => {
+          const ring = (f.geometry.coordinates?.[0] || []) as number[][];
+          // GeoJSON coords are [lng, lat]; Leaflet wants [lat, lng].
+          const positions = ring.map(([lng, lat]) => [lat, lng] as [number, number]);
+          if (positions.length < 3) return null;
+          const color = visualCoverageColor(f.properties.kpi_status);
+          return (
+            <Polygon
+              key={`vc-${f.properties.cell_name || idx}`}
+              positions={positions}
+              pathOptions={{
+                color,
+                weight: 1,
+                opacity: 0.6,
+                fillColor: color,
+                fillOpacity: 0.08,
+              }}
+              eventHandlers={{
+                mouseover: () => setHoveredCoverage(f),
+                mouseout:  () => setHoveredCoverage(null),
+              }}
+            />
+          );
+        })}
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
         <MapViewportTracker onViewportChange={handleViewportChangeLegacy} />
