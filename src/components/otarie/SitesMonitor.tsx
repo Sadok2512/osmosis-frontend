@@ -7976,6 +7976,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           period: [kpiCfg.dateFrom, kpiCfg.dateTo],
           selectedKpis: kpiList,
         });
+        // Issue 2 fix (2026-05-11): KPI Overlay (per-cell Voronoi) and
+        // Visual Coverage (site footprint + wedges) compete for the same
+        // map surface. Make them mutually exclusive — the KPI view wins.
+        setShowVisualCoverage(false);
       }
     } else if ((settings as any).viewType && (settings as any).viewType !== 'kpi_overlay') {
       // Switching away from a KPI Overlay view ⇒ retire the layer.
@@ -11378,8 +11382,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         </div>
       </div>
 
-      {/* ── KPI Legend + Threshold Editor (floating, bottom-right) ── */}
-      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && (
+      {/* ── KPI Legend + Threshold Editor (floating, bottom-right) ──
+            Hidden when the new Voronoï KPI Overlay view is active (Issue 1
+            fix, 2026-05-11): that view ships its own gradient legend via
+            the drop-in module's `mountKpiLegend`, so the legacy per-sector
+            legend would stack visually in the same corner. */}
+      {sectorColorMode === 'kpi' && !paramMode && showKpiLegend && !activeKpiOverlayView && (
         <div
           className="absolute z-[1001] pointer-events-auto animate-fade-in"
           style={{
@@ -13973,6 +13981,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           period: [cfg.dateFrom, cfg.dateTo],
                           selectedKpis: kpiList,
                         });
+                        // Issue 2 fix (2026-05-11): mutually exclusive with
+                        // Visual Coverage to avoid the wedge layer covering
+                        // the KPI Voronoi tessellation.
+                        setShowVisualCoverage(false);
                       }
                       if (cfg.technology) setKpiTechnoFilter(cfg.technology);
                       if (cfg.level) setKpiAnalysisLevel(cfg.level);
