@@ -1639,6 +1639,18 @@ export async function fetchKpiCellValues(
     if (sites.length > 0) monitorFilters.push({ dimension: 'SITE', op: 'IN', values: sites });
   }
 
+  // Case-normalisation of the kpi code (2026-05-11):
+  // Engine fast_path is case-sensitive against the lowercase registry
+  // for the GENERIC name (e.g. `4g_lte_dcr_volte` works, but the UI
+  // dropdown sends `4G_LTE_DCR_VoLTE` which falls through to slow_path).
+  // Vendor-prefixed variants are handled correctly by the engine's
+  // prefix splitter ONLY when the prefix is preserved as-is, so we
+  // keep `Nokia__&_*` / `Ericsson__&_*` / `Huawei__&_*` untouched and
+  // only lowercase the bare generic.
+  const normalisedKpiId = /^(Nokia|Ericsson|Huawei)__&_/.test(kpiId)
+    ? kpiId
+    : kpiId.toLowerCase();
+
   // Granularity 2026-05-11 root-cause fix: `'total'` is NOT a key the
   // kpi-engine `_granularity_to_precomputed_table` recognises, so every
   // KPI fell through to the slow_path (raw counters in pm_15m) which
@@ -1653,7 +1665,7 @@ export async function fetchKpiCellValues(
     date_to: filters?.date_to || '',
     granularity: '1d',
     filters: monitorFilters,
-    selections: [{ kpi_key: kpiId }],
+    selections: [{ kpi_key: normalisedKpiId }],
     split_by: splitByMap[level] || 'CELL',
     top_n: 5000,
   };
