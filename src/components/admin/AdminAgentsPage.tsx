@@ -514,52 +514,95 @@ function AgentDetail({ agent, configs, modules, isAdmin, onToggle, onSavePrompt,
         )}
       </TabsContent>
 
-      {/* Skills Tab */}
+      {/* Skills Tab — restyled 2026-05-11 to match the Sentinel ML pages
+          (SentinelMLDetector pattern: white card + slate palette + sticky
+          header + status pills + inline upload button). */}
       <TabsContent value="skills" className="mt-4">
-        {isAdmin && (
-          <div className="mb-4">
-            <input ref={skillInputRef} type="file" className="hidden" onChange={handleSkillUpload} accept=".md" />
-            <Button onClick={() => skillInputRef.current?.click()} disabled={uploadingSkill}>
-              {uploadingSkill ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
-              Upload SKILL.md
-            </Button>
-            <p className="text-xs text-muted-foreground mt-1">Installs the skill under the server skill root and registers it for this agent.</p>
+        <section className="flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden">
+          <header className="p-3 border-b border-slate-200 flex items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">
+                <Blocks className="w-4 h-4 text-indigo-500" />
+                Agent skills
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                {skills.length} skill{skills.length > 1 ? 's' : ''} installed
+                {skills.length > 0 && ` · ${skills.filter(s => s.is_active).length} active`}
+              </p>
+            </div>
+            {isAdmin && (
+              <>
+                <input ref={skillInputRef} type="file" className="hidden" onChange={handleSkillUpload} accept=".md" />
+                <button
+                  type="button"
+                  onClick={() => skillInputRef.current?.click()}
+                  disabled={uploadingSkill}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {uploadingSkill
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <Upload className="w-3.5 h-3.5" />}
+                  Upload SKILL.md
+                </button>
+              </>
+            )}
+          </header>
+
+          <div className="flex-1 overflow-auto">
+            {skills.length === 0 ? (
+              <div className="p-12 text-center">
+                <p className="text-sm text-slate-500">No skills installed for this agent.</p>
+                {isAdmin && (
+                  <p className="text-xs text-slate-400 mt-1">
+                    Upload a SKILL.md file to register one under the server skill root.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="bg-slate-50 sticky top-0 z-10">
+                  <tr className="text-left text-[11px] text-slate-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 font-semibold">Name</th>
+                    <th className="px-3 py-2 font-semibold">Description</th>
+                    <th className="px-3 py-2 font-semibold">Type</th>
+                    <th className="px-3 py-2 font-semibold">Status</th>
+                    {isAdmin && <th className="px-3 py-2 font-semibold text-right">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {skills.map((skill) => (
+                    <tr key={skill.id} className="border-t border-slate-100 hover:bg-slate-50">
+                      <td className="px-3 py-2 font-medium text-slate-800">{skill.name}</td>
+                      <td className="px-3 py-2 text-slate-600 max-w-md truncate" title={skill.description || ''}>
+                        {skill.description || '—'}
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          {skill.skill_type}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className={
+                          'inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded ' +
+                          (skill.is_active
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-slate-200 text-slate-600')
+                        }>
+                          {skill.is_active ? 'actif' : 'pause'}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td className="px-3 py-2 text-right">
+                          <Switch checked={skill.is_active} onCheckedChange={() => toggleSkill(skill)} />
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-        {skills.length === 0 ? (
-          <p className="text-muted-foreground text-center py-6">No skills installed for this agent.</p>
-        ) : (
-          <div className="rounded-lg border border-border bg-card">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {skills.map(skill => (
-                  <TableRow key={skill.id}>
-                    <TableCell className="font-medium">{skill.name}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-md truncate">{skill.description || '—'}</TableCell>
-                    <TableCell>{skill.skill_type}</TableCell>
-                    <TableCell>
-                      <Badge variant={skill.is_active ? 'default' : 'secondary'}>{skill.is_active ? 'Active' : 'Inactive'}</Badge>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <Switch checked={skill.is_active} onCheckedChange={() => toggleSkill(skill)} />
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        </section>
       </TabsContent>
 
       {/* Documents Tab */}
