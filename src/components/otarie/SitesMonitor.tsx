@@ -7773,9 +7773,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
   // At zoom 12 we enter a "beam lite" stage via mini sectors.
   // Full per-cell/per-band beam rendering only starts at zoom 13+.
-  // In KPI mode: ALWAYS force sector rendering (regardless of showBeamSectors state).
+  // In KPI mode: force sector rendering from zoom 13 onwards (UX
+  //   2026-05-11: beams stay hidden when zoomed out so the Voronoï
+  //   KPI overlay reads cleanly; from zoom 13 the operator wants to
+  //   see beam directions overlaid on top of the polygons).
   // In Topo mode: sectors only if user enabled beams AND zoom >= full-detail threshold.
-  const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode;
+  const KPI_BEAM_MIN_ZOOM = 13;
+  const kpiForcesSectors = sectorColorMode === 'kpi' && !paramMode && viewport.zoom >= KPI_BEAM_MIN_ZOOM;
   const showSectors = !paramMode && (
     kpiForcesSectors
     || (viewport.zoom >= FULL_BEAM_DETAIL_ZOOM && mapDisplayMode === 'sites' && showBeamSectors)
