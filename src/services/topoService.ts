@@ -1757,61 +1757,55 @@ export function clearKpiCache() {
 }
 
 
-// ─── Visual Coverage (cell dominance polygons) ─────────────────────
-// Pure-topology approximation served by /api/v1/topo/visual-coverage —
-// pie slices clipped by nearest-neighbour pull-back. No DEM, no RF.
-// The layer is OFF by default; this helper is only called when the
-// operator toggles "Visual Coverage" on. Cached by (bbox, radius)
-// signature so panning back to a previous view is instant.
+// ─── Visual Coverage cells feed ────────────────────────────────────
+// 2026-05-11. The server-side /topo/visual-coverage Voronoi endpoint
+// was replaced by an in-browser module (see src/coverage/). This
+// service now only ships the raw cell list to the front-end module —
+// the Voronoi math runs in the browser.
 
-export interface VisualCoverageFeature {
-  type: 'Feature';
-  geometry: { type: 'Polygon'; coordinates: number[][][] };
-  properties: {
-    cell_name: string;
-    site_name: string;
-    techno: string;
-    vendor: string;
-    band: string;
-    azimuth: number;
-    beamwidth: number;
-    neighbour_count: number;
-    kpi_status?: 'green' | 'orange' | 'red' | null;
-  };
+/** Row shape served by /api/v1/topo/cells-for-coverage. Matches the
+ *  exact field names the Visual Coverage module expects (`lat`, `lon`,
+ *  `azimuth`, `beamwidth`, `kpi`, ...) so the front-end can pass the
+ *  array straight through with no remapping. */
+export interface CoverageCell {
+  id: string;
+  siteId: string;
+  siteName: string;
+  lat: number;
+  lon: number;
+  azimuth: number;
+  beamwidth: number;
+  maxRadius: number;
+  tech: string;
+  band: string;
+  vendor: string;
+  /** KPI bucket. Server returns 'green' uniformly today (UX A.i, 2026-05-11);
+   *  proper sourcing from ClickHouse kpi_15m is a follow-up. */
+  kpi: 'green' | 'orange' | 'red';
 }
 
-export interface VisualCoverageResponse {
-  type: 'FeatureCollection';
-  features: VisualCoverageFeature[];
-  meta: {
-    cells: number;
-    neighbours_used: number;
-    max_radius_m: number;
-    vertices: number;
-    error?: string;
-  };
+export interface CoverageCellsResponse {
+  cells: CoverageCell[];
+  count: number;
+  error?: string;
 }
 
-const _visualCoverageCache = new Map<string, { ts: number; data: VisualCoverageResponse }>();
-const _VISUAL_COVERAGE_TTL = 5 * 60 * 1000;  // 5 min — cell positions change rarely
-const _VISUAL_COVERAGE_MAX_ENTRIES = 6;
+const _coverageCellsCache = new Map<string, { ts: number; data: CoverageCellsResponse }>();
+const _COVERAGE_CELLS_TTL = 5 * 60 * 1000;  // 5 min — cell positions change rarely
+const _COVERAGE_CELLS_MAX_ENTRIES = 6;
 
-function _vcCacheKey(b: BboxQuery, maxRadiusM: number): string {
-  // Coarse-grained key (3 decimals = ~100 m precision) so panning a
-  // few pixels reuses the same cached payload.
+function _ccCacheKey(b: BboxQuery, techno?: string, vendor?: string): string {
   const r = (n: number) => Math.round(n * 1000) / 1000;
-  return `${r(b.minLng)},${r(b.minLat)},${r(b.maxLng)},${r(b.maxLat)}|r=${maxRadiusM}`;
+  return `${r(b.minLng)},${r(b.minLat)},${r(b.maxLng)},${r(b.maxLat)}|t=${techno || ''}|v=${vendor || ''}`;
 }
 
-export async function fetchVisualCoverage(
+export async function fetchCellsForCoverage(
   bbox: BboxQuery,
-  options?: { maxRadiusM?: number; vertices?: number; signal?: AbortSignal },
-): Promise<VisualCoverageResponse> {
-  const maxRadiusM = options?.maxRadiusM ?? 600;
-  const vertices = options?.vertices ?? 24;
-  const key = _vcCacheKey(bbox, maxRadiusM);
-  const cached = _visualCoverageCache.get(key);
-  if (cached && (Date.now() - cached.ts) < _VISUAL_COVERAGE_TTL) {
+  options?: { techno?: string; vendor?: string; signal?: AbortSignal },
+): Promise<CoverageCellsResponse> {
+  const key = _ccCacheKey(bbox, options?.techno, options?.vendor);
+  const cached = _coverageCellsCache.get(key);
+  if (cached && (Date.now() - cached.ts) < _COVERAGE_CELLS_TTL) {
     return cached.data;
   }
 
@@ -1820,24 +1814,24 @@ export async function fetchVisualCoverage(
     max_lng: String(bbox.maxLng),
     min_lat: String(bbox.minLat),
     max_lat: String(bbox.maxLat),
-    max_radius_m: String(maxRadiusM),
-    vertices: String(vertices),
   };
-  const url = getVpsProxyUrl('parser', '/api/v1/topo/visual-coverage', params);
+  if (options?.techno) params.techno = options.techno;
+  if (options?.vendor) params.vendor = options.vendor;
+
+  const url = getVpsProxyUrl('parser', '/api/v1/topo/cells-for-coverage', params);
   const resp = await fetch(url, { headers: getVpsProxyHeaders(), signal: options?.signal });
   if (!resp.ok) {
-    throw new Error(`/topo/visual-coverage HTTP ${resp.status}`);
+    throw new Error(`/topo/cells-for-coverage HTTP ${resp.status}`);
   }
-  const data = (await resp.json()) as VisualCoverageResponse;
-  // Cheap LRU: drop oldest if we grew past the limit.
-  if (_visualCoverageCache.size >= _VISUAL_COVERAGE_MAX_ENTRIES) {
-    const oldest = [..._visualCoverageCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
-    if (oldest) _visualCoverageCache.delete(oldest[0]);
+  const data = (await resp.json()) as CoverageCellsResponse;
+  if (_coverageCellsCache.size >= _COVERAGE_CELLS_MAX_ENTRIES) {
+    const oldest = [..._coverageCellsCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) _coverageCellsCache.delete(oldest[0]);
   }
-  _visualCoverageCache.set(key, { ts: Date.now(), data });
+  _coverageCellsCache.set(key, { ts: Date.now(), data });
   return data;
 }
 
-export function clearVisualCoverageCache() {
-  _visualCoverageCache.clear();
+export function clearCoverageCellsCache() {
+  _coverageCellsCache.clear();
 }

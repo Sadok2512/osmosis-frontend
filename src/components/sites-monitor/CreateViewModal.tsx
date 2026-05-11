@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio, ChevronDown, Check } from 'lucide-react';
+import { BarChart2, Search, ChevronLeft, ChevronRight, Plus, X, Palette, Settings2, Loader2, Radio, ChevronDown, Check, Map as MapIcon } from 'lucide-react';
 import { getVpsProxyUrl, getVpsProxyHeaders } from '@/lib/apiConfig';
 import { topoApi } from '@/lib/localDb';
 // ProgressiveFilterBuilder import removed 2026-05-07 — Topology Search
@@ -61,8 +61,11 @@ export interface ViewConfig {
   topoSearch?: TopoSearchPayload;
   // Parameter
   paramFilters?: Record<string, string>;
-  // Coverage Prediction
-  coverageBand?: string;
+  // Visual Coverage (replaces the previous RSRP "Coverage Prediction").
+  // Pure-topology Voronoi dominance polygons; the only knob is the
+  // max-radius cap that prevents large gaps at the bbox edge from
+  // generating unrealistic tiles.
+  coverageMaxRadiusM?: number;
 }
 
 interface Props {
@@ -641,7 +644,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       setTopoSearchRows([newTopoSearchRow()]);
       setParamFilters({});
       setActiveParamKeys(['parameter']);
-      setCoverageBand('');
+      setCoverageMaxRadiusM(1500);
     }
     onOpenChange(o);
   };
@@ -700,11 +703,13 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
       : viewType === 'parameter'
         ? `Param – ${paramFilters['parameter'] || 'Search'}`
         : viewType === 'coverage'
-          ? `Coverage ${technology}`
+          ? `Visual Coverage`
           : `Topo Search`
   );
 
-  const [coverageBand, setCoverageBand] = useState<string>('');
+  // Visual Coverage tuning — only the max-radius cap; everything else is
+  // pure-topology Voronoi. Default 1500 m matches the backend default.
+  const [coverageMaxRadiusM, setCoverageMaxRadiusM] = useState<number>(1500);
 
   // Validation per spec: "Empêcher la création si un filtre n'a pas de
   // type ou pas de valeur." Every non-empty row must have BOTH a field
@@ -723,7 +728,10 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
     (viewType === 'kpi_overlay' && selectedKpis.length > 0) ||
     (viewType === 'topology_search' && topoSearchValid) ||
     (viewType === 'parameter' && Boolean(paramFilters.parameter?.trim())) ||
-    (viewType === 'coverage' && Boolean(coverageBand))
+    // Visual Coverage: no required field — the layer renders from
+    // ref_cell_daily geometry alone. Just need the radius cap to be
+    // a positive number within the backend bounds.
+    (viewType === 'coverage' && coverageMaxRadiusM >= 50 && coverageMaxRadiusM <= 20000)
   );
 
   const handleSave = () => {
@@ -754,8 +762,10 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
         Object.entries(paramFilters).filter(([, v]) => v.trim())
       );
     } else if (viewType === 'coverage') {
-      config.technology = technology;
-      config.coverageBand = coverageBand;
+      // Visual Coverage — only carries the max-radius cap. The layer
+      // ON/OFF state is wired by the consumer (handleCreateViewFromModal)
+      // which flips settings.showVisualCoverage on save.
+      config.coverageMaxRadiusM = coverageMaxRadiusM;
     }
     onSave(config);
   };
@@ -867,7 +877,10 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                   )}
                 </button>
 
-                {/* Coverage Prediction */}
+                {/* Visual Coverage — pure-topology Voronoi dominance.
+                    Replaces the prior RSRP "Coverage Prediction" tile per
+                    UX request 2026-05-11 (no real RF propagation, KPI
+                    visualization only). */}
                 <button
                   onClick={() => setViewType('coverage')}
                   className={`group relative flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
@@ -879,12 +892,12 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
                     viewType === 'coverage' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground group-hover:text-primary'
                   }`}>
-                    <Radio size={24} />
+                    <MapIcon size={24} />
                   </div>
                   <div className="text-center">
-                    <div className="text-sm font-bold">Coverage Prediction</div>
+                    <div className="text-sm font-bold">Visual Coverage</div>
                     <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                      Simulation de couverture RSRP par bande fréquence
+                      Dominance des cellules par tessellation Voronoï (sans RF)
                     </p>
                   </div>
                   {viewType === 'coverage' && (
@@ -1383,7 +1396,7 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
             </div>
           )}
 
-          {/* ── STEP 2: Coverage Prediction ── */}
+          {/* ── STEP 2: Visual Coverage ── (replaces the old RSRP form) */}
           {step === 2 && viewType === 'coverage' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2">
@@ -1392,74 +1405,54 @@ export const CreateViewModal = React.forwardRef<HTMLDivElement, Props>(function 
                 </button>
                 <div>
                   <h2 className="text-base font-black tracking-tight flex items-center gap-2">
-                    <Radio size={16} className="text-primary" /> Coverage Prediction
+                    <MapIcon size={16} className="text-primary" /> Visual Coverage
                   </h2>
-                  <p className="text-[10px] text-muted-foreground">Simulation de couverture RSRP par bande de fréquence</p>
+                  <p className="text-[10px] text-muted-foreground">Dominance visuelle des cellules par tessellation Voronoï</p>
                 </div>
               </div>
 
               {/* View name */}
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Nom de la vue *</label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">Nom de la vue</label>
                 <Input
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Ex: Coverage LTE800 Centre"
+                  placeholder="Ex: Visual Coverage Reims Centre"
                   className="text-sm"
                 />
               </div>
 
-              {/* Technology */}
+              {/* Max radius cap */}
               <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Technologie</label>
-                <div className="flex gap-2">
-                  {(['4G', '5G'] as const).map(t => (
-                    <button
-                      key={t}
-                      onClick={() => setTechnology(t)}
-                      className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
-                        technology === t
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted/30 text-muted-foreground border-border hover:border-primary/40'
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Band selection */}
-              <div>
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">Bande de fréquence *</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(technology === '5G'
-                    ? ['NR_700', 'NR_2100', 'NR_3500']
-                    : ['LTE700', 'LTE800', 'LTE1800', 'LTE2100', 'LTE2600']
-                  ).map(b => (
-                    <button
-                      key={b}
-                      onClick={() => setCoverageBand(b)}
-                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
-                        coverageBand === b
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-muted/30 text-foreground border-border hover:border-primary/40'
-                      }`}
-                    >
-                      {b}
-                    </button>
-                  ))}
-                </div>
-                <Input
-                  value={coverageBand}
-                  onChange={e => setCoverageBand(e.target.value)}
-                  placeholder="Ou saisissez une bande personnalisée"
-                  className="text-xs h-8 mt-2 font-mono"
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                  Rayon max par cellule (m)
+                  <span className="ml-2 text-muted-foreground/70 font-mono">{coverageMaxRadiusM}</span>
+                </label>
+                <input
+                  type="range"
+                  min={200}
+                  max={5000}
+                  step={100}
+                  value={coverageMaxRadiusM}
+                  onChange={e => setCoverageMaxRadiusM(Number(e.target.value))}
+                  className="w-full"
                 />
+                <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5">
+                  <span>200 m</span>
+                  <span>1500 m</span>
+                  <span>5000 m</span>
+                </div>
               </div>
 
-              <div className="text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-2.5 border border-border/50">
-                💡 La simulation calculera la couverture RSRP de toutes les cellules de cette bande dans le périmètre du dashboard actif (modèle COST-231 Hata).
+              {/* Explanation card — matches the in-map one so the operator
+                  reads the same disclaimer at creation time. */}
+              <div className="text-[10px] text-muted-foreground bg-muted/30 rounded-lg p-3 border border-border/50 leading-relaxed">
+                <div className="font-bold text-foreground mb-1">À propos de Visual Coverage</div>
+                Couche de dominance approchée générée à partir des positions
+                cellulaires et de leurs voisines (clipping Voronoï + secteur
+                azimutal). Utilisée pour la visualisation KPI uniquement —
+                ne représente <b>pas</b> la propagation RF réelle (pas de
+                terrain, de clutter ni de RSRP).
               </div>
 
               {/* Actions */}

@@ -1,5 +1,11 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
 
+/* Visual Coverage drop-in module (2026-05-11). The unchanged module CSS
+ * is loaded first; the override file remaps its colours/font to this
+ * project's HSL tokens. Keep the import order — override must come last. */
+@import "./coverage/coverage-panel.css";
+@import "./coverage/coverage-theme-override.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -25,6 +25,9 @@ export interface MapViewSettings {
   localTechno?: string;
   showBeamSectors?: boolean;
   beamVisibility?: number;
+  /** Visual Coverage layer (cell dominance polygons, /topo/visual-coverage).
+   *  Off by default; saved views may opt in. */
+  showVisualCoverage?: boolean;
 }
 
 interface MapView {

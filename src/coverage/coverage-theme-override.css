@@ -1,0 +1,85 @@
+/* coverage-theme-override.css — Tailwind/HSL theme bridge for the
+ * Visual Coverage module CSS. The drop-in `coverage-panel.css` hard-codes
+ * a JetBrains-Mono-cyan look (#0d1318 / #5cf2c4 / etc.) that clashes with
+ * this project's design tokens. We import the original unchanged (rule:
+ * do not modify module files) and override only the colour and font
+ * declarations here so the panel and tooltip match the rest of the UI.
+ *
+ * Token map:
+ *   panel surface  → hsl(var(--card))
+ *   border         → hsl(var(--border))
+ *   foreground     → hsl(var(--foreground))
+ *   muted text     → hsl(var(--muted-foreground))
+ *   accent / OK    → hsl(var(--primary))
+ *   warning        → #f59e0b   (matches in-app visualCoverageColor amber)
+ *   error          → hsl(var(--destructive))
+ *
+ * Font reverts to the inherited app font so the cov-panel sits in the
+ * Tailwind sidebar without a typographic break. */
+
+.cov-panel,
+.cov-panel-title,
+.cov-stat-v,
+.cov-stat-l,
+.cov-foot,
+.cov-tt-row,
+.leaflet-tooltip.cov-tooltip {
+  font-family: inherit !important;
+}
+
+.cov-panel-title {
+  color: hsl(var(--muted-foreground)) !important;
+  border-bottom-color: hsl(var(--border)) !important;
+}
+.cov-idx { color: hsl(var(--primary)) !important; }
+
+.cov-row {
+  background: hsl(var(--muted) / 0.4) !important;
+  border-color: hsl(var(--border)) !important;
+}
+.cov-row:hover { border-color: hsl(var(--primary) / 0.5) !important; }
+.cov-lbl       { color: hsl(var(--foreground)) !important; }
+.cov-lbl small { color: hsl(var(--muted-foreground)) !important; }
+
+/* Toggle switch — off=muted bg, on=primary ring */
+.cov-switch         { background: hsl(var(--muted)) !important; }
+.cov-switch::after  { background: hsl(var(--muted-foreground)) !important; }
+.cov-switch.on        { background: hsl(var(--primary) / 0.25) !important; }
+.cov-switch.on::after { background: hsl(var(--primary)) !important; box-shadow: 0 0 6px hsl(var(--primary) / 0.6) !important; }
+
+/* Stat tiles */
+.cov-stat   { background: hsl(var(--muted) / 0.4) !important; border-color: hsl(var(--border)) !important; }
+.cov-stat-v { color: hsl(var(--foreground)) !important; }
+.cov-stat-l { color: hsl(var(--muted-foreground)) !important; }
+
+/* Status pill: green = ready (primary), orange = loading, red = error */
+.cov-status-pill {
+  background: hsl(var(--primary) / 0.12) !important;
+  color: hsl(var(--primary)) !important;
+  border-color: hsl(var(--primary) / 0.3) !important;
+}
+.cov-status-loading {
+  background: rgba(245, 158, 11, 0.12) !important;
+  color: #f59e0b !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+.cov-status-error {
+  background: hsl(var(--destructive) / 0.12) !important;
+  color: hsl(var(--destructive)) !important;
+  border-color: hsl(var(--destructive) / 0.3) !important;
+}
+
+/* Footer */
+.cov-foot   { color: hsl(var(--muted-foreground)) !important; border-top-color: hsl(var(--border)) !important; }
+.cov-foot b { color: hsl(var(--foreground)) !important; }
+
+/* Tooltip — match the dark glass surface used elsewhere */
+.leaflet-tooltip.cov-tooltip {
+  background: hsl(var(--card) / 0.95) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  backdrop-filter: blur(8px) !important;
+}
+.cov-tt-name      { color: hsl(var(--foreground)) !important; }
+.cov-tt-row span  { color: hsl(var(--muted-foreground)) !important; }
+.cov-tt-row b     { color: hsl(var(--foreground)) !important; }
