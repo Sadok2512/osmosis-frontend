@@ -193,6 +193,28 @@ const VisualCoverageAdapter: React.FC<Props> = ({
             kpi: valueToTier(kpiValueMap.get(c.id), kpiThresholds),
           }));
         }
+        //DIAG — KPI tier override visibility (2026-05-11). Logs the
+        //DIAG state of the value map vs the fetched cells so we can tell
+        //DIAG whether (a) the map is empty, (b) the keys don't match, or
+        //DIAG (c) every cell lands in a single tier. Remove once the
+        //DIAG colouring is validated.
+        // eslint-disable-next-line no-console
+        console.log('[diag] VC override:', {
+          hasValueMap: !!kpiValueMap,
+          mapSize: kpiValueMap?.size ?? 0,
+          mapKeysSample: kpiValueMap ? [...kpiValueMap.keys()].slice(0, 3) : [],
+          thresholds: kpiThresholds,
+          sampleCellId: cells[0]?.id,
+          sampleValue: kpiValueMap?.get?.(cells[0]?.id),
+          sampleTier: coloured[0]?.kpi,
+          tierDistribution: coloured.reduce((acc: Record<string, number>, c: any) => {
+            const k = c.kpi || 'unknown';
+            acc[k] = (acc[k] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>),
+          totalCellsWithValue: kpiValueMap ? cells.filter(c => kpiValueMap.has(c.id)).length : 0,
+          totalCellsWithoutValue: kpiValueMap ? cells.filter(c => !kpiValueMap.has(c.id)).length : cells.length,
+        });
         ctlRef.current?.rebuild?.(coloured);
         onCellsLoaded?.(coloured.length);
       })
