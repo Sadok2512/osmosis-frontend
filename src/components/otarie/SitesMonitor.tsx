@@ -5864,9 +5864,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     let cancelled = false;
     const selectedCatalogKpi = (catalogKpis.length > 0 ? catalogKpis : MAP_KPIS).find(k => k.id === mapKpi);
-    const kpiVendor = selectedCatalogKpi?.vendor && selectedCatalogKpi.vendor !== 'Multi-Vendor'
-      ? selectedCatalogKpi.vendor
-      : (localVendor !== 'ALL' ? localVendor : undefined);
+    // Vendor-filter rule (2026-05-11 v6.5.5): apply vendor filter ONLY
+    // when the kpi_code is explicitly vendor-scoped (e.g.
+    // `Nokia__&_4G_LTE_CSSR_VoLTE`). For canonical codes
+    // (`4G_LTE_CSSR_VoLTE`, `DL_VOLUME_IP_GBytes`, …) the engine should
+    // aggregate cross-vendor — applying vendor=Ericsson on those killed
+    // the data because the populated cells in CH are Huawei (memory
+    // `project_ericsson_pm_counters_gap` — Ericsson counters missing).
+    const isVendorPrefixed = /^(Nokia|Ericsson|Huawei)__/i.test(mapKpi);
+    const catalogVendor = isVendorPrefixed
+      ? (selectedCatalogKpi?.vendor && selectedCatalogKpi.vendor !== 'Multi-Vendor'
+          ? selectedCatalogKpi.vendor
+          : undefined)
+      : undefined;
+    const kpiVendor = catalogVendor || (localVendor !== 'ALL' ? localVendor : undefined);
 
     const filters: any = {
       // Keep the backend KPI fetch broad on perimeter dimensions: the map applies
