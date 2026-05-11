@@ -1639,10 +1639,19 @@ export async function fetchKpiCellValues(
     if (sites.length > 0) monitorFilters.push({ dimension: 'SITE', op: 'IN', values: sites });
   }
 
+  // Granularity 2026-05-11 root-cause fix: `'total'` is NOT a key the
+  // kpi-engine `_granularity_to_precomputed_table` recognises, so every
+  // KPI fell through to the slow_path (raw counters in pm_15m) which
+  // returns 0 for KPIs whose source counters are missing (e.g. Ericsson
+  // pmRrc/pmS1 on REIMS). `'1d'` maps to the pre-computed `osmosis.kpi_1d`
+  // table where shared KPIs (4g_lte_cssr_volte, 4g_lte_dcr_volte, ...) ARE
+  // populated; the engine then returns 1 row per cell per day. With the
+  // date range typically being 1-7 days, the front-end aggregates via
+  // averaging into a single per-cell value below.
   const requestBody = {
     date_from: filters?.date_from || '',
     date_to: filters?.date_to || '',
-    granularity: 'total',
+    granularity: '1d',
     filters: monitorFilters,
     selections: [{ kpi_key: kpiId }],
     split_by: splitByMap[level] || 'CELL',
@@ -1682,9 +1691,22 @@ export async function fetchKpiCellValues(
     if (!splitVal) continue;
 
     if (level === 'cell') {
-      // split_value = cell_name
-      valueMap.set(splitVal, val);
-      // Also store site-level average as fallback
+      // split_value = cell_name (or numeric ECI for some vendors —
+      // those simply won't match by cell_name on the front-end and end
+      // up grey / "No data", which is the honest behaviour).
+      // Average across days when granularity='1d' returns multiple
+      // points per cell over a multi-day range. Naive Map.set used to
+      // keep only the last day's value; now we incremental-average.
+      const existingCell = valueMap.get(splitVal);
+      if (existingCell != null) {
+        const count = (avgCounters.get(splitVal) || 1) + 1;
+        avgCounters.set(splitVal, count);
+        valueMap.set(splitVal, (existingCell * (count - 1) + val) / count);
+      } else {
+        valueMap.set(splitVal, val);
+        avgCounters.set(splitVal, 1);
+      }
+      // Also store site-level average as fallback (per-cell rollup).
       const siteName = pt.site_name || splitVal.replace(/_ENB\d+.*$/, '');
       if (siteName) {
         const siteKey = `site:${siteName}`;
