@@ -232,8 +232,7 @@ const SentinelLiveMap: React.FC<Props> = ({ date, apiConnected }) => {
                 </CircleMarker>
               );
             })}
-          </MapContainer>
-        )}
+        </MapContainer>
       </div>
     </div>
   );
