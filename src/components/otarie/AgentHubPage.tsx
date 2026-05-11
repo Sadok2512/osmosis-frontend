@@ -23,45 +23,32 @@ interface SubAgent {
 
 const agents: SubAgent[] = [
   {
-    id: 'PULSE',
-    name: 'PULSE',
-    role: 'Performance & KPI Analytics',
-    icon: <Activity className="w-6 h-6" />,
-    color: 'border-emerald-500/40 ring-emerald-500/20',
-    gradient: 'from-emerald-500/15 to-emerald-600/5',
+    // Path A spec rename (2026-05-11) — canonical 5 specialist agents.
+    // PULSE+TOPO absorbed into NEXUS layer (deterministic helper, not displayed here).
+    // SENTINEL+TRACE fused into RCAI. PARMY→OPTIMUS. ANALYTIC→ECHO (+ learning).
+    // AEGIS + EXA added. OSMOSIS is the orchestrator above this hub, not a specialist.
+    id: 'RCAI',
+    name: 'RCAI',
+    role: 'Diagnostic, Anomaly Detection & RCA',
+    icon: <Search className="w-6 h-6" />,
+    color: 'border-purple-500/40 ring-purple-500/20',
+    gradient: 'from-purple-500/15 to-purple-600/5',
     status: 'active',
     tasks: [
+      'Détection d\'anomalies (seuils CSSR/drop/throughput/PRB, tendances 7j)',
       'Analyse des KPIs QoE (débit, latence, DMS, RTT)',
-      'Benchmarks comparatifs inter-dimensions (Vendor, DOR, Plaque)',
-      'Détection des top dégradations et meilleures performances',
-      'Génération de rapports de tendances temporelles',
-      'Calcul de z-scores et percentiles depuis ml_features',
+      'Top dégradations et benchmarks inter-dimensions (Vendor, DOR, Plaque)',
+      'Root Cause Analysis (RCA) approfondie — méthodologie 5 étapes',
+      'Corrélation KPI ↔ changements CM ↔ alarmes ↔ topologie co-site',
+      'Lecture prioritaire de ml_anomaly_15m et ml_rca_hypothesis (pipeline ML)',
     ],
-    dataSources: ['kpi_qoe_aggregated', 'ml_features', 'kpi_catalog'],
-    capabilities: ['Time-series analysis', 'Top-N ranking', 'Trend detection', 'Statistical scoring'],
+    dataSources: ['kpi_qoe_aggregated', 'ml_features', 'ml_anomaly_15m', 'ml_rca_hypothesis', 'parameter_changes', 'fm_alarms_nokia', 'fm_alarms_ericsson'],
+    capabilities: ['Threshold monitoring', 'Anomaly detection', 'Top-N ranking', 'Trend detection', 'Correlation analysis', 'Timeline reconstruction', 'RAG-enhanced diagnosis'],
   },
   {
-    id: 'TOPO',
-    name: 'TOPO',
-    role: 'Network Topology & Inventory',
-    icon: <Network className="w-6 h-6" />,
-    color: 'border-blue-500/40 ring-blue-500/20',
-    gradient: 'from-blue-500/15 to-blue-600/5',
-    status: 'active',
-    tasks: [
-      'Inventaire structurel des sites et cellules',
-      'Requêtes sur les paramètres d\'antennes (tilt, azimut, HBA)',
-      'Statistiques de couverture par technologie et bande',
-      'Analyse géographique et topologique du réseau',
-      'Suivi des mises en service et états des cellules',
-    ],
-    dataSources: ['topo'],
-    capabilities: ['SQL queries on topo', 'Inventory stats', 'Geo-analysis', 'Cell state tracking'],
-  },
-  {
-    id: 'PARMY',
-    name: 'PARMY',
-    role: 'Parameter Audit & Configuration Intelligence',
+    id: 'OPTIMUS',
+    name: 'OPTIMUS',
+    role: 'Recommendation & Optimization (Propose-Only)',
     icon: <Database className="w-6 h-6" />,
     color: 'border-amber-500/40 ring-amber-500/20',
     gradient: 'from-amber-500/15 to-amber-600/5',
@@ -72,68 +59,68 @@ const agents: SubAgent[] = [
       'Audit mobilit\u00e9 (A3/A5 offsets, TTT, hyst\u00e9r\u00e9sis HO)',
       'Contr\u00f4le puissance TX par bande (LTE pMax, NR maxTxPower)',
       'Coh\u00e9rence inter-secteurs (delta >20% = anomalie)',
-      'Audit voisinage ANR (voisins manquants, asym\u00e9triques)',
-      'Impact changements CM r\u00e9cents (7j) et rollbacks',
-      'Admission control & congestion (connEstab, maxRRC)',
-      'VoLTE / CSFB configuration voix',
-      'Distribution et cross-tabulation des param\u00e8tres sur le r\u00e9seau',
+      'G\u00e9n\u00e9ration de propositions d\'optimisation (ml_optimization_proposal)',
+      'Propose-only : aucune \u00e9criture CM, aucun push vers le SON vendor',
     ],
-    dataSources: ['param_dump', 'cm_history_nokia', 'ref_slice_5qi_map', 'ref_counters', 'kpi_definition'],
-    capabilities: ['13 Skills', 'Slice audit', 'Power audit', 'Mobility check', 'Sector consistency', 'CM impact', 'Neighbor audit', 'SQL engine'],
+    dataSources: ['param_dump', 'cm_history_nokia', 'ref_slice_5qi_map', 'ref_counters', 'ml_optimization_proposal'],
+    capabilities: ['Param audit', 'Slice audit', 'Power audit', 'Mobility check', 'Recommendation generation', 'Sector consistency', 'Propose-only lock'],
   },
   {
-    id: 'TRACE',
-    name: 'TRACE',
-    role: 'Deep Diagnostic & RCA',
-    icon: <Search className="w-6 h-6" />,
-    color: 'border-purple-500/40 ring-purple-500/20',
-    gradient: 'from-purple-500/15 to-purple-600/5',
-    status: 'active',
-    tasks: [
-      'Root Cause Analysis (RCA) approfondie',
-      'Corrélation croisée entre KPIs et changements de paramètres',
-      'Analyse temporelle des incidents et dégradations',
-      'Identification des causes racines via parameter_changes',
-      'Recommandations d\'actions correctives contextuelles',
-    ],
-    dataSources: ['kpi_qoe_aggregated', 'parameter_changes', 'ml_features', 'rag_documents'],
-    capabilities: ['Correlation analysis', 'Timeline reconstruction', 'Impact assessment', 'RAG-enhanced diagnosis'],
-  },
-  {
-    id: 'SENTINEL',
-    name: 'SENTINEL',
-    role: 'Proactive Monitoring & Alerts',
+    id: 'AEGIS',
+    name: 'AEGIS',
+    role: 'Risk & Tier Classification (T1/T2/T3)',
     icon: <ShieldCheck className="w-6 h-6" />,
     color: 'border-red-500/40 ring-red-500/20',
     gradient: 'from-red-500/15 to-red-600/5',
     status: 'active',
     tasks: [
-      'Surveillance proactive des seuils critiques',
-      'Détection précoce des dégradations de QoE',
-      'Alertes automatiques sur anomalies statistiques',
-      'Monitoring des tendances et prédiction de risques',
-      'Escalade intelligente vers TRACE pour RCA',
+      'Classification de chaque proposition en tier T1/T2/T3',
+      'Matrice (réversibilité × blast_radius), max sur les deux axes',
+      'Détection sites interdits (VIP, EXAM_CENTER, HOSPITAL) → escalade tier',
+      'Validation du plan de rollback pour tier T3',
+      'Évaluation des règles policy (change windows, capping)',
+      'Label d\'affichage uniquement — jamais une porte d\'exécution',
     ],
-    dataSources: ['kpi_qoe_aggregated', 'ml_features', 'kpi_catalog'],
-    capabilities: ['Threshold monitoring', 'Anomaly detection', 'Predictive alerts', 'Auto-escalation'],
+    dataSources: ['ml_optimization_proposal', 'ml_rca_hypothesis', 'topo_data', 'ai_policy_rules'],
+    capabilities: ['Tier classification', 'Risk scoring', 'Blast radius calc', 'Policy evaluation', 'Display-only safety'],
   },
   {
-    id: 'ANALYTIC',
-    name: 'ANALYTIC',
-    role: 'Reporting & Synthesis',
-    icon: <Brain className="w-6 h-6" />,
+    id: 'EXA',
+    name: 'EXA',
+    role: 'Export & Vendor Handoff (Skeleton)',
+    icon: <FileText className="w-6 h-6" />,
     color: 'border-cyan-500/40 ring-cyan-500/20',
     gradient: 'from-cyan-500/15 to-cyan-600/5',
+    status: 'standby',
+    tasks: [
+      'Export proposition status=SHARED → fichier handoff structuré',
+      'Dépôt du fichier à un emplacement défini (S3 ou disque)',
+      'L\'ingénieur applique manuellement dans NetAct / ENM / U2020 / CognitiV',
+      'Aucun push CM, aucun appel NetConf/MML/REST vers le NBI vendor',
+      'CI guard tests/test_no_write_actuators.py couvre la zone',
+      'Squelette v1 — format d\'export à figer en v1.1',
+    ],
+    dataSources: ['ml_optimization_proposal', 'ai_audit_log'],
+    capabilities: ['Export skeleton', 'Vendor file handoff', 'Audit log emission', 'No-actuator lock'],
+  },
+  {
+    id: 'ECHO',
+    name: 'ECHO',
+    role: 'Learning, Reporting & Synthesis',
+    icon: <Brain className="w-6 h-6" />,
+    color: 'border-emerald-500/40 ring-emerald-500/20',
+    gradient: 'from-emerald-500/15 to-emerald-600/5',
     status: 'active',
     tasks: [
+      'Boucle d\'apprentissage post-exécution : delta KPI réel vs prédit',
+      'Mise à jour des scores de confiance des playbooks (Bayesian moving avg)',
       'Génération de rapports hebdomadaires et exécutifs',
       'Synthèse multi-agents avec traçabilité des sources',
       'Diagnostics cellule complets (KPIs + params + alarmes + RCA)',
-      'Rapports comparatifs inter-vendor et inter-région',
       'Recommandations actionnables avec priorisation P1/P2/P3',
     ],
-    dataSources: ['pm_15m', 'kpi_definition', 'param_dump', 'cm_history_nokia', 'fm_alarms_nokia'],
-    capabilities: ['Weekly reports', 'Cell diagnostic', 'Executive summary', 'Cross-agent synthesis', 'Actionable recommendations'],
+    dataSources: ['ml_optimization_proposal', 'ml_outcome_observation', 'ai_audit_log', 'pm_15m', 'kpi_definition'],
+    capabilities: ['Post-execution learning', 'Confidence scoring', 'Weekly reports', 'Executive summary', 'Cross-agent synthesis'],
   },
 ];
 
@@ -145,15 +132,15 @@ interface Connection {
   type: 'data' | 'escalation' | 'validation';
 }
 
+// Path A canonical DAG (2026-05-11): NEXUS (layer) → RCAI → OPTIMUS → AEGIS → EXA → ECHO.
+// Feedback edge ECHO → RCAI carries skill_confidence updates back to anomaly detection.
 const connections: Connection[] = [
-  { from: 'PULSE', to: 'TRACE', label: 'Escalade dégradation', type: 'escalation' },
-  { from: 'SENTINEL', to: 'TRACE', label: 'Auto-escalade RCA', type: 'escalation' },
-  { from: 'PARMY', to: 'PULSE', label: 'Check validation', type: 'validation' },
-  { from: 'TOPO', to: 'PARMY', label: 'Contexte réseau', type: 'data' },
-  { from: 'TRACE', to: 'PARMY', label: 'Corrélation paramètres', type: 'data' },
-  { from: 'SENTINEL', to: 'PULSE', label: 'Alerte KPI', type: 'escalation' },
-  { from: 'PULSE', to: 'ANALYTIC', label: 'Données KPI', type: 'data' },
-  { from: 'TRACE', to: 'ANALYTIC', label: 'Résultats RCA', type: 'data' },
+  { from: 'RCAI',    to: 'OPTIMUS', label: 'Hypothèse RCA → proposition',  type: 'data' },
+  { from: 'OPTIMUS', to: 'AEGIS',   label: 'Proposition → classification', type: 'validation' },
+  { from: 'AEGIS',   to: 'EXA',     label: 'Tier OK → export handoff',     type: 'data' },
+  { from: 'EXA',     to: 'ECHO',    label: 'Export émis → observation',    type: 'data' },
+  { from: 'ECHO',    to: 'RCAI',    label: 'Confidence ↑/↓ feedback',      type: 'escalation' },
+  { from: 'ECHO',    to: 'OPTIMUS', label: 'Playbook score',               type: 'validation' },
 ];
 
 const connectionColors: Record<Connection['type'], string> = {
@@ -245,7 +232,7 @@ const AgentCard: React.FC<{ agent: SubAgent; isExpanded: boolean; onToggle: () =
 
 /* ── Main Page ── */
 const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavigate }) => {
-  const [expandedId, setExpandedId] = useState<string | null>('PULSE');
+  const [expandedId, setExpandedId] = useState<string | null>('RCAI');
   const [memoryCounts, setMemoryCounts] = useState<Record<string, number>>({});
   const [skillCounts, setSkillCounts] = useState<Record<string, number>>({});
 
@@ -441,11 +428,11 @@ const AgentHubPage: React.FC<{ onNavigate?: (tab: AppTab) => void }> = ({ onNavi
           <div className="rounded-2xl border border-border bg-card p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
-                { agent: 'PULSE', triggers: ['QoE, débit, latence, DMS, RTT', 'top/worst dégradations', 'comparaisons inter-dimensions', 'tendances et benchmarks'] },
-                { agent: 'TOPO', triggers: ['inventaire sites/cellules', 'azimut, tilt, HBA', 'couverture par techno/bande', 'état cellules, mises en service'] },
-                { agent: 'PARMY', triggers: ['slice configuration, 5QI, S-NSSAI', 'param\u00e8tres radio (pMax, HO, RACH)', 'audit conformit\u00e9 & coh\u00e9rence secteurs', 'mobilit\u00e9, puissance, admission control', 'VoLTE/CSFB, MIMO, scheduler'] },
-                { agent: 'TRACE', triggers: ['RCA, diagnostic', 'corrélation incidents', 'analyse causes racines', 'impact changements'] },
-                { agent: 'SENTINEL', triggers: ['alertes proactives', 'surveillance seuils', 'anomalies statistiques', 'prédiction dégradations'] },
+                { agent: 'RCAI',    triggers: ['QoE, débit, latence, DMS, RTT', 'top/worst dégradations', 'alertes anomalies / seuils CSSR/drop/throughput', 'RCA, diagnostic, corrélation incidents', 'fusion ex-PULSE / ex-SENTINEL / ex-TRACE'] },
+                { agent: 'OPTIMUS', triggers: ['slice configuration, 5QI, S-NSSAI', 'paramètres radio (pMax, HO, RACH)', 'audit conformité & cohérence secteurs', 'mobilité, puissance, admission control', 'génération propositions (propose-only)'] },
+                { agent: 'AEGIS',   triggers: ['classification tier T1/T2/T3', 'blast radius + r\u00e9versibilit\u00e9', 'sites interdits (VIP/EXAM/HOSPITAL)', '\u00e9valuation policy & change windows', 'label d\'affichage uniquement'] },
+                { agent: 'EXA',     triggers: ['export fichier handoff vendor', 'NetAct / ENM / U2020 / CognitiV', 'aucun push CM (propose-only)', 'squelette v1'] },
+                { agent: 'ECHO',    triggers: ['apprentissage post-exécution', 'delta KPI réel vs prédit', 'rapports hebdo/exécutifs', 'synthèse multi-agents', 'recommandations P1/P2/P3'] },
               ].map((item) => (
                 <div key={item.agent} className="p-4 rounded-xl bg-muted/30 border border-border/50">
                   <div className="text-sm font-bold text-foreground mb-2 flex items-center gap-2">

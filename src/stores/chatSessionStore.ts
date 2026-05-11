@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
+// Path A spec rename (2026-05-11). Canonical 6 agents.
+// Legacy ids kept as aliases so cached sessions still resolve via backend
+// AGENT_MAP — new code should only use the canonical 6.
+type AgentId =
+  | 'OSMOSIS' | 'RCAI' | 'OPTIMUS' | 'AEGIS' | 'EXA' | 'ECHO'
+  // Backward-compat aliases (do not use in new code):
+  | 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC';
 
 export type ProgressEventType =
   | 'agent_selected'

@@ -203,8 +203,8 @@ const SentinelAIPanel: React.FC<SentinelAIPanelProps> = ({ onClose, date, apiCon
               <Shield className="w-4 h-4 text-destructive" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground tracking-tight">SENTINEL AI</h3>
-              <p className="text-[9px] text-muted-foreground font-medium">Assistant IA • Détection d'anomalies</p>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">RCAI</h3>
+              <p className="text-[9px] text-muted-foreground font-medium">Assistant IA • Détection d'anomalies & RCA</p>
             </div>
           </div>
           <div className="flex items-center gap-1">

@@ -33,12 +33,12 @@ const InvestigatorAIPanel: React.FC<InvestigatorAIPanelProps> = ({ onClose }) =>
   const graphSlots = Array.isArray(state?.graphSlots) ? state.graphSlots : [];
 
   const [sessionId] = useState(() => {
-    const existing = sessionStore.sessions.find(s => s.title.startsWith('[TRACE]'));
+    const existing = sessionStore.sessions.find(s => s.title.startsWith('[RCAI]'));
     if (existing) {
       sessionStore.setActiveSession(existing.id);
       return existing.id;
     }
-    return sessionStore.createSession('[TRACE] Investigation');
+    return sessionStore.createSession('[RCAI] Investigation');
   });
 
   const activeSession = sessionStore.sessions.find(s => s.id === sessionId);
@@ -90,8 +90,8 @@ const InvestigatorAIPanel: React.FC<InvestigatorAIPanelProps> = ({ onClose }) =>
       });
     }
 
-    return `Tu es TRACE, agent IA expert en investigation KPI réseau télécom (4G/5G).
-Tu es spécialisé dans l'analyse approfondie, la détection d'anomalies et l'analyse de cause racine (RCA).
+    return `Tu es RCAI, agent IA expert en investigation KPI réseau télécom (4G/5G).
+Tu es spécialisé dans la détection d'anomalies, le diagnostic et l'analyse de cause racine (RCA — fusion ex-TRACE + ex-SENTINEL).
 
 Contexte Investigator:
 - Période: ${state.startDate} → ${state.endDate}
@@ -272,7 +272,7 @@ Règles:
               <Activity className="w-4 h-4 text-cyan-500" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-foreground tracking-tight">TRACE</h3>
+              <h3 className="text-sm font-bold text-foreground tracking-tight">RCAI</h3>
               <p className="text-[9px] text-muted-foreground font-medium">Agent IA • Investigator</p>
             </div>
           </div>

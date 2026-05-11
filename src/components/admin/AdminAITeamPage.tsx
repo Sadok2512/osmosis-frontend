@@ -58,13 +58,15 @@ interface Discussion {
 
 /* ── Agent definitions ── */
 const qAgents: QAgent[] = [
-  { id: 'ORCHESTRATOR', name: 'OSMOSIS', emoji: '🧠', role: 'Orchestrateur', group: 'lead', color: 'hsl(var(--primary))', textColor: 'text-primary', status: 'active', description: 'Routage intelligent et classification des requêtes vers les agents spécialisés.' },
-  { id: 'PULSE', name: 'PULSE', emoji: '📊', role: 'KPI Analytics', group: 'analyst', color: '#3dd68c', textColor: 'text-emerald-400', status: 'active', description: 'Analyse des KPIs QoE : débit, latence, DMS, RTT.' },
-  { id: 'TOPO', name: 'TOPO', emoji: '🗺️', role: 'Topology & Inventory', group: 'specialist', color: '#4ea8de', textColor: 'text-blue-400', status: 'active', description: 'Inventaire réseau, sites, cellules, paramètres d\'antennes.' },
-  { id: 'PARMY', name: 'PARMY', emoji: '⚙️', role: 'Parameter Audit', group: 'specialist', color: '#f59e0b', textColor: 'text-amber-400', status: 'active', description: 'Audit et conformité des paramètres radio.' },
-  { id: 'TRACE', name: 'TRACE', emoji: '🔍', role: 'Diagnostic & RCA', group: 'analyst', color: '#a78bfa', textColor: 'text-purple-400', status: 'active', description: 'Root Cause Analysis, corrélation croisée.' },
-  { id: 'SENTINEL', name: 'SENTINEL', emoji: '🛡️', role: 'Monitoring & Alerts', group: 'monitor', color: '#ef4444', textColor: 'text-red-400', status: 'standby', description: 'Surveillance proactive des seuils, alertes anomalies.' },
-  { id: 'ANALYTIC', name: 'ANALYTIC', emoji: '📑', role: 'Reporting & Export', group: 'analyst', color: '#06b6d4', textColor: 'text-cyan-400', status: 'active', description: 'Génération de rapports PPT/PDF et exports analytiques.' },
+  // Path A spec rename (2026-05-11) — canonical 6 agents.
+  // PULSE+TOPO absorbed into NEXUS layer (deterministic, not displayed here).
+  // SENTINEL+TRACE fused into RCAI. PARMY→OPTIMUS, ANALYTIC→ECHO. AEGIS+EXA added.
+  { id: 'OSMOSIS', name: 'OSMOSIS', emoji: '🧠', role: 'Supervisor & Talk-to-Network',     group: 'lead',       color: 'hsl(var(--primary))', textColor: 'text-primary',     status: 'active',  description: 'Orchestrateur central. Routage intelligent, planification de workflow, synthèse multi-agents.' },
+  { id: 'RCAI',    name: 'RCAI',    emoji: '🔍', role: 'Diagnostic, Anomaly & RCA',        group: 'analyst',    color: '#a78bfa',             textColor: 'text-purple-400',  status: 'active',  description: 'Détection d\'anomalies + Root Cause Analysis (fusion ex-PULSE/SENTINEL/TRACE).' },
+  { id: 'OPTIMUS', name: 'OPTIMUS', emoji: '⚙️', role: 'Recommendation & Optimization',    group: 'specialist', color: '#f59e0b',             textColor: 'text-amber-400',   status: 'active',  description: 'Audit et propositions d\'optimisation de paramètres radio. Propose-only.' },
+  { id: 'AEGIS',   name: 'AEGIS',   emoji: '🛡️', role: 'Risk & Tier Classification',       group: 'monitor',    color: '#ef4444',             textColor: 'text-red-400',     status: 'active',  description: 'Classification T1/T2/T3 (réversibilité × blast_radius). Label d\'affichage, jamais une porte d\'exécution.' },
+  { id: 'EXA',     name: 'EXA',     emoji: '📤', role: 'Export & Vendor Handoff',          group: 'specialist', color: '#06b6d4',             textColor: 'text-cyan-400',    status: 'standby', description: 'Export fichier vers SON vendor. Squelette v1, jamais d\'exécution directe.' },
+  { id: 'ECHO',    name: 'ECHO',    emoji: '📑', role: 'Learning, Reporting & Synthesis',  group: 'analyst',    color: '#3dd68c',             textColor: 'text-emerald-400', status: 'active',  description: 'Boucle d\'apprentissage post-exécution + rapports hebdo/exécutifs (fusion ex-INSIGHT/ANALYTIC).' },
 ];
 
 const agentMap = Object.fromEntries(qAgents.map(a => [a.id, a]));
