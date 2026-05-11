@@ -8984,7 +8984,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             : renderSiteCellsRaw;
           const isSyntheticOnlySite = !shouldUseSiteDetailCells && !siteHasRealCells && renderSiteCells.length > 0;
           const renderSiteForCells = { ...site, cells: renderSiteCells };
-          const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
+          const showMiniSectors = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor)
+            || (kpiForcesSectors && renderSiteCells.length > 0 && !isIndoor)
+            || (isTagged && renderSiteCells.length > 0 && !isIndoor);
 
           if (isIndoor) {
             const densityScale = renderSites.length > 2000 ? 0.7 : renderSites.length > 800 ? 0.8 : renderSites.length > 400 ? 0.9 : 1;
@@ -9219,7 +9221,9 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 )
               : renderSiteCellsRaw;
             const isTagged = isSiteTagged(site.site_id);
-            const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor) || (isTagged && renderSiteCells.length > 0 && !isIndoor);
+            const showMini = (showBeamSectors && viewport.zoom >= SITES_TO_CELLS_ZOOM && renderSiteCells.length > 0 && !isIndoor)
+              || (kpiForcesSectors && renderSiteCells.length > 0 && !isIndoor)
+              || (isTagged && renderSiteCells.length > 0 && !isIndoor);
             return !showMini;
           });
 
