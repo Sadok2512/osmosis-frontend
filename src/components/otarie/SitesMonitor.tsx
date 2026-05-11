@@ -7062,8 +7062,16 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const kpiLevelCounts = useMemo(() => {
     const counts = { green: 0, orange: 0, red: 0, gray: 0 } as Record<'green'|'orange'|'red'|'gray', number>;
     if (sectorColorMode !== 'kpi') return counts;
+    // Honest-legend guard (v6.4.5, 2026-05-11): when the KPI engine
+    // returned 0 values for the selected KPI/period (kpiValues empty),
+    // bucket every site under "No data" (gray) instead of falling back
+    // to stale per-site fields like `s[mapKpi]` or `s.qoe_score_avg`,
+    // which were unrelated to the active KPI and produced a fake
+    // "Critique" count when their value happened to be 0.
+    const noEngineData = kpiValues.size === 0;
     if (kpiLegendScope === 'site') {
       for (const s of mapFilteredSites) {
+        if (noEngineData) { counts.gray++; continue; }
         const val = getSiteKpiValue(s);
         counts[getKpiLevel(val)]++;
       }
@@ -7074,11 +7082,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     for (const s of mapFilteredSites) {
       const cells = s.cells || [];
       if (cells.length === 0) {
-        const val = kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN;
+        // Empty-cells fallback: count 1 entry per site. When the engine
+        // has no data, force gray to avoid the stale-field fallback.
+        const val = noEngineData
+          ? NaN
+          : (kpiValues.get(`site:${s.site_name}`) ?? kpiValues.get(`site:${s.site_id}`) ?? (s as any)[mapKpi] ?? s.qoe_score_avg ?? NaN);
         counts[getKpiLevel(val)]++;
       } else {
         for (const c of cells) {
           if (!isCellVisibleForKpiOverlay(c, kpiTechnoFilter, enabledTechnos, isBandEnabled, dashBand, dashTechno, localTechno, localBande, kpiOverlayVendor, s.vendor)) continue;
+          // getCellKpiValue returns NaN when kpiValues lacks the cell;
+          // with the engine empty, NaN → gray. No stale fallback here.
           counts[getKpiLevel(getCellKpiValue(c, s.site_name || s.site_id || ''))]++;
         }
       }
