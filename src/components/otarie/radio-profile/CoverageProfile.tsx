@@ -65,6 +65,8 @@ export interface CoverageProfileProps {
   targetBearing?: number | null;
   /** Raw HBA value as stored in DB. When null, the chip shows "—" instead of a fallback number. */
   rawHba?: number | null;
+  /** Raw tilt value as stored in DB. When null, the chip shows "—" instead of "0.0°". */
+  rawTilt?: number | null;
 }
 
 const SAFE_MIN_DEG = 0.5;
