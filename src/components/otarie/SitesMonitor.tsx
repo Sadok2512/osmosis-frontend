@@ -5856,6 +5856,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
   }, [MAP_KPIS, getDefaultMapKpi, kpiOverlayLocked, kpiTechnoFilter, mapKpi]);
 
+  // 2026-05-12 v6.8.1 — single source of truth between an active KPI
+  // Overlay view and `mapKpi`. Two activation paths set the view (legacy
+  // `handleLoadView` + dashboard sidebar `onApplyView`) and only one
+  // synced mapKpi; this effect closes the gap centrally.
+  //
+  // Canonicalisation: vendor-prefixed codes (`Ericsson__&_*`, `Nokia__&_*`,
+  // `Huawei__&_*`) are stripped to their canonical form so the legend
+  // can look up label/unit/threshold from the admin-curated catalog
+  // (which holds canonical IDs). When the stripped form is unknown to
+  // the catalog we keep the raw ID — the legend then falls back to the
+  // raw string as label rather than masking the mismatch.
+  //
+  // Without this sync the legend kept the previous KPI's thresholds
+  // (e.g. CSSR `≥80% / <60%`) while the Voronoï tessellated the view's
+  // actual KPI (e.g. VoLTE Traffic Volume in GB), producing the 1 348-
+  // sectors + "Critique: 10000" stale-fallback bug reported 2026-05-12.
+  useEffect(() => {
+    if (!activeKpiOverlayView) return;
+    const firstRaw = activeKpiOverlayView.selectedKpis?.[0];
+    if (!firstRaw) return;
+    const canonical = firstRaw.replace(/^(Nokia|Ericsson|Huawei)__&_/i, '');
+    const resolved = MAP_KPIS.some(k => k.id === canonical) ? canonical : firstRaw;
+    if (resolved !== mapKpi) setMapKpi(resolved);
+    // Intentionally do NOT depend on `mapKpi`: re-syncing on every
+    // mapKpi change would override the operator manually picking a
+    // different KPI from the top-bar selector while the view is active.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeKpiOverlayView?.name, activeKpiOverlayView?.selectedKpis?.join(','), MAP_KPIS]);
+
   // Fetch KPI values when user selects a KPI and mode is 'kpi'
   // Uses in-memory cache (5min TTL) — re-selecting same KPI returns instantly without flash
   useEffect(() => {
