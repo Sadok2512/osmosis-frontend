@@ -10684,7 +10684,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     || siteDetail?.cells?.[0];
                   const rawHbaA = (cellA as any)?.hba ?? null;
                   const antennaH_A = Number(rawHbaA ?? 30) || 30;
-                  const tiltA = Number((cellA as any)?.tilt ?? 0);
+                  const rawTiltA = (cellA as any)?.tilt ?? null;
+                  const tiltA = Number(rawTiltA ?? 0);
                   const azA = Number(cellA?.azimut ?? 0);
                   const baseAmslA = linkProfileAnalysis?.effectiveTerrain?.[0] ?? 0;
                   const coverageTargetBearing = linkActiveCoords
@@ -10720,6 +10721,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         band: cellB?.bande || 'LTE1800',
                         techno: cellB?.techno || '4G',
                         siteAltitudeAmsl: baseAmslB,
+                        rawTilt: (cellB as any)?.tilt ?? null,
                       };
                     }
                   }
@@ -10746,6 +10748,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       onHoverPoint={setLinkProfileHover}
                       targetBearing={coverageTargetBearing}
                       rawHba={rawHbaA}
+                      rawTilt={rawTiltA}
                     />
                   );
                 })()

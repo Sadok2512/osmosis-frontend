@@ -29,6 +29,7 @@ export interface CoverageSiteParams {
   techno: string;
   hbw?: number;
   vbw?: number;
+  rawTilt?: number | null;
 }
 
 export interface CoverageProfileProps {
@@ -65,6 +66,8 @@ export interface CoverageProfileProps {
   targetBearing?: number | null;
   /** Raw HBA value as stored in DB. When null, the chip shows "—" instead of a fallback number. */
   rawHba?: number | null;
+  /** Raw tilt value as stored in DB. When null, the chip shows "—" instead of "0.0°". */
+  rawTilt?: number | null;
 }
 
 const SAFE_MIN_DEG = 0.5;
@@ -160,13 +163,13 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
-      targetBearing, rawHba,
+      targetBearing, rawHba, rawTilt,
     } = props;
     const aProps = {
       siteName, sectorName, azimut, antennaHeight, mechanicalTilt, electricalTilt,
       band, techno, hbw, vbw, bandwidthMhz, txPowerDbm, siteAltitudeAmsl,
       showBeam, showFootprint, showTiltLines, showClutter, clutterHeight,
-      targetBearing, rawHba,
+      targetBearing, rawHba, rawTilt,
     };
     return (
       <div className="w-full h-full grid grid-rows-2 gap-2 min-h-0">
@@ -199,6 +202,7 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
             showTiltLines={showTiltLines}
             showClutter={showClutter}
             clutterHeight={clutterHeight}
+            rawTilt={siteB.rawTilt}
           />
         </div>
       </div>
@@ -230,6 +234,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   onHoverPoint,
   targetBearing = null,
   rawHba = null,
+  rawTilt = null,
 }) => {
   // Local UI state — toggles inside the panel header strip
   const [showBeam, setShowBeam] = useState(showBeamProp);
@@ -846,7 +851,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           <span className="text-slate-500">|</span>
           <span className="text-slate-300 text-[10px]">HBA: <span className="text-emerald-300 font-bold">{rawHba == null ? '—' : `${Number(rawHba).toFixed(0)} m`}</span></span>
           <span className="text-slate-500">|</span>
-          <span className="text-slate-300 text-[10px]">Tilt: <span className="text-emerald-300 font-bold">{(geom.totalTilt ?? 0).toFixed(1)}°</span></span>
+          <span className="text-slate-300 text-[10px]">Tilt: <span className="text-emerald-300 font-bold">{rawTilt == null ? '—' : `${Number(rawTilt).toFixed(1)}°`}</span></span>
           {Number.isFinite(azimut as number) && (
             <>
               <span className="text-slate-500">|</span>
