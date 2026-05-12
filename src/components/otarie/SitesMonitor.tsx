@@ -14364,7 +14364,35 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       });
                     }
                   }}
-                  catalogKpisForModal={MAP_KPIS.map(k => ({ key: k.id, label: k.label, famille: k.category, techno: k.techno || 'all', threshold_warning: null, threshold_critical: null }))}
+                  catalogKpisForModal={(() => {
+                    // Dedupe vendor variants → one entry per canonical base
+                    // code (2026-05-12). The shared admin list mixes
+                    // canonical (`4G_LTE_CSSR_VoLTE`) and vendor-prefixed
+                    // (`Ericsson__&_*`, `Nokia__&_*`) for the same physical
+                    // KPI; the engine aggregates cross-vendor when called
+                    // with the canonical name, so the UI should surface
+                    // only that.
+                    const VENDOR_PREFIX_RE = /^(Nokia|Ericsson|Huawei)__(?:&_)?/i;
+                    const dedup = new Map<string, typeof MAP_KPIS[number]>();
+                    for (const k of MAP_KPIS) {
+                      const base = k.id.replace(VENDOR_PREFIX_RE, '');
+                      const existing = dedup.get(base);
+                      // Prefer the canonical entry (id === base) over a
+                      // prefixed variant so the dropdown shows the bare
+                      // KPI name + the engine receives it bare.
+                      if (!existing || (k.id === base && existing.id !== base)) {
+                        dedup.set(base, { ...k, id: base, label: k.label || base });
+                      }
+                    }
+                    return [...dedup.values()].map(k => ({
+                      key: k.id,
+                      label: k.label,
+                      famille: k.category,
+                      techno: k.techno || 'all',
+                      threshold_warning: null,
+                      threshold_critical: null,
+                    }));
+                  })()}
                   noDashboardMode={noDashboardMode}
                   onToggleNoDashboardMode={() => setNoDashboardMode(v => !v)}
                   onCoveragePanelMount={setCoveragePanelNode}
