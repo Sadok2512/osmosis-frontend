@@ -14,6 +14,14 @@ import { SiteSummary } from '@/types';
 import { parseVisualizationBlocks } from './chat-visualizations/parseVisualizationBlocks';
 import InlineChart from './chat-visualizations/InlineChart';
 import InlineKPICards from './chat-visualizations/InlineKPICards';
+// osmosis-ui-kit (Path A+B 2026-05-11) — kit-rendered final view of the
+// agent message after streaming completes. The legacy block renderer below
+// is kept for the in-stream phase (smoother typing perception) and as
+// opt-out via ?ui=legacy URL param.
+import { AgentResponse as KitAgentResponse } from '@/lib/osmosis-ui-kit/components/AgentResponse';
+import { parseToAgentResponse } from '@/lib/osmosis-ui-kit/adapter/parseToAgentResponse';
+import { WorstCellsView } from '@/components/WorstCellsView';
+import type { WorstCellsResponse } from '@/components/WorstCellsView';
 import { parseKpiBlocks, KpiSummaryCards, SplitSectionCards } from '../kpi-monitor/AIKpiCards';
 import { getAgentHeaders, isLocalMode, getVpsProxyUrl, getApiUrl, getApiHeaders } from '@/lib/apiConfig';
 import { useChatSessionStore, type ChatMessage, type ProgressEvent } from '@/stores/chatSessionStore';
@@ -918,7 +926,7 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
                             isStreaming={isLoading && i === messages.length - 1}
                           />
                         )}
-                        <AssistantMessage content={msg.content} />
+                        <AssistantMessage content={msg.content} isStreaming={isLoading && i === messages.length - 1} onSendPrompt={send} />
                         {msg.mapCellIds && msg.mapCellIds.length > 0 && onShowWorstCells && (
                           <button
                             onClick={() => onShowWorstCells(msg.mapCellIds!)}
@@ -974,6 +982,15 @@ const AIAssistantPage: React.FC<AIAssistantPageProps> = ({ sites = [], onShowWor
           isLoading={isLoading}
           forcedAgent={forcedAgent}
           onForcedAgentChange={setForcedAgent}
+          activeAgent={(() => {
+            // Live agent ONLY during streaming. When idle, the pill is plain
+            // "Auto" (no stale agent leaking from a prior conversation turn).
+            if (!isLoading) return null;
+            const last = messages[messages.length - 1];
+            if (last?.role === 'assistant' && last.agent) return last.agent as AgentId;
+            // Loading but no agent identified yet → orchestrator is deciding.
+            return 'OSMOSIS';
+          })()}
         />
       </div>
     </div>
@@ -1209,7 +1226,27 @@ function convertDesignAnalysisToTable(text: string): string {
   return result.join('\n');
 }
 
-const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content }) => {
+// Detect agent name from the embedded marker so the kit can pick the right badge.
+function extractAgentMarker(content: string): string | undefined {
+  const m = content.match(/<!--\s*AGENT:(\w+)\s*-->/);
+  return m ? m[1] : undefined;
+}
+
+// Opt-out of the kit renderer via URL param `?ui=legacy`.
+function isKitRendererEnabled(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('ui') === 'legacy') return false;
+    if (p.get('ui') === 'v2' || p.get('ui') === 'kit') return true;
+  } catch { /* ignore */ }
+  return true;
+}
+
+const AssistantMessage: React.FC<{ content: string; isStreaming?: boolean; onSendPrompt?: (text: string) => void }> = React.memo(({ content, isStreaming, onSendPrompt }) => {
+  const agentName = useMemo(() => extractAgentMarker(content), [content]);
+  const useKit = isKitRendererEnabled();
+
   const cleaned = useMemo(() => {
     let text = content;
     text = text.replace(/<!--\s*AGENT:\w+\s*-->\n?/g, '');
@@ -1222,8 +1259,32 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
     return text;
   }, [content]);
 
+  // Kit-rendered final view: parse the streamed text into the kit's schema
+  // and render via <AgentResponse>. Skipped during streaming to keep the
+  // typing perception, and skipped entirely if the user opted out.
+  const kitData = useMemo(() => {
+    if (!useKit || isStreaming) return null;
+    if (!cleaned || cleaned.length < 20) return null;
+    try {
+      return parseToAgentResponse(cleaned, agentName, { source: 'orchestrator/stream' });
+    } catch (e) {
+      console.warn('[AssistantMessage] kit adapter failed, falling back to legacy', e);
+      return null;
+    }
+  }, [cleaned, agentName, isStreaming, useKit]);
+
+  // ── Hooks must be called in the same order on every render — keep these
+  //    above the early `if (kitData) return ...` to avoid React #300.
   const vizBlocks = useMemo(() => parseVisualizationBlocks(cleaned), [cleaned]);
   const hasViz = vizBlocks.some(b => b.type !== 'markdown');
+
+  // Extract worst_cells blocks (rendered via WorstCellsView, both kit and legacy paths).
+  const worstCellsBlocks = useMemo(
+    () => vizBlocks
+      .filter(b => b.type === 'worst_cells')
+      .map(b => ((b as { type: 'worst_cells'; config: unknown }).config) as WorstCellsResponse),
+    [vizBlocks],
+  );
 
   const renderWithKpiCards = useCallback((md: string) => {
     const sanitizedMd = stripSiteLevelDesignSections(md);
@@ -1241,6 +1302,51 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
     );
   }, []);
 
+  if (kitData) {
+    // Scope the kit's CSS tokens locally so the kit components render with
+    // their intended colors without polluting global app styles.
+    const kitTokens: React.CSSProperties = {
+      // @ts-expect-error — CSS custom properties on inline style.
+      '--bg-primary': '#ffffff',
+      '--bg-secondary': '#f7f7f5',
+      '--bg-tertiary': '#f1efe8',
+      '--text-primary': '#1a1a1a',
+      '--text-secondary': '#5f5e5a',
+      '--text-tertiary': '#888780',
+      '--border-tertiary': 'rgba(0, 0, 0, 0.08)',
+      '--border-secondary': 'rgba(0, 0, 0, 0.15)',
+      '--border-primary': 'rgba(0, 0, 0, 0.25)',
+      '--status-success-bg': '#e1f5ee',
+      '--status-success-fg': '#0f6e56',
+      '--status-success-border': '#1d9e75',
+      '--status-warning-bg': '#faeeda',
+      '--status-warning-fg': '#ba7517',
+      '--status-warning-border': '#ef9f27',
+      '--status-danger-bg': '#fcebeb',
+      '--status-danger-fg': '#a32d2d',
+      '--status-danger-border': '#e24b4a',
+      '--status-info-bg': '#e6f1fb',
+      '--status-info-fg': '#185fa5',
+      '--status-info-border': '#378add',
+      '--status-neutral-bg': '#f1efe8',
+      '--status-neutral-fg': '#5f5e5a',
+      '--status-neutral-border': '#b4b2a9',
+      '--osmosis-primary': '#0f6e56',
+      '--osmosis-primary-light': '#1d9e75',
+    };
+    return (
+      <div className="ai-msg-content text-sm leading-relaxed" style={kitTokens}>
+        {/* WorstCellsView rendered above the kit response when an agent
+            emits a ```worst_cells JSON block — richer than the generic
+            insights callout (carte SVG + tableau pro + drill-down). */}
+        {worstCellsBlocks.map((cfg, i) => (
+          <WorstCellsView key={`wc-${i}`} data={cfg} onSendPrompt={onSendPrompt} />
+        ))}
+        <KitAgentResponse data={kitData} onFollowUp={onSendPrompt} />
+      </div>
+    );
+  }
+
   return (
     <div className="ai-msg-content text-sm leading-relaxed text-foreground">
       {hasViz ? (
@@ -1252,6 +1358,8 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
             </Suspense>
           );
           if (block.type === 'kpi') return <InlineKPICards key={i} config={block.config} />;
+          if (block.type === 'insights') return null; /* legacy renderer skips structured insights — kit renderer handles them */
+          if (block.type === 'worst_cells') return <WorstCellsView key={i} data={block.config as unknown as WorstCellsResponse} onSendPrompt={onSendPrompt} />;
           return <React.Fragment key={i}>{renderWithKpiCards(block.content)}</React.Fragment>;
         })
       ) : (

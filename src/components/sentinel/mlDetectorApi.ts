@@ -184,3 +184,69 @@ export async function* streamDiagnose(
     }
   }
 }
+
+
+// ─── Recommendations (Phase 2 — OPTIMUS) ──────────────────────────────
+
+export interface Recommendation {
+  id: number;
+  diagnostic_id: number;
+  cell_name: string;
+  kpi_code: string;
+  param_path: string | null;
+  current_value: string | null;
+  proposed_value: string | null;
+  rationale: string | null;
+  forecast_kpi_delta: number | null;
+  peer_median: number | null;
+  status: string;
+  created_at: string | null;
+}
+
+export async function getRecommendation(diagnosticId: number): Promise<Recommendation | null> {
+  const url = getVpsProxyUrl('agentic', `/diagnostics/${diagnosticId}/recommend`);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic GET /recommend → ${r.status}`);
+  const j = await r.json();
+  return j.recommendation;
+}
+
+/** Stream OPTIMUS reply. Same shape as streamDiagnose. */
+export async function* streamRecommend(diagnosticId: number): AsyncGenerator<string> {
+  const url = getVpsProxyUrl('agentic', `/diagnostics/${diagnosticId}/recommend`);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok || !resp.body) throw new Error(`agentic POST /recommend → ${resp.status}`);
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data: ')) continue;
+      const body = line.slice(6);
+      if (body === '[DONE]') return;
+      try {
+        const j = JSON.parse(body);
+        const delta: string = j?.choices?.[0]?.delta?.content || '';
+        if (delta && !delta.startsWith('<!--')) yield delta;
+      } catch { /* malformed */ }
+    }
+  }
+}
+
+export async function listRecommendations(status?: string): Promise<{ recommendations: Recommendation[]; count: number }> {
+  const params: Record<string, string> = {};
+  if (status) params.status = status;
+  const url = getVpsProxyUrl('agentic', `/recommendations`, params);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /recommendations → ${r.status}`);
+  return r.json();
+}

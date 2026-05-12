@@ -6,19 +6,19 @@ export type VizBlock =
   | { type: 'markdown'; content: string }
   | { type: 'chart'; config: ChartBlock }
   | { type: 'map'; config: MapBlock }
-  | { type: 'kpi'; config: KPIBlock };
+  | { type: 'kpi'; config: KPIBlock }
+  | { type: 'insights'; config: Record<string, unknown> }
+  | { type: 'worst_cells'; config: Record<string, unknown> };
 
 /**
  * Parses AI response content to extract visualization blocks.
- * The AI emits fenced code blocks with language tags: ```chart, ```map, ```kpi
- * containing JSON configurations.
+ * The AI emits fenced code blocks with language tags: ```chart, ```map,
+ * ```kpi, ```insights, ```worst_cells containing JSON configurations.
  */
 export function parseVisualizationBlocks(content: string): VizBlock[] {
   const blocks: VizBlock[] = [];
-  // Match ```chart {...} ```, ```map {...} ```, ```kpi {...} ```
-  // More permissive: allow optional spaces, optional newline, handle both ``` and ````
-  const regex = /`{3,}(chart|map|kpi)\s*\n?([\s\S]*?)`{3,}/g;
-  
+  const regex = /`{3,}(chart|map|kpi|insights|worst_cells)\s*\n?([\s\S]*?)`{3,}/g;
+
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -29,12 +29,12 @@ export function parseVisualizationBlocks(content: string): VizBlock[] {
       if (md) blocks.push({ type: 'markdown', content: md });
     }
 
-    const blockType = match[1] as 'chart' | 'map' | 'kpi';
+    const blockType = match[1] as 'chart' | 'map' | 'kpi' | 'insights' | 'worst_cells';
     const jsonStr = match[2].trim();
 
     try {
       const config = JSON.parse(jsonStr);
-      blocks.push({ type: blockType, config });
+      blocks.push({ type: blockType, config } as VizBlock);
     } catch {
       // If JSON parse fails, treat as markdown
       blocks.push({ type: 'markdown', content: match[0] });

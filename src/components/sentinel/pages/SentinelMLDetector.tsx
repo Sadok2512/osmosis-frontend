@@ -5,12 +5,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
-  Loader2, Calendar, Filter, Search, X,
+  Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
 } from 'lucide-react';
 import {
   listProfiles, listAnomalies, runProfileNow,
   getDiagnostic, streamDiagnose,
-  MlProfile, MlAnomaly, RcaDiagnostic,
+  getRecommendation, streamRecommend, listRecommendations,
+  MlProfile, MlAnomaly, Recommendation,
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -56,6 +57,19 @@ const SentinelMLDetector: React.FC = () => {
   const [rcaLoading, setRcaLoading] = useState(false);
   const [rcaCached, setRcaCached] = useState(false);
   const [rcaError, setRcaError] = useState<string | null>(null);
+  // Diagnostic id we got from server — needed to trigger recommendation.
+  // We pick it from a cached GET (the only way to get the row id here).
+  const [rcaDiagnosticId, setRcaDiagnosticId] = useState<number | null>(null);
+
+  // OPTIMUS recommendation state (Phase 2).
+  const [recText, setRecText] = useState<string>('');
+  const [recLoading, setRecLoading] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
+  const [recPersisted, setRecPersisted] = useState<Recommendation | null>(null);
+
+  // Global recommendations panel (bottom of the right column).
+  const [recList, setRecList] = useState<Recommendation[]>([]);
+  const [recListLoading, setRecListLoading] = useState(false);
 
   const limit = 50;
 
@@ -121,15 +135,21 @@ const SentinelMLDetector: React.FC = () => {
   // Open the RCA drawer: hit GET first (cached?), else stream POST.
   const openRca = useCallback(async (anomaly: MlAnomaly, force = false) => {
     setRcaOpen(anomaly);
-    setRcaText('');
-    setRcaCached(false);
-    setRcaError(null);
+    setRcaText(''); setRcaCached(false); setRcaError(null);
+    setRcaDiagnosticId(null);
+    setRecText(''); setRecError(null); setRecPersisted(null);
     if (!force) {
       try {
         const cached = await getDiagnostic(anomaly.id);
         if (cached?.summary) {
           setRcaText(cached.summary);
           setRcaCached(true);
+          setRcaDiagnosticId(cached.id);
+          // Also fetch any existing recommendation produced from this diag.
+          try {
+            const r = await getRecommendation(cached.id);
+            if (r) setRecPersisted(r);
+          } catch { /* ignore */ }
           return;
         }
       } catch {
@@ -141,12 +161,56 @@ const SentinelMLDetector: React.FC = () => {
       for await (const chunk of streamDiagnose(anomaly.id, { force })) {
         setRcaText((prev) => prev + chunk);
       }
+      // Once the stream finishes we re-GET to pick up the diagnostic id.
+      try {
+        const newly = await getDiagnostic(anomaly.id);
+        if (newly?.id) setRcaDiagnosticId(newly.id);
+      } catch { /* ignore */ }
     } catch (e) {
       setRcaError(e instanceof Error ? e.message : String(e));
     } finally {
       setRcaLoading(false);
     }
   }, []);
+
+  // Trigger OPTIMUS recommendation for the diagnostic currently in the drawer.
+  const runRecommendation = useCallback(async () => {
+    if (!rcaDiagnosticId) return;
+    setRecText('');
+    setRecError(null);
+    setRecPersisted(null);
+    setRecLoading(true);
+    try {
+      for await (const chunk of streamRecommend(rcaDiagnosticId)) {
+        setRecText((prev) => prev + chunk);
+      }
+      // Pick up the persisted row (if OPTIMUS judged it actionable).
+      try {
+        const r = await getRecommendation(rcaDiagnosticId);
+        if (r) setRecPersisted(r);
+      } catch { /* ignore */ }
+      // Refresh the global list.
+      void loadRecList();
+    } catch (e) {
+      setRecError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRecLoading(false);
+    }
+  }, [rcaDiagnosticId]);
+
+  const loadRecList = useCallback(async () => {
+    setRecListLoading(true);
+    try {
+      const r = await listRecommendations();
+      setRecList(r.recommendations);
+    } catch {
+      setRecList([]);
+    } finally {
+      setRecListLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadRecList(); }, [loadRecList]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(anomaliesTotal / limit)), [anomaliesTotal]);
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
@@ -424,6 +488,66 @@ const SentinelMLDetector: React.FC = () => {
                 </div>
               )}
             </div>
+
+            {/* ─── OPTIMUS recommendation section (Phase 2) ─── */}
+            {rcaText && !rcaLoading && rcaDiagnosticId && (
+              <div className="border-t border-slate-200 p-4 bg-amber-50/40">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-600" />
+                    <h4 className="text-sm font-semibold text-slate-800">Recommandation (OPTIMUS)</h4>
+                    {recPersisted && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">draft #{recPersisted.id}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    disabled={recLoading}
+                    onClick={runRecommendation}
+                    className="px-2 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-40 inline-flex items-center gap-1"
+                  >
+                    {recLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Lightbulb className="w-3 h-3" />}
+                    {recPersisted ? 'Re-générer' : 'Générer recommandation'}
+                  </button>
+                </div>
+
+                {recError && (
+                  <div className="mb-2 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {recError}
+                  </div>
+                )}
+
+                {recPersisted && (
+                  <div className="mb-2 p-3 rounded border border-amber-200 bg-white text-xs">
+                    <div className="flex items-center gap-2 font-mono text-slate-700 mb-1">
+                      <span className="text-slate-500">{recPersisted.param_path}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                      <span>{recPersisted.current_value ?? '—'}</span>
+                      <ArrowRight className="w-3 h-3 text-amber-600" />
+                      <span className="text-amber-700">{recPersisted.proposed_value ?? '—'}</span>
+                      {recPersisted.forecast_kpi_delta !== null && (
+                        <span className="ml-auto text-[10px] text-slate-500">
+                          forecast Δ{rcaOpen.kpi_code} = {recPersisted.forecast_kpi_delta >= 0 ? '+' : ''}{recPersisted.forecast_kpi_delta.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                    {recPersisted.rationale && (
+                      <p className="mt-1 text-[11px] text-slate-600">{recPersisted.rationale}</p>
+                    )}
+                  </div>
+                )}
+
+                {recText && (
+                  <pre className="text-[11px] text-slate-700 whitespace-pre-wrap font-sans leading-relaxed max-h-48 overflow-auto">{recText}</pre>
+                )}
+                {recLoading && !recText && (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" /> OPTIMUS analyse les paramètres…
+                  </div>
+                )}
+              </div>
+            )}
 
             <footer className="flex items-center justify-between p-3 border-t border-slate-200">
               <span className="text-[10px] text-slate-400">

@@ -436,6 +436,8 @@ const AssistantMessage: React.FC<{ content: string }> = React.memo(({ content })
             </Suspense>
           );
           if (block.type === 'kpi') return <InlineKPICards key={i} config={block.config} />;
+          if (block.type === 'insights') return null;
+          if (block.type === 'worst_cells') return null;
           return <React.Fragment key={i}>{renderMarkdownWithKpiCards(block.content)}</React.Fragment>;
         })
       ) : (

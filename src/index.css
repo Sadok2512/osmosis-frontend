@@ -580,3 +580,9 @@ All colors MUST be HSL.
 .pa-map-transparent .leaflet-tile-pane {
   display: none;
 }
+
+/* Shimmer for ChatInput agent buttons (Auto pill + active forced agent during streaming) */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
