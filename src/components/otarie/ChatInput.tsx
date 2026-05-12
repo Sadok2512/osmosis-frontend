@@ -1,16 +1,21 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 
-type AgentId = 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC' | 'OSMOSIS';
+type AgentId = 'OSMOSIS' | 'RCAI' | 'OPTIMUS' | 'AEGIS' | 'EXA' | 'ECHO' | 'PULSE' | 'TRACE' | 'SENTINEL' | 'TOPO' | 'PARMY' | 'ANALYTIC';
 
 const AGENT_META: Record<AgentId, { emoji: string; label: string; color: string }> = {
-  PULSE: { emoji: '💓', label: 'PULSE', color: 'hsl(200, 80%, 50%)' },
-  TRACE: { emoji: '🔍', label: 'TRACE', color: 'hsl(35, 90%, 50%)' },
-  SENTINEL: { emoji: '🚨', label: 'SENTINEL', color: 'hsl(0, 80%, 55%)' },
-  TOPO: { emoji: '🗺️', label: 'TOPO', color: 'hsl(270, 70%, 55%)' },
-  PARMY: { emoji: '⚙️', label: 'PARMY', color: 'hsl(30, 85%, 55%)' },
-  ANALYTIC: { emoji: '📈', label: 'ANALYTIC', color: 'hsl(190, 70%, 50%)' },
   OSMOSIS: { emoji: '🧠', label: 'OSMOSIS', color: 'hsl(142, 60%, 45%)' },
+  RCAI: { emoji: '🔍', label: 'RCAI', color: 'hsl(265, 70%, 60%)' },
+  OPTIMUS: { emoji: '⚙️', label: 'OPTIMUS', color: 'hsl(35, 90%, 50%)' },
+  AEGIS: { emoji: '🛡️', label: 'AEGIS', color: 'hsl(0, 80%, 55%)' },
+  EXA: { emoji: '📤', label: 'EXA', color: 'hsl(190, 70%, 50%)' },
+  ECHO: { emoji: '📊', label: 'ECHO', color: 'hsl(150, 65%, 50%)' },
+  PULSE: { emoji: '🔍', label: 'RCAI', color: 'hsl(265, 70%, 60%)' },
+  TRACE: { emoji: '🔍', label: 'RCAI', color: 'hsl(265, 70%, 60%)' },
+  SENTINEL: { emoji: '🔍', label: 'RCAI', color: 'hsl(265, 70%, 60%)' },
+  TOPO: { emoji: '🔍', label: 'RCAI', color: 'hsl(265, 70%, 60%)' },
+  PARMY: { emoji: '⚙️', label: 'OPTIMUS', color: 'hsl(35, 90%, 50%)' },
+  ANALYTIC: { emoji: '📊', label: 'ECHO', color: 'hsl(150, 65%, 50%)' },
 };
 
 interface ChatInputProps {
@@ -57,7 +62,7 @@ const ChatInput = React.memo(({ onSend, isLoading, forcedAgent, onForcedAgentCha
           >
             Auto
           </button>
-          {(['PULSE', 'TRACE', 'SENTINEL', 'TOPO', 'PARMY', 'ANALYTIC'] as AgentId[]).map(agent => {
+          {(['RCAI', 'OPTIMUS', 'AEGIS', 'EXA', 'ECHO'] as AgentId[]).map(agent => {
             const meta = AGENT_META[agent];
             const isActive = forcedAgent === agent;
             return (

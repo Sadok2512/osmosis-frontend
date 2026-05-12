@@ -1213,29 +1213,19 @@ const FitHighlightBounds = ({ coords: _coords }: { coords: [number, number][] })
 
 const FitToDashboardSites: React.FC<{ sites: SiteSummary[]; fitKey: number }> = ({ sites, fitKey }) => {
   const map = useMap();
-  // 2026-05-12 — track BOTH fitKey AND a sites signature. Before this,
-  // activating a dashboard bumped fitKey while `sites` still held the
-  // previous dashboard's (or no-dashboard bbox) data; the effect fit
-  // to those old sites, then marked `lastFitRef = fitKey`. When the
-  // new dashboard sites arrived a re-render later, the effect was
-  // skipped because `fitKey === lastFitRef`. Result: map landed on
-  // the old location and never moved to the new dashboard's sites.
-  //
-  // Refitting when (fitKey, sitesSig) changes — not just fitKey —
-  // makes the fit follow the actual data instead of guessing on stale
-  // state. The sites signature is cheap (count + first/last id) and
-  // changes whenever the loader swaps in a new batch.
-  const lastFitRef = useRef<{ fitKey: number; sitesSig: string }>({ fitKey: 0, sitesSig: '' });
+  // Fit exactly once per explicit dashboard-fit request. Do not refit on every
+  // BBOX/site refresh: each programmatic move fires `moveend`, which was causing
+  // a fetch → sites update → refit loop where the map moved by itself.
+  const lastFitKeyRef = useRef(0);
   useEffect(() => {
     if (fitKey === 0) return;
     if (!sites || sites.length === 0) return;
-    const sitesSig = `${sites.length}|${sites[0]?.site_id ?? ''}|${sites[sites.length - 1]?.site_id ?? ''}`;
-    if (fitKey === lastFitRef.current.fitKey && sitesSig === lastFitRef.current.sitesSig) return;
+    if (fitKey === lastFitKeyRef.current) return;
     const coords = sites
       .map(s => s.coordinates)
       .filter((c): c is [number, number] => Array.isArray(c) && c.length === 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
     if (coords.length === 0) return;
-    lastFitRef.current = { fitKey, sitesSig };
+    lastFitKeyRef.current = fitKey;
     if (coords.length === 1) {
       map.flyTo(coords[0] as [number, number], 12, { duration: 0.8 });
       return;
