@@ -1639,17 +1639,23 @@ export async function fetchKpiCellValues(
     if (sites.length > 0) monitorFilters.push({ dimension: 'SITE', op: 'IN', values: sites });
   }
 
-  // Case-normalisation of the kpi code (2026-05-11):
-  // Engine fast_path is case-sensitive against the lowercase registry
-  // for the GENERIC name (e.g. `4g_lte_dcr_volte` works, but the UI
-  // dropdown sends `4G_LTE_DCR_VoLTE` which falls through to slow_path).
-  // Vendor-prefixed variants are handled correctly by the engine's
-  // prefix splitter ONLY when the prefix is preserved as-is, so we
-  // keep `Nokia__&_*` / `Ericsson__&_*` / `Huawei__&_*` untouched and
-  // only lowercase the bare generic.
-  const normalisedKpiId = /^(Nokia|Ericsson|Huawei)__&_/.test(kpiId)
-    ? kpiId
-    : kpiId.toLowerCase();
+  // Case-normalisation of the kpi code (2026-05-12 v7.0):
+  // The precompute writes BOTH vendor formulas (Nokia M8006C* + Ericsson
+  // pmErab*) into kpi_15m under the SAME canonical lowercase key
+  // (`4g_lte_dcr_volte`, etc.). The engine fast_path keys on that
+  // canonical, so stripping the `Nokia__&_` / `Ericsson__&_` prefix
+  // here yields cross-vendor results (= what Investigator already
+  // gets). Keeping the prefix narrows the result to one vendor and
+  // leaves the other-vendor cells grey on the KPI Overlay map.
+  //
+  // The admin catalog now exposes the canonical forms directly
+  // (kpi_aggregation_config rows added 2026-05-12), so the dropdown
+  // shows them as first-class entries. This strip is a belt-and-
+  // suspenders fallback for views saved BEFORE that catalog change
+  // (which carry the vendor-prefixed `selectedKpis`).
+  const normalisedKpiId = kpiId
+    .replace(/^(Nokia|Ericsson|Huawei)__&_/i, '')
+    .toLowerCase();
 
   // Granularity 2026-05-11 root-cause fix: `'total'` is NOT a key the
   // kpi-engine `_granularity_to_precomputed_table` recognises, so every
