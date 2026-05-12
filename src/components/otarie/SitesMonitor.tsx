@@ -11304,7 +11304,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                 <span className="w-px h-7 bg-border/50 shrink-0" />
 
                 {/* Band selector in KPI mode — keep all slots, dim bands not in scope */}
-                <div className="flex items-stretch bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                <div className="flex items-stretch bg-transparent rounded-lg overflow-hidden border border-border/40 shrink-0">
                   {(mapTechnoFilter === 'ALL' || mapTechnoFilter === '5G'
                     ? ['NR3500', 'NR700', 'NR2100']
                     : []
