@@ -6453,6 +6453,47 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         else if (activeSiteScope.type === 'Plaque') effectiveFilters = { plaque: [activeSiteScope.value] };
       }
 
+      //DIAG (2026-05-12) — surface what arrived at the loader so the
+      //DIAG operator can see whether a saved dashboard is missing its
+      //DIAG siteFilters. A "Reims" dashboard with no filters silently
+      //DIAG fell through to `fetchDashboardSites(null)` which queries
+      //DIAG the full-world bbox with `limit=10000` — hence the "10 000
+      //DIAG Sites" footer + heavy map reported 2026-05-12.
+      // eslint-disable-next-line no-console
+      console.log('[diag] dashboard:load', {
+        activeDashboardId,
+        activeDashboardFilters,
+        activeSiteScope,
+        effectiveFilters,
+        effectiveFilterKeys: effectiveFilters ? Object.keys(effectiveFilters) : null,
+      });
+
+      // Hard guard: refuse to load 10 000 sites worldwide when the
+      // dashboard's filter chain produced nothing. Without this, an
+      // operator activating a misconfigured dashboard would believe
+      // they are looking at "Reims" while the map silently displays
+      // every site in the database (capped at 10 000 by the backend).
+      // The honest behaviour is an empty map + a banner — the operator
+      // can then fix the dashboard's siteFilters or scope.
+      if (!effectiveFilters || Object.keys(effectiveFilters).length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn('[SitesMonitor] dashboard has no filters/scope — refusing to load all sites. Fix the dashboard configuration.');
+        if (!cancelled) {
+          setSites([]);
+          setBboxTotal(0);
+          setBboxLoading(false);
+          setLoading(false);
+        }
+        return;
+      }
+
+      // Clear the previous (no-dashboard bbox or other dashboard) sites
+      // so the map doesn't render stale 10 000-point clouds while the
+      // new dashboard loader is in flight.
+      setSites([]);
+      setBboxTotal(0);
+      setLoading(true);
+
       const cachedDashboardSites = getCachedDashboardSites(effectiveFilters);
       if (cachedDashboardSites && cachedDashboardSites.length > 0) {
         setSites(cachedDashboardSites);
