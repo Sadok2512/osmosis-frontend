@@ -11366,7 +11366,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
                 {/* Band selector in Topo mode — keep all slots, dim bands not in scope */}
                 {mapTechnoFilter !== 'OFF' && (
-                  <div className="flex items-stretch bg-muted/60 rounded-lg overflow-hidden border border-border/40 shrink-0">
+                  <div className="flex items-stretch bg-transparent rounded-lg overflow-hidden border border-border/40 shrink-0">
                     {(mapTechnoFilter === 'ALL' || mapTechnoFilter === '5G'
                       ? ['NR3500', 'NR700', 'NR2100']
                       : []
