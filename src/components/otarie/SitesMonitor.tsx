@@ -5790,6 +5790,19 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           if (/(^|_)4G(_|$)/i.test(code) || /LTE/i.test(code)) return '4G';
           return 'all';
         };
+        // 2026-05-12 v7.0.1 — normalise the raw 3GPP techno strings
+        // returned by `/api/v1/kpi/catalog` (`LTE`, `NR`) to the UI
+        // vocabulary (`4G`, `5G`) the wizard filters on. Without this,
+        // any KPI enriched with meta.techno='LTE' was rejected by the
+        // wizard's `k.techno.toLowerCase() === '4g'` predicate and
+        // showed up as "Aucun KPI disponible pour 4G" even though the
+        // KPI was clearly LTE-flavoured.
+        const normaliseTechno = (raw?: string): string => {
+          const t = String(raw || '').toUpperCase();
+          if (t === 'LTE' || t === '4G') return '4G';
+          if (t === 'NR' || t === '5G') return '5G';
+          return t || 'all';
+        };
 
         const kpis = sharedCodes.map((code) => {
           const meta = byId.get(code) || {};
@@ -5798,7 +5811,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             label: meta.label || code,
             unit: meta.unit || '',
             category: meta.category || 'OTHER',
-            techno: meta.techno || inferTechno(code),
+            techno: normaliseTechno(meta.techno) || inferTechno(code),
             vendor: meta.vendor || inferVendor(code),
           };
         });
