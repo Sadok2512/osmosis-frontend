@@ -167,7 +167,7 @@ import { CellNeighbor, NeighborDirection, NeighborRelationType, NEIGHBOR_COLORS,
 import { invalidateSitesCache } from '../../services/mockData';
 import { fetchSitesByBbox, fetchCellsByBbox, invalidateBboxCache, BboxQuery, fetchDashboardSites, fetchSiteCells, invalidateDashboardSitesCache, invalidateSiteCellsCache, getCachedDashboardSites, fetchKpiCellValues, clearKpiCache } from '../../services/topoService';
 import VisualCoverageAdapter from './VisualCoverageAdapter';
-import KpiOverlayAdapter, { type KpiOverlayView } from './KpiOverlayAdapter';
+import KpiOverlayAdapter, { type KpiOverlayView, type KpiOverlayStats } from './KpiOverlayAdapter';
 import { BboxFilters, onCellsCacheUpdate, isCellsCacheLoading, getCellsFromCacheForSite, getCellsCacheCount } from '@/lib/localDb';
 import { SiteSummary, SiteDetail, Filters, CellProperties } from '../../types';
 import {
@@ -4218,6 +4218,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   // its own legend (panelMount=null on the adapter); the legacy
   // sectorColorMode==='kpi' floating block owns the legend UI.
   const [activeKpiOverlayView, setActiveKpiOverlayView] = useState<KpiOverlayView | null>(null);
+  // 2026-05-12 — stats emitted by KpiOverlayAdapter (backendCells /
+  // afterFilter / seedsTotal / rendered / capped). Surfaced as a
+  // truncation banner in the KPI legend when `capped === true`.
+  const [kpiOverlayStats, setKpiOverlayStats] = useState<KpiOverlayStats | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({ bounds: null, zoom: mapCache.cachedZoom || FRANCE_DEFAULT_ZOOM });
   const [initialCenter] = useState<[number, number] | null>(() => {
     if (!isValidMapCoords(mapCache.cachedCenter)) return null;
@@ -6371,66 +6375,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
 
     if (!dashboardActive) {
       if (abortRef.current) abortRef.current.abort();
-      // No-dashboard mode: load all site summaries so the left inventory is always populated.
-      // Map rendering remains protected by viewport culling and zoom/count gates (SITES_VISIBLE_ZOOM, MAX_VISIBLE_SITES).
+      // No-dashboard mode: rely purely on the bbox loader (fetchForViewport) driven by
+      // MapViewportTracker. The previous "preload 37k sites" path was dead weight: the map
+      // only renders sites inside the current viewport (gated by SITES_VISIBLE_ZOOM /
+      // MAX_VISIBLE_SITES), and the bbox loader merges its results, so the 37k preload
+      // never reached the user — it just cost a topo full-fetch + a 37k SiteSummary build.
       if (noDashboardMode) {
-        let cancelledNoDash = false;
-        setLoading(true);
-        setBboxLoading(true);
-        (async () => {
-          try {
-            // Try the full-topology loader first (most reliable: 50k cell cap, builds all sites).
-            const { fetchTopoSites } = await import('../../services/topoService');
-            let allSites: SiteSummary[] = [];
-            try {
-              allSites = await fetchTopoSites();
-            } catch (e) {
-              console.warn('[SitesMonitor] fetchTopoSites failed, falling back to dashboard loader', e);
-            }
-            if (!cancelledNoDash && allSites.length > 0) {
-              setSites(allSites);
-              setBboxTotal(allSites.length);
-              setLoading(false);
-              if (skipNextNoDashFitRef.current) {
-                skipNextNoDashFitRef.current = false;
-              } else {
-                setDashboardFitKey(k => k + 1);
-              }
-              return;
-            }
-            // Fallback: dashboard loader with null filters
-            let firstNoDashFitDone = false;
-            const fallback = await fetchDashboardSites(null, undefined, (batch) => {
-              if (!cancelledNoDash && batch.length > 0) {
-                setSites(batch);
-                setBboxTotal(batch.length);
-                setLoading(false);
-                if (!firstNoDashFitDone) {
-                  firstNoDashFitDone = true;
-                  if (skipNextNoDashFitRef.current) {
-                    skipNextNoDashFitRef.current = false;
-                  } else {
-                    setDashboardFitKey(k => k + 1);
-                  }
-                }
-              }
-            });
-            if (cancelledNoDash) return;
-            const finalSites = fallback || [];
-            if (finalSites.length > 0) {
-              setSites(finalSites);
-              setBboxTotal(finalSites.length);
-            }
-          } catch (err) {
-            console.warn('[SitesMonitor] no-dashboard mode load failed', err);
-          } finally {
-            if (!cancelledNoDash) {
-              setLoading(false);
-              setBboxLoading(false);
-            }
-          }
-        })();
-        return () => { cancelledNoDash = true; };
+        // If a viewport is already known (e.g. toggling FROM dashboard TO no-dashboard),
+        // kick a one-shot bbox fetch — MapViewportTracker only fires on mount + moveend.
+        if (viewport.bounds) {
+          fetchForViewport(viewport.bounds, currentBboxFilters, viewport.zoom);
+        } else {
+          // No bounds yet; wait for MapViewportTracker's initial onViewportChange fire.
+          setBboxLoading(true);
+        }
+        return;
       }
       // Don't clear sites if search is active — search results are separate
       setSites([]);
@@ -8349,6 +8308,21 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               band:    localBande  !== 'ALL' ? localBande  : csv(df?.bande),
             };
           })()}
+          // 2026-05-12 — exact site allowlist derived from the same
+          // mapFilteredSites the legend / KPI list panel use, so the
+          // Voronoï polygon set always matches the 72-sites the operator
+          // sees. Without this the backend `/cells-for-coverage` call
+          // returned a plaque-wide superset (1 682 cells in the REIMS
+          // bug screenshot) and the tessellation fanned out huge red
+          // polygons toward sites outside the dashboard perimeter.
+          // CSV pattern keeps the prop stable by string identity.
+          siteAllowlist={dashboardActive
+            ? mapFilteredSites
+                .map(s => s.site_name || s.site_id || '')
+                .filter(Boolean)
+                .join(',')
+            : null}
+          onStats={setKpiOverlayStats}
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
@@ -11710,6 +11684,20 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               </div>
             </div>
 
+            {/* 2026-05-12 — cap-truncation notice. Visible only when the
+                Voronoï adapter reports more sectors than MAX_VORONOI_CELLS;
+                we keep the 500 closest to map centre and ask the operator
+                to zoom in to refine the set. Banner stays in sync with
+                pan/zoom via the adapter's moveend subscription. */}
+            {activeKpiOverlayView && kpiOverlayStats?.capped && (
+              <div className="px-3 py-1.5 text-[10px] text-amber-700 dark:text-amber-300 bg-amber-50/80 dark:bg-amber-950/30 border-y border-amber-200/60 dark:border-amber-800/40 flex items-start gap-1.5">
+                <span aria-hidden>⚠</span>
+                <span>
+                  <b>{kpiOverlayStats.seedsTotal}</b> sectors in filter, showing{' '}
+                  <b>{kpiOverlayStats.rendered}</b> closest to map centre. Zoom in to refine.
+                </span>
+              </div>
+            )}
 
             {/* Legend rows — click to filter */}
             <div className="px-3 py-1.5 space-y-0.5">

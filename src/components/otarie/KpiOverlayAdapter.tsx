@@ -20,10 +20,18 @@
  * No module file modification. The module's `kpi-overlay.js` exports
  * `buildKpiOverlay` for exactly this framework-agnostic use case.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
+
+/** Defensive cap on the number of Voronoï seeds rendered at once. The
+ *  backend can return thousands of cells for a national dashboard; past
+ *  this many seeds the half-plane clipper becomes the bottleneck (target
+ *  <200 ms / 500 cells). When the filter exceeds the cap, we keep the
+ *  500 sectors closest to the current map centre and surface the
+ *  truncation in the legend. */
+export const MAX_VORONOI_CELLS = 500;
 // Module is plain JS without TS types — `any` shape is intentional.
 // We bypass kpi-overlay.js::buildKpiOverlay (which radially clips every
 // vertex to maxRadius/cell, breaking Voronoï edges) and call the raw
@@ -70,6 +78,25 @@ export interface KpiOverlayScopeFilters {
   band?: string;
 }
 
+/** Stats emitted to the parent so the legend can surface "showing X of Y
+ *  closest to map centre — zoom in to refine" when the dashboard filter
+ *  exceeds MAX_VORONOI_CELLS. */
+export interface KpiOverlayStats {
+  /** Cells returned by `/cells-for-coverage` for the current bbox+scope. */
+  backendCells: number;
+  /** After client-side defensive scope filter (techno/vendor/band) AND
+   *  the dashboard site allowlist. */
+  afterFilter: number;
+  /** Sectors after siteId|azimuth-bucket dedup (= number of polygon
+   *  candidates before the cap). */
+  seedsTotal: number;
+  /** Polygons actually rendered (≤ MAX_VORONOI_CELLS). */
+  rendered: number;
+  /** True iff `seedsTotal > MAX_VORONOI_CELLS` and we picked the closest
+   *  `MAX_VORONOI_CELLS` to the current map centre. */
+  capped: boolean;
+}
+
 interface Props {
   enabled: boolean;
   bbox: Bounds | null;
@@ -84,6 +111,16 @@ interface Props {
    *  re-applies them after fetch in case the backend ever returns a
    *  superset. */
   scope?: KpiOverlayScopeFilters | null;
+  /** Dashboard-filtered site allowlist as a comma-separated string of
+   *  `site_name` (or `site_id`) values. Cells whose siteName / siteId
+   *  is not in this set are dropped before Voronoï tessellation.
+   *  `null` / empty = no allowlist (fall back to scope-only filtering).
+   *  CSV is used over `Set<string>` so the React dep array stays stable
+   *  by string identity rather than ref identity. */
+  siteAllowlist?: string | null;
+  /** Optional callback invoked whenever cell counts change, so the
+   *  parent can render a cap-truncation notice in the legend. */
+  onStats?: (s: KpiOverlayStats) => void;
   /** Legacy props kept for backward compatibility with prior wiring —
    *  ignored in the new direct-build path. */
   panelMount?: HTMLElement | null;
@@ -132,10 +169,36 @@ const KpiOverlayAdapter: React.FC<Props> = ({
   kpiValueMap,
   kpiThresholds,
   scope,
+  siteAllowlist,
+  onStats,
 }) => {
   const map = useMap();
   const [cells, setCells] = useState<CoverageCell[]>([]);
   const layerRef = useRef<L.GeoJSON | null>(null);
+  /** Bump on map moveend ONLY while the dashboard filter exceeds the
+   *  cap, so panning re-selects the 500 closest sectors. Subscribing is
+   *  conditional (see effect below) to avoid rebuilding the layer on
+   *  every pan when we're under the cap. */
+  const [mapCenterTick, setMapCenterTick] = useState(0);
+  /** Last fetch stats — composed with the build-effect stats and emitted
+   *  to the parent via onStats once a render completes. */
+  const lastFetchStatsRef = useRef<{ backendCells: number; afterFilter: number }>({
+    backendCells: 0,
+    afterFilter: 0,
+  });
+
+  /** Parse the CSV allowlist into a Set once per change. Includes both
+   *  forms because callers may use site_name or site_id interchangeably
+   *  and CoverageCell carries both. */
+  const allowSet = useMemo<Set<string> | null>(() => {
+    if (!siteAllowlist) return null;
+    const parts = siteAllowlist
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return null;
+    return new Set(parts);
+  }, [siteAllowlist]);
 
   // ── Fetch cells when bbox / scope filters change ──
   useEffect(() => {
@@ -171,10 +234,18 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         // scope after fetch so any subset returned by an out-of-date
         // backend (or a future bug) still honours the operator's
         // perimeter. Idempotent when the backend already filtered.
+        // 2026-05-12 — also enforce the dashboard site allowlist here,
+        // since `/cells-for-coverage` filters by plaque/dor/cluster/
+        // techno/vendor/band but not by an arbitrary site list (e.g.
+        // a Cluster_B narrowing or a saved sub-perimeter). Without
+        // this step the Voronoï tessellated a superset of the 1 682
+        // cells the legend was reporting, producing huge red polygons
+        // that fanned out from the cluster centre.
         const filtered = c.filter((cell) =>
           csvMatches(scope?.techno, cell.tech)
           && csvMatches(scope?.vendor, cell.vendor)
           && csvMatches(scope?.band, cell.band)
+          && (!allowSet || allowSet.has(cell.siteName) || allowSet.has(cell.siteId))
         );
         //DIAG (2026-05-12) — surface fetch + filter results.
         // eslint-disable-next-line no-console
@@ -182,7 +253,12 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           backendCells: c.length,
           afterClientFilter: filtered.length,
           dropped: c.length - filtered.length,
+          allowSetSize: allowSet?.size ?? null,
         });
+        lastFetchStatsRef.current = {
+          backendCells: c.length,
+          afterFilter: filtered.length,
+        };
         setCells(filtered);
       })
       .catch((err) => {
@@ -194,6 +270,7 @@ const KpiOverlayAdapter: React.FC<Props> = ({
   }, [
     enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat,
     scope?.techno, scope?.vendor, scope?.plaque, scope?.dor, scope?.cluster, scope?.band,
+    siteAllowlist,
   ]);
 
   // Scope guard for the level (UX 2026-05-11: 'Cellule' only).
@@ -211,6 +288,12 @@ const KpiOverlayAdapter: React.FC<Props> = ({
 
     if (!map || !enabled || !view || !levelOk || cells.length === 0 || !view.selectedKpis?.length) {
       removeLayer();
+      onStats?.({
+        ...lastFetchStatsRef.current,
+        seedsTotal: 0,
+        rendered: 0,
+        capped: false,
+      });
       return;
     }
 
@@ -284,10 +367,36 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         }
       }
     }
-    const seeds = [...seedMap.values()];
-    if (seeds.length === 0) {
+    const seedsAll = [...seedMap.values()];
+    if (seedsAll.length === 0) {
+      onStats?.({
+        ...lastFetchStatsRef.current,
+        seedsTotal: 0,
+        rendered: 0,
+        capped: false,
+      });
       removeLayer();
       return;
+    }
+
+    // 1b) Defensive cap — if the dashboard filter produced more than
+    //     MAX_VORONOI_CELLS sectors, keep the ones closest to the
+    //     current map centre. Voronoï complexity is O(n²) in the
+    //     half-plane clipper used here, so 500 is the upper bound where
+    //     the build stays well under the 200 ms target. When capped, a
+    //     legend banner asks the user to zoom in to refine.
+    let seeds = seedsAll;
+    let capped = false;
+    if (seedsAll.length > MAX_VORONOI_CELLS) {
+      const centre = map.getCenter();
+      const cx = centre.lng * M_PER_DEG_LNG;
+      const cy = centre.lat * M_PER_DEG_LAT;
+      seeds = seedsAll
+        .map((s) => ({ s, d: (s.x - cx) * (s.x - cx) + (s.y - cy) * (s.y - cy) }))
+        .sort((a, b) => a.d - b.d)
+        .slice(0, MAX_VORONOI_CELLS)
+        .map((e) => e.s);
+      capped = true;
     }
 
     // 2) bbox in flat-metres with generous padding (50 km) so the
@@ -385,10 +494,19 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     });
     layerRef.current.addTo(map);
 
+    onStats?.({
+      ...lastFetchStatsRef.current,
+      seedsTotal: seedsAll.length,
+      rendered: seeds.length,
+      capped,
+    });
+
     return removeLayer;
     // Re-render triggers: cells signature, view identity, thresholds,
     // kpiValueMap reference. We use stable scalars + cell count to avoid
-    // infinite re-renders when the parent rebuilds equal Maps.
+    // infinite re-renders when the parent rebuilds equal Maps. The
+    // `mapCenterTick` dep only changes while we're capped (see the
+    // moveend subscription below), so pans under the cap don't rebuild.
   }, [
     map,
     enabled,
@@ -403,7 +521,35 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     kpiThresholds?.green,
     kpiThresholds?.orange,
     kpiThresholds?.invert,
+    mapCenterTick,
   ]);
+
+  // ── Map moveend subscription, conditional on being over the cap ──
+  //
+  // We deliberately avoid wiring this listener while seeds ≤ cap so
+  // pans don't trigger Voronoï rebuilds. When over cap, a 400 ms-
+  // debounced moveend bumps `mapCenterTick`, which feeds the build
+  // effect dep array and re-selects the 500 closest sectors.
+  const isCapped = cells.length > 0 && (() => {
+    // Lightweight estimate: post-dedup count is bounded above by the
+    // raw cell count, so if cells.length ≤ cap we're definitely under
+    // the cap. Otherwise we always subscribe and let the build effect
+    // re-evaluate the precise seed count.
+    return cells.length > MAX_VORONOI_CELLS;
+  })();
+  useEffect(() => {
+    if (!map || !enabled || !isCapped) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const onMove = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => setMapCenterTick((v) => v + 1), 400);
+    };
+    map.on('moveend', onMove);
+    return () => {
+      if (t) clearTimeout(t);
+      map.off('moveend', onMove);
+    };
+  }, [map, enabled, isCapped]);
 
   return null;
 };
