@@ -11448,53 +11448,63 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
             {sectorColorMode === 'topo' && (
               <>
 
-                {/* Band selector in Topo mode — keep all slots, dim bands not in scope */}
+                {/* Band selector in Topo mode */}
                 {mapTechnoFilter !== 'OFF' && (
-                  <div className="flex items-stretch bg-transparent rounded-lg overflow-hidden border border-border/40 shrink-0">
-                    {(mapTechnoFilter === 'ALL' || mapTechnoFilter === '5G'
-                      ? ['NR3500', 'NR700', 'NR2100']
-                      : []
-                    ).concat(
-                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
-                        ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
+                  <div className="flex items-stretch gap-1 shrink-0">
+                    <button
+                      onClick={toggleBandBarMode}
+                      className="px-1.5 py-2 rounded-lg text-[9px] font-bold border border-border/40 bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                      title={bandBarMode === 'full' ? 'Mode plein : toutes les bandes affichées (cliquer pour compacter)' : 'Mode compact : seules les bandes présentes (cliquer pour tout afficher)'}
+                    >
+                      {bandBarMode === 'full' ? '⇔' : '⇥'}
+                    </button>
+                    <div className="flex items-stretch bg-transparent rounded-lg overflow-hidden border border-border/40 shrink-0">
+                      {(mapTechnoFilter === 'ALL' || mapTechnoFilter === '5G'
+                        ? ['NR3500', 'NR700', 'NR2100']
                         : []
-                    ).concat(
-                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '3G'
-                        ? ['UMTS2100', 'UMTS900']
-                        : []
-                    ).concat(
-                      mapTechnoFilter === 'ALL' || mapTechnoFilter === '2G'
-                        ? ['GSM900', 'GSM1800']
-                        : []
-                    ).map((band) => {
-                      const inScope = availableBandsInScope.size === 0 || availableBandsInScope.has(band);
-                      const active = enabledBands.has(band);
-                      return (
-                        <button
-                          key={band}
-                          disabled={!inScope}
-                          onClick={() => {
-                            setEnabledBands(prev => {
-                              const next = new Set(prev);
-                              if (next.has(band)) next.delete(band);
-                              else next.add(band);
-                              return next;
-                            });
-                          }}
-                          className={`px-2 py-2 text-[9px] font-bold tracking-wider transition-all first:rounded-l-lg last:rounded-r-lg ${
-                            active
-                              ? 'text-primary-foreground shadow-sm'
-                              : inScope
-                                ? 'bg-muted/60 text-muted-foreground/60 hover:text-foreground hover:bg-muted'
-                                : 'bg-muted/60 text-muted-foreground/30 cursor-not-allowed opacity-50'
-                          }`}
-                          style={active ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
-                          title={inScope ? band : `${band} — aucun secteur dans la zone`}
-                        >
-                          {band}
-                        </button>
-                      );
-                    })}
+                      ).concat(
+                        mapTechnoFilter === 'ALL' || mapTechnoFilter === '4G'
+                          ? ['L2600', 'L2100', 'L1800', 'L800', 'L700']
+                          : []
+                      ).concat(
+                        mapTechnoFilter === 'ALL' || mapTechnoFilter === '3G'
+                          ? ['UMTS2100', 'UMTS900']
+                          : []
+                      ).concat(
+                        mapTechnoFilter === 'ALL' || mapTechnoFilter === '2G'
+                          ? ['GSM900', 'GSM1800']
+                          : []
+                      ).filter(band => bandBarMode === 'full' || availableBandsInScope.size === 0 || availableBandsInScope.has(band))
+                        .map((band) => {
+                        const inScope = availableBandsInScope.size === 0 || availableBandsInScope.has(band);
+                        const active = enabledBands.has(band);
+                        return (
+                          <button
+                            key={band}
+                            disabled={!inScope}
+                            onClick={() => {
+                              setEnabledBands(prev => {
+                                const next = new Set(prev);
+                                if (next.has(band)) next.delete(band);
+                                else next.add(band);
+                                return next;
+                              });
+                            }}
+                            className={`px-2 py-2 text-[9px] font-bold tracking-wider transition-all first:rounded-l-lg last:rounded-r-lg ${
+                              active
+                                ? 'text-primary-foreground shadow-sm'
+                                : inScope
+                                  ? 'bg-muted/60 text-muted-foreground/60 hover:text-foreground hover:bg-muted'
+                                  : 'bg-muted/60 text-muted-foreground/30 cursor-not-allowed opacity-50'
+                            }`}
+                            style={active ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
+                            title={inScope ? band : `${band} — aucun secteur dans la zone`}
+                          >
+                            {band}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
