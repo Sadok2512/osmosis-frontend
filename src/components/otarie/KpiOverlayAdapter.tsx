@@ -32,12 +32,33 @@ import { fetchCellsForCoverage, CoverageCell } from '@/services/topoService';
  *  500 sectors closest to the current map centre and surface the
  *  truncation in the legend. */
 export const MAX_VORONOI_CELLS = 500;
+
+/** Per-sector hard cap on the visual reach of a Voronoï polygon. Each
+ *  polygon coming out of the half-plane clipper is intersected with a
+ *  32-vertex disk of this radius (≈ great-circle, projected in flat
+ *  metres) centred on the seed. Polygons that would extend past 10 km
+ *  from their seed are bounded; polygons whose seed has no neighbour
+ *  within 20 km collapse to a clean disk rather than the open
+ *  half-plane the bissector would otherwise produce. Tunable from the
+ *  UI later if needed. */
+export const MAX_VISUAL_RADIUS_M = 10000;
+/** Number of vertices used to approximate the 10 km disk. 32 is the
+ *  default for `approximateDisk` here — visually round at typical
+ *  zooms (>= 12) and cheap to clip (Sutherland–Hodgman is O(n·m)). */
+const VISUAL_RADIUS_SEGMENTS = 32;
 // Module is plain JS without TS types — `any` shape is intentional.
 // We bypass kpi-overlay.js::buildKpiOverlay (which radially clips every
 // vertex to maxRadius/cell, breaking Voronoï edges) and call the raw
 // `voronoiCells` half-plane clipper instead. Bissectors then do all
 // the work, polygons stay perfectly polygonal.
 import { voronoiCells } from '@/coverage/voronoi.js';
+// 2026-05-12 — re-use the convex primitives shipped in the drop-in
+// module to clip each Voronoï polygon to a per-sector 10 km disk.
+// This is the "max coverage visual" cap (option A): edges stay
+// polygonal (no curved radial clip), sectors >10 km away from their
+// seed become empty and disappear rather than ballooning across the
+// country when seeds are sparse.
+import { approximateDisk, polygonIntersection } from '@/coverage/geometry.js';
 
 /** 3-tier palette aligned with the legacy KPI legend used in SitesMonitor.
  *  `unknown` is the No-data tier (basemap visible through translucent grey). */
@@ -464,13 +485,32 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     }
 
     // 4) Build GeoJSON FeatureCollection (project back to lon/lat).
+    //    4a) For each polygon, clip against a `MAX_VISUAL_RADIUS_M`
+    //        disk centred on its seed. The half-plane clipper at step
+    //        (3) only enforces bissector edges; without this radial
+    //        cap, sparse seeds at the periphery produce polygons that
+    //        stretch hundreds of km to the bbox wall (= the "huge red
+    //        polygons fanning out" + grey country-spanning artifact
+    //        reported 2026-05-12). With the cap, every sector occupies
+    //        at most a disk of 10 km radius. Both polygons are convex
+    //        (Voronoï cell is convex by construction in a convex bbox;
+    //        approximateDisk is regular 32-gon), so Sutherland-Hodgman
+    //        intersection is exact.
     const tierCounts: Record<string, number> = { green: 0, orange: 0, red: 0, unknown: 0 };
     const features: any[] = [];
+    let clippedAwayCount = 0;
     for (let i = 0; i < seeds.length; i++) {
       const s = seeds[i];
       const poly = polys[i];
       if (!poly || poly.length < 3) continue;
-      const ring = poly.map((p) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT] as [number, number]);
+      // Radial clip: intersect with a 10 km disk around the seed.
+      const disk = approximateDisk({ x: s.x, y: s.y }, MAX_VISUAL_RADIUS_M, VISUAL_RADIUS_SEGMENTS);
+      const clipped = polygonIntersection(poly, disk);
+      if (!clipped || clipped.length < 3) {
+        clippedAwayCount++;
+        continue;
+      }
+      const ring = clipped.map((p: { x: number; y: number }) => [p.x / M_PER_DEG_LNG, p.y / M_PER_DEG_LAT] as [number, number]);
       // close the ring
       const [fx, fy] = ring[0];
       const [lx, ly] = ring[ring.length - 1];
@@ -500,14 +540,18 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     removeLayer();
 
     //DIAG (2026-05-12) — final feature count actually attached to the
-    //DIAG map. This is the ground truth: if it differs from `seeds.length`
-    //DIAG some polygons were discarded by the ring-closure / poly<3 check.
+    //DIAG map. `clippedAwayCount` = polygons that collapsed to <3 vertices
+    //DIAG after the 10 km radial intersection (sectors so far from any
+    //DIAG neighbour that their entire region lay outside the disk —
+    //DIAG should be ~0 with a 10 km cap at meaningful densities).
     // eslint-disable-next-line no-console
     console.log('[diag] scope:result', {
       nFeatures: features.length,
       seedsLength: seeds.length,
       seedsAllLength: seedsAll.length,
       cap: MAX_VORONOI_CELLS,
+      visualRadiusM: MAX_VISUAL_RADIUS_M,
+      clippedAwayCount,
       tierCounts,
     });
 
