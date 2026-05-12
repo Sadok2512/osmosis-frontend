@@ -8345,12 +8345,32 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           // bug screenshot) and the tessellation fanned out huge red
           // polygons toward sites outside the dashboard perimeter.
           // CSV pattern keeps the prop stable by string identity.
-          siteAllowlist={dashboardActive
-            ? mapFilteredSites
-                .map(s => s.site_name || s.site_id || '')
-                .filter(Boolean)
-                .join(',')
-            : null}
+          siteAllowlist={(() => {
+            const list = dashboardActive
+              ? mapFilteredSites
+                  .map(s => s.site_name || s.site_id || '')
+                  .filter(Boolean)
+              : null;
+            //DIAG (2026-05-12) — upstream side of the scope chain.
+            //DIAG If `dashboardActive` is false here, no allowlist is
+            //DIAG forwarded and the adapter falls back to scope-only
+            //DIAG filtering. mapFilteredSites at 10 000 = MAX_VISIBLE_
+            //DIAG SITES cap = filter NOT narrowing.
+            if (activeKpiOverlayView) {
+              // eslint-disable-next-line no-console
+              console.log('[diag] scope:upstream', {
+                dashboardActive,
+                mapFilteredSitesLength: mapFilteredSites.length,
+                allowlistLength: list?.length ?? null,
+                activeDashboardId,
+                dashboardFiltersKeys: activeDashboardFilters
+                  ? Object.keys(activeDashboardFilters)
+                  : null,
+                sitesStateLength: sites.length,
+              });
+            }
+            return list ? list.join(',') : null;
+          })()}
           onStats={setKpiOverlayStats}
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />

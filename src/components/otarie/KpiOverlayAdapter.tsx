@@ -255,6 +255,20 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           dropped: c.length - filtered.length,
           allowSetSize: allowSet?.size ?? null,
         });
+        // eslint-disable-next-line no-console
+        console.log('[diag] scope:filtered', {
+          allCellsLength: c.length,
+          filteredCellsLength: filtered.length,
+          allowSetSize: allowSet?.size ?? null,
+          scopeKeys: {
+            techno:  scope?.techno  ?? null,
+            vendor:  scope?.vendor  ?? null,
+            plaque:  scope?.plaque  ?? null,
+            dor:     scope?.dor     ?? null,
+            cluster: scope?.cluster ?? null,
+            band:    scope?.band    ?? null,
+          },
+        });
         lastFetchStatsRef.current = {
           backendCells: c.length,
           afterFilter: filtered.length,
@@ -398,6 +412,19 @@ const KpiOverlayAdapter: React.FC<Props> = ({
         .map((e) => e.s);
       capped = true;
     }
+    //DIAG (2026-05-12) — surface the capping decision and reference
+    //DIAG identity of the array that flows into voronoiCells. If `seeds`
+    //DIAG were ever assigned back to seedsAll, the strict-equal check
+    //DIAG below would flip to true and prove the cap is bypassed.
+    // eslint-disable-next-line no-console
+    console.log('[diag] scope:capped', {
+      filteredCellsLength: cells.length,
+      seedsAllLength: seedsAll.length,
+      seedsAfterCapLength: seeds.length,
+      cap: MAX_VORONOI_CELLS,
+      capActive: capped,
+      seedsRefIsSeedsAll: seeds === seedsAll,
+    });
 
     // 2) bbox in flat-metres with generous padding (50 km) so the
     //    outermost cells aren't clipped to a hard rectangle inside the
@@ -411,6 +438,18 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     }
     const pad = 50000;
     const bboxFlat: [number, number, number, number] = [xmin - pad, ymin - pad, xmax + pad, ymax + pad];
+
+    //DIAG (2026-05-12) — the exact length being passed to the Voronoï
+    //DIAG kernel. Anything other than `seeds.length` here would mean a
+    //DIAG variable mix-up between cap-decision and tessellation.
+    // eslint-disable-next-line no-console
+    console.log('[diag] scope:rebuild', {
+      cellsPassedToOverlay: seeds.length,
+      isCapped: capped,
+      bboxFlat,
+      bboxWidthKm: (bboxFlat[2] - bboxFlat[0]) / 1000,
+      bboxHeightKm: (bboxFlat[3] - bboxFlat[1]) / 1000,
+    });
 
     // 3) Voronoï half-plane clipping in flat-metres. No radial clip.
     let polys: Array<Array<{ x: number; y: number }>>;
@@ -459,6 +498,18 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     void tierCounts; // retained for an eventual on-ready callback
 
     removeLayer();
+
+    //DIAG (2026-05-12) — final feature count actually attached to the
+    //DIAG map. This is the ground truth: if it differs from `seeds.length`
+    //DIAG some polygons were discarded by the ring-closure / poly<3 check.
+    // eslint-disable-next-line no-console
+    console.log('[diag] scope:result', {
+      nFeatures: features.length,
+      seedsLength: seeds.length,
+      seedsAllLength: seedsAll.length,
+      cap: MAX_VORONOI_CELLS,
+      tierCounts,
+    });
 
     layerRef.current = L.geoJSON(fc as any, {
       style: (f: any) => ({
