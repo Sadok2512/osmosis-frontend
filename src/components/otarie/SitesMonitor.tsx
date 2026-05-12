@@ -10721,6 +10721,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         band: cellB?.bande || 'LTE1800',
                         techno: cellB?.techno || '4G',
                         siteAltitudeAmsl: baseAmslB,
+                        rawTilt: (cellB as any)?.tilt ?? null,
                       };
                     }
                   }
