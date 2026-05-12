@@ -7,13 +7,15 @@ import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
   Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
   Shield, ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown,
+  Terminal, CheckCircle2, XCircle, Copy,
 } from 'lucide-react';
 import {
   listProfiles, listAnomalies, runProfileNow,
   getDiagnostic, streamDiagnose,
   getRecommendation, streamRecommend, listRecommendations,
   getApproval, streamAssess, approveRecommendation, rejectRecommendation,
-  MlProfile, MlAnomaly, Recommendation, RiskApproval,
+  getExecutionByRec, streamExecute, markExecuted, markFailed,
+  MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow,
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -81,6 +83,13 @@ const SentinelMLDetector: React.FC = () => {
   const [decisionInFlight, setDecisionInFlight] = useState<'approve' | 'reject' | null>(null);
   // Stub admin id for the demo. Replaces with real session user id in v1.5.
   const _approverId = 1;
+
+  // Phase 4 — EXA execution plan (no real push, manual ack only).
+  const [execText, setExecText] = useState<string>('');
+  const [execLoading, setExecLoading] = useState(false);
+  const [execError, setExecError] = useState<string | null>(null);
+  const [executionRow, setExecutionRow] = useState<ExecutionRow | null>(null);
+  const [execActionInFlight, setExecActionInFlight] = useState<'executed' | 'failed' | null>(null);
 
   const limit = 50;
 
@@ -267,6 +276,68 @@ const SentinelMLDetector: React.FC = () => {
       setDecisionInFlight(null);
     }
   }, [recPersisted]);
+
+  // Fetch latest execution row for the current recommendation.
+  useEffect(() => {
+    if (!recPersisted) { setExecutionRow(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const e = await getExecutionByRec(recPersisted.id);
+        if (!cancelled) setExecutionRow(e);
+      } catch {
+        if (!cancelled) setExecutionRow(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [recPersisted, approval]);
+
+  const runExecute = useCallback(async () => {
+    if (!recPersisted) return;
+    setExecText(''); setExecError(null); setExecLoading(true);
+    try {
+      for await (const chunk of streamExecute(recPersisted.id)) {
+        setExecText((p) => p + chunk);
+      }
+      const e = await getExecutionByRec(recPersisted.id);
+      if (e) setExecutionRow(e);
+    } catch (e) {
+      setExecError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExecLoading(false);
+    }
+  }, [recPersisted]);
+
+  const handleMarkExecuted = useCallback(async () => {
+    if (!executionRow) return;
+    const notes = window.prompt('Notes (optional)', '') || '';
+    setExecActionInFlight('executed');
+    try {
+      await markExecuted(executionRow.id, notes);
+      const e = await getExecutionByRec(executionRow.recommendation_id);
+      if (e) setExecutionRow(e);
+    } catch (e) {
+      setExecError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExecActionInFlight(null);
+    }
+  }, [executionRow]);
+
+  const handleMarkFailed = useCallback(async () => {
+    if (!executionRow) return;
+    const reason = window.prompt('Failure reason?', '') || '';
+    if (!reason.trim()) return;
+    setExecActionInFlight('failed');
+    try {
+      await markFailed(executionRow.id, reason);
+      const e = await getExecutionByRec(executionRow.recommendation_id);
+      if (e) setExecutionRow(e);
+    } catch (e) {
+      setExecError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setExecActionInFlight(null);
+    }
+  }, [executionRow]);
 
   const handleReject = useCallback(async () => {
     if (!recPersisted) return;
@@ -729,6 +800,121 @@ const SentinelMLDetector: React.FC = () => {
                 {riskLoading && !riskText && (
                   <div className="text-[11px] text-slate-500 flex items-center gap-2">
                     <Loader2 className="w-3 h-3 animate-spin" /> AEGIS analyse les facteurs de risque…
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─── EXA execution plan (Phase 4 SKELETON — propose-only) ─── */}
+            {approval?.decision === 'approved' && (
+              <div className="border-t border-slate-200 p-4 bg-violet-50/40">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-violet-600" />
+                    <h4 className="text-sm font-semibold text-slate-800">Execution plan (EXA)</h4>
+                    {executionRow && (
+                      <span className={
+                        'text-[10px] px-1.5 py-0.5 rounded ' +
+                        (executionRow.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                         executionRow.status === 'failed'    ? 'bg-red-100 text-red-700' :
+                                                                'bg-violet-100 text-violet-700')
+                      }>
+                        {executionRow.status}
+                      </span>
+                    )}
+                  </div>
+                  {!executionRow && (
+                    <button
+                      type="button"
+                      disabled={execLoading}
+                      onClick={runExecute}
+                      className="px-2 py-1 text-xs bg-violet-600 text-white rounded hover:bg-violet-700 disabled:opacity-40 inline-flex items-center gap-1"
+                    >
+                      {execLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Terminal className="w-3 h-3" />}
+                      Generate plan
+                    </button>
+                  )}
+                </div>
+
+                {execError && (
+                  <div className="mb-2 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {execError}
+                  </div>
+                )}
+
+                {executionRow?.plan && (
+                  <div className="mb-2 p-3 rounded border border-violet-200 bg-white text-xs space-y-2">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
+                      <div><span className="text-slate-500">Vendor:</span> <b>{String(executionRow.plan.vendor ?? '?')}</b></div>
+                      <div><span className="text-slate-500">OSS:</span> <b>{String(executionRow.plan.oss_target ?? '?')}</b></div>
+                      <div><span className="text-slate-500">Change:</span> <b>{String(executionRow.plan.change_type ?? '?')}</b></div>
+                      <div><span className="text-slate-500">Canary:</span> <code className="font-mono">{String(executionRow.plan.canary_cell ?? '?')}</code></div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[10px] text-slate-500 uppercase tracking-wider">Payload (à pousser à la main)</span>
+                        <button
+                          type="button"
+                          title="Copier"
+                          onClick={() => navigator.clipboard.writeText(String(executionRow.plan?.payload ?? ''))}
+                          className="p-0.5 rounded hover:bg-slate-100 text-slate-500"
+                        >
+                          <Copy className="w-3 h-3" />
+                        </button>
+                      </div>
+                      <pre className="text-[11px] font-mono bg-slate-900 text-emerald-300 p-2 rounded overflow-auto max-h-28">{String(executionRow.plan.payload ?? '')}</pre>
+                    </div>
+                    {executionRow.plan.rollback_payload && (
+                      <details className="text-[11px]">
+                        <summary className="cursor-pointer text-slate-500">↺ rollback_payload</summary>
+                        <pre className="mt-1 font-mono bg-slate-100 p-2 rounded overflow-auto max-h-20">{String(executionRow.plan.rollback_payload)}</pre>
+                      </details>
+                    )}
+                    {executionRow.plan.notes && (
+                      <p className="text-[11px] text-slate-600 italic">⚠ {String(executionRow.plan.notes)}</p>
+                    )}
+
+                    {executionRow.status === 'plan_ready' && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          disabled={execActionInFlight !== null}
+                          onClick={handleMarkExecuted}
+                          className="flex-1 px-2 py-1.5 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-40 inline-flex items-center justify-center gap-1"
+                        >
+                          {execActionInFlight === 'executed' ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                          Mark as executed
+                        </button>
+                        <button
+                          type="button"
+                          disabled={execActionInFlight !== null}
+                          onClick={handleMarkFailed}
+                          className="flex-1 px-2 py-1.5 text-xs bg-slate-700 text-white rounded hover:bg-slate-800 disabled:opacity-40 inline-flex items-center justify-center gap-1"
+                        >
+                          {execActionInFlight === 'failed' ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3" />}
+                          Mark as failed
+                        </button>
+                      </div>
+                    )}
+                    {executionRow.status === 'completed' && (
+                      <div className="flex items-center gap-2 text-emerald-700 text-[11px] pt-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Push exécuté par l'opérateur. Phase 5 (ECHO) attend l'évaluation post-J+7.
+                      </div>
+                    )}
+                    {executionRow.status === 'failed' && (
+                      <div className="text-red-700 text-[11px] pt-1">
+                        <span className="font-semibold">Échec :</span> {executionRow.error_log}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {execText && !executionRow?.plan && (
+                  <pre className="text-[11px] text-slate-700 whitespace-pre-wrap font-sans leading-relaxed max-h-40 overflow-auto">{execText}</pre>
+                )}
+                {execLoading && !execText && (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" /> EXA construit le plan d'exécution…
                   </div>
                 )}
               </div>

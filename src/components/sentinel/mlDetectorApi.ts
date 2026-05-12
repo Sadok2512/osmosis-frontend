@@ -347,3 +347,78 @@ export async function listApprovals(decision?: string): Promise<{ approvals: Ris
   if (!r.ok) throw new Error(`agentic /approvals → ${r.status}`);
   return r.json();
 }
+
+
+// ─── Executions (Phase 4 — EXA skeleton) ────────────────────────────────
+
+export interface ExecutionRow {
+  id: number;
+  recommendation_id: number;
+  plan: Record<string, unknown> | null;
+  status: string;                       // plan_ready | pushing_canary | completed | failed | rolled_back
+  started_at: string | null;
+  completed_at: string | null;
+  canary_cell: string | null;
+  error_log: string | null;
+  created_at: string | null;
+}
+
+export async function getExecutionByRec(recId: number): Promise<ExecutionRow | null> {
+  const url = getVpsProxyUrl('agentic', `/executions/by-recommendation/${recId}`);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /executions/by-recommendation → ${r.status}`);
+  const j = await r.json();
+  return j.execution;
+}
+
+export async function* streamExecute(recId: number): AsyncGenerator<string> {
+  const url = getVpsProxyUrl('agentic', `/recommendations/${recId}/execute`);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok || !resp.body) throw new Error(`agentic POST /execute → ${resp.status}`);
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data: ')) continue;
+      const body = line.slice(6);
+      if (body === '[DONE]') return;
+      try {
+        const j = JSON.parse(body);
+        const delta: string = j?.choices?.[0]?.delta?.content || '';
+        if (delta && !delta.startsWith('<!--')) yield delta;
+      } catch { /* */ }
+    }
+  }
+}
+
+export async function markExecuted(execId: number, notes?: string): Promise<unknown> {
+  const url = getVpsProxyUrl('agentic', `/executions/${execId}/mark-executed`);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notes: notes ?? '' }),
+  });
+  if (!r.ok) throw new Error(`agentic /mark-executed → ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function markFailed(execId: number, reason: string): Promise<unknown> {
+  const url = getVpsProxyUrl('agentic', `/executions/${execId}/mark-failed`);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!r.ok) throw new Error(`agentic /mark-failed → ${r.status}: ${await r.text()}`);
+  return r.json();
+}
