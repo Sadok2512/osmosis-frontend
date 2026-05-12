@@ -2,14 +2,15 @@
 // MVP per the architecture roundtable (2026-05-10): list profiles + Run Now,
 // paginated anomalies viewer with profile/severity/date filters. CRUD is
 // out of scope for v1 — added later if usage warrants.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
-  Loader2, Calendar, Filter,
+  Loader2, Calendar, Filter, Search, X,
 } from 'lucide-react';
 import {
   listProfiles, listAnomalies, runProfileNow,
-  MlProfile, MlAnomaly,
+  getDiagnostic, streamDiagnose,
+  MlProfile, MlAnomaly, RcaDiagnostic,
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -46,6 +47,15 @@ const SentinelMLDetector: React.FC = () => {
   const [severity, setSeverity] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+
+  // RCA drawer state. `rcaOpen` carries the anomaly we're investigating;
+  // text accumulates from the SSE stream. `rcaLoading` true while RCAI
+  // is grinding through its tool calls (typically 60-120s).
+  const [rcaOpen, setRcaOpen] = useState<MlAnomaly | null>(null);
+  const [rcaText, setRcaText] = useState<string>('');
+  const [rcaLoading, setRcaLoading] = useState(false);
+  const [rcaCached, setRcaCached] = useState(false);
+  const [rcaError, setRcaError] = useState<string | null>(null);
 
   const limit = 50;
 
@@ -107,6 +117,36 @@ const SentinelMLDetector: React.FC = () => {
       setRunningId(null);
     }
   };
+
+  // Open the RCA drawer: hit GET first (cached?), else stream POST.
+  const openRca = useCallback(async (anomaly: MlAnomaly, force = false) => {
+    setRcaOpen(anomaly);
+    setRcaText('');
+    setRcaCached(false);
+    setRcaError(null);
+    if (!force) {
+      try {
+        const cached = await getDiagnostic(anomaly.id);
+        if (cached?.summary) {
+          setRcaText(cached.summary);
+          setRcaCached(true);
+          return;
+        }
+      } catch {
+        // ignore — we'll fall through to a live run
+      }
+    }
+    setRcaLoading(true);
+    try {
+      for await (const chunk of streamDiagnose(anomaly.id, { force })) {
+        setRcaText((prev) => prev + chunk);
+      }
+    } catch (e) {
+      setRcaError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRcaLoading(false);
+    }
+  }, []);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(anomaliesTotal / limit)), [anomaliesTotal]);
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
@@ -271,6 +311,7 @@ const SentinelMLDetector: React.FC = () => {
                   <th className="px-3 py-2 font-semibold text-right">Δ7d</th>
                   <th className="px-3 py-2 font-semibold text-right">Δ14d</th>
                   <th className="px-3 py-2 font-semibold text-right">Trend %</th>
+                  <th className="px-3 py-2 font-semibold text-right w-10">RCA</th>
                 </tr>
               </thead>
               <tbody>
@@ -290,6 +331,16 @@ const SentinelMLDetector: React.FC = () => {
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_7)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_14)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.trend_pct)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        title="Lancer / consulter la RCA (RCAI)"
+                        onClick={() => openRca(a)}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-indigo-100 text-indigo-700"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -317,6 +368,80 @@ const SentinelMLDetector: React.FC = () => {
           </footer>
         )}
       </section>
+
+      {/* ─── RCA Drawer (right-side overlay) ─────────────────────────── */}
+      {rcaOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-900/30"
+            onClick={() => setRcaOpen(null)}
+          />
+          <aside className="relative w-[640px] max-w-[92vw] h-full bg-white shadow-2xl flex flex-col">
+            <header className="flex items-start justify-between p-4 border-b border-slate-200">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-sm font-semibold text-slate-800">RCA — Diagnostic agent (RCAI)</h3>
+                  {rcaCached && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">cached</span>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1 font-mono break-all">
+                  {rcaOpen.cell_name} · {rcaOpen.kpi_code} · {fmtDate(rcaOpen.period_start)}
+                </p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  value=<b>{fmtNum(rcaOpen.value)}</b> z=<b>{fmtNum(rcaOpen.z_score)}</b> trend=<b>{fmtNum(rcaOpen.trend_pct)}%</b>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRcaOpen(null)}
+                className="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
+                title="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </header>
+
+            <div className="flex-1 overflow-auto p-4">
+              {rcaError && (
+                <div className="mb-3 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> {rcaError}
+                </div>
+              )}
+              {!rcaText && rcaLoading && (
+                <div className="flex items-center gap-2 text-slate-500 text-sm py-12 justify-center">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  RCAI investigue (peut prendre 60-120s — appels CM/FM/KPI/peers)…
+                </div>
+              )}
+              {rcaText && (
+                <pre className="text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{rcaText}</pre>
+              )}
+              {rcaLoading && rcaText && (
+                <div className="mt-3 inline-flex items-center gap-1 text-[10px] text-slate-400">
+                  <Loader2 className="w-3 h-3 animate-spin" /> RCAI continue à streamer…
+                </div>
+              )}
+            </div>
+
+            <footer className="flex items-center justify-between p-3 border-t border-slate-200">
+              <span className="text-[10px] text-slate-400">
+                Persisté dans agentic.diagnostics — re-clic réutilise le cache.
+              </span>
+              <button
+                type="button"
+                disabled={rcaLoading}
+                onClick={() => openRca(rcaOpen!, true)}
+                className="px-2 py-1 text-xs border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1"
+              >
+                <RefreshCw className={rcaLoading ? 'w-3 h-3 animate-spin' : 'w-3 h-3'} />
+                Rejouer la RCA
+              </button>
+            </footer>
+          </aside>
+        </div>
+      )}
     </div>
   );
 };

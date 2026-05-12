@@ -46,6 +46,10 @@ export const VPS_ENDPOINTS = {
   // through the spa-proxy at /ml-api/* → :11002. Off-domain has no
   // tunnel yet — callers should expect empty string when CF_ML is unset.
   ml:      isOnAppDomain ? '/ml-api' : CF_ML,
+  // agentic-engine — closed-loop orchestration over the 6 OSMOSIS agents.
+  // Phase 1 (2026-05-12): auto-RCA from ML anomalies. On-VPS calls go
+  // through /agentic-api/* → :11003. Off-domain has no tunnel yet.
+  agentic: isOnAppDomain ? '/agentic-api' : CF_ML,
 } as const;
 
 // Local Express server retired 2026-05-08 (was qoebit-frontend/server,

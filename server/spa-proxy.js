@@ -36,6 +36,7 @@ const TARGETS = {
   '/kpi-api/':   { host: '127.0.0.1', port: 8001 },   // kpi-engine (strip prefix)
   '/agent-api/': { host: '127.0.0.1', port: 8000 },   // OSMOSIS AI agent — through parser proxy at /api/v1/agent
   '/ml-api/':    { host: '127.0.0.1', port: 11002 },  // ML Engine — standalone service (extracted from parser 2026-05-10)
+  '/agentic-api/': { host: '127.0.0.1', port: 11003 },// Agentic Engine — closed-loop orchestration (Phase 1: RCA from ML anomalies)
   '/api/':       { host: '127.0.0.1', port: 3001 },   // this repo's index.js
 };
 
@@ -120,6 +121,13 @@ app.use(
   '/ml-api',
   proxyTo(TARGETS['/ml-api/'], (url) => url.replace(/^\/ml-api/, '/api/v1/ml')),
 );
+// /agentic-api/* → agentic-engine :11003 /api/v1/agentic/* (Phase 1 of
+// the closed-loop AI pipeline — Supervisor + RCA persistence layer over
+// the existing :11000 LLM agents). 2026-05-12.
+app.use(
+  '/agentic-api',
+  proxyTo(TARGETS['/agentic-api/'], (url) => url.replace(/^\/agentic-api/, '/api/v1/agentic')),
+);
 app.use(
   '/api',
   proxyTo(TARGETS['/api/'], (url) => url),
@@ -135,7 +143,7 @@ app.use(express.static(DIST_DIR, { index: false, extensions: ['html'] }));
 //   2. The Accept header explicitly excludes HTML (e.g. Accept: application/json)
 // Browsers always send `Accept: text/html,...` for navigations; tooling
 // like curl sends `Accept: */*` which we treat as "wants HTML" too.
-app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api|ml-api)).*/, (req, res, next) => {
+app.get(/^(?!\/(api|admin\/api|kpi-api|agent-api|ml-api|agentic-api)).*/, (req, res, next) => {
   const looksLikeAsset = /\.[a-z0-9]{1,6}$/i.test(req.path);
   const accept = req.headers.accept || '*/*';
   const wantsJson = accept.includes('application/json') && !accept.includes('text/html');

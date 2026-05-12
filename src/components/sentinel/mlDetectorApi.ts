@@ -116,3 +116,71 @@ export async function listAnomalies(opts: {
 export async function runProfileNow(profileId: number): Promise<RunNowResponse> {
   return _post<RunNowResponse>(`/profiles/${profileId}/run-now`);
 }
+
+
+// ─── Agentic engine (Phase 1: RCA) ─────────────────────────────────────
+// Lives on :11003 behind /agentic-api/* — closed-loop layer over the
+// :11000 LLM agents. Persists diagnostics to agentic.diagnostics.
+
+export interface RcaDiagnostic {
+  id: number;
+  anomaly_id: number;
+  agent_name: string;
+  status: 'running' | 'completed' | 'failed';
+  summary: string | null;
+  suspected_cause: string | null;
+  confidence: number | null;
+  started_at: string;
+  completed_at: string | null;
+  duration_ms: number | null;
+}
+
+/** GET cached diagnostic (if any). Null on fresh anomalies. */
+export async function getDiagnostic(anomalyId: number): Promise<RcaDiagnostic | null> {
+  const url = getVpsProxyUrl('agentic', `/anomalies/${anomalyId}/diagnose`);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /diagnose → ${r.status}`);
+  const j = await r.json();
+  return j.diagnostic;
+}
+
+/**
+ * POST the diagnose trigger. Async-iterates text-delta chunks from the
+ * SSE stream for typewriter rendering. Progress events (HTML comments)
+ * are skipped — only visible markdown is yielded.
+ */
+export async function* streamDiagnose(
+  anomalyId: number,
+  opts: { force?: boolean } = {},
+): AsyncGenerator<string> {
+  const params: Record<string, string> = {};
+  if (opts.force) params.force = 'true';
+  const url = getVpsProxyUrl('agentic', `/anomalies/${anomalyId}/diagnose`, params);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok || !resp.body) throw new Error(`agentic POST /diagnose → ${resp.status}`);
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data: ')) continue;
+      const body = line.slice(6);
+      if (body === '[DONE]') return;
+      try {
+        const j = JSON.parse(body);
+        const delta: string = j?.choices?.[0]?.delta?.content || '';
+        if (delta && !delta.startsWith('<!--')) yield delta;
+      } catch { /* malformed frame */ }
+    }
+  }
+}
