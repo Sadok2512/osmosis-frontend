@@ -11327,12 +11327,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                             return next;
                           });
                         }}
-                        className={`px-2 py-2 text-[9px] font-bold tracking-wider transition-all ${
+                        className={`px-2 py-2 text-[9px] font-bold tracking-wider transition-all first:rounded-l-lg last:rounded-r-lg ${
                           active
                             ? 'text-primary-foreground shadow-sm'
                             : inScope
-                              ? 'text-muted-foreground/60 hover:text-foreground hover:bg-muted'
-                              : 'text-muted-foreground/30 cursor-not-allowed opacity-50'
+                              ? 'bg-muted/60 text-muted-foreground/60 hover:text-foreground hover:bg-muted'
+                              : 'bg-muted/60 text-muted-foreground/30 cursor-not-allowed opacity-50'
                         }`}
                         style={active ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
                         title={inScope ? band : `${band} — aucun secteur dans la zone`}
