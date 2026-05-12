@@ -250,3 +250,100 @@ export async function listRecommendations(status?: string): Promise<{ recommenda
   if (!r.ok) throw new Error(`agentic /recommendations → ${r.status}`);
   return r.json();
 }
+
+
+// ─── Approvals (Phase 3 — AEGIS + human gate) ───────────────────────────
+
+export interface RiskApproval {
+  id: number;
+  recommendation_id: number;
+  risk_score: number | null;
+  risk_factors: Record<string, number> | null;
+  blast_radius: number | null;
+  auto_decision: string | null;          // 'auto_approve' | 'requires_human' | 'block'
+  approver_id: number | null;
+  decision: string | null;               // 'approved' | 'rejected' | 'pending'
+  decision_ts: string | null;
+  rejection_reason: string | null;
+  created_at: string | null;
+  recommendation?: {
+    cell_name: string;
+    kpi_code: string;
+    param_path: string | null;
+    current_value: string | null;
+    proposed_value: string | null;
+    rationale: string | null;
+    forecast_kpi_delta: number | null;
+    status: string;
+  };
+}
+
+export async function getApproval(recId: number): Promise<RiskApproval | null> {
+  const url = getVpsProxyUrl('agentic', `/recommendations/${recId}/approval`);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic GET /approval → ${r.status}`);
+  const j = await r.json();
+  return j.approval;
+}
+
+/** Trigger AEGIS to score the recommendation. Streams markdown chunks. */
+export async function* streamAssess(recId: number): AsyncGenerator<string> {
+  const url = getVpsProxyUrl('agentic', `/recommendations/${recId}/assess`);
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+  });
+  if (!resp.ok || !resp.body) throw new Error(`agentic POST /assess → ${resp.status}`);
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line.startsWith('data: ')) continue;
+      const body = line.slice(6);
+      if (body === '[DONE]') return;
+      try {
+        const j = JSON.parse(body);
+        const delta: string = j?.choices?.[0]?.delta?.content || '';
+        if (delta && !delta.startsWith('<!--')) yield delta;
+      } catch { /* */ }
+    }
+  }
+}
+
+export async function approveRecommendation(recId: number, approverId: number): Promise<unknown> {
+  const url = getVpsProxyUrl('agentic', `/recommendations/${recId}/approve`);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approver_id: approverId }),
+  });
+  if (!r.ok) throw new Error(`agentic /approve → ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function rejectRecommendation(recId: number, approverId: number, reason: string): Promise<unknown> {
+  const url = getVpsProxyUrl('agentic', `/recommendations/${recId}/reject`);
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approver_id: approverId, reason }),
+  });
+  if (!r.ok) throw new Error(`agentic /reject → ${r.status}: ${await r.text()}`);
+  return r.json();
+}
+
+export async function listApprovals(decision?: string): Promise<{ approvals: RiskApproval[]; count: number }> {
+  const params: Record<string, string> = {};
+  if (decision) params.decision = decision;
+  const url = getVpsProxyUrl('agentic', `/approvals`, params);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /approvals → ${r.status}`);
+  return r.json();
+}

@@ -6,12 +6,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
   Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
+  Shield, ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown,
 } from 'lucide-react';
 import {
   listProfiles, listAnomalies, runProfileNow,
   getDiagnostic, streamDiagnose,
   getRecommendation, streamRecommend, listRecommendations,
-  MlProfile, MlAnomaly, Recommendation,
+  getApproval, streamAssess, approveRecommendation, rejectRecommendation,
+  MlProfile, MlAnomaly, Recommendation, RiskApproval,
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -70,6 +72,15 @@ const SentinelMLDetector: React.FC = () => {
   // Global recommendations panel (bottom of the right column).
   const [recList, setRecList] = useState<Recommendation[]>([]);
   const [recListLoading, setRecListLoading] = useState(false);
+
+  // Phase 3 — AEGIS risk + approval.
+  const [riskText, setRiskText] = useState<string>('');
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskError, setRiskError] = useState<string | null>(null);
+  const [approval, setApproval] = useState<RiskApproval | null>(null);
+  const [decisionInFlight, setDecisionInFlight] = useState<'approve' | 'reject' | null>(null);
+  // Stub admin id for the demo. Replaces with real session user id in v1.5.
+  const _approverId = 1;
 
   const limit = 50;
 
@@ -211,6 +222,67 @@ const SentinelMLDetector: React.FC = () => {
   }, []);
 
   useEffect(() => { loadRecList(); }, [loadRecList]);
+
+  // Fetch latest approval for the currently-displayed recommendation.
+  useEffect(() => {
+    if (!recPersisted) { setApproval(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const a = await getApproval(recPersisted.id);
+        if (!cancelled) setApproval(a);
+      } catch {
+        if (!cancelled) setApproval(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [recPersisted]);
+
+  const runAssess = useCallback(async () => {
+    if (!recPersisted) return;
+    setRiskText(''); setRiskError(null); setRiskLoading(true);
+    try {
+      for await (const chunk of streamAssess(recPersisted.id)) {
+        setRiskText((p) => p + chunk);
+      }
+      const a = await getApproval(recPersisted.id);
+      if (a) setApproval(a);
+    } catch (e) {
+      setRiskError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRiskLoading(false);
+    }
+  }, [recPersisted]);
+
+  const handleApprove = useCallback(async () => {
+    if (!recPersisted) return;
+    setDecisionInFlight('approve');
+    try {
+      await approveRecommendation(recPersisted.id, _approverId);
+      const a = await getApproval(recPersisted.id);
+      if (a) setApproval(a);
+    } catch (e) {
+      setRiskError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDecisionInFlight(null);
+    }
+  }, [recPersisted]);
+
+  const handleReject = useCallback(async () => {
+    if (!recPersisted) return;
+    const reason = window.prompt('Reason for rejection?', '') || '';
+    if (!reason.trim()) return;
+    setDecisionInFlight('reject');
+    try {
+      await rejectRecommendation(recPersisted.id, _approverId, reason);
+      const a = await getApproval(recPersisted.id);
+      if (a) setApproval(a);
+    } catch (e) {
+      setRiskError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDecisionInFlight(null);
+    }
+  }, [recPersisted]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(anomaliesTotal / limit)), [anomaliesTotal]);
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
@@ -544,6 +616,119 @@ const SentinelMLDetector: React.FC = () => {
                 {recLoading && !recText && (
                   <div className="text-[11px] text-slate-500 flex items-center gap-2">
                     <Loader2 className="w-3 h-3 animate-spin" /> OPTIMUS analyse les paramètres…
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─── AEGIS risk + approval (Phase 3) ─── */}
+            {recPersisted && (
+              <div className="border-t border-slate-200 p-4 bg-sky-50/40">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-sky-600" />
+                    <h4 className="text-sm font-semibold text-slate-800">Risk &amp; Approval (AEGIS)</h4>
+                    {approval && (
+                      <span className={
+                        'text-[10px] px-1.5 py-0.5 rounded ' +
+                        (approval.decision === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                         approval.decision === 'rejected' ? 'bg-red-100 text-red-700' :
+                         'bg-amber-100 text-amber-700')
+                      }>
+                        {approval.decision ?? 'pending'} · risk={(approval.risk_score ?? 0).toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  {!approval && (
+                    <button
+                      type="button"
+                      disabled={riskLoading}
+                      onClick={runAssess}
+                      className="px-2 py-1 text-xs bg-sky-600 text-white rounded hover:bg-sky-700 disabled:opacity-40 inline-flex items-center gap-1"
+                    >
+                      {riskLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shield className="w-3 h-3" />}
+                      Assess risk
+                    </button>
+                  )}
+                </div>
+
+                {riskError && (
+                  <div className="mb-2 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {riskError}
+                  </div>
+                )}
+
+                {approval && (
+                  <div className="mb-2 p-3 rounded border border-sky-200 bg-white text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 text-[10px] uppercase tracking-wider">
+                        Risk factors (0=safe → 1=risky)
+                      </span>
+                      <span className="text-slate-500 text-[10px]">
+                        blast_radius={approval.blast_radius ?? '?'}
+                      </span>
+                    </div>
+                    {approval.risk_factors && (
+                      <div className="grid grid-cols-2 gap-1 text-[11px]">
+                        {Object.entries(approval.risk_factors).map(([k, v]) => (
+                          <div key={k} className="flex items-center justify-between">
+                            <span className="text-slate-600">{k}</span>
+                            <span className={
+                              'font-mono tabular-nums ' +
+                              ((v ?? 0) > 0.5 ? 'text-red-600' : (v ?? 0) > 0.3 ? 'text-amber-600' : 'text-emerald-600')
+                            }>{Number(v ?? 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {approval.rejection_reason && (
+                      <p className="text-[11px] text-red-600 italic">↯ {approval.rejection_reason}</p>
+                    )}
+
+                    {approval.decision === 'pending' && (
+                      <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <button
+                          type="button"
+                          disabled={decisionInFlight !== null}
+                          onClick={handleApprove}
+                          className="flex-1 px-2 py-1.5 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 disabled:opacity-40 inline-flex items-center justify-center gap-1"
+                        >
+                          {decisionInFlight === 'approve' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ThumbsUp className="w-3 h-3" />}
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          disabled={decisionInFlight !== null}
+                          onClick={handleReject}
+                          className="flex-1 px-2 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-40 inline-flex items-center justify-center gap-1"
+                        >
+                          {decisionInFlight === 'reject' ? <Loader2 className="w-3 h-3 animate-spin" /> : <ThumbsDown className="w-3 h-3" />}
+                          Reject
+                        </button>
+                      </div>
+                    )}
+
+                    {approval.decision === 'approved' && (
+                      <div className="flex items-center gap-2 text-emerald-700 text-[11px] pt-1">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Approved{approval.auto_decision === 'auto_approve' ? ' (auto, risk < 0.30)' : ''}.
+                        Ready for Phase 4 — EXA execution.
+                      </div>
+                    )}
+                    {approval.decision === 'rejected' && (
+                      <div className="flex items-center gap-2 text-red-700 text-[11px] pt-1">
+                        <ShieldAlert className="w-3.5 h-3.5" /> Rejected.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {riskText && !approval && (
+                  <pre className="text-[11px] text-slate-700 whitespace-pre-wrap font-sans leading-relaxed max-h-40 overflow-auto">{riskText}</pre>
+                )}
+                {riskLoading && !riskText && (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" /> AEGIS analyse les facteurs de risque…
                   </div>
                 )}
               </div>
