@@ -10748,6 +10748,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       onHoverPoint={setLinkProfileHover}
                       targetBearing={coverageTargetBearing}
                       rawHba={rawHbaA}
+                      rawTilt={rawTiltA}
                     />
                   );
                 })()
