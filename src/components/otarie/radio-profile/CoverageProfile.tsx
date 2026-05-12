@@ -849,7 +849,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
           <span className="text-slate-500">|</span>
           <span className="text-slate-300 text-[10px]">HBA: <span className="text-emerald-300 font-bold">{rawHba == null ? '—' : `${Number(rawHba).toFixed(0)} m`}</span></span>
           <span className="text-slate-500">|</span>
-          <span className="text-slate-300 text-[10px]">Tilt: <span className="text-emerald-300 font-bold">{(geom.totalTilt ?? 0).toFixed(1)}°</span></span>
+          <span className="text-slate-300 text-[10px]">Tilt: <span className="text-emerald-300 font-bold">{rawTilt == null ? '—' : `${Number(rawTilt).toFixed(1)}°`}</span></span>
           {Number.isFinite(azimut as number) && (
             <>
               <span className="text-slate-500">|</span>
