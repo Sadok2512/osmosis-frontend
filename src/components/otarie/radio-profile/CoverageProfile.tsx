@@ -29,6 +29,7 @@ export interface CoverageSiteParams {
   techno: string;
   hbw?: number;
   vbw?: number;
+  rawTilt?: number | null;
 }
 
 export interface CoverageProfileProps {
