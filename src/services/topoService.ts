@@ -1830,16 +1830,31 @@ const _coverageCellsCache = new Map<string, { ts: number; data: CoverageCellsRes
 const _COVERAGE_CELLS_TTL = 5 * 60 * 1000;  // 5 min — cell positions change rarely
 const _COVERAGE_CELLS_MAX_ENTRIES = 6;
 
-function _ccCacheKey(b: BboxQuery, techno?: string, vendor?: string): string {
+export interface CoverageCellsFilters {
+  techno?: string;
+  vendor?: string;
+  plaque?: string;
+  dor?: string;
+  cluster?: string;
+  band?: string;
+}
+
+function _ccCacheKey(b: BboxQuery, f: CoverageCellsFilters): string {
   const r = (n: number) => Math.round(n * 1000) / 1000;
-  return `${r(b.minLng)},${r(b.minLat)},${r(b.maxLng)},${r(b.maxLat)}|t=${techno || ''}|v=${vendor || ''}`;
+  return [
+    r(b.minLng), r(b.minLat), r(b.maxLng), r(b.maxLat),
+    `t=${f.techno || ''}`, `v=${f.vendor || ''}`,
+    `p=${f.plaque || ''}`, `d=${f.dor || ''}`,
+    `c=${f.cluster || ''}`, `b=${f.band || ''}`,
+  ].join('|');
 }
 
 export async function fetchCellsForCoverage(
   bbox: BboxQuery,
-  options?: { techno?: string; vendor?: string; signal?: AbortSignal },
+  options?: CoverageCellsFilters & { signal?: AbortSignal },
 ): Promise<CoverageCellsResponse> {
-  const key = _ccCacheKey(bbox, options?.techno, options?.vendor);
+  const { signal, ...filters } = options || {};
+  const key = _ccCacheKey(bbox, filters);
   const cached = _coverageCellsCache.get(key);
   if (cached && (Date.now() - cached.ts) < _COVERAGE_CELLS_TTL) {
     return cached.data;
@@ -1851,11 +1866,13 @@ export async function fetchCellsForCoverage(
     min_lat: String(bbox.minLat),
     max_lat: String(bbox.maxLat),
   };
-  if (options?.techno) params.techno = options.techno;
-  if (options?.vendor) params.vendor = options.vendor;
+  for (const k of ['techno', 'vendor', 'plaque', 'dor', 'cluster', 'band'] as const) {
+    const v = filters[k];
+    if (v) params[k] = v;
+  }
 
   const url = getVpsProxyUrl('parser', '/api/v1/topo/cells-for-coverage', params);
-  const resp = await fetch(url, { headers: getVpsProxyHeaders(), signal: options?.signal });
+  const resp = await fetch(url, { headers: getVpsProxyHeaders(), signal });
   if (!resp.ok) {
     throw new Error(`/topo/cells-for-coverage HTTP ${resp.status}`);
   }

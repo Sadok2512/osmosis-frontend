@@ -57,6 +57,19 @@ export type KpiOverlayView = {
 
 interface Bounds { minLng: number; minLat: number; maxLng: number; maxLat: number; }
 
+/** Dashboard / view scope filters used to shrink the Voronoï cell set
+ *  to the operator's active perimeter. CSV-friendly (comma-separated
+ *  values) — both the backend `/cells-for-coverage` query params AND
+ *  the client-side defensive filter accept these. */
+export interface KpiOverlayScopeFilters {
+  techno?: string;
+  vendor?: string;
+  plaque?: string;
+  dor?: string;
+  cluster?: string;
+  band?: string;
+}
+
 interface Props {
   enabled: boolean;
   bbox: Bounds | null;
@@ -65,10 +78,25 @@ interface Props {
    *  missing from this map land in tier 'unknown' (grey). */
   kpiValueMap?: Map<string, number> | null;
   kpiThresholds?: KpiThresholds | null;
+  /** Active dashboard + topbar local filters (2026-05-12). Forwarded
+   *  to the backend so the Voronoï polygon set matches the perimeter
+   *  the operator sees in the dashboard; client-side defensive filter
+   *  re-applies them after fetch in case the backend ever returns a
+   *  superset. */
+  scope?: KpiOverlayScopeFilters | null;
   /** Legacy props kept for backward compatibility with prior wiring —
    *  ignored in the new direct-build path. */
   panelMount?: HTMLElement | null;
   catalogSource?: unknown;
+}
+
+/** CSV-aware match: empty filter = pass; otherwise UPPER compare. */
+function csvMatches(filter: string | undefined, fieldValue: string | undefined): boolean {
+  if (!filter) return true;
+  const want = filter.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (want.length === 0) return true;
+  const got = String(fieldValue ?? '').toUpperCase();
+  return want.includes(got);
 }
 
 /** Map a numeric value to a tier per the threshold rule. Returns
@@ -103,24 +131,50 @@ const KpiOverlayAdapter: React.FC<Props> = ({
   view,
   kpiValueMap,
   kpiThresholds,
+  scope,
 }) => {
   const map = useMap();
   const [cells, setCells] = useState<CoverageCell[]>([]);
   const layerRef = useRef<L.GeoJSON | null>(null);
 
-  // ── Fetch cells when bbox / enabled flips ──
+  // ── Fetch cells when bbox / scope filters change ──
   useEffect(() => {
     if (!enabled || !bbox) return;
     const ctrl = new AbortController();
-    fetchCellsForCoverage(bbox, { signal: ctrl.signal })
-      .then(({ cells: c }) => setCells(c))
+    // Option A: backend filter (cells-for-coverage accepts plaque/dor/
+    // cluster/band/techno/vendor as CSV) — shrinks the wire payload to
+    // the dashboard perimeter.
+    fetchCellsForCoverage(bbox, {
+      techno:  scope?.techno  || undefined,
+      vendor:  scope?.vendor  || undefined,
+      plaque:  scope?.plaque  || undefined,
+      dor:     scope?.dor     || undefined,
+      cluster: scope?.cluster || undefined,
+      band:    scope?.band    || undefined,
+      signal: ctrl.signal,
+    })
+      .then(({ cells: c }) => {
+        // Option B: client-side defensive filter — re-applies the
+        // scope after fetch so any subset returned by an out-of-date
+        // backend (or a future bug) still honours the operator's
+        // perimeter. Idempotent when the backend already filtered.
+        const filtered = c.filter((cell) =>
+          csvMatches(scope?.techno, cell.tech)
+          && csvMatches(scope?.vendor, cell.vendor)
+          && csvMatches(scope?.band, cell.band)
+        );
+        setCells(filtered);
+      })
       .catch((err) => {
         if (err?.name === 'AbortError') return;
         // eslint-disable-next-line no-console
         console.warn('[KpiOverlayAdapter] cells fetch failed:', err);
       });
     return () => ctrl.abort();
-  }, [enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat]);
+  }, [
+    enabled, bbox?.minLng, bbox?.minLat, bbox?.maxLng, bbox?.maxLat,
+    scope?.techno, scope?.vendor, scope?.plaque, scope?.dor, scope?.cluster, scope?.band,
+  ]);
 
   // Scope guard for the level (UX 2026-05-11: 'Cellule' only).
   const levelOk = view?.level === 'Cellule';

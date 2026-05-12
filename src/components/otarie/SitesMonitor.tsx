@@ -8329,6 +8329,26 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           view={activeKpiOverlayView}
           kpiValueMap={kpiValues}
           kpiThresholds={currentThreshold}
+          // 2026-05-12 — KPI Overlay must honour the active dashboard
+          // perimeter (plaque/dor/cluster/band/techno/vendor). Local
+          // top-bar filters (localVendor/etc.) override the dashboard
+          // values when the operator narrows further from the toolbar.
+          // CSV strings — arrays are joined with comma.
+          scope={(() => {
+            const df = dashboardActive ? activeDashboardFilters : null;
+            const csv = (arr: string[] | undefined | null): string | undefined => {
+              const list = (arr || []).map(s => String(s).trim()).filter(Boolean);
+              return list.length ? list.join(',') : undefined;
+            };
+            return {
+              techno:  localTechno !== 'ALL' ? localTechno : csv(df?.techno),
+              vendor:  localVendor !== 'ALL' ? localVendor : csv(df?.vendor),
+              plaque:  localPlaque !== 'ALL' ? localPlaque : csv(df?.plaque),
+              dor:     localDor    !== 'ALL' ? localDor    : csv(df?.dor),
+              cluster: csv(df?.cluster),
+              band:    localBande  !== 'ALL' ? localBande  : csv(df?.bande),
+            };
+          })()}
         />
         <FlyToSite coords={flyTarget} onFlyStart={() => { setIsFlying(true); isFlyingRef.current = true; }} onFlyEnd={() => { setIsFlying(false); isFlyingRef.current = false; }} onDone={() => setFlyTarget(null)} />
         <TechPanes />
