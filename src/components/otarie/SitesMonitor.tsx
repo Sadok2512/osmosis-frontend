@@ -4638,6 +4638,17 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
   const [enabledBands, setEnabledBands] = useState<Set<string>>(new Set(Object.keys(DEFAULT_BAND_COLORS)));
   const [enabledTechnos, setEnabledTechnos] = useState<Set<TechGroup>>(new Set(['2G', '3G', '5G', '4G']));
   const [showBandPanel, setShowBandPanel] = useState(true);
+  // Band bar layout mode: 'full' keeps all slots (greyed if absent), 'compact' renders only bands present in the current scope
+  const [bandBarMode, setBandBarMode] = useState<'full' | 'compact'>(() => {
+    try { return (localStorage.getItem('sm.bandBarMode') as 'full' | 'compact') || 'full'; } catch { return 'full'; }
+  });
+  const toggleBandBarMode = useCallback(() => {
+    setBandBarMode(prev => {
+      const next = prev === 'full' ? 'compact' : 'full';
+      try { localStorage.setItem('sm.bandBarMode', next); } catch {}
+      return next;
+    });
+  }, []);
   const [bandPanelMode, setBandPanelMode] = useState<'tech' | 'cell'>('tech');
   const [sectorColorMode, _setSectorColorMode] = useState<'topo' | 'kpi'>('topo');
   const setSectorColorMode = useCallback((mode: 'topo' | 'kpi') => {
