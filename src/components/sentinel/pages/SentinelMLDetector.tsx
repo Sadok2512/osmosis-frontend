@@ -28,6 +28,23 @@ const SEVERITY_STYLES: Record<string, string> = {
 const fmtNum = (v: number | null | undefined): string =>
   v == null ? '—' : (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2));
 
+/** Infer the KPI family for the classification chip in the drawer header.
+ * Pure client-side heuristic on the kpi_code substring — keeps the UI
+ * informative without a backend round-trip to kpi.kpi_definition.famille.
+ * If the family ever becomes load-bearing (eg. routes recommendations to
+ * a specific OPTIMUS runbook) we'll move this to the agentic-engine. */
+const kpiFamily = (code: string | undefined | null): { label: string; color: string } => {
+  const c = (code || '').toLowerCase();
+  if (!c) return { label: '—', color: 'bg-slate-100 text-slate-600' };
+  if (/_cssr|_setup|accessib/.test(c))            return { label: 'Accessibility', color: 'bg-blue-100 text-blue-700' };
+  if (/_dcr|_drop|_retain|_release/.test(c))       return { label: 'Retainability', color: 'bg-red-100 text-red-700' };
+  if (/_thp|_throughput|_thrput|_speed/.test(c))   return { label: 'Throughput',    color: 'bg-emerald-100 text-emerald-700' };
+  if (/_ho_|_handover|mobility/.test(c))           return { label: 'Mobility',      color: 'bg-amber-100 text-amber-700' };
+  if (/_traffic|_volume|_load|_prb/.test(c))       return { label: 'Traffic',       color: 'bg-violet-100 text-violet-700' };
+  if (/_avail|availability/.test(c))               return { label: 'Availability',  color: 'bg-cyan-100 text-cyan-700' };
+  return { label: 'Other', color: 'bg-slate-100 text-slate-600' };
+};
+
 const fmtDate = (iso: string | null | undefined): string => {
   if (!iso) return '—';
   try {
@@ -97,6 +114,12 @@ const SentinelMLDetector: React.FC = () => {
   const [outcomeLoading, setOutcomeLoading] = useState(false);
   const [outcomeError, setOutcomeError] = useState<string | null>(null);
   const [outcomeWindow, setOutcomeWindow] = useState(7);
+
+  // Stepper navigation across the 5 agentic phases. Default 'rca' when a
+  // new anomaly opens; advances are gated by upstream phase availability.
+  type Step = 'rca' | 'reco' | 'risk' | 'exec' | 'outcome';
+  const [activeStep, setActiveStep] = useState<Step>('rca');
+  useEffect(() => { setActiveStep('rca'); }, [rcaOpen?.id]);
 
   const limit = 50;
 
@@ -620,57 +643,128 @@ const SentinelMLDetector: React.FC = () => {
             className="absolute inset-0 bg-slate-900/30"
             onClick={() => setRcaOpen(null)}
           />
-          <aside className="relative w-[640px] max-w-[92vw] h-full bg-white shadow-2xl flex flex-col">
-            <header className="flex items-start justify-between p-4 border-b border-slate-200">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <Brain className="w-4 h-4 text-indigo-600" />
-                  <h3 className="text-sm font-semibold text-slate-800">RCA — Diagnostic agent (RCAI)</h3>
-                  {rcaCached && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">cached</span>
-                  )}
+          <aside className="relative w-[720px] max-w-[92vw] h-full bg-white shadow-2xl flex flex-col">
+            <header className="p-4 border-b border-slate-200">
+              <div className="flex items-start justify-between">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Brain className="w-4 h-4 text-indigo-600" />
+                    <h3 className="text-sm font-semibold text-slate-800">Analysis · Anomaly #{rcaOpen.id}</h3>
+                    {(() => {
+                      const fam = kpiFamily(rcaOpen.kpi_code);
+                      return (
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${fam.color}`} title="KPI family (classification)">
+                          {fam.label}
+                        </span>
+                      );
+                    })()}
+                    <span className={
+                      'text-[10px] px-1.5 py-0.5 rounded ' +
+                      (rcaOpen.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                       rcaOpen.severity === 'warning'  ? 'bg-amber-100 text-amber-700' :
+                                                         'bg-slate-100 text-slate-600')
+                    }>{rcaOpen.severity}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1 font-mono break-all">
+                    {rcaOpen.cell_name} · {rcaOpen.kpi_code} · {fmtDate(rcaOpen.period_start)}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    value=<b>{fmtNum(rcaOpen.value)}</b> z=<b>{fmtNum(rcaOpen.z_score)}</b> trend=<b>{fmtNum(rcaOpen.trend_pct)}%</b>
+                  </p>
                 </div>
-                <p className="text-[11px] text-slate-500 mt-1 font-mono break-all">
-                  {rcaOpen.cell_name} · {rcaOpen.kpi_code} · {fmtDate(rcaOpen.period_start)}
-                </p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  value=<b>{fmtNum(rcaOpen.value)}</b> z=<b>{fmtNum(rcaOpen.z_score)}</b> trend=<b>{fmtNum(rcaOpen.trend_pct)}%</b>
-                </p>
+                <button
+                  type="button"
+                  onClick={() => setRcaOpen(null)}
+                  className="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
+                  title="Fermer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setRcaOpen(null)}
-                className="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
-                title="Fermer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+
+              {/* Stepper — horizontal navigation across the 5 agentic phases.
+                  Steps are gated by upstream availability so the operator
+                  can't jump to Validation before a Recommendation exists.
+                  Static Tailwind classes (no dynamic interpolation) so
+                  the JIT picks everything up at build time. */}
+              <nav className="mt-3 flex items-center gap-1 text-[10px]">
+                {([
+                  { id: 'rca',     label: 'RCA',            icon: <Brain     className="w-3 h-3" />, active: 'bg-indigo-600 text-white',  hover: 'hover:bg-indigo-100 hover:text-indigo-700',  enabled: true },
+                  { id: 'reco',    label: 'Recommendation', icon: <Lightbulb className="w-3 h-3" />, active: 'bg-amber-600 text-white',   hover: 'hover:bg-amber-100 hover:text-amber-700',    enabled: !!rcaDiagnosticId },
+                  { id: 'risk',    label: 'Validation',     icon: <Shield    className="w-3 h-3" />, active: 'bg-sky-600 text-white',     hover: 'hover:bg-sky-100 hover:text-sky-700',        enabled: !!recPersisted },
+                  { id: 'exec',    label: 'Execution',      icon: <Terminal  className="w-3 h-3" />, active: 'bg-violet-600 text-white',  hover: 'hover:bg-violet-100 hover:text-violet-700',  enabled: approval?.decision === 'approved' },
+                  { id: 'outcome', label: 'Outcome',        icon: <Award     className="w-3 h-3" />, active: 'bg-emerald-600 text-white', hover: 'hover:bg-emerald-100 hover:text-emerald-700', enabled: executionRow?.status === 'completed' },
+                ] as { id: Step; label: string; icon: React.ReactNode; active: string; hover: string; enabled: boolean }[]).map((s, i) => {
+                  const isActive = activeStep === s.id;
+                  const base = 'flex items-center gap-1 px-2 py-1 rounded transition ';
+                  const cls = isActive
+                    ? s.active
+                    : s.enabled
+                      ? `bg-slate-100 text-slate-600 ${s.hover}`
+                      : 'bg-slate-50 text-slate-300 cursor-not-allowed';
+                  return (
+                    <React.Fragment key={s.id}>
+                      <button
+                        type="button"
+                        disabled={!s.enabled}
+                        onClick={() => setActiveStep(s.id)}
+                        className={base + cls}
+                        title={s.enabled ? s.label : `${s.label} — non disponible (étape précédente à compléter)`}
+                      >
+                        {s.icon}
+                        <span className="font-medium">{s.label}</span>
+                      </button>
+                      {i < 4 && <span className="text-slate-300">›</span>}
+                    </React.Fragment>
+                  );
+                })}
+              </nav>
             </header>
 
-            <div className="flex-1 overflow-auto p-4">
-              {rcaError && (
-                <div className="mb-3 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" /> {rcaError}
+            <div className="flex-1 overflow-auto">
+              {/* ─── RCA panel ─── */}
+              {activeStep === 'rca' && (
+                <div className="p-4">
+                  {/* Auto-trigger RCA if nothing is cached and the user lands on this step. */}
+                  {!rcaText && !rcaLoading && (
+                    <button
+                      type="button"
+                      onClick={() => openRca(rcaOpen, true)}
+                      className="mb-3 px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 inline-flex items-center gap-1"
+                    >
+                      <Brain className="w-3 h-3" /> Lancer RCA
+                    </button>
+                  )}
+                  {rcaCached && (
+                    <div className="mb-2 text-[10px] text-slate-500">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 mr-1">cached</span>
+                      résultat de la dernière exécution RCAI.
+                    </div>
+                  )}
+                  {rcaError && (
+                    <div className="mb-3 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" /> {rcaError}
+                    </div>
+                  )}
+                  {!rcaText && rcaLoading && (
+                    <div className="flex items-center gap-2 text-slate-500 text-sm py-12 justify-center">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      RCAI investigue (peut prendre 60-120s — appels CM/FM/KPI/peers)…
+                    </div>
+                  )}
+                  {rcaText && (
+                    <pre className="text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{rcaText}</pre>
+                  )}
+                  {rcaLoading && rcaText && (
+                    <div className="mt-3 inline-flex items-center gap-1 text-[10px] text-slate-400">
+                      <Loader2 className="w-3 h-3 animate-spin" /> RCAI continue à streamer…
+                    </div>
+                  )}
                 </div>
               )}
-              {!rcaText && rcaLoading && (
-                <div className="flex items-center gap-2 text-slate-500 text-sm py-12 justify-center">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  RCAI investigue (peut prendre 60-120s — appels CM/FM/KPI/peers)…
-                </div>
-              )}
-              {rcaText && (
-                <pre className="text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{rcaText}</pre>
-              )}
-              {rcaLoading && rcaText && (
-                <div className="mt-3 inline-flex items-center gap-1 text-[10px] text-slate-400">
-                  <Loader2 className="w-3 h-3 animate-spin" /> RCAI continue à streamer…
-                </div>
-              )}
-            </div>
 
             {/* ─── OPTIMUS recommendation section (Phase 2) ─── */}
-            {rcaText && !rcaLoading && rcaDiagnosticId && (
+            {activeStep === 'reco' && rcaDiagnosticId && (
               <div className="border-t border-slate-200 p-4 bg-amber-50/40">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -730,7 +824,7 @@ const SentinelMLDetector: React.FC = () => {
             )}
 
             {/* ─── AEGIS risk + approval (Phase 3) ─── */}
-            {recPersisted && (
+            {activeStep === 'risk' && recPersisted && (
               <div className="border-t border-slate-200 p-4 bg-sky-50/40">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -843,7 +937,7 @@ const SentinelMLDetector: React.FC = () => {
             )}
 
             {/* ─── EXA execution plan (Phase 4 SKELETON — propose-only) ─── */}
-            {approval?.decision === 'approved' && (
+            {activeStep === 'exec' && approval?.decision === 'approved' && (
               <div className="border-t border-slate-200 p-4 bg-violet-50/40">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -958,7 +1052,7 @@ const SentinelMLDetector: React.FC = () => {
             )}
 
             {/* ─── ECHO outcome (Phase 5 — Learning) ─── */}
-            {executionRow?.status === 'completed' && (
+            {activeStep === 'outcome' && executionRow?.status === 'completed' && (
               <div className="border-t border-slate-200 p-4 bg-emerald-50/40">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
@@ -1070,6 +1164,7 @@ const SentinelMLDetector: React.FC = () => {
                 )}
               </div>
             )}
+            </div>{/* flex-1 overflow-auto */}
 
             <footer className="flex items-center justify-between p-3 border-t border-slate-200">
               <span className="text-[10px] text-slate-400">
