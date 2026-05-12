@@ -7,7 +7,7 @@ import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
   Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
   Shield, ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown,
-  Terminal, CheckCircle2, XCircle, Copy,
+  Terminal, CheckCircle2, XCircle, Copy, TrendingUp, TrendingDown, Award,
 } from 'lucide-react';
 import {
   listProfiles, listAnomalies, runProfileNow,
@@ -15,7 +15,8 @@ import {
   getRecommendation, streamRecommend, listRecommendations,
   getApproval, streamAssess, approveRecommendation, rejectRecommendation,
   getExecutionByRec, streamExecute, markExecuted, markFailed,
-  MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow,
+  getOutcomeForExecution, assessOutcome,
+  MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow, OutcomeRow,
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
@@ -90,6 +91,12 @@ const SentinelMLDetector: React.FC = () => {
   const [execError, setExecError] = useState<string | null>(null);
   const [executionRow, setExecutionRow] = useState<ExecutionRow | null>(null);
   const [execActionInFlight, setExecActionInFlight] = useState<'executed' | 'failed' | null>(null);
+
+  // Phase 5 — ECHO outcome (forecast vs actual KPI delta).
+  const [outcome, setOutcome] = useState<OutcomeRow | null>(null);
+  const [outcomeLoading, setOutcomeLoading] = useState(false);
+  const [outcomeError, setOutcomeError] = useState<string | null>(null);
+  const [outcomeWindow, setOutcomeWindow] = useState(7);
 
   const limit = 50;
 
@@ -338,6 +345,36 @@ const SentinelMLDetector: React.FC = () => {
       setExecActionInFlight(null);
     }
   }, [executionRow]);
+
+  // Fetch outcome for the current execution.
+  useEffect(() => {
+    if (!executionRow) { setOutcome(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const o = await getOutcomeForExecution(executionRow.id);
+        if (!cancelled) setOutcome(o);
+      } catch {
+        if (!cancelled) setOutcome(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [executionRow]);
+
+  const runAssessOutcome = useCallback(async () => {
+    if (!executionRow) return;
+    setOutcome(null);
+    setOutcomeError(null);
+    setOutcomeLoading(true);
+    try {
+      const o = await assessOutcome(executionRow.id, outcomeWindow);
+      setOutcome(o);
+    } catch (e) {
+      setOutcomeError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setOutcomeLoading(false);
+    }
+  }, [executionRow, outcomeWindow]);
 
   const handleReject = useCallback(async () => {
     if (!recPersisted) return;
@@ -915,6 +952,120 @@ const SentinelMLDetector: React.FC = () => {
                 {execLoading && !execText && (
                   <div className="text-[11px] text-slate-500 flex items-center gap-2">
                     <Loader2 className="w-3 h-3 animate-spin" /> EXA construit le plan d'exécution…
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ─── ECHO outcome (Phase 5 — Learning) ─── */}
+            {executionRow?.status === 'completed' && (
+              <div className="border-t border-slate-200 p-4 bg-emerald-50/40">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-emerald-700" />
+                    <h4 className="text-sm font-semibold text-slate-800">Outcome (ECHO)</h4>
+                    {outcome && outcome.success !== null && (
+                      <span className={
+                        'text-[10px] px-1.5 py-0.5 rounded ' +
+                        (outcome.success ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700')
+                      }>
+                        {outcome.success ? 'SUCCESS' : 'FAILED'}
+                      </span>
+                    )}
+                    {outcome && outcome.success === null && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
+                        insufficient data
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <label className="text-[10px] text-slate-500">window:</label>
+                    <select
+                      value={outcomeWindow}
+                      onChange={(e) => setOutcomeWindow(Number(e.target.value))}
+                      className="text-[11px] border border-slate-200 rounded px-1 py-0.5"
+                    >
+                      <option value={1}>1d</option>
+                      <option value={3}>3d</option>
+                      <option value={7}>7d</option>
+                      <option value={14}>14d</option>
+                    </select>
+                    <button
+                      type="button"
+                      disabled={outcomeLoading}
+                      onClick={runAssessOutcome}
+                      className="px-2 py-1 text-xs bg-emerald-700 text-white rounded hover:bg-emerald-800 disabled:opacity-40 inline-flex items-center gap-1"
+                    >
+                      {outcomeLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Award className="w-3 h-3" />}
+                      {outcome ? 'Re-assess' : 'Assess outcome'}
+                    </button>
+                  </div>
+                </div>
+
+                {outcomeError && (
+                  <div className="mb-2 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" /> {outcomeError}
+                  </div>
+                )}
+
+                {outcome && (
+                  <div className="p-3 rounded border border-emerald-200 bg-white text-xs space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="text-center p-2 rounded border border-slate-200">
+                        <div className="text-[9px] uppercase tracking-wider text-slate-500">Forecast Δ</div>
+                        <div className={
+                          'text-lg font-bold tabular-nums ' +
+                          ((outcome.forecast_delta ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700')
+                        }>
+                          {outcome.forecast_delta !== null
+                            ? (outcome.forecast_delta >= 0 ? '+' : '') + outcome.forecast_delta.toFixed(3)
+                            : '—'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          baseline: {outcome.baseline_avg?.toFixed(3) ?? '—'}
+                        </div>
+                      </div>
+                      <div className="text-center p-2 rounded border border-slate-200">
+                        <div className="text-[9px] uppercase tracking-wider text-slate-500">Actual Δ</div>
+                        <div className={
+                          'text-lg font-bold tabular-nums flex items-center justify-center gap-1 ' +
+                          ((outcome.actual_delta ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700')
+                        }>
+                          {(outcome.actual_delta ?? 0) >= 0
+                            ? <TrendingUp className="w-3.5 h-3.5" />
+                            : <TrendingDown className="w-3.5 h-3.5" />}
+                          {outcome.actual_delta !== null
+                            ? (outcome.actual_delta >= 0 ? '+' : '') + outcome.actual_delta.toFixed(3)
+                            : '—'}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          observed: {outcome.actual_avg?.toFixed(3) ?? '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {outcome.notes && (
+                      <p className="text-[11px] text-slate-600 font-mono leading-relaxed">{outcome.notes}</p>
+                    )}
+
+                    {outcome.success === true && (
+                      <div className="flex items-center gap-2 text-emerald-700 text-[11px] pt-1 border-t border-slate-100">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Recommandation validée — pattern à propager.
+                      </div>
+                    )}
+                    {outcome.success === false && (
+                      <div className="flex items-center gap-2 text-red-700 text-[11px] pt-1 border-t border-slate-100">
+                        <XCircle className="w-3.5 h-3.5" />
+                        Recommandation ratée — abaisse la confidence du pattern OPTIMUS.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {outcomeLoading && (
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" /> ECHO compare forecast vs réalité…
                   </div>
                 )}
               </div>

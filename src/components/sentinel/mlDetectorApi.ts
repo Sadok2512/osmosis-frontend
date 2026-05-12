@@ -422,3 +422,53 @@ export async function markFailed(execId: number, reason: string): Promise<unknow
   if (!r.ok) throw new Error(`agentic /mark-failed → ${r.status}: ${await r.text()}`);
   return r.json();
 }
+
+
+// ─── Outcomes (Phase 5 — ECHO learning loop) ────────────────────────────
+
+export interface OutcomeRow {
+  id: number;
+  execution_id: number;
+  recommendation_id?: number;
+  cell_name: string;
+  kpi_code: string;
+  baseline_avg: number | null;
+  actual_avg: number | null;
+  forecast_delta: number | null;
+  actual_delta: number | null;
+  success: boolean | null;
+  confidence?: string;
+  notes?: string;
+  window_days?: number;
+  assessed_at: string | null;
+}
+
+export async function getOutcomeForExecution(execId: number): Promise<OutcomeRow | null> {
+  const url = getVpsProxyUrl('agentic', `/executions/${execId}/outcome`);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /outcome → ${r.status}`);
+  const j = await r.json();
+  return j.outcome;
+}
+
+export async function assessOutcome(execId: number, windowDays: number = 7): Promise<OutcomeRow> {
+  const url = getVpsProxyUrl('agentic', `/executions/${execId}/assess-outcome`, {
+    window_days: String(windowDays),
+  });
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { ...getVpsProxyHeaders(), 'Content-Type': 'application/json' },
+  });
+  if (!r.ok) throw new Error(`agentic /assess-outcome → ${r.status}: ${await r.text()}`);
+  const j = await r.json();
+  return j.outcome;
+}
+
+export async function listOutcomes(success?: boolean): Promise<{ outcomes: OutcomeRow[]; count: number }> {
+  const params: Record<string, string> = {};
+  if (success !== undefined) params.success = String(success);
+  const url = getVpsProxyUrl('agentic', `/outcomes`, params);
+  const r = await fetch(url, { headers: getVpsProxyHeaders() });
+  if (!r.ok) throw new Error(`agentic /outcomes → ${r.status}`);
+  return r.json();
+}
