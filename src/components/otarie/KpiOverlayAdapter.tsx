@@ -144,6 +144,19 @@ const KpiOverlayAdapter: React.FC<Props> = ({
     // Option A: backend filter (cells-for-coverage accepts plaque/dor/
     // cluster/band/techno/vendor as CSV) — shrinks the wire payload to
     // the dashboard perimeter.
+    //DIAG (2026-05-12) — surface the scope actually sent to the backend
+    //DIAG so we can confirm whether the parent supplies it. Remove once
+    //DIAG the dashboard-filter bug is closed.
+    // eslint-disable-next-line no-console
+    console.log('[diag] kpi-overlay scope:', {
+      techno:  scope?.techno,
+      vendor:  scope?.vendor,
+      plaque:  scope?.plaque,
+      dor:     scope?.dor,
+      cluster: scope?.cluster,
+      band:    scope?.band,
+      bbox,
+    });
     fetchCellsForCoverage(bbox, {
       techno:  scope?.techno  || undefined,
       vendor:  scope?.vendor  || undefined,
@@ -163,6 +176,13 @@ const KpiOverlayAdapter: React.FC<Props> = ({
           && csvMatches(scope?.vendor, cell.vendor)
           && csvMatches(scope?.band, cell.band)
         );
+        //DIAG (2026-05-12) — surface fetch + filter results.
+        // eslint-disable-next-line no-console
+        console.log('[diag] kpi-overlay fetch:', {
+          backendCells: c.length,
+          afterClientFilter: filtered.length,
+          dropped: c.length - filtered.length,
+        });
         setCells(filtered);
       })
       .catch((err) => {
