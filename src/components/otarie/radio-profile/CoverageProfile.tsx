@@ -232,6 +232,7 @@ const CoverageProfileSingle: React.FC<Omit<CoverageProfileProps, 'siteB'>> = ({
   onHoverPoint,
   targetBearing = null,
   rawHba = null,
+  rawTilt = null,
 }) => {
   // Local UI state — toggles inside the panel header strip
   const [showBeam, setShowBeam] = useState(showBeamProp);
