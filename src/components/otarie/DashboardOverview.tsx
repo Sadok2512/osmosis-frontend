@@ -1011,7 +1011,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
             <div className="flex items-center gap-4">
               <img
                 src={operatorLogo}
-                alt="Orange France operator logo"
+                alt="AEVO NETWORKS operator logo"
                 width={48}
                 height={48}
                 loading="lazy"
@@ -1019,7 +1019,7 @@ const DashboardOverview: React.FC<{ setActiveTab?: (tab: AppTab) => void }> = ({
               />
               <div className="min-w-0">
                 <h2 className="text-base font-bold text-foreground leading-tight truncate">
-                  Orange France
+                  AEVO NETWORKS
                 </h2>
                 <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                   RAN Network — National Operator

@@ -1,4 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
+// Pull the build-time version from package.json so the sidebar footer
+// follows the actual release tag (was hard-coded "V6.0.0" pre-2026-05-12).
+import { version as APP_VERSION } from '../../../package.json';
 import {
   Calendar, Map as MapIcon, Users, Network,
   Radio, Settings, Layout, Bell,
@@ -233,7 +236,7 @@ const AppSidebar: React.FC<SidebarProps> = ({
         {!isCollapsed && (
           <div className="flex items-center gap-2 mt-2 px-3 opacity-50">
             <div className="w-2 h-2 rounded-full bg-sidebar-primary" />
-            <span className="text-[10px] font-medium text-sidebar-foreground">V6.0.0 • Orange France</span>
+            <span className="text-[10px] font-medium text-sidebar-foreground">v{APP_VERSION} • AEVO NETWORKS</span>
           </div>
         )}
       </div>
