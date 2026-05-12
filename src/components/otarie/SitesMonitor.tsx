@@ -1213,15 +1213,29 @@ const FitHighlightBounds = ({ coords: _coords }: { coords: [number, number][] })
 
 const FitToDashboardSites: React.FC<{ sites: SiteSummary[]; fitKey: number }> = ({ sites, fitKey }) => {
   const map = useMap();
-  const lastFitRef = useRef<number>(0);
+  // 2026-05-12 — track BOTH fitKey AND a sites signature. Before this,
+  // activating a dashboard bumped fitKey while `sites` still held the
+  // previous dashboard's (or no-dashboard bbox) data; the effect fit
+  // to those old sites, then marked `lastFitRef = fitKey`. When the
+  // new dashboard sites arrived a re-render later, the effect was
+  // skipped because `fitKey === lastFitRef`. Result: map landed on
+  // the old location and never moved to the new dashboard's sites.
+  //
+  // Refitting when (fitKey, sitesSig) changes — not just fitKey —
+  // makes the fit follow the actual data instead of guessing on stale
+  // state. The sites signature is cheap (count + first/last id) and
+  // changes whenever the loader swaps in a new batch.
+  const lastFitRef = useRef<{ fitKey: number; sitesSig: string }>({ fitKey: 0, sitesSig: '' });
   useEffect(() => {
-    if (fitKey === 0 || fitKey === lastFitRef.current) return;
+    if (fitKey === 0) return;
     if (!sites || sites.length === 0) return;
+    const sitesSig = `${sites.length}|${sites[0]?.site_id ?? ''}|${sites[sites.length - 1]?.site_id ?? ''}`;
+    if (fitKey === lastFitRef.current.fitKey && sitesSig === lastFitRef.current.sitesSig) return;
     const coords = sites
       .map(s => s.coordinates)
       .filter((c): c is [number, number] => Array.isArray(c) && c.length === 2 && Number.isFinite(c[0]) && Number.isFinite(c[1]));
     if (coords.length === 0) return;
-    lastFitRef.current = fitKey;
+    lastFitRef.current = { fitKey, sitesSig };
     if (coords.length === 1) {
       map.flyTo(coords[0] as [number, number], 12, { duration: 0.8 });
       return;
@@ -8004,6 +8018,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     }
     // Fly to saved center/zoom
     if (settings.center && settings.center[0] > 41 && settings.center[0] < 52 && settings.center[1] > -6 && settings.center[1] < 11) setFlyTarget(settings.center);
+    // 2026-05-12 — also trigger a refit on the current dashboard sites
+    // when activating any view. Saved `settings.center` is often stale
+    // (or missing entirely on freshly-saved views), so falling back to
+    // the live sites' bounding box guarantees the user lands on data
+    // rather than on the wrong region or wherever the camera was. The
+    // refit only runs while a dashboard is active — without one, the
+    // bbox-loader already owns the viewport.
+    if (dashboardActive) setDashboardFitKey(k => k + 1);
     if ((settings as any).beamVisibility != null) {
       setBeamVisibility((settings as any).beamVisibility);
       localStorage.setItem('osmosis_beam_visibility', String((settings as any).beamVisibility));
@@ -14356,9 +14378,14 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       invalidateSiteCellsCache();
                       cellLoadingRef.current.clear();
                       cellLoadAttemptedRef.current.clear();
-                      // Force map to fit to new dashboard sites — only when activating
-                      if (active) setDashboardFitKey(k => k + 1);
                     }
+                    // 2026-05-12 — refit on EVERY activation, even when
+                    // re-activating the same dashboard. The user may
+                    // have panned/zoomed away after a previous activation
+                    // and clicking "Activate" again should snap them
+                    // back onto the dashboard's sites. Cache invalidation
+                    // above stays gated; only the fit is unconditional.
+                    if (active) setDashboardFitKey(k => k + 1);
 
                     setSelectedSiteId(null);
                     setSelectedSiteSnapshot(null);
