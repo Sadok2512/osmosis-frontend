@@ -202,6 +202,7 @@ export const CoverageProfile: React.FC<CoverageProfileProps> = (props) => {
             showTiltLines={showTiltLines}
             showClutter={showClutter}
             clutterHeight={clutterHeight}
+            rawTilt={siteB.rawTilt}
           />
         </div>
       </div>
