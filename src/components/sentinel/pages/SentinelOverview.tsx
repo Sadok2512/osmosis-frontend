@@ -336,7 +336,7 @@ const AnomalyTrendChart: React.FC = () => {
     xAxis: {
       type: 'category', data: dates, boundaryGap: false,
       axisLine: { lineStyle: { color: NOC.cardBorder } },
-      axisLabel: { color: NOC.textDim, fontSize: 10 },
+      axisLabel: { color: NOC.textDim, fontSize: 10, hideOverlap: true, rotate: days > 30 ? 35 : 0 },
     },
     yAxis: {
       type: 'value', splitLine: { lineStyle: { color: NOC.grid } },
