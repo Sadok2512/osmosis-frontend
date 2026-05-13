@@ -117,12 +117,12 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true, theme = 
             </NOCCard>
           </div>
 
-          <NOCCard title="Network QoE Heatmap" icon={<MapPin className="w-4 h-4" />} subtitle="Regional anomaly density">
+          <NOCCard title="Network QoE Heatmap" icon={<MapPin className="w-4 h-4" />} subtitle="Geographic anomaly density across France">
             <RegionHeatmap />
           </NOCCard>
 
-          <NOCCard title="ML Detection Insights" icon={<Cpu className="w-4 h-4" />} subtitle="Top anomalous entities detected by AI/ML">
-            <MLInsightsTable rows={MOCK_ML_INSIGHTS} />
+          <NOCCard title="Anomaly Trend — Network Wide" icon={<Cpu className="w-4 h-4" />} subtitle="Daily anomaly volume by severity (last 14 days)">
+            <AnomalyTrendChart />
           </NOCCard>
         </div>
       </div>
