@@ -515,15 +515,15 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
             {detectors.map(detector => (
               <tr key={detector.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
                 <td className="px-4 py-4">
-                  <p className="font-semibold text-foreground">{detector.name}</p>
-                  <p className="font-mono text-[11px] text-muted-foreground">{detector.code}</p>
+                  <p className="font-semibold text-slate-900">{detector.name}</p>
+                  <p className="font-mono text-[11px] text-slate-500">{detector.code}</p>
                 </td>
                 <td className="px-4 py-4"><Pill>{detector.scopeLevel}</Pill></td>
                 <td className="px-4 py-4">{modeLabel(detector)}</td>
                 <td className="px-4 py-4 font-semibold">{detector.scheduleFrequency}</td>
-                <td className="px-4 py-4 text-xs text-muted-foreground">{filterSummary(detector)}</td>
+                <td className="px-4 py-4 text-xs text-slate-500">{filterSummary(detector)}</td>
                 <td className="px-4 py-4"><StatusPill value={detector.status} /></td>
-                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-muted-foreground/40" />}</td>
+                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-slate-500/40" />}</td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-1.5">
                     <IconButton title="Run now" onClick={() => onRun(detector)}><Play /></IconButton>
@@ -597,10 +597,10 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
 
         <Card title="C. NE Filters">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
               <div>
-                <p className="text-sm font-semibold text-foreground">Build NE scope with reusable filters</p>
-                <p className="mt-1 text-xs text-muted-foreground">Add Country, Department, DOR, Plaque, Site, Cell, vendor, technology, band, or tag filters from a searchable list.</p>
+                <p className="text-sm font-semibold text-slate-900">Build NE scope with reusable filters</p>
+                <p className="mt-1 text-xs text-slate-500">Add Country, Department, DOR, Plaque, Site, Cell, vendor, technology, band, or tag filters from a searchable list.</p>
               </div>
               <button
                 type="button"
@@ -614,10 +614,10 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
             {activeFilterCount > 0 ? (
               <div className="space-y-3">
                 {FILTER_DEFINITIONS.filter(item => (draft.filters[item.key] || []).length > 0).map(item => (
-                  <div key={item.key} className="rounded-2xl border border-slate-200 bg-background p-3">
+                  <div key={item.key} className="rounded-xl border border-slate-200 bg-background p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{item.label}</span>
-                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-semibold text-muted-foreground transition-colors hover:text-destructive">Clear</button>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">{item.label}</span>
+                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-semibold text-slate-500 transition-colors hover:text-destructive">Clear</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(draft.filters[item.key] || []).map(value => (
@@ -637,13 +637,13 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                 ))}
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-5 text-sm text-muted-foreground">
+              <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-5 text-sm text-slate-500">
                 No NE filters selected. Click Add filter to define the target population.
               </div>
             )}
 
             {isAddingFilter && (
-              <div className="rounded-2xl border border-primary/20 bg-background p-4 shadow-sm">
+              <div className="rounded-xl border border-primary/20 bg-background p-4 shadow-sm">
                 <div className="grid gap-3 md:grid-cols-[0.8fr_1.2fr_auto]">
                   <Field label="Filter type">
                     <Select
@@ -658,7 +658,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                   </Field>
                   <Field label="Search value">
                     <div className="relative">
-                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
                       <input
                         value={filterSearch}
                         onChange={event => setFilterSearch(event.target.value)}
@@ -677,26 +677,26 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                     <button
                       type="button"
                       onClick={() => addFilterValue(filterKey, filterSearch)}
-                      className="h-11 rounded-xl border border-slate-200 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
+                      className="h-11 rounded-xl border border-slate-200 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-slate-900 transition-all hover:border-primary/30 hover:text-primary"
                     >
                       Add value
                     </button>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Available {selectedFilterDefinition.label}</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Available {selectedFilterDefinition.label}</p>
                   <div className="flex flex-wrap gap-2">
                     {filteredFilterOptions.length > 0 ? filteredFilterOptions.map(value => (
                       <button
                         key={value}
                         type="button"
                         onClick={() => addFilterValue(filterKey, value)}
-                        className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
+                        className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-slate-900 transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
                       >
                         {value}
                       </button>
                     )) : (
-                      <span className="text-xs text-muted-foreground">No list match. Type a custom value and click Add value.</span>
+                      <span className="text-xs text-slate-500">No list match. Type a custom value and click Add value.</span>
                     )}
                   </div>
                 </div>
@@ -707,7 +707,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
 
         <Card title="F. Criteria Builder">
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Logic</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Logic</span>
             <Select value={draft.criteriaLogic} values={['AND', 'OR']} onChange={v => patch({ criteriaLogic: v as 'AND' | 'OR' })} />
             <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90">Add condition</button>
           </div>
@@ -732,7 +732,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
               ['allowExport', 'Allow export'],
               ['allowParameterApply', 'Allow parameter apply'],
             ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-background p-3 text-sm font-semibold text-foreground">
+              <label key={key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-background p-3 text-sm font-semibold text-slate-900">
                 <input type="checkbox" checked={Boolean(draft.output[key as keyof Detector['output']])} onChange={e => patch({ output: { ...draft.output, [key]: e.target.checked } })} />
                 {label}
               </label>
@@ -750,7 +750,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
             <ActionButton onClick={onValidate} icon={<CheckCircle2 />}>Validate</ActionButton>
             <ActionButton onClick={onRunTest} icon={<Play />}>Run test</ActionButton>
           </div>
-          <pre className="mt-4 max-h-80 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-blue-100">{JSON.stringify(toApiPayload(draft), null, 2)}</pre>
+          <pre className="mt-4 max-h-80 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-blue-100">{JSON.stringify(toApiPayload(draft), null, 2)}</pre>
         </Card>
       </div>
     </Panel>
@@ -824,7 +824,7 @@ function ParameterSets({ sets, setSets, onExport }: { sets: ParameterSet[]; setS
       <SimpleTable headers={['Name', 'Target level', 'Items', 'Enabled', 'Updated', 'Actions']}>
         {sets.map(set => (
           <tr key={set.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
-            <Td><p className="font-semibold text-foreground">{set.name}</p><p className="font-mono text-[11px] text-muted-foreground">{set.code}</p></Td>
+            <Td><p className="font-semibold text-slate-900">{set.name}</p><p className="font-mono text-[11px] text-slate-500">{set.code}</p></Td>
             <Td>{set.targetLevel}</Td>
             <Td>{set.items.length}</Td>
             <Td>{set.enabled ? 'Yes' : 'No'}</Td>
@@ -859,7 +859,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
         {action}
       </div>
       {children}
@@ -877,7 +877,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
+  return <label className="block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{label}<div className="mt-1">{children}</div></label>;
 }
 
 function Select({ value, values, labels, onChange }: { value: string; values: string[]; labels?: string[]; onChange: (v: string) => void }) {
@@ -891,8 +891,8 @@ function Select({ value, values, labels, onChange }: { value: string; values: st
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="relative">
-      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-2xl border border-slate-200 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
+      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-xl border border-slate-200 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
     </div>
   );
 }
@@ -913,7 +913,7 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-3 align-top text-foreground">{children}</td>;
+  return <td className="px-4 py-3 align-top text-slate-900">{children}</td>;
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
@@ -943,11 +943,11 @@ function SeverityPill({ value }: { value: Severity }) {
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
-  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-slate-200 text-muted-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
+  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-slate-200 text-slate-500 hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
 }
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-slate-200 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' : 'border border-slate-200 bg-card text-slate-900 hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
