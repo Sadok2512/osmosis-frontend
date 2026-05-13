@@ -573,34 +573,34 @@ const SentinelMLDetector: React.FC = () => {
               Aucune anomalie pour ce filtre.
             </div>
           ) : (
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50 sticky top-0 z-10">
-                <tr className="text-left text-[11px] text-slate-500 uppercase tracking-wider">
-                  <th className="px-3 py-2 font-semibold">Sévérité</th>
-                  <th className="px-3 py-2 font-semibold">Période</th>
-                  <th className="px-3 py-2 font-semibold">Cellule</th>
-                  <th className="px-3 py-2 font-semibold">KPI</th>
-                  <th className="px-3 py-2 font-semibold text-right">Valeur</th>
-                  <th className="px-3 py-2 font-semibold text-right">Z-score</th>
-                  <th className="px-3 py-2 font-semibold text-right">Δ7d</th>
-                  <th className="px-3 py-2 font-semibold text-right">Δ14d</th>
-                  <th className="px-3 py-2 font-semibold text-right">Trend %</th>
-                  <th className="px-3 py-2 font-semibold text-right w-10">RCA</th>
+            <table className="w-full text-[13px]">
+              <thead className="bg-slate-50/70 sticky top-0 z-10">
+                <tr className="text-left text-[11px] font-medium text-slate-500 uppercase tracking-[0.08em]">
+                  <th className="px-3 py-2.5">Sévérité</th>
+                  <th className="px-3 py-2.5">Période</th>
+                  <th className="px-3 py-2.5">Cellule</th>
+                  <th className="px-3 py-2.5">KPI</th>
+                  <th className="px-3 py-2.5 text-right">Valeur</th>
+                  <th className="px-3 py-2.5 text-right">Z-score</th>
+                  <th className="px-3 py-2.5 text-right">Δ7d</th>
+                  <th className="px-3 py-2.5 text-right">Δ14d</th>
+                  <th className="px-3 py-2.5 text-right">Trend %</th>
+                  <th className="px-3 py-2.5 text-right w-10">RCA</th>
                 </tr>
               </thead>
               <tbody>
                 {anomalies.map((a) => (
-                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition">
                     <td className="px-3 py-2">
-                      <span className={'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold rounded border ' + (SEVERITY_STYLES[a.severity] || SEVERITY_STYLES.info)}>
+                      <span className={'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full uppercase tracking-[0.06em] border ' + (SEVERITY_STYLES[a.severity] || SEVERITY_STYLES.info)}>
                         {a.severity === 'critical' && <AlertTriangle className="w-3 h-3" />}
                         {a.severity}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-600 tabular-nums">{fmtDate(a.period_start)}</td>
-                    <td className="px-3 py-2 font-mono text-slate-800">{a.cell_name || '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[12px] text-slate-800">{a.cell_name || '—'}</td>
                     <td className="px-3 py-2 text-slate-700 truncate max-w-[200px]" title={a.kpi_code}>{a.kpi_code}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold">{fmtNum(a.value)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{fmtNum(a.value)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.z_score)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_7)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_14)}</td>
@@ -610,7 +610,7 @@ const SentinelMLDetector: React.FC = () => {
                         type="button"
                         title="Lancer / consulter la RCA (RCAI)"
                         onClick={() => openRca(a)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-indigo-100 text-indigo-700"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-teal-50 text-teal-700 transition"
                       >
                         <Search className="w-3.5 h-3.5" />
                       </button>
