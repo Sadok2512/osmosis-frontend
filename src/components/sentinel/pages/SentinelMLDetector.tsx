@@ -1245,6 +1245,36 @@ const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }
   const mapRef = useRef<L.Map | null>(null);
   const [coords, setCoords] = useState<Map<string, [number, number]> | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [height, setHeight] = useState<number>(360);
+  const resizingRef = useRef(false);
+
+  // Drag-to-resize handler
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !mapEl.current) return;
+      const top = mapEl.current.getBoundingClientRect().top;
+      const next = Math.max(200, Math.min(900, e.clientY - top));
+      setHeight(next);
+    };
+    const onUp = () => {
+      if (!resizingRef.current) return;
+      resizingRef.current = false;
+      document.body.style.userSelect = '';
+      setTimeout(() => mapRef.current?.invalidateSize(), 30);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  // Keep Leaflet sized in sync when height changes via presets
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 60);
+    return () => clearTimeout(id);
+  }, [height]);
 
   // Build cell_name → [lat,lng] lookup once.
   useEffect(() => {
