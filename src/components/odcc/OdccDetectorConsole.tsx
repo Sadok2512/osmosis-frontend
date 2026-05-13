@@ -504,23 +504,23 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
 }) {
   return (
     <Panel title="Detector List" action={<SearchBox value={query} onChange={setQuery} />}>
-      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <thead className="bg-slate-50 text-[12px] font-medium uppercase tracking-[0.08em] text-slate-500">
             <tr>
               {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {detectors.map(detector => (
-              <tr key={detector.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+              <tr key={detector.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
                 <td className="px-4 py-4">
-                  <p className="font-bold text-foreground">{detector.name}</p>
+                  <p className="font-semibold text-foreground">{detector.name}</p>
                   <p className="font-mono text-[11px] text-muted-foreground">{detector.code}</p>
                 </td>
                 <td className="px-4 py-4"><Pill>{detector.scopeLevel}</Pill></td>
                 <td className="px-4 py-4">{modeLabel(detector)}</td>
-                <td className="px-4 py-4 font-bold">{detector.scheduleFrequency}</td>
+                <td className="px-4 py-4 font-semibold">{detector.scheduleFrequency}</td>
                 <td className="px-4 py-4 text-xs text-muted-foreground">{filterSummary(detector)}</td>
                 <td className="px-4 py-4"><StatusPill value={detector.status} /></td>
                 <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-muted-foreground/40" />}</td>
@@ -583,7 +583,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
           <Field label="Name"><input value={draft.name} onChange={e => patch({ name: e.target.value })} className="input" /></Field>
           <Field label="Code"><input value={draft.code} onChange={e => patch({ code: e.target.value })} className="input font-mono" /></Field>
           <Field label="Description"><textarea value={draft.description} onChange={e => patch({ description: e.target.value })} className="input min-h-20" /></Field>
-          <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={draft.enabled} onChange={e => patch({ enabled: e.target.checked, status: e.target.checked ? 'active' : 'draft' })} /> Enabled</label>
+          <label className="flex items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={draft.enabled} onChange={e => patch({ enabled: e.target.checked, status: e.target.checked ? 'active' : 'draft' })} /> Enabled</label>
         </Card>
 
         <Card title="B. Scope + Mode">
@@ -597,9 +597,9 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
 
         <Card title="C. NE Filters">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
               <div>
-                <p className="text-sm font-bold text-foreground">Build NE scope with reusable filters</p>
+                <p className="text-sm font-semibold text-foreground">Build NE scope with reusable filters</p>
                 <p className="mt-1 text-xs text-muted-foreground">Add Country, Department, DOR, Plaque, Site, Cell, vendor, technology, band, or tag filters from a searchable list.</p>
               </div>
               <button
@@ -614,10 +614,10 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
             {activeFilterCount > 0 ? (
               <div className="space-y-3">
                 {FILTER_DEFINITIONS.filter(item => (draft.filters[item.key] || []).length > 0).map(item => (
-                  <div key={item.key} className="rounded-2xl border border-border/60 bg-background p-3">
+                  <div key={item.key} className="rounded-2xl border border-slate-200 bg-background p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{item.label}</span>
-                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-bold text-muted-foreground transition-colors hover:text-destructive">Clear</button>
+                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-semibold text-muted-foreground transition-colors hover:text-destructive">Clear</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {(draft.filters[item.key] || []).map(value => (
@@ -625,7 +625,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                           key={`${item.key}-${value}`}
                           type="button"
                           onClick={() => removeFilterValue(item.key, value)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-bold text-primary transition-all hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary transition-all hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
                           title="Remove filter"
                         >
                           {value}
@@ -677,7 +677,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                     <button
                       type="button"
                       onClick={() => addFilterValue(filterKey, filterSearch)}
-                      className="h-11 rounded-xl border border-border/60 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
+                      className="h-11 rounded-xl border border-slate-200 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
                     >
                       Add value
                     </button>
@@ -691,7 +691,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                         key={value}
                         type="button"
                         onClick={() => addFilterValue(filterKey, value)}
-                        className="rounded-full border border-border/60 bg-card px-3 py-1.5 text-xs font-bold text-foreground transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
+                        className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-foreground transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
                       >
                         {value}
                       </button>
@@ -713,7 +713,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
           </div>
           <div className="space-y-3">
             {draft.criteria.map(c => (
-              <div key={c.id} className="grid grid-cols-7 gap-2 rounded-xl border border-border/60 bg-muted/30 p-3">
+              <div key={c.id} className="grid grid-cols-7 gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
                 <Select value={c.type} values={['kpi', 'parameter', 'inventory']} onChange={v => updateCriterion(c.id, { type: v as Criterion['type'] })} />
                 <input value={c.code} onChange={e => updateCriterion(c.id, { code: e.target.value })} className="input col-span-2 font-mono" />
                 <Select value={c.aggregation} values={['avg', 'sum', 'min', 'max', 'last']} onChange={v => updateCriterion(c.id, { aggregation: v as Criterion['aggregation'] })} />
@@ -732,7 +732,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
               ['allowExport', 'Allow export'],
               ['allowParameterApply', 'Allow parameter apply'],
             ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-sm font-bold text-foreground">
+              <label key={key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-background p-3 text-sm font-semibold text-foreground">
                 <input type="checkbox" checked={Boolean(draft.output[key as keyof Detector['output']])} onChange={e => patch({ output: { ...draft.output, [key]: e.target.checked } })} />
                 {label}
               </label>
@@ -762,7 +762,7 @@ function RunsTable({ runs, detectors }: { runs: DetectorRun[]; detectors: Detect
     <Panel title="Runs History">
       <SimpleTable headers={['Created', 'Detector', 'Trigger', 'Mode', 'Period', 'Granularity', 'Matched', 'Status']}>
         {runs.map(run => (
-          <tr key={run.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+          <tr key={run.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
             <Td>{formatDate(run.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === run.detectorId)?.name || run.detectorId}</Td>
             <Td>{run.triggerType}</Td>
@@ -791,7 +791,7 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
     <Panel title="Detection Results" action={<div className="flex gap-2"><ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton><ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton></div>}>
       <SimpleTable headers={['', 'Detection time', 'Severity', 'Hierarchy', 'NE', 'Tech', 'Vendor', 'KPI', 'Value', 'Threshold', 'Status', 'Actions']}>
         {results.map(r => (
-          <tr key={r.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+          <tr key={r.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
             <Td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></Td>
             <Td>{formatDate(r.detectedAt)}</Td>
             <Td><SeverityPill value={r.severity} /></Td>
@@ -823,8 +823,8 @@ function ParameterSets({ sets, setSets, onExport }: { sets: ParameterSet[]; setS
     <Panel title="Parameter Set Manager" action={<ActionButton onClick={add} icon={<Plus />} primary>New set</ActionButton>}>
       <SimpleTable headers={['Name', 'Target level', 'Items', 'Enabled', 'Updated', 'Actions']}>
         {sets.map(set => (
-          <tr key={set.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
-            <Td><p className="font-bold text-foreground">{set.name}</p><p className="font-mono text-[11px] text-muted-foreground">{set.code}</p></Td>
+          <tr key={set.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
+            <Td><p className="font-semibold text-foreground">{set.name}</p><p className="font-mono text-[11px] text-muted-foreground">{set.code}</p></Td>
             <Td>{set.targetLevel}</Td>
             <Td>{set.items.length}</Td>
             <Td>{set.enabled ? 'Yes' : 'No'}</Td>
@@ -842,7 +842,7 @@ function AuditTable({ audit, detectors }: { audit: AuditLog[]; detectors: Detect
     <Panel title="Audit Logs">
       <SimpleTable headers={['Time', 'Detector', 'Action', 'Actor', 'Payload']}>
         {audit.map(row => (
-          <tr key={row.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+          <tr key={row.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
             <Td>{formatDate(row.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === row.detectorId)?.code || row.detectorId}</Td>
             <Td><StatusPill value={row.action} /></Td>
@@ -869,7 +869,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
+    <section className="rounded-3xl border border-slate-200 bg-card p-5 shadow-sm">
       <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
@@ -892,17 +892,17 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
   return (
     <div className="relative">
       <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-2xl border border-border/60 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-2xl border border-slate-200 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
     </div>
   );
 }
 
 function SimpleTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-auto">
         <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+          <thead className="bg-slate-50 text-[12px] font-medium uppercase tracking-[0.08em] text-slate-500">
             <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}</tr>
           </thead>
           <tbody>{children}</tbody>
@@ -943,11 +943,11 @@ function SeverityPill({ value }: { value: Severity }) {
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
-  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
+  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-slate-200 text-muted-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
 }
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-slate-200 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
