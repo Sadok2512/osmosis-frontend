@@ -20,9 +20,9 @@ import {
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700 border-red-200',
-  warning:  'bg-amber-100 text-amber-700 border-amber-200',
-  info:     'bg-slate-100 text-slate-700 border-slate-200',
+  critical: 'bg-red-50 text-red-700 border-red-200',
+  warning:  'bg-amber-50 text-amber-700 border-amber-200',
+  info:     'bg-slate-50 text-slate-600 border-slate-200',
 };
 
 const fmtNum = (v: number | null | undefined): string =>
