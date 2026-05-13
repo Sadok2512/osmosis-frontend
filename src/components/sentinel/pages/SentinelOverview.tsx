@@ -243,24 +243,127 @@ const DimensionChart: React.FC<{ data: { dimension: string; count: number }[] }>
   return <ReactECharts option={option} style={{ height: 200 }} />;
 };
 
-/* ━━━ Region Heatmap ━━━ */
+/* ━━━ Region Heatmap (Leaflet) ━━━ */
 const RegionHeatmap: React.FC = () => {
   const NOC = useNOC();
-  const sevColor = (s: string) => s === 'critical' ? NOC.critical : s === 'major' ? NOC.major : s === 'minor' ? NOC.minor : NOC.ok;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [46.6, 2.5], zoom: 5, zoomControl: true, attributionControl: false,
+      scrollWheelZoom: false,
+    });
+    mapRef.current = map;
+
+    const tileUrl = NOC.bg === '#0a0e1a'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+
+    const maxCount = Math.max(...MOCK_REGION_HEAT.map(r => r.anomalyCount));
+    const heatPoints: [number, number, number][] = MOCK_REGION_HEAT.map(r => [r.lat, r.lng, r.anomalyCount / maxCount]);
+    (L as any).heatLayer(heatPoints, {
+      radius: 45, blur: 35, maxZoom: 8, minOpacity: 0.4,
+      gradient: { 0.2: NOC.minor, 0.5: NOC.major, 0.8: NOC.critical, 1.0: NOC.critical },
+    }).addTo(map);
+
+    MOCK_REGION_HEAT.forEach(r => {
+      const sevColor = r.severity === 'critical' ? NOC.critical : r.severity === 'major' ? NOC.major : r.severity === 'minor' ? NOC.minor : NOC.ok;
+      L.circleMarker([r.lat, r.lng], {
+        radius: Math.max(6, Math.sqrt(r.anomalyCount) * 2),
+        color: sevColor, fillColor: sevColor, fillOpacity: 0.7, weight: 1.5,
+      }).bindTooltip(
+        `<b>${r.name}</b><br/>Anomalies: ${r.anomalyCount}<br/>QoE: ${r.qoe}<br/>Severity: ${r.severity}`,
+        { direction: 'top', offset: [0, -4] }
+      ).addTo(map);
+    });
+
+    setTimeout(() => map.invalidateSize(), 100);
+    return () => { map.remove(); mapRef.current = null; };
+  }, [NOC]);
+
+  return <div ref={containerRef} style={{ height: 380, borderRadius: 8, overflow: 'hidden' }} />;
+};
+
+/* ━━━ Anomaly Trend (Network Wide) ━━━ */
+const AnomalyTrendChart: React.FC = () => {
+  const NOC = useNOC();
+  const { dates, critical, major, minor } = useMemo(() => {
+    const dates: string[] = [];
+    const critical: number[] = [];
+    const major: number[] = [];
+    const minor: number[] = [];
+    const today = new Date();
+    // Deterministic pseudo-random based on day index
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+      const seed = (i * 9301 + 49297) % 233280;
+      const r = (n: number) => Math.floor(((seed * (n + 1)) % 233280) / 233280 * 100);
+      critical.push(8 + (r(1) % 18));
+      major.push(20 + (r(2) % 30));
+      minor.push(35 + (r(3) % 45));
+    }
+    return { dates, critical, major, minor };
+  }, []);
+
   const option = useMemo(() => ({
     tooltip: {
-      trigger: 'item', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder, textStyle: { color: NOC.text, fontSize: 11 },
-      formatter: (p: any) => { const d = MOCK_REGION_HEAT[p.dataIndex]; return `<b>${d.name}</b><br/>Anomalies: ${d.anomalyCount}<br/>QoE: ${d.qoe}<br/>Severity: ${d.severity}`; },
+      trigger: 'axis', backgroundColor: NOC.cardBg, borderColor: NOC.cardBorder,
+      textStyle: { color: NOC.text, fontSize: 11 },
     },
-    grid: { left: 140, right: 40, top: 30, bottom: 30 },
-    xAxis: { type: 'value', name: 'QoE Score', nameLocation: 'center', nameGap: 25, nameTextStyle: { color: NOC.textDim, fontSize: 10 }, min: 50, max: 85, splitLine: { lineStyle: { color: NOC.grid } }, axisLabel: { color: NOC.textDim, fontSize: 10 } },
-    yAxis: { type: 'category', data: MOCK_REGION_HEAT.map(r => r.name), axisLabel: { color: NOC.textMuted, fontSize: 10 }, axisLine: { show: false }, axisTick: { show: false } },
-    series: [{ type: 'scatter', symbolSize: (val: any) => Math.max(12, val[1] * 1.2),
-      data: MOCK_REGION_HEAT.map(r => ({ value: [r.qoe, r.anomalyCount], itemStyle: { color: sevColor(r.severity), shadowBlur: 8, shadowColor: sevColor(r.severity) + '40' } })),
-    }],
-    visualMap: { show: false },
-  }), [NOC]);
-  return <ReactECharts option={option} style={{ height: 320 }} />;
+    legend: {
+      data: ['Critical', 'Major', 'Minor'], top: 0, right: 10,
+      textStyle: { color: NOC.textMuted, fontSize: 11 }, itemWidth: 12, itemHeight: 8,
+    },
+    grid: { left: 50, right: 30, top: 35, bottom: 30 },
+    xAxis: {
+      type: 'category', data: dates, boundaryGap: false,
+      axisLine: { lineStyle: { color: NOC.cardBorder } },
+      axisLabel: { color: NOC.textDim, fontSize: 10 },
+    },
+    yAxis: {
+      type: 'value', splitLine: { lineStyle: { color: NOC.grid } },
+      axisLabel: { color: NOC.textDim, fontSize: 10 },
+    },
+    series: [
+      {
+        name: 'Critical', type: 'line', smooth: true, stack: 'total', data: critical,
+        symbol: 'circle', symbolSize: 6,
+        itemStyle: { color: NOC.critical },
+        lineStyle: { width: 2, color: NOC.critical },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: NOC.critical + 'cc' }, { offset: 1, color: NOC.critical + '10' }] },
+        },
+      },
+      {
+        name: 'Major', type: 'line', smooth: true, stack: 'total', data: major,
+        symbol: 'circle', symbolSize: 6,
+        itemStyle: { color: NOC.major },
+        lineStyle: { width: 2, color: NOC.major },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: NOC.major + 'cc' }, { offset: 1, color: NOC.major + '10' }] },
+        },
+      },
+      {
+        name: 'Minor', type: 'line', smooth: true, stack: 'total', data: minor,
+        symbol: 'circle', symbolSize: 6,
+        itemStyle: { color: NOC.minor },
+        lineStyle: { width: 2, color: NOC.minor },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: NOC.minor + 'cc' }, { offset: 1, color: NOC.minor + '10' }] },
+        },
+      },
+    ],
+  }), [dates, critical, major, minor, NOC]);
+
+  return <ReactECharts option={option} style={{ height: 320 }} notMerge />;
 };
 
 /* ━━━ ML Insights Table ━━━ */
