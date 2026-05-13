@@ -1,0 +1,17 @@
+# Otarie
+
+> AI-driven telecom network analytics and monitoring platform for NOC teams: KPI dashboards, RAN investigation, anomaly detection and parameter intelligence.
+
+Otarie helps mobile network operators monitor radio access network performance, investigate cell- and site-level KPIs, detect anomalies with ML, and explore network parameters across 2G/3G/4G/5G technologies and multi-vendor inventories (Ericsson, Nokia, Huawei, Samsung).
+
+## Pages
+
+- [Home](/): Sites Monitor — interactive map, KPI overlays, dashboards.
+- [Investigator](/investigator): Multi-slot KPI/counter investigation with splits, drill-down and neighbor analysis.
+- [Network Explorer](/network-explorer): Cluster builder, KPI catalog and parameter reference.
+- [Login](/login): User authentication.
+
+## Optional
+
+- [ODCC Detector Console](/?tab=odcc): Build PM/FM detectors with a guided wizard.
+- [Precision Architect](/?tab=precision_architect): Custom dashboards and reports.
