@@ -1359,6 +1359,18 @@ const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }
           <span className="text-[11px] text-slate-500">· {anomalies.length} anomalies</span>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-[10px] text-slate-500">
+            {([['S',260],['M',360],['L',520],['XL',720]] as const).map(([label, h]) => (
+              <button
+                key={label}
+                onClick={() => setHeight(h)}
+                className={`px-1.5 py-0.5 rounded border ${height === h ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                title={`Hauteur ${h}px`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-600">
             {(['critical','warning','info'] as const).map(s => (
               <span key={s} className="inline-flex items-center gap-1">
@@ -1372,10 +1384,10 @@ const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }
           </button>
         </div>
       </div>
-      <div className="relative h-[360px]">
+      <div className="relative" style={{ height }}>
         <div ref={mapEl} className="absolute inset-0" />
         {!coords && !loadError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2 pointer-events-none">
             <Loader2 className="w-4 h-4 animate-spin" /> Loading site coordinates…
           </div>
         )}
@@ -1384,6 +1396,17 @@ const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }
             <AlertCircle className="w-4 h-4" /> {loadError}
           </div>
         )}
+      </div>
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          resizingRef.current = true;
+          document.body.style.userSelect = 'none';
+        }}
+        className="h-2 cursor-ns-resize bg-slate-100 hover:bg-teal-200 border-t border-slate-200 flex items-center justify-center"
+        title="Glisser pour redimensionner"
+      >
+        <div className="w-10 h-1 rounded-full bg-slate-300" />
       </div>
     </div>
   );
