@@ -47,7 +47,7 @@ const asArray = (value: unknown): unknown[] => {
 
 export function normalizeKpis(raw: unknown): KpiOption[] {
   const items = asArray(raw)
-    .map(item => {
+    .map((item): KpiOption | null => {
       if (typeof item === 'string') return { key: item, label: item };
       if (!item || typeof item !== 'object') return null;
       const object = item as JsonObject;
@@ -65,7 +65,7 @@ export function normalizeKpis(raw: unknown): KpiOption[] {
 
 export function normalizeDimensions(raw: unknown): DimensionOption[] {
   const items = asArray(raw)
-    .map(item => {
+    .map((item): DimensionOption | null => {
       if (typeof item === 'string') return { key: item, label: item, multiSelect: true, searchable: true };
       if (!item || typeof item !== 'object') return null;
       const object = item as JsonObject;
