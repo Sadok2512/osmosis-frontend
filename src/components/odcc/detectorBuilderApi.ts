@@ -326,7 +326,7 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
 }
 
 export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number }> {
-  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>('detectors');
+  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>(DETECTORS_PATH);
   return {
     items: raw.items ?? raw.profiles ?? [],
     total: raw.total ?? raw.count ?? 0,
@@ -334,19 +334,19 @@ export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; 
 }
 
 export async function createDetectorPayloadForBackend(payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
-  return sendJson<MlDetectorRow>('detectors', 'POST', toMlDetectorPayload(payload, meta));
+  return sendJson<MlDetectorRow>(DETECTORS_PATH, 'POST', toMlDetectorPayload(payload, meta));
 }
 
 export async function updateDetectorPayloadForBackend(detectorId: string | number, payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
-  return sendJson<MlDetectorRow>(`detectors/${encodeURIComponent(String(detectorId))}`, 'PUT', toMlDetectorPayload(payload, meta));
+  return sendJson<MlDetectorRow>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}`, 'PUT', toMlDetectorPayload(payload, meta));
 }
 
 export async function deleteDetectorPayload(detectorId: string | number): Promise<unknown> {
-  return sendJson<unknown>(`detectors/${encodeURIComponent(String(detectorId))}`, 'DELETE', {});
+  return sendJson<unknown>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}`, 'DELETE', {});
 }
 
 export async function runDetectorNow(detectorId: string | number): Promise<MlRunResponse> {
-  return sendJson<MlRunResponse>(`detectors/${encodeURIComponent(String(detectorId))}/run-now`, 'POST', {});
+  return sendJson<MlRunResponse>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}/run-now`, 'POST', {});
 }
 
 export async function listDetectorAnomalies(opts: {
