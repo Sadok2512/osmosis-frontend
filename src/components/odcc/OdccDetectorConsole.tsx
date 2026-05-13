@@ -1347,13 +1347,21 @@ const STATUS_STYLES: Record<ResultStatus, { dot: string; chip: string; label: st
   ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600',      label: 'IGNORED' },
 };
 
-function ResultsTable({ results, selected, setSelected, onStatus, onExport, onApply }: {
+function ResultsTable({
+  results, selected, setSelected, onStatus, onExport, onApply,
+  showAcknowledged, onToggleAcknowledged,
+  activeRun, onStopRun,
+}: {
   results: DetectionResult[];
   selected: string[];
   setSelected: (ids: string[]) => void;
   onStatus: (ids: string[], status: ResultStatus) => void;
   onExport: () => void;
   onApply: () => void;
+  showAcknowledged?: boolean;
+  onToggleAcknowledged?: () => void;
+  activeRun?: { detectorId: string; taskId: string; runId: number | null; progress: MlRunProgress | null } | null;
+  onStopRun?: () => void;
 }) {
   const toggle = (id: string) =>
     setSelected(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
@@ -1404,11 +1412,32 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
               : `${results.length} anomal${results.length === 1 ? 'y' : 'ies'} across ${aliasByCode.size} KPI${aliasByCode.size === 1 ? '' : 's'}`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {onToggleAcknowledged && (
+            <button
+              type="button"
+              onClick={onToggleAcknowledged}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition shadow-sm',
+                showAcknowledged
+                  ? 'border-teal-300 bg-teal-50 text-teal-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-teal-300 hover:text-teal-700',
+              )}
+              title="Toggle acknowledged anomalies"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              {showAcknowledged ? 'Showing acknowledged' : 'Show acknowledged'}
+            </button>
+          )}
           <ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton>
           <ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton>
         </div>
       </div>
+
+      {/* Live run progress banner */}
+      {activeRun && activeRun.runId !== null && (
+        <RunProgressBanner activeRun={activeRun} onStop={onStopRun} />
+      )}
 
       {/* Summary cards */}
       {results.length > 0 && (
@@ -1597,8 +1626,15 @@ function ResultRow({
   const barAbove = dp !== null && dp > 0;
   const breachExceeded = r.currentValue > r.threshold; // assumes lower_is_better KPIs
 
-  // Confidence heuristic: higher when delta is large and severity is critical.
-  const confidence = dp === null ? 50 : Math.min(99, 50 + Math.min(45, Math.abs(dp) / 8) + (r.severity === 'critical' ? 5 : 0));
+  // "Force du signal" — backend `evidence_score` from kpi.ml_anomalies
+  // (Mary's formula: 40·sev + 35·z + 25·recurrence). NULL when ingredients
+  // missing → UI shows "—". NEVER labelled "Confidence" to avoid implying
+  // a probabilistic model (project invariant `no_plausible_on_failure`).
+  const evidenceScore: number | null = (
+    r.evidenceScore !== undefined && r.evidenceScore !== null && Number.isFinite(Number(r.evidenceScore))
+      ? Number(r.evidenceScore)
+      : null
+  );
   // Impact heuristic: severity + occurrence count
   const impactScore = (r.severity === 'critical' ? 3 : r.severity === 'major' ? 2 : 1) + Math.min(3, Math.floor(occurrences / 4));
   const impact: 'Low' | 'Medium' | 'High' | 'Severe' =
@@ -1725,9 +1761,11 @@ function ResultRow({
       </td>
       <td className="border-b border-slate-100 px-3 py-3 align-middle">
         <div className="space-y-0.5 leading-tight">
-          <p className="text-[11px]">
-            <span className="text-slate-400">Confidence</span>{' '}
-            <span className="font-semibold text-slate-700">{confidence.toFixed(0)}%</span>
+          <p className="text-[11px]" title="Sévérité × écart statistique × récurrence 7j. Pas une probabilité.">
+            <span className="text-slate-400">Force du signal</span>{' '}
+            <span className="font-semibold text-slate-700">
+              {evidenceScore !== null ? `${evidenceScore.toFixed(0)}/100` : '—'}
+            </span>
           </p>
           <p className="text-[11px]">
             <span className="text-slate-400">Impact</span>{' '}
@@ -1758,6 +1796,87 @@ function ResultRow({
     </tr>
   );
 }
+
+/** Live banner shown while a detector run is queued/running. Polls
+ *  /profiles/runs/{id}/progress every 2s (parent component). Stop
+ *  button is wired to /profiles/{detectorId}/stop. */
+function RunProgressBanner({
+  activeRun, onStop,
+}: {
+  activeRun: { detectorId: string; taskId: string; runId: number | null; progress: MlRunProgress | null };
+  onStop?: () => void;
+}) {
+  const p = activeRun.progress;
+  const state = p?.state || 'queued';
+  const stateMeta: Record<string, { bg: string; fg: string; label: string; icon: typeof Activity }> = {
+    queued:    { bg: 'bg-slate-100',   fg: 'text-slate-600',   label: 'Queued',    icon: Clock        },
+    running:   { bg: 'bg-teal-100',    fg: 'text-teal-700',    label: 'Running',   icon: Activity     },
+    done:      { bg: 'bg-emerald-100', fg: 'text-emerald-700', label: 'Done',      icon: CheckCircle2 },
+    failed:    { bg: 'bg-rose-100',    fg: 'text-rose-700',    label: 'Failed',    icon: AlertTriangle},
+    cancelled: { bg: 'bg-slate-100',   fg: 'text-slate-600',   label: 'Cancelled', icon: XCircle      },
+  };
+  const meta = stateMeta[state] || stateMeta.queued;
+  const StateIcon = meta.icon;
+  const pct = Math.max(0, Math.min(100, Number(p?.progress_pct || 0)));
+  const isLive = state === 'queued' || state === 'running';
+  return (
+    <div className="rounded-2xl border border-teal-100 bg-gradient-to-r from-teal-50/60 to-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className={cn('inline-flex h-8 w-8 items-center justify-center rounded-lg', meta.bg, meta.fg)}>
+            <StateIcon className={cn('h-4 w-4', state === 'running' && 'animate-pulse')} />
+          </span>
+          <div className="leading-tight">
+            <p className="text-[12px] font-semibold uppercase tracking-wider text-teal-700">
+              Detector run · {meta.label}
+            </p>
+            <p className="mt-0.5 text-[12px] text-slate-700">
+              {p?.current_step || 'Waiting for worker…'}
+              {p?.total_cells != null && (
+                <>
+                  <span className="mx-2 text-slate-300">·</span>
+                  <span className="font-semibold text-slate-900">{(p.processed_cells ?? 0).toLocaleString()}</span>
+                  <span className="text-slate-500"> / {p.total_cells.toLocaleString()} cells</span>
+                </>
+              )}
+              <span className="mx-2 text-slate-300">·</span>
+              <span className="font-semibold text-slate-900">{(p?.anomalies_count ?? 0).toLocaleString()}</span>
+              <span className="text-slate-500"> anomalies so far</span>
+            </p>
+          </div>
+        </div>
+        {isLive && onStop && (
+          <button
+            type="button"
+            onClick={onStop}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-rose-700 shadow-sm transition hover:bg-rose-50"
+          >
+            <XCircle className="h-3.5 w-3.5" />
+            Stop run
+          </button>
+        )}
+      </div>
+      {/* Progress bar */}
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={cn(
+            'h-full rounded-full transition-all duration-500',
+            state === 'failed'    ? 'bg-rose-400' :
+            state === 'cancelled' ? 'bg-slate-400' :
+            state === 'done'      ? 'bg-emerald-400' :
+            'bg-gradient-to-r from-teal-400 to-teal-500',
+            isLive && 'animate-pulse',
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {p?.error_text && (
+        <p className="mt-2 text-[11px] text-rose-700">⚠ {p.error_text}</p>
+      )}
+    </div>
+  );
+}
+
 
 function ResultActionButton({ children, icon, onClick, tone }: {
   children: React.ReactNode;
