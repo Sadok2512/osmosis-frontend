@@ -541,6 +541,17 @@ const SentinelMLDetector: React.FC = () => {
               </button>
               <Filter className="w-3.5 h-3.5 text-slate-400" />
               <select
+                value={selectedProfile ?? ''}
+                onChange={(e) => { setSelectedProfile(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition max-w-[180px]"
+                title="Filter by ML profile"
+              >
+                <option value="">Tous les profils ML</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              <select
                 value={severity}
                 onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
                 className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
