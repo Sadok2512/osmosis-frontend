@@ -21,6 +21,7 @@ import SentinelMLDetector from './pages/SentinelMLDetector';
 import SentinelRCA from './pages/SentinelRCA';
 import SentinelAIPanel from './SentinelAIPanel';
 import { fetchDates } from './sentinelApi';
+import type { MlAnomaly } from './mlDetectorApi';
 import { cn } from '@/lib/utils';
 import { MapPin } from 'lucide-react';
 
@@ -53,6 +54,10 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [apiResponse, setApiResponse] = useState<string>('');
   const [aiPanelOpen, setAiPanelOpen] = useState(false);
+  // The anomaly the user clicked through to in the ML Detector list. The
+  // RCA tab reads this; `null` means the user navigated to RCA directly
+  // and we render an empty state with a Back button.
+  const [rcaAnomaly, setRcaAnomaly] = useState<MlAnomaly | null>(null);
 
   useEffect(() => {
     setConnectionStatus('testing');
@@ -284,10 +289,10 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
             />
           )}
           {activeTab === 'ml-detector' && (
-            <SentinelMLDetector onOpenRCA={() => setActiveTab('rca')} />
+            <SentinelMLDetector onOpenRCA={(a) => { setRcaAnomaly(a); setActiveTab('rca'); }} />
           )}
           {activeTab === 'rca' && (
-            <SentinelRCA onBack={() => setActiveTab('ml-detector')} />
+            <SentinelRCA anomaly={rcaAnomaly} onBack={() => setActiveTab('ml-detector')} />
           )}
         </div>
 
