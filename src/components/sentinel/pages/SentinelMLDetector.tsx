@@ -516,14 +516,14 @@ const SentinelMLDetector: React.FC = () => {
       </aside>
 
       {/* ─── RIGHT: anomalies viewer ─────────────────────────── */}
-      <section className="flex-1 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <header className="p-3 border-b border-slate-200">
+      <section className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
+        <header className="px-4 py-3 border-b border-slate-200/70">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">
+              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">
                 Anomalies {selected ? `· ${selected.name}` : ''}
               </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[12px] text-slate-500 mt-0.5">
                 {anomaliesTotal.toLocaleString('fr-FR')} anomalies · z-score &gt; {selected?.z_threshold ?? '?'} OU trend% &gt; {selected?.trend_threshold ?? '?'}
               </p>
             </div>
@@ -532,7 +532,7 @@ const SentinelMLDetector: React.FC = () => {
               <select
                 value={severity}
                 onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               >
                 <option value="">Toutes sévérités</option>
                 <option value="critical">Critical</option>
@@ -544,14 +544,14 @@ const SentinelMLDetector: React.FC = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               />
               <span className="text-slate-400">→</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               />
             </div>
           </div>
