@@ -57,7 +57,7 @@ const fmtDate = (iso: string | null | undefined): string => {
 };
 
 
-const SentinelMLDetector: React.FC = () => {
+const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }> = ({ onOpenRCA }) => {
   const [profiles, setProfiles] = useState<MlProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [profilesError, setProfilesError] = useState<string | null>(null);
