@@ -377,12 +377,12 @@ export default function OdccDetectorConsole() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)]">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS / ODCC</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">NE Detector Console</h1>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">OSMOSIS / ODCC</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">NE Detector Console</h1>
               </div>
             </div>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
@@ -390,7 +390,7 @@ export default function OdccDetectorConsole() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
+            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground shadow-sm transition-all hover:bg-primary/90">
               <Plus className="mr-2 inline h-4 w-4" /> Create Detector
             </button>
             <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
@@ -417,14 +417,14 @@ export default function OdccDetectorConsole() {
               ['parameter_sets', 'Parameter Sets', Database],
               ['audit', 'Audit Logs', FileJson],
             ].map(([id, label, Icon]) => (
-              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-all', tab === id ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.22)]' : 'text-muted-foreground hover:bg-primary/8 hover:text-primary')}>
+              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-all', tab === id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-primary/8 hover:text-primary')}>
                 {React.createElement(Icon as typeof Radar, { className: 'h-4 w-4' })}
                 {label as string}
               </button>
             ))}
           </nav>
           <div className="mt-6 rounded-2xl border border-border/60 bg-card p-4 text-xs text-muted-foreground shadow-sm">
-            <p className="font-black uppercase tracking-[0.14em] text-foreground">MVP mode</p>
+            <p className="font-semibold uppercase tracking-[0.08em] text-foreground">MVP mode</p>
             <p className="mt-1 leading-relaxed">All detector actions are simulated in local React state. No backend endpoints are called.</p>
           </div>
         </aside>
@@ -483,8 +483,8 @@ function Metric({ label, value, icon }: { label: string; value: React.ReactNode;
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
       <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-foreground">{value}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }
@@ -503,9 +503,9 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
     <Panel title="Detector List" action={<SearchBox value={query} onChange={setQuery} />}>
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
             <tr>
-              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}
+              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -574,7 +574,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
     .slice(0, 8);
   const activeFilterCount = FILTER_DEFINITIONS.reduce((count, item) => count + (draft.filters[item.key]?.length || 0), 0);
   return (
-    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-black text-primary">Frontend draft</span>}>
+    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Frontend draft</span>}>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card title="A. General">
           <Field label="Name"><input value={draft.name} onChange={e => patch({ name: e.target.value })} className="input" /></Field>
@@ -602,7 +602,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
               <button
                 type="button"
                 onClick={() => setIsAddingFilter(value => !value)}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-primary-foreground transition-all hover:bg-primary/90"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-all hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4" /> Add filter
               </button>
@@ -613,7 +613,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                 {FILTER_DEFINITIONS.filter(item => (draft.filters[item.key] || []).length > 0).map(item => (
                   <div key={item.key} className="rounded-2xl border border-border/60 bg-background p-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{item.label}</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{item.label}</span>
                       <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-bold text-muted-foreground transition-colors hover:text-destructive">Clear</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -674,14 +674,14 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
                     <button
                       type="button"
                       onClick={() => addFilterValue(filterKey, filterSearch)}
-                      className="h-11 rounded-xl border border-border/60 bg-card px-4 text-xs font-black uppercase tracking-[0.14em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
+                      className="h-11 rounded-xl border border-border/60 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-foreground transition-all hover:border-primary/30 hover:text-primary"
                     >
                       Add value
                     </button>
                   </div>
                 </div>
                 <div className="mt-4">
-                  <p className="mb-2 text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">Available {selectedFilterDefinition.label}</p>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Available {selectedFilterDefinition.label}</p>
                   <div className="flex flex-wrap gap-2">
                     {filteredFilterOptions.length > 0 ? filteredFilterOptions.map(value => (
                       <button
@@ -704,9 +704,9 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
 
         <Card title="F. Criteria Builder">
           <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Logic</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Logic</span>
             <Select value={draft.criteriaLogic} values={['AND', 'OR']} onChange={v => patch({ criteriaLogic: v as 'AND' | 'OR' })} />
-            <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-black text-primary-foreground transition-all hover:bg-primary/90">Add condition</button>
+            <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90">Add condition</button>
           </div>
           <div className="space-y-3">
             {draft.criteria.map(c => (
@@ -856,7 +856,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
         {action}
       </div>
       {children}
@@ -867,14 +867,14 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
+      <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
+  return <label className="block text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
 }
 
 function Select({ value, values, labels, onChange }: { value: string; values: string[]; labels?: string[]; onChange: (v: string) => void }) {
@@ -899,8 +899,8 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
       <div className="overflow-auto">
         <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}</tr>
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}</tr>
           </thead>
           <tbody>{children}</tbody>
         </table>
@@ -914,7 +914,7 @@ function Td({ children }: { children: React.ReactNode }) {
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">{children}</span>;
+  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{children}</span>;
 }
 
 function StatusPill({ value }: { value: string }) {
@@ -925,7 +925,7 @@ function StatusPill({ value }: { value: string }) {
       : value === 'draft' || value === 'pending'
         ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
         : 'bg-slate-500/12 text-slate-700 border-slate-500/25';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
 }
 
 function SeverityPill({ value }: { value: Severity }) {
@@ -936,7 +936,7 @@ function SeverityPill({ value }: { value: Severity }) {
       : value === 'warning'
         ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
         : 'bg-blue-500/12 text-blue-700 border-blue-500/25';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
@@ -944,7 +944,7 @@ function IconButton({ title, children, onClick, danger }: { title: string; child
 }
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
