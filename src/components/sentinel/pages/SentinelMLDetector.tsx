@@ -419,19 +419,24 @@ const SentinelMLDetector: React.FC = () => {
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
 
   return (
-    <div className="flex h-full gap-4">
+    <div
+      className="flex h-full gap-4 text-slate-900"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+    >
       {/* ─── LEFT: profiles ─────────────────────────────────── */}
-      <aside className="w-[320px] shrink-0 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <header className="flex items-center justify-between p-3 border-b border-slate-200">
+      <aside className="w-[320px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200/70">
           <div className="flex items-center gap-2">
-            <Brain className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Profils ML</h3>
-            <span className="text-xs text-slate-400">({profiles.length})</span>
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+              <Brain className="w-3.5 h-3.5" />
+            </span>
+            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">Profils ML</h3>
+            <span className="text-[11px] font-medium text-slate-400">({profiles.length})</span>
           </div>
           <button
             type="button"
             onClick={loadProfiles}
-            className="p-1 rounded hover:bg-slate-100 text-slate-500"
+            className="p-1.5 rounded-md hover:bg-slate-50 text-slate-500 transition"
             title="Recharger"
           >
             <RefreshCw className={'w-3.5 h-3.5 ' + (profilesLoading ? 'animate-spin' : '')} />
