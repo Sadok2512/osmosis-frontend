@@ -34,12 +34,12 @@ async function getJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function sendJson<T>(path: string, method: 'POST' | 'PUT', body: unknown): Promise<T> {
+async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
   const url = mlUrl(path);
   const response = await fetch(url, {
     method,
     headers: getApiHeaders(),
-    body: JSON.stringify(body),
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${method} ${url} failed (${response.status})`);
   return response.json() as Promise<T>;
@@ -147,4 +147,144 @@ export async function createDetectorPayload(payload: DetectorPayload): Promise<u
 
 export async function updateDetectorPayload(detectorId: string, payload: DetectorPayload): Promise<unknown> {
   return sendJson<unknown>(`detectors/${encodeURIComponent(detectorId)}`, 'PUT', payload);
+}
+
+export interface MlDetectorRow {
+  id: number;
+  name: string;
+  kpi_table_id: number;
+  kpi_codes: string[];
+  dimensions: string[];
+  delta_7_enabled: boolean;
+  delta_14_enabled: boolean;
+  trend_threshold: number;
+  z_threshold: number;
+  run_time: string;
+  retention_days: number;
+  is_active: boolean;
+  last_run_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  dimension_values: Record<string, string[]>;
+  holidays_excluded: boolean;
+  notes: string | null;
+  extra_config: Record<string, unknown>;
+}
+
+export interface MlAnomalyRow {
+  id: number;
+  detector_id: number;
+  period_start: string;
+  cell_name: string | null;
+  kpi_code: string;
+  dimension_key: string | null;
+  value: number | null;
+  delta_7: number | null;
+  delta_14: number | null;
+  z_score: number | null;
+  trend_pct: number | null;
+  severity: string;
+  detected_at: string;
+}
+
+export interface MlRunResponse {
+  queued: boolean;
+  task_id: string;
+  detector_id?: number;
+  profile_id?: number;
+}
+
+export interface DetectorSaveMeta {
+  id?: string | number;
+  name: string;
+  description?: string;
+  enabled: boolean;
+  scheduleFrequency?: string;
+  scopeLevel?: string;
+  detectionMode?: string;
+  lookbackWindow?: string;
+  retentionDays?: number;
+}
+
+export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSaveMeta): Record<string, unknown> {
+  const kpiCodes = payload.criteria.conditions
+    .filter(condition => condition.type === 'kpi' && condition.field)
+    .map(condition => condition.field);
+  const criteriaDimensions = payload.criteria.conditions
+    .filter(condition => condition.type === 'dimension' && condition.field)
+    .map(condition => condition.field);
+  const scopeDimensions = payload.scopeFilters.map(filter => filter.dimension).filter(Boolean);
+  const dimensions = Array.from(new Set([...scopeDimensions, ...criteriaDimensions]));
+  const dimensionValues = payload.scopeFilters.reduce<Record<string, string[]>>((acc, filter) => {
+    if (filter.dimension) acc[filter.dimension] = filter.values;
+    return acc;
+  }, {});
+
+  return {
+    name: meta.name,
+    kpi_codes: Array.from(new Set(kpiCodes)),
+    dimensions,
+    dimension_values: dimensionValues,
+    delta_7_enabled: true,
+    delta_14_enabled: true,
+    trend_threshold: 5,
+    z_threshold: 2,
+    run_time: meta.scheduleFrequency === 'daily' ? '02:00' : '00:00',
+    retention_days: meta.retentionDays ?? 90,
+    is_active: meta.enabled,
+    holidays_excluded: payload.time.excludeHolidays,
+    notes: meta.description || null,
+    extra_config: {
+      odcc_payload: payload,
+      description: meta.description || '',
+      schedule_frequency: meta.scheduleFrequency || null,
+      scope_level: meta.scopeLevel || null,
+      detection_mode: meta.detectionMode || null,
+      lookback_window: meta.lookbackWindow || null,
+      time: payload.time,
+      criteria: payload.criteria,
+    },
+  };
+}
+
+export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number }> {
+  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>('detectors');
+  return {
+    items: raw.items ?? raw.profiles ?? [],
+    total: raw.total ?? raw.count ?? 0,
+  };
+}
+
+export async function createDetectorPayloadForBackend(payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
+  return sendJson<MlDetectorRow>('detectors', 'POST', toMlDetectorPayload(payload, meta));
+}
+
+export async function updateDetectorPayloadForBackend(detectorId: string | number, payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
+  return sendJson<MlDetectorRow>(`detectors/${encodeURIComponent(String(detectorId))}`, 'PUT', toMlDetectorPayload(payload, meta));
+}
+
+export async function deleteDetectorPayload(detectorId: string | number): Promise<unknown> {
+  return sendJson<unknown>(`detectors/${encodeURIComponent(String(detectorId))}`, 'DELETE', {});
+}
+
+export async function runDetectorNow(detectorId: string | number): Promise<MlRunResponse> {
+  return sendJson<MlRunResponse>(`detectors/${encodeURIComponent(String(detectorId))}/run-now`, 'POST', {});
+}
+
+export async function listDetectorAnomalies(opts: {
+  detectorId?: string | number;
+  severity?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+} = {}): Promise<{ items: MlAnomalyRow[]; total: number; page: number; pages: number; error?: string }> {
+  const params = new URLSearchParams();
+  if (opts.detectorId !== undefined) params.set('profile_id', String(opts.detectorId));
+  if (opts.severity) params.set('severity', opts.severity);
+  if (opts.dateFrom) params.set('date_from', opts.dateFrom);
+  if (opts.dateTo) params.set('date_to', opts.dateTo);
+  params.set('page', String(opts.page ?? 1));
+  params.set('limit', String(opts.limit ?? 100));
+  return getJson<{ items: MlAnomalyRow[]; total: number; page: number; pages: number; error?: string }>(`anomalies?${params.toString()}`);
 }

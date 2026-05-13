@@ -26,13 +26,18 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
-  createDetectorPayload,
+  createDetectorPayloadForBackend,
+  deleteDetectorPayload,
   fetchDetectorDimensionValues,
   fetchDetectorDimensions,
   fetchDetectorHolidays,
   fetchDetectorKpis,
-  updateDetectorPayload,
+  listDetectorAnomalies,
+  listDetectorPayloads,
+  runDetectorNow,
+  updateDetectorPayloadForBackend,
 } from './detectorBuilderApi';
+import type { MlAnomalyRow, MlDetectorRow } from './detectorBuilderApi';
 import DetectorWizard from './DetectorWizard';
 import type {
   CriteriaConfig,
@@ -265,9 +270,120 @@ const seedParameterSets: ParameterSet[] = [
   },
 ];
 
+function isBackendId(id: string): boolean {
+  return /^\d+$/.test(String(id));
+}
+
+function severityFromBackend(value: string | null | undefined): Severity {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized === 'critical') return 'critical';
+  if (normalized === 'major') return 'major';
+  return 'minor';
+}
+
+function detectorFromBackend(row: MlDetectorRow): Detector {
+  const extra = row.extra_config || {};
+  const odccPayload = extra.odcc_payload as Partial<DetectorPayload> | undefined;
+  const scopeFilters = odccPayload?.scopeFilters ?? Object.entries(row.dimension_values || {}).map(([dimension, values]) => ({
+    dimension,
+    values: Array.isArray(values) ? values : [],
+  }));
+  const criteriaConfig: CriteriaConfig = odccPayload?.criteria ? {
+    logic: odccPayload.criteria.logic,
+    conditions: odccPayload.criteria.conditions.map(condition => ({
+      id: uid('cond'),
+      type: condition.type,
+      field: condition.field,
+      aggregation: condition.aggregation,
+      operator: condition.operator,
+      value: condition.value === true ? 'true' : String(condition.value ?? ''),
+      unit: condition.unit,
+    })),
+  } : {
+    logic: 'AND',
+    conditions: row.kpi_codes.map(kpi => ({
+      id: uid('cond'),
+      type: 'kpi',
+      field: kpi,
+      aggregation: 'avg',
+      operator: '<',
+      value: '',
+      unit: '',
+    })),
+  };
+  const timeConfig: TimeConfig = odccPayload?.time ? {
+    ...odccPayload.time,
+    excludedSlots: odccPayload.time.excludedSlots.map(slot => ({ id: uid('slot'), ...slot })),
+  } : {
+    range: '24h',
+    customStart: null,
+    customEnd: null,
+    excludeTimeSlots: false,
+    excludedSlots: [],
+    excludeWeekends: false,
+    excludeHolidays: row.holidays_excluded,
+  };
+  return {
+    ...emptyDetector(),
+    id: String(row.id),
+    code: `odcc_detector_${row.id}`,
+    name: row.name,
+    description: row.notes || String(extra.description || ''),
+    status: row.is_active ? 'active' : 'inactive',
+    enabled: row.is_active,
+    scopeLevel: (extra.scope_level as ScopeLevel) || 'CELL',
+    detectionMode: (extra.detection_mode as DetectionMode) || 'SCHEDULED',
+    scheduleFrequency: (extra.schedule_frequency as Detector['scheduleFrequency']) || 'daily',
+    lookbackWindow: (extra.lookback_window as Detector['lookbackWindow']) || 'last_24h',
+    scopeFilters,
+    criteriaConfig,
+    timeConfig,
+    criteria: criteriaConfig.conditions.filter(condition => condition.type === 'kpi').map(condition => ({
+      id: uid('crit'),
+      type: 'kpi',
+      code: condition.field,
+      aggregation: (condition.aggregation || 'avg') as Criterion['aggregation'],
+      operator: condition.operator,
+      threshold: String(condition.value || ''),
+      granularity: '15m',
+      severity: severityFromBackend(condition.unit),
+    })),
+    createdAt: row.created_at || nowIso(),
+    updatedAt: row.updated_at || row.created_at || nowIso(),
+  };
+}
+
+function resultFromBackend(row: MlAnomalyRow): DetectionResult {
+  const cellName = row.cell_name || row.dimension_key || `anomaly_${row.id}`;
+  return {
+    id: String(row.id),
+    detectorId: String(row.detector_id),
+    detectorRunId: `backend_${row.detector_id}`,
+    scopeLevel: 'CELL',
+    neType: 'CELL',
+    neId: cellName,
+    neName: cellName,
+    countryCode: '',
+    departmentCode: '',
+    dorCode: '',
+    plaqueCode: '',
+    siteCode: cellName.split('_ENB')[0] || '',
+    cellCode: cellName,
+    technology: '',
+    vendor: '',
+    severity: severityFromBackend(row.severity),
+    status: 'open',
+    triggerSummary: `value=${row.value ?? '-'} z=${row.z_score ?? '-'} trend=${row.trend_pct ?? '-'}`,
+    kpiCode: row.kpi_code,
+    currentValue: Number(row.value ?? 0),
+    threshold: Number(row.z_score ?? row.trend_pct ?? 0),
+    detectedAt: row.detected_at,
+  };
+}
+
 export default function OdccDetectorConsole() {
   const [tab, setTab] = useState<Tab>('detectors');
-  const [detectors, setDetectors] = useState<Detector[]>(seedDetectors);
+  const [detectors, setDetectors] = useState<Detector[]>([]);
   const [runs, setRuns] = useState<DetectorRun[]>([]);
   const [results, setResults] = useState<DetectionResult[]>([]);
   const [parameterSets, setParameterSets] = useState<ParameterSet[]>(seedParameterSets);
@@ -276,6 +392,36 @@ export default function OdccDetectorConsole() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [selectedResults, setSelectedResults] = useState<string[]>([]);
+  const [backendLoading, setBackendLoading] = useState(true);
+  const [backendError, setBackendError] = useState<string | null>(null);
+
+  const refreshBackend = async () => {
+    setBackendError(null);
+    const [detectorResponse, anomalyResponse] = await Promise.all([
+      listDetectorPayloads(),
+      listDetectorAnomalies({ limit: 100 }),
+    ]);
+    setDetectors(detectorResponse.items.map(detectorFromBackend));
+    setResults(anomalyResponse.items.map(resultFromBackend));
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    setBackendLoading(true);
+    refreshBackend()
+      .catch(error => {
+        if (!cancelled) {
+          setBackendError(error instanceof Error ? error.message : String(error));
+          setDetectors(seedDetectors);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBackendLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filteredDetectors = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -294,7 +440,7 @@ export default function OdccDetectorConsole() {
     setAudit(prev => [{ id: uid('audit'), detectorId, action, actor: 'frontend-user', payload, createdAt: nowIso() }, ...prev]);
   };
 
-  const saveDetector = (enable: boolean) => {
+  const saveDetector = async (enable: boolean) => {
     const next: Detector = {
       ...draft,
       enabled: enable,
@@ -302,11 +448,28 @@ export default function OdccDetectorConsole() {
       updatedAt: nowIso(),
       version: draft.version + 1,
     };
-    setDetectors(prev => editingId ? prev.map(d => d.id === editingId ? next : d) : [next, ...prev]);
-    log(next.id, editingId ? 'updated' : 'created', enable ? 'saved and enabled' : 'saved as draft');
+    const payload = buildDetectorPayload(next);
+    const meta = {
+      id: next.id,
+      name: next.name,
+      description: next.description,
+      enabled: next.enabled,
+      scheduleFrequency: next.scheduleFrequency,
+      scopeLevel: next.scopeLevel,
+      detectionMode: next.detectionMode,
+      lookbackWindow: next.lookbackWindow,
+      retentionDays: next.output.storeResults ? 90 : 7,
+    };
+    const saved = editingId && isBackendId(editingId)
+      ? await updateDetectorPayloadForBackend(editingId, payload, meta)
+      : await createDetectorPayloadForBackend(payload, meta);
+    const savedDetector = detectorFromBackend(saved);
+    setDetectors(prev => editingId ? prev.map(d => d.id === editingId ? savedDetector : d) : [savedDetector, ...prev]);
+    log(savedDetector.id, editingId ? 'updated_backend' : 'created_backend', enable ? 'saved and enabled' : 'saved as draft');
     setEditingId(null);
     setDraft(emptyDetector());
     setTab('detectors');
+    await refreshBackend();
   };
 
   const editDetector = (detector: Detector) => {
@@ -321,56 +484,58 @@ export default function OdccDetectorConsole() {
     log(copy.id, 'duplicated', `from ${detector.code}`);
   };
 
-  const toggleDetector = (detector: Detector) => {
-    setDetectors(prev => prev.map(d => d.id === detector.id ? { ...d, enabled: !d.enabled, status: !d.enabled ? 'active' : 'inactive', updatedAt: nowIso() } : d));
-    log(detector.id, detector.enabled ? 'disabled' : 'enabled', detector.code);
+  const toggleDetector = async (detector: Detector) => {
+    const next = { ...detector, enabled: !detector.enabled, status: !detector.enabled ? 'active' as DetectorStatus : 'inactive' as DetectorStatus, updatedAt: nowIso() };
+    if (isBackendId(detector.id)) {
+      await updateDetectorPayloadForBackend(detector.id, buildDetectorPayload(next), {
+        id: next.id,
+        name: next.name,
+        description: next.description,
+        enabled: next.enabled,
+        scheduleFrequency: next.scheduleFrequency,
+        scopeLevel: next.scopeLevel,
+        detectionMode: next.detectionMode,
+        lookbackWindow: next.lookbackWindow,
+      });
+    }
+    setDetectors(prev => prev.map(d => d.id === detector.id ? next : d));
+    log(detector.id, detector.enabled ? 'disabled_backend' : 'enabled_backend', detector.code);
   };
 
-  const deleteDetector = (detector: Detector) => {
+  const deleteDetector = async (detector: Detector) => {
+    if (isBackendId(detector.id)) {
+      await deleteDetectorPayload(detector.id);
+    }
     setDetectors(prev => prev.filter(d => d.id !== detector.id));
-    log(detector.id, 'deleted', detector.code);
+    log(detector.id, 'deleted_backend', detector.code);
   };
 
-  const runDetector = (detector: Detector) => {
+  const runDetector = async (detector: Detector) => {
+    if (!isBackendId(detector.id)) {
+      setBackendError('Save the detector to backend before running it.');
+      return;
+    }
+    const queued = await runDetectorNow(detector.id);
     const run: DetectorRun = {
-      id: uid('run'),
+      id: queued.task_id || uid('run'),
       detectorId: detector.id,
       triggerType: 'manual',
       runMode: detector.detectionMode,
-      executionStatus: 'success',
+      executionStatus: queued.queued ? 'pending' : 'failed',
       periodStart: detector.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
       periodEnd: nowIso(),
       granularity: detector.scheduleFrequency === '15m' ? '15m' : detector.scheduleFrequency === '30m' ? '30m' : detector.scheduleFrequency === '1h' ? '1h' : '1d',
-      matchedCount: 3,
+      matchedCount: 0,
       createdAt: nowIso(),
     };
-    const generated = ['HAUTE_INDRE_ENB1_E1', 'NANTES_CENTRE_E2', 'CARQUEFOU_E1'].map((cell, idx): DetectionResult => ({
-      id: uid('res'),
-      detectorId: detector.id,
-      detectorRunId: run.id,
-      scopeLevel: detector.scopeLevel,
-      neType: detector.scopeLevel,
-      neId: cell,
-      neName: cell,
-      countryCode: detector.filters.country[0] || 'FR',
-      departmentCode: detector.filters.department[0] || '44',
-      dorCode: detector.filters.dor[0] || 'DOR_OUEST',
-      plaqueCode: detector.filters.plaque[0] || 'NANTES',
-      siteCode: cell.split('_ENB')[0],
-      cellCode: cell,
-      technology: detector.filters.technology[0] || '4G',
-      vendor: detector.filters.vendor[0] || 'NOKIA',
-      severity: idx === 0 ? 'critical' : idx === 1 ? 'major' : 'minor',
-      status: 'open',
-      triggerSummary: `Availability avg ${idx === 0 ? 94.8 : 96.8} < ${detector.criteria[0]?.threshold || 98}`,
-      kpiCode: detector.criteria[0]?.code || 'AVAILABILITY',
-      currentValue: idx === 0 ? 94.8 : idx === 1 ? 96.8 : 97.3,
-      threshold: Number(detector.criteria[0]?.threshold || 98),
-      detectedAt: nowIso(),
-    }));
     setRuns(prev => [run, ...prev]);
-    setResults(prev => [...generated, ...prev]);
-    log(detector.id, 'executed', `manual run ${run.id}`);
+    log(detector.id, 'queued_backend_run', `task ${run.id}`);
+    const anomalies = await listDetectorAnomalies({ detectorId: detector.id, limit: 100 });
+    setResults(prev => {
+      const existing = new Set(prev.map(result => result.id));
+      const fresh = anomalies.items.map(resultFromBackend).filter(result => !existing.has(result.id));
+      return [...fresh, ...prev];
+    });
     setTab('results');
   };
 
@@ -460,6 +625,16 @@ export default function OdccDetectorConsole() {
         </aside>
 
         <section className="flex-1 overflow-auto p-7">
+          {backendError && (
+            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              Backend ODCC error: {backendError}
+            </div>
+          )}
+          {backendLoading && (
+            <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-700">
+              Loading ODCC detectors, catalog and anomalies from ml-engine...
+            </div>
+          )}
           {tab === 'detectors' && (
             <DetectorList
               detectors={filteredDetectors}
@@ -467,9 +642,9 @@ export default function OdccDetectorConsole() {
               setQuery={setQuery}
               onEdit={editDetector}
               onDuplicate={duplicateDetector}
-              onToggle={toggleDetector}
-              onDelete={deleteDetector}
-              onRun={runDetector}
+              onToggle={detector => toggleDetector(detector).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
+              onDelete={detector => deleteDetector(detector).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
+              onRun={detector => runDetector(detector).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
             />
           )}
           {tab === 'builder' && (
@@ -477,9 +652,9 @@ export default function OdccDetectorConsole() {
               draft={draft}
               setDraft={setDraft}
               editing={!!editingId}
-              onSaveDraft={() => saveDetector(false)}
-              onSaveEnable={() => saveDetector(true)}
-              onRunTest={() => runDetector(draft)}
+              onSaveDraft={() => saveDetector(false).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
+              onSaveEnable={() => saveDetector(true).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
+              onRunTest={() => runDetector(draft).catch(error => setBackendError(error instanceof Error ? error.message : String(error)))}
               onValidate={() => log(draft.id, 'validated', 'frontend validation passed')}
             />
           )}
