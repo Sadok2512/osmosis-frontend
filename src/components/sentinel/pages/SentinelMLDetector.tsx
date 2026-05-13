@@ -1201,6 +1201,109 @@ const SentinelMLDetector: React.FC = () => {
           </aside>
         </div>
       )}
+      {mapOpen && (
+        <AnomalyMapModal anomalies={anomalies} onClose={() => setMapOpen(false)} />
+      )}
+    </div>
+  );
+};
+
+// ── Anomaly Map Modal ──────────────────────────────────────────────────
+// Plots anomalies on a Leaflet map. Since MlAnomaly does not carry lat/lng,
+// we derive deterministic pseudo-coords from cell_name within France bounds
+// for visualization. Replace with real cell coords once available from VPS.
+const FRANCE_BOUNDS = { latMin: 43.2, latMax: 50.8, lngMin: -4.5, lngMax: 7.5 };
+const SEV_COLOR: Record<string, string> = {
+  critical: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+};
+
+const hashStr = (s: string): number => {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+  return h >>> 0;
+};
+const cellToLatLng = (name: string): [number, number] => {
+  const h = hashStr(name);
+  const lat = FRANCE_BOUNDS.latMin + ((h & 0xffff) / 0xffff) * (FRANCE_BOUNDS.latMax - FRANCE_BOUNDS.latMin);
+  const lng = FRANCE_BOUNDS.lngMin + (((h >>> 16) & 0xffff) / 0xffff) * (FRANCE_BOUNDS.lngMax - FRANCE_BOUNDS.lngMin);
+  return [lat, lng];
+};
+
+const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }> = ({ anomalies, onClose }) => {
+  const mapEl = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (!mapEl.current || mapRef.current) return;
+    const map = L.map(mapEl.current, { zoomControl: true, attributionControl: false }).setView([46.6, 2.5], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18, subdomains: 'abcd',
+    }).addTo(map);
+    mapRef.current = map;
+    setTimeout(() => map.invalidateSize(), 50);
+
+    const counts: Record<string, { lat: number; lng: number; sev: string; count: number; name: string }> = {};
+    anomalies.forEach(a => {
+      const key = a.cell_name || `anon-${a.id}`;
+      if (!counts[key]) {
+        const [lat, lng] = cellToLatLng(key);
+        counts[key] = { lat, lng, sev: a.severity, count: 0, name: key };
+      }
+      counts[key].count += 1;
+      // upgrade severity if more critical
+      const order = { critical: 3, warning: 2, info: 1 } as Record<string, number>;
+      if ((order[a.severity] || 0) > (order[counts[key].sev] || 0)) counts[key].sev = a.severity;
+    });
+
+    const points = Object.values(counts);
+    const bounds: L.LatLngTuple[] = [];
+    points.forEach(p => {
+      const color = SEV_COLOR[p.sev] || SEV_COLOR.info;
+      const radius = Math.min(20, 6 + Math.log2(p.count + 1) * 3);
+      L.circleMarker([p.lat, p.lng], {
+        radius, color, weight: 2, fillColor: color, fillOpacity: 0.55,
+      })
+        .bindTooltip(`<b>${p.name}</b><br/>${p.count} anomalie${p.count > 1 ? 's' : ''} · ${p.sev}`, { direction: 'top' })
+        .addTo(map);
+      bounds.push([p.lat, p.lng]);
+    });
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 9 });
+
+    return () => { map.remove(); mapRef.current = null; };
+  }, [anomalies]);
+
+  return (
+    <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-teal-600" />
+            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+              Anomaly Locations
+            </h3>
+            <span className="text-[12px] text-slate-500">· {anomalies.length} anomalies</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-[11px] text-slate-600">
+              {(['critical','warning','info'] as const).map(s => (
+                <span key={s} className="inline-flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: SEV_COLOR[s] }} />
+                  {s}
+                </span>
+              ))}
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+        <div ref={mapEl} className="flex-1" />
+      </div>
     </div>
   );
 };
