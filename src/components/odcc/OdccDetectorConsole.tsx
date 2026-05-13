@@ -33,6 +33,7 @@ import {
   fetchDetectorKpis,
   updateDetectorPayload,
 } from './detectorBuilderApi';
+import DetectorWizard from './DetectorWizard';
 import type {
   CriteriaConfig,
   DetectorAggregation,
@@ -472,11 +473,10 @@ export default function OdccDetectorConsole() {
             />
           )}
           {tab === 'builder' && (
-            <DetectorBuilder
+            <DetectorWizard
               draft={draft}
               setDraft={setDraft}
               editing={!!editingId}
-              parameterSets={parameterSets}
               onSaveDraft={() => saveDetector(false)}
               onSaveEnable={() => saveDetector(true)}
               onRunTest={() => runDetector(draft)}
