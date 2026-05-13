@@ -18,6 +18,7 @@ import SentinelExplorer from './pages/SentinelExplorer';
 import SentinelClustering from './pages/SentinelClustering';
 import SentinelMLDetector from './pages/SentinelMLDetector';
 import SentinelLiveMap from './pages/SentinelLiveMap';
+import SentinelRCA from './pages/SentinelRCA';
 import SentinelAIPanel from './SentinelAIPanel';
 import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
