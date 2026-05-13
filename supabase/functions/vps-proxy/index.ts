@@ -338,12 +338,13 @@ Deno.serve(async (req) => {
         }
       }
 
-      const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml');
+      const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml' || service === 'agentic');
       const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
         (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-') || path.includes('/dashboards'));
+      const isSafeAgenticPost = req.method === 'POST' && service === 'agentic';
       const isAgentPost = req.method === 'POST' && service === 'agent';
-      if (isSafeRead || isSafePost) {
-        const fallback = isSafePost
+      if (isSafeRead || isSafePost || isSafeAgenticPost) {
+        const fallback = (isSafePost || isSafeAgenticPost)
           ? buildSafePostFallback(service, path, msg)
           : buildSafeFallback(service, path, msg);
         return new Response(JSON.stringify(fallback), {
@@ -366,9 +367,10 @@ Deno.serve(async (req) => {
     console.log(`[vps-proxy] Upstream responded: ${upstreamRes.status}`);
 
     const contentType = upstreamRes.headers.get('content-type') || 'application/json';
-    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml');
+    const isSafeRead = ['GET', 'HEAD'].includes(req.method) && (service === 'parser' || service === 'kpi' || service === 'ml' || service === 'agentic');
     const isSafePost = req.method === 'POST' && (service === 'kpi' || service === 'parser') &&
       (path.includes('/query/') || path.includes('/summary') || path.includes('/table') || path.includes('/pm/') || path.includes('/alarms/') || path.includes('/catalog/') || path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path) || path.includes('/cm/') || path.includes('/neighbors') || path.includes('/sentinel') || path.includes('/bi-') || path.includes('/dashboards'));
+    const isSafeAgenticPost = req.method === 'POST' && service === 'agentic';
     const isSafeWrite = ['PUT', 'DELETE'].includes(req.method) && (service === 'kpi' || service === 'parser') && path.includes('/catalog/');
     const isAgentPost2 = req.method === 'POST' && service === 'agent';
 
@@ -387,7 +389,7 @@ Deno.serve(async (req) => {
 
     const responseBody = await upstreamRes.text();
 
-    if (!upstreamRes.ok && (isSafeRead || isSafePost || isSafeWrite)) {
+    if (!upstreamRes.ok && (isSafeRead || isSafePost || isSafeAgenticPost || isSafeWrite)) {
       const errorSnippet = responseBody.slice(0, 300) || `HTTP ${upstreamRes.status}`;
       console.warn(`[vps-proxy] Safe fallback for upstream ${upstreamRes.status}: ${errorSnippet}`);
 
@@ -399,7 +401,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      const fallback = (isSafePost || isSafeWrite)
+      const fallback = (isSafePost || isSafeAgenticPost || isSafeWrite)
         ? buildSafePostFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`)
         : buildSafeFallback(service, path, `Upstream ${upstreamRes.status}: ${errorSnippet}`);
       return new Response(JSON.stringify(fallback), {
