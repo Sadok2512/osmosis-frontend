@@ -214,12 +214,16 @@ export async function fetchDetectorHolidays(): Promise<string[]> {
   }
 }
 
+// Backend ml-engine exposes detectors under /profiles (legacy ML naming).
+// /detectors returns 404; /profiles is the live route.
+const DETECTORS_PATH = 'profiles';
+
 export async function createDetectorPayload(payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>('detectors', 'POST', payload);
+  return sendJson<unknown>(DETECTORS_PATH, 'POST', payload);
 }
 
 export async function updateDetectorPayload(detectorId: string, payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>(`detectors/${encodeURIComponent(detectorId)}`, 'PUT', payload);
+  return sendJson<unknown>(`${DETECTORS_PATH}/${encodeURIComponent(detectorId)}`, 'PUT', payload);
 }
 
 export interface MlDetectorRow {
