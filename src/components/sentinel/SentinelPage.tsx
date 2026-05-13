@@ -24,12 +24,11 @@ import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
 import { MapPin } from 'lucide-react';
 
-type SentinelTab = 'overview' | 'live-map' | 'explorer' | 'clustering' | 'ml-detector' | 'rca';
+type SentinelTab = 'overview' | 'live-map' | 'explorer' | 'ml-detector' | 'rca';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
   { id: 'live-map', label: 'Live Map', icon: <MapPin className="w-4 h-4" /> },
-  { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
   { id: 'rca', label: 'RCA', icon: <Sparkles className="w-4 h-4" /> },
 ];
