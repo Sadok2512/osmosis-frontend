@@ -285,9 +285,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
               apiConnected={connectionStatus === 'connected'}
             />
           )}
-          {activeTab === 'clustering' && (
-            <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />
-          )}
           {activeTab === 'ml-detector' && (
             <SentinelMLDetector />
           )}
