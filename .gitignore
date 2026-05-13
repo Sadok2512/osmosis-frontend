@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 dist-new/
 dist.broken-rootowned-*/
+*.root-locked
+*.root-locked-*
+*.root-locked.*

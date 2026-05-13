@@ -1,0 +1,100 @@
+/* OSMOSIS UI Kit — Global Styles */
+
+:root {
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f7f5;
+  --bg-tertiary: #f1efe8;
+
+  /* Text */
+  --text-primary: #1a1a1a;
+  --text-secondary: #5f5e5a;
+  --text-tertiary: #888780;
+
+  /* Borders */
+  --border-tertiary: rgba(0, 0, 0, 0.08);
+  --border-secondary: rgba(0, 0, 0, 0.15);
+  --border-primary: rgba(0, 0, 0, 0.25);
+
+  /* Status tokens (mirror lib/theme.ts) */
+  --status-success-bg: #e1f5ee;
+  --status-success-fg: #0f6e56;
+  --status-success-border: #1d9e75;
+
+  --status-warning-bg: #faeeda;
+  --status-warning-fg: #ba7517;
+  --status-warning-border: #ef9f27;
+
+  --status-danger-bg: #fcebeb;
+  --status-danger-fg: #a32d2d;
+  --status-danger-border: #e24b4a;
+
+  --status-info-bg: #e6f1fb;
+  --status-info-fg: #185fa5;
+  --status-info-border: #378add;
+
+  --status-neutral-bg: #f1efe8;
+  --status-neutral-fg: #5f5e5a;
+  --status-neutral-border: #b4b2a9;
+
+  /* Brand */
+  --osmosis-primary: #0f6e56;
+  --osmosis-primary-light: #1d9e75;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242422;
+  --bg-tertiary: #2c2c2a;
+
+  --text-primary: #f5f5f3;
+  --text-secondary: #b4b2a9;
+  --text-tertiary: #888780;
+
+  --border-tertiary: rgba(255, 255, 255, 0.08);
+  --border-secondary: rgba(255, 255, 255, 0.15);
+  --border-primary: rgba(255, 255, 255, 0.25);
+
+  --status-success-bg: rgba(29, 158, 117, 0.15);
+  --status-warning-bg: rgba(186, 117, 23, 0.15);
+  --status-danger-bg: rgba(163, 45, 45, 0.15);
+  --status-info-bg: rgba(24, 95, 165, 0.15);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.osmosis-response {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Pulse animation for critical anomalies */
+@keyframes osmosis-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.osmosis-pulse {
+  animation: osmosis-pulse 2s ease-in-out infinite;
+}
+
+/* Tabular numbers for KPI values and table cells */
+.osmosis-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-primary); }

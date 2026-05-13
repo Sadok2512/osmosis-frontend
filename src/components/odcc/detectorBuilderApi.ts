@@ -1,5 +1,14 @@
-import { getApiHeaders, getApiUrl } from '@/lib/apiConfig';
+import { VPS_ENDPOINTS, getApiHeaders } from '@/lib/apiConfig';
 import type { DetectorPayload, DimensionOption, KpiOption } from './detectorBuilderTypes';
+
+// ml-engine catalog endpoints live at :11002/api/v1/ml/*, exposed via the
+// spa-proxy under /ml-api/* (apiConfig.VPS_ENDPOINTS.ml). All ODCC requests
+// go straight there — bypass the kpi-engine fallback used elsewhere.
+const ML_BASE = `${VPS_ENDPOINTS.ml}`;
+function mlUrl(path: string): string {
+  const clean = path.replace(/^\//, '');
+  return `${ML_BASE}/${clean}`;
+}
 
 const FALLBACK_KPIS: KpiOption[] = [
   { key: 'AVAILABILITY', label: 'AVAILABILITY' },
@@ -19,18 +28,20 @@ const FALLBACK_DIMENSIONS: DimensionOption[] = [
 type JsonObject = Record<string, unknown>;
 
 async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(getApiUrl(path), { headers: getApiHeaders() });
-  if (!response.ok) throw new Error(`GET /${path.replace(/^api\//, 'api/')} failed (${response.status})`);
+  const url = mlUrl(path);
+  const response = await fetch(url, { headers: getApiHeaders() });
+  if (!response.ok) throw new Error(`GET ${url} failed (${response.status})`);
   return response.json() as Promise<T>;
 }
 
 async function sendJson<T>(path: string, method: 'POST' | 'PUT', body: unknown): Promise<T> {
-  const response = await fetch(getApiUrl(path), {
+  const url = mlUrl(path);
+  const response = await fetch(url, {
     method,
     headers: getApiHeaders(),
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`${method} /${path.replace(/^api\//, 'api/')} failed (${response.status})`);
+  if (!response.ok) throw new Error(`${method} ${url} failed (${response.status})`);
   return response.json() as Promise<T>;
 }
 
@@ -95,7 +106,7 @@ export function normalizeValues(raw: unknown): string[] {
 
 export async function fetchDetectorKpis(): Promise<KpiOption[]> {
   try {
-    return normalizeKpis(await getJson<unknown>('api/kpis'));
+    return normalizeKpis(await getJson<unknown>('kpis'));
   } catch (error) {
     console.warn('[ODCC] KPI catalog unavailable, using fallback placeholders', error);
     return FALLBACK_KPIS;
@@ -104,7 +115,7 @@ export async function fetchDetectorKpis(): Promise<KpiOption[]> {
 
 export async function fetchDetectorDimensions(): Promise<DimensionOption[]> {
   try {
-    return normalizeDimensions(await getJson<unknown>('api/dimensions'));
+    return normalizeDimensions(await getJson<unknown>('dimensions'));
   } catch (error) {
     console.warn('[ODCC] Dimension catalog unavailable, using fallback placeholders', error);
     return FALLBACK_DIMENSIONS;
@@ -114,7 +125,7 @@ export async function fetchDetectorDimensions(): Promise<DimensionOption[]> {
 export async function fetchDetectorDimensionValues(dimension: string): Promise<string[]> {
   if (!dimension) return [];
   try {
-    return normalizeValues(await getJson<unknown>(`api/dimensions/${encodeURIComponent(dimension)}/values`));
+    return normalizeValues(await getJson<unknown>(`dimensions/${encodeURIComponent(dimension)}/values`));
   } catch (error) {
     console.warn(`[ODCC] Values unavailable for ${dimension}`, error);
     return [];
@@ -123,7 +134,7 @@ export async function fetchDetectorDimensionValues(dimension: string): Promise<s
 
 export async function fetchDetectorHolidays(): Promise<string[]> {
   try {
-    return normalizeValues(await getJson<unknown>('api/holidays'));
+    return normalizeValues(await getJson<unknown>('holidays'));
   } catch (error) {
     console.warn('[ODCC] Holiday API unavailable; holidays toggle remains as integration point', error);
     return [];
@@ -131,9 +142,9 @@ export async function fetchDetectorHolidays(): Promise<string[]> {
 }
 
 export async function createDetectorPayload(payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>('api/detectors', 'POST', payload);
+  return sendJson<unknown>('detectors', 'POST', payload);
 }
 
 export async function updateDetectorPayload(detectorId: string, payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>(`api/detectors/${encodeURIComponent(detectorId)}`, 'PUT', payload);
+  return sendJson<unknown>(`detectors/${encodeURIComponent(detectorId)}`, 'PUT', payload);
 }

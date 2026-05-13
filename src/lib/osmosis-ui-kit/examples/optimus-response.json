@@ -1,0 +1,230 @@
+{
+  "agent": "OPTIMUS",
+  "query_meta": {
+    "duration_ms": 247,
+    "source": "Dump_WE4.xml",
+    "confidence": 0.96,
+    "version": "v2.1",
+    "timestamp": "2026-05-11T10:30:00Z"
+  },
+  "tldr": {
+    "headline": "9 844 RRU Nokia sur 27 plaques",
+    "highlights": [
+      { "label": "AEQQ domine (~33%)", "type": "neutral" },
+      { "label": "NANTES & RENNES atypiques", "type": "warning" },
+      { "label": "1 plaque manquante", "type": "info" }
+    ]
+  },
+  "kpis": [
+    {
+      "label": "Couverture",
+      "value": "27/28",
+      "ratio": 0.964,
+      "trend": null,
+      "status": "success"
+    },
+    {
+      "label": "Total RRU",
+      "value": "9 844",
+      "sparkline": [9700, 9750, 9780, 9820, 9844],
+      "trend": "stable",
+      "status": "neutral"
+    },
+    {
+      "label": "HW dominant",
+      "value": "AEQQ",
+      "context": "23/27 plaques · 33%",
+      "status": "info"
+    },
+    {
+      "label": "Anomalies",
+      "value": 2,
+      "context": "NANTES, RENNES",
+      "status": "warning"
+    }
+  ],
+  "visualizations": [
+    {
+      "type": "stacked_bar",
+      "title": "Distribution HW · top 9 plaques",
+      "subtitle": "% relatif par type de hardware",
+      "unit_toggle": ["percent", "absolute"],
+      "x_axis": {
+        "label": "Plaque",
+        "data": ["AUTRES29", "AUTRES85", "NANTES", "AUTRES44", "AUTRES56", "AUTRES35", "RENNES", "AUTRES22", "AUTRES49"]
+      },
+      "y_axis": { "label": "Distribution", "unit": "%" },
+      "series": [
+        { "name": "AEQQ", "color": "#1D9E75", "data": [32.4, 32.6, 20.6, 32.4, 34.8, 32.7, 17.8, 34.8, 33.6] },
+        { "name": "AHPD", "color": "#5DCAA5", "data": [19.4, 19.9, 16.3, 20.7, 18.2, 22.9, 19.0, 15.3, 22.1] },
+        { "name": "FRHG", "color": "#D85A30", "data": [8.0, 9.7, 28.0, 7.5, 7.2, 8.1, 23.6, 8.0, 8.5] },
+        { "name": "FXED", "color": "#534AB7", "data": [10.2, 8.0, 7.5, 9.8, 9.1, 11.4, 8.2, 11.0, 9.8] },
+        { "name": "Autres", "color": "#888780", "data": [30.0, 29.8, 27.6, 29.6, 30.7, 24.9, 31.4, 30.9, 26.0] }
+      ],
+      "highlights": ["NANTES", "RENNES"]
+    }
+  ],
+  "table": {
+    "title": "Détail par plaque",
+    "columns": [
+      { "key": "plaque", "label": "Plaque", "type": "link", "sortable": true, "width": "18%" },
+      { "key": "rru", "label": "RRU", "type": "number", "sortable": true, "width": "10%" },
+      { "key": "volume", "label": "Volume", "type": "progress_bar", "width": "18%" },
+      { "key": "coverage", "label": "Couverture", "type": "badge", "width": "12%" },
+      { "key": "top_hw", "label": "Top 3 HW", "type": "html", "width": "30%" },
+      { "key": "profile", "label": "Profil", "type": "tag", "width": "12%" }
+    ],
+    "rows": [
+      {
+        "plaque": "AUTRES29",
+        "rru": 172,
+        "volume": 1.0,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "AEQQ", "pct": 32.4, "dominant": true },
+          { "name": "AHPD", "pct": 19.4 },
+          { "name": "FXED", "pct": 10.2 }
+        ],
+        "profile": { "label": "standard", "status": "success" }
+      },
+      {
+        "plaque": "AUTRES85",
+        "rru": 158,
+        "volume": 0.92,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "AEQQ", "pct": 32.6, "dominant": true },
+          { "name": "AHPD", "pct": 19.9 },
+          { "name": "FRHG", "pct": 9.7 }
+        ],
+        "profile": { "label": "standard", "status": "success" }
+      },
+      {
+        "plaque": "NANTES",
+        "rru": 154,
+        "volume": 0.90,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "FRHG", "pct": 28.0, "dominant": true },
+          { "name": "AEQQ", "pct": 20.6 },
+          { "name": "AHPD", "pct": 16.3 }
+        ],
+        "profile": { "label": "atypique", "status": "warning" }
+      },
+      {
+        "plaque": "AUTRES44",
+        "rru": 135,
+        "volume": 0.78,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "AEQQ", "pct": 32.4, "dominant": true },
+          { "name": "AHPD", "pct": 20.7 },
+          { "name": "FXED", "pct": 9.8 }
+        ],
+        "profile": { "label": "standard", "status": "success" }
+      },
+      {
+        "plaque": "AUTRES56",
+        "rru": 132,
+        "volume": 0.77,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "AEQQ", "pct": 34.8, "dominant": true },
+          { "name": "AHPD", "pct": 18.2 },
+          { "name": "FXED", "pct": 9.1 }
+        ],
+        "profile": { "label": "standard", "status": "success" }
+      },
+      {
+        "plaque": "RENNES",
+        "rru": 109,
+        "volume": 0.63,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "FRHG", "pct": 23.6, "dominant": true },
+          { "name": "AHPD", "pct": 19.0 },
+          { "name": "AEQQ", "pct": 17.8 }
+        ],
+        "profile": { "label": "atypique", "status": "warning" }
+      },
+      {
+        "plaque": "AUTRES35",
+        "rru": 113,
+        "volume": 0.66,
+        "coverage": { "value": "100%", "status": "success" },
+        "top_hw": [
+          { "name": "AEQQ", "pct": 32.7, "dominant": true },
+          { "name": "AHPD", "pct": 22.9 },
+          { "name": "FXED", "pct": 11.4 }
+        ],
+        "profile": { "label": "standard", "status": "success" }
+      }
+    ],
+    "features": ["sort", "filter", "search", "paginate", "export"],
+    "default_sort": { "column": "rru", "direction": "desc" },
+    "page_size": 10
+  },
+  "anomalies": [
+    {
+      "severity": "warning",
+      "entity": "NANTES",
+      "description": "FRHG dominant à 28% vs AEQQ dominant (~33%) sur les autres plaques",
+      "metric": "FRHG 28%",
+      "suggested_action": "Vérifier le déploiement spécifique de la zone Nantes",
+      "drill_down_prompt": "Pourquoi NANTES a un profil FRHG dominant ?"
+    },
+    {
+      "severity": "warning",
+      "entity": "RENNES",
+      "description": "Même profil atypique que NANTES — FRHG > AEQQ",
+      "metric": "FRHG 23.6%",
+      "suggested_action": "Investiguer si déploiement coordonné Ouest",
+      "drill_down_prompt": "Comparer les profils HW de NANTES et RENNES"
+    },
+    {
+      "severity": "warning",
+      "entity": "Dump_WE4.xml",
+      "description": "1 plaque manquante (27/28 documentées)",
+      "suggested_action": "Identifier et compléter la plaque absente",
+      "drill_down_prompt": "Quelle est la plaque manquante dans Dump_WE4.xml ?"
+    }
+  ],
+  "insights": [
+    {
+      "icon": "📊",
+      "text": "AEQQ est le HW standard du parc",
+      "metric": "30-35% sur 23 plaques",
+      "category": "distribution"
+    },
+    {
+      "icon": "🌐",
+      "text": "Variabilité régionale Ouest sur FRHG",
+      "metric": "FRHG > 20% à NANTES & RENNES",
+      "category": "outlier"
+    },
+    {
+      "icon": "✅",
+      "text": "Couverture documentation complète",
+      "metric": "100% sur 27 plaques tracées",
+      "category": "distribution"
+    }
+  ],
+  "follow_ups": [
+    {
+      "label": "Plaque manquante",
+      "prompt": "Quelle est la plaque manquante dans Dump_WE4.xml ?",
+      "icon": "→"
+    },
+    {
+      "label": "Investiguer NANTES",
+      "prompt": "Pourquoi NANTES a un profil FRHG dominant ?",
+      "icon": "⚠"
+    },
+    {
+      "label": "Comparer Ouest vs Est",
+      "prompt": "Comparer la distribution HW Nokia Ouest vs Nokia Est",
+      "icon": "📊"
+    }
+  ],
+  "exports": ["csv", "pdf", "json"]
+}
