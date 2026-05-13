@@ -28,7 +28,7 @@
 - [Topo data fallback](mem://tech/backend-integration/topo-data-fallback) — Reconstructs sites from cells if backend fails
 - [High zoom visibility](mem://logic/sites-monitor/high-zoom-visibility-logic) — Cell pre-loading at zoom >= 9, gray color strictly for no-data
 - [Sentinel AI routing](mem://features/ml-detector/sentinel-routing-logic) — RCA routing based on z-scores (>3 Critical, >2 Major)
-- [BI assistant logic](mem://features/bi-studio/assistant-logic) — Streams chartContext to QOEBIT via Edge Function
+- [BI assistant logic](mem://features/bi-studio/assistant-logic) — Streams chartContext to OSMOSIS via Edge Function
 - [Date range sync](mem://logic/date-selection/range-and-sync-policy) — Mono-day default, backward constraint disabled
 - [VPS limits](mem://constraints/backend/vps-performance-limitations) — Query timeouts dictate restrictive filtering and sequential calls
 - [Vendor context](mem://project/telecom-context/vendor-distribution) — Ericsson (NE/SW/IDF) and Nokia (SE/W)

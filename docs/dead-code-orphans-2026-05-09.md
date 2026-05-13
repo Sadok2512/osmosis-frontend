@@ -1,4 +1,4 @@
-# Orphan files — `qoebit-frontend/src` audit · 2026-05-09
+# Orphan files — `osmosis-frontend/src` audit · 2026-05-09
 
 **Method:** scan every `.ts`/`.tsx` under `src/`, derive its possible
 import specifiers (relative + `@/` alias, with/without ext, with/without

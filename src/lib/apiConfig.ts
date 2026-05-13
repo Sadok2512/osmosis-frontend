@@ -52,7 +52,7 @@ export const VPS_ENDPOINTS = {
   agentic: isOnAppDomain ? '/agentic-api' : CF_ML,
 } as const;
 
-// Local Express server retired 2026-05-08 (was qoebit-frontend/server,
+// Local Express server retired 2026-05-08 (was osmosis-frontend/server,
 // port :3001). Production never used it; the local-mode branches of
 // getApiUrl/getPreferredDataSource now degrade to VPS so a stale
 // localStorage `osmosis_data_source=local` doesn't break the app.

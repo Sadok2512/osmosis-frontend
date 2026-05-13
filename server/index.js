@@ -2696,7 +2696,7 @@ app.post('/api/qoe-assistant', async (req, res) => {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
         'HTTP-Referer': 'http://localhost:5173',
-        'X-Title': `QOEBIT ${plan.agent}`,
+        'X-Title': `OSMOSIS ${plan.agent}`,
       },
       body: JSON.stringify({
         model: model || 'google/gemini-2.5-flash',
@@ -4342,7 +4342,7 @@ app.get('/api/monitor/explain/kpi/:kpi_key', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`\n🚀 QOEBIT Local Server running on http://localhost:${PORT}`);
+  console.log(`\n🚀 OSMOSIS Local Server running on http://localhost:${PORT}`);
   console.log(`   API endpoints:`);
   console.log(`   POST /api/backend-admin`);
   console.log(`   POST /api/import-topo`);

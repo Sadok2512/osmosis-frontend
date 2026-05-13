@@ -28,7 +28,7 @@ function kpiUrl(path: string) {
 }
 
 // ── Express server retired 2026-05-08 ──
-// The local Express shim (qoebit-frontend/server/index.js, port :3001)
+// The local Express shim (osmosis-frontend/server/index.js, port :3001)
 // was a dev-only same-host SQL proxy that duplicated a subset of the
 // FastAPI parser. Production never used it. The directory is gone and
 // the connectivity probe was removed from BackendAdmin. The two helpers
