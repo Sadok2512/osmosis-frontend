@@ -564,26 +564,57 @@ function ValueAutocomplete({ options, loading, selected, onAdd, onLoadOptions }:
   onLoadOptions: () => void;
 }) {
   const [q, setQ] = useState('');
-  const filtered = options.filter(o => !selected.includes(o)).filter(o => o.toLowerCase().includes(q.toLowerCase())).slice(0, 8);
+  const [open, setOpen] = useState(false);
+  const filtered = options
+    .filter(o => !selected.includes(o))
+    .filter(o => o.toLowerCase().includes(q.toLowerCase()))
+    .slice(0, 12);
+  const handlePick = (value: string) => {
+    onAdd(value);
+    setQ('');
+    setOpen(false);
+  };
   return (
     <div>
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         <input
           value={q}
-          onFocus={onLoadOptions}
-          onChange={e => setQ(e.target.value)}
+          onFocus={() => {
+            setOpen(true);
+            onLoadOptions();
+          }}
+          onChange={e => {
+            setQ(e.target.value);
+            setOpen(true);
+          }}
           onKeyDown={e => { if (e.key === 'Enter' && q.trim()) { onAdd(q.trim()); setQ(''); } }}
           placeholder={loading ? 'Loading values…' : 'Search or type a value, press Enter'}
           className={cn(inputClass, 'pl-9')}
         />
       </div>
-      {q && filtered.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1.5">
+      {open && (
+        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
+          {loading && <p className="px-2 py-1 text-[12px] text-slate-500">Loading backend values...</p>}
+          {!loading && filtered.length === 0 && (
+            <p className="px-2 py-1 text-[12px] text-slate-500">
+              No backend value found. Type a custom value and press Enter.
+            </p>
+          )}
+          {!loading && filtered.length > 0 && (
+            <div className="mb-2 flex items-center justify-between px-1">
+              <span className="text-[11px] font-medium text-slate-500">
+                {q ? 'Matching values' : 'First backend values'}
+              </span>
+              <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-slate-400 hover:text-slate-700">Hide</button>
+            </div>
+          )}
+          <div className="flex max-h-44 flex-wrap gap-1.5 overflow-auto">
           {filtered.map(o => (
-            <button key={o} onClick={() => { onAdd(o); setQ(''); }}
+            <button key={o} onClick={() => handlePick(o)}
               className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700">{o}</button>
           ))}
+          </div>
         </div>
       )}
     </div>
