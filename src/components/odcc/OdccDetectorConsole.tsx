@@ -473,11 +473,10 @@ export default function OdccDetectorConsole() {
             />
           )}
           {tab === 'builder' && (
-            <DetectorBuilder
+            <DetectorWizard
               draft={draft}
               setDraft={setDraft}
               editing={!!editingId}
-              parameterSets={parameterSets}
               onSaveDraft={() => saveDetector(false)}
               onSaveEnable={() => saveDetector(true)}
               onRunTest={() => runDetector(draft)}
