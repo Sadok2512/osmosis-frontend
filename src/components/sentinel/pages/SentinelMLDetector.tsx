@@ -1328,7 +1328,19 @@ const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }>
             </button>
           </div>
         </header>
-        <div ref={mapEl} className="flex-1" />
+        <div className="flex-1 relative">
+          <div ref={mapEl} className="absolute inset-0" />
+          {!coords && !loadError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading site coordinates…
+            </div>
+          )}
+          {loadError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-red-600 text-[12px] gap-2">
+              <AlertCircle className="w-4 h-4" /> {loadError}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
