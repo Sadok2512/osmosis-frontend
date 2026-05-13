@@ -284,7 +284,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
             />
           )}
           {activeTab === 'ml-detector' && (
-            <SentinelMLDetector />
+            <SentinelMLDetector onOpenRCA={() => setActiveTab('rca')} />
           )}
           {activeTab === 'rca' && (
             <SentinelRCA onBack={() => setActiveTab('ml-detector')} />
