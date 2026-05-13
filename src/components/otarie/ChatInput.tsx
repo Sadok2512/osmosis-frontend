@@ -23,6 +23,7 @@ interface ChatInputProps {
   isLoading: boolean;
   forcedAgent: AgentId | null;
   onForcedAgentChange: (agent: AgentId | null) => void;
+  activeAgent?: AgentId | null;
 }
 
 const ChatInput = React.memo(({ onSend, isLoading, forcedAgent, onForcedAgentChange }: ChatInputProps) => {
