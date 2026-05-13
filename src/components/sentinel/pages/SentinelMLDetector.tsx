@@ -585,6 +585,13 @@ const SentinelMLDetector: React.FC = () => {
           </div>
         </header>
 
+        {/* Inline accordion map — toggled by the "Map" button */}
+        {mapOpen && (
+          <div className="border-b border-slate-200/70 bg-slate-50/40">
+            <AnomalyMapInline anomalies={anomalies} onClose={() => setMapOpen(false)} />
+          </div>
+        )}
+
         {anomaliesError && (
           <div className="p-3 text-xs text-red-600 bg-red-50 border-b border-red-200 flex items-center gap-2">
             <AlertCircle className="w-4 h-4" /> {anomaliesError}
