@@ -33,6 +33,7 @@ import {
   fetchDetectorKpis,
   updateDetectorPayload,
 } from './detectorBuilderApi';
+import DetectorWizard from './DetectorWizard';
 import type {
   CriteriaConfig,
   DetectorAggregation,
