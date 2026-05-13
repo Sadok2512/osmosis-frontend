@@ -20,9 +20,9 @@ import {
 } from '../mlDetectorApi';
 
 const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'bg-red-100 text-red-700 border-red-200',
-  warning:  'bg-amber-100 text-amber-700 border-amber-200',
-  info:     'bg-slate-100 text-slate-700 border-slate-200',
+  critical: 'bg-red-50 text-red-700 border-red-200',
+  warning:  'bg-amber-50 text-amber-700 border-amber-200',
+  info:     'bg-slate-50 text-slate-600 border-slate-200',
 };
 
 const fmtNum = (v: number | null | undefined): string =>
@@ -419,19 +419,24 @@ const SentinelMLDetector: React.FC = () => {
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
 
   return (
-    <div className="flex h-full gap-4">
+    <div
+      className="flex h-full gap-4 text-slate-900"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
+    >
       {/* ─── LEFT: profiles ─────────────────────────────────── */}
-      <aside className="w-[320px] shrink-0 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <header className="flex items-center justify-between p-3 border-b border-slate-200">
+      <aside className="w-[320px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
+        <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200/70">
           <div className="flex items-center gap-2">
-            <Brain className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-semibold text-slate-700">Profils ML</h3>
-            <span className="text-xs text-slate-400">({profiles.length})</span>
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+              <Brain className="w-3.5 h-3.5" />
+            </span>
+            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">Profils ML</h3>
+            <span className="text-[11px] font-medium text-slate-400">({profiles.length})</span>
           </div>
           <button
             type="button"
             onClick={loadProfiles}
-            className="p-1 rounded hover:bg-slate-100 text-slate-500"
+            className="p-1.5 rounded-md hover:bg-slate-50 text-slate-500 transition"
             title="Recharger"
           >
             <RefreshCw className={'w-3.5 h-3.5 ' + (profilesLoading ? 'animate-spin' : '')} />
@@ -459,36 +464,38 @@ const SentinelMLDetector: React.FC = () => {
               type="button"
               onClick={() => { setSelectedProfile(p.id); setPage(1); }}
               className={
-                'w-full text-left px-3 py-2 border-b border-slate-100 hover:bg-slate-50 ' +
-                (selectedProfile === p.id ? 'bg-indigo-50 border-l-2 border-l-indigo-500' : '')
+                'w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50/70 transition ' +
+                (selectedProfile === p.id ? 'bg-teal-50/60 border-l-2 border-l-teal-500' : '')
               }
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-slate-800 truncate">{p.name}</div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
+                  <div className="text-[14px] font-medium text-slate-900 truncate">{p.name}</div>
+                  <div className="text-[12px] text-slate-500 mt-0.5">
                     {p.kpi_count} KPIs · {p.dimension_count} dims · {p.run_time}
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="text-[11px] text-slate-400 mt-0.5">
                     Last run: {fmtDate(p.last_run_at)}
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <span className={
-                    'text-[10px] px-1.5 py-0.5 rounded ' +
-                    (p.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600')
+                    'text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-[0.08em] ' +
+                    (p.is_active
+                      ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                      : 'bg-slate-100 text-slate-600 ring-1 ring-slate-200')
                   }>
                     {p.is_active ? 'actif' : 'pause'}
                   </span>
                 </div>
               </div>
               {selectedProfile === p.id && (
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-2.5 flex items-center gap-2">
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleRunNow(p.id); }}
                     disabled={runningId === p.id}
-                    className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-sm transition disabled:opacity-50"
                   >
                     {runningId === p.id
                       ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -509,14 +516,14 @@ const SentinelMLDetector: React.FC = () => {
       </aside>
 
       {/* ─── RIGHT: anomalies viewer ─────────────────────────── */}
-      <section className="flex-1 flex flex-col bg-white rounded-lg border border-slate-200 overflow-hidden">
-        <header className="p-3 border-b border-slate-200">
+      <section className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
+        <header className="px-4 py-3 border-b border-slate-200/70">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold text-slate-700">
+              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">
                 Anomalies {selected ? `· ${selected.name}` : ''}
               </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
+              <p className="text-[12px] text-slate-500 mt-0.5">
                 {anomaliesTotal.toLocaleString('fr-FR')} anomalies · z-score &gt; {selected?.z_threshold ?? '?'} OU trend% &gt; {selected?.trend_threshold ?? '?'}
               </p>
             </div>
@@ -525,7 +532,7 @@ const SentinelMLDetector: React.FC = () => {
               <select
                 value={severity}
                 onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               >
                 <option value="">Toutes sévérités</option>
                 <option value="critical">Critical</option>
@@ -537,14 +544,14 @@ const SentinelMLDetector: React.FC = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               />
               <span className="text-slate-400">→</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded px-2 py-1 text-xs"
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
               />
             </div>
           </div>
@@ -566,34 +573,34 @@ const SentinelMLDetector: React.FC = () => {
               Aucune anomalie pour ce filtre.
             </div>
           ) : (
-            <table className="w-full text-xs">
-              <thead className="bg-slate-50 sticky top-0 z-10">
-                <tr className="text-left text-[11px] text-slate-500 uppercase tracking-wider">
-                  <th className="px-3 py-2 font-semibold">Sévérité</th>
-                  <th className="px-3 py-2 font-semibold">Période</th>
-                  <th className="px-3 py-2 font-semibold">Cellule</th>
-                  <th className="px-3 py-2 font-semibold">KPI</th>
-                  <th className="px-3 py-2 font-semibold text-right">Valeur</th>
-                  <th className="px-3 py-2 font-semibold text-right">Z-score</th>
-                  <th className="px-3 py-2 font-semibold text-right">Δ7d</th>
-                  <th className="px-3 py-2 font-semibold text-right">Δ14d</th>
-                  <th className="px-3 py-2 font-semibold text-right">Trend %</th>
-                  <th className="px-3 py-2 font-semibold text-right w-10">RCA</th>
+            <table className="w-full text-[13px]">
+              <thead className="bg-slate-50/70 sticky top-0 z-10">
+                <tr className="text-left text-[11px] font-medium text-slate-500 uppercase tracking-[0.08em]">
+                  <th className="px-3 py-2.5">Sévérité</th>
+                  <th className="px-3 py-2.5">Période</th>
+                  <th className="px-3 py-2.5">Cellule</th>
+                  <th className="px-3 py-2.5">KPI</th>
+                  <th className="px-3 py-2.5 text-right">Valeur</th>
+                  <th className="px-3 py-2.5 text-right">Z-score</th>
+                  <th className="px-3 py-2.5 text-right">Δ7d</th>
+                  <th className="px-3 py-2.5 text-right">Δ14d</th>
+                  <th className="px-3 py-2.5 text-right">Trend %</th>
+                  <th className="px-3 py-2.5 text-right w-10">RCA</th>
                 </tr>
               </thead>
               <tbody>
                 {anomalies.map((a) => (
-                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50">
+                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition">
                     <td className="px-3 py-2">
-                      <span className={'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold rounded border ' + (SEVERITY_STYLES[a.severity] || SEVERITY_STYLES.info)}>
+                      <span className={'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full uppercase tracking-[0.06em] border ' + (SEVERITY_STYLES[a.severity] || SEVERITY_STYLES.info)}>
                         {a.severity === 'critical' && <AlertTriangle className="w-3 h-3" />}
                         {a.severity}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-slate-600 tabular-nums">{fmtDate(a.period_start)}</td>
-                    <td className="px-3 py-2 font-mono text-slate-800">{a.cell_name || '—'}</td>
+                    <td className="px-3 py-2 font-mono text-[12px] text-slate-800">{a.cell_name || '—'}</td>
                     <td className="px-3 py-2 text-slate-700 truncate max-w-[200px]" title={a.kpi_code}>{a.kpi_code}</td>
-                    <td className="px-3 py-2 text-right tabular-nums font-semibold">{fmtNum(a.value)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{fmtNum(a.value)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.z_score)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_7)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_14)}</td>
@@ -603,7 +610,7 @@ const SentinelMLDetector: React.FC = () => {
                         type="button"
                         title="Lancer / consulter la RCA (RCAI)"
                         onClick={() => openRca(a)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded hover:bg-indigo-100 text-indigo-700"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-teal-50 text-teal-700 transition"
                       >
                         <Search className="w-3.5 h-3.5" />
                       </button>
