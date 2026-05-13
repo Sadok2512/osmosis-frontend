@@ -569,19 +569,19 @@ export default function OdccDetectorConsole({
     const queued = await runDetectorNow(target.id);
     const run: DetectorRun = {
       id: queued.task_id || uid('run'),
-      detectorId: detector.id,
+      detectorId: target.id,
       triggerType: 'manual',
-      runMode: detector.detectionMode,
+      runMode: target.detectionMode,
       executionStatus: queued.queued ? 'pending' : 'failed',
-      periodStart: detector.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
+      periodStart: target.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
       periodEnd: nowIso(),
-      granularity: detector.scheduleFrequency === '15m' ? '15m' : detector.scheduleFrequency === '30m' ? '30m' : detector.scheduleFrequency === '1h' ? '1h' : '1d',
+      granularity: target.scheduleFrequency === '15m' ? '15m' : target.scheduleFrequency === '30m' ? '30m' : target.scheduleFrequency === '1h' ? '1h' : '1d',
       matchedCount: 0,
       createdAt: nowIso(),
     };
     setRuns(prev => [run, ...prev]);
-    log(detector.id, 'queued_backend_run', `task ${run.id}`);
-    const anomalies = await listDetectorAnomalies({ detectorId: detector.id, limit: 100 });
+    log(target.id, 'queued_backend_run', `task ${run.id}`);
+    const anomalies = await listDetectorAnomalies({ detectorId: target.id, limit: 100 });
     setResults(prev => {
       const existing = new Set(prev.map(result => result.id));
       const fresh = anomalies.items.map(resultFromBackend).filter(result => !existing.has(result.id));
