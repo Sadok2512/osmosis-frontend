@@ -825,10 +825,15 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
     setSubmitting(true);
     setSubmitError(null);
     try {
+      const meta = {
+        name: draft.name,
+        description: draft.description,
+        enabled: draft.enabled,
+      };
       if (editing) {
-        await updateDetectorPayload(draft.id, payload);
+        await updateDetectorPayloadForBackend(draft.id, payload, meta);
       } else {
-        await createDetectorPayload(payload);
+        await createDetectorPayloadForBackend(payload, meta);
       }
       saveLocal();
     } catch (error) {
