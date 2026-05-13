@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
-import SentinelClustering from './pages/SentinelClustering';
+
 import SentinelMLDetector from './pages/SentinelMLDetector';
 import SentinelLiveMap from './pages/SentinelLiveMap';
 import SentinelRCA from './pages/SentinelRCA';
