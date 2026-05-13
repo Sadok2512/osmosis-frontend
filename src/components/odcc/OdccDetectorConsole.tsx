@@ -540,26 +540,48 @@ export default function OdccDetectorConsole({
   };
 
   const runDetector = async (detector: Detector) => {
-    if (!isBackendId(detector.id)) {
-      setBackendError('Save the detector to backend before running it.');
-      return;
+    let target = detector;
+    if (!isBackendId(target.id)) {
+      // Auto-save to backend before running
+      try {
+        const payload = buildDetectorPayload(target);
+        const meta = {
+          id: target.id,
+          name: target.name,
+          description: target.description,
+          enabled: target.enabled,
+          scheduleFrequency: target.scheduleFrequency,
+          scopeLevel: target.scopeLevel,
+          detectionMode: target.detectionMode,
+          lookbackWindow: target.lookbackWindow,
+          retentionDays: target.output.storeResults ? 90 : 7,
+        };
+        const saved = await createDetectorPayloadForBackend(payload, meta);
+        const savedDetector = detectorFromBackend(saved);
+        setDetectors(prev => prev.map(d => d.id === target.id ? savedDetector : d));
+        log(savedDetector.id, 'auto_saved_backend', `before run (was ${target.code})`);
+        target = savedDetector;
+      } catch (error) {
+        setBackendError(error instanceof Error ? error.message : 'Failed to save detector before running.');
+        return;
+      }
     }
-    const queued = await runDetectorNow(detector.id);
+    const queued = await runDetectorNow(target.id);
     const run: DetectorRun = {
       id: queued.task_id || uid('run'),
-      detectorId: detector.id,
+      detectorId: target.id,
       triggerType: 'manual',
-      runMode: detector.detectionMode,
+      runMode: target.detectionMode,
       executionStatus: queued.queued ? 'pending' : 'failed',
-      periodStart: detector.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
+      periodStart: target.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
       periodEnd: nowIso(),
-      granularity: detector.scheduleFrequency === '15m' ? '15m' : detector.scheduleFrequency === '30m' ? '30m' : detector.scheduleFrequency === '1h' ? '1h' : '1d',
+      granularity: target.scheduleFrequency === '15m' ? '15m' : target.scheduleFrequency === '30m' ? '30m' : target.scheduleFrequency === '1h' ? '1h' : '1d',
       matchedCount: 0,
       createdAt: nowIso(),
     };
     setRuns(prev => [run, ...prev]);
-    log(detector.id, 'queued_backend_run', `task ${run.id}`);
-    const anomalies = await listDetectorAnomalies({ detectorId: detector.id, limit: 100 });
+    log(target.id, 'queued_backend_run', `task ${run.id}`);
+    const anomalies = await listDetectorAnomalies({ detectorId: target.id, limit: 100 });
     setResults(prev => {
       const existing = new Set(prev.map(result => result.id));
       const fresh = anomalies.items.map(resultFromBackend).filter(result => !existing.has(result.id));
