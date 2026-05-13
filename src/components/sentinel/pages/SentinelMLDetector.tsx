@@ -20,6 +20,7 @@ import {
   getOutcomeForExecution, assessOutcome,
   MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow, OutcomeRow,
 } from '../mlDetectorApi';
+import { fetchTopoSites } from '../../../services/topoService';
 
 const SEVERITY_STYLES: Record<string, string> = {
   critical: 'bg-red-50 text-red-700 border-red-200',
@@ -533,9 +534,15 @@ const SentinelMLDetector: React.FC = () => {
             <div className="flex items-center gap-2 text-xs">
               <button
                 type="button"
-                onClick={() => setMapOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium border border-slate-200 rounded-md bg-white text-slate-700 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 transition"
-                title="View anomaly locations on map"
+                onClick={() => setMapOpen((v) => !v)}
+                aria-pressed={mapOpen}
+                className={
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium border rounded-md transition ' +
+                  (mapOpen
+                    ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-500'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700')
+                }
+                title="Afficher / masquer la carte des anomalies"
               >
                 <MapPin className="w-3.5 h-3.5" /> Map
               </button>
@@ -578,6 +585,13 @@ const SentinelMLDetector: React.FC = () => {
             </div>
           </div>
         </header>
+
+        {/* Inline accordion map — toggled by the "Map" button */}
+        {mapOpen && (
+          <div className="border-b border-slate-200/70 bg-slate-50/40">
+            <AnomalyMapInline anomalies={anomalies} onClose={() => setMapOpen(false)} />
+          </div>
+        )}
 
         {anomaliesError && (
           <div className="p-3 text-xs text-red-600 bg-red-50 border-b border-red-200 flex items-center gap-2">
@@ -1212,19 +1226,13 @@ const SentinelMLDetector: React.FC = () => {
           </aside>
         </div>
       )}
-      {mapOpen && (
-        <AnomalyMapModal anomalies={anomalies} onClose={() => setMapOpen(false)} />
-      )}
     </div>
   );
 };
 
-// ── Anomaly Map Modal ──────────────────────────────────────────────────
+// ── Anomaly Map (inline accordion) ─────────────────────────────────────
 // Plots anomalies on a Leaflet map using REAL site coordinates from topo.
-// We resolve cell_name → (lat, lng) via fetchTopoSites() (cached). Cells
-// with unknown coordinates are listed as "unlocated".
-import { fetchTopoSites } from '../../../services/topoService';
-
+// Renders inline above the anomalies table, toggled by the "Map" button.
 const SEV_COLOR: Record<string, string> = {
   critical: '#ef4444',
   warning: '#f59e0b',
@@ -1232,7 +1240,7 @@ const SEV_COLOR: Record<string, string> = {
 };
 const SEV_ORDER: Record<string, number> = { critical: 3, warning: 2, info: 1 };
 
-const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }> = ({ anomalies, onClose }) => {
+const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }> = ({ anomalies, onClose }) => {
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const [coords, setCoords] = useState<Map<string, [number, number]> | null>(null);
@@ -1281,10 +1289,9 @@ const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }>
       const name = a.cell_name || '';
       const ll = name ? coords.get(name) : undefined;
       if (!ll) { unlocated += 1; return; }
-      const key = name;
-      if (!grouped[key]) grouped[key] = { lat: ll[0], lng: ll[1], sev: a.severity, count: 0, name };
-      grouped[key].count += 1;
-      if ((SEV_ORDER[a.severity] || 0) > (SEV_ORDER[grouped[key].sev] || 0)) grouped[key].sev = a.severity;
+      if (!grouped[name]) grouped[name] = { lat: ll[0], lng: ll[1], sev: a.severity, count: 0, name };
+      grouped[name].count += 1;
+      if ((SEV_ORDER[a.severity] || 0) > (SEV_ORDER[grouped[name].sev] || 0)) grouped[name].sev = a.severity;
     });
 
     const bounds: L.LatLngTuple[] = [];
@@ -1312,46 +1319,41 @@ const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }>
   }, [anomalies, coords]);
 
   return (
-    <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-teal-600" />
-            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">
-              Anomaly Locations
-            </h3>
-            <span className="text-[12px] text-slate-500">· {anomalies.length} anomalies</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[11px] text-slate-600">
-              {(['critical','warning','info'] as const).map(s => (
-                <span key={s} className="inline-flex items-center gap-1">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: SEV_COLOR[s] }} />
-                  {s}
-                </span>
-              ))}
-            </div>
-            <button onClick={onClose} className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </header>
-        <div className="flex-1 relative">
-          <div ref={mapEl} className="absolute inset-0" />
-          {!coords && !loadError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading site coordinates…
-            </div>
-          )}
-          {loadError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-red-600 text-[12px] gap-2">
-              <AlertCircle className="w-4 h-4" /> {loadError}
-            </div>
-          )}
+    <div>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200/70">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-3.5 h-3.5 text-teal-600" />
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+            Anomaly Locations
+          </h4>
+          <span className="text-[11px] text-slate-500">· {anomalies.length} anomalies</span>
         </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            {(['critical','warning','info'] as const).map(s => (
+              <span key={s} className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: SEV_COLOR[s] }} />
+                {s}
+              </span>
+            ))}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 text-slate-500" title="Fermer la carte">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="relative h-[360px]">
+        <div ref={mapEl} className="absolute inset-0" />
+        {!coords && !loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading site coordinates…
+          </div>
+        )}
+        {loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-red-600 text-[12px] gap-2">
+            <AlertCircle className="w-4 h-4" /> {loadError}
+          </div>
+        )}
       </div>
     </div>
   );
