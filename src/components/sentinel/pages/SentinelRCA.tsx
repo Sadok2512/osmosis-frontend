@@ -288,61 +288,123 @@ const MlJalon: React.FC = () => (
   </Card>
 );
 
-// ── CENTER: Analysis Summary + RCA ────────────────────────────────────
+// ── CENTER: Analysis Summary (compact) ────────────────────────────────
 const AnalysisAndRca: React.FC = () => (
-  <div className="grid grid-cols-2 gap-4">
-    <Card>
-      <SectionTitle>Analysis Summary</SectionTitle>
-      <div className="px-4 py-3 space-y-2 text-[12px] text-slate-700">
-        {[
-          'The throughput drop started 18 minutes after the antenna tilt change.',
-          'SINR dropped by 6 dB with a noise floor increase.',
-          'VSWR alarm triggered indicating possible antenna issue.',
-          '3 neighboring cells are experiencing performance impact.',
-          'No backhaul alarms or latency degradation detected.',
-        ].map((t, i) => (
-          <div key={i} className="flex items-start gap-2">
-            <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-            <span>{t}</span>
-          </div>
-        ))}
-        <div className="mt-3 p-3 rounded-lg bg-blue-50/60 border border-blue-100 text-[11px] text-slate-700">
-          <span className="font-semibold text-blue-700">Conclusion: </span>
-          The anomaly is strongly correlated with the antenna tilt change and external interference.
+  <Card>
+    <SectionTitle right={<span className="text-[10px] font-semibold text-red-600">Primary Cause: External Interference</span>}>
+      Analysis Summary
+    </SectionTitle>
+    <div className="px-4 py-3 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12px] text-slate-700">
+      {[
+        'Throughput drop started 18 min after antenna tilt change.',
+        'SINR dropped by 6 dB with noise floor increase.',
+        'VSWR alarm triggered — possible antenna issue.',
+        '3 neighboring cells experiencing performance impact.',
+        'No backhaul alarms or latency degradation detected.',
+        'Tilt change strongly correlated with anomaly window.',
+      ].map((t, i) => (
+        <div key={i} className="flex items-start gap-2">
+          <CheckCircle2 className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+          <span>{t}</span>
         </div>
-      </div>
-    </Card>
+      ))}
+    </div>
+  </Card>
+);
 
-    <Card>
-      <SectionTitle>Root Cause Analysis</SectionTitle>
-      <div className="px-4 py-3 grid grid-cols-2 gap-4 text-[12px]">
-        <div>
-          <div className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Primary Cause</div>
-          <div className="mt-1 text-red-600 font-semibold">External Interference</div>
-          <div className="mt-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Contributing Factor</div>
-          <div className="mt-1 text-slate-900">Antenna Tilt Change</div>
-          <div className="mt-3 text-[10px] font-semibold tracking-wider text-slate-400 uppercase">Confidence</div>
-          <div className="mt-1 flex items-center gap-2">
-            <span className="font-semibold text-slate-900">76%</span>
-            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div className="h-full bg-blue-600" style={{ width: '76%' }} />
-            </div>
-          </div>
-        </div>
-        <div>
-          <div className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase mb-1">Evidence</div>
-          <ul className="space-y-1.5 text-slate-700">
-            {['SINR dropped by 6 dB','Noise floor increased','VSWR alarm triggered','3 neighboring cells impacted','Tilt changed 18 min before incident'].map((t, i) => (
-              <li key={i} className="flex items-start gap-1.5">
-                <CheckSquare className="w-3 h-3 text-emerald-600 mt-1 shrink-0" />
-                <span>{t}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </Card>
-  </div>
+// ── BOTTOM: Neighbor Impact + Similar Incidents ───────────────────────
+type NeighborRow = { cell: string; distance: string; health: number; impact: 'Low' | 'Medium' | 'High' };
+const NEIGHBORS: NeighborRow[] = [
+  { cell: 'CELL_LTE_02', distance: '450 m', health: 98, impact: 'Low' },
+  { cell: 'CELL_LTE_03', distance: '820 m', health: 94, impact: 'Low' },
+  { cell: 'CELL_LTE_04', distance: '1.2 km', health: 82, impact: 'Medium' },
+  { cell: 'CELL_LTE_05', distance: '1.8 km', health: 76, impact: 'High' },
+];
+
+const impactStyle = (i: NeighborRow['impact']) =>
+  i === 'High'
+    ? 'bg-red-50 text-red-600 border-red-200'
+    : i === 'Medium'
+      ? 'bg-amber-50 text-amber-600 border-amber-200'
+      : 'bg-emerald-50 text-emerald-600 border-emerald-200';
+
+const healthColor = (h: number) =>
+  h >= 90 ? 'text-emerald-600' : h >= 80 ? 'text-amber-600' : 'text-red-600';
+
+const NeighborImpact: React.FC = () => (
+  <Card>
+    <SectionTitle right={<span className="text-[10px] text-slate-400">{NEIGHBORS.length} cells</span>}>
+      Neighbor Impact
+    </SectionTitle>
+    <table className="w-full text-[12px]">
+      <thead>
+        <tr className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase bg-slate-50/60">
+          <th className="text-left px-4 py-2">Cell ID</th>
+          <th className="text-left px-2 py-2">Distance</th>
+          <th className="text-left px-2 py-2">Health</th>
+          <th className="text-right px-4 py-2">Impact</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {NEIGHBORS.map((n) => (
+          <tr key={n.cell} className="hover:bg-slate-50/60">
+            <td className="px-4 py-2.5 font-medium text-slate-900">{n.cell}</td>
+            <td className="px-2 py-2.5 text-slate-600">{n.distance}</td>
+            <td className={`px-2 py-2.5 font-semibold ${healthColor(n.health)}`}>{n.health}%</td>
+            <td className="px-4 py-2.5 text-right">
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${impactStyle(n.impact)}`}>
+                {n.impact}
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </Card>
+);
+
+type IncidentRow = { date: string; site: string; cause: string; sim: number; resolution: string };
+const INCIDENTS: IncidentRow[] = [
+  { date: '28/04/2026', site: 'SITE_112', cause: 'External Interference', sim: 92, resolution: 'Power adjustment + Tilt revert' },
+  { date: '15/04/2026', site: 'SITE_098', cause: 'Antenna Tilt Change', sim: 89, resolution: 'Tilt reverted' },
+  { date: '03/04/2026', site: 'SITE_221', cause: 'Interference', sim: 85, resolution: 'Interference source removed' },
+];
+
+const SimilarIncidents: React.FC = () => (
+  <Card>
+    <SectionTitle right={<span className="text-[10px] text-slate-400">Last 60 days</span>}>
+      Similar Incidents
+    </SectionTitle>
+    <table className="w-full text-[12px]">
+      <thead>
+        <tr className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase bg-slate-50/60">
+          <th className="text-left px-4 py-2">Date</th>
+          <th className="text-left px-2 py-2">Site</th>
+          <th className="text-left px-2 py-2">Root Cause</th>
+          <th className="text-left px-2 py-2">Similarity</th>
+          <th className="text-left px-4 py-2">Resolution</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {INCIDENTS.map((it) => (
+          <tr key={it.date} className="hover:bg-slate-50/60">
+            <td className="px-4 py-2.5 font-mono text-slate-600">{it.date}</td>
+            <td className="px-2 py-2.5 font-medium text-slate-900">{it.site}</td>
+            <td className="px-2 py-2.5 text-slate-700">{it.cause}</td>
+            <td className="px-2 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-900">{it.sim}%</span>
+                <div className="w-14 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-600" style={{ width: `${it.sim}%` }} />
+                </div>
+              </div>
+            </td>
+            <td className="px-4 py-2.5 text-slate-600">{it.resolution}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </Card>
 );
 
 // ── RIGHT: Recommendations ────────────────────────────────────────────
@@ -381,25 +443,6 @@ const Recommendations: React.FC = () => (
     </div>
     <div className="px-4 py-2 border-t border-slate-100 text-center">
       <button className="text-[11px] text-blue-600 font-medium hover:underline">View all recommendations</button>
-    </div>
-  </Card>
-);
-
-const BusinessImpact: React.FC = () => (
-  <Card>
-    <SectionTitle>Business Impact</SectionTitle>
-    <div className="grid grid-cols-2 gap-4 px-4 py-3">
-      {[
-        { label: 'Users Impacted', value: '2,850' },
-        { label: 'Sessions Stoue', value: '5,430' },
-        { label: 'Est. Revenue Impact', value: '€ 8,450' },
-        { label: 'Duration', value: '4h 32m' },
-      ].map(s => (
-        <div key={s.label}>
-          <div className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">{s.label}</div>
-          <div className="mt-0.5 text-[15px] font-bold text-red-600">{s.value}</div>
-        </div>
-      ))}
     </div>
   </Card>
 );
@@ -453,9 +496,13 @@ const SentinelRCA: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           {/* RIGHT */}
           <div className="col-span-3 space-y-4">
             <Recommendations />
-            <BusinessImpact />
             <Actions />
           </div>
+        </div>
+        {/* BOTTOM */}
+        <div className="grid grid-cols-2 gap-4">
+          <NeighborImpact />
+          <SimilarIncidents />
         </div>
       </div>
     </div>
