@@ -209,7 +209,13 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const service = url.searchParams.get('service') || 'kpi';
-    const path = url.searchParams.get('path') || '/health';
+    let path = url.searchParams.get('path') || '/health';
+
+    // ml-engine FastAPI mounts routes under /api/v1/ml/* on port 11002.
+    // Clients send bare paths like /profiles, /anomalies → prepend the prefix.
+    if (service === 'ml' && !path.startsWith('/api/v1/ml') && path !== '/health') {
+      path = `/api/v1/ml${path.startsWith('/') ? '' : '/'}${path}`;
+    }
 
     console.log(`[vps-proxy] ${req.method} service=${service} path=${path}`);
 
