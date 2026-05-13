@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import SentinelOverview from './pages/SentinelOverview';
 import SentinelExplorer from './pages/SentinelExplorer';
-import SentinelClustering from './pages/SentinelClustering';
+
 import SentinelMLDetector from './pages/SentinelMLDetector';
 import SentinelLiveMap from './pages/SentinelLiveMap';
 import SentinelRCA from './pages/SentinelRCA';
@@ -24,12 +24,11 @@ import { fetchDates } from './sentinelApi';
 import { cn } from '@/lib/utils';
 import { MapPin } from 'lucide-react';
 
-type SentinelTab = 'overview' | 'live-map' | 'explorer' | 'clustering' | 'ml-detector' | 'rca';
+type SentinelTab = 'overview' | 'live-map' | 'explorer' | 'ml-detector' | 'rca';
 
 const tabs: { id: SentinelTab; label: string; icon: React.ReactNode }[] = [
   { id: 'overview', label: "Vue d'ensemble", icon: <Shield className="w-4 h-4" /> },
   { id: 'live-map', label: 'Live Map', icon: <MapPin className="w-4 h-4" /> },
-  { id: 'clustering', label: 'Clustering', icon: <BarChart3 className="w-4 h-4" /> },
   { id: 'ml-detector', label: 'ML Detector', icon: <Brain className="w-4 h-4" /> },
   { id: 'rca', label: 'RCA', icon: <Sparkles className="w-4 h-4" /> },
 ];
@@ -45,7 +44,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
   const _initialTab: SentinelTab = (() => {
     if (typeof window === 'undefined') return 'overview';
     const t = new URLSearchParams(window.location.search).get('subtab');
-    const valid: SentinelTab[] = ['overview', 'live-map', 'explorer', 'clustering', 'ml-detector', 'rca'];
+    const valid: SentinelTab[] = ['overview', 'live-map', 'explorer', 'ml-detector', 'rca'];
     return (valid.includes(t as SentinelTab) ? t : 'overview') as SentinelTab;
   })();
   const [activeTab, setActiveTab] = useState<SentinelTab>(_initialTab);
@@ -284,9 +283,6 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
               dateEnd={dateEnd}
               apiConnected={connectionStatus === 'connected'}
             />
-          )}
-          {activeTab === 'clustering' && (
-            <SentinelClustering date={selectedDate} apiConnected={connectionStatus === 'connected'} />
           )}
           {activeTab === 'ml-detector' && (
             <SentinelMLDetector />
