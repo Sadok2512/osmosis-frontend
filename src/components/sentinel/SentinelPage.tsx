@@ -45,7 +45,7 @@ const SentinelPage: React.FC<{ theme?: 'light' | 'dark' }> = ({ theme = 'light' 
   const _initialTab: SentinelTab = (() => {
     if (typeof window === 'undefined') return 'overview';
     const t = new URLSearchParams(window.location.search).get('subtab');
-    const valid: SentinelTab[] = ['overview', 'live-map', 'explorer', 'clustering', 'ml-detector'];
+    const valid: SentinelTab[] = ['overview', 'live-map', 'explorer', 'clustering', 'ml-detector', 'rca'];
     return (valid.includes(t as SentinelTab) ? t : 'overview') as SentinelTab;
   })();
   const [activeTab, setActiveTab] = useState<SentinelTab>(_initialTab);
