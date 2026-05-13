@@ -29,7 +29,7 @@ const SERVICE_PORTS: Record<string, number> = {
   parser: 8000,
   agent: 8000,
   ml: 11002,
-  agentic: 11002,
+  agentic: 11003,
 };
 
 // ── Topology stale-cache ──
