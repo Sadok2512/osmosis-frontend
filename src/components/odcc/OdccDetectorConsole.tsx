@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -25,24 +25,45 @@ import {
   XCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import {
+  createDetectorPayload,
+  fetchDetectorDimensionValues,
+  fetchDetectorDimensions,
+  fetchDetectorHolidays,
+  fetchDetectorKpis,
+  updateDetectorPayload,
+} from './detectorBuilderApi';
+import type {
+  CriteriaConfig,
+  DetectorAggregation,
+  DetectorCondition,
+  DetectorConditionType,
+  DetectorLogic,
+  DetectorOperator,
+  DetectorPayload,
+  DetectorValidation,
+  DimensionOption,
+  KpiOption,
+  ScopeFilter,
+  TimeConfig,
+} from './detectorBuilderTypes';
 
-type ScopeLevel = 'COUNTRY' | 'DEPARTMENT' | 'DOR' | 'PLAQUE' | 'SITE' | 'CELL';
-type DetectionMode = 'REAL_TIME' | 'HISTORICAL' | 'DAILY_J1';
+type ScopeLevel = 'CELL' | 'SITE' | 'PLAQUE' | 'DOR' | 'REGION';
+type DetectionMode = 'REAL_TIME' | 'BATCH' | 'SCHEDULED';
 type DetectorStatus = 'draft' | 'active' | 'inactive' | 'archived';
 type RunStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
-type Severity = 'info' | 'warning' | 'major' | 'critical';
+type Severity = 'minor' | 'major' | 'critical';
 type ResultStatus = 'open' | 'acknowledged' | 'resolved' | 'ignored';
 type Tab = 'detectors' | 'builder' | 'runs' | 'results' | 'parameter_sets' | 'audit';
-type FilterKey = keyof Detector['filters'];
 
 interface Criterion {
   id: string;
   type: 'kpi' | 'parameter' | 'inventory';
   code: string;
   aggregation: 'avg' | 'sum' | 'min' | 'max' | 'last';
-  operator: '<' | '<=' | '>' | '>=' | '=' | '!=';
+  operator: '<' | '<=' | '>' | '>=' | '=' | '!=' | 'exists';
   threshold: string;
-  granularity: '15m' | '1h' | '1d';
+  granularity: '15m' | '30m' | '1h' | '1d';
   severity: Severity;
 }
 
@@ -55,8 +76,8 @@ interface Detector {
   enabled: boolean;
   scopeLevel: ScopeLevel;
   detectionMode: DetectionMode;
-  scheduleFrequency: '15m' | '1h' | 'daily' | 'manual';
-  lookbackWindow: 'last_15m' | 'last_1h' | 'j-1' | 'custom';
+  scheduleFrequency: '15m' | '30m' | '1h' | 'daily';
+  lookbackWindow: 'last_1h' | 'last_24h' | 'custom';
   filters: {
     country: string[];
     department: string[];
@@ -71,6 +92,9 @@ interface Detector {
   };
   criteriaLogic: 'AND' | 'OR';
   criteria: Criterion[];
+  scopeFilters: ScopeFilter[];
+  criteriaConfig: CriteriaConfig;
+  timeConfig: TimeConfig;
   output: {
     storeResults: boolean;
     allowExport: boolean;
@@ -90,7 +114,7 @@ interface DetectorRun {
   executionStatus: RunStatus;
   periodStart: string;
   periodEnd: string;
-  granularity: '15m' | '1h' | '1d';
+  granularity: '15m' | '30m' | '1h' | '1d';
   matchedCount: number;
   createdAt: string;
 }
@@ -155,28 +179,50 @@ const emptyDetector = (): Detector => ({
   scheduleFrequency: '15m',
   lookbackWindow: 'last_1h',
   filters: {
-    country: ['FR'],
-    department: ['44'],
-    dor: ['DOR_OUEST'],
-    plaque: ['NANTES'],
+    country: [],
+    department: [],
+    dor: [],
+    plaque: [],
     siteCodes: [],
     cellCodes: [],
-    technology: ['4G'],
-    vendor: ['NOKIA'],
-    band: ['L1800'],
+    technology: [],
+    vendor: [],
+    band: [],
     tags: [],
   },
   criteriaLogic: 'AND',
   criteria: [{
     id: uid('crit'),
     type: 'kpi',
-    code: 'AVAILABILITY',
+    code: '',
     aggregation: 'avg',
     operator: '<',
     threshold: '98',
     granularity: '15m',
     severity: 'major',
   }],
+  scopeFilters: [],
+  criteriaConfig: {
+    logic: 'AND',
+    conditions: [{
+      id: uid('cond'),
+      type: 'kpi',
+      field: '',
+      aggregation: 'avg',
+      operator: '<',
+      value: '',
+      unit: '',
+    }],
+  },
+  timeConfig: {
+    range: '24h',
+    customStart: null,
+    customEnd: null,
+    excludeTimeSlots: false,
+    excludedSlots: [],
+    excludeWeekends: false,
+    excludeHolidays: false,
+  },
   output: { storeResults: true, allowExport: true, allowParameterApply: false, parameterSetId: null },
   createdAt: nowIso(),
   updatedAt: nowIso(),
@@ -192,12 +238,12 @@ const seedDetectors: Detector[] = [
     name: 'Plaque Nantes low traffic guard',
     description: 'Daily J-1 detector for abnormal traffic drop on Nantes plaque',
     scopeLevel: 'PLAQUE',
-    detectionMode: 'DAILY_J1',
+    detectionMode: 'SCHEDULED',
     scheduleFrequency: 'daily',
-    lookbackWindow: 'j-1',
+    lookbackWindow: 'last_24h',
     status: 'inactive',
     enabled: false,
-    criteria: [{ ...emptyDetector().criteria[0], id: 'crit_2', code: 'TRAFFIC_DL', aggregation: 'sum', operator: '<', threshold: '10', severity: 'warning' }],
+    criteria: [{ ...emptyDetector().criteria[0], id: 'crit_2', code: 'TRAFFIC_DL', aggregation: 'sum', operator: '<', threshold: '10', severity: 'minor' }],
   },
 ];
 
@@ -216,19 +262,6 @@ const seedParameterSets: ParameterSet[] = [
       { parameterCode: 'EARFCN', parameterValue: '1850', technology: '4G', vendor: 'NOKIA', band: 'L1800' },
     ],
   },
-];
-
-const FILTER_DEFINITIONS: { key: FilterKey; label: string; placeholder: string; values: string[] }[] = [
-  { key: 'country', label: 'Country', placeholder: 'Search country...', values: ['FR', 'TN', 'BE', 'ES', 'DE'] },
-  { key: 'department', label: 'Department', placeholder: 'Search department...', values: ['44', '75', '59', '69', '31', '13', '92'] },
-  { key: 'dor', label: 'DOR', placeholder: 'Search DOR...', values: ['DOR_OUEST', 'DOR_NORD', 'DOR_EST', 'DOR_SUD', 'DOR_IDF'] },
-  { key: 'plaque', label: 'Plaque', placeholder: 'Search plaque...', values: ['NANTES', 'LILLE', 'PARIS', 'LYON', 'TOULOUSE', 'MARSEILLE', 'TUNIS'] },
-  { key: 'siteCodes', label: 'Site', placeholder: 'Search site...', values: ['HAUTE_INDRE', 'BASSE_GOULAINE', 'LOMPRET_DEM', 'BIZERTE_CENTRE', 'NANTES_CENTRE'] },
-  { key: 'cellCodes', label: 'Cell', placeholder: 'Search cell...', values: ['HAUTE_INDRE_ENB1_E1', 'BASSE_GOULAINE_L18_01', 'LOMPRET_DEM_N78_01', 'BIZERTE_CENTRE_L18_01'] },
-  { key: 'technology', label: 'Technology', placeholder: 'Search technology...', values: ['2G', '3G', '4G', '5G'] },
-  { key: 'vendor', label: 'Vendor', placeholder: 'Search vendor...', values: ['NOKIA', 'ERICSSON', 'HUAWEI', 'SAMSUNG', 'ALCATEL'] },
-  { key: 'band', label: 'Band', placeholder: 'Search band...', values: ['L700', 'L800', 'L1800', 'L2100', 'L2600', 'N78', 'NR700'] },
-  { key: 'tags', label: 'Tags', placeholder: 'Search tag...', values: ['VIP', 'dense-urban', 'rural', 'high-traffic', 'critical-site'] },
 ];
 
 export default function OdccDetectorConsole() {
@@ -304,9 +337,9 @@ export default function OdccDetectorConsole() {
       triggerType: 'manual',
       runMode: detector.detectionMode,
       executionStatus: 'success',
-      periodStart: detector.lookbackWindow === 'j-1' ? '2026-04-21T00:00:00Z' : '2026-04-22T07:00:00Z',
+      periodStart: detector.lookbackWindow === 'last_24h' ? '2026-04-21T07:00:00Z' : '2026-04-22T07:00:00Z',
       periodEnd: nowIso(),
-      granularity: detector.scheduleFrequency === '15m' ? '15m' : detector.scheduleFrequency === '1h' ? '1h' : '1d',
+      granularity: detector.scheduleFrequency === '15m' ? '15m' : detector.scheduleFrequency === '30m' ? '30m' : detector.scheduleFrequency === '1h' ? '1h' : '1d',
       matchedCount: 3,
       createdAt: nowIso(),
     };
@@ -326,7 +359,7 @@ export default function OdccDetectorConsole() {
       cellCode: cell,
       technology: detector.filters.technology[0] || '4G',
       vendor: detector.filters.vendor[0] || 'NOKIA',
-      severity: idx === 0 ? 'critical' : idx === 1 ? 'major' : 'warning',
+      severity: idx === 0 ? 'critical' : idx === 1 ? 'major' : 'minor',
       status: 'open',
       triggerSummary: `Availability avg ${idx === 0 ? 94.8 : 96.8} < ${detector.criteria[0]?.threshold || 98}`,
       kpiCode: detector.criteria[0]?.code || 'AVAILABILITY',
@@ -372,46 +405,43 @@ export default function OdccDetectorConsole() {
   };
 
   return (
-    <div
-      className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-slate-900 antialiased"
-      style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' } as React.CSSProperties}
-    >
-      <header className="border-b border-slate-200/70 bg-white/80 px-8 py-6 backdrop-blur-sm">
+    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-foreground">
+      <header className="border-b border-border/50 bg-background/80 px-6 py-5 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-sm">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)]">
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-600">OSMOSIS / ODCC</p>
-                <h1 className="mt-1 tracking-tight text-slate-900" style={{ fontSize: '28px', fontWeight: 600 }}>NE Detector Console</h1>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS / ODCC</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">NE Detector Console</h1>
               </div>
             </div>
-            <p className="mt-2 max-w-3xl text-[13px] font-medium text-slate-500">
-              Frontend-only workspace for detector rules, manual runs, detected NE results, and parameter set operations. Backend wiring is intentionally disabled.
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+              Backend-driven workspace for detector scope filters, criteria, time exclusions, manual runs, detected NE results, and parameter set operations.
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 px-5 text-[13px] font-semibold text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500">
-              <Plus className="h-4 w-4" /> Create Detector
+            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
+              <Plus className="mr-2 inline h-4 w-4" /> Create Detector
             </button>
-            <button onClick={exportCsv} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-300 hover:text-teal-700">
-              <Download className="h-4 w-4" /> Export Results
+            <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
+              <Download className="mr-2 inline h-4 w-4" /> Export Results
             </button>
           </div>
         </div>
       </header>
 
       <main className="flex h-[calc(100%-105px)] overflow-hidden">
-        <aside className="w-72 shrink-0 border-r border-slate-200/70 bg-white/60 p-5 backdrop-blur-sm">
+        <aside className="w-72 shrink-0 border-r border-border/50 bg-background/70 p-5 backdrop-blur-sm">
           <div className="grid grid-cols-2 gap-3">
             <Metric label="Active" value={stats.active} icon={<ShieldCheck />} />
             <Metric label="Open" value={stats.open} icon={<AlertTriangle />} />
             <Metric label="Critical" value={stats.critical} icon={<Gauge />} />
             <Metric label="Last run" value={String(stats.lastRun)} icon={<Clock />} />
           </div>
-          <nav className="mt-6 space-y-0.5">
+          <nav className="mt-6 space-y-1">
             {[
               ['detectors', 'Detector List', Radar],
               ['builder', 'Create Detector', Settings2],
@@ -420,16 +450,12 @@ export default function OdccDetectorConsole() {
               ['parameter_sets', 'Parameter Sets', Database],
               ['audit', 'Audit Logs', FileJson],
             ].map(([id, label, Icon]) => (
-              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium transition-all', tab === id ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900')}>
+              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-all', tab === id ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.22)]' : 'text-muted-foreground hover:bg-primary/8 hover:text-primary')}>
                 {React.createElement(Icon as typeof Radar, { className: 'h-4 w-4' })}
                 {label as string}
               </button>
             ))}
           </nav>
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500 shadow-sm">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">MVP mode</p>
-            <p className="mt-1 leading-relaxed">All detector actions are simulated in local React state. No backend endpoints are called.</p>
-          </div>
         </aside>
 
         <section className="flex-1 overflow-auto p-7">
@@ -484,10 +510,10 @@ export default function OdccDetectorConsole() {
 
 function Metric({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactElement }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
-      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">{label}</p>
-      <p className="mt-1 truncate text-lg font-semibold text-slate-900">{value}</p>
+    <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
+      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-black text-foreground">{value}</p>
     </div>
   );
 }
@@ -504,26 +530,26 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
 }) {
   return (
     <Panel title="Detector List" action={<SearchBox value={query} onChange={setQuery} />}>
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-[12px] font-medium uppercase tracking-[0.08em] text-slate-500">
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
-              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}
+              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {detectors.map(detector => (
-              <tr key={detector.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
+              <tr key={detector.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
                 <td className="px-4 py-4">
-                  <p className="font-semibold text-slate-900">{detector.name}</p>
-                  <p className="font-mono text-[11px] text-slate-500">{detector.code}</p>
+                  <p className="font-bold text-foreground">{detector.name}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{detector.code}</p>
                 </td>
                 <td className="px-4 py-4"><Pill>{detector.scopeLevel}</Pill></td>
                 <td className="px-4 py-4">{modeLabel(detector)}</td>
-                <td className="px-4 py-4 font-semibold">{detector.scheduleFrequency}</td>
-                <td className="px-4 py-4 text-xs text-slate-500">{filterSummary(detector)}</td>
+                <td className="px-4 py-4 font-bold">{detector.scheduleFrequency}</td>
+                <td className="px-4 py-4 text-xs text-muted-foreground">{filterSummary(detector)}</td>
                 <td className="px-4 py-4"><StatusPill value={detector.status} /></td>
-                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-slate-500/40" />}</td>
+                <td className="px-4 py-4">{detector.enabled ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-muted-foreground/40" />}</td>
                 <td className="px-4 py-4">
                   <div className="flex flex-wrap gap-1.5">
                     <IconButton title="Run now" onClick={() => onRun(detector)}><Play /></IconButton>
@@ -552,178 +578,104 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
   onRunTest: () => void;
   onValidate: () => void;
 }) {
-  const [isAddingFilter, setIsAddingFilter] = useState(false);
-  const [filterKey, setFilterKey] = useState<FilterKey>('plaque');
-  const [filterSearch, setFilterSearch] = useState('');
+  const [kpis, setKpis] = useState<KpiOption[]>([]);
+  const [dimensions, setDimensions] = useState<DimensionOption[]>([]);
+  const [holidays, setHolidays] = useState<string[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const patch = (p: Partial<Detector>) => setDraft({ ...draft, ...p, updatedAt: nowIso() });
-  const patchFilterValues = (key: FilterKey, values: string[]) => patch({ filters: { ...draft.filters, [key]: values } });
-  const addFilterValue = (key: FilterKey, value: string) => {
-    const clean = value.trim();
-    if (!clean) return;
-    const current = draft.filters[key] || [];
-    if (current.some(item => item.toLowerCase() === clean.toLowerCase())) return;
-    patchFilterValues(key, [...current, clean]);
-    setFilterSearch('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setCatalogLoading(true);
+    Promise.allSettled([
+      fetchDetectorKpis(),
+      fetchDetectorDimensions(),
+      fetchDetectorHolidays(),
+    ]).then(results => {
+      if (cancelled) return;
+      const [kpiResult, dimensionResult, holidayResult] = results;
+      if (kpiResult.status === 'fulfilled') setKpis(kpiResult.value);
+      if (dimensionResult.status === 'fulfilled') setDimensions(dimensionResult.value);
+      if (holidayResult.status === 'fulfilled') setHolidays(holidayResult.value);
+      const rejected = results.filter(result => result.status === 'rejected');
+      setCatalogError(rejected.length ? 'Some detector catalogs failed to load. Fallback placeholders are shown where needed.' : null);
+      setCatalogLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const validation = useMemo(() => validateDetectorPayload(buildDetectorPayload(draft)), [draft]);
+
+  const submit = async (saveLocal: () => void) => {
+    const payload = buildDetectorPayload(draft);
+    const result = validateDetectorPayload(payload);
+    if (!result.valid) {
+      setSubmitError(result.errors.join(' '));
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      if (editing) {
+        await updateDetectorPayload(draft.id, payload);
+      } else {
+        await createDetectorPayload(payload);
+      }
+      saveLocal();
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSubmitting(false);
+    }
   };
-  const removeFilterValue = (key: FilterKey, value: string) => {
-    patchFilterValues(key, (draft.filters[key] || []).filter(item => item !== value));
-  };
-  const updateCriterion = (id: string, p: Partial<Criterion>) => patch({ criteria: draft.criteria.map(c => c.id === id ? { ...c, ...p } : c) });
-  const selectedFilterDefinition = FILTER_DEFINITIONS.find(item => item.key === filterKey) || FILTER_DEFINITIONS[0];
-  const selectedFilterValues = draft.filters[filterKey] || [];
-  const filteredFilterOptions = selectedFilterDefinition.values
-    .filter(value => !selectedFilterValues.includes(value))
-    .filter(value => value.toLowerCase().includes(filterSearch.trim().toLowerCase()))
-    .slice(0, 8);
-  const activeFilterCount = FILTER_DEFINITIONS.reduce((count, item) => count + (draft.filters[item.key]?.length || 0), 0);
+
   return (
-    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">Frontend draft</span>}>
+    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">Backend payload</span>}>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card title="A. General">
           <Field label="Name"><input value={draft.name} onChange={e => patch({ name: e.target.value })} className="input" /></Field>
           <Field label="Code"><input value={draft.code} onChange={e => patch({ code: e.target.value })} className="input font-mono" /></Field>
           <Field label="Description"><textarea value={draft.description} onChange={e => patch({ description: e.target.value })} className="input min-h-20" /></Field>
-          <label className="flex items-center gap-3 text-sm font-semibold"><input type="checkbox" checked={draft.enabled} onChange={e => patch({ enabled: e.target.checked, status: e.target.checked ? 'active' : 'draft' })} /> Enabled</label>
+          <label className="flex items-center gap-3 text-sm font-bold"><input type="checkbox" checked={draft.enabled} onChange={e => patch({ enabled: e.target.checked, status: e.target.checked ? 'active' : 'draft' })} /> Enabled</label>
         </Card>
 
         <Card title="B. Scope + Mode">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Scope level"><Select value={draft.scopeLevel} values={['COUNTRY', 'DEPARTMENT', 'DOR', 'PLAQUE', 'SITE', 'CELL']} onChange={v => patch({ scopeLevel: v as ScopeLevel })} /></Field>
-            <Field label="Mode"><Select value={draft.detectionMode} values={['REAL_TIME', 'HISTORICAL', 'DAILY_J1']} onChange={v => patch({ detectionMode: v as DetectionMode })} /></Field>
-            <Field label="Frequency"><Select value={draft.scheduleFrequency} values={['15m', '1h', 'daily', 'manual']} onChange={v => patch({ scheduleFrequency: v as Detector['scheduleFrequency'] })} /></Field>
-            <Field label="Lookback"><Select value={draft.lookbackWindow} values={['last_15m', 'last_1h', 'j-1', 'custom']} onChange={v => patch({ lookbackWindow: v as Detector['lookbackWindow'] })} /></Field>
+            <Field label="Scope level"><Select value={draft.scopeLevel} values={['CELL', 'SITE', 'PLAQUE', 'DOR', 'REGION']} onChange={v => patch({ scopeLevel: v as ScopeLevel })} /></Field>
+            <Field label="Mode"><Select value={draft.detectionMode} values={['REAL_TIME', 'BATCH', 'SCHEDULED']} onChange={v => patch({ detectionMode: v as DetectionMode })} /></Field>
+            <Field label="Frequency"><Select value={draft.scheduleFrequency} values={['15m', '30m', '1h', 'daily']} onChange={v => patch({ scheduleFrequency: v as Detector['scheduleFrequency'] })} /></Field>
+            <Field label="Lookback"><Select value={draft.lookbackWindow} values={['last_1h', 'last_24h', 'custom']} onChange={v => patch({ lookbackWindow: v as Detector['lookbackWindow'] })} /></Field>
           </div>
         </Card>
 
-        <Card title="C. NE Filters">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">Build NE scope with reusable filters</p>
-                <p className="mt-1 text-xs text-slate-500">Add Country, Department, DOR, Plaque, Site, Cell, vendor, technology, band, or tag filters from a searchable list.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddingFilter(value => !value)}
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-primary-foreground transition-all hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" /> Add filter
-              </button>
-            </div>
+        {catalogError && <div className="xl:col-span-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">{catalogError}</div>}
 
-            {activeFilterCount > 0 ? (
-              <div className="space-y-3">
-                {FILTER_DEFINITIONS.filter(item => (draft.filters[item.key] || []).length > 0).map(item => (
-                  <div key={item.key} className="rounded-xl border border-slate-200 bg-background p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">{item.label}</span>
-                      <button type="button" onClick={() => patchFilterValues(item.key, [])} className="text-[10px] font-semibold text-slate-500 transition-colors hover:text-destructive">Clear</button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(draft.filters[item.key] || []).map(value => (
-                        <button
-                          key={`${item.key}-${value}`}
-                          type="button"
-                          onClick={() => removeFilterValue(item.key, value)}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[11px] font-semibold text-primary transition-all hover:border-destructive/25 hover:bg-destructive/10 hover:text-destructive"
-                          title="Remove filter"
-                        >
-                          {value}
-                          <XCircle className="h-3.5 w-3.5" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border/70 bg-background/60 p-5 text-sm text-slate-500">
-                No NE filters selected. Click Add filter to define the target population.
-              </div>
-            )}
+        <ScopeFilters
+          filters={draft.scopeFilters}
+          dimensions={dimensions}
+          loading={catalogLoading}
+          onChange={scopeFilters => patch({ scopeFilters })}
+        />
 
-            {isAddingFilter && (
-              <div className="rounded-xl border border-primary/20 bg-background p-4 shadow-sm">
-                <div className="grid gap-3 md:grid-cols-[0.8fr_1.2fr_auto]">
-                  <Field label="Filter type">
-                    <Select
-                      value={filterKey}
-                      values={FILTER_DEFINITIONS.map(item => item.key)}
-                      labels={FILTER_DEFINITIONS.map(item => item.label)}
-                      onChange={value => {
-                        setFilterKey(value as FilterKey);
-                        setFilterSearch('');
-                      }}
-                    />
-                  </Field>
-                  <Field label="Search value">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        value={filterSearch}
-                        onChange={event => setFilterSearch(event.target.value)}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter') {
-                            event.preventDefault();
-                            addFilterValue(filterKey, filterSearch);
-                          }
-                        }}
-                        placeholder={selectedFilterDefinition.placeholder}
-                        className="input pl-11"
-                      />
-                    </div>
-                  </Field>
-                  <div className="flex items-end">
-                    <button
-                      type="button"
-                      onClick={() => addFilterValue(filterKey, filterSearch)}
-                      className="h-11 rounded-xl border border-slate-200 bg-card px-4 text-xs font-semibold uppercase tracking-[0.08em] text-slate-900 transition-all hover:border-primary/30 hover:text-primary"
-                    >
-                      Add value
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Available {selectedFilterDefinition.label}</p>
-                  <div className="flex flex-wrap gap-2">
-                    {filteredFilterOptions.length > 0 ? filteredFilterOptions.map(value => (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => addFilterValue(filterKey, value)}
-                        className="rounded-full border border-slate-200 bg-card px-3 py-1.5 text-xs font-semibold text-slate-900 transition-all hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
-                      >
-                        {value}
-                      </button>
-                    )) : (
-                      <span className="text-xs text-slate-500">No list match. Type a custom value and click Add value.</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+        <CriteriaBuilder
+          criteria={draft.criteriaConfig}
+          kpis={kpis}
+          dimensions={dimensions}
+          loading={catalogLoading}
+          onChange={criteriaConfig => patch({ criteriaConfig })}
+        />
 
-        <Card title="F. Criteria Builder">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Logic</span>
-            <Select value={draft.criteriaLogic} values={['AND', 'OR']} onChange={v => patch({ criteriaLogic: v as 'AND' | 'OR' })} />
-            <button onClick={() => patch({ criteria: [...draft.criteria, { ...draft.criteria[0], id: uid('crit'), code: 'NEW_KPI', threshold: '0' }] })} className="ml-auto rounded-xl bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-all hover:bg-primary/90">Add condition</button>
-          </div>
-          <div className="space-y-3">
-            {draft.criteria.map(c => (
-              <div key={c.id} className="grid grid-cols-7 gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                <Select value={c.type} values={['kpi', 'parameter', 'inventory']} onChange={v => updateCriterion(c.id, { type: v as Criterion['type'] })} />
-                <input value={c.code} onChange={e => updateCriterion(c.id, { code: e.target.value })} className="input col-span-2 font-mono" />
-                <Select value={c.aggregation} values={['avg', 'sum', 'min', 'max', 'last']} onChange={v => updateCriterion(c.id, { aggregation: v as Criterion['aggregation'] })} />
-                <Select value={c.operator} values={['<', '<=', '>', '>=', '=', '!=']} onChange={v => updateCriterion(c.id, { operator: v as Criterion['operator'] })} />
-                <input value={c.threshold} onChange={e => updateCriterion(c.id, { threshold: e.target.value })} className="input" />
-                <Select value={c.severity} values={['info', 'warning', 'major', 'critical']} onChange={v => updateCriterion(c.id, { severity: v as Severity })} />
-              </div>
-            ))}
-          </div>
-        </Card>
+        <TimeConfiguration
+          config={draft.timeConfig}
+          holidays={holidays}
+          loading={catalogLoading}
+          onChange={timeConfig => patch({ timeConfig })}
+        />
 
         <Card title="G. Output">
           <div className="grid gap-3 md:grid-cols-2">
@@ -732,7 +684,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
               ['allowExport', 'Allow export'],
               ['allowParameterApply', 'Allow parameter apply'],
             ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-background p-3 text-sm font-semibold text-slate-900">
+              <label key={key} className="flex items-center gap-3 rounded-xl border border-border/60 bg-background p-3 text-sm font-bold text-foreground">
                 <input type="checkbox" checked={Boolean(draft.output[key as keyof Detector['output']])} onChange={e => patch({ output: { ...draft.output, [key]: e.target.checked } })} />
                 {label}
               </label>
@@ -744,16 +696,235 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
         </Card>
 
         <Card title="H. Actions">
+          {!validation.valid && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              {validation.errors.join(' ')}
+            </div>
+          )}
+          {submitError && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+              {submitError}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
-            <ActionButton onClick={onSaveDraft} icon={<Save />}>Save draft</ActionButton>
-            <ActionButton onClick={onSaveEnable} icon={<ShieldCheck />} primary>Save & enable</ActionButton>
+            <ActionButton onClick={() => submit(onSaveDraft)} icon={<Save />} disabled={submitting || !validation.valid}>Save draft</ActionButton>
+            <ActionButton onClick={() => submit(onSaveEnable)} icon={<ShieldCheck />} primary disabled={submitting || !validation.valid}>Save & enable</ActionButton>
             <ActionButton onClick={onValidate} icon={<CheckCircle2 />}>Validate</ActionButton>
             <ActionButton onClick={onRunTest} icon={<Play />}>Run test</ActionButton>
           </div>
-          <pre className="mt-4 max-h-80 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-blue-100">{JSON.stringify(toApiPayload(draft), null, 2)}</pre>
+          <pre className="mt-4 max-h-80 overflow-auto rounded-2xl bg-slate-950 p-4 text-xs text-blue-100">{JSON.stringify(buildDetectorPayload(draft), null, 2)}</pre>
         </Card>
       </div>
     </Panel>
+  );
+}
+
+function ScopeFilters({ filters, dimensions, loading, onChange }: {
+  filters: ScopeFilter[];
+  dimensions: DimensionOption[];
+  loading: boolean;
+  onChange: (filters: ScopeFilter[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [selectedDimension, setSelectedDimension] = useState('');
+  const [dimensionValues, setDimensionValues] = useState<Record<string, string[]>>({});
+  const [valuesLoading, setValuesLoading] = useState(false);
+  const [valuesError, setValuesError] = useState<string | null>(null);
+  const usedDimensions = new Set(filters.map(filter => filter.dimension));
+  const availableDimensions = dimensions.filter(dimension => !usedDimensions.has(dimension.key));
+  const activeDimension = dimensions.find(dimension => dimension.key === selectedDimension) || null;
+
+  useEffect(() => {
+    if (!selectedDimension || dimensionValues[selectedDimension]) return;
+    setValuesLoading(true);
+    setValuesError(null);
+    fetchDetectorDimensionValues(selectedDimension)
+      .then(values => setDimensionValues(previous => ({ ...previous, [selectedDimension]: values })))
+      .catch(error => setValuesError(error instanceof Error ? error.message : String(error)))
+      .finally(() => setValuesLoading(false));
+  }, [dimensionValues, selectedDimension]);
+
+  const addFilter = () => {
+    if (!selectedDimension || usedDimensions.has(selectedDimension)) return;
+    onChange([...filters, { dimension: selectedDimension, values: [] }]);
+    setAdding(false);
+    setSelectedDimension('');
+  };
+  const updateValues = (dimension: string, values: string[]) => onChange(filters.map(filter => filter.dimension === dimension ? { ...filter, values } : filter));
+
+  return (
+    <Card title="C. NF Scope Filters">
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <div>
+            <p className="text-sm font-bold text-slate-900">Detector population</p>
+            <p className="mt-1 text-xs text-slate-500">Select backend dimensions, then choose one or more values for each dimension.</p>
+          </div>
+          <button type="button" disabled={loading || availableDimensions.length === 0} onClick={() => setAdding(value => !value)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <Plus className="h-4 w-4" /> Add filter
+          </button>
+        </div>
+
+        {loading && <SkeletonText text="Loading dimensions from backend..." />}
+
+        {filters.length > 0 ? filters.map(filter => {
+          const dimension = dimensions.find(item => item.key === filter.dimension);
+          return (
+            <div key={filter.dimension} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{dimension?.label || filter.dimension}</span>
+                <button type="button" onClick={() => updateValues(filter.dimension, [])} className="text-xs font-bold text-slate-500 hover:text-red-600">Clear</button>
+              </div>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {filter.values.length ? filter.values.map(value => (
+                  <Chip key={`${filter.dimension}-${value}`} onRemove={() => updateValues(filter.dimension, filter.values.filter(item => item !== value))}>{value}</Chip>
+                )) : <span className="text-xs text-slate-400">No value selected</span>}
+              </div>
+              <SearchableMultiSelect
+                placeholder={`Search ${dimension?.label || filter.dimension} values`}
+                options={dimensionValues[filter.dimension] || []}
+                selected={filter.values}
+                loading={valuesLoading && selectedDimension === filter.dimension}
+                onFocus={() => setSelectedDimension(filter.dimension)}
+                onChange={values => updateValues(filter.dimension, values)}
+              />
+            </div>
+          );
+        }) : (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-slate-500">
+            No scope filter selected.
+          </div>
+        )}
+
+        {adding && (
+          <div className="rounded-2xl border border-teal-200 bg-white p-4 shadow-sm">
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <SearchableSelect
+                label="Dimension"
+                value={selectedDimension}
+                options={availableDimensions.map(dimension => ({ value: dimension.key, label: dimension.label }))}
+                placeholder={loading ? 'Loading dimensions...' : 'Search dimension'}
+                onChange={setSelectedDimension}
+              />
+              <div className="flex items-end">
+                <button type="button" disabled={!activeDimension} onClick={addFilter} className="h-11 rounded-xl bg-teal-600 px-4 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">Create group</button>
+              </div>
+            </div>
+            {valuesError && <p className="mt-3 text-xs font-medium text-red-600">{valuesError}</p>}
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function CriteriaBuilder({ criteria, kpis, dimensions, loading, onChange }: {
+  criteria: CriteriaConfig;
+  kpis: KpiOption[];
+  dimensions: DimensionOption[];
+  loading: boolean;
+  onChange: (criteria: CriteriaConfig) => void;
+}) {
+  const patchCondition = (id: string, patch: Partial<DetectorCondition>) => {
+    onChange({ ...criteria, conditions: criteria.conditions.map(condition => condition.id === id ? { ...condition, ...patch } : condition) });
+  };
+  const addCondition = () => onChange({
+    ...criteria,
+    conditions: [...criteria.conditions, { id: uid('cond'), type: 'kpi', field: '', aggregation: 'avg', operator: '<', value: '', unit: '' }],
+  });
+  const removeCondition = (id: string) => onChange({ ...criteria, conditions: criteria.conditions.filter(condition => condition.id !== id) });
+
+  return (
+    <Card title="D. Criteria Builder">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Logic</span>
+        <Select value={criteria.logic} values={['AND', 'OR']} onChange={value => onChange({ ...criteria, logic: value as DetectorLogic })} />
+        <button type="button" onClick={addCondition} className="ml-auto rounded-xl bg-teal-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-teal-700">Add condition</button>
+      </div>
+      {loading && <SkeletonText text="Loading KPIs and dimensions from backend..." />}
+      <div className="space-y-3">
+        {criteria.conditions.map(condition => {
+          const kpi = kpis.find(item => item.key === condition.field);
+          const fieldOptions = condition.type === 'kpi'
+            ? kpis.map(item => ({ value: item.key, label: item.label }))
+            : dimensions.map(item => ({ value: item.key, label: item.label }));
+          return (
+            <div key={condition.id} className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[0.8fr_1.4fr_0.8fr_0.7fr_0.8fr_0.8fr_auto]">
+              <Select value={condition.type} values={['kpi', 'dimension']} labels={['KPI', 'Dimension']} onChange={value => patchCondition(condition.id, { type: value as DetectorConditionType, field: '', aggregation: value === 'kpi' ? 'avg' : undefined, operator: value === 'dimension' ? 'exists' : '<', value: value === 'dimension' ? 'true' : '', unit: '' })} />
+              <SearchableSelect value={condition.field} options={fieldOptions} placeholder={condition.type === 'kpi' ? 'Search KPI' : 'Search dimension'} onChange={value => {
+                const selectedKpi = kpis.find(item => item.key === value);
+                patchCondition(condition.id, { field: value, unit: selectedKpi?.unit || condition.unit || '' });
+              }} />
+              {condition.type === 'kpi' ? (
+                <Select value={condition.aggregation || 'avg'} values={['avg', 'min', 'max', 'sum', 'count']} onChange={value => patchCondition(condition.id, { aggregation: value as DetectorAggregation })} />
+              ) : (
+                <div className="h-11 rounded-xl border border-slate-200 bg-white px-3 py-3 text-xs font-bold text-slate-400">No agg</div>
+              )}
+              <Select value={condition.operator} values={condition.type === 'dimension' ? ['exists', '=', '!='] : ['<', '<=', '>', '>=', '=', '!=']} onChange={value => patchCondition(condition.id, { operator: value as DetectorOperator, value: value === 'exists' ? 'true' : condition.value })} />
+              {condition.operator === 'exists' ? (
+                <div className="h-11 rounded-xl border border-teal-200 bg-teal-50 px-3 py-3 text-xs font-bold text-teal-700">exists</div>
+              ) : (
+                <input value={condition.value} onChange={event => patchCondition(condition.id, { value: event.target.value })} placeholder="Value" className="input" />
+              )}
+              <SearchableSelect value={condition.unit || ''} options={unitOptions(kpis, kpi, condition.type).map(unit => ({ value: unit, label: unit || 'No unit' }))} placeholder={condition.type === 'kpi' ? 'Severity/unit' : 'Unit'} onChange={value => patchCondition(condition.id, { unit: value })} />
+              <IconButton title="Remove condition" danger onClick={() => removeCondition(condition.id)}><Trash2 /></IconButton>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+function TimeConfiguration({ config, holidays, loading, onChange }: {
+  config: TimeConfig;
+  holidays: string[];
+  loading: boolean;
+  onChange: (config: TimeConfig) => void;
+}) {
+  const addSlot = () => onChange({ ...config, excludeTimeSlots: true, excludedSlots: [...config.excludedSlots, { id: uid('slot'), start: '00:00', end: '06:00' }] });
+  const updateSlot = (id: string, patch: Partial<{ start: string; end: string }>) => onChange({ ...config, excludedSlots: config.excludedSlots.map(slot => slot.id === id ? { ...slot, ...patch } : slot) });
+  const removeSlot = (id: string) => onChange({ ...config, excludedSlots: config.excludedSlots.filter(slot => slot.id !== id) });
+
+  return (
+    <Card title="E. Time Configuration">
+      <div className="grid gap-3 md:grid-cols-2">
+        <Field label="Time range">
+          <Select value={config.range} values={['24h', 'custom']} labels={['Last 24h', 'Custom range']} onChange={value => onChange({ ...config, range: value as TimeConfig['range'] })} />
+        </Field>
+        {config.range === 'custom' && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Custom start"><input type="datetime-local" value={config.customStart || ''} onChange={event => onChange({ ...config, customStart: event.target.value || null })} className="input" /></Field>
+            <Field label="Custom end"><input type="datetime-local" value={config.customEnd || ''} onChange={event => onChange({ ...config, customEnd: event.target.value || null })} className="input" /></Field>
+          </div>
+        )}
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <Toggle checked={config.excludeTimeSlots} label="Exclure tranche horaire" onChange={checked => onChange({ ...config, excludeTimeSlots: checked })} />
+        <Toggle checked={config.excludeWeekends} label="Exclude weekends" onChange={checked => onChange({ ...config, excludeWeekends: checked })} />
+        <Toggle checked={config.excludeHolidays} label="Exclude holidays" onChange={checked => onChange({ ...config, excludeHolidays: checked })} />
+      </div>
+      {config.excludeTimeSlots && (
+        <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Excluded slots</span>
+            <button type="button" onClick={addSlot} className="rounded-xl bg-teal-600 px-3 py-2 text-xs font-black text-white">Add range</button>
+          </div>
+          {config.excludedSlots.map(slot => (
+            <div key={slot.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <input type="time" value={slot.start} onChange={event => updateSlot(slot.id, { start: event.target.value })} className="input" />
+              <input type="time" value={slot.end} onChange={event => updateSlot(slot.id, { end: event.target.value })} className="input" />
+              <IconButton title="Remove slot" danger onClick={() => removeSlot(slot.id)}><Trash2 /></IconButton>
+            </div>
+          ))}
+        </div>
+      )}
+      {config.excludeHolidays && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-500">
+          {loading ? 'Loading holidays...' : holidays.length ? `${holidays.length} backend holiday(s) loaded.` : 'Holiday API integration point active; no backend holidays returned yet.'}
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -762,7 +933,7 @@ function RunsTable({ runs, detectors }: { runs: DetectorRun[]; detectors: Detect
     <Panel title="Runs History">
       <SimpleTable headers={['Created', 'Detector', 'Trigger', 'Mode', 'Period', 'Granularity', 'Matched', 'Status']}>
         {runs.map(run => (
-          <tr key={run.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
+          <tr key={run.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td>{formatDate(run.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === run.detectorId)?.name || run.detectorId}</Td>
             <Td>{run.triggerType}</Td>
@@ -791,7 +962,7 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
     <Panel title="Detection Results" action={<div className="flex gap-2"><ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton><ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton></div>}>
       <SimpleTable headers={['', 'Detection time', 'Severity', 'Hierarchy', 'NE', 'Tech', 'Vendor', 'KPI', 'Value', 'Threshold', 'Status', 'Actions']}>
         {results.map(r => (
-          <tr key={r.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
+          <tr key={r.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></Td>
             <Td>{formatDate(r.detectedAt)}</Td>
             <Td><SeverityPill value={r.severity} /></Td>
@@ -823,8 +994,8 @@ function ParameterSets({ sets, setSets, onExport }: { sets: ParameterSet[]; setS
     <Panel title="Parameter Set Manager" action={<ActionButton onClick={add} icon={<Plus />} primary>New set</ActionButton>}>
       <SimpleTable headers={['Name', 'Target level', 'Items', 'Enabled', 'Updated', 'Actions']}>
         {sets.map(set => (
-          <tr key={set.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
-            <Td><p className="font-semibold text-slate-900">{set.name}</p><p className="font-mono text-[11px] text-slate-500">{set.code}</p></Td>
+          <tr key={set.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
+            <Td><p className="font-bold text-foreground">{set.name}</p><p className="font-mono text-[11px] text-muted-foreground">{set.code}</p></Td>
             <Td>{set.targetLevel}</Td>
             <Td>{set.items.length}</Td>
             <Td>{set.enabled ? 'Yes' : 'No'}</Td>
@@ -842,7 +1013,7 @@ function AuditTable({ audit, detectors }: { audit: AuditLog[]; detectors: Detect
     <Panel title="Audit Logs">
       <SimpleTable headers={['Time', 'Detector', 'Action', 'Actor', 'Payload']}>
         {audit.map(row => (
-          <tr key={row.id} className="border-t border-slate-200/70 transition-all hover:bg-primary/5">
+          <tr key={row.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
             <Td>{formatDate(row.createdAt)}</Td>
             <Td>{detectors.find(d => d.id === row.detectorId)?.code || row.detectorId}</Td>
             <Td><StatusPill value={row.action} /></Td>
@@ -859,7 +1030,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
         {action}
       </div>
       {children}
@@ -869,15 +1040,15 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-card p-5 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
+    <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
+      <h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">{label}<div className="mt-1">{children}</div></label>;
+  return <label className="block text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
 }
 
 function Select({ value, values, labels, onChange }: { value: string; values: string[]; labels?: string[]; onChange: (v: string) => void }) {
@@ -888,22 +1059,154 @@ function Select({ value, values, labels, onChange }: { value: string; values: st
   );
 }
 
+function SearchableSelect({ label, value, options, placeholder, onChange }: {
+  label?: string;
+  value: string;
+  options: Array<{ value: string; label: string }>;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const selected = options.find(option => option.value === value);
+  const filtered = options
+    .filter(option => `${option.label} ${option.value}`.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 40);
+  return (
+    <div className="relative">
+      {label && <p className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          value={open ? query : selected?.label || value}
+          onFocus={() => {
+            setOpen(true);
+            setQuery('');
+          }}
+          onChange={event => {
+            setOpen(true);
+            setQuery(event.target.value);
+          }}
+          placeholder={placeholder}
+          className="input pl-10"
+        />
+      </div>
+      {open && (
+        <div className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+          {filtered.length ? filtered.map(option => (
+            <button
+              key={option.value}
+              type="button"
+              onMouseDown={event => event.preventDefault()}
+              onClick={() => {
+                onChange(option.value);
+                setOpen(false);
+                setQuery('');
+              }}
+              className={cn('block w-full rounded-lg px-3 py-2 text-left text-sm font-medium hover:bg-teal-50 hover:text-teal-700', option.value === value && 'bg-teal-50 text-teal-700')}
+            >
+              <span>{option.label}</span>
+              <span className="ml-2 font-mono text-[10px] text-slate-400">{option.value}</span>
+            </button>
+          )) : (
+            <div className="px-3 py-2 text-xs text-slate-400">No option found</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchableMultiSelect({ placeholder, options, selected, loading, onFocus, onChange }: {
+  placeholder: string;
+  options: string[];
+  selected: string[];
+  loading?: boolean;
+  onFocus?: () => void;
+  onChange: (values: string[]) => void;
+}) {
+  const [query, setQuery] = useState('');
+  const filtered = options
+    .filter(option => !selected.includes(option))
+    .filter(option => option.toLowerCase().includes(query.trim().toLowerCase()))
+    .slice(0, 30);
+  const addValue = (value: string) => {
+    const clean = value.trim();
+    if (!clean || selected.includes(clean)) return;
+    onChange([...selected, clean]);
+    setQuery('');
+  };
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          value={query}
+          onFocus={onFocus}
+          onChange={event => setQuery(event.target.value)}
+          onKeyDown={event => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              addValue(query);
+            }
+          }}
+          placeholder={loading ? 'Loading values...' : placeholder}
+          className="input pl-10"
+        />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {filtered.length ? filtered.map(option => (
+          <button key={option} type="button" onClick={() => addValue(option)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700">
+            {option}
+          </button>
+        )) : (
+          <span className="text-xs text-slate-400">{loading ? 'Loading...' : 'Type a custom value and press Enter.'}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Chip({ children, onRemove }: { children: React.ReactNode; onRemove: () => void }) {
+  return (
+    <button type="button" onClick={onRemove} className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-[11px] font-bold text-teal-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700">
+      {children}
+      <XCircle className="h-3.5 w-3.5" />
+    </button>
+  );
+}
+
+function Toggle({ checked, label, onChange }: { checked: boolean; label: string; onChange: (checked: boolean) => void }) {
+  return (
+    <button type="button" onClick={() => onChange(!checked)} className={cn('flex items-center justify-between rounded-2xl border p-3 text-left text-sm font-bold transition-all', checked ? 'border-teal-200 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600')}>
+      <span>{label}</span>
+      <span className={cn('ml-3 h-5 w-9 rounded-full p-0.5 transition-all', checked ? 'bg-teal-600' : 'bg-slate-300')}>
+        <span className={cn('block h-4 w-4 rounded-full bg-white transition-transform', checked && 'translate-x-4')} />
+      </span>
+    </button>
+  );
+}
+
+function SkeletonText({ text }: { text: string }) {
+  return <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-500">{text}</div>;
+}
+
 function SearchBox({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div className="relative">
-      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-xl border border-slate-200 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
+      <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input value={value} onChange={e => onChange(e.target.value)} placeholder="Search detector..." className="h-12 w-72 rounded-2xl border border-border/60 bg-background pl-11 pr-3 text-sm outline-none transition-all focus:border-primary/40" />
     </div>
   );
 }
 
 function SimpleTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
       <div className="overflow-auto">
         <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-slate-50 text-[12px] font-medium uppercase tracking-[0.08em] text-slate-500">
-            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}</tr>
+          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}</tr>
           </thead>
           <tbody>{children}</tbody>
         </table>
@@ -913,52 +1216,55 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
 }
 
 function Td({ children }: { children: React.ReactNode }) {
-  return <td className="px-4 py-3 align-top text-slate-900">{children}</td>;
+  return <td className="px-4 py-3 align-top text-foreground">{children}</td>;
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">{children}</span>;
+  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">{children}</span>;
 }
 
 function StatusPill({ value }: { value: string }) {
   const color = value === 'active' || value === 'success' || value === 'resolved'
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    ? 'bg-emerald-500/12 text-emerald-700 border-emerald-500/25'
     : value === 'failed' || value === 'critical'
-      ? 'bg-red-50 text-red-700 border-red-200'
+      ? 'bg-red-500/12 text-red-700 border-red-500/25'
       : value === 'draft' || value === 'pending'
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
-        : 'bg-slate-50 text-slate-700 border-slate-200';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
+        ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
+        : 'bg-slate-500/12 text-slate-700 border-slate-500/25';
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
 }
 
 function SeverityPill({ value }: { value: Severity }) {
   const color = value === 'critical'
-    ? 'bg-red-50 text-red-700 border-red-200'
+    ? 'bg-red-500/12 text-red-700 border-red-500/25'
     : value === 'major'
-      ? 'bg-orange-50 text-orange-700 border-orange-200'
-      : value === 'warning'
-        ? 'bg-amber-50 text-amber-700 border-amber-200'
-        : 'bg-blue-50 text-blue-700 border-blue-200';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
+      ? 'bg-orange-500/12 text-orange-700 border-orange-500/25'
+      : 'bg-amber-500/12 text-amber-700 border-amber-500/25';
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
-  return <button title={title} onClick={onClick} className={cn('rounded-lg border p-2 transition-all', danger ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-slate-200 bg-white text-slate-500 hover:border-teal-300 hover:text-teal-700')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
+  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-border/60 text-muted-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
 }
 
-function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('inline-flex h-9 items-center rounded-full px-4 text-xs font-semibold transition-all', primary ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm hover:from-teal-500 hover:to-emerald-500' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-teal-300 hover:text-teal-700')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+function ActionButton({ children, icon, onClick, primary, disabled }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean; disabled?: boolean }) {
+  return <button disabled={disabled} onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all disabled:cursor-not-allowed disabled:opacity-50', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
+  if (detector.scopeFilters?.length) {
+    return detector.scopeFilters
+      .map(filter => `${filter.dimension}: ${filter.values.length ? filter.values.join('/') : '-'}`)
+      .join(' · ');
+  }
   const f = detector.filters;
   return [`Plaque ${f.plaque.join('/') || '-'}`, f.technology.join('/'), f.vendor.join('/')].filter(Boolean).join(' · ');
 }
 
 function modeLabel(detector: Detector): string {
   if (detector.detectionMode === 'REAL_TIME') return `Real-time ${detector.scheduleFrequency}`;
-  if (detector.detectionMode === 'DAILY_J1') return 'Daily J-1';
-  return 'Historical on demand';
+  if (detector.detectionMode === 'SCHEDULED') return `Scheduled ${detector.scheduleFrequency}`;
+  return 'Batch on demand';
 }
 
 function formatDate(value: string): string {
@@ -981,7 +1287,80 @@ function toApiPayload(detector: Detector) {
       criteria: { logic: detector.criteriaLogic, groups: [{ logic: detector.criteriaLogic, items: detector.criteria }] },
       output: detector.output,
     },
+    detectorPayload: buildDetectorPayload(detector),
   };
+}
+
+function unitOptions(kpis: KpiOption[], selected?: KpiOption, conditionType: DetectorConditionType = 'kpi'): string[] {
+  const units = new Set<string>();
+  units.add('');
+  if (conditionType === 'dimension') return Array.from(units);
+  if (selected?.unit) units.add(selected.unit);
+  for (const kpi of kpis) {
+    if (kpi.unit) units.add(kpi.unit);
+  }
+  units.add('MINOR');
+  units.add('MAJOR');
+  units.add('CRITICAL');
+  return Array.from(units);
+}
+
+export function buildDetectorPayload(detector: Detector): DetectorPayload {
+  return {
+    scopeFilters: detector.scopeFilters.map(filter => ({
+      dimension: filter.dimension,
+      values: filter.values,
+    })),
+    criteria: {
+      logic: detector.criteriaConfig.logic,
+      conditions: detector.criteriaConfig.conditions.map(condition => {
+        const numeric = Number(condition.value);
+        return {
+          type: condition.type,
+          field: condition.field,
+          aggregation: condition.type === 'kpi' ? condition.aggregation : undefined,
+          operator: condition.operator,
+          value: condition.operator === 'exists' ? true : condition.value.trim() !== '' && Number.isFinite(numeric) ? numeric : condition.value,
+          unit: condition.unit || undefined,
+        };
+      }),
+    },
+    time: {
+      range: detector.timeConfig.range,
+      customStart: detector.timeConfig.customStart,
+      customEnd: detector.timeConfig.customEnd,
+      excludeTimeSlots: detector.timeConfig.excludeTimeSlots,
+      excludedSlots: detector.timeConfig.excludedSlots.map(slot => ({ start: slot.start, end: slot.end })),
+      excludeWeekends: detector.timeConfig.excludeWeekends,
+      excludeHolidays: detector.timeConfig.excludeHolidays,
+    },
+  };
+}
+
+export function validateDetectorPayload(payload: DetectorPayload): DetectorValidation {
+  const errors: string[] = [];
+  for (const filter of payload.scopeFilters) {
+    if (!filter.dimension) errors.push('Each scope filter needs a dimension.');
+    if (!filter.values.length) errors.push(`${filter.dimension || 'A filter'} needs at least one value.`);
+  }
+  if (!payload.criteria.conditions.length) errors.push('Add at least one criteria condition.');
+  payload.criteria.conditions.forEach((condition, index) => {
+    if (!condition.type) errors.push(`Condition ${index + 1} needs a type.`);
+    if (!condition.field) errors.push(`Condition ${index + 1} needs a KPI or dimension.`);
+    if (condition.operator !== 'exists' && (condition.value === '' || condition.value === null || condition.value === undefined)) errors.push(`Condition ${index + 1} needs a threshold/value.`);
+    if (condition.type === 'kpi' && !condition.aggregation) errors.push(`Condition ${index + 1} needs an aggregation.`);
+  });
+  if (payload.time.range === 'custom' && (!payload.time.customStart || !payload.time.customEnd)) {
+    errors.push('Custom time range needs both start and end.');
+  }
+  if (payload.time.excludeTimeSlots) {
+    if (!payload.time.excludedSlots.length) errors.push('Add at least one excluded time slot or disable time-slot exclusion.');
+    payload.time.excludedSlots.forEach((slot, index) => {
+      if (!slot.start || !slot.end) errors.push(`Excluded slot ${index + 1} needs start and end times.`);
+      if (slot.start && slot.end && slot.start >= slot.end) errors.push(`Excluded slot ${index + 1} start must be before end.`);
+    });
+  }
+  return { valid: errors.length === 0, errors };
 }
 
 function toCsv(rows: Record<string, unknown>[]): string {

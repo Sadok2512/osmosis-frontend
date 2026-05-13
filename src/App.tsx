@@ -153,6 +153,8 @@ const App = () => (
               <Route path="/investigator" element={<InvestigatorDrilldown />} />
               <Route path="/network-explorer" element={<NetworkExplorer />} />
               <Route path="/ai-assistant-v2" element={<AgentResponseV2Preview />} />
+              <Route path="/ODCC" element={<Navigate to="/?tab=odcc" replace />} />
+              <Route path="/odcc" element={<Navigate to="/?tab=odcc" replace />} />
               <Route path="/precision-architect" element={<Navigate to="/?tab=precision_architect" replace />} />
               {/* /admin/* routes removed 2026-05-06 — handled by Jinja
                   panel on :8000 (user mgmt + LLM config). The spa-proxy
