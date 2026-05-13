@@ -42,11 +42,28 @@ const FALLBACK_DIMENSIONS: DimensionOption[] = [
 
 type JsonObject = Record<string, unknown>;
 
+async function parseJsonSafe<T>(response: Response, url: string, method: string): Promise<T> {
+  const text = await response.text();
+  const trimmed = text.trim();
+  // Backend sometimes returns an HTML error page (e.g. <!doctype html>) when
+  // the route isn't deployed. Treat that as "no data" instead of crashing the
+  // JSON parser so callers fall back to placeholders gracefully.
+  if (!trimmed) return undefined as unknown as T;
+  if (trimmed.startsWith('<')) {
+    throw new Error(`${method} ${url} returned non-JSON (likely HTML error page)`);
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    throw new Error(`${method} ${url} returned malformed JSON`);
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const url = mlUrl(path);
   const response = await fetch(url, { headers: getApiHeaders() });
   if (!response.ok) throw new Error(`GET ${url} failed (${response.status})`);
-  return response.json() as Promise<T>;
+  return parseJsonSafe<T>(response, url, 'GET');
 }
 
 async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
@@ -57,7 +74,7 @@ async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${method} ${url} failed (${response.status})`);
-  return response.json() as Promise<T>;
+  return parseJsonSafe<T>(response, url, method);
 }
 
 const asArray = (value: unknown): unknown[] => {
