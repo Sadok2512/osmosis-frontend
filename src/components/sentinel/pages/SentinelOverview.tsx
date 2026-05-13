@@ -376,7 +376,27 @@ const AnomalyTrendChart: React.FC = () => {
     ],
   }), [dates, critical, major, minor, NOC]);
 
-  return <ReactECharts option={option} style={{ height: 320 }} notMerge />;
+  return (
+    <div>
+      <div className="flex items-center justify-end gap-1 mb-2">
+        {TREND_RANGES.map(r => {
+          const active = rangeKey === r.key;
+          return (
+            <button key={r.key} onClick={() => setRangeKey(r.key)}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+              style={{
+                background: active ? NOC.accentBg : 'transparent',
+                color: active ? NOC.accent : NOC.textMuted,
+                border: `1px solid ${active ? NOC.accent : NOC.cardBorder}`,
+              }}>
+              {r.label}
+            </button>
+          );
+        })}
+      </div>
+      <ReactECharts option={option} style={{ height: 320 }} notMerge />
+    </div>
+  );
 };
 
 /* ━━━ ML Insights Table ━━━ */
