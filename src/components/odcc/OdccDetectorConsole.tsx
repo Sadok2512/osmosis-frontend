@@ -372,43 +372,46 @@ export default function OdccDetectorConsole() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-foreground">
-      <header className="border-b border-border/50 bg-background/80 px-6 py-5 backdrop-blur-sm">
+    <div
+      className="flex h-full flex-col overflow-hidden bg-[linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-slate-900 antialiased"
+      style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' } as React.CSSProperties}
+    >
+      <header className="border-b border-slate-200/70 bg-white/80 px-8 py-6 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-white shadow-sm">
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">OSMOSIS / ODCC</p>
-                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">NE Detector Console</h1>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-600">OSMOSIS / ODCC</p>
+                <h1 className="mt-1 tracking-tight text-slate-900" style={{ fontSize: '28px', fontWeight: 600 }}>NE Detector Console</h1>
               </div>
             </div>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+            <p className="mt-2 max-w-3xl text-[13px] font-medium text-slate-500">
               Frontend-only workspace for detector rules, manual runs, detected NE results, and parameter set operations. Backend wiring is intentionally disabled.
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-primary-foreground shadow-sm transition-all hover:bg-primary/90">
-              <Plus className="mr-2 inline h-4 w-4" /> Create Detector
+            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex h-10 items-center gap-2 rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 px-5 text-[13px] font-semibold text-white shadow-sm transition-all hover:from-teal-500 hover:to-emerald-500">
+              <Plus className="h-4 w-4" /> Create Detector
             </button>
-            <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
-              <Download className="mr-2 inline h-4 w-4" /> Export Results
+            <button onClick={exportCsv} className="inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-[13px] font-semibold text-slate-700 shadow-sm transition-all hover:border-teal-300 hover:text-teal-700">
+              <Download className="h-4 w-4" /> Export Results
             </button>
           </div>
         </div>
       </header>
 
       <main className="flex h-[calc(100%-105px)] overflow-hidden">
-        <aside className="w-72 shrink-0 border-r border-border/50 bg-background/70 p-5 backdrop-blur-sm">
+        <aside className="w-72 shrink-0 border-r border-slate-200/70 bg-white/60 p-5 backdrop-blur-sm">
           <div className="grid grid-cols-2 gap-3">
             <Metric label="Active" value={stats.active} icon={<ShieldCheck />} />
             <Metric label="Open" value={stats.open} icon={<AlertTriangle />} />
             <Metric label="Critical" value={stats.critical} icon={<Gauge />} />
             <Metric label="Last run" value={String(stats.lastRun)} icon={<Clock />} />
           </div>
-          <nav className="mt-6 space-y-1">
+          <nav className="mt-6 space-y-0.5">
             {[
               ['detectors', 'Detector List', Radar],
               ['builder', 'Create Detector', Settings2],
@@ -417,14 +420,14 @@ export default function OdccDetectorConsole() {
               ['parameter_sets', 'Parameter Sets', Database],
               ['audit', 'Audit Logs', FileJson],
             ].map(([id, label, Icon]) => (
-              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold transition-all', tab === id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-primary/8 hover:text-primary')}>
+              <button key={id as string} onClick={() => setTab(id as Tab)} className={cn('flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13px] font-medium transition-all', tab === id ? 'bg-teal-50 text-teal-700 ring-1 ring-teal-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900')}>
                 {React.createElement(Icon as typeof Radar, { className: 'h-4 w-4' })}
                 {label as string}
               </button>
             ))}
           </nav>
-          <div className="mt-6 rounded-2xl border border-border/60 bg-card p-4 text-xs text-muted-foreground shadow-sm">
-            <p className="font-semibold uppercase tracking-[0.08em] text-foreground">MVP mode</p>
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">MVP mode</p>
             <p className="mt-1 leading-relaxed">All detector actions are simulated in local React state. No backend endpoints are called.</p>
           </div>
         </aside>
