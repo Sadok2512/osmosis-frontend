@@ -1,6 +1,21 @@
 import { VPS_ENDPOINTS, getApiHeaders } from '@/lib/apiConfig';
 import type { DetectorPayload, DimensionOption, KpiOption } from './detectorBuilderTypes';
 
+export interface KpiTableOption {
+  id: number;
+  table_name: string;
+  label: string;
+  granularity: string;
+}
+
+const FALLBACK_KPI_TABLES: KpiTableOption[] = [
+  { id: 1, table_name: 'kpi_15m', label: '15 min', granularity: '15m' },
+  { id: 5, table_name: 'kpi_1h',  label: '1 hour', granularity: '1h'  },
+  { id: 2, table_name: 'kpi_1d',  label: '1 day',  granularity: '1d'  },
+  { id: 6, table_name: 'kpi_1s',  label: '1 stat', granularity: '1s'  },
+  { id: 17, table_name: 'kpi_bh', label: 'BH',     granularity: 'bh'  },
+];
+
 // ml-engine catalog endpoints live at :11002/api/v1/ml/*, exposed via the
 // spa-proxy under /ml-api/* (apiConfig.VPS_ENDPOINTS.ml). All ODCC requests
 // go straight there — bypass the kpi-engine fallback used elsewhere.
@@ -56,7 +71,7 @@ const asArray = (value: unknown): unknown[] => {
   return [];
 };
 
-export function normalizeKpis(raw: unknown): KpiOption[] {
+export function normalizeKpis(raw: unknown, opts?: { allowFallback?: boolean }): KpiOption[] {
   const items = asArray(raw)
     .map((item): KpiOption | null => {
       if (typeof item === 'string') return { key: item, label: item };
@@ -71,7 +86,12 @@ export function normalizeKpis(raw: unknown): KpiOption[] {
       };
     })
     .filter((item): item is KpiOption => Boolean(item));
-  return items.length ? items : FALLBACK_KPIS;
+  if (items.length) return items;
+  // Fallback placeholders only when the unfiltered catalog is empty (truly
+  // unreachable backend). When the caller asked for a table-specific list
+  // and the registry returned 0 rows, `[]` is the honest answer — surfacing
+  // fake "AVAILABILITY" / "NEW_KPI" would misrepresent the data state.
+  return opts?.allowFallback === false ? [] : FALLBACK_KPIS;
 }
 
 export function normalizeDimensions(raw: unknown): DimensionOption[] {
@@ -104,12 +124,27 @@ export function normalizeValues(raw: unknown): string[] {
     .filter(Boolean);
 }
 
-export async function fetchDetectorKpis(): Promise<KpiOption[]> {
+export async function fetchKpiTables(): Promise<KpiTableOption[]> {
   try {
-    return normalizeKpis(await getJson<unknown>('kpis'));
+    const raw = await getJson<{ items?: KpiTableOption[] }>('kpi-tables');
+    const items = Array.isArray(raw.items) ? raw.items : [];
+    return items.length ? items : FALLBACK_KPI_TABLES;
+  } catch (error) {
+    console.warn('[ODCC] KPI table catalog unavailable, using fallback placeholders', error);
+    return FALLBACK_KPI_TABLES;
+  }
+}
+
+export async function fetchDetectorKpis(table?: string): Promise<KpiOption[]> {
+  const path = table ? `kpis?table=${encodeURIComponent(table)}` : 'kpis';
+  try {
+    // For table-filtered requests, an empty backend response is truthful
+    // (no KPIs precomputed in that table). Disable the fake-placeholder
+    // fallback so the UI can render an honest empty state.
+    return normalizeKpis(await getJson<unknown>(path), { allowFallback: !table });
   } catch (error) {
     console.warn('[ODCC] KPI catalog unavailable, using fallback placeholders', error);
-    return FALLBACK_KPIS;
+    return table ? [] : FALLBACK_KPIS;
   }
 }
 
@@ -129,6 +164,27 @@ export async function fetchDetectorDimensionValues(dimension: string): Promise<s
   } catch (error) {
     console.warn(`[ODCC] Values unavailable for ${dimension}`, error);
     return [];
+  }
+}
+
+export interface ScopeCounts {
+  sites: number;
+  cells: number;
+  filters_applied: number;
+}
+
+export async function fetchScopeCounts(
+  filters: Array<{ dimension: string; values: string[] }>,
+): Promise<ScopeCounts | null> {
+  // Skip the call entirely when nothing's narrowed — empty-set count is a
+  // full-table scan (slow) and the UX doesn't need the "all network" total.
+  const nonEmpty = filters.filter(f => f.dimension && f.values && f.values.length > 0);
+  if (nonEmpty.length === 0) return null;
+  try {
+    return await sendJson<ScopeCounts>('scope-counts', 'POST', { filters: nonEmpty });
+  } catch (error) {
+    console.warn('[ODCC] Scope counts unavailable', error);
+    return null;
   }
 }
 
@@ -222,6 +278,7 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
 
   return {
     name: meta.name,
+    kpi_table_id: payload.kpiTableId ?? 1,
     kpi_codes: Array.from(new Set(kpiCodes)),
     dimensions,
     dimension_values: dimensionValues,

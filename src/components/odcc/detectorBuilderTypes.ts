@@ -54,6 +54,8 @@ export interface TimeConfig {
 }
 
 export interface DetectorPayload {
+  /** Which CH KPI table to scan: 1=kpi_15m, 5=kpi_1h, 2=kpi_1d, 6=kpi_1s, 17=kpi_bh. */
+  kpiTableId?: number;
   scopeFilters: Array<{
     dimension: string;
     values: string[];

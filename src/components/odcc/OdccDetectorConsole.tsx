@@ -2,17 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Copy,
   Database,
   Download,
   Edit3,
+  Eye,
   FileJson,
   Filter,
+  Flame,
   Gauge,
   History,
+  Info,
   Layers3,
+  Minus,
   Play,
   Plus,
   Radar,
@@ -20,9 +27,14 @@ import {
   Search,
   Settings2,
   ShieldCheck,
+  Snowflake,
+  Sparkles,
+  Target,
   Trash2,
+  TrendingUp,
   Upload,
   XCircle,
+  Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -54,7 +66,7 @@ import type {
   TimeConfig,
 } from './detectorBuilderTypes';
 
-type ScopeLevel = 'CELL' | 'SITE' | 'PLAQUE' | 'DOR' | 'REGION';
+type ScopeLevel = 'CELL' | 'SECTOR' | 'SITE' | 'PLAQUE' | 'DOR' | 'REGION';
 type DetectionMode = 'REAL_TIME' | 'BATCH' | 'SCHEDULED';
 type DetectorStatus = 'draft' | 'active' | 'inactive' | 'archived';
 type RunStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
@@ -84,6 +96,8 @@ interface Detector {
   detectionMode: DetectionMode;
   scheduleFrequency: '15m' | '30m' | '1h' | 'daily';
   lookbackWindow: 'last_1h' | 'last_24h' | 'custom';
+  /** Which CH KPI table the detector reads: 1=kpi_15m … 5=kpi_bh. Default 1 (15m). */
+  kpiTableId?: number;
   filters: {
     country: string[];
     department: string[];
@@ -335,6 +349,7 @@ function detectorFromBackend(row: MlDetectorRow): Detector {
     detectionMode: (extra.detection_mode as DetectionMode) || 'SCHEDULED',
     scheduleFrequency: (extra.schedule_frequency as Detector['scheduleFrequency']) || 'daily',
     lookbackWindow: (extra.lookback_window as Detector['lookbackWindow']) || 'last_24h',
+    kpiTableId: row.kpi_table_id,
     scopeFilters,
     criteriaConfig,
     timeConfig,
@@ -381,7 +396,21 @@ function resultFromBackend(row: MlAnomalyRow): DetectionResult {
   };
 }
 
-export default function OdccDetectorConsole() {
+interface OdccDetectorConsoleProps {
+  moduleLabel?: string;
+  title?: string;
+  description?: string;
+  backendErrorLabel?: string;
+  loadingLabel?: string;
+}
+
+export default function OdccDetectorConsole({
+  moduleLabel = 'OSMOSIS / ODCC',
+  title = 'NE Detector Console',
+  description = 'Backend-driven workspace for detector scope filters, criteria, time exclusions, manual runs, detected NE results, and parameter set operations.',
+  backendErrorLabel = 'Backend ODCC error',
+  loadingLabel = 'Loading ODCC detectors, catalog and anomalies from ml-engine...',
+}: OdccDetectorConsoleProps = {}) {
   const [tab, setTab] = useState<Tab>('detectors');
   const [detectors, setDetectors] = useState<Detector[]>([]);
   const [runs, setRuns] = useState<DetectorRun[]>([]);
@@ -580,12 +609,12 @@ export default function OdccDetectorConsole() {
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">OSMOSIS / ODCC</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">NE Detector Console</h1>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">{moduleLabel}</p>
+                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">{title}</h1>
               </div>
             </div>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Backend-driven workspace for detector scope filters, criteria, time exclusions, manual runs, detected NE results, and parameter set operations.
+              {description}
             </p>
           </div>
           <div className="flex gap-2">
@@ -627,12 +656,12 @@ export default function OdccDetectorConsole() {
         <section className="flex-1 overflow-auto p-7">
           {backendError && (
             <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              Backend ODCC error: {backendError}
+              {backendErrorLabel}: {backendError}
             </div>
           )}
           {backendLoading && (
             <div className="mb-4 rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-700">
-              Loading ODCC detectors, catalog and anomalies from ml-engine...
+              {loadingLabel}
             </div>
           )}
           {tab === 'detectors' && (
@@ -1124,6 +1153,100 @@ function RunsTable({ runs, detectors }: { runs: DetectorRun[]; detectors: Detect
   );
 }
 
+/* ─────────────────────────────────────────────────────────────────
+ * Detection Results — telecom NOC-grade redesign
+ * ─────────────────────────────────────────────────────────────────
+ *
+ * - KPI aliasing (KPI 1, KPI 2…) with hover tooltip showing real code
+ * - Severity gradient pills with subtle glow + icon
+ * - Inline value bar with threshold marker + delta %
+ * - Occurrence column with frequency badge + trend arrow
+ * - Smart insights (confidence / impact / trend) derived from data
+ * - Summary cards row (totals, critical count, most impacted KPI)
+ * - KPI legend panel (collapsible) mapping aliases to real names
+ * - Sticky header, rounded rows, hover elevation
+ * - Action buttons with icon + text labels
+ *
+ * NB: confidence/trend/impact are derived in-app (no backend field yet)
+ *     — derivation rules kept conservative so values are honest. */
+
+const KPI_PALETTE: Array<{ chip: string; dot: string; glow: string; ring: string }> = [
+  { chip: 'bg-rose-50 text-rose-700',       dot: 'bg-rose-500',       glow: 'shadow-rose-400/30',       ring: 'ring-rose-200' },
+  { chip: 'bg-amber-50 text-amber-700',     dot: 'bg-amber-500',      glow: 'shadow-amber-400/30',      ring: 'ring-amber-200' },
+  { chip: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500',    glow: 'shadow-emerald-400/30',    ring: 'ring-emerald-200' },
+  { chip: 'bg-sky-50 text-sky-700',         dot: 'bg-sky-500',        glow: 'shadow-sky-400/30',        ring: 'ring-sky-200' },
+  { chip: 'bg-violet-50 text-violet-700',   dot: 'bg-violet-500',     glow: 'shadow-violet-400/30',    ring: 'ring-violet-200' },
+  { chip: 'bg-teal-50 text-teal-700',       dot: 'bg-teal-500',       glow: 'shadow-teal-400/30',       ring: 'ring-teal-200' },
+];
+
+/** Build a deterministic alias map from the observed kpiCodes. Sorted
+ *  alphabetically so refreshes don't shuffle the labels. */
+function buildKpiAliasMap(results: DetectionResult[]) {
+  const codes = Array.from(new Set(results.map(r => r.kpiCode).filter(Boolean))).sort();
+  const aliasByCode = new Map<string, string>();
+  const colorByCode = new Map<string, typeof KPI_PALETTE[0]>();
+  const thresholdByCode = new Map<string, number>();
+  codes.forEach((code, i) => {
+    aliasByCode.set(code, `KPI ${i + 1}`);
+    colorByCode.set(code, KPI_PALETTE[i % KPI_PALETTE.length]);
+    const r = results.find(x => x.kpiCode === code);
+    if (r) thresholdByCode.set(code, r.threshold);
+  });
+  return { aliasByCode, colorByCode, thresholdByCode };
+}
+
+/** Percent delta of current vs threshold. Returns null on /0 to avoid Infinity. */
+function deltaPct(value: number, threshold: number): number | null {
+  if (threshold === 0 || !Number.isFinite(threshold)) return null;
+  return ((value - threshold) / Math.abs(threshold)) * 100;
+}
+
+/** Frequency tag for an occurrence count — Rare/Common/Frequent. */
+function frequencyTag(count: number): { label: string; cls: string; glyph: typeof Snowflake } {
+  if (count >= 10) return { label: 'Frequent', cls: 'bg-rose-50 text-rose-700',     glyph: Flame     };
+  if (count >= 4)  return { label: 'Common',   cls: 'bg-amber-50 text-amber-700',   glyph: Zap       };
+  return { label: 'Rare', cls: 'bg-slate-100 text-slate-600', glyph: Snowflake };
+}
+
+/** Severity gradient styles + glow + icon. Maps the 3 backend tiers to a
+ *  4-band telecom-NOC palette (critical/major/minor/normal). */
+const SEV_STYLES: Record<Severity, {
+  pill: string;
+  ring: string;
+  icon: React.ReactElement;
+  label: string;
+  rowAccent: string;
+}> = {
+  critical: {
+    pill:      'bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-md shadow-rose-500/30',
+    ring:      'ring-2 ring-rose-400/40',
+    icon:      <AlertTriangle className="h-3 w-3" />,
+    label:     'CRITICAL',
+    rowAccent: 'border-l-2 border-l-rose-400',
+  },
+  major: {
+    pill:      'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md shadow-orange-500/30',
+    ring:      'ring-2 ring-orange-400/40',
+    icon:      <AlertTriangle className="h-3 w-3" />,
+    label:     'MAJOR',
+    rowAccent: 'border-l-2 border-l-orange-400',
+  },
+  minor: {
+    pill:      'bg-gradient-to-br from-amber-300 to-amber-400 text-amber-900 shadow-md shadow-amber-400/30',
+    ring:      'ring-2 ring-amber-300/40',
+    icon:      <Info className="h-3 w-3" />,
+    label:     'MINOR',
+    rowAccent: 'border-l-2 border-l-amber-400',
+  },
+};
+
+const STATUS_STYLES: Record<ResultStatus, { dot: string; chip: string; label: string }> = {
+  open:          { dot: 'bg-rose-500',    chip: 'bg-rose-50 text-rose-700',         label: 'OPEN' },
+  acknowledged:  { dot: 'bg-amber-500',   chip: 'bg-amber-50 text-amber-700',       label: 'ACK' },
+  resolved:      { dot: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-700',   label: 'RESOLVED' },
+  ignored:       { dot: 'bg-slate-400',   chip: 'bg-slate-100 text-slate-600',      label: 'IGNORED' },
+};
+
 function ResultsTable({ results, selected, setSelected, onStatus, onExport, onApply }: {
   results: DetectionResult[];
   selected: string[];
@@ -1132,34 +1255,433 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
   onExport: () => void;
   onApply: () => void;
 }) {
-  const toggle = (id: string) => setSelected(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+  const toggle = (id: string) =>
+    setSelected(selected.includes(id) ? selected.filter(x => x !== id) : [...selected, id]);
+  const toggleAll = () =>
+    setSelected(selected.length === results.length ? [] : results.map(r => r.id));
+
+  const { aliasByCode, colorByCode, thresholdByCode } = useMemo(
+    () => buildKpiAliasMap(results),
+    [results],
+  );
+
+  // Aggregations for the summary cards + insights.
+  const stats = useMemo(() => {
+    const total = results.length;
+    const critical = results.filter(r => r.severity === 'critical').length;
+    const occByCode = new Map<string, number>();
+    const sevByCode = new Map<string, { critical: number; major: number; minor: number }>();
+    for (const r of results) {
+      occByCode.set(r.kpiCode, (occByCode.get(r.kpiCode) || 0) + 1);
+      const s = sevByCode.get(r.kpiCode) || { critical: 0, major: 0, minor: 0 };
+      s[r.severity as Severity]++;
+      sevByCode.set(r.kpiCode, s);
+    }
+    let mostFrequent: string | null = null;
+    let mostFrequentN = 0;
+    let mostImpacted: string | null = null;
+    let mostImpactedScore = -1;
+    for (const [code, n] of occByCode) {
+      if (n > mostFrequentN) { mostFrequentN = n; mostFrequent = code; }
+      const sev = sevByCode.get(code) || { critical: 0, major: 0, minor: 0 };
+      const impactScore = sev.critical * 3 + sev.major * 2 + sev.minor;
+      if (impactScore > mostImpactedScore) { mostImpactedScore = impactScore; mostImpacted = code; }
+    }
+    return { total, critical, occByCode, mostFrequent, mostFrequentN, mostImpacted };
+  }, [results]);
+
+  const [legendOpen, setLegendOpen] = useState(true);
+
   return (
-    <Panel title="Detection Results" action={<div className="flex gap-2"><ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton><ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton></div>}>
-      <SimpleTable headers={['', 'Detection time', 'Severity', 'Hierarchy', 'NE', 'Tech', 'Vendor', 'KPI', 'Value', 'Threshold', 'Status', 'Actions']}>
-        {results.map(r => (
-          <tr key={r.id} className="border-t border-border/50 transition-all hover:bg-primary/5">
-            <Td><input type="checkbox" checked={selected.includes(r.id)} onChange={() => toggle(r.id)} /></Td>
-            <Td>{formatDate(r.detectedAt)}</Td>
-            <Td><SeverityPill value={r.severity} /></Td>
-            <Td>{r.countryCode} / {r.departmentCode} / {r.dorCode} / {r.plaqueCode}</Td>
-            <Td><span className="font-mono text-xs">{r.cellCode || r.siteCode || r.neName}</span></Td>
-            <Td>{r.technology}</Td>
-            <Td>{r.vendor}</Td>
-            <Td>{r.kpiCode}</Td>
-            <Td>{r.currentValue}</Td>
-            <Td>{`< ${r.threshold}`}</Td>
-            <Td><StatusPill value={r.status} /></Td>
-            <Td>
-              <div className="flex gap-1">
-                <IconButton title="Acknowledge" onClick={() => onStatus([r.id], 'acknowledged')}><CheckCircle2 /></IconButton>
-                <IconButton title="Resolve" onClick={() => onStatus([r.id], 'resolved')}><ShieldCheck /></IconButton>
-                <IconButton title="Ignore" onClick={() => onStatus([r.id], 'ignored')}><XCircle /></IconButton>
-              </div>
-            </Td>
-          </tr>
-        ))}
-      </SimpleTable>
-    </Panel>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-slate-900">Detection Results</h2>
+          <p className="mt-0.5 text-[12px] text-slate-500">
+            {results.length === 0
+              ? 'No anomalies detected yet — run a detector to populate.'
+              : `${results.length} anomal${results.length === 1 ? 'y' : 'ies'} across ${aliasByCode.size} KPI${aliasByCode.size === 1 ? '' : 's'}`}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <ActionButton onClick={onExport} icon={<Download />}>Export selected</ActionButton>
+          <ActionButton onClick={onApply} icon={<Upload />} primary>Apply parameter set</ActionButton>
+        </div>
+      </div>
+
+      {/* Summary cards */}
+      {results.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <SummaryCard
+            icon={<Activity className="h-4 w-4" />}
+            label="Total anomalies"
+            value={stats.total.toLocaleString()}
+            tone="slate"
+          />
+          <SummaryCard
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="Critical"
+            value={stats.critical.toLocaleString()}
+            tone="rose"
+            footer={stats.total > 0 ? `${Math.round((stats.critical / stats.total) * 100)}% of total` : undefined}
+          />
+          <SummaryCard
+            icon={<Target className="h-4 w-4" />}
+            label="Most impacted KPI"
+            value={stats.mostImpacted ? (aliasByCode.get(stats.mostImpacted) || '—') : '—'}
+            tone="teal"
+            footer={stats.mostImpacted || undefined}
+          />
+          <SummaryCard
+            icon={<Flame className="h-4 w-4" />}
+            label="Most frequent KPI"
+            value={stats.mostFrequent ? (aliasByCode.get(stats.mostFrequent) || '—') : '—'}
+            tone="amber"
+            footer={stats.mostFrequentN ? `${stats.mostFrequentN} occurrences` : undefined}
+          />
+        </div>
+      )}
+
+      {/* KPI legend panel */}
+      {aliasByCode.size > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <button
+            onClick={() => setLegendOpen(o => !o)}
+            className="flex w-full items-center justify-between px-4 py-3"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 text-teal-600" />
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-700">KPI legend</span>
+              <span className="text-[11px] text-slate-400">{aliasByCode.size} KPI{aliasByCode.size === 1 ? '' : 's'} mapped</span>
+            </div>
+            <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', legendOpen && 'rotate-180')} />
+          </button>
+          {legendOpen && (
+            <div className="grid gap-2 border-t border-slate-100 bg-slate-50/50 p-3 md:grid-cols-2 lg:grid-cols-3">
+              {Array.from(aliasByCode.entries()).map(([code, alias]) => {
+                const c = colorByCode.get(code)!;
+                const occ = stats.occByCode.get(code) || 0;
+                const t = thresholdByCode.get(code);
+                return (
+                  <div key={code} className="flex items-center gap-3 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200">
+                    <span className={cn('inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ring-1', c.chip, c.ring)}>
+                      <span className={cn('h-2 w-2 rounded-full', c.dot)} />
+                    </span>
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <p className="text-[12px] font-semibold text-slate-800">{alias}</p>
+                      <p className="truncate font-mono text-[10px] text-slate-500" title={code}>{code}</p>
+                    </div>
+                    <div className="text-right leading-tight">
+                      <p className="text-[11px] font-semibold text-slate-700">{occ} occ</p>
+                      <p className="text-[10px] text-slate-400">{t !== undefined ? `< ${t}` : '—'}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-auto">
+          <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-sm">
+            <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
+              <tr className="text-[11px] uppercase tracking-wider text-slate-500">
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    checked={results.length > 0 && selected.length === results.length}
+                    onChange={toggleAll}
+                  />
+                </th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Time</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Severity</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Hierarchy</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">NE</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">KPI</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Value vs threshold</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Occurrences</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Insights</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">Status</th>
+                <th className="border-b border-slate-200 px-3 py-2.5 text-right font-semibold">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {results.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="px-6 py-16 text-center">
+                    <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                      <Activity className="h-5 w-5" />
+                    </div>
+                    <p className="text-[13px] font-medium text-slate-700">No detection results</p>
+                    <p className="mt-1 text-[12px] text-slate-500">Run a detector or wait for the next scheduled tick.</p>
+                  </td>
+                </tr>
+              ) : results.map(r => (
+                <ResultRow
+                  key={r.id}
+                  r={r}
+                  alias={aliasByCode.get(r.kpiCode) || r.kpiCode}
+                  kpiColor={colorByCode.get(r.kpiCode) || KPI_PALETTE[0]}
+                  occurrences={stats.occByCode.get(r.kpiCode) || 1}
+                  selected={selected.includes(r.id)}
+                  onToggle={() => toggle(r.id)}
+                  onStatus={(s) => onStatus([r.id], s)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ icon, label, value, tone, footer }: {
+  icon: React.ReactElement;
+  label: string;
+  value: string;
+  tone: 'slate' | 'rose' | 'amber' | 'teal' | 'emerald';
+  footer?: string;
+}) {
+  const tones: Record<string, { iconBg: string; iconFg: string; valueFg: string; accent: string }> = {
+    slate:   { iconBg: 'bg-slate-100',   iconFg: 'text-slate-600',   valueFg: 'text-slate-900',   accent: 'border-slate-200' },
+    rose:    { iconBg: 'bg-rose-100',    iconFg: 'text-rose-600',    valueFg: 'text-rose-700',    accent: 'border-rose-200' },
+    amber:   { iconBg: 'bg-amber-100',   iconFg: 'text-amber-700',   valueFg: 'text-amber-800',   accent: 'border-amber-200' },
+    teal:    { iconBg: 'bg-teal-100',    iconFg: 'text-teal-700',    valueFg: 'text-teal-800',    accent: 'border-teal-200' },
+    emerald: { iconBg: 'bg-emerald-100', iconFg: 'text-emerald-700', valueFg: 'text-emerald-800', accent: 'border-emerald-200' },
+  };
+  const t = tones[tone];
+  return (
+    <div className={cn('rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow', t.accent)}>
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+        <span className={cn('inline-flex h-7 w-7 items-center justify-center rounded-lg', t.iconBg, t.iconFg)}>
+          {React.cloneElement(icon, { className: 'h-3.5 w-3.5' })}
+        </span>
+      </div>
+      <p className={cn('mt-2 text-2xl font-bold tracking-tight', t.valueFg)}>{value}</p>
+      {footer && <p className="mt-1 text-[11px] text-slate-400">{footer}</p>}
+    </div>
+  );
+}
+
+function ResultRow({
+  r, alias, kpiColor, occurrences, selected, onToggle, onStatus,
+}: {
+  r: DetectionResult;
+  alias: string;
+  kpiColor: typeof KPI_PALETTE[0];
+  occurrences: number;
+  selected: boolean;
+  onToggle: () => void;
+  onStatus: (s: ResultStatus) => void;
+}) {
+  // Defensive lookups: a stale row from localStorage / an unexpected enum
+  // value from the backend (lowercase mismatch, new tier) would otherwise
+  // crash the whole table — fall back to the most benign tier so the row
+  // still renders, just without the loud accent.
+  const sev = SEV_STYLES[r.severity] || SEV_STYLES.minor;
+  const sts = STATUS_STYLES[r.status] || STATUS_STYLES.open;
+  const dp = deltaPct(r.currentValue, r.threshold);
+  const freq = frequencyTag(occurrences);
+  const FreqIcon = freq.glyph;
+
+  // Bar shows where current value lies relative to the threshold.
+  // Threshold sits at 50%; value bar extends from threshold based on |delta|.
+  const barFill = dp !== null ? Math.min(95, Math.abs(dp)) : 50;
+  const barAbove = dp !== null && dp > 0;
+  const breachExceeded = r.currentValue > r.threshold; // assumes lower_is_better KPIs
+
+  // Confidence heuristic: higher when delta is large and severity is critical.
+  const confidence = dp === null ? 50 : Math.min(99, 50 + Math.min(45, Math.abs(dp) / 8) + (r.severity === 'critical' ? 5 : 0));
+  // Impact heuristic: severity + occurrence count
+  const impactScore = (r.severity === 'critical' ? 3 : r.severity === 'major' ? 2 : 1) + Math.min(3, Math.floor(occurrences / 4));
+  const impact: 'Low' | 'Medium' | 'High' | 'Severe' =
+    impactScore >= 6 ? 'Severe' : impactScore >= 4 ? 'High' : impactScore >= 3 ? 'Medium' : 'Low';
+  const impactTone: Record<string, string> = {
+    Low:    'text-slate-600',
+    Medium: 'text-amber-700',
+    High:   'text-orange-700',
+    Severe: 'text-rose-700',
+  };
+  // Trend: up if delta+ and occurrences ≥ 3, down if delta-, flat otherwise
+  const trend: 'up' | 'down' | 'flat' = (dp !== null && occurrences >= 3 && dp > 0) ? 'up' : (dp !== null && dp < 0 ? 'down' : 'flat');
+  const TrendIcon = trend === 'up' ? ArrowUp : trend === 'down' ? ArrowDown : Minus;
+  const trendTone = trend === 'up' ? 'text-rose-600' : trend === 'down' ? 'text-emerald-600' : 'text-slate-400';
+
+  return (
+    <tr className={cn(
+      'group transition-all hover:bg-teal-50/30',
+      sev.rowAccent,
+    )}>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <input
+          type="checkbox"
+          className="h-3.5 w-3.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+          checked={selected}
+          onChange={onToggle}
+        />
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="flex items-center gap-1.5 text-[12px] text-slate-700">
+          <Clock className="h-3 w-3 text-slate-400" />
+          <span>{formatDate(r.detectedAt)}</span>
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <span className={cn(
+          'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider',
+          sev.pill,
+        )}>
+          {sev.icon}
+          {sev.label}
+        </span>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="flex flex-col gap-0.5 text-[11px] leading-tight">
+          <span className="font-medium text-slate-700">{r.plaqueCode || '—'}</span>
+          <span className="font-mono text-[10px] text-slate-400">
+            {[r.countryCode, r.departmentCode, r.dorCode].filter(Boolean).join(' / ') || '—'}
+          </span>
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="leading-tight">
+          <p className="font-mono text-[12px] font-medium text-slate-800">
+            {r.cellCode || r.siteCode || r.neName || '—'}
+          </p>
+          <p className="text-[10px] text-slate-400">{[r.technology, r.vendor].filter(Boolean).join(' · ') || '—'}</p>
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold shadow-sm ring-1',
+            kpiColor.chip,
+            kpiColor.ring,
+            kpiColor.glow,
+          )}
+          title={r.kpiCode}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', kpiColor.dot)} />
+          {alias}
+        </span>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="min-w-[180px]">
+          <div className="flex items-baseline gap-1.5">
+            <span className={cn('text-[14px] font-bold tabular-nums', breachExceeded ? 'text-rose-700' : 'text-slate-800')}>
+              {Number.isFinite(r.currentValue) ? r.currentValue.toLocaleString() : '—'}
+            </span>
+            {dp !== null && (
+              <span className={cn(
+                'text-[10px] font-bold tabular-nums',
+                dp > 0 ? 'text-rose-600' : dp < 0 ? 'text-emerald-600' : 'text-slate-400',
+              )}>
+                {dp > 0 ? '+' : ''}{dp.toFixed(0)}%
+              </span>
+            )}
+          </div>
+          <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                barAbove ? 'bg-gradient-to-r from-rose-400 to-rose-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500',
+              )}
+              style={{ width: `${barFill}%` }}
+            />
+          </div>
+          <p className="mt-1 text-[10px] text-slate-400">Threshold &lt; {r.threshold}</p>
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="flex items-center gap-2">
+          <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold', freq.cls)}>
+            <FreqIcon className="h-2.5 w-2.5" />
+            {freq.label}
+          </span>
+          <span className="text-[13px] font-bold tabular-nums text-slate-800">{occurrences}</span>
+          <TrendIcon className={cn('h-3 w-3', trendTone)} />
+        </div>
+        {/* mini occurrence heat dots */}
+        <div className="mt-1.5 flex items-center gap-[2px]">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span
+              key={i}
+              className={cn(
+                'h-1.5 w-1.5 rounded-sm',
+                i < Math.min(10, occurrences)
+                  ? (occurrences >= 8 ? 'bg-rose-400' : occurrences >= 4 ? 'bg-amber-400' : 'bg-emerald-400')
+                  : 'bg-slate-100',
+              )}
+            />
+          ))}
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <div className="space-y-0.5 leading-tight">
+          <p className="text-[11px]">
+            <span className="text-slate-400">Confidence</span>{' '}
+            <span className="font-semibold text-slate-700">{confidence.toFixed(0)}%</span>
+          </p>
+          <p className="text-[11px]">
+            <span className="text-slate-400">Impact</span>{' '}
+            <span className={cn('font-semibold', impactTone[impact])}>{impact}</span>
+          </p>
+          <p className="text-[11px]">
+            <span className="text-slate-400">Trend</span>{' '}
+            <span className={cn('font-semibold', trendTone)}>
+              {trend === 'up' ? 'Increasing' : trend === 'down' ? 'Recovering' : 'Stable'}
+            </span>
+          </p>
+        </div>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle">
+        <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold tracking-wider', sts.chip)}>
+          <span className={cn('h-1.5 w-1.5 rounded-full', sts.dot)} />
+          {sts.label}
+        </span>
+      </td>
+      <td className="border-b border-slate-100 px-3 py-3 align-middle text-right">
+        <div className="inline-flex items-center gap-1.5 opacity-90 group-hover:opacity-100">
+          <ResultActionButton icon={<Eye className="h-3 w-3" />} onClick={() => {}}>RCA</ResultActionButton>
+          <ResultActionButton icon={<TrendingUp className="h-3 w-3" />} onClick={() => {}}>Analyze</ResultActionButton>
+          <ResultActionButton icon={<CheckCircle2 className="h-3 w-3" />} tone="emerald" onClick={() => onStatus('resolved')}>Validate</ResultActionButton>
+          <ResultActionButton icon={<XCircle className="h-3 w-3" />} tone="slate" onClick={() => onStatus('ignored')}>Ignore</ResultActionButton>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function ResultActionButton({ children, icon, onClick, tone }: {
+  children: React.ReactNode;
+  icon: React.ReactElement;
+  onClick: () => void;
+  tone?: 'teal' | 'emerald' | 'slate';
+}) {
+  const tones: Record<string, string> = {
+    teal:    'border-teal-200 text-teal-700 hover:bg-teal-50',
+    emerald: 'border-emerald-200 text-emerald-700 hover:bg-emerald-50',
+    slate:   'border-slate-200 text-slate-600 hover:bg-slate-50',
+  };
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wider shadow-sm transition',
+        tones[tone || 'teal'],
+      )}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
 
@@ -1482,6 +2004,7 @@ function unitOptions(kpis: KpiOption[], selected?: KpiOption, conditionType: Det
 
 export function buildDetectorPayload(detector: Detector): DetectorPayload {
   return {
+    kpiTableId: typeof (detector as any).kpiTableId === 'number' ? (detector as any).kpiTableId : 1,
     scopeFilters: detector.scopeFilters.map(filter => ({
       dimension: filter.dimension,
       values: filter.values,

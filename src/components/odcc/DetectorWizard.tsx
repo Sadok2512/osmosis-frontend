@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
   Bell,
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -31,7 +32,10 @@ import {
   fetchDetectorDimensions,
   fetchDetectorHolidays,
   fetchDetectorKpis,
+  fetchKpiTables,
+  fetchScopeCounts,
 } from './detectorBuilderApi';
+import type { KpiTableOption, ScopeCounts } from './detectorBuilderApi';
 import type { DimensionOption, KpiOption, ScopeFilter } from './detectorBuilderTypes';
 
 // ---------- Types kept loose to plug into existing OdccDetectorConsole draft ----------
@@ -96,6 +100,14 @@ const uid = (p: string) => `${p}_${Math.random().toString(36).slice(2, 10)}`;
 export default function DetectorWizard({ draft, setDraft, editing, onSaveDraft, onSaveEnable, onRunTest, onValidate }: Props) {
   const [step, setStep] = useState<StepId>('info');
   const [kpis, setKpis] = useState<KpiOption[]>([]);
+  const [kpisLoading, setKpisLoading] = useState(false);
+  const [kpiTables, setKpiTables] = useState<KpiTableOption[]>([]);
+  // kpiTableId rides on draft so it persists across save; default = 15m (id=1).
+  const kpiTableId: number = Number(draft.kpiTableId ?? 1) || 1;
+  const selectedTable = useMemo(
+    () => kpiTables.find(t => t.id === kpiTableId),
+    [kpiTables, kpiTableId],
+  );
   const [dimensions, setDimensions] = useState<DimensionOption[]>([]);
   const [holidays, setHolidays] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,16 +127,33 @@ export default function DetectorWizard({ draft, setDraft, editing, onSaveDraft, 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    Promise.allSettled([fetchDetectorKpis(), fetchDetectorDimensions(), fetchDetectorHolidays()]).then(results => {
+    Promise.allSettled([
+      fetchKpiTables(),
+      fetchDetectorDimensions(),
+      fetchDetectorHolidays(),
+    ]).then(results => {
       if (cancelled) return;
-      const [k, d, h] = results;
-      if (k.status === 'fulfilled') setKpis(k.value);
+      const [t, d, h] = results;
+      if (t.status === 'fulfilled') setKpiTables(t.value);
       if (d.status === 'fulfilled') setDimensions(d.value);
       if (h.status === 'fulfilled') setHolidays(h.value);
       setLoading(false);
     });
     return () => { cancelled = true; };
   }, []);
+
+  // Reload KPIs whenever the selected table changes. The picker drives the
+  // KPI list — anything that isn't precomputed in the chosen table is out.
+  useEffect(() => {
+    let cancelled = false;
+    const table = kpiTables.find(t => t.id === kpiTableId)?.table_name;
+    if (!table) return;
+    setKpisLoading(true);
+    fetchDetectorKpis(table)
+      .then(list => { if (!cancelled) setKpis(list); })
+      .finally(() => { if (!cancelled) setKpisLoading(false); });
+    return () => { cancelled = true; };
+  }, [kpiTableId, kpiTables]);
 
   const stepIndex = STEPS.findIndex(s => s.id === step);
   const goNext = () => { if (stepIndex < STEPS.length - 1) setStep(STEPS[stepIndex + 1].id); };
@@ -245,7 +274,11 @@ export default function DetectorWizard({ draft, setDraft, editing, onSaveDraft, 
           )}
 
           {step === 'population' && (
-            <Section title="Detection Zone" subtitle="Define the network elements where the detector runs. Add filters to narrow down the population.">
+            <Section title="Detection Zone" subtitle="Pick the detection level, then narrow the population with one or more filters.">
+              <DetectionLevelPicker
+                value={(draft as any).scopeLevel || 'CELL'}
+                onChange={(v) => patch({ scopeLevel: v } as any)}
+              />
               <PopulationBuilder
                 dimensions={dimensions}
                 loading={loading}
@@ -279,7 +312,39 @@ export default function DetectorWizard({ draft, setDraft, editing, onSaveDraft, 
           )}
 
           {step === 'conditions' && (
-            <Section title={detectorKind === 'PM' ? 'KPI Conditions' : 'Alarm Conditions'} subtitle="Build one or more conditions. They define when something is wrong.">
+            <Section title={detectorKind === 'PM' ? 'KPI Conditions' : 'Alarm Conditions'} subtitle="Pick the KPI table (granularity), then add one or more threshold conditions.">
+              {detectorKind === 'PM' && (
+                <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50/40 p-3">
+                  <Label>KPI table (granularity)</Label>
+                  <div className="mt-2 inline-flex flex-wrap gap-1.5">
+                    {kpiTables.length === 0 ? (
+                      <span className="text-[12px] text-slate-400">Loading tables…</span>
+                    ) : kpiTables.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => patch({ kpiTableId: t.id })}
+                        className={cn(
+                          'rounded-md border px-3 py-1.5 text-[12px] font-medium transition',
+                          t.id === kpiTableId
+                            ? 'border-teal-500 bg-teal-50 text-teal-700'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-teal-300 hover:bg-teal-50/40',
+                        )}
+                      >
+                        {t.label}
+                        <span className="ml-1.5 font-mono text-[10px] text-slate-400">{t.table_name}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-500">
+                    {kpisLoading
+                      ? 'Loading KPIs for this table…'
+                      : selectedTable
+                        ? `${kpis.length} KPI${kpis.length === 1 ? '' : 's'} precomputed in ${selectedTable.table_name}.`
+                        : 'Pick a table to see available KPIs.'}
+                  </p>
+                </div>
+              )}
               <ConditionsBuilder
                 kind={detectorKind}
                 kpis={kpis}
@@ -458,6 +523,75 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
   );
 }
 
+/** Detection-level picker — at what NE granularity does the detector emit
+ *  a finding? The CH KPI tables are computed per CELL, so SECTOR/SITE/PLAQUE/
+ *  DOR aggregate cells up. Stored on draft.scopeLevel and shipped to the
+ *  backend in extra_config.scope_level (already wired in detectorBuilderApi). */
+const DETECTION_LEVELS: Array<{
+  key: 'PLAQUE' | 'DOR' | 'SITE' | 'SECTOR' | 'CELL';
+  label: string;
+  hint:  string;
+}> = [
+  { key: 'PLAQUE', label: 'Plaque', hint: 'Aggregate per plaque (broadest)' },
+  { key: 'DOR',    label: 'DOR',    hint: 'Aggregate per DOR / UPR'        },
+  { key: 'SITE',   label: 'Site',   hint: 'Aggregate per site'             },
+  { key: 'SECTOR', label: 'Sector', hint: 'Aggregate per sector'           },
+  { key: 'CELL',   label: 'Cell',   hint: 'One finding per cell (finest)'  },
+];
+
+function DetectionLevelPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: 'PLAQUE' | 'DOR' | 'SITE' | 'SECTOR' | 'CELL') => void;
+}) {
+  return (
+    <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-slate-700">Detection level</p>
+          <p className="mt-0.5 text-[12px] text-slate-500">In which NE level should anomalies be reported?</p>
+        </div>
+        <span className="rounded-full bg-teal-50 px-2.5 py-0.5 text-[11px] font-medium text-teal-700 ring-1 ring-inset ring-teal-100">
+          {value || 'CELL'}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {DETECTION_LEVELS.map((lvl) => {
+          const active = (value || 'CELL') === lvl.key;
+          return (
+            <button
+              key={lvl.key}
+              type="button"
+              onClick={() => onChange(lvl.key)}
+              className={cn(
+                'group flex flex-col items-start rounded-xl border px-3 py-2.5 text-left transition shadow-sm',
+                active
+                  ? 'border-teal-500 bg-teal-50 ring-2 ring-teal-500/15'
+                  : 'border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/40',
+              )}
+            >
+              <span className={cn(
+                'text-[12px] font-semibold',
+                active ? 'text-teal-700' : 'text-slate-700',
+              )}>
+                {lvl.label}
+              </span>
+              <span className={cn(
+                'mt-0.5 text-[11px] leading-tight',
+                active ? 'text-teal-600/80' : 'text-slate-400',
+              )}>
+                {lvl.hint}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PopulationBuilder({ dimensions, loading, filters, onChange }: {
   dimensions: DimensionOption[];
   loading: boolean;
@@ -467,28 +601,91 @@ function PopulationBuilder({ dimensions, loading, filters, onChange }: {
   const [adding, setAdding] = useState(false);
   const [valuesCache, setValuesCache] = useState<Record<string, string[]>>({});
   const [valuesLoading, setValuesLoading] = useState<string | null>(null);
+  const [counts, setCounts] = useState<ScopeCounts | null>(null);
+  const [countsLoading, setCountsLoading] = useState(false);
   const used = new Set(filters.map(f => f.dimension));
   const available = dimensions.filter(d => !used.has(d.key));
+
+  // Live scope-count badge: re-query whenever the filter set changes, with
+  // a 300ms debounce so we don't hammer the backend while the user is
+  // still picking pills. Empty set → skip (no "full network" preview).
+  const filtersKey = useMemo(
+    () => JSON.stringify(filters.map(f => ({ d: f.dimension, v: [...f.values].sort() }))),
+    [filters],
+  );
+  useEffect(() => {
+    const parsed = JSON.parse(filtersKey) as Array<{ d: string; v: string[] }>;
+    const nonEmpty = parsed.filter(f => f.v.length > 0);
+    if (nonEmpty.length === 0) {
+      setCounts(null);
+      setCountsLoading(false);
+      return;
+    }
+    setCountsLoading(true);
+    const handle = window.setTimeout(() => {
+      fetchScopeCounts(parsed.map(f => ({ dimension: f.d, values: f.v })))
+        .then(c => setCounts(c))
+        .finally(() => setCountsLoading(false));
+    }, 300);
+    return () => { window.clearTimeout(handle); setCountsLoading(false); };
+  }, [filtersKey]);
+
+  const ensureValuesLoaded = (key: string) => {
+    if (valuesCache[key] || valuesLoading === key) return;
+    setValuesLoading(key);
+    fetchDetectorDimensionValues(key)
+      .then(v => setValuesCache(p => ({ ...p, [key]: v })))
+      .finally(() => setValuesLoading(null));
+  };
 
   const addDimension = (key: string) => {
     onChange([...filters, { dimension: key, values: [] }]);
     setAdding(false);
-    if (!valuesCache[key]) {
-      setValuesLoading(key);
-      fetchDetectorDimensionValues(key)
-        .then(v => setValuesCache(p => ({ ...p, [key]: v })))
-        .finally(() => setValuesLoading(null));
-    }
+    ensureValuesLoaded(key);
   };
   const updateValues = (dim: string, values: string[]) => onChange(filters.map(f => f.dimension === dim ? { ...f, values } : f));
   const removeFilter = (dim: string) => onChange(filters.filter(f => f.dimension !== dim));
 
   return (
     <div className="space-y-3">
+      {/* Live scope-count badge — appears as soon as any filter has values */}
+      {(counts || countsLoading) && (
+        <div className="flex items-center justify-between rounded-xl border border-teal-100 bg-gradient-to-r from-teal-50/80 to-white px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-teal-600 shadow-sm ring-1 ring-teal-100">
+              <Filter className="h-3.5 w-3.5" />
+            </span>
+            <div className="leading-tight">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-teal-700">Scope preview</p>
+              {countsLoading ? (
+                <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-slate-500">
+                  <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-teal-400" />
+                  Counting matching sites & cells…
+                </p>
+              ) : counts ? (
+                <p className="mt-0.5 text-[13px] text-slate-700">
+                  <span className="font-semibold text-slate-900">{counts.sites.toLocaleString()}</span> site{counts.sites === 1 ? '' : 's'}
+                  <span className="mx-2 text-slate-300">·</span>
+                  <span className="font-semibold text-slate-900">{counts.cells.toLocaleString()}</span> cell{counts.cells === 1 ? '' : 's'}
+                  <span className="ml-2 text-[11px] text-slate-400">in scope</span>
+                </p>
+              ) : null}
+            </div>
+          </div>
+          {counts && counts.cells === 0 && (
+            <span className="rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700 ring-1 ring-inset ring-amber-100">
+              Empty population
+            </span>
+          )}
+        </div>
+      )}
+
       {filters.length === 0 && (
-        <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center">
-          <Filter className="mx-auto mb-2 h-5 w-5 text-slate-400" />
-          <p className="text-[13px] font-medium text-slate-700">No filter yet</p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 p-10 text-center">
+          <div className="mx-auto mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-teal-600">
+            <Filter className="h-4 w-4" />
+          </div>
+          <p className="text-[13px] font-semibold text-slate-700">No filter yet</p>
           <p className="mt-1 text-[12px] text-slate-500">Add at least one dimension to define the population.</p>
         </div>
       )}
@@ -498,123 +695,304 @@ function PopulationBuilder({ dimensions, loading, filters, onChange }: {
         const values = valuesCache[filter.dimension] || [];
         const isLoading = valuesLoading === filter.dimension;
         return (
-          <div key={filter.dimension} className="rounded-lg border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <div
+            key={filter.dimension}
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-slate-300"
+          >
+            <div className="mb-3 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Tag className="h-3.5 w-3.5 text-teal-600" />
-                <span className="text-[13px] font-semibold text-slate-800">{dim?.label || filter.dimension}</span>
-                <span className="text-[11px] text-slate-400">{filter.values.length} value{filter.values.length === 1 ? '' : 's'}</span>
-              </div>
-              <button onClick={() => removeFilter(filter.dimension)} className="text-[12px] text-slate-400 hover:text-red-600">Remove</button>
-            </div>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {filter.values.map(v => (
-                <span key={v} className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-[12px] font-medium text-teal-700">
-                  {v}
-                  <button onClick={() => updateValues(filter.dimension, filter.values.filter(x => x !== v))}><X className="h-3 w-3" /></button>
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-600">
+                  <Tag className="h-3.5 w-3.5" />
                 </span>
-              ))}
-              {!filter.values.length && <span className="text-[12px] text-slate-400">No value selected</span>}
+                <div className="leading-tight">
+                  <p className="text-[13px] font-semibold text-slate-800">{dim?.label || filter.dimension}</p>
+                  <p className="text-[11px] text-slate-400">
+                    {filter.values.length === 0
+                      ? 'Any value'
+                      : `${filter.values.length} value${filter.values.length === 1 ? '' : 's'} selected`}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeFilter(filter.dimension)}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[12px] font-medium text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                aria-label="Remove filter"
+              >
+                <Trash2 className="h-3 w-3" />
+                Remove
+              </button>
             </div>
-            <ValueAutocomplete
+            <MultiSelectCombobox
               options={values}
               loading={isLoading}
               selected={filter.values}
-              onAdd={v => updateValues(filter.dimension, Array.from(new Set([...filter.values, v])))}
-              onLoadOptions={() => {
-                if (valuesCache[filter.dimension] || isLoading) return;
-                setValuesLoading(filter.dimension);
-                fetchDetectorDimensionValues(filter.dimension)
-                  .then(v => setValuesCache(p => ({ ...p, [filter.dimension]: v })))
-                  .finally(() => setValuesLoading(null));
-              }}
+              placeholder={`Search ${dim?.label?.toLowerCase() || filter.dimension.toLowerCase()}…`}
+              onChange={vals => updateValues(filter.dimension, vals)}
+              onLoadOptions={() => ensureValuesLoaded(filter.dimension)}
             />
           </div>
         );
       })}
 
       {adding ? (
-        <div className="rounded-lg border border-teal-200 bg-white p-4">
+        <div className="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm">
           <Label>Pick a dimension</Label>
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-2">
             {available.map(d => (
-              <button key={d.key} onClick={() => addDimension(d.key)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700">
+              <button
+                key={d.key}
+                type="button"
+                onClick={() => addDimension(d.key)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-700 transition hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700"
+              >
+                <Plus className="h-3 w-3 text-slate-400" />
                 {d.label}
               </button>
             ))}
             {!available.length && <span className="text-[12px] text-slate-400">All dimensions added.</span>}
           </div>
-          <button onClick={() => setAdding(false)} className="mt-3 text-[12px] text-slate-500 hover:text-slate-700">Cancel</button>
+          <button
+            type="button"
+            onClick={() => setAdding(false)}
+            className="mt-4 text-[12px] font-medium text-slate-500 hover:text-slate-700"
+          >
+            Cancel
+          </button>
         </div>
       ) : (
-        <button onClick={() => setAdding(true)} disabled={loading || available.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-md border border-dashed border-slate-300 bg-white px-3 py-2 text-[13px] font-medium text-slate-700 hover:border-teal-400 hover:text-teal-700 disabled:opacity-50">
-          <Plus className="h-3.5 w-3.5" /> Add filter
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          disabled={loading || available.length === 0}
+          className="group inline-flex items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-2.5 text-[13px] font-medium text-slate-600 shadow-sm transition hover:border-teal-400 hover:bg-teal-50/40 hover:text-teal-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <span className="inline-flex h-5 w-5 items-center justify-center rounded-md bg-slate-100 text-slate-500 transition group-hover:bg-teal-100 group-hover:text-teal-600">
+            <Plus className="h-3 w-3" />
+          </span>
+          Add filter
         </button>
       )}
     </div>
   );
 }
 
-function ValueAutocomplete({ options, loading, selected, onAdd, onLoadOptions }: {
+/**
+ * Multi-select combobox — single-input UX for filter values.
+ *
+ * Notion/Linear/Datadog flavor: selected values appear inline as removable
+ * teal pills, with a "+N more" collapse past 5 chips. The dropdown is a
+ * floating panel with a header counter, an "Add all matching" shortcut,
+ * and a scrollable list capped to MAX_VISIBLE so the user is never asked
+ * to scroll through hundreds of entries — searching narrows the set.
+ */
+function MultiSelectCombobox({
+  options,
+  loading,
+  selected,
+  placeholder,
+  onChange,
+  onLoadOptions,
+}: {
   options: string[];
   loading: boolean;
   selected: string[];
-  onAdd: (v: string) => void;
+  placeholder?: string;
+  onChange: (vs: string[]) => void;
   onLoadOptions: () => void;
 }) {
+  const COLLAPSE_AT = 5;
+  const MAX_VISIBLE = 80;
+
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
-  const filtered = options
+  const [showAllChips, setShowAllChips] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close on outside click + Escape
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setQ('');
+      }
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setOpen(false); setQ(''); } };
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const matching = options
     .filter(o => !selected.includes(o))
-    .filter(o => o.toLowerCase().includes(q.toLowerCase()))
-    .slice(0, 12);
-  const handlePick = (value: string) => {
-    onAdd(value);
+    .filter(o => !q || o.toLowerCase().includes(q.toLowerCase()));
+  const visibleOptions = matching.slice(0, MAX_VISIBLE);
+
+  const visibleChips = showAllChips || selected.length <= COLLAPSE_AT
+    ? selected
+    : selected.slice(0, COLLAPSE_AT);
+  const hiddenCount = selected.length - visibleChips.length;
+
+  const removeOne = (v: string) => {
+    const next = selected.filter(x => x !== v);
+    onChange(next);
+    if (next.length <= COLLAPSE_AT) setShowAllChips(false);
+  };
+  const addOne = (v: string) => {
+    if (selected.includes(v)) return;
+    onChange([...selected, v]);
+    setQ('');
+    inputRef.current?.focus();
+  };
+  const addAllMatching = () => {
+    onChange(Array.from(new Set([...selected, ...matching])));
     setQ('');
     setOpen(false);
   };
+  const clearAll = () => { onChange([]); setShowAllChips(false); };
+
+  const openIfClosed = () => {
+    if (!open) { setOpen(true); onLoadOptions(); }
+    inputRef.current?.focus();
+  };
+
   return (
-    <div>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+    <div ref={containerRef} className="relative">
+      {/* Combobox shell */}
+      <div
+        onClick={openIfClosed}
+        className={cn(
+          'flex flex-wrap items-center gap-1.5 rounded-xl border bg-white px-2.5 py-2 shadow-sm transition cursor-text',
+          open
+            ? 'border-teal-400 ring-2 ring-teal-500/15'
+            : 'border-slate-200 hover:border-slate-300',
+        )}
+      >
+        {visibleChips.map(v => (
+          <span
+            key={v}
+            className="group/chip inline-flex max-w-full items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-[12px] font-medium text-teal-700 ring-1 ring-inset ring-teal-100"
+          >
+            <span className="truncate">{v}</span>
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); removeOne(v); }}
+              className="-mr-0.5 inline-flex h-4 w-4 items-center justify-center rounded-full text-teal-600/70 transition hover:bg-teal-100 hover:text-teal-700"
+              aria-label={`Remove ${v}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+
+        {hiddenCount > 0 && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setShowAllChips(true); }}
+            className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-200"
+          >
+            +{hiddenCount} more
+          </button>
+        )}
+
+        {showAllChips && selected.length > COLLAPSE_AT && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setShowAllChips(false); }}
+            className="rounded-full px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:text-slate-700"
+          >
+            Collapse
+          </button>
+        )}
+
         <input
+          ref={inputRef}
           value={q}
-          onFocus={() => {
-            setOpen(true);
-            onLoadOptions();
+          onChange={e => { setQ(e.target.value); if (!open) { setOpen(true); onLoadOptions(); } }}
+          onFocus={() => { setOpen(true); onLoadOptions(); }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && q.trim()) {
+              e.preventDefault();
+              addOne(q.trim());
+            } else if (e.key === 'Backspace' && !q && selected.length) {
+              removeOne(selected[selected.length - 1]);
+            }
           }}
-          onChange={e => {
-            setQ(e.target.value);
-            setOpen(true);
-          }}
-          onKeyDown={e => { if (e.key === 'Enter' && q.trim()) { onAdd(q.trim()); setQ(''); } }}
-          placeholder={loading ? 'Loading values…' : 'Search or type a value, press Enter'}
-          className={cn(inputClass, 'pl-9')}
+          placeholder={selected.length ? '' : (placeholder || 'Search a value…')}
+          className="min-w-[120px] flex-1 bg-transparent py-0.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none"
         />
+
+        {selected.length > 0 && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); clearAll(); }}
+            className="ml-auto inline-flex items-center rounded-md p-1 text-slate-400 transition hover:bg-slate-50 hover:text-slate-600"
+            aria-label="Clear all"
+            title="Clear all selected"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+        <ChevronDown className={cn(
+          'h-4 w-4 shrink-0 text-slate-400 transition-transform',
+          open && 'rotate-180 text-teal-500',
+        )} />
       </div>
+
+      {/* Dropdown panel */}
       {open && (
-        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2">
-          {loading && <p className="px-2 py-1 text-[12px] text-slate-500">Loading backend values...</p>}
-          {!loading && filtered.length === 0 && (
-            <p className="px-2 py-1 text-[12px] text-slate-500">
-              No backend value found. Type a custom value and press Enter.
+        <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg ring-1 ring-slate-900/5">
+          {loading ? (
+            <p className="flex items-center gap-2 px-3 py-3 text-[12px] text-slate-500">
+              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-teal-400" />
+              Loading values…
             </p>
+          ) : matching.length === 0 ? (
+            <p className="px-3 py-3 text-[12px] text-slate-500">
+              {q
+                ? <>No backend value matches <span className="font-medium text-slate-700">"{q}"</span>. Press <kbd className="rounded bg-slate-100 px-1 text-[10px] text-slate-600">Enter</kbd> to add it as a custom value.</>
+                : 'All values selected.'}
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-3 py-1.5">
+                <span className="text-[11px] font-medium text-slate-500">
+                  {q
+                    ? `${matching.length} match${matching.length === 1 ? '' : 'es'}${matching.length > visibleOptions.length ? ` · showing ${visibleOptions.length}` : ''}`
+                    : `${matching.length} value${matching.length === 1 ? '' : 's'} available`}
+                </span>
+                {matching.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={addAllMatching}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-teal-700 transition hover:bg-teal-50 hover:text-teal-800"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add all {matching.length}
+                  </button>
+                )}
+              </div>
+              <ul className="max-h-64 overflow-auto py-1">
+                {visibleOptions.map(o => (
+                  <li key={o}>
+                    <button
+                      type="button"
+                      onClick={() => addOne(o)}
+                      className="group flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-[13px] text-slate-700 transition hover:bg-teal-50/70 hover:text-teal-700"
+                    >
+                      <span className="truncate">{o}</span>
+                      <Plus className="h-3 w-3 shrink-0 text-slate-300 transition group-hover:text-teal-600" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
-          {!loading && filtered.length > 0 && (
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span className="text-[11px] font-medium text-slate-500">
-                {q ? 'Matching values' : 'First backend values'}
-              </span>
-              <button type="button" onClick={() => setOpen(false)} className="text-[11px] text-slate-400 hover:text-slate-700">Hide</button>
-            </div>
-          )}
-          <div className="flex max-h-44 flex-wrap gap-1.5 overflow-auto">
-          {filtered.map(o => (
-            <button key={o} onClick={() => handlePick(o)}
-              className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[12px] text-slate-700 hover:border-teal-300 hover:bg-teal-50 hover:text-teal-700">{o}</button>
-          ))}
-          </div>
         </div>
       )}
     </div>
