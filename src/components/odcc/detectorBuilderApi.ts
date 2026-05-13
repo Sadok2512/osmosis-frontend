@@ -230,7 +230,9 @@ export interface MlDetectorRow {
 export interface MlAnomalyRow {
   id: number;
   detector_id: number;
+  run_id?: number | null;
   period_start: string;
+  scope_level?: string | null;
   cell_name: string | null;
   kpi_code: string;
   dimension_key: string | null;
@@ -241,11 +243,63 @@ export interface MlAnomalyRow {
   trend_pct: number | null;
   severity: string;
   detected_at: string;
+  /** Backend-computed honest score (Mary's formula, NULL when ingredients
+   *  missing). Labelled "Force du signal" in UI — never "Confidence". */
+  evidence_score?: number | null;
+  detection_method?: 'criteria' | 'zscore' | 'legacy' | null;
+  /** Persistent acknowledgment status from kpi.v_ml_anomaly_current_status. */
+  ack_status?: 'open' | 'acknowledged' | 'resolved' | 'ignored' | 'reopened' | null;
+  ack_user?: string | null;
+  ack_at?: string | null;
+}
+
+export type AnomalyAckStatus = 'acknowledged' | 'resolved' | 'ignored' | 'reopened';
+
+export async function setAnomalyStatus(
+  anomalyId: number | string,
+  status: AnomalyAckStatus,
+  opts?: { userEmail?: string; notes?: string },
+): Promise<{ anomaly_id: number; status: string; user: string | null; at: string | null }> {
+  return sendJson(`anomalies/${encodeURIComponent(String(anomalyId))}/ack`, 'POST', {
+    status,
+    user_email: opts?.userEmail,
+    notes:      opts?.notes,
+  });
+}
+
+export interface MlRunProgress {
+  id: number;
+  detector_id: number;
+  task_id: string | null;
+  state: 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+  progress_pct: number;
+  current_step: string | null;
+  total_cells: number | null;
+  processed_cells: number;
+  anomalies_count: number;
+  started_at: string | null;
+  finished_at: string | null;
+  error_text: string | null;
+}
+
+export async function getRunProgress(runId: number): Promise<MlRunProgress> {
+  return getJson<MlRunProgress>(`profiles/runs/${runId}/progress`);
+}
+
+export async function stopDetectorRun(detectorId: number | string, taskId: string): Promise<unknown> {
+  return sendJson(
+    `profiles/${encodeURIComponent(String(detectorId))}/stop?task_id=${encodeURIComponent(taskId)}`,
+    'POST',
+    {},
+  );
 }
 
 export interface MlRunResponse {
   queued: boolean;
   task_id: string;
+  /** New 2026-05-13 — run row id from kpi.ml_detector_runs, used for
+   *  GET /profiles/runs/{run_id}/progress polling and Stop. */
+  run_id?: number;
   detector_id?: number;
   profile_id?: number;
 }

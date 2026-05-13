@@ -44,12 +44,15 @@ import {
   fetchDetectorDimensions,
   fetchDetectorHolidays,
   fetchDetectorKpis,
+  getRunProgress,
   listDetectorAnomalies,
+  setAnomalyStatus,
+  stopDetectorRun,
   listDetectorPayloads,
   runDetectorNow,
   updateDetectorPayloadForBackend,
 } from './detectorBuilderApi';
-import type { MlAnomalyRow, MlDetectorRow } from './detectorBuilderApi';
+import type { AnomalyAckStatus, MlAnomalyRow, MlDetectorRow, MlRunProgress } from './detectorBuilderApi';
 import DetectorWizard from './DetectorWizard';
 import type {
   CriteriaConfig,
@@ -159,6 +162,10 @@ interface DetectionResult {
   status: ResultStatus;
   triggerSummary: string;
   kpiCode: string;
+  /** Backend-computed honest score (Mary's contract). NULL when ingredients
+   *  missing — UI shows "—". Labelled "Force du signal", never "Confidence". */
+  evidenceScore?: number | null;
+  detectionMethod?: 'criteria' | 'zscore' | 'legacy' | null;
   currentValue: number;
   threshold: number;
   detectedAt: string;
@@ -368,28 +375,42 @@ function detectorFromBackend(row: MlDetectorRow): Detector {
   };
 }
 
+function ackStatusToResultStatus(s: MlAnomalyRow['ack_status']): ResultStatus {
+  // Persistent backend status → UI ResultStatus enum.
+  if (s === 'acknowledged') return 'acknowledged';
+  if (s === 'resolved')     return 'resolved';
+  if (s === 'ignored')      return 'ignored';
+  return 'open';   // null / 'reopened' / 'open' → fresh
+}
+
 function resultFromBackend(row: MlAnomalyRow): DetectionResult {
   const cellName = row.cell_name || row.dimension_key || `anomaly_${row.id}`;
+  // Honour the scope_level from the backend instead of always assuming CELL.
+  const scopeLvl = (row.scope_level || 'CELL').toUpperCase() as ScopeLevel;
   return {
     id: String(row.id),
     detectorId: String(row.detector_id),
-    detectorRunId: `backend_${row.detector_id}`,
-    scopeLevel: 'CELL',
-    neType: 'CELL',
+    detectorRunId: row.run_id ? `run_${row.run_id}` : `backend_${row.detector_id}`,
+    scopeLevel: scopeLvl,
+    neType: scopeLvl,
     neId: cellName,
     neName: cellName,
     countryCode: '',
     departmentCode: '',
     dorCode: '',
-    plaqueCode: '',
+    plaqueCode: row.dimension_key && row.scope_level === 'PLAQUE'
+      ? row.dimension_key.replace(/^PLAQUE=/, '')
+      : '',
     siteCode: cellName.split('_ENB')[0] || '',
     cellCode: cellName,
     technology: '',
     vendor: '',
     severity: severityFromBackend(row.severity),
-    status: 'open',
+    status: ackStatusToResultStatus(row.ack_status),
     triggerSummary: `value=${row.value ?? '-'} z=${row.z_score ?? '-'} trend=${row.trend_pct ?? '-'}`,
     kpiCode: row.kpi_code,
+    evidenceScore: row.evidence_score ?? null,
+    detectionMethod: (row.detection_method as DetectionResult['detectionMethod']) ?? null,
     currentValue: Number(row.value ?? 0),
     threshold: Number(row.z_score ?? row.trend_pct ?? 0),
     detectedAt: row.detected_at,
@@ -415,6 +436,13 @@ export default function OdccDetectorConsole({
   const [detectors, setDetectors] = useState<Detector[]>([]);
   const [runs, setRuns] = useState<DetectorRun[]>([]);
   const [results, setResults] = useState<DetectionResult[]>([]);
+  const [showAcknowledged, setShowAcknowledged] = useState(false);
+  const [activeRun, setActiveRun] = useState<{
+    detectorId: string;
+    taskId: string;
+    runId: number | null;
+    progress: MlRunProgress | null;
+  } | null>(null);
   const [parameterSets, setParameterSets] = useState<ParameterSet[]>(seedParameterSets);
   const [audit, setAudit] = useState<AuditLog[]>([]);
   const [draft, setDraft] = useState<Detector>(() => emptyDetector());
@@ -559,18 +587,57 @@ export default function OdccDetectorConsole({
     };
     setRuns(prev => [run, ...prev]);
     log(detector.id, 'queued_backend_run', `task ${run.id}`);
-    const anomalies = await listDetectorAnomalies({ detectorId: detector.id, limit: 100 });
-    setResults(prev => {
-      const existing = new Set(prev.map(result => result.id));
-      const fresh = anomalies.items.map(resultFromBackend).filter(result => !existing.has(result.id));
-      return [...fresh, ...prev];
-    });
     setTab('results');
+
+    // Track this run for the Stop button + live progress badge.
+    setActiveRun({
+      detectorId: String(detector.id),
+      taskId:     queued.task_id,
+      runId:      queued.run_id ?? null,
+      progress:   null,
+    });
   };
 
-  const updateResultStatus = (ids: string[], status: ResultStatus) => {
+  const stopActiveRun = async () => {
+    if (!activeRun) return;
+    try {
+      await stopDetectorRun(activeRun.detectorId, activeRun.taskId);
+    } catch (err) {
+      console.warn('[ODCC] stop failed', err);
+    }
+    setActiveRun(prev => prev ? { ...prev, progress: prev.progress ? { ...prev.progress, state: 'cancelled' } : null } : null);
+  };
+
+  const updateResultStatus = async (ids: string[], status: ResultStatus) => {
+    // 'open' is the absence of an ack — we don't POST it (open state is
+    // synthesised from "no ack row" backend-side). Everything else hits
+    // the backend so the decision survives reload + cross-user.
+    if (status === 'open') {
+      setResults(prev => prev.map(r => ids.includes(r.id) ? { ...r, status } : r));
+      setSelectedResults([]);
+      return;
+    }
+    // Optimistic update — revert on failure to keep the UI honest.
+    const prevResults = results;
     setResults(prev => prev.map(r => ids.includes(r.id) ? { ...r, status } : r));
     setSelectedResults([]);
+    const failures: string[] = [];
+    await Promise.all(ids.map(async (id) => {
+      try {
+        await setAnomalyStatus(id, status as AnomalyAckStatus);
+      } catch (err) {
+        console.warn(`[ODCC] ack failed for ${id}`, err);
+        failures.push(id);
+      }
+    }));
+    if (failures.length) {
+      // Roll back the failed ones so the UI doesn't promise persistence
+      // it didn't deliver. Sally's red line: never lie about state.
+      setResults(prev => prev.map(r =>
+        failures.includes(r.id) ? (prevResults.find(p => p.id === r.id) || r) : r,
+      ));
+      setBackendError(`Ack failed for ${failures.length} anomal${failures.length === 1 ? 'y' : 'ies'}.`);
+    }
   };
 
   const exportCsv = () => {

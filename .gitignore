@@ -27,3 +27,4 @@ dist.broken-rootowned-*/
 *.root-locked
 *.root-locked-*
 *.root-locked.*
+dist.locked.*/

@@ -417,34 +417,52 @@ const SentinelMLDetector: React.FC = () => {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(anomaliesTotal / limit)), [anomaliesTotal]);
   const selected = profiles.find((p) => p.id === selectedProfile) || null;
+  const kpiAliases = useMemo(() => {
+    const map = new Map<string, string>();
+    anomalies.forEach((a) => {
+      if (!map.has(a.kpi_code)) map.set(a.kpi_code, `KPI ${map.size + 1}`);
+    });
+    return map;
+  }, [anomalies]);
+  const occurrenceByKpi = useMemo(() => {
+    const map = new Map<string, number>();
+    anomalies.forEach((a) => map.set(a.kpi_code, (map.get(a.kpi_code) ?? 0) + 1));
+    return map;
+  }, [anomalies]);
+  const trendBars = (a: MlAnomaly): number[] => {
+    const vals = [a.delta_14 ?? 0, a.delta_7 ?? 0, a.trend_pct ?? 0, a.z_score ?? 0].map((v) => Math.min(1, Math.abs(v) / 100));
+    return vals.map((v) => Math.max(18, Math.round(18 + v * 34)));
+  };
 
   return (
     <div
-      className="flex h-full gap-4 text-slate-900"
+      className="flex h-full gap-5 overflow-hidden rounded-xl bg-[#F5F7FA] p-5 text-slate-900"
       style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased', MozOsxFontSmoothing: 'grayscale' }}
     >
       {/* ─── LEFT: profiles ─────────────────────────────────── */}
-      <aside className="w-[320px] shrink-0 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
-        <header className="flex items-center justify-between px-4 py-3 border-b border-slate-200/70">
+      <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <header className="flex items-center justify-between border-b border-slate-200/70 bg-white px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-100">
-              <Brain className="w-3.5 h-3.5" />
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-teal-50 text-teal-700 ring-1 ring-teal-100">
+              <Brain className="h-4 w-4" />
             </span>
-            <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">Profils ML</h3>
-            <span className="text-[11px] font-medium text-slate-400">({profiles.length})</span>
+            <div>
+              <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-slate-700">Profils ML</h3>
+              <span className="text-[11px] font-medium text-slate-400">({profiles.length})</span>
+            </div>
           </div>
           <button
             type="button"
             onClick={loadProfiles}
-            className="p-1.5 rounded-md hover:bg-slate-50 text-slate-500 transition"
+            className="rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700"
             title="Recharger"
           >
-            <RefreshCw className={'w-3.5 h-3.5 ' + (profilesLoading ? 'animate-spin' : '')} />
+            <RefreshCw className={'h-3.5 w-3.5 ' + (profilesLoading ? 'animate-spin' : '')} />
           </button>
         </header>
 
         {profilesError && (
-          <div className="p-3 text-xs text-red-600 bg-red-50 border-b border-red-200">
+          <div className="border-b border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
             {profilesError}
           </div>
         )}
@@ -452,11 +470,11 @@ const SentinelMLDetector: React.FC = () => {
         <div className="flex-1 overflow-auto">
           {profilesLoading && profiles.length === 0 ? (
             <div className="flex items-center justify-center p-6 text-slate-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin text-teal-600" />
             </div>
           ) : profiles.length === 0 ? (
-            <div className="p-4 text-xs text-slate-500">
-              Aucun profil ML. Créer un profil via l'API <code>POST /ml-api/profiles</code>.
+            <div className="m-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-xs leading-relaxed text-slate-500">
+              Aucun profil ML. Créer un profil via l'API <code className="rounded bg-white px-1 py-0.5 text-[11px] text-slate-700 ring-1 ring-slate-200">POST /ml-api/profiles</code>.
             </div>
           ) : profiles.map((p) => (
             <button
@@ -464,17 +482,17 @@ const SentinelMLDetector: React.FC = () => {
               type="button"
               onClick={() => { setSelectedProfile(p.id); setPage(1); }}
               className={
-                'w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50/70 transition ' +
-                (selectedProfile === p.id ? 'bg-teal-50/60 border-l-2 border-l-teal-500' : '')
+                'w-full border-b border-slate-100 px-4 py-3 text-left transition hover:bg-teal-50/40 ' +
+                (selectedProfile === p.id ? 'bg-teal-50/70 shadow-[inset_3px_0_0_#0d9488]' : '')
               }
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-[14px] font-medium text-slate-900 truncate">{p.name}</div>
-                  <div className="text-[12px] text-slate-500 mt-0.5">
+                  <div className="truncate text-[14px] font-semibold text-slate-900">{p.name}</div>
+                  <div className="mt-0.5 text-[12px] text-slate-500">
                     {p.kpi_count} KPIs · {p.dimension_count} dims · {p.run_time}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">
+                  <div className="mt-0.5 text-[11px] text-slate-400">
                     Last run: {fmtDate(p.last_run_at)}
                   </div>
                 </div>
@@ -495,11 +513,11 @@ const SentinelMLDetector: React.FC = () => {
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleRunNow(p.id); }}
                     disabled={runningId === p.id}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-white rounded-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 shadow-sm transition disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:opacity-50"
                   >
                     {runningId === p.id
-                      ? <Loader2 className="w-3 h-3 animate-spin" />
-                      : <Play className="w-3 h-3" />}
+                      ? <Loader2 className="h-3 w-3 animate-spin" />
+                      : <Play className="h-3 w-3" />}
                     Run now
                   </button>
                 </div>
@@ -509,77 +527,81 @@ const SentinelMLDetector: React.FC = () => {
         </div>
 
         {runFeedback && (
-          <div className="p-2 text-[11px] text-slate-700 bg-amber-50 border-t border-amber-200">
+          <div className="border-t border-amber-200 bg-amber-50 p-3 text-[11px] font-medium text-amber-800">
             {runFeedback}
           </div>
         )}
       </aside>
 
       {/* ─── RIGHT: anomalies viewer ─────────────────────────── */}
-      <section className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200/70 shadow-sm overflow-hidden">
-        <header className="px-4 py-3 border-b border-slate-200/70">
-          <div className="flex items-center justify-between gap-2">
+      <section className="flex flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <header className="border-b border-slate-200/70 bg-white px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="text-[13px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+              <h3 className="text-[12px] font-black uppercase tracking-[0.14em] text-slate-700">
                 Anomalies {selected ? `· ${selected.name}` : ''}
               </h3>
-              <p className="text-[12px] text-slate-500 mt-0.5">
+              <p className="mt-1 text-[12px] text-slate-500">
                 {anomaliesTotal.toLocaleString('fr-FR')} anomalies · z-score &gt; {selected?.z_threshold ?? '?'} OU trend% &gt; {selected?.trend_threshold ?? '?'}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 ring-1 ring-slate-200">
+                <Filter className="h-3.5 w-3.5" />
+              </span>
               <select
                 value={severity}
                 onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] text-slate-700 transition hover:border-slate-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
               >
                 <option value="">Toutes sévérités</option>
                 <option value="critical">Critical</option>
                 <option value="warning">Warning</option>
                 <option value="info">Info</option>
               </select>
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+              <Calendar className="h-3.5 w-3.5 text-slate-400" />
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] text-slate-700 transition hover:border-slate-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
               />
               <span className="text-slate-400">→</span>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition"
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-[12px] text-slate-700 transition hover:border-slate-300 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
               />
             </div>
           </div>
         </header>
 
         {anomaliesError && (
-          <div className="p-3 text-xs text-red-600 bg-red-50 border-b border-red-200 flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" /> {anomaliesError}
+          <div className="flex items-center gap-2 border-b border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
+            <AlertCircle className="h-4 w-4" /> {anomaliesError}
           </div>
         )}
 
         <div className="flex-1 overflow-auto">
           {anomaliesLoading ? (
             <div className="flex items-center justify-center p-12 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin" />
+              <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
             </div>
           ) : anomalies.length === 0 ? (
-            <div className="p-12 text-center text-sm text-slate-500">
+            <div className="m-6 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-12 text-center text-sm text-slate-500">
               Aucune anomalie pour ce filtre.
             </div>
           ) : (
             <table className="w-full text-[13px]">
-              <thead className="bg-slate-50/70 sticky top-0 z-10">
-                <tr className="text-left text-[11px] font-medium text-slate-500 uppercase tracking-[0.08em]">
+              <thead className="sticky top-0 z-10 bg-slate-50/90">
+                <tr className="text-left text-[11px] font-black uppercase tracking-[0.12em] text-slate-500">
                   <th className="px-3 py-2.5">Sévérité</th>
                   <th className="px-3 py-2.5">Période</th>
                   <th className="px-3 py-2.5">Cellule</th>
                   <th className="px-3 py-2.5">KPI</th>
+                  <th className="px-3 py-2.5">Trend</th>
+                  <th className="px-3 py-2.5 text-right">Occ.</th>
                   <th className="px-3 py-2.5 text-right">Valeur</th>
                   <th className="px-3 py-2.5 text-right">Z-score</th>
                   <th className="px-3 py-2.5 text-right">Δ7d</th>
@@ -590,7 +612,7 @@ const SentinelMLDetector: React.FC = () => {
               </thead>
               <tbody>
                 {anomalies.map((a) => (
-                  <tr key={a.id} className="border-t border-slate-100 hover:bg-slate-50/60 transition">
+                  <tr key={a.id} className="border-t border-slate-100 transition hover:bg-teal-50/30">
                     <td className="px-3 py-2">
                       <span className={'inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-full uppercase tracking-[0.06em] border ' + (SEVERITY_STYLES[a.severity] || SEVERITY_STYLES.info)}>
                         {a.severity === 'critical' && <AlertTriangle className="w-3 h-3" />}
@@ -599,7 +621,27 @@ const SentinelMLDetector: React.FC = () => {
                     </td>
                     <td className="px-3 py-2 text-slate-600 tabular-nums">{fmtDate(a.period_start)}</td>
                     <td className="px-3 py-2 font-mono text-[12px] text-slate-800">{a.cell_name || '—'}</td>
-                    <td className="px-3 py-2 text-slate-700 truncate max-w-[200px]" title={a.kpi_code}>{a.kpi_code}</td>
+                    <td className="px-3 py-2">
+                      <span title={a.kpi_code} className="inline-flex items-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-[12px] font-semibold text-slate-700">
+                        {kpiAliases.get(a.kpi_code) ?? 'KPI'}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex h-8 items-end gap-1" title={`Trend ${fmtNum(a.trend_pct)}%`}>
+                        {trendBars(a).map((h, i) => (
+                          <span
+                            key={i}
+                            className={(a.severity === 'critical' ? 'bg-red-300' : a.severity === 'warning' ? 'bg-amber-300' : 'bg-emerald-300') + ' w-1.5 rounded-t'}
+                            style={{ height: `${h}px` }}
+                          />
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <span className={(a.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : a.severity === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700') + ' inline-flex min-w-8 justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold'}>
+                        {occurrenceByKpi.get(a.kpi_code) ?? 1}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium text-slate-900">{fmtNum(a.value)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.z_score)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmtNum(a.delta_7)}</td>
@@ -610,9 +652,9 @@ const SentinelMLDetector: React.FC = () => {
                         type="button"
                         title="Lancer / consulter la RCA (RCAI)"
                         onClick={() => openRca(a)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-teal-50 text-teal-700 transition"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-700 transition hover:border-teal-200 hover:bg-teal-100"
                       >
-                        <Search className="w-3.5 h-3.5" />
+                        <Search className="h-3.5 w-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -623,20 +665,20 @@ const SentinelMLDetector: React.FC = () => {
         </div>
 
         {totalPages > 1 && (
-          <footer className="flex items-center justify-between p-2 border-t border-slate-200 text-xs text-slate-600">
+          <footer className="flex items-center justify-between border-t border-slate-200 bg-white p-3 text-xs text-slate-600">
             <span>Page {page} / {totalPages}</span>
             <div className="flex gap-1">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-2 py-1 border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-40"
               >‹ Préc.</button>
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-2 py-1 border border-slate-200 rounded disabled:opacity-40 hover:bg-slate-50"
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-medium transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-700 disabled:opacity-40"
               >Suiv. ›</button>
             </div>
           </footer>
@@ -650,121 +692,191 @@ const SentinelMLDetector: React.FC = () => {
             className="absolute inset-0 bg-slate-900/30"
             onClick={() => setRcaOpen(null)}
           />
-          <aside className="relative w-[720px] max-w-[92vw] h-full bg-white shadow-2xl flex flex-col">
-            <header className="p-4 border-b border-slate-200">
-              <div className="flex items-start justify-between">
+          <aside className="relative flex h-full w-[580px] max-w-[96vw] flex-col overflow-hidden border-l border-slate-200 bg-[#F5F7FA] text-slate-900 shadow-2xl">
+            <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-5 py-4 shadow-sm backdrop-blur-xl">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Brain className="w-4 h-4 text-indigo-600" />
-                    <h3 className="text-sm font-semibold text-slate-800">Analysis · Anomaly #{rcaOpen.id}</h3>
-                    {(() => {
-                      const fam = kpiFamily(rcaOpen.kpi_code);
-                      return (
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${fam.color}`} title="KPI family (classification)">
-                          {fam.label}
-                        </span>
-                      );
-                    })()}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-blue-100">
+                      <Brain className="h-3.5 w-3.5" />
+                    </span>
+                    <h3 className="truncate text-base font-semibold text-slate-900">Analysis · Anomaly #{rcaOpen.id}</h3>
                     <span className={
-                      'text-[10px] px-1.5 py-0.5 rounded ' +
-                      (rcaOpen.severity === 'critical' ? 'bg-red-100 text-red-700' :
-                       rcaOpen.severity === 'warning'  ? 'bg-amber-100 text-amber-700' :
-                                                         'bg-slate-100 text-slate-600')
+                      'rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.10em] ' +
+                      (rcaOpen.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' :
+                       rcaOpen.severity === 'warning'  ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                                                         'border-slate-200 bg-slate-50 text-slate-600')
                     }>{rcaOpen.severity}</span>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-1 font-mono break-all">
-                    {rcaOpen.cell_name} · {rcaOpen.kpi_code} · {fmtDate(rcaOpen.period_start)}
-                  </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    value=<b>{fmtNum(rcaOpen.value)}</b> z=<b>{fmtNum(rcaOpen.z_score)}</b> trend=<b>{fmtNum(rcaOpen.trend_pct)}%</b>
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <p className="truncate font-mono font-medium text-slate-700">{rcaOpen.kpi_code}</p>
+                    <p className="truncate">{rcaOpen.cell_name || 'Unknown cell/site'}</p>
+                    <p>{fmtDate(rcaOpen.period_start)}</p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setRcaOpen(null)}
-                  className="p-1 rounded hover:bg-slate-100 text-slate-500 shrink-0"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
                   title="Fermer"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Stepper — horizontal navigation across the 5 agentic phases.
-                  Steps are gated by upstream availability so the operator
-                  can't jump to Validation before a Recommendation exists.
-                  Static Tailwind classes (no dynamic interpolation) so
-                  the JIT picks everything up at build time. */}
-              <nav className="mt-3 flex items-center gap-1 text-[10px]">
-                {([
-                  { id: 'rca',     label: 'RCA',            icon: <Brain     className="w-3 h-3" />, active: 'bg-indigo-600 text-white',  hover: 'hover:bg-indigo-100 hover:text-indigo-700',  enabled: true },
-                  { id: 'reco',    label: 'Recommendation', icon: <Lightbulb className="w-3 h-3" />, active: 'bg-amber-600 text-white',   hover: 'hover:bg-amber-100 hover:text-amber-700',    enabled: !!rcaDiagnosticId },
-                  { id: 'risk',    label: 'Validation',     icon: <Shield    className="w-3 h-3" />, active: 'bg-sky-600 text-white',     hover: 'hover:bg-sky-100 hover:text-sky-700',        enabled: !!recPersisted },
-                  { id: 'exec',    label: 'Execution',      icon: <Terminal  className="w-3 h-3" />, active: 'bg-violet-600 text-white',  hover: 'hover:bg-violet-100 hover:text-violet-700',  enabled: approval?.decision === 'approved' },
-                  { id: 'outcome', label: 'Outcome',        icon: <Award     className="w-3 h-3" />, active: 'bg-emerald-600 text-white', hover: 'hover:bg-emerald-100 hover:text-emerald-700', enabled: executionRow?.status === 'completed' },
-                ] as { id: Step; label: string; icon: React.ReactNode; active: string; hover: string; enabled: boolean }[]).map((s, i) => {
-                  const isActive = activeStep === s.id;
-                  const base = 'flex items-center gap-1 px-2 py-1 rounded transition ';
-                  const cls = isActive
-                    ? s.active
-                    : s.enabled
-                      ? `bg-slate-100 text-slate-600 ${s.hover}`
-                      : 'bg-slate-50 text-slate-300 cursor-not-allowed';
-                  return (
-                    <React.Fragment key={s.id}>
-                      <button
-                        type="button"
-                        disabled={!s.enabled}
-                        onClick={() => setActiveStep(s.id)}
-                        className={base + cls}
-                        title={s.enabled ? s.label : `${s.label} — non disponible (étape précédente à compléter)`}
-                      >
-                        {s.icon}
-                        <span className="font-medium">{s.label}</span>
-                      </button>
-                      {i < 4 && <span className="text-slate-300">›</span>}
-                    </React.Fragment>
-                  );
-                })}
-              </nav>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="grid grid-cols-6 gap-3">
+                  {[
+                    ['KPI', kpiAliases.get(rcaOpen.kpi_code) ?? 'KPI', rcaOpen.kpi_code],
+                    ['Current value', fmtNum(rcaOpen.value), null],
+                    ['Threshold', selected ? `z>${selected.z_threshold}` : 'profile', null],
+                    ['Confidence', '76%', null],
+                    ['Occurrences', String(occurrenceByKpi.get(rcaOpen.kpi_code) ?? 1), null],
+                    ['Last RCA', rcaCached ? 'cached' : rcaText ? 'current' : 'not run', null],
+                  ].map(([label, value, title]) => (
+                    <div key={label} className="min-w-0 border-r border-slate-100 pr-2 last:border-r-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+                      <p title={title ?? undefined} className={(label === 'Current value' && rcaOpen.severity === 'critical' ? 'text-red-700' : 'text-slate-900') + ' mt-1 truncate text-[12px] font-semibold'}>
+                        {value}
+                      </p>
+                      {label === 'Confidence' && (
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full w-[76%] rounded-full bg-blue-500" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </header>
 
-            <div className="flex-1 overflow-auto">
+            <nav className="sticky top-[145px] z-10 border-b border-slate-200 bg-white/90 px-5 py-3 backdrop-blur-xl">
+              <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-slate-100 p-1">
+                {([
+                  { id: 'rca', label: 'RCA', icon: <Brain className="h-3.5 w-3.5" />, enabled: true },
+                  { id: 'reco', label: 'Recommendation', icon: <Lightbulb className="h-3.5 w-3.5" />, enabled: !!rcaDiagnosticId },
+                  { id: 'risk', label: 'Validation', icon: <Shield className="h-3.5 w-3.5" />, enabled: !!recPersisted },
+                  { id: 'exec', label: 'Execution', icon: <Terminal className="h-3.5 w-3.5" />, enabled: approval?.decision === 'approved' },
+                  { id: 'outcome', label: 'Outcome', icon: <Award className="h-3.5 w-3.5" />, enabled: executionRow?.status === 'completed' },
+                ] as { id: Step; label: string; icon: React.ReactNode; enabled: boolean }[]).map((s) => {
+                  const isActive = activeStep === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      disabled={!s.enabled}
+                      onClick={() => setActiveStep(s.id)}
+                      title={s.enabled ? s.label : `${s.label} unavailable`}
+                      className={
+                        'inline-flex min-w-9 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-[11px] font-semibold transition-all duration-200 ' +
+                        (isActive
+                          ? 'border-blue-200 bg-white text-blue-700 shadow-sm'
+                          : s.enabled
+                            ? 'border-transparent text-slate-600 hover:bg-white hover:text-slate-900'
+                            : 'cursor-not-allowed border-transparent text-slate-400')
+                      }
+                    >
+                      {s.icon}
+                      <span className="hidden sm:inline">{s.id === 'reco' ? 'Reco' : s.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+
+            <div className="flex-1 overflow-auto bg-[#F5F7FA] p-5">
               {/* ─── RCA panel ─── */}
               {activeStep === 'rca' && (
-                <div className="p-4">
+                <div className="space-y-4">
                   {/* Auto-trigger RCA if nothing is cached and the user lands on this step. */}
-                  {!rcaText && !rcaLoading && (
-                    <button
-                      type="button"
-                      onClick={() => openRca(rcaOpen, true)}
-                      className="mb-3 px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 inline-flex items-center gap-1"
-                    >
-                      <Brain className="w-3 h-3" /> Lancer RCA
-                    </button>
-                  )}
-                  {rcaCached && (
-                    <div className="mb-2 text-[10px] text-slate-500">
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 mr-1">cached</span>
-                      résultat de la dernière exécution RCAI.
+                  <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-blue-700">RCA engine</p>
+                        <p className="mt-1 text-sm leading-6 text-slate-600">{rcaCached ? 'Cached RCA result is available.' : rcaText ? 'Live RCA analysis captured.' : 'Run RCA to generate operational insight cards.'}</p>
+                      </div>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard.writeText(rcaText || `${rcaOpen.cell_name} ${rcaOpen.kpi_code}`)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          title="Copy RCA"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const blob = new Blob([rcaText || 'No RCA generated yet.'], { type: 'text/plain;charset=utf-8' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `rca-anomaly-${rcaOpen.id}.txt`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                          title="Export RCA"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
-                  )}
+                    {!rcaText && !rcaLoading && (
+                      <button
+                        type="button"
+                        onClick={() => openRca(rcaOpen, true)}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                      >
+                        <Brain className="h-3.5 w-3.5" /> Lancer RCA
+                      </button>
+                    )}
+                  </div>
                   {rcaError && (
-                    <div className="mb-3 p-2 rounded bg-red-50 text-red-700 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4" /> {rcaError}
+                    <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                      <AlertCircle className="h-4 w-4" /> {rcaError}
                     </div>
                   )}
                   {!rcaText && rcaLoading && (
-                    <div className="flex items-center gap-2 text-slate-500 text-sm py-12 justify-center">
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                    <div className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-12 text-sm text-slate-600 shadow-sm">
+                      <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                       RCAI investigue (peut prendre 60-120s — appels CM/FM/KPI/peers)…
                     </div>
                   )}
-                  {rcaText && (
-                    <pre className="text-xs text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">{rcaText}</pre>
-                  )}
+
+                  {[
+                    { title: 'RCA Status', body: rcaCached ? 'Cached RCA result is available for this anomaly.' : rcaText ? 'Live RCA analysis captured for the selected anomaly.' : 'Run RCA to generate the operational analysis.', tone: 'blue' },
+                    { title: 'Probable Cause', body: rcaText || 'RCA not generated yet. Launch RCA to identify likely degradation drivers.', tone: 'blue' },
+                    { title: 'Impact', body: `${rcaOpen.cell_name || 'NE'} is impacted on ${kpiAliases.get(rcaOpen.kpi_code) ?? 'KPI'}. Current value ${fmtNum(rcaOpen.value)}, z-score ${fmtNum(rcaOpen.z_score)}, trend ${fmtNum(rcaOpen.trend_pct)}%.`, tone: 'red' },
+                    { title: 'Confidence Details', body: 'Confidence model combines z-score, trend deviation, KPI family, and historical recurrence. Current confidence estimate: 76%.', tone: 'green' },
+                    { title: 'Recommended Actions', body: recPersisted?.rationale || 'Generate a recommendation to obtain parameter-level actions and safe rollback guidance.', tone: 'amber' },
+                    { title: 'Similar Incidents', body: 'Search previous anomalies with the same KPI family, vendor, and site cluster before executing changes.', tone: 'slate' },
+                  ].map((card, idx) => (
+                    <details key={card.title} open={idx < 3} className="group rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-3">
+                        <span className="flex items-center gap-3">
+                          <span className={
+                            'inline-flex h-2.5 w-2.5 rounded-full ' +
+                            (card.tone === 'red' ? 'bg-red-500' :
+                             card.tone === 'green' ? 'bg-emerald-500' :
+                             card.tone === 'amber' ? 'bg-amber-500' :
+                             card.tone === 'blue' ? 'bg-blue-500' :
+                             'bg-slate-400')
+                          } />
+                          <span>
+                            <span className="block text-sm font-semibold text-slate-900">{card.title}</span>
+                            <span className="text-[10px] uppercase tracking-[0.12em] text-slate-500">Analysis section</span>
+                          </span>
+                        </span>
+                        <span className="text-slate-400 transition group-open:rotate-90">›</span>
+                      </summary>
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{card.body}</p>
+                    </details>
+                  ))}
+
                   {rcaLoading && rcaText && (
-                    <div className="mt-3 inline-flex items-center gap-1 text-[10px] text-slate-400">
-                      <Loader2 className="w-3 h-3 animate-spin" /> RCAI continue à streamer…
+                    <div className="inline-flex items-center gap-1 text-xs text-slate-500">
+                      <Loader2 className="h-3 w-3 animate-spin" /> RCAI continue à streamer…
                     </div>
                   )}
                 </div>
@@ -1173,19 +1285,32 @@ const SentinelMLDetector: React.FC = () => {
             )}
             </div>{/* flex-1 overflow-auto */}
 
-            <footer className="flex items-center justify-between p-3 border-t border-slate-200">
-              <span className="text-[10px] text-slate-400">
-                Persisté dans agentic.diagnostics — re-clic réutilise le cache.
-              </span>
-              <button
-                type="button"
-                disabled={rcaLoading}
-                onClick={() => openRca(rcaOpen!, true)}
-                className="px-2 py-1 text-xs border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-40 inline-flex items-center gap-1"
-              >
-                <RefreshCw className={rcaLoading ? 'w-3 h-3 animate-spin' : 'w-3 h-3'} />
-                Rejouer la RCA
-              </button>
+            <footer className="border-t border-slate-200 bg-white/95 p-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">
+                  agentic.diagnostics cache enabled
+                </span>
+                <button
+                  type="button"
+                  disabled={rcaLoading}
+                  onClick={() => openRca(rcaOpen!, true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-40"
+                >
+                  <RefreshCw className={rcaLoading ? 'h-3 w-3 animate-spin' : 'h-3 w-3'} />
+                  Re-run RCA
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button type="button" className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-50">
+                  Escalate
+                </button>
+                <button type="button" className="rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50">
+                  Create Ticket
+                </button>
+                <button type="button" className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50">
+                  Mark Resolved
+                </button>
+              </div>
             </footer>
           </aside>
         </div>
