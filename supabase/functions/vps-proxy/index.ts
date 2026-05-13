@@ -167,9 +167,6 @@ function buildSafeFallback(service: string, path: string, message: string) {
     if (path.includes('/diagnose')) {
       return { ...base, fallback: true, diagnostic: null };
     }
-    if (path.includes('/recommend')) {
-      return { ...base, fallback: true, recommendation: null };
-    }
     if (path.includes('/approval') || path.includes('/assess')) {
       return { ...base, fallback: true, approval: null };
     }
@@ -178,6 +175,9 @@ function buildSafeFallback(service: string, path: string, message: string) {
     }
     if (path.includes('/outcome')) {
       return { ...base, fallback: true, outcome: null };
+    }
+    if (path.includes('/recommend')) {
+      return { ...base, fallback: true, recommendation: null };
     }
   }
 
