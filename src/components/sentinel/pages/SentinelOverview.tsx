@@ -121,7 +121,7 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true, theme = 
             <RegionHeatmap />
           </NOCCard>
 
-          <NOCCard title="Anomaly Trend — Network Wide" icon={<Cpu className="w-4 h-4" />} subtitle="Daily anomaly volume by severity (last 14 days)">
+          <NOCCard title="Anomaly Trend — Network Wide" icon={<Cpu className="w-4 h-4" />} subtitle="Daily anomaly volume by severity">
             <AnomalyTrendChart />
           </NOCCard>
         </div>
