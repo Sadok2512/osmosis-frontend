@@ -631,8 +631,8 @@ export default function OdccDetectorConsole({
                 <Radar className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-primary">{moduleLabel}</p>
-                <h1 className="mt-1 text-2xl font-black tracking-tight text-foreground">{title}</h1>
+                <p className="text-xs font-semibold text-primary">{moduleLabel}</p>
+                <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
               </div>
             </div>
             <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
@@ -640,7 +640,7 @@ export default function OdccDetectorConsole({
             </p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-black uppercase tracking-[0.14em] text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
+            <button onClick={() => { setDraft(emptyDetector()); setEditingId(null); setTab('builder'); }} className="inline-flex items-center gap-2 rounded-2xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.28)] transition-all hover:bg-primary/90">
               <Plus className="mr-2 inline h-4 w-4" /> Create Detector
             </button>
             <button onClick={exportCsv} className="inline-flex items-center gap-2 rounded-2xl border border-border/60 bg-card px-4 py-3 text-sm font-bold text-foreground transition-all hover:border-primary/30 hover:text-primary">
@@ -738,8 +738,8 @@ function Metric({ label, value, icon }: { label: string; value: React.ReactNode;
   return (
     <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
       <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-foreground">{value}</p>
+      <p className="text-[10px] font-semibold text-muted-foreground">{label}</p>
+      <p className="mt-1 truncate text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }
@@ -758,9 +758,9 @@ function DetectorList({ detectors, query, setQuery, onEdit, onDuplicate, onToggl
     <Panel title="Detector List" action={<SearchBox value={query} onChange={setQuery} />}>
       <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+          <thead className="bg-muted/40 text-[11px] text-muted-foreground">
             <tr>
-              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}
+              {['Name', 'Scope', 'Mode', 'Frequency', 'Filters', 'Status', 'Enabled', 'Actions'].map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -866,7 +866,7 @@ function DetectorBuilder({ draft, setDraft, editing, parameterSets, onSaveDraft,
   };
 
   return (
-    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-black text-teal-700">Backend payload</span>}>
+    <Panel title={editing ? 'Edit Detector' : 'Create Detector'} action={<span className="rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">Backend payload</span>}>
       <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <Card title="A. General">
           <Field label="Name"><input value={draft.name} onChange={e => patch({ name: e.target.value })} className="input" /></Field>
@@ -991,7 +991,7 @@ function ScopeFilters({ filters, dimensions, loading, onChange }: {
             <p className="text-sm font-bold text-slate-900">Detector population</p>
             <p className="mt-1 text-xs text-slate-500">Select backend dimensions, then choose one or more values for each dimension.</p>
           </div>
-          <button type="button" disabled={loading || availableDimensions.length === 0} onClick={() => setAdding(value => !value)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" disabled={loading || availableDimensions.length === 0} onClick={() => setAdding(value => !value)} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">
             <Plus className="h-4 w-4" /> Add filter
           </button>
         </div>
@@ -1003,7 +1003,7 @@ function ScopeFilters({ filters, dimensions, loading, onChange }: {
           return (
             <div key={filter.dimension} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
               <div className="mb-3 flex items-center justify-between gap-3">
-                <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">{dimension?.label || filter.dimension}</span>
+                <span className="text-xs font-semibold text-slate-500">{dimension?.label || filter.dimension}</span>
                 <button type="button" onClick={() => updateValues(filter.dimension, [])} className="text-xs font-bold text-slate-500 hover:text-red-600">Clear</button>
               </div>
               <div className="mb-3 flex flex-wrap gap-2">
@@ -1038,7 +1038,7 @@ function ScopeFilters({ filters, dimensions, loading, onChange }: {
                 onChange={setSelectedDimension}
               />
               <div className="flex items-end">
-                <button type="button" disabled={!activeDimension} onClick={addFilter} className="h-11 rounded-xl bg-teal-600 px-4 text-xs font-black uppercase tracking-[0.14em] text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">Create group</button>
+                <button type="button" disabled={!activeDimension} onClick={addFilter} className="h-11 rounded-xl bg-teal-600 px-4 text-xs font-semibold text-white transition-all hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-50">Create group</button>
               </div>
             </div>
             {valuesError && <p className="mt-3 text-xs font-medium text-red-600">{valuesError}</p>}
@@ -1068,9 +1068,9 @@ function CriteriaBuilder({ criteria, kpis, dimensions, loading, onChange }: {
   return (
     <Card title="D. Criteria Builder">
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Logic</span>
+        <span className="text-xs font-semibold text-slate-500">Logic</span>
         <Select value={criteria.logic} values={['AND', 'OR']} onChange={value => onChange({ ...criteria, logic: value as DetectorLogic })} />
-        <button type="button" onClick={addCondition} className="ml-auto rounded-xl bg-teal-600 px-3 py-2 text-xs font-black text-white transition-all hover:bg-teal-700">Add condition</button>
+        <button type="button" onClick={addCondition} className="ml-auto rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white transition-all hover:bg-teal-700">Add condition</button>
       </div>
       {loading && <SkeletonText text="Loading KPIs and dimensions from backend..." />}
       <div className="space-y-3">
@@ -1138,8 +1138,8 @@ function TimeConfiguration({ config, holidays, loading, onChange }: {
       {config.excludeTimeSlots && (
         <div className="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">Excluded slots</span>
-            <button type="button" onClick={addSlot} className="rounded-xl bg-teal-600 px-3 py-2 text-xs font-black text-white">Add range</button>
+            <span className="text-xs font-semibold text-slate-500">Excluded slots</span>
+            <button type="button" onClick={addSlot} className="rounded-xl bg-teal-600 px-3 py-2 text-xs font-semibold text-white">Add range</button>
           </div>
           {config.excludedSlots.map(slot => (
             <div key={slot.id} className="grid grid-cols-[1fr_1fr_auto] gap-2">
@@ -1379,7 +1379,7 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
           >
             <div className="flex items-center gap-2">
               <Sparkles className="h-3.5 w-3.5 text-teal-600" />
-              <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-700">KPI legend</span>
+              <span className="text-[12px] font-semibold text-slate-700">KPI legend</span>
               <span className="text-[11px] text-slate-400">{aliasByCode.size} KPI{aliasByCode.size === 1 ? '' : 's'} mapped</span>
             </div>
             <ChevronDown className={cn('h-4 w-4 text-slate-400 transition-transform', legendOpen && 'rotate-180')} />
@@ -1416,7 +1416,7 @@ function ResultsTable({ results, selected, setSelected, onStatus, onExport, onAp
         <div className="overflow-auto">
           <table className="w-full min-w-[1280px] border-separate border-spacing-0 text-sm">
             <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur">
-              <tr className="text-[11px] uppercase tracking-wider text-slate-500">
+              <tr className="text-[11px] text-slate-500">
                 <th className="border-b border-slate-200 px-3 py-2.5 text-left font-semibold">
                   <input
                     type="checkbox"
@@ -1486,7 +1486,7 @@ function SummaryCard({ icon, label, value, tone, footer }: {
   return (
     <div className={cn('rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow', t.accent)}>
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="text-[11px] font-semibold text-slate-500">{label}</p>
         <span className={cn('inline-flex h-7 w-7 items-center justify-center rounded-lg', t.iconBg, t.iconFg)}>
           {React.cloneElement(icon, { className: 'h-3.5 w-3.5' })}
         </span>
@@ -1702,7 +1702,7 @@ function ResultActionButton({ children, icon, onClick, tone }: {
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wider shadow-sm transition',
+        'inline-flex items-center gap-1 rounded-md border bg-white px-2 py-1 text-[10px] font-semibold shadow-sm transition',
         tones[tone || 'teal'],
       )}
     >
@@ -1754,7 +1754,7 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
   return (
     <div>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-black tracking-tight text-foreground">{title}</h2>
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">{title}</h2>
         {action}
       </div>
       {children}
@@ -1765,14 +1765,14 @@ function Panel({ title, action, children }: { title: string; action?: React.Reac
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="rounded-3xl border border-border/60 bg-card p-5 shadow-sm">
-      <h3 className="mb-4 flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
+      <h3 className="mb-4 flex items-center gap-2 text-xs font-semibold text-primary"><Layers3 className="h-4 w-4" />{title}</h3>
       <div className="space-y-3">{children}</div>
     </section>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="block text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
+  return <label className="block text-xs font-semibold text-muted-foreground">{label}<div className="mt-1">{children}</div></label>;
 }
 
 function Select({ value, values, labels, onChange }: { value: string; values: string[]; labels?: string[]; onChange: (v: string) => void }) {
@@ -1798,7 +1798,7 @@ function SearchableSelect({ label, value, options, placeholder, onChange }: {
     .slice(0, 40);
   return (
     <div className="relative">
-      {label && <p className="mb-1 text-xs font-black uppercase tracking-[0.14em] text-slate-500">{label}</p>}
+      {label && <p className="mb-1 text-xs font-semibold text-slate-500">{label}</p>}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -1929,8 +1929,8 @@ function SimpleTable({ headers, children }: { headers: string[]; children: React
     <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-sm">
       <div className="overflow-auto">
         <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-muted/40 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-black">{h}</th>)}</tr>
+          <thead className="bg-muted/40 text-[11px] text-muted-foreground">
+            <tr>{headers.map(h => <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>)}</tr>
           </thead>
           <tbody>{children}</tbody>
         </table>
@@ -1944,7 +1944,7 @@ function Td({ children }: { children: React.ReactNode }) {
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">{children}</span>;
+  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{children}</span>;
 }
 
 function StatusPill({ value }: { value: string }) {
@@ -1955,7 +1955,7 @@ function StatusPill({ value }: { value: string }) {
       : value === 'draft' || value === 'pending'
         ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
         : 'bg-slate-500/12 text-slate-700 border-slate-500/25';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium ', color)}>{value}</span>;
 }
 
 function SeverityPill({ value }: { value: Severity }) {
@@ -1964,7 +1964,7 @@ function SeverityPill({ value }: { value: Severity }) {
     : value === 'major'
       ? 'bg-orange-500/12 text-orange-700 border-orange-500/25'
       : 'bg-amber-500/12 text-amber-700 border-amber-500/25';
-  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.14em]', color)}>{value}</span>;
+  return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium ', color)}>{value}</span>;
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
@@ -1972,7 +1972,7 @@ function IconButton({ title, children, onClick, danger }: { title: string; child
 }
 
 function ActionButton({ children, icon, onClick, primary, disabled }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean; disabled?: boolean }) {
-  return <button disabled={disabled} onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-black uppercase tracking-[0.14em] transition-all disabled:cursor-not-allowed disabled:opacity-50', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button disabled={disabled} onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50', primary ? 'bg-primary text-primary-foreground shadow-[0_12px_30px_rgba(59,130,246,0.24)] hover:bg-primary/90' : 'border border-border/60 bg-card text-foreground hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
