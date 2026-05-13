@@ -2,10 +2,12 @@
 // MVP per the architecture roundtable (2026-05-10): list profiles + Run Now,
 // paginated anomalies viewer with profile/severity/date filters. CRUD is
 // out of scope for v1 — added later if usage warrants.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
-  Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
+  Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight, MapPin,
   Shield, ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown,
   Terminal, CheckCircle2, XCircle, Copy, TrendingUp, TrendingDown, Award,
 } from 'lucide-react';
