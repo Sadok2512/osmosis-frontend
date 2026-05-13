@@ -72,6 +72,7 @@ const SentinelMLDetector: React.FC = () => {
   const [severity, setSeverity] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [mapOpen, setMapOpen] = useState(false);
 
   // RCA drawer state. `rcaOpen` carries the anomaly we're investigating;
   // text accumulates from the SSE stream. `rcaLoading` true while RCAI
