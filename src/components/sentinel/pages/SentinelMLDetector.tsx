@@ -1209,34 +1209,54 @@ const SentinelMLDetector: React.FC = () => {
 };
 
 // ── Anomaly Map Modal ──────────────────────────────────────────────────
-// Plots anomalies on a Leaflet map. Since MlAnomaly does not carry lat/lng,
-// we derive deterministic pseudo-coords from cell_name within France bounds
-// for visualization. Replace with real cell coords once available from VPS.
-const FRANCE_BOUNDS = { latMin: 43.2, latMax: 50.8, lngMin: -4.5, lngMax: 7.5 };
+// Plots anomalies on a Leaflet map using REAL site coordinates from topo.
+// We resolve cell_name → (lat, lng) via fetchTopoSites() (cached). Cells
+// with unknown coordinates are listed as "unlocated".
+import { fetchTopoSites } from '../../../services/topoService';
+
 const SEV_COLOR: Record<string, string> = {
   critical: '#ef4444',
   warning: '#f59e0b',
   info: '#3b82f6',
 };
-
-const hashStr = (s: string): number => {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
-  return h >>> 0;
-};
-const cellToLatLng = (name: string): [number, number] => {
-  const h = hashStr(name);
-  const lat = FRANCE_BOUNDS.latMin + ((h & 0xffff) / 0xffff) * (FRANCE_BOUNDS.latMax - FRANCE_BOUNDS.latMin);
-  const lng = FRANCE_BOUNDS.lngMin + (((h >>> 16) & 0xffff) / 0xffff) * (FRANCE_BOUNDS.lngMax - FRANCE_BOUNDS.lngMin);
-  return [lat, lng];
-};
+const SEV_ORDER: Record<string, number> = { critical: 3, warning: 2, info: 1 };
 
 const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }> = ({ anomalies, onClose }) => {
   const mapEl = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const [coords, setCoords] = useState<Map<string, [number, number]> | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
+  // Build cell_name → [lat,lng] lookup once.
   useEffect(() => {
-    if (!mapEl.current || mapRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const sites = await fetchTopoSites();
+        if (cancelled) return;
+        const map = new Map<string, [number, number]>();
+        sites.forEach((s: any) => {
+          const lat = Number(s.latitude);
+          const lng = Number(s.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          (s.cells || []).forEach((c: any) => {
+            const name = c?.nom_cellule || c?.cell_name;
+            if (name) map.set(String(name), [lat, lng]);
+          });
+        });
+        setCoords(map);
+      } catch (e: any) {
+        if (!cancelled) setLoadError(e?.message || 'Failed to load topology');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Render markers once both map element and coords lookup are ready.
+  useEffect(() => {
+    if (!mapEl.current || !coords) return;
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+
     const map = L.map(mapEl.current, { zoomControl: true, attributionControl: false }).setView([46.6, 2.5], 6);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       maxZoom: 18, subdomains: 'abcd',
@@ -1244,35 +1264,41 @@ const AnomalyMapModal: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }>
     mapRef.current = map;
     setTimeout(() => map.invalidateSize(), 50);
 
-    const counts: Record<string, { lat: number; lng: number; sev: string; count: number; name: string }> = {};
+    const grouped: Record<string, { lat: number; lng: number; sev: string; count: number; name: string }> = {};
+    let unlocated = 0;
     anomalies.forEach(a => {
-      const key = a.cell_name || `anon-${a.id}`;
-      if (!counts[key]) {
-        const [lat, lng] = cellToLatLng(key);
-        counts[key] = { lat, lng, sev: a.severity, count: 0, name: key };
-      }
-      counts[key].count += 1;
-      // upgrade severity if more critical
-      const order = { critical: 3, warning: 2, info: 1 } as Record<string, number>;
-      if ((order[a.severity] || 0) > (order[counts[key].sev] || 0)) counts[key].sev = a.severity;
+      const name = a.cell_name || '';
+      const ll = name ? coords.get(name) : undefined;
+      if (!ll) { unlocated += 1; return; }
+      const key = name;
+      if (!grouped[key]) grouped[key] = { lat: ll[0], lng: ll[1], sev: a.severity, count: 0, name };
+      grouped[key].count += 1;
+      if ((SEV_ORDER[a.severity] || 0) > (SEV_ORDER[grouped[key].sev] || 0)) grouped[key].sev = a.severity;
     });
 
-    const points = Object.values(counts);
     const bounds: L.LatLngTuple[] = [];
-    points.forEach(p => {
+    Object.values(grouped).forEach(p => {
       const color = SEV_COLOR[p.sev] || SEV_COLOR.info;
       const radius = Math.min(20, 6 + Math.log2(p.count + 1) * 3);
-      L.circleMarker([p.lat, p.lng], {
-        radius, color, weight: 2, fillColor: color, fillOpacity: 0.55,
-      })
+      L.circleMarker([p.lat, p.lng], { radius, color, weight: 2, fillColor: color, fillOpacity: 0.6 })
         .bindTooltip(`<b>${p.name}</b><br/>${p.count} anomalie${p.count > 1 ? 's' : ''} · ${p.sev}`, { direction: 'top' })
         .addTo(map);
       bounds.push([p.lat, p.lng]);
     });
-    if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 9 });
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+
+    if (unlocated > 0) {
+      const ctrl = new L.Control({ position: 'bottomleft' });
+      ctrl.onAdd = () => {
+        const div = L.DomUtil.create('div');
+        div.innerHTML = `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:11px;color:#64748b;box-shadow:0 1px 2px rgba(0,0,0,.06)">${unlocated} anomalie${unlocated > 1 ? 's' : ''} sans coordonnées</div>`;
+        return div;
+      };
+      ctrl.addTo(map);
+    }
 
     return () => { map.remove(); mapRef.current = null; };
-  }, [anomalies]);
+  }, [anomalies, coords]);
 
   return (
     <div className="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6" onClick={onClose}>
