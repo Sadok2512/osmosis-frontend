@@ -531,6 +531,14 @@ const SentinelMLDetector: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setMapOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium border border-slate-200 rounded-md bg-white text-slate-700 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700 transition"
+                title="View anomaly locations on map"
+              >
+                <MapPin className="w-3.5 h-3.5" /> Map
+              </button>
               <Filter className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={severity}
