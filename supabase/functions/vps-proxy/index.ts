@@ -16,10 +16,11 @@ const CF_KPI = 'https://kpi.qoebit.net';
 const VPS_HOST = '185.248.33.125';
 
 const SERVICE_URLS: Record<string, string[]> = {
-  parser: [`http://${VPS_HOST}:8000`, CF_PARSER],
-  agent:  [`http://${VPS_HOST}:8000`, CF_PARSER],
-  kpi:    [`http://${VPS_HOST}:8001`, CF_KPI],
-  ml:     [`http://${VPS_HOST}:11002`],
+  parser:  [`http://${VPS_HOST}:8000`, CF_PARSER],
+  agent:   [`http://${VPS_HOST}:8000`, CF_PARSER],
+  kpi:     [`http://${VPS_HOST}:8001`, CF_KPI],
+  ml:      [`http://${VPS_HOST}:11002`],
+  agentic: [`http://${VPS_HOST}:11002`],
 };
 
 // Legacy compat
@@ -28,6 +29,7 @@ const SERVICE_PORTS: Record<string, number> = {
   parser: 8000,
   agent: 8000,
   ml: 11002,
+  agentic: 11002,
 };
 
 // ── Topology stale-cache ──
