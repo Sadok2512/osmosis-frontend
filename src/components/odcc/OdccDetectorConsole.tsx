@@ -540,11 +540,33 @@ export default function OdccDetectorConsole({
   };
 
   const runDetector = async (detector: Detector) => {
-    if (!isBackendId(detector.id)) {
-      setBackendError('Save the detector to backend before running it.');
-      return;
+    let target = detector;
+    if (!isBackendId(target.id)) {
+      // Auto-save to backend before running
+      try {
+        const payload = buildDetectorPayload(target);
+        const meta = {
+          id: target.id,
+          name: target.name,
+          description: target.description,
+          enabled: target.enabled,
+          scheduleFrequency: target.scheduleFrequency,
+          scopeLevel: target.scopeLevel,
+          detectionMode: target.detectionMode,
+          lookbackWindow: target.lookbackWindow,
+          retentionDays: target.output.storeResults ? 90 : 7,
+        };
+        const saved = await createDetectorPayloadForBackend(payload, meta);
+        const savedDetector = detectorFromBackend(saved);
+        setDetectors(prev => prev.map(d => d.id === target.id ? savedDetector : d));
+        log(savedDetector.id, 'auto_saved_backend', `before run (was ${target.code})`);
+        target = savedDetector;
+      } catch (error) {
+        setBackendError(error instanceof Error ? error.message : 'Failed to save detector before running.');
+        return;
+      }
     }
-    const queued = await runDetectorNow(detector.id);
+    const queued = await runDetectorNow(target.id);
     const run: DetectorRun = {
       id: queued.task_id || uid('run'),
       detectorId: detector.id,
