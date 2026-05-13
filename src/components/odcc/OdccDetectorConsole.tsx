@@ -484,10 +484,10 @@ export default function OdccDetectorConsole() {
 
 function Metric({ label, value, icon }: { label: string; value: React.ReactNode; icon: React.ReactElement }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-3 shadow-sm">
-      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
-      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate text-lg font-semibold text-foreground">{value}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-lg bg-teal-50 text-teal-700 ring-1 ring-teal-100">{React.cloneElement(icon, { className: 'h-4 w-4' })}</div>
+      <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500">{label}</p>
+      <p className="mt-1 truncate text-lg font-semibold text-slate-900">{value}</p>
     </div>
   );
 }
