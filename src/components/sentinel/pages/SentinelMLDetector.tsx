@@ -2,10 +2,12 @@
 // MVP per the architecture roundtable (2026-05-10): list profiles + Run Now,
 // paginated anomalies viewer with profile/severity/date filters. CRUD is
 // out of scope for v1 — added later if usage warrants.
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   Brain, Play, RefreshCw, AlertTriangle, AlertCircle,
-  Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight,
+  Loader2, Calendar, Filter, Search, X, Lightbulb, ArrowRight, MapPin,
   Shield, ShieldCheck, ShieldAlert, ThumbsUp, ThumbsDown,
   Terminal, CheckCircle2, XCircle, Copy, TrendingUp, TrendingDown, Award,
 } from 'lucide-react';
@@ -18,6 +20,7 @@ import {
   getOutcomeForExecution, assessOutcome,
   MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow, OutcomeRow,
 } from '../mlDetectorApi';
+import { fetchTopoSites } from '../../../services/topoService';
 
 const SEVERITY_STYLES: Record<string, string> = {
   critical: 'bg-red-50 text-red-700 border-red-200',
@@ -54,7 +57,7 @@ const fmtDate = (iso: string | null | undefined): string => {
 };
 
 
-const SentinelMLDetector: React.FC = () => {
+const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }> = ({ onOpenRCA }) => {
   const [profiles, setProfiles] = useState<MlProfile[]>([]);
   const [profilesLoading, setProfilesLoading] = useState(true);
   const [profilesError, setProfilesError] = useState<string | null>(null);
@@ -70,6 +73,7 @@ const SentinelMLDetector: React.FC = () => {
   const [severity, setSeverity] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<string>('');
   const [dateTo, setDateTo] = useState<string>('');
+  const [mapOpen, setMapOpen] = useState(false);
 
   // RCA drawer state. `rcaOpen` carries the anomaly we're investigating;
   // text accumulates from the SSE stream. `rcaLoading` true while RCAI
@@ -545,10 +549,33 @@ const SentinelMLDetector: React.FC = () => {
                 {anomaliesTotal.toLocaleString('fr-FR')} anomalies · z-score &gt; {selected?.z_threshold ?? '?'} OU trend% &gt; {selected?.trend_threshold ?? '?'}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 ring-1 ring-slate-200">
-                <Filter className="h-3.5 w-3.5" />
-              </span>
+            <div className="flex items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setMapOpen((v) => !v)}
+                aria-pressed={mapOpen}
+                className={
+                  'inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium border rounded-md transition ' +
+                  (mapOpen
+                    ? 'bg-teal-600 text-white border-teal-600 hover:bg-teal-500'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-teal-50 hover:border-teal-300 hover:text-teal-700')
+                }
+                title="Afficher / masquer la carte des anomalies"
+              >
+                <MapPin className="w-3.5 h-3.5" /> Map
+              </button>
+              <Filter className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={selectedProfile ?? ''}
+                onChange={(e) => { setSelectedProfile(e.target.value ? Number(e.target.value) : null); setPage(1); }}
+                className="border border-slate-200 rounded-md px-2 py-1.5 text-[12px] bg-white hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-teal-100 focus:border-teal-400 transition max-w-[180px]"
+                title="Filter by ML profile"
+              >
+                <option value="">Tous les profils ML</option>
+                {profiles.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
               <select
                 value={severity}
                 onChange={(e) => { setSeverity(e.target.value); setPage(1); }}
@@ -576,6 +603,13 @@ const SentinelMLDetector: React.FC = () => {
             </div>
           </div>
         </header>
+
+        {/* Inline accordion map — toggled by the "Map" button */}
+        {mapOpen && (
+          <div className="border-b border-slate-200/70 bg-slate-50/40">
+            <AnomalyMapInline anomalies={anomalies} onClose={() => setMapOpen(false)} />
+          </div>
+        )}
 
         {anomaliesError && (
           <div className="flex items-center gap-2 border-b border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700">
@@ -650,9 +684,9 @@ const SentinelMLDetector: React.FC = () => {
                     <td className="px-3 py-2 text-right">
                       <button
                         type="button"
-                        title="Lancer / consulter la RCA (RCAI)"
-                        onClick={() => openRca(a)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 text-teal-700 transition hover:border-teal-200 hover:bg-teal-100"
+                        title="Ouvrir la page RCA"
+                        onClick={() => (onOpenRCA ? onOpenRCA(a) : openRca(a))}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-teal-50 text-teal-700 transition"
                       >
                         <Search className="h-3.5 w-3.5" />
                       </button>
@@ -1315,6 +1349,188 @@ const SentinelMLDetector: React.FC = () => {
           </aside>
         </div>
       )}
+    </div>
+  );
+};
+
+// ── Anomaly Map (inline accordion) ─────────────────────────────────────
+// Plots anomalies on a Leaflet map using REAL site coordinates from topo.
+// Renders inline above the anomalies table, toggled by the "Map" button.
+const SEV_COLOR: Record<string, string> = {
+  critical: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+};
+const SEV_ORDER: Record<string, number> = { critical: 3, warning: 2, info: 1 };
+
+const AnomalyMapInline: React.FC<{ anomalies: MlAnomaly[]; onClose: () => void }> = ({ anomalies, onClose }) => {
+  const mapEl = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const [coords, setCoords] = useState<Map<string, [number, number]> | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [height, setHeight] = useState<number>(360);
+  const resizingRef = useRef(false);
+
+  // Drag-to-resize handler
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!resizingRef.current || !mapEl.current) return;
+      const top = mapEl.current.getBoundingClientRect().top;
+      const next = Math.max(200, Math.min(900, e.clientY - top));
+      setHeight(next);
+    };
+    const onUp = () => {
+      if (!resizingRef.current) return;
+      resizingRef.current = false;
+      document.body.style.userSelect = '';
+      setTimeout(() => mapRef.current?.invalidateSize(), 30);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
+
+  // Keep Leaflet sized in sync when height changes via presets
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 60);
+    return () => clearTimeout(id);
+  }, [height]);
+
+  // Build cell_name → [lat,lng] lookup once.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const sites = await fetchTopoSites();
+        if (cancelled) return;
+        const map = new Map<string, [number, number]>();
+        sites.forEach((s: any) => {
+          const lat = Number(s.latitude);
+          const lng = Number(s.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+          (s.cells || []).forEach((c: any) => {
+            const name = c?.nom_cellule || c?.cell_name;
+            if (name) map.set(String(name), [lat, lng]);
+          });
+        });
+        setCoords(map);
+      } catch (e: any) {
+        if (!cancelled) setLoadError(e?.message || 'Failed to load topology');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Render markers once both map element and coords lookup are ready.
+  useEffect(() => {
+    if (!mapEl.current || !coords) return;
+    if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
+
+    const map = L.map(mapEl.current, { zoomControl: true, attributionControl: false }).setView([46.6, 2.5], 6);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 18, subdomains: 'abcd',
+    }).addTo(map);
+    mapRef.current = map;
+    setTimeout(() => map.invalidateSize(), 50);
+
+    const grouped: Record<string, { lat: number; lng: number; sev: string; count: number; name: string }> = {};
+    let unlocated = 0;
+    anomalies.forEach(a => {
+      const name = a.cell_name || '';
+      const ll = name ? coords.get(name) : undefined;
+      if (!ll) { unlocated += 1; return; }
+      if (!grouped[name]) grouped[name] = { lat: ll[0], lng: ll[1], sev: a.severity, count: 0, name };
+      grouped[name].count += 1;
+      if ((SEV_ORDER[a.severity] || 0) > (SEV_ORDER[grouped[name].sev] || 0)) grouped[name].sev = a.severity;
+    });
+
+    const bounds: L.LatLngTuple[] = [];
+    Object.values(grouped).forEach(p => {
+      const color = SEV_COLOR[p.sev] || SEV_COLOR.info;
+      const radius = Math.min(20, 6 + Math.log2(p.count + 1) * 3);
+      L.circleMarker([p.lat, p.lng], { radius, color, weight: 2, fillColor: color, fillOpacity: 0.6 })
+        .bindTooltip(`<b>${p.name}</b><br/>${p.count} anomalie${p.count > 1 ? 's' : ''} · ${p.sev}`, { direction: 'top' })
+        .addTo(map);
+      bounds.push([p.lat, p.lng]);
+    });
+    if (bounds.length > 0) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+
+    if (unlocated > 0) {
+      const ctrl = new L.Control({ position: 'bottomleft' });
+      ctrl.onAdd = () => {
+        const div = L.DomUtil.create('div');
+        div.innerHTML = `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:4px 8px;font-size:11px;color:#64748b;box-shadow:0 1px 2px rgba(0,0,0,.06)">${unlocated} anomalie${unlocated > 1 ? 's' : ''} sans coordonnées</div>`;
+        return div;
+      };
+      ctrl.addTo(map);
+    }
+
+    return () => { map.remove(); mapRef.current = null; };
+  }, [anomalies, coords]);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200/70">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-3.5 h-3.5 text-teal-600" />
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+            Anomaly Locations
+          </h4>
+          <span className="text-[11px] text-slate-500">· {anomalies.length} anomalies</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-[10px] text-slate-500">
+            {([['S',260],['M',360],['L',520],['XL',720]] as const).map(([label, h]) => (
+              <button
+                key={label}
+                onClick={() => setHeight(h)}
+                className={`px-1.5 py-0.5 rounded border ${height === h ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                title={`Hauteur ${h}px`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            {(['critical','warning','info'] as const).map(s => (
+              <span key={s} className="inline-flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: SEV_COLOR[s] }} />
+                {s}
+              </span>
+            ))}
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-slate-100 text-slate-500" title="Fermer la carte">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="relative" style={{ height }}>
+        <div ref={mapEl} className="absolute inset-0" />
+        {!coords && !loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-slate-500 text-[12px] gap-2 pointer-events-none">
+            <Loader2 className="w-4 h-4 animate-spin" /> Loading site coordinates…
+          </div>
+        )}
+        {loadError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 text-red-600 text-[12px] gap-2">
+            <AlertCircle className="w-4 h-4" /> {loadError}
+          </div>
+        )}
+      </div>
+      <div
+        onMouseDown={(e) => {
+          e.preventDefault();
+          resizingRef.current = true;
+          document.body.style.userSelect = 'none';
+        }}
+        className="h-2 cursor-ns-resize bg-slate-100 hover:bg-teal-200 border-t border-slate-200 flex items-center justify-center"
+        title="Glisser pour redimensionner"
+      >
+        <div className="w-10 h-1 rounded-full bg-slate-300" />
+      </div>
     </div>
   );
 };

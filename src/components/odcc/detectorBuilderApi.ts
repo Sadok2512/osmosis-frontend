@@ -42,11 +42,28 @@ const FALLBACK_DIMENSIONS: DimensionOption[] = [
 
 type JsonObject = Record<string, unknown>;
 
+async function parseJsonSafe<T>(response: Response, url: string, method: string): Promise<T> {
+  const text = await response.text();
+  const trimmed = text.trim();
+  // Backend sometimes returns an HTML error page (e.g. <!doctype html>) when
+  // the route isn't deployed. Treat that as "no data" instead of crashing the
+  // JSON parser so callers fall back to placeholders gracefully.
+  if (!trimmed) return undefined as unknown as T;
+  if (trimmed.startsWith('<')) {
+    throw new Error(`${method} ${url} returned non-JSON (likely HTML error page)`);
+  }
+  try {
+    return JSON.parse(trimmed) as T;
+  } catch {
+    throw new Error(`${method} ${url} returned malformed JSON`);
+  }
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const url = mlUrl(path);
   const response = await fetch(url, { headers: getApiHeaders() });
   if (!response.ok) throw new Error(`GET ${url} failed (${response.status})`);
-  return response.json() as Promise<T>;
+  return parseJsonSafe<T>(response, url, 'GET');
 }
 
 async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body?: unknown): Promise<T> {
@@ -57,7 +74,7 @@ async function sendJson<T>(path: string, method: 'POST' | 'PUT' | 'DELETE', body
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${method} ${url} failed (${response.status})`);
-  return response.json() as Promise<T>;
+  return parseJsonSafe<T>(response, url, method);
 }
 
 const asArray = (value: unknown): unknown[] => {
@@ -197,12 +214,16 @@ export async function fetchDetectorHolidays(): Promise<string[]> {
   }
 }
 
+// Backend ml-engine exposes detectors under /profiles (legacy ML naming).
+// /detectors returns 404; /profiles is the live route.
+const DETECTORS_PATH = 'profiles';
+
 export async function createDetectorPayload(payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>('detectors', 'POST', payload);
+  return sendJson<unknown>(DETECTORS_PATH, 'POST', payload);
 }
 
 export async function updateDetectorPayload(detectorId: string, payload: DetectorPayload): Promise<unknown> {
-  return sendJson<unknown>(`detectors/${encodeURIComponent(detectorId)}`, 'PUT', payload);
+  return sendJson<unknown>(`${DETECTORS_PATH}/${encodeURIComponent(detectorId)}`, 'PUT', payload);
 }
 
 export interface MlDetectorRow {
@@ -359,7 +380,7 @@ export function toMlDetectorPayload(payload: DetectorPayload, meta: DetectorSave
 }
 
 export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; total: number }> {
-  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>('detectors');
+  const raw = await getJson<{ items?: MlDetectorRow[]; total?: number; profiles?: MlDetectorRow[]; count?: number }>(DETECTORS_PATH);
   return {
     items: raw.items ?? raw.profiles ?? [],
     total: raw.total ?? raw.count ?? 0,
@@ -367,19 +388,19 @@ export async function listDetectorPayloads(): Promise<{ items: MlDetectorRow[]; 
 }
 
 export async function createDetectorPayloadForBackend(payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
-  return sendJson<MlDetectorRow>('detectors', 'POST', toMlDetectorPayload(payload, meta));
+  return sendJson<MlDetectorRow>(DETECTORS_PATH, 'POST', toMlDetectorPayload(payload, meta));
 }
 
 export async function updateDetectorPayloadForBackend(detectorId: string | number, payload: DetectorPayload, meta: DetectorSaveMeta): Promise<MlDetectorRow> {
-  return sendJson<MlDetectorRow>(`detectors/${encodeURIComponent(String(detectorId))}`, 'PUT', toMlDetectorPayload(payload, meta));
+  return sendJson<MlDetectorRow>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}`, 'PUT', toMlDetectorPayload(payload, meta));
 }
 
 export async function deleteDetectorPayload(detectorId: string | number): Promise<unknown> {
-  return sendJson<unknown>(`detectors/${encodeURIComponent(String(detectorId))}`, 'DELETE', {});
+  return sendJson<unknown>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}`, 'DELETE', {});
 }
 
 export async function runDetectorNow(detectorId: string | number): Promise<MlRunResponse> {
-  return sendJson<MlRunResponse>(`detectors/${encodeURIComponent(String(detectorId))}/run-now`, 'POST', {});
+  return sendJson<MlRunResponse>(`${DETECTORS_PATH}/${encodeURIComponent(String(detectorId))}/run-now`, 'POST', {});
 }
 
 export async function listDetectorAnomalies(opts: {
