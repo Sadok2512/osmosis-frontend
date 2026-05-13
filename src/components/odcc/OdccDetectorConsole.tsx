@@ -917,37 +917,37 @@ function Td({ children }: { children: React.ReactNode }) {
 }
 
 function Pill({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-semibold text-primary">{children}</span>;
+  return <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-semibold text-teal-700">{children}</span>;
 }
 
 function StatusPill({ value }: { value: string }) {
   const color = value === 'active' || value === 'success' || value === 'resolved'
-    ? 'bg-emerald-500/12 text-emerald-700 border-emerald-500/25'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : value === 'failed' || value === 'critical'
-      ? 'bg-red-500/12 text-red-700 border-red-500/25'
+      ? 'bg-red-50 text-red-700 border-red-200'
       : value === 'draft' || value === 'pending'
-        ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
-        : 'bg-slate-500/12 text-slate-700 border-slate-500/25';
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-slate-50 text-slate-700 border-slate-200';
   return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
 }
 
 function SeverityPill({ value }: { value: Severity }) {
   const color = value === 'critical'
-    ? 'bg-red-500/12 text-red-700 border-red-500/25'
+    ? 'bg-red-50 text-red-700 border-red-200'
     : value === 'major'
-      ? 'bg-orange-500/12 text-orange-700 border-orange-500/25'
+      ? 'bg-orange-50 text-orange-700 border-orange-200'
       : value === 'warning'
-        ? 'bg-amber-500/12 text-amber-700 border-amber-500/25'
-        : 'bg-blue-500/12 text-blue-700 border-blue-500/25';
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-blue-50 text-blue-700 border-blue-200';
   return <span className={cn('rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]', color)}>{value}</span>;
 }
 
 function IconButton({ title, children, onClick, danger }: { title: string; children: React.ReactElement; onClick: () => void; danger?: boolean }) {
-  return <button title={title} onClick={onClick} className={cn('rounded-xl border p-2 transition-all', danger ? 'border-destructive/25 text-destructive hover:bg-destructive/10' : 'border-slate-200 text-slate-500 hover:border-primary/30 hover:text-primary')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
+  return <button title={title} onClick={onClick} className={cn('rounded-lg border p-2 transition-all', danger ? 'border-red-200 text-red-600 hover:bg-red-50' : 'border-slate-200 bg-white text-slate-500 hover:border-teal-300 hover:text-teal-700')}>{React.cloneElement(children, { className: 'h-4 w-4' })}</button>;
 }
 
 function ActionButton({ children, icon, onClick, primary }: { children: React.ReactNode; icon: React.ReactElement; onClick: () => void; primary?: boolean }) {
-  return <button onClick={onClick} className={cn('rounded-xl px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] transition-all', primary ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary/90' : 'border border-slate-200 bg-card text-slate-900 hover:border-primary/30 hover:text-primary')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
+  return <button onClick={onClick} className={cn('inline-flex h-9 items-center rounded-full px-4 text-xs font-semibold transition-all', primary ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-sm hover:from-teal-500 hover:to-emerald-500' : 'border border-slate-200 bg-white text-slate-700 shadow-sm hover:border-teal-300 hover:text-teal-700')}>{React.cloneElement(icon, { className: 'mr-2 inline h-4 w-4' })}{children}</button>;
 }
 
 function filterSummary(detector: Detector): string {
