@@ -622,7 +622,7 @@ export default function OdccDetectorConsole({
   };
 
   return (
-    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-foreground">
+    <div className="flex h-full flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35%),linear-gradient(180deg,#f8fafc_0%,#f4f7fb_100%)] text-foreground font-sans" style={{ fontFamily: 'Inter, system-ui, sans-serif', WebkitFontSmoothing: 'antialiased' as any }}>
       <header className="border-b border-border/50 bg-background/80 px-6 py-5 backdrop-blur-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
