@@ -52,8 +52,13 @@ export interface RunNowResponse {
 }
 
 
+// ml-engine FastAPI mounts routes under /api/v1/ml/* (see server/spa-proxy.js
+// rewrite). The Supabase vps-proxy edge function does NOT rewrite, so we must
+// send the full upstream path here.
+const ML_PREFIX = '/api/v1/ml';
+
 async function _get<T>(path: string, params?: Record<string, string>): Promise<T> {
-  const url = getVpsProxyUrl('ml', path, params);
+  const url = getVpsProxyUrl('ml', `${ML_PREFIX}${path}`, params);
   try {
     const r = await fetch(url, { headers: getVpsProxyHeaders() });
     if (!r.ok) {
