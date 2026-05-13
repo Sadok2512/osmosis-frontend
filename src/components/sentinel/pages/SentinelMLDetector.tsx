@@ -1225,9 +1225,6 @@ const SentinelMLDetector: React.FC = () => {
           </aside>
         </div>
       )}
-      {mapOpen && (
-        <AnomalyMapModal anomalies={anomalies} onClose={() => setMapOpen(false)} />
-      )}
     </div>
   );
 };
