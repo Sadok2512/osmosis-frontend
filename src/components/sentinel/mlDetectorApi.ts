@@ -73,7 +73,7 @@ async function _get<T>(path: string, params?: Record<string, string>): Promise<T
 }
 
 async function _post<T>(path: string): Promise<T> {
-  const url = getVpsProxyUrl('ml', path);
+  const url = getVpsProxyUrl('ml', `${ML_PREFIX}${path}`);
   try {
     const r = await fetch(url, { method: 'POST', headers: getVpsProxyHeaders() });
     if (!r.ok) {
