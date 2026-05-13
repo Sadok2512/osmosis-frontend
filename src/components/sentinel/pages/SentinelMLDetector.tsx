@@ -644,8 +644,8 @@ const SentinelMLDetector: React.FC<{ onOpenRCA?: (anomaly: MlAnomaly) => void }>
                     <td className="px-3 py-2 text-right">
                       <button
                         type="button"
-                        title="Lancer / consulter la RCA (RCAI)"
-                        onClick={() => openRca(a)}
+                        title="Ouvrir la page RCA"
+                        onClick={() => (onOpenRCA ? onOpenRCA(a) : openRca(a))}
                         className="inline-flex items-center justify-center w-7 h-7 rounded-full hover:bg-teal-50 text-teal-700 transition"
                       >
                         <Search className="w-3.5 h-3.5" />
