@@ -20,6 +20,7 @@ import {
   getOutcomeForExecution, assessOutcome,
   MlProfile, MlAnomaly, Recommendation, RiskApproval, ExecutionRow, OutcomeRow,
 } from '../mlDetectorApi';
+import { fetchTopoSites } from '../../../services/topoService';
 
 const SEVERITY_STYLES: Record<string, string> = {
   critical: 'bg-red-50 text-red-700 border-red-200',
