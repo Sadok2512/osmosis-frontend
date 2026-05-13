@@ -121,7 +121,7 @@ const SentinelOverview: React.FC<Props> = ({ date, apiConnected = true, theme = 
             <RegionHeatmap />
           </NOCCard>
 
-          <NOCCard title="Anomaly Trend — Network Wide" icon={<Cpu className="w-4 h-4" />} subtitle="Daily anomaly volume by severity (last 14 days)">
+          <NOCCard title="Anomaly Trend — Network Wide" icon={<Cpu className="w-4 h-4" />} subtitle="Daily anomaly volume by severity">
             <AnomalyTrendChart />
           </NOCCard>
         </div>
@@ -288,19 +288,32 @@ const RegionHeatmap: React.FC = () => {
 };
 
 /* ━━━ Anomaly Trend (Network Wide) ━━━ */
+const TREND_RANGES: { key: string; label: string; days: number }[] = [
+  { key: '7j', label: '7j', days: 7 },
+  { key: '1m', label: '1m', days: 30 },
+  { key: '3m', label: '3m', days: 90 },
+  { key: '6m', label: '6m', days: 180 },
+  { key: 'ALL', label: 'ALL', days: 365 },
+];
+
 const AnomalyTrendChart: React.FC = () => {
   const NOC = useNOC();
+  const [rangeKey, setRangeKey] = React.useState<string>('1m');
+  const days = TREND_RANGES.find(r => r.key === rangeKey)?.days ?? 30;
+
   const { dates, critical, major, minor } = useMemo(() => {
     const dates: string[] = [];
     const critical: number[] = [];
     const major: number[] = [];
     const minor: number[] = [];
     const today = new Date();
-    // Deterministic pseudo-random based on day index
-    for (let i = 13; i >= 0; i--) {
+    const showYear = days > 90;
+    for (let i = days - 1; i >= 0; i--) {
       const d = new Date(today);
       d.setDate(d.getDate() - i);
-      dates.push(d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }));
+      dates.push(d.toLocaleDateString('en-GB', showYear
+        ? { day: '2-digit', month: 'short', year: '2-digit' }
+        : { day: '2-digit', month: 'short' }));
       const seed = (i * 9301 + 49297) % 233280;
       const r = (n: number) => Math.floor(((seed * (n + 1)) % 233280) / 233280 * 100);
       critical.push(8 + (r(1) % 18));
@@ -308,7 +321,7 @@ const AnomalyTrendChart: React.FC = () => {
       minor.push(35 + (r(3) % 45));
     }
     return { dates, critical, major, minor };
-  }, []);
+  }, [days]);
 
   const option = useMemo(() => ({
     tooltip: {
@@ -323,7 +336,7 @@ const AnomalyTrendChart: React.FC = () => {
     xAxis: {
       type: 'category', data: dates, boundaryGap: false,
       axisLine: { lineStyle: { color: NOC.cardBorder } },
-      axisLabel: { color: NOC.textDim, fontSize: 10 },
+      axisLabel: { color: NOC.textDim, fontSize: 10, hideOverlap: true, rotate: days > 30 ? 35 : 0 },
     },
     yAxis: {
       type: 'value', splitLine: { lineStyle: { color: NOC.grid } },
@@ -363,7 +376,27 @@ const AnomalyTrendChart: React.FC = () => {
     ],
   }), [dates, critical, major, minor, NOC]);
 
-  return <ReactECharts option={option} style={{ height: 320 }} notMerge />;
+  return (
+    <div>
+      <div className="flex items-center justify-end gap-1 mb-2">
+        {TREND_RANGES.map(r => {
+          const active = rangeKey === r.key;
+          return (
+            <button key={r.key} onClick={() => setRangeKey(r.key)}
+              className="px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all"
+              style={{
+                background: active ? NOC.accentBg : 'transparent',
+                color: active ? NOC.accent : NOC.textMuted,
+                border: `1px solid ${active ? NOC.accent : NOC.cardBorder}`,
+              }}>
+              {r.label}
+            </button>
+          );
+        })}
+      </div>
+      <ReactECharts option={option} style={{ height: 320 }} notMerge />
+    </div>
+  );
 };
 
 /* ━━━ ML Insights Table ━━━ */
