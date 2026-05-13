@@ -154,6 +154,32 @@ function buildSafeFallback(service: string, path: string, message: string) {
   if (service === 'ml' && path.includes('/anomalies')) {
     return { ...base, items: [], total: 0, page: 1, pages: 0 };
   }
+  if (service === 'agentic') {
+    if (path === '/recommendations' || path.endsWith('/recommendations')) {
+      return { ...base, fallback: true, recommendations: [], count: 0 };
+    }
+    if (path === '/approvals' || path.endsWith('/approvals')) {
+      return { ...base, fallback: true, approvals: [], count: 0 };
+    }
+    if (path === '/outcomes' || path.endsWith('/outcomes')) {
+      return { ...base, fallback: true, outcomes: [], count: 0 };
+    }
+    if (path.includes('/diagnose')) {
+      return { ...base, fallback: true, diagnostic: null };
+    }
+    if (path.includes('/recommend')) {
+      return { ...base, fallback: true, recommendation: null };
+    }
+    if (path.includes('/approval') || path.includes('/assess')) {
+      return { ...base, fallback: true, approval: null };
+    }
+    if (path.includes('/execution') || path.includes('/execute')) {
+      return { ...base, fallback: true, execution: null };
+    }
+    if (path.includes('/outcome')) {
+      return { ...base, fallback: true, outcome: null };
+    }
+  }
 
   return { ...base, items: [], data: [], rows: [] };
 }
@@ -161,6 +187,9 @@ function buildSafeFallback(service: string, path: string, message: string) {
 function buildSafePostFallback(service: string, path: string, message: string) {
   if (service === 'ml') {
     return { unavailable: true, service, path, error: message, queued: false, task_id: '', profile_id: null };
+  }
+  if (service === 'agentic') {
+    return { ...buildSafeFallback(service, path, message), content: '' };
   }
   if (path.includes('/filters/count') || /\/filters\/[^/]+\/count$/.test(path)) {
     return buildSafeFallback(service, path, message);
