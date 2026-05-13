@@ -447,25 +447,6 @@ const Recommendations: React.FC = () => (
   </Card>
 );
 
-const BusinessImpact: React.FC = () => (
-  <Card>
-    <SectionTitle>Business Impact</SectionTitle>
-    <div className="grid grid-cols-2 gap-4 px-4 py-3">
-      {[
-        { label: 'Users Impacted', value: '2,850' },
-        { label: 'Sessions Stoue', value: '5,430' },
-        { label: 'Est. Revenue Impact', value: '€ 8,450' },
-        { label: 'Duration', value: '4h 32m' },
-      ].map(s => (
-        <div key={s.label}>
-          <div className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase">{s.label}</div>
-          <div className="mt-0.5 text-[15px] font-bold text-red-600">{s.value}</div>
-        </div>
-      ))}
-    </div>
-  </Card>
-);
-
 const Actions: React.FC = () => (
   <Card>
     <SectionTitle>Actions</SectionTitle>
@@ -515,9 +496,13 @@ const SentinelRCA: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
           {/* RIGHT */}
           <div className="col-span-3 space-y-4">
             <Recommendations />
-            <BusinessImpact />
             <Actions />
           </div>
+        </div>
+        {/* BOTTOM */}
+        <div className="grid grid-cols-2 gap-4">
+          <NeighborImpact />
+          <SimilarIncidents />
         </div>
       </div>
     </div>
