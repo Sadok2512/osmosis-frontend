@@ -1,4 +1,7 @@
-import React, { useMemo, createContext, useContext } from 'react';
+import React, { useMemo, useEffect, useRef, createContext, useContext } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
 import { techHex } from '@/constants/brandColors';
 import { useQuery } from '@tanstack/react-query';
 import { fetchOverview } from '../sentinelApi';
