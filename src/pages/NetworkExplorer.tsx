@@ -509,6 +509,8 @@ const NetworkExplorer = () => {
 
         {activeTab === "Parameter Hub" ? (
           <ParameterHubPage />
+        ) : activeTab === "Alarms" ? (
+          <AlarmCenterPage />
         ) : (
         <>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">
