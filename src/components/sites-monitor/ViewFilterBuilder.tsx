@@ -280,27 +280,29 @@ export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
         </button>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          onClick={() => onSave(conditions)}
-          disabled={saving || !viewName.trim()}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
-        >
-          {saving ? (
-            <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-          ) : (
-            <Save size={12} />
-          )}
-          Sauvegarder la vue
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 transition-all"
-        >
-          Annuler
-        </button>
-      </div>
+      {/* Actions (standalone only) */}
+      {showSaveAction && (
+        <div className="flex items-center gap-2 pt-1">
+          <button
+            onClick={() => onSave?.(conditions)}
+            disabled={saving || !(viewName ?? '').trim()}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm"
+          >
+            {saving ? (
+              <div className="w-3 h-3 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Save size={12} />
+            )}
+            Sauvegarder la vue
+          </button>
+          <button
+            onClick={onCancel}
+            className="px-4 py-2.5 rounded-lg text-[10px] font-bold text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 transition-all"
+          >
+            Annuler
+          </button>
+        </div>
+      )}
     </div>
   );
 };
