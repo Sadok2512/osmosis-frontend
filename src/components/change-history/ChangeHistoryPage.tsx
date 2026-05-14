@@ -257,6 +257,7 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
     lg.clearLayers();
     // Bounding box ≈ France
     const minLat = 43.2, maxLat = 50.8, minLng = -4.5, maxLng = 7.5;
+    const latlngs: L.LatLngExpression[] = [];
     rows.forEach((r) => {
       const h1 = hash(r.site);
       const h2 = hash(r.site + "_" + r.cell);
@@ -275,7 +276,11 @@ const ChangeMap: React.FC<{ rows: Row[]; fullscreen: boolean }> = ({ rows, fulls
       L.marker([lat, lng], { icon })
         .bindTooltip(`<b>${r.site}</b> · ${r.cell}<br/>${r.param}: ${r.oldVal} → ${r.newVal}<br/>By ${r.changedBy} · ${r.risk}`, { direction: "top" })
         .addTo(lg);
+      latlngs.push([lat, lng]);
     });
+    if (latlngs.length > 0) {
+      mapRef.current.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 7 });
+    }
   }, [rows]);
 
   useEffect(() => {
