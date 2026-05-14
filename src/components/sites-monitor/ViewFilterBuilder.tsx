@@ -190,16 +190,18 @@ export const ViewFilterBuilder: React.FC<ViewFilterBuilderProps> = ({
 
   return (
     <div className="space-y-3">
-      {/* View name input */}
-      <div className="flex items-center gap-2">
-        <input
-          autoFocus
-          value={viewName}
-          onChange={e => onViewNameChange(e.target.value)}
-          placeholder="Nom de la vue..."
-          className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
-        />
-      </div>
+      {/* View name input (standalone only) */}
+      {showViewName && (
+        <div className="flex items-center gap-2">
+          <input
+            autoFocus
+            value={viewName ?? ''}
+            onChange={e => onViewNameChange?.(e.target.value)}
+            placeholder="Nom de la vue..."
+            className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-[12px] font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+          />
+        </div>
+      )}
 
       {/* Active conditions */}
       {conditions.length > 0 && (
