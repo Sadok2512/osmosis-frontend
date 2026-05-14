@@ -847,54 +847,92 @@ const Donut: React.FC<{ counts: Record<Severity, number> }> = ({ counts }) => {
   );
 };
 
-const SitesMiniMap: React.FC<{ sites: { site: string; region: string; count: number; critical: number; score: number }[] }> = ({ sites }) => {
-  // Deterministic pseudo-positions per site name within a stylized France map box.
+const SitesMiniMap: React.FC<{
+  sites: { site: string; region: string; count: number; critical: number; score: number }[];
+  fullscreen?: boolean;
+}> = ({ sites, fullscreen = false }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const layerRef = useRef<L.LayerGroup | null>(null);
+
   const hash = (s: string) => {
     let h = 0;
     for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
     return h;
   };
-  const W = 560, H = 240;
+
+  // Init map once
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = L.map(containerRef.current, {
+      center: [46.6, 2.5],
+      zoom: 6,
+      zoomControl: true,
+      attributionControl: false,
+    });
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+    }).addTo(map);
+    layerRef.current = L.layerGroup().addTo(map);
+    mapRef.current = map;
+    setTimeout(() => map.invalidateSize(), 50);
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      layerRef.current = null;
+    };
+  }, []);
+
+  // Invalidate on fullscreen toggle / resize
+  useEffect(() => {
+    const id = setTimeout(() => mapRef.current?.invalidateSize(), 220);
+    return () => clearTimeout(id);
+  }, [fullscreen]);
+
+  // Render markers
+  useEffect(() => {
+    if (!mapRef.current || !layerRef.current) return;
+    layerRef.current.clearLayers();
+    const points: L.LatLng[] = [];
+    sites.forEach((s) => {
+      const h = hash(s.site);
+      // Deterministic point inside metropolitan France bounding box
+      const lat = 43.2 + ((h % 1000) / 1000) * 7.5; // 43.2 .. 50.7
+      const lng = -3.5 + (((h >> 10) % 1000) / 1000) * 11.5; // -3.5 .. 8.0
+      const color = s.critical >= 4 ? "#f43f5e" : s.critical >= 2 ? "#f97316" : "#fbbf24";
+      const r = 10 + Math.min(10, s.score * 1.5);
+      const icon = L.divIcon({
+        className: "alarm-site-marker",
+        html: `
+          <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+            <div style="position:absolute;width:${r * 2.6}px;height:${r * 2.6}px;border-radius:9999px;background:${color};opacity:0.18;"></div>
+            <div style="position:relative;width:${r * 2}px;height:${r * 2}px;border-radius:9999px;background:${color};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:11px;">${s.critical}</div>
+            <div style="position:absolute;top:${r * 2 + 4}px;white-space:nowrap;font-size:10px;font-weight:600;color:#0f172a;background:rgba(255,255,255,0.85);padding:1px 5px;border-radius:4px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">${s.site}</div>
+          </div>`,
+        iconSize: [r * 2, r * 2],
+        iconAnchor: [r, r],
+      });
+      const m = L.marker([lat, lng], { icon }).addTo(layerRef.current!);
+      m.bindTooltip(
+        `<b>${s.site}</b><br/>${s.region}<br/>Alarms: ${s.count} · Critical: ${s.critical}`,
+        { direction: "top", offset: [0, -r] }
+      );
+      points.push(L.latLng(lat, lng));
+    });
+    if (points.length > 0) {
+      mapRef.current.fitBounds(L.latLngBounds(points).pad(0.3), { animate: false });
+    }
+  }, [sites]);
+
   return (
-    <div className="relative rounded-xl overflow-hidden border border-[#e7edf5] bg-gradient-to-br from-[#f6f9fd] to-[#eef3fa]" style={{ height: H }}>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full block">
-        {/* grid */}
-        <defs>
-          <pattern id="grid-amap" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M 28 0 L 0 0 0 28" fill="none" stroke="#e3eaf5" strokeWidth="0.6" />
-          </pattern>
-        </defs>
-        <rect width={W} height={H} fill="url(#grid-amap)" />
-        {/* stylized country blob */}
-        <path
-          d="M120,40 C200,20 360,28 460,70 C500,110 470,170 410,200 C320,225 200,220 140,180 C90,150 80,80 120,40 Z"
-          fill="#ffffff" stroke="#dbe4f1" strokeWidth="1.2"
-        />
-        {sites.map((s) => {
-          const h = hash(s.site);
-          const x = 130 + (h % 320);
-          const y = 55 + ((h >> 8) % 140);
-          const color = s.critical >= 4 ? "#f43f5e" : s.critical >= 2 ? "#f97316" : "#fbbf24";
-          const r = 6 + Math.min(8, s.score);
-          return (
-            <g key={s.site}>
-              <circle cx={x} cy={y} r={r + 6} fill={color} opacity={0.18}>
-                <animate attributeName="r" values={`${r + 6};${r + 12};${r + 6}`} dur="2.4s" repeatCount="indefinite" />
-                <animate attributeName="opacity" values="0.18;0.05;0.18" dur="2.4s" repeatCount="indefinite" />
-              </circle>
-              <circle cx={x} cy={y} r={r} fill={color} stroke="#fff" strokeWidth="1.6" />
-              <text x={x} y={y + 3} textAnchor="middle" fontSize="9" fontWeight="700" fill="#fff">{s.critical}</text>
-              <text x={x} y={y + r + 11} textAnchor="middle" fontSize="9" fontWeight="600" fill="#475569">{s.site}</text>
-            </g>
-          );
-        })}
-      </svg>
-      <div className="absolute bottom-2 left-2 flex items-center gap-3 rounded-md bg-white/90 backdrop-blur px-2.5 py-1.5 ring-1 ring-[#e7edf5] text-[10px] text-slate-600">
+    <div className={`relative rounded-xl overflow-hidden border border-[#e7edf5] ${fullscreen ? "h-full" : ""}`} style={fullscreen ? undefined : { height: 320 }}>
+      <div ref={containerRef} className="absolute inset-0" />
+      <div className="absolute bottom-2 left-2 z-[400] flex items-center gap-3 rounded-md bg-white/95 backdrop-blur px-2.5 py-1.5 ring-1 ring-[#e7edf5] text-[10px] text-slate-600 shadow-sm">
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> Critical ≥4</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-500" /> ≥2</span>
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Low</span>
       </div>
-      <div className="absolute top-2 right-2 rounded-md bg-white/90 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700">
+      <div className="absolute top-2 right-2 z-[400] rounded-md bg-white/95 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700 shadow-sm">
         {sites.length} impacted sites
       </div>
     </div>
