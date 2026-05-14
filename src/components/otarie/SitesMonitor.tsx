@@ -2584,7 +2584,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     setDashboards(prev => prev.filter(d => d.id !== dbId));
     setShowDeleteConfirm(null);
     // Stay on the Dashboard tab after deletion
-    setInventoryTab('dashboard');
+    try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
   };
 
   const openLoadPicker = async () => {
