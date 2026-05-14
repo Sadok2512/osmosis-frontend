@@ -333,55 +333,53 @@ const ChangeHistoryPage: React.FC = () => {
     <div className={`${PAGE_BG} min-h-full font-[Inter,'SF_Pro_Display',ui-sans-serif,system-ui] text-slate-800 antialiased`}>
       <div className="px-6 lg:px-8 py-6 space-y-5">
         {/* ----- Header ----- */}
-        <header className={`${CARD} px-6 py-5`}>
-          <div className="flex flex-wrap items-center gap-4 justify-between">
-            <div>
-              <h1 className="text-[30px] font-semibold tracking-tight text-slate-900 leading-tight">
-                Change History
-              </h1>
-              <p className="text-[13px] font-medium text-slate-500 mt-1">
-                Track network parameter modifications and configuration evolution.
-              </p>
+        <header className={`${CARD} px-6 py-5 space-y-4`}>
+          <div>
+            <h1 className="text-[30px] font-semibold tracking-tight text-slate-900 leading-tight">
+              Change History
+            </h1>
+            <p className="text-[13px] font-medium text-slate-500 mt-1">
+              Track network parameter modifications and configuration evolution.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5 w-full">
+            <div className="relative flex-1 min-w-[260px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by site, cell, parameter, user…"
+                className="h-10 w-full pl-10 pr-3 rounded-full border border-[#e7edf5] bg-white text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
+              />
             </div>
-            <div className="flex items-center gap-2.5">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by site, cell, parameter, user…"
-                  className="h-9 w-[280px] pl-9 pr-3 rounded-full border border-[#e7edf5] bg-white text-[13px] text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-300 transition"
-                />
-              </div>
-              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                06/12/2026 00:00 – 12/05/2026 23:59
-              </button>
-              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
-                <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
-              </button>
-              <button
-                onClick={() => setShowMap((v) => !v)}
-                className={`h-9 inline-flex items-center gap-2 px-3.5 rounded-full text-[13px] font-medium transition ring-1 ${
-                  showMap
-                    ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
-                    : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
-                }`}
-              >
-                <MapPin className="w-4 h-4" /> {showMap ? "Hide Map" : "Show Map"}
-              </button>
-              <button className="h-9 inline-flex items-center gap-2 px-3.5 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
-                <Download className="w-4 h-4 text-slate-500" /> Export
-              </button>
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-600">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                Live
+            <button className="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+              <Calendar className="w-4 h-4 text-slate-500" />
+              06/12/2026 00:00 – 12/05/2026 23:59
+            </button>
+            <button className="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+              <RefreshCw className="w-4 h-4 text-slate-500" /> Refresh
+            </button>
+            <button
+              onClick={() => setShowMap((v) => !v)}
+              className={`h-10 inline-flex items-center gap-2 px-4 rounded-full text-[13px] font-medium transition ring-1 ${
+                showMap
+                  ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
+                  : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
+              }`}
+            >
+              <MapPin className="w-4 h-4" /> {showMap ? "Hide Map" : "Show Map"}
+            </button>
+            <button className="h-10 inline-flex items-center gap-2 px-4 rounded-full border border-[#e7edf5] bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition">
+              <Download className="w-4 h-4 text-slate-500" /> Export
+            </button>
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-emerald-600 px-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
-                NC
-              </div>
+              Live
+            </span>
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 text-white text-[11px] font-semibold flex items-center justify-center shadow-sm">
+              NC
             </div>
           </div>
         </header>
