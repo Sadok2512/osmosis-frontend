@@ -143,31 +143,50 @@ const Sparkline: React.FC<{ seed: number; color: string }> = ({ seed, color }) =
 };
 
 /* Activity timeline — stacked bars */
-const TimelineChart: React.FC = () => {
-  const days = ["27 Apr", "28 Apr", "29 Apr", "30 Apr", "02 May", "03 May", "04 May", "05 May", "06 May", "07 May", "08 May", "09 May", "10 May", "11 May", "12 May"];
-  const series = useMemo(
-    () =>
-      days.map((_, i) => {
-        const seed = i * 1.7;
-        return {
-          low: 80 + Math.abs(Math.sin(seed)) * 90,
-          medium: 110 + Math.abs(Math.cos(seed * 0.8)) * 130,
-          high: 60 + Math.abs(Math.sin(seed + 1)) * 220,
-          critical: 20 + Math.abs(Math.cos(seed * 1.4)) * (i > 5 && i < 9 ? 360 : 80),
-        };
-      }),
-    [],
-  );
-  const max = 1600;
+const TimelineChart: React.FC<{ rows: Row[] }> = ({ rows }) => {
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const { days, series, max } = useMemo(() => {
+    // Parse ts "DD/MM/YYYY HH:mm:ss" → bucket per day per risk
+    const buckets = new Map<string, { low: number; medium: number; high: number; critical: number; date: Date }>();
+    rows.forEach((r) => {
+      const [d] = r.ts.split(" ");
+      const [dd, mm, yyyy] = d.split("/").map(Number);
+      const key = `${yyyy}-${mm}-${dd}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, { low: 0, medium: 0, high: 0, critical: 0, date: new Date(yyyy, mm - 1, dd) });
+      }
+      const b = buckets.get(key)!;
+      const k = r.risk.toLowerCase() as "low" | "medium" | "high" | "critical";
+      b[k] += 1;
+    });
+    // Build a continuous date range from min → max date
+    const sorted = Array.from(buckets.values()).sort((a, b) => +a.date - +b.date);
+    if (sorted.length === 0) return { days: [], series: [], max: 1 };
+    const start = sorted[0].date;
+    const end = sorted[sorted.length - 1].date;
+    const days: string[] = [];
+    const series: { low: number; medium: number; high: number; critical: number; total: number }[] = [];
+    for (let t = +start; t <= +end; t += 86400000) {
+      const dt = new Date(t);
+      const key = `${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}`;
+      const b = buckets.get(key) || { low: 0, medium: 0, high: 0, critical: 0 };
+      days.push(`${String(dt.getDate()).padStart(2, "0")} ${MONTHS[dt.getMonth()]}`);
+      const total = b.low + b.medium + b.high + b.critical;
+      series.push({ low: b.low, medium: b.medium, high: b.high, critical: b.critical, total });
+    }
+    const max = Math.max(1, ...series.map((s) => s.total));
+    return { days, series, max };
+  }, [rows]);
+
   return (
     <div className="px-2 pt-2">
       <div className="flex items-end gap-3 h-[180px]">
         {series.map((s, i) => {
-          const total = s.low + s.medium + s.high + s.critical;
           const scale = (v: number) => `${(v / max) * 100}%`;
           return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group">
-              <div className="w-full flex flex-col-reverse rounded-md overflow-hidden h-full bg-[#f6f8fb] ring-1 ring-[#eef2f8] transition-all group-hover:ring-blue-200">
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group" title={`${days[i]} — ${s.total} change${s.total !== 1 ? "s" : ""}`}>
+              <span className="text-[10px] font-semibold text-slate-600 tabular-nums">{s.total || ""}</span>
+              <div className="w-full flex flex-col-reverse rounded-md overflow-hidden flex-1 bg-[#f6f8fb] ring-1 ring-[#eef2f8] transition-all group-hover:ring-blue-200">
                 <div style={{ height: scale(s.low) }} className="bg-emerald-400/80" />
                 <div style={{ height: scale(s.medium) }} className="bg-amber-400/80" />
                 <div style={{ height: scale(s.high) }} className="bg-orange-500/80" />
@@ -480,7 +499,7 @@ const ChangeHistoryPage: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <TimelineChart />
+              <TimelineChart rows={ROWS} />
             </div>
 
             <div className={`${CARD} overflow-hidden`}>
