@@ -102,20 +102,14 @@ const ROWS: Row[] = [
 ];
 
 const FILTERS: { label: string; opts: string[] }[] = [
-  { label: "Network", opts: ["All Networks", "RAN LTE", "RAN 5G", "RAN UMTS"] },
-  { label: "DR", opts: ["All DR", "DR Nord", "DR Sud", "DR Ouest", "DR Paris"] },
-  { label: "Plaque", opts: ["All Plaques", "Reims", "Lille", "Paris", "Nantes"] },
-  { label: "Region", opts: ["All Regions", "Île-de-France", "PACA", "Hauts-de-France"] },
+  { label: "Network", opts: ["All Networks", "NR", "LTE", "UMTS", "GSM"] },
+  { label: "Region", opts: ["All Regions", "Île-de-France", "PACA", "Hauts-de-France", "Bretagne", "Occitanie"] },
+  { label: "Vendor", opts: ["All Vendors", "Ericsson", "Nokia", "Huawei", "Samsung"] },
+  { label: "Plaque", opts: ["All Plaques", "Reims", "Lille", "Paris", "Nantes", "Marseille", "Rennes"] },
   { label: "Site", opts: ["All Sites"] },
-  { label: "Cell", opts: ["All Cells"] },
-  { label: "Vendor", opts: ["All Vendors", "Ericsson", "Nokia", "Huawei"] },
-  { label: "Technology", opts: ["All Technologies", "2G", "3G", "4G LTE", "5G NR"] },
-  { label: "Parameter Family", opts: ["All Parameter Families", "RF", "Mobility", "Power"] },
-  { label: "Parameter Name", opts: ["All Parameters"] },
-  { label: "Change Type", opts: ["All Types", "Update", "Create", "Delete"] },
-  { label: "Changed By", opts: ["All Users", "SON", "OPTIMUS_AI", "NOC User"] },
-  { label: "Risk Level", opts: ["All Risk Levels", "Low", "Medium", "High", "Critical"] },
-  { label: "Validation Status", opts: ["All Status", "Passed", "Failed", "Pending"] },
+  { label: "Cells", opts: ["All Cells"] },
+  { label: "Band", opts: ["All Bands", "GSM900", "GSM1800", "U900", "U2100", "L700", "L800", "L1800", "L2100", "L2600", "N700", "N2100", "N3500"] },
+  { label: "MO", opts: ["All MO", "EUtranCellFDD", "EUtranCellTDD", "NRCellDU", "NRCellCU", "UtranCell", "GsmCell"] },
 ];
 
 /* Deterministic sparkline generator for KPI cards */
