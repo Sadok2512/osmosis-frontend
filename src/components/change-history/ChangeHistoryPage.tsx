@@ -86,7 +86,7 @@ type Row = {
 const KPIS = [
   { label: "Total Changes", value: "12,842", trend: "+18% vs last 7 days", trendColor: "text-emerald-600", icon: Activity, accent: "from-blue-500/10 to-indigo-500/10" },
   { label: "Changes Today", value: "1,248", trend: "+15% vs yesterday", trendColor: "text-emerald-600", icon: TrendingUp, accent: "from-sky-500/10 to-cyan-500/10" },
-  { label: "Critical Changes", value: "320", trend: "+12% vs yesterday", trendColor: "text-rose-600", icon: AlertTriangle, accent: "from-rose-500/10 to-orange-500/10" },
+  
   { label: "Impacted Sites", value: "532", trend: "+8% vs yesterday", trendColor: "text-emerald-600", icon: CircleDot, accent: "from-amber-500/10 to-yellow-500/10" },
   { label: "Impacted Cells", value: "2,654", trend: "+9% vs yesterday", trendColor: "text-emerald-600", icon: LayoutGrid, accent: "from-violet-500/10 to-fuchsia-500/10" },
 ];
