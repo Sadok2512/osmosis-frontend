@@ -13391,7 +13391,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                           }`}
                         >
                           <button
-                            onClick={() => { handleSiteClick(site); }}
+                            onClick={() => { handleSiteClick(site, { skipFly: true }); }}
                             onMouseEnter={() => setHoveredSiteId(site.site_id)}
                             onMouseLeave={() => setHoveredSiteId(null)}
                             className="w-full text-left px-4 py-3.5 flex items-center gap-3"
