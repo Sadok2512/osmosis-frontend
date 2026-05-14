@@ -12,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
+import Buildings3DLayer from '@/components/otarie/map/Buildings3DLayer';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
@@ -8486,6 +8487,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
           url={(TILE_URLS[mapLayer] || TILE_URLS.light).url}
           attribution={(TILE_URLS[mapLayer] || TILE_URLS.light).attribution}
         />
+        <Buildings3DLayer />
         {/* Visual Coverage adapter — bridges the drop-in JS module
             (src/coverage/) to react-leaflet. Owns its own L.geoJSON layer,
             tooltips, panel; React just passes the bbox + enabled flag. */}
