@@ -14273,7 +14273,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
               {/* ── Dashboard tab ── */}
                <div style={{ display: inventoryTab === 'dashboard' ? 'contents' : 'none' }}>
                 <DashboardInventoryTab
-                  getDashboardStats={(dashboardId) => {
+                  getDashboardStats={(dashboardId, siteFilters) => {
                     const countCells = (list: any[]) => {
                       let c = 0;
                       for (const s of list) {
@@ -14286,25 +14286,8 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     if (dashboardId === activeDashboardId) {
                       return { sites: filteredSites.length, cells: countCells(filteredSites) };
                     }
-                    // Non-active dashboard: derive filters from the dashboard itself
-                    const db = dashboards.find(d => d.id === dashboardId);
-                    if (!db) return null;
-                    const w = Array.isArray((db as any).widgets) ? (db as any).widgets : [];
-                    const meta = w.find((wi: any) => wi?._type === 'dashboard_settings') || {};
-                    let sf: any = meta?.siteFilters && Object.keys(meta.siteFilters).length > 0 ? meta.siteFilters : null;
-                    if (!sf) {
-                      const scope = meta?.siteScope;
-                      if (scope?.type === 'DOR' && scope.value) sf = { dor: [scope.value] };
-                      else if (scope?.type === 'Plaque' && scope.value) sf = { plaque: [scope.value] };
-                    }
-                    if (!sf) {
-                      // Try to infer from name
-                      const name = String((db as any).name || '').toLowerCase();
-                      const dorNames = ['UPR Sud-Ouest','UPR Ile-De-France','UPR Nord-Est','UPR Ouest','UPR Sud-Est'];
-                      for (const dor of dorNames) {
-                        if (name.includes(dor.toLowerCase().replace('upr ',''))) { sf = { dor: [dor] }; break; }
-                      }
-                    }
+                    // Non-active: apply provided siteFilters to the full sites list
+                    const sf: any = siteFilters || null;
                     const matches = (s: any, key: string, vals: any[]) => {
                       const v = (s as any)[key];
                       return v != null && vals.map(String).includes(String(v));
