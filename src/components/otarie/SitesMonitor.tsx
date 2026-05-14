@@ -2569,6 +2569,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
     setShowDeleteConfirm(null);
+    // Stay on the Dashboard tab after deletion
+    try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
   };
 
   const handlePermanentDeleteDashboard = async (dbId: string) => {
@@ -2581,6 +2583,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
     }
     setDashboards(prev => prev.filter(d => d.id !== dbId));
     setShowDeleteConfirm(null);
+    // Stay on the Dashboard tab after deletion
+    try { window.dispatchEvent(new CustomEvent('osmosis:force-dashboard-tab')); } catch {}
   };
 
   const openLoadPicker = async () => {
@@ -4950,6 +4954,13 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
     return { prb, mimoLabel, rsPower, bwMhz: bwMhz ? `${bwMhz} MHz` : null };
   };
   const [inventoryTab, setInventoryTab] = useState<'sites' | 'dashboard' | 'tagged' | 'kpi'>('dashboard');
+
+  // Listen for forced tab switches (e.g. after dashboard deletion to stay on Dashboard tab)
+  useEffect(() => {
+    const handler = () => setInventoryTab('dashboard');
+    window.addEventListener('osmosis:force-dashboard-tab', handler);
+    return () => window.removeEventListener('osmosis:force-dashboard-tab', handler);
+  }, []);
 
   // ── Tagged / pinned sites (scoped per dashboard) ──
   const [taggedSites, setTaggedSites] = useState<SiteSummary[]>([]);
