@@ -8352,15 +8352,12 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
         setLoadingCellsForSite(null);
       }
     }
-    // When coming from search, auto-tag the site but keep results visible
+    // When coming from search, stay on the Sites tab with the site opened
     if (isSearchActive) {
-      if (!isSiteTagged(siteWithCells.site_id)) {
-        toggleTagSite(siteWithCells);
-      }
-      setInventoryTab('tagged');
       setLocalSearch('');
       setSearchResults([]);
       setSearchModeSites([]);
+      setInventoryTab('sites');
     } else if (inventoryTab !== 'tagged' || !isSiteTagged(siteWithCells.site_id)) {
       setInventoryTab('sites');
     }
