@@ -2071,6 +2071,10 @@ export type Database = {
         }[]
       }
       topo_inventory_stats: { Args: never; Returns: Json }
+      topo_perimeter_count: {
+        Args: { p_filters?: Json; p_logic?: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
