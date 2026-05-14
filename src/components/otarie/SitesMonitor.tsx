@@ -3294,18 +3294,27 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                         </>
                       )}
 
-                      {/* KPI summary — tertiary, compact */}
+                      {/* Résumé — pill badge style aligned with Topology Search */}
                       <div className="mt-2.5 pt-2 border-t border-border/40">
-                        <div className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/70 mb-1.5">Résumé</div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <div className="flex items-baseline justify-between px-2 py-1 rounded bg-muted/20 border border-border/30">
-                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-medium">Sites</span>
-                            <span className="text-[12px] font-semibold text-foreground tabular-nums">{fmt(stats?.sites)}</span>
-                          </div>
-                          <div className="flex items-baseline justify-between px-2 py-1 rounded bg-muted/20 border border-border/30">
-                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground/70 font-medium">Cells</span>
-                            <span className="text-[12px] font-semibold text-foreground tabular-nums">{fmt(stats?.cells)}</span>
-                          </div>
+                        <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-background/60 px-2.5 py-1 text-[10px] text-muted-foreground shadow-sm">
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-foreground tabular-nums">{filterEntries.length}</span>
+                            <span>topology filter{filterEntries.length > 1 ? 's' : ''}</span>
+                          </span>
+                          <span className="h-3 w-px bg-border" />
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              {stats?.cells != null ? stats.cells.toLocaleString('fr-FR') : '—'}
+                            </span>
+                            <span>cells</span>
+                          </span>
+                          <span className="h-3 w-px bg-border" />
+                          <span className="flex items-center gap-1">
+                            <span className="font-semibold text-foreground tabular-nums">
+                              {stats?.sites != null ? stats.sites.toLocaleString('fr-FR') : '—'}
+                            </span>
+                            <span>sites</span>
+                          </span>
                         </div>
                       </div>
 
