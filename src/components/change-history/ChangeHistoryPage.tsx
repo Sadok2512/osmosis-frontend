@@ -199,12 +199,9 @@ const TimelineChart: React.FC<{ rows: Row[] }> = ({ rows }) => {
 const ParamLineChart: React.FC = () => {
   const w = 360, h = 130;
   const tilt = [2, 2, 2, 2.1, 2, 2, 2, 2, 2, 2, 2, 3.5, 3.5];
-  const tput = [180, 175, 178, 182, 176, 174, 178, 175, 173, 170, 168, 120, 118];
   const xs = (i: number) => (i / (tilt.length - 1)) * (w - 24) + 12;
   const ys1 = (v: number) => h - 16 - ((v - 1.5) / 3) * (h - 32);
-  const ys2 = (v: number) => h - 16 - ((v - 100) / 110) * (h - 32);
   const path1 = tilt.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys1(v).toFixed(1)}`).join(" ");
-  const path2 = tput.map((v, i) => `${i === 0 ? "M" : "L"}${xs(i).toFixed(1)},${ys2(v).toFixed(1)}`).join(" ");
   return (
     <svg width="100%" viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
       {[0.25, 0.5, 0.75].map((p) => (
