@@ -474,8 +474,24 @@ const AlarmCenterPage: React.FC = () => {
             <div className={`${CARD} px-5 py-4`}>
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[14px] font-semibold text-slate-900">Top Alarmed Sites</span>
-                <a className="text-[11px] font-medium text-blue-600 hover:text-blue-700 transition cursor-pointer">View all sites →</a>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowMap((v) => !v)}
+                    className={`h-7 px-2.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1.5 transition ring-1 ${
+                      showMap
+                        ? "bg-blue-600 text-white ring-blue-600 shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-blue-700"
+                        : "bg-white text-blue-600 ring-blue-200 hover:bg-blue-50"
+                    }`}
+                  >
+                    <MapPin size={12} strokeWidth={2} />
+                    {showMap ? "Hide Map" : "Display Map"}
+                  </button>
+                  <a className="text-[11px] font-medium text-blue-600 hover:text-blue-700 transition cursor-pointer">View all →</a>
+                </div>
               </div>
+              {showMap ? (
+                <SitesMiniMap sites={topSites} />
+              ) : (
               <table className="w-full">
                 <thead className="text-[10px] uppercase tracking-[0.06em] text-slate-400 border-b border-[#eef2f8]">
                   <tr>
@@ -498,6 +514,7 @@ const AlarmCenterPage: React.FC = () => {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
             <div className={`${CARD} px-5 py-4`}>
               <span className="text-[14px] font-semibold text-slate-900">Alarm Distribution</span>
