@@ -83,8 +83,6 @@ const KPIS = [
   { label: "Critical Changes", value: "320", trend: "+12% vs yesterday", trendColor: "text-rose-600", icon: AlertTriangle, accent: "from-rose-500/10 to-orange-500/10" },
   { label: "Impacted Sites", value: "532", trend: "+8% vs yesterday", trendColor: "text-emerald-600", icon: CircleDot, accent: "from-amber-500/10 to-yellow-500/10" },
   { label: "Impacted Cells", value: "2,654", trend: "+9% vs yesterday", trendColor: "text-emerald-600", icon: LayoutGrid, accent: "from-violet-500/10 to-fuchsia-500/10" },
-  { label: "Rollbacks", value: "87", trend: "+5% vs yesterday", trendColor: "text-emerald-600", icon: RotateCcw, accent: "from-pink-500/10 to-rose-500/10" },
-  { label: "Pending Validation", value: "312", trend: "−3% vs yesterday", trendColor: "text-amber-600", icon: Clock3, accent: "from-amber-500/10 to-orange-500/10" },
 ];
 
 const ROWS: Row[] = [
