@@ -1081,25 +1081,7 @@ export const topoApi = {
       }
       if (Object.keys(cleaned).length) qs.set('context', JSON.stringify(cleaned));
     }
-    const path = `/topo/filters/values?${qs.toString()}`;
-    let vpsValues: string[] = [];
-    let vpsFailed = false;
-    try {
-      const data = await fetchJson<any>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
-      if (data?.unavailable === true) {
-        vpsFailed = true;
-      } else {
-        vpsValues = Array.isArray(data?.values) ? data.values
-          : Array.isArray(data?.items) ? data.items
-          : Array.isArray(data?.data) ? data.data
-          : Array.isArray(data?.rows) ? data.rows
-          : [];
-      }
-    } catch {
-      vpsFailed = true;
-    }
-    if (vpsValues.length > 0) return vpsValues;
-    // ── Supabase topo fallback (VPS timeouts on PLAQUE_SITE etc.) ──
+    // ── Prefer Supabase topo RPC for known columns (VPS often returns truncated/empty) ──
     const TOPO_COL_MAP: Record<string, string> = {
       plaque: 'plaque', plaque_site: 'plaque', plaque_cellule: 'plaque',
       dor: 'dor', region: 'region', zone_arcep: 'zone_arcep',
@@ -1112,23 +1094,39 @@ export const topoApi = {
       pci: 'pci', tac: 'tac', lac: 'lac', azimut: 'azimut',
     };
     const col = TOPO_COL_MAP[dimension.toLowerCase()];
-    if (!col) return vpsValues;
-    try {
-      const { data: rows, error } = await (supabase as any).rpc('topo_distinct_values', {
-        p_col: col,
-        p_search: opts?.search || null,
-        p_limit: opts?.limit && opts.limit > 0 ? opts.limit : 10000,
-      });
-      if (error || !Array.isArray(rows)) return vpsValues;
-      const out: string[] = [];
-      for (const r of rows as any[]) {
-        const v = r?.value;
-        if (v === null || v === undefined || v === '') continue;
-        out.push(String(v));
+    if (col) {
+      try {
+        const { data: rows, error } = await (supabase as any).rpc('topo_distinct_values', {
+          p_col: col,
+          p_search: opts?.search || null,
+          p_limit: opts?.limit && opts.limit > 0 ? opts.limit : 10000,
+        });
+        if (!error && Array.isArray(rows) && rows.length > 0) {
+          const out: string[] = [];
+          for (const r of rows as any[]) {
+            const v = r?.value;
+            if (v === null || v === undefined || v === '') continue;
+            out.push(String(v));
+          }
+          if (out.length > 0) return out;
+        }
+      } catch {
+        /* fall through to VPS */
       }
-      return out;
-    } catch {
+    }
+    // ── VPS fallback ──
+    const path = `/topo/filters/values?${qs.toString()}`;
+    try {
+      const data = await fetchJson<any>(isLocalExpress() ? localUrl(path.slice(1)) : parserUrl(path));
+      if (data?.unavailable === true) return [];
+      const vpsValues: string[] = Array.isArray(data?.values) ? data.values
+        : Array.isArray(data?.items) ? data.items
+        : Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.rows) ? data.rows
+        : [];
       return vpsValues;
+    } catch {
+      return [];
     }
   },
 
