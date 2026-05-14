@@ -12,6 +12,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
+import Buildings3DLayer from '@/components/otarie/map/Buildings3DLayer';
 import { useTerrainProfile } from '@/hooks/useTerrainProfile';
 import { useFresnel } from '@/hooks/useFresnel';
 import { haversineDistance, LatLng, bearing } from '@/utils/geodesicUtils';
