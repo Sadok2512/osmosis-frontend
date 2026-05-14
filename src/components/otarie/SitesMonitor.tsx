@@ -14588,7 +14588,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                     const wasActive = dashboardActive;
 
                     setDashboardActive(active);
-                    // Stay on the Dashboard tab when activating from the dashboard panel
+                    // Stay on the Dashboard tab when activating/deactivating from the dashboard panel
+                    setInventoryTab('dashboard');
+                    // Defer once more to override any subsequent tab switches triggered by noDashboardMode effects
+                    setTimeout(() => setInventoryTab('dashboard'), 0);
                     setActiveSiteScope(scope || null);
                     setActiveDashboardFilters(siteFilters || null);
 
