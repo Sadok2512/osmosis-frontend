@@ -3260,7 +3260,16 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {filterEntries.map(([key, vals]) => {
-                                const text = Array.isArray(vals) ? vals.join(', ') : String(vals);
+                                const stringify = (v: any): string => {
+                                  if (v == null) return '';
+                                  if (Array.isArray(v)) return v.map(stringify).filter(Boolean).join(', ');
+                                  if (typeof v === 'object') {
+                                    const entries = Object.entries(v).filter(([, vv]) => vv != null && (Array.isArray(vv) ? vv.length > 0 : true));
+                                    return entries.map(([k, vv]) => `${k}=${stringify(vv)}`).join(', ');
+                                  }
+                                  return String(v);
+                                };
+                                const text = stringify(vals);
                                 return (
                                   <span
                                     key={key}
