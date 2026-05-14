@@ -390,7 +390,7 @@ const ChangeHistoryPage: React.FC = () => {
         </header>
 
         {/* ----- KPI strip ----- */}
-        <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {KPIS.map((k, i) => {
             const Icon = k.icon;
             return (
