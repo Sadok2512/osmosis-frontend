@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Search,
   Calendar,
@@ -17,6 +19,10 @@ import {
   History,
   GitCompare,
   TrendingUp,
+  MapPin,
+  Maximize2,
+  Minimize2,
+  X,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
