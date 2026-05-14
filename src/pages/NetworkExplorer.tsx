@@ -30,7 +30,6 @@ import {
 } from "lucide-react";
 import { getPreferredDataSource, getVpsProxyHeaders, getVpsProxyUrl } from "@/lib/apiConfig";
 import ParameterHubPage from "@/components/parameter-hub/ParameterHubPage";
-import AlarmCenterPage from "@/components/alarm-center/AlarmCenterPage";
 
 type Status = "Healthy" | "Warning" | "Critical";
 type Tech = "2G" | "3G" | "4G" | "5G";
@@ -68,7 +67,6 @@ const navItems = [
   { label: "Parameter Hub", icon: SlidersHorizontal },
   { label: "Neighbors", icon: GitBranch },
   { label: "Change History", icon: History },
-  { label: "Alarms", icon: Bell },
   { label: "Architecture View", icon: Layers3 },
 ];
 
@@ -509,8 +507,6 @@ const NetworkExplorer = () => {
 
         {activeTab === "Parameter Hub" ? (
           <ParameterHubPage />
-        ) : activeTab === "Alarms" ? (
-          <AlarmCenterPage />
         ) : (
         <>
         <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-9">

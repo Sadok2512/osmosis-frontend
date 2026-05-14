@@ -17,6 +17,7 @@ const RadioProfilePage = lazy(() => import('../components/otarie/RadioProfilePag
 const BackendAdmin = lazy(() => import('../components/otarie/BackendAdmin'));
 const TopologiePage = lazy(() => import('../components/otarie/TopologiePage'));
 const ParametersPage = lazy(() => import('../components/parameter-hub/ParameterHubPage'));
+const AlarmCenterPage = lazy(() => import('../components/alarm-center/AlarmCenterPage'));
 const AgentHubPage = lazy(() => import('../components/otarie/AgentHubPage'));
 const KpiReference2Page = lazy(() => import('../components/kpi-monitor/KpiReferenceWorkspace2'));
 const PmDashboardPage = lazy(() => import('../components/pm-dashboard/PmDashboardPage'));
@@ -235,6 +236,8 @@ const Index: React.FC = () => {
         return <PmDashboardPage />;
       case 'parameters':
         return <ParametersPage />;
+      case 'alarm_center':
+        return <AlarmCenterPage />;
       case 'agent_hub':
         return <AgentHubPage onNavigate={setActiveTab} />;
       case 'sentinel':
