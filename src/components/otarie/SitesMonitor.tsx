@@ -2519,7 +2519,7 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
       });
       setNewDashName('');
       setShowCreateDash(false);
-      setCreateFilters({}); setCreateConditions([]);
+      setCreateFilters({}); setCreateConditions([]); setCreateTopoPayload(null);
       await fetchAll();
       setExpandedDashboardId(id);
       // Auto-activate newly created dashboard
