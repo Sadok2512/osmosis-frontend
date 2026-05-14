@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
   Bell,
+  Check,
   CheckCircle2,
   ChevronDown,
   Download,
@@ -115,23 +116,40 @@ const STATUS_STYLES: Record<Status, string> = {
 const CARD = "rounded-2xl border border-[#e8edf5] bg-white shadow-[0_2px_8px_rgba(15,23,42,0.04)]";
 
 const AlarmCenterPage: React.FC = () => {
-  // 2026-05-14 — wired to live backend (osmosis-parser /api/v1/alarms),
-  // see services/alarmService.ts for the mock-to-real mapping.
-  // Polling every 30s; falls back to seedAlarms() only if the backend
-  // is unreachable so the UI never goes blank during a parser restart.
-  const [alarms, setAlarms] = useState<Alarm[]>(() => seedAlarms());
-  const [alarmsLoading, setAlarmsLoading] = useState(false);
+  // 2026-05-14 — wired to live backend (osmosis-parser /api/v1/alarms).
+  // Honest by design: empty array initially (no mock fallback that would
+  // pretend "Fan Failure on SITE_0001" — Sally's red line). Polling 30s.
+  // If backend is unreachable / unauthorised, the page shows an explicit
+  // banner instead of fake data.
+  const [alarms, setAlarms] = useState<Alarm[]>([]);
+  const [alarmsLoading, setAlarmsLoading] = useState(true);
   const [alarmsError, setAlarmsError] = useState<string | null>(null);
+  // Date range — drives /alarms?date_from=&date_to=. Default = last 7 days
+  // because real DB has 1.7k alarms over 10 days, with the bulk on 8-9 May.
+  // 24h would show ~85 alarms, 7d ~1k — better visual demo.
+  const [dateRange, setDateRange] = useState<{ from: string; to: string; preset: string }>(() => {
+    const to = new Date();
+    const from = new Date(to.getTime() - 7 * 24 * 3600 * 1000);
+    return {
+      from: from.toISOString().slice(0, 10),
+      to:   to.toISOString().slice(0, 10),
+      preset: '7d',
+    };
+  });
   React.useEffect(() => {
     let cancelled = false;
     const tick = async () => {
       try {
         const { fetchAlarms } = await import('@/services/alarmService');
-        const live = await fetchAlarms({ limit: 200 });
+        const live = await fetchAlarms({
+          limit:     200,
+          date_from: dateRange.from,
+          date_to:   dateRange.to + 'T23:59:59',
+        });
         if (cancelled) return;
-        // Map UiAlarm (alarmService) shape onto the local Alarm interface.
-        // Drop honest-mock fields the backend doesn't emit (rca, kpis, tech)
-        // — Sally's red line: never display fake correlation data.
+        // Map UiAlarm shape onto the local Alarm interface. Drop fields
+        // the backend doesn't emit (rca, kpis, tech) — never lie about
+        // correlation data we don't have.
         const mapped: Alarm[] = live.map((a) => ({
           id:               a.id,
           name:             a.name,
@@ -139,30 +157,39 @@ const AlarmCenterPage: React.FC = () => {
           site:             a.site,
           cell:             a.cell,
           vendor:           a.vendor as any,
-          tech:             '4G LTE' as any,   // backend has no tech col yet — neutral default
+          tech:             '4G LTE' as any,
           type:             a.type as any,
           region:           a.region,
           startTime:        a.startTime,
           duration:         a.duration,
           status:           a.status,
-          kpis:             [],                // dropped — never lie about correlation
-          rca:              false,             // dropped — backend RCA not exposed
+          kpis:             [],
+          rca:              false,
           probableCause:    a.probableCause,
           specificProblem:  a.specificProblem,
-        }));
+          // Fields the mock Alarm interface declares but the backend doesn't
+          // expose yet — fill with neutral defaults so downstream UI code
+          // (selected.impactedUsers.toLocaleString()) doesn't crash on
+          // undefined. Display layers should treat 0/'—' as "unknown".
+          lastOccurrence:   a.startTime,
+          impactedUsers:    0,
+          aiScore:          0,
+        } as Alarm));
         setAlarms(mapped);
         setAlarmsError(null);
       } catch (err: any) {
-        if (!cancelled) setAlarmsError(err?.message || 'Failed to load alarms');
+        if (!cancelled) {
+          setAlarms([]);              // honest: no fake fallback
+          setAlarmsError(err?.message || 'Failed to load alarms');
+        }
       } finally {
         if (!cancelled) setAlarmsLoading(false);
       }
     };
-    setAlarmsLoading(true);
     tick();
     const id = window.setInterval(tick, 30_000);
     return () => { cancelled = true; window.clearInterval(id); };
-  }, []);
+  }, [dateRange.from, dateRange.to]);
   const [aiOn, setAiOn] = useState(true);
   const [selectedId, setSelectedId] = useState<string>(alarms[0]?.id);
   const [checked, setChecked] = useState<Set<string>>(new Set());
@@ -214,16 +241,51 @@ const AlarmCenterPage: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
+  // KPI cards — derived from the live alarms set + /alarms/stats endpoint
+  // (see effect below). Values are honest counts, not hardcoded numbers.
+  // Backend stats are loaded async; until they arrive we use the local
+  // alarms snapshot. No fake "+12% from yesterday" — trend left blank
+  // when historical data isn't available.
+  const [statsLive, setStatsLive] = useState<{
+    by_severity?: Record<string, number>;
+    by_status?:   Record<string, number>;
+    sites?: number; cells?: number;
+  } | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const { fetchAlarmsStats } = await import('@/services/alarmService');
+        const s = await fetchAlarmsStats();
+        if (cancelled) return;
+        setStatsLive({
+          by_severity: s.by_severity || {},
+          by_status:   s.by_status   || {},
+          sites: undefined,         // future endpoint, leave blank rather than fake
+          cells: undefined,
+        });
+      } catch { /* keep null — UI will fall back to local counts */ }
+    };
+    tick();
+    const id = window.setInterval(tick, 60_000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+  const live = (sev: string) =>
+    statsLive?.by_severity?.[sev.toUpperCase()] ?? counts[sev as Severity] ?? 0;
+  const liveStatus = (st: string) =>
+    statsLive?.by_status?.[st.toUpperCase()] ?? 0;
+  const totalActive = liveStatus('RAISED') || alarms.filter(a => a.status === 'Active').length;
+  const totalCleared = liveStatus('CLEARED') || alarms.filter(a => a.status === 'Cleared').length;
+
   const kpis = [
-    { label: "Total Active Alarms", value: "1,256", trend: "+12% from yesterday", color: "text-rose-600", trendColor: "text-rose-500", spark: "rose" },
-    { label: "Critical", value: String(counts.Critical * 30 + 215), trend: "↑ 8%", color: "text-rose-600", trendColor: "text-rose-500", spark: "rose" },
-    { label: "Major", value: String(counts.Major * 50 + 487), trend: "↑ 15%", color: "text-orange-600", trendColor: "text-orange-500", spark: "orange" },
-    { label: "Minor", value: String(counts.Minor * 30 + 401), trend: "↓ 5%", color: "text-amber-600", trendColor: "text-amber-500", spark: "amber" },
-    { label: "Warning", value: "153", trend: "↓ 3%", color: "text-blue-600", trendColor: "text-blue-500", spark: "blue" },
-    { label: "Cleared (Today)", value: "2,345", trend: "↑ 18%", color: "text-emerald-600", trendColor: "text-emerald-500", spark: "emerald" },
-    { label: "Affected Sites", value: "312", trend: "↑ 10%", color: "text-slate-900", trendColor: "text-slate-500", spark: "slate" },
-    { label: "Affected Cells", value: "8,753", trend: "↑ 7%", color: "text-slate-900", trendColor: "text-slate-500", spark: "slate" },
-    ...(aiOn ? [{ label: "AI Correlated", value: "1,024", trend: "↑ 81%", color: "text-indigo-600", trendColor: "text-indigo-500", spark: "indigo" }] : []),
+    { label: "Total Active Alarms", value: totalActive.toLocaleString('fr-FR'), trend: "", color: "text-rose-600", trendColor: "text-rose-500", spark: "rose" },
+    { label: "Critical", value: live('Critical').toLocaleString('fr-FR'), trend: "", color: "text-rose-600", trendColor: "text-rose-500", spark: "rose" },
+    { label: "Major", value: live('Major').toLocaleString('fr-FR'), trend: "", color: "text-orange-600", trendColor: "text-orange-500", spark: "orange" },
+    { label: "Minor", value: live('Minor').toLocaleString('fr-FR'), trend: "", color: "text-amber-600", trendColor: "text-amber-500", spark: "amber" },
+    { label: "Warning", value: live('Warning').toLocaleString('fr-FR'), trend: "", color: "text-blue-600", trendColor: "text-blue-500", spark: "blue" },
+    { label: "Cleared", value: totalCleared.toLocaleString('fr-FR'), trend: "", color: "text-emerald-600", trendColor: "text-emerald-500", spark: "emerald" },
+    { label: "Affected Sites", value: new Set(alarms.filter(a => a.status === 'Active').map(a => a.site)).size.toLocaleString('fr-FR'), trend: "", color: "text-slate-900", trendColor: "text-slate-500", spark: "slate" },
+    { label: "Affected Cells", value: new Set(alarms.filter(a => a.status === 'Active').map(a => a.cell)).size.toLocaleString('fr-FR'), trend: "", color: "text-slate-900", trendColor: "text-slate-500", spark: "slate" },
   ];
 
   const toggleAll = () => {
@@ -277,9 +339,8 @@ const AlarmCenterPage: React.FC = () => {
                 className="h-9 w-80 rounded-full border border-[#e8edf5] bg-[#f9fafc] pl-9 pr-3 text-[12px] text-slate-700 placeholder:text-slate-400 outline-none transition focus:border-blue-300 focus:bg-white focus:ring-2 focus:ring-blue-100"
               />
             </div>
-            <button className="h-9 px-3.5 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition flex items-center gap-1.5">
-              Last 24h <ChevronDown size={12} strokeWidth={1.75} />
-            </button>
+            <DateRangePicker value={dateRange} onChange={setDateRange} />
+
             <label className="flex items-center gap-2 rounded-full border border-[#e8edf5] bg-white px-3 h-9">
               <span className="text-[12px] font-medium text-slate-600">AI Assistance</span>
               <button
@@ -315,6 +376,19 @@ const AlarmCenterPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Honest backend status banner — never lie about the data source */}
+      {alarmsLoading && alarms.length === 0 && (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-2.5 text-[12px] font-medium text-blue-700">
+          Chargement des alarmes depuis le backend…
+        </div>
+      )}
+      {alarmsError && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-2.5 text-[12px] font-medium text-amber-800">
+          ⚠ Connexion au backend des alarmes impossible — {alarmsError}.
+          {alarmsError.includes('401') && ' Connectez-vous en tant qu\'admin pour voir les alarmes.'}
+        </div>
+      )}
 
       {/* KPI CARDS */}
       <div className={`grid gap-3 ${aiOn ? "grid-cols-9" : "grid-cols-8"}`}>
@@ -651,14 +725,14 @@ const AlarmCenterPage: React.FC = () => {
                 <Field label="Technology" value={selected.tech} />
                 <Field label="Last Occurrence" value={selected.lastOccurrence} />
                 <Field label="Probable Cause" value={selected.probableCause} />
-                <Field label="Impacted Users" value={selected.impactedUsers.toLocaleString()} />
+                <Field label="Impacted Users" value={(selected.impactedUsers ?? 0).toLocaleString()} />
                 <div className="col-span-2"><Field label="Specific Problem" value={selected.specificProblem} /></div>
               </div>
 
               <div className="mt-4 pt-4 border-t border-[#eef2f8]">
                 <div className="text-[10px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-2">Impacted KPIs</div>
                 <div className="flex flex-wrap gap-1.5">
-                  {selected.kpis.map((k) => <span key={k} className="rounded-md bg-blue-50 text-blue-600 ring-1 ring-blue-100 px-2 py-0.5 text-[10px] font-semibold">{k}</span>)}
+                  {(selected.kpis ?? []).map((k) => <span key={k} className="rounded-md bg-blue-50 text-blue-600 ring-1 ring-blue-100 px-2 py-0.5 text-[10px] font-semibold">{k}</span>)}
                   <span className="rounded-md bg-blue-50 text-blue-600 ring-1 ring-blue-100 px-2 py-0.5 text-[10px] font-semibold">THROUGHPUT</span>
                   <span className="rounded-md bg-blue-50 text-blue-600 ring-1 ring-blue-100 px-2 py-0.5 text-[10px] font-semibold">ACCESSIBILITY</span>
                 </div>
@@ -949,6 +1023,101 @@ const SitesMiniMap: React.FC<{
       <div className="absolute top-2 right-2 z-[400] rounded-md bg-white/95 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700 shadow-sm">
         {sites.length} impacted sites
       </div>
+    </div>
+  );
+};
+
+// ───────────────────────────────────────────────────────────────────
+// DateRangePicker — compact preset dropdown + custom range pair.
+// Drives /api/v1/alarms?date_from=&date_to=. 4 presets cover the
+// real DB window (2026-05-03 → today, ~1.8k alarms over 10 days).
+// ───────────────────────────────────────────────────────────────────
+const DateRangePicker: React.FC<{
+  value:    { from: string; to: string; preset: string };
+  onChange: (v: { from: string; to: string; preset: string }) => void;
+}> = ({ value, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  const ymd = (d: Date) => d.toISOString().slice(0, 10);
+  const today = ymd(new Date());
+
+  const presets: Array<{ id: string; label: string; from: () => string }> = [
+    { id: '24h',   label: 'Last 24h',         from: () => ymd(new Date(Date.now() - 24 * 3600 * 1000)) },
+    { id: '7d',    label: 'Last 7 days',      from: () => ymd(new Date(Date.now() - 7 * 24 * 3600 * 1000)) },
+    { id: '30d',   label: 'Last 30 days',     from: () => ymd(new Date(Date.now() - 30 * 24 * 3600 * 1000)) },
+    { id: 'peak',  label: 'Pic 8–9 May 2026', from: () => '2026-05-08' },
+    { id: 'all',   label: 'All time',         from: () => '2026-05-01' },
+  ];
+
+  const apply = (id: string) => {
+    if (id === 'peak') {
+      onChange({ from: '2026-05-08', to: '2026-05-09', preset: 'peak' });
+    } else {
+      const from = presets.find(p => p.id === id)!.from();
+      onChange({ from, to: today, preset: id });
+    }
+    setOpen(false);
+  };
+
+  const currentLabel = presets.find(p => p.id === value.preset)?.label
+                       ?? `${value.from} → ${value.to}`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="h-9 px-3.5 rounded-full border border-[#e8edf5] bg-white text-[12px] font-medium text-slate-600 hover:bg-slate-50 transition flex items-center gap-1.5"
+      >
+        {currentLabel}
+        <ChevronDown size={12} strokeWidth={1.75} className={open ? 'rotate-180 transition-transform' : 'transition-transform'} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+          {presets.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => apply(p.id)}
+              className={`flex w-full items-center justify-between rounded-md px-2.5 py-2 text-[12px] text-left transition ${
+                value.preset === p.id
+                  ? 'bg-blue-50 font-semibold text-blue-700'
+                  : 'text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <span>{p.label}</span>
+              {value.preset === p.id && <Check size={12} className="text-blue-600" />}
+            </button>
+          ))}
+          <div className="my-1 border-t border-slate-100" />
+          <div className="grid grid-cols-2 gap-1 p-1">
+            <input
+              type="date"
+              value={value.from}
+              onChange={e => onChange({ ...value, from: e.target.value, preset: 'custom' })}
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700"
+            />
+            <input
+              type="date"
+              value={value.to}
+              onChange={e => onChange({ ...value, to: e.target.value, preset: 'custom' })}
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-700"
+            />
+          </div>
+          <p className="px-2.5 pb-1 pt-0.5 text-[10px] text-slate-400">
+            DB window : 2026-05-03 → today (≈ 1 833 alarmes)
+          </p>
+        </div>
+      )}
     </div>
   );
 };
