@@ -499,7 +499,7 @@ const ChangeHistoryPage: React.FC = () => {
                   ))}
                 </div>
               </div>
-              <TimelineChart />
+              <TimelineChart rows={ROWS} />
             </div>
 
             <div className={`${CARD} overflow-hidden`}>
