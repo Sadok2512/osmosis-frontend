@@ -47,6 +47,8 @@ interface Alarm {
   lastOccurrence: string;
   impactedUsers: number;
   aiScore: number;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const ALARM_NAMES: { name: string; type: AlarmType; cause: string; specific: string; kpis: string[] }[] = [
@@ -172,6 +174,8 @@ const AlarmCenterPage: React.FC = () => {
         lastOccurrence:   a.startTime,
         impactedUsers:    0,
         aiScore:          0,
+        latitude:         a.latitude,
+        longitude:        a.longitude,
       } as Alarm));
       setAlarms(mapped);
       setAlarmsError(null);
@@ -297,19 +301,28 @@ const AlarmCenterPage: React.FC = () => {
     setChecked(n);
   };
 
-  const topSites = useMemo(() => {
-    const map = new Map<string, { region: string; count: number; critical: number }>();
-    alarms.forEach((a) => {
-      const cur = map.get(a.site) || { region: a.region, count: 0, critical: 0 };
+  // Per-site aggregation, driven by the *filtered* alarm set so the map
+  // and the "Top Impacted Sites" table both react to the left-rail filters.
+  // Real lat/lng comes from the backend (LATERAL JOIN ref_cell_daily); sites
+  // missing geocoords get lat=null and are skipped by the map (no fake hash).
+  const sitesByFilter = useMemo(() => {
+    const map = new Map<string, { region: string; count: number; critical: number; lat: number | null; lng: number | null }>();
+    filtered.forEach((a) => {
+      const cur = map.get(a.site) || { region: a.region, count: 0, critical: 0, lat: a.latitude, lng: a.longitude };
       cur.count++;
       if (a.severity === "Critical") cur.critical++;
+      // First non-null coords win (some rows in the same site may be null)
+      if (cur.lat == null && a.latitude  != null) cur.lat = a.latitude;
+      if (cur.lng == null && a.longitude != null) cur.lng = a.longitude;
       map.set(a.site, cur);
     });
     return Array.from(map.entries())
       .map(([site, v]) => ({ site, ...v, score: (v.critical * 2 + v.count) / 10 }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
-  }, [alarms]);
+      .sort((a, b) => b.count - a.count);
+  }, [filtered]);
+
+  // Table keeps the top-5 view; the map uses the full filtered set.
+  const topSites = useMemo(() => sitesByFilter.slice(0, 5), [sitesByFilter]);
 
   return (
     <div
@@ -426,7 +439,9 @@ const AlarmCenterPage: React.FC = () => {
             <div className="flex items-center gap-2">
               <MapPin size={14} className="text-blue-600" strokeWidth={2} />
               <span className="text-[14px] font-semibold text-slate-900">Network Alarm Map</span>
-              <span className="text-[11px] text-slate-500 font-medium">— {topSites.length} impacted sites</span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                — {sitesByFilter.filter(s => s.lat != null && s.lng != null).length} / {sitesByFilter.length} sites located
+              </span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -446,7 +461,7 @@ const AlarmCenterPage: React.FC = () => {
             </div>
           </div>
           <div className={mapFullscreen ? "flex-1 min-h-0" : ""}>
-            <SitesMiniMap sites={topSites} fullscreen={mapFullscreen} />
+            <SitesMiniMap sites={sitesByFilter} fullscreen={mapFullscreen} />
           </div>
         </div>
       )}
@@ -974,18 +989,12 @@ const Donut: React.FC<{ counts: Record<Severity, number> }> = ({ counts }) => {
 };
 
 const SitesMiniMap: React.FC<{
-  sites: { site: string; region: string; count: number; critical: number; score: number }[];
+  sites: { site: string; region: string; count: number; critical: number; score: number; lat: number | null; lng: number | null }[];
   fullscreen?: boolean;
 }> = ({ sites, fullscreen = false }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerRef = useRef<L.LayerGroup | null>(null);
-
-  const hash = (s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
-  };
 
   // Init map once
   useEffect(() => {
@@ -1027,10 +1036,10 @@ const SitesMiniMap: React.FC<{
     layerRef.current.clearLayers();
     const points: L.LatLng[] = [];
     sites.forEach((s) => {
-      const h = hash(s.site);
-      // Deterministic point inside metropolitan France bounding box
-      const lat = 43.2 + ((h % 1000) / 1000) * 7.5; // 43.2 .. 50.7
-      const lng = -3.5 + (((h >> 10) % 1000) / 1000) * 11.5; // -3.5 .. 8.0
+      // Honest geo: skip sites without real coords (no hash-based fake).
+      if (s.lat == null || s.lng == null) return;
+      const lat = s.lat;
+      const lng = s.lng;
       const color = s.critical >= 4 ? "#f43f5e" : s.critical >= 2 ? "#f97316" : "#fbbf24";
       const r = 10 + Math.min(10, s.score * 1.5);
       const icon = L.divIcon({
@@ -1065,7 +1074,7 @@ const SitesMiniMap: React.FC<{
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-400" /> Low</span>
       </div>
       <div className="absolute top-2 right-2 z-[400] rounded-md bg-white/95 backdrop-blur px-2 py-1 ring-1 ring-[#e7edf5] text-[10px] font-semibold text-slate-700 shadow-sm">
-        {sites.length} impacted sites
+        {sites.filter(s => s.lat != null && s.lng != null).length} / {sites.length} sites located
       </div>
     </div>
   );

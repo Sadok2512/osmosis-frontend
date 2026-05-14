@@ -38,6 +38,8 @@ export interface BackendAlarm {
   acked_by:         string | null;
   cancelled_by:     string | null;
   generation_time:  string | null;
+  latitude:         number | null;
+  longitude:        number | null;
 }
 
 // ── UI shape (matches the existing AlarmCenterPage Alarm interface) ─
@@ -62,6 +64,8 @@ export interface UiAlarm {
   alarmId:           string;
   ackedBy:           string;
   ackedAt:           string;
+  latitude:          number | null;
+  longitude:         number | null;
 }
 
 // ── Filters / pagination ──────────────────────────────────────────
@@ -135,6 +139,8 @@ export function toUiAlarm(a: BackendAlarm): UiAlarm {
     alarmId:          a.alarm_id || '—',
     ackedBy:          a.acked_by || '',
     ackedAt:          a.ack_time || '',
+    latitude:         a.latitude  ?? null,
+    longitude:        a.longitude ?? null,
   };
 }
 
