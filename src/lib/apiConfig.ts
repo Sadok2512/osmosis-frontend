@@ -43,13 +43,16 @@ export const VPS_ENDPOINTS = {
   // under that prefix, not at root.
   agent:   isOnAppDomain ? '/agent-api' : `${CF_PARSER}/api/v1/agent`,
   // ml-engine extracted from parser on 2026-05-10. On-VPS calls go
-  // through the spa-proxy at /ml-api/* → :11002. Off-domain has no
-  // tunnel yet — callers should expect empty string when CF_ML is unset.
-  ml:      isOnAppDomain ? '/ml-api' : CF_ML,
+  // through the spa-proxy at /ml-api/* → :11002. When no CF tunnel is
+  // configured (CF_ML empty), fall back to same-origin /ml-api so
+  // internal/dev hostnames (back100.local, 192.168.*, port forwards…)
+  // still hit the proxy instead of falling through to the SPA index.html
+  // and surfacing as "GET /profiles returned non-JSON" in ODCC.
+  ml:      isOnAppDomain || !CF_ML ? '/ml-api' : CF_ML,
   // agentic-engine — closed-loop orchestration over the 6 OSMOSIS agents.
-  // Phase 1 (2026-05-12): auto-RCA from ML anomalies. On-VPS calls go
-  // through /agentic-api/* → :11003. Off-domain has no tunnel yet.
-  agentic: isOnAppDomain ? '/agentic-api' : CF_ML,
+  // Phase 1 (2026-05-12): auto-RCA from ML anomalies. Same fallback
+  // logic as ml — empty CF tunnel → same-origin /agentic-api proxy.
+  agentic: isOnAppDomain || !CF_ML ? '/agentic-api' : CF_ML,
 } as const;
 
 // Local Express server retired 2026-05-08 (was osmosis-frontend/server,
