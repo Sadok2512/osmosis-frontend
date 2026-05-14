@@ -11523,7 +11523,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                       return (
                         <button
                           key={band}
-                          disabled={!inScope && !active}
                           onClick={() => {
                             setEnabledBands(prev => {
                               const next = new Set(prev);
@@ -11537,10 +11536,10 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                               ? 'text-primary-foreground shadow-sm'
                               : inScope
                                 ? 'bg-muted/60 text-muted-foreground/60 hover:text-foreground hover:bg-muted'
-                                : 'bg-muted/60 text-muted-foreground/30 cursor-not-allowed opacity-50'
+                                : 'bg-muted/60 text-muted-foreground/40 hover:text-foreground hover:bg-muted opacity-70'
                           }`}
                           style={active ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
-                          title={inScope ? band : `${band} — aucun secteur dans la zone`}
+                          title={inScope ? band : `${band} — aucun secteur dans la zone (cliquable)`}
                         >
                           {band}
                         </button>
@@ -11603,7 +11602,6 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                         return (
                           <button
                             key={band}
-                            disabled={!inScope && !active}
                             onClick={() => {
                               setEnabledBands(prev => {
                                 const next = new Set(prev);
@@ -11617,7 +11615,7 @@ const SitesMonitor: React.FC<SitesMonitorProps> = ({ filters, onFilterChange, on
                                 ? 'text-primary-foreground shadow-sm'
                                 : inScope
                                   ? 'bg-muted/60 text-muted-foreground/60 hover:text-foreground hover:bg-muted'
-                                  : 'bg-muted/60 text-muted-foreground/30 cursor-not-allowed opacity-50'
+                                  : 'bg-muted/60 text-muted-foreground/40 hover:text-foreground hover:bg-muted opacity-70'
                             }`}
                             style={active ? { backgroundColor: DEFAULT_BAND_COLORS[band] || 'hsl(var(--primary))' } : {}}
                             title={inScope ? band : `${band} — aucun secteur dans la zone`}
