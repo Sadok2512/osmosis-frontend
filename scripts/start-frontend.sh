@@ -8,6 +8,17 @@
 # See server/spa-proxy.js for full route table.
 
 set -u
+
+# Refuse to run as root. Bug seen 2026-05-14: collaborator's remote SSH
+# session (uid=0) spawned spa-proxy as root → port :3000 became unkillable
+# without sudo, blocking every subsequent rebuild for any non-root user.
+# Always run this script as devmat (`su - devmat` first if needed).
+if [ "$(id -u)" -eq 0 ]; then
+  echo "ERR: do not run as root — spawns an unkillable :3000 listener." >&2
+  echo "     Switch user first:  su - devmat -c 'bash $0'" >&2
+  exit 2
+fi
+
 PROJ="/home/devmat/bmad-project/qoebit-frontend"
 LOG="/tmp/spa-proxy.log"
 LOCK="/tmp/spa-proxy-start.lock"
