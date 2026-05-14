@@ -317,6 +317,7 @@ const ChangeHistoryPage: React.FC = () => {
   const [checkedRows, setCheckedRows] = useState<Set<string>>(new Set([ROWS[0].id]));
   const [showMap, setShowMap] = useState(false);
   const [mapFullscreen, setMapFullscreen] = useState(false);
+  const [paramFullscreen, setParamFullscreen] = useState(false);
 
   const toggleRow = (id: string) => {
     setCheckedRows((prev) => {
