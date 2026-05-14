@@ -1640,7 +1640,19 @@ const DashboardSettingsPanel: React.FC<DashboardSettingsPanelProps> = ({ setting
                           className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-primary/10 text-[10px] font-semibold text-primary border border-primary/20"
                         >
                           <span className="opacity-70 uppercase tracking-wider text-[8px]">{labelFor(key)}</span>
-                          <span>{Array.isArray(vals) ? vals!.join(', ') : vals}</span>
+                          <span>{(() => {
+                            const stringify = (v: any): string => {
+                              if (v == null) return '';
+                              if (Array.isArray(v)) return v.map(stringify).filter(Boolean).join(', ');
+                              if (typeof v === 'object') {
+                                return Object.entries(v)
+                                  .filter(([, vv]) => vv != null && (Array.isArray(vv) ? vv.length > 0 : true))
+                                  .map(([k, vv]) => `${k}=${stringify(vv)}`).join(', ');
+                              }
+                              return String(v);
+                            };
+                            return stringify(vals);
+                          })()}</span>
                         </span>
                       ))}
                     </div>
