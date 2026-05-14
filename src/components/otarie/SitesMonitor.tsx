@@ -3234,7 +3234,8 @@ const DashboardInventoryTab: React.FC<DashboardInventoryTabProps> = ({ onApplyVi
                 )}
                 {/* Operational summary — Stats + Applied filters + Add view */}
                 {isExpanded && (() => {
-                  const stats = getDashboardStats?.(db.id) || null;
+                   const dbFiltersForStats = extractSiteFilters(db);
+                   const stats = getDashboardStats?.(db.id, dbFiltersForStats) || null;
                   const dbFilters = extractSiteFilters(db);
                   const filterEntries = dbFilters
                     ? Object.entries(dbFilters).filter(([, v]) => v && (Array.isArray(v) ? v.length > 0 : !!v))
